@@ -8,7 +8,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
-type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null };
+type Handler = { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null; ccEditable?: boolean };
 
 export type SolicitorSelection = {
   firmId: string;
@@ -18,6 +18,9 @@ export type SolicitorSelection = {
   phone: string | null;
   email: string | null;
   secondaryEmail?: string | null;
+  // False when the solicitor has set their own CC (gospel) — the agent can't
+  // override it, so the picker shows it read-only. Undefined/true = agency-editable.
+  ccEditable?: boolean;
   // Set when a memo turned up a solicitor we could NOT auto-save because the
   // direct line or email was missing. The firm is resolved (firmId is real) but
   // no handler exists yet — the picker shows an inline "finish adding" prompt
@@ -153,7 +156,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
 
   function selectHandler(h: Handler) {
     if (!value) return;
-    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, pendingHandler: null });
+    onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, ccEditable: h.ccEditable ?? true, pendingHandler: null });
   }
 
   // A solicitor the memo turned up without a full phone/email. Held pending so
@@ -189,7 +192,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       }
       const h: Handler = await res.json();
       setHandlers((hs) => [...hs, h]);
-      onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, pendingHandler: null });
+      onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, ccEditable: h.ccEditable ?? true, pendingHandler: null });
     } finally {
       setPendSaving(false);
     }
@@ -464,30 +467,45 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
                   <label className="block text-[11px] font-semibold text-slate-900/45">
                     Assistant email <span className="font-normal text-slate-900/35">optional, cc&apos;d on all emails</span>
                   </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={assistantDraft}
-                      onChange={(e) => { setAssistantDraft(e.target.value); setAssistantError(null); setAssistantSaved(false); }}
-                      placeholder="assistant@firm.co.uk"
-                      className="glass-input agent-focus flex-1 px-3 py-2 text-sm"
-                    />
-                    {assistantDirty && (
-                      <button
-                        type="button"
-                        onClick={saveAssistant}
-                        disabled={assistantSaving}
-                        className="agent-btn agent-btn-xs agent-btn-primary disabled:opacity-50"
-                        style={{ flexShrink: 0 }}
-                      >
-                        {assistantSaving ? "Saving…" : "Save"}
-                      </button>
-                    )}
-                    {!assistantDirty && assistantSaved && (
-                      <span className="text-[11px] font-medium text-emerald-600" style={{ flexShrink: 0 }}>Saved</span>
-                    )}
-                  </div>
-                  {assistantError && <p className="agent-helper-error">{assistantError}</p>}
+                  {value.ccEditable === false ? (
+                    // The solicitor has set their own CC (gospel) — it applies for
+                    // every agency and can't be overridden here, so show it read-only.
+                    <>
+                      <input
+                        readOnly
+                        value={value.secondaryEmail ?? ""}
+                        className="w-full px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]"
+                      />
+                      <p className="text-[11px] text-slate-900/40">Set by the solicitor, so it can&apos;t be changed here.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={assistantDraft}
+                          onChange={(e) => { setAssistantDraft(e.target.value); setAssistantError(null); setAssistantSaved(false); }}
+                          placeholder="assistant@firm.co.uk"
+                          className="glass-input agent-focus flex-1 px-3 py-2 text-sm"
+                        />
+                        {assistantDirty && (
+                          <button
+                            type="button"
+                            onClick={saveAssistant}
+                            disabled={assistantSaving}
+                            className="agent-btn agent-btn-xs agent-btn-primary disabled:opacity-50"
+                            style={{ flexShrink: 0 }}
+                          >
+                            {assistantSaving ? "Saving…" : "Save"}
+                          </button>
+                        )}
+                        {!assistantDirty && assistantSaved && (
+                          <span className="text-[11px] font-medium text-emerald-600" style={{ flexShrink: 0 }}>Saved</span>
+                        )}
+                      </div>
+                      {assistantError && <p className="agent-helper-error">{assistantError}</p>}
+                    </>
+                  )}
                 </div>
               </>
             )}

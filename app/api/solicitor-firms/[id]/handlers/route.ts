@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { titleCase, validateHandlerContact } from "@/lib/utils";
-import { setAgencySolicitorCc, resolveSolicitorCc } from "@/lib/services/solicitor-cc";
+import { setAgencySolicitorCc, getSolicitorCcForEditing } from "@/lib/services/solicitor-cc";
 
 // GET /api/solicitor-firms/[id]/handlers
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,11 +24,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   // Return the EFFECTIVE CC for the caller's agency (solicitor gospel → this
-  // agency's override → none) so the picker shows what will actually be used,
-  // not the raw shared column. (Fix 1.)
+  // agency's override → none) plus whether the agent may edit it. ccEditable is
+  // false when the solicitor's own value is gospel — the picker shows it
+  // read-only in that case. (Fix 1.)
   const agencyId = session.user.agencyId;
   const withCc = await Promise.all(
-    handlers.map(async (h) => ({ ...h, secondaryEmail: await resolveSolicitorCc(h, agencyId) })),
+    handlers.map(async (h) => {
+      const cc = await getSolicitorCcForEditing(h, agencyId);
+      return { ...h, secondaryEmail: cc.value, ccEditable: cc.editable };
+    }),
   );
 
   return NextResponse.json(withCc);
