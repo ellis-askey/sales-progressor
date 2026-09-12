@@ -33,19 +33,29 @@ export type StripeIssuer = (input: {
   lines: { description: string; amountPence: number }[];
 }) => Promise<{ stripeInvoiceId: string }>;
 
-const realStripeIssuer: StripeIssuer = async ({ customerId, agencyId, monthStart, lines }) => {
+export const realStripeIssuer: StripeIssuer = async ({ customerId, agencyId, monthStart, lines }) => {
   const stripe = getStripeClient();
+
+  // Deterministic Stripe idempotency keys per (agency, month) — P0-2. If the
+  // cron crashes/times out between charging (auto_advance finalises + collects
+  // immediately) and persisting our stripeInvoiceId, the next run re-enters here.
+  // Without keys, invoiceItems.create would create a SECOND set of items and
+  // invoices.create would create a SECOND auto-charging invoice → the customer is
+  // charged twice. With these keys Stripe replays the ORIGINAL responses (for 24h,
+  // well beyond the monthly cron's retry window), so a retry is exactly-once.
+  const keyBase = `issue:${agencyId}:${monthStart.toISOString()}`;
 
   // One InvoiceItem per line — attached to the customer, not yet on an invoice.
   // The subsequent invoice.create({ customer }) sweeps all pending items.
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     await stripe.invoiceItems.create({
       customer: customerId,
       amount: line.amountPence,
       currency: "gbp",
       description: line.description,
       metadata: { agencyId, monthStart: monthStart.toISOString() },
-    });
+    }, { idempotencyKey: `${keyBase}:item:${i}` });
   }
 
   // collection_method=charge_automatically uses the default payment method.
@@ -55,7 +65,7 @@ const realStripeIssuer: StripeIssuer = async ({ customerId, agencyId, monthStart
     collection_method: "charge_automatically",
     auto_advance: true,
     metadata: { agencyId, monthStart: monthStart.toISOString() },
-  });
+  }, { idempotencyKey: `${keyBase}:invoice` });
 
   return { stripeInvoiceId: invoice.id! };
 };
@@ -70,6 +80,7 @@ export async function issuePriorMonthInvoices(now: Date = new Date(), issuer: St
   invoicesSkippedNoCustomer: number;
   invoicesSkippedNoLines: number;
   invoicesSkippedAlreadyIssued: number;
+  invoicesFailed: number;
 }> {
   // Closed prior month = the London month preceding the current one.
   // billingMonthStart(now) gives the current month's start; subtract a day,
@@ -93,48 +104,63 @@ export async function issuePriorMonthInvoices(now: Date = new Date(), issuer: St
   let invoicesSkippedNoCustomer = 0;
   let invoicesSkippedNoLines = 0;
   let invoicesSkippedAlreadyIssued = 0;
+  let invoicesFailed = 0;
 
   for (const inv of buildingInvoices) {
-    if (inv.stripeInvoiceId) {
-      invoicesSkippedAlreadyIssued++;
-      continue;
-    }
-    if (!inv.agency.stripeCustomerId) {
-      // No card on file — can't bill. Leave as building; agency must add a card.
-      // PR 7 doesn't dunning-email these yet; deferred to a later pass.
-      invoicesSkippedNoCustomer++;
-      continue;
-    }
-    // Check the NET total (sum of positive fees and any negative credits).
-    // If net <= 0 (e.g. credits cancelled all fees, or only credits), there's
-    // nothing to charge — mark issued without a Stripe call so we don't loop.
-    // Any surplus credit is already applied (PR 5's accrual marks it) and
-    // doesn't carry forward as a new credit — that prevents double-credit.
-    const netTotal = inv.lines.reduce((s, l) => s + l.totalPence, 0);
-    if (netTotal <= 0) {
+    // Per-invoice isolation (P0-2). Previously a single agency's Stripe or DB
+    // error threw out of the whole loop, leaving every LATER agency un-issued for
+    // the month. Each invoice now fails independently; a failed one stays
+    // "building" (stripeInvoiceId null) so the next run retries it — and the
+    // issuer's deterministic idempotency keys make that retry exactly-once.
+    try {
+      if (inv.stripeInvoiceId) {
+        invoicesSkippedAlreadyIssued++;
+        continue;
+      }
+      if (!inv.agency.stripeCustomerId) {
+        // No card on file — can't bill. Leave as building; agency must add a card.
+        // PR 7 doesn't dunning-email these yet; deferred to a later pass.
+        invoicesSkippedNoCustomer++;
+        continue;
+      }
+      // Check the NET total (sum of positive fees and any negative credits).
+      // If net <= 0 (e.g. credits cancelled all fees, or only credits), there's
+      // nothing to charge — mark issued without a Stripe call so we don't loop.
+      // Any surplus credit is already applied (PR 5's accrual marks it) and
+      // doesn't carry forward as a new credit — that prevents double-credit.
+      const netTotal = inv.lines.reduce((s, l) => s + l.totalPence, 0);
+      if (netTotal <= 0) {
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: { status: "issued", issuedAt: new Date() },
+        });
+        invoicesSkippedNoLines++;
+        continue;
+      }
+
+      // Send ALL lines to Stripe (positive fees + any negative credits) so the
+      // customer sees the breakdown on their Stripe invoice. Stripe supports
+      // negative-amount InvoiceItems for credits.
+      const { stripeInvoiceId } = await issuer({
+        customerId: inv.agency.stripeCustomerId,
+        agencyId: inv.agencyId,
+        monthStart: priorMonthStart,
+        lines: inv.lines.map((l) => ({ description: l.description, amountPence: l.totalPence })),
+      });
+
       await prisma.invoice.update({
         where: { id: inv.id },
-        data: { status: "issued", issuedAt: new Date() },
+        data: { status: "issued", issuedAt: new Date(), stripeInvoiceId },
       });
-      invoicesSkippedNoLines++;
+      invoicesIssued++;
+    } catch (err) {
+      console.error(
+        `[issuePriorMonthInvoices] failed to issue invoice ${inv.id} (agency ${inv.agencyId}) — leaving building for retry:`,
+        err,
+      );
+      invoicesFailed++;
       continue;
     }
-
-    // Send ALL lines to Stripe (positive fees + any negative credits) so the
-    // customer sees the breakdown on their Stripe invoice. Stripe supports
-    // negative-amount InvoiceItems for credits.
-    const { stripeInvoiceId } = await issuer({
-      customerId: inv.agency.stripeCustomerId,
-      agencyId: inv.agencyId,
-      monthStart: priorMonthStart,
-      lines: inv.lines.map((l) => ({ description: l.description, amountPence: l.totalPence })),
-    });
-
-    await prisma.invoice.update({
-      where: { id: inv.id },
-      data: { status: "issued", issuedAt: new Date(), stripeInvoiceId },
-    });
-    invoicesIssued++;
   }
 
   return {
@@ -143,5 +169,6 @@ export async function issuePriorMonthInvoices(now: Date = new Date(), issuer: St
     invoicesSkippedNoCustomer,
     invoicesSkippedNoLines,
     invoicesSkippedAlreadyIssued,
+    invoicesFailed,
   };
 }
