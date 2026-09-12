@@ -1825,6 +1825,23 @@ export async function markNotRequired(
     },
   });
 
+  // Cancel any active ClientChaseState for this milestone (audit P2/B1). Mirrors
+  // completeMilestone: marking a step Not Required resolves it, so the client
+  // chase must stop too. Without this the client-escalation pass
+  // (findEscalationCandidates) later escalates the still-active chase and hands
+  // the agent a spurious "client silent for 14 days" task for a step that is
+  // already resolved.
+  if (def?.code) {
+    try {
+      await prisma.clientChaseState.updateMany({
+        where: { transactionId, milestoneCode: def.code, status: "active" },
+        data: { status: "cancelled", statusReason: "Milestone marked not required" },
+      });
+    } catch (err) {
+      console.error("[markNotRequired] cancel ClientChaseState failed:", err);
+    }
+  }
+
   // Re-evaluate reminders synchronously so any active reminder log whose
   // target milestone is this one gets deactivated immediately (its target
   // is now "not_required" — the engine's target-state check at

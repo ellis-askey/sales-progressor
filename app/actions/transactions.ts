@@ -2792,6 +2792,14 @@ export async function relistTransactionImpl(
         // matching the expectedExchangeDate reset above. (Resilience audit II.1.)
         twelveWeekTarget: forecastExpected,
         completionDate: null,
+        // Clear the manual exchange-date override (audit P2/B2). overridePredictedDate
+        // belonged to the PREVIOUS buyer; the portal reads it in preference to
+        // expectedExchangeDate, so leaving it set would show the new buyer the old
+        // buyer's manual target instead of the fresh relist+12wk forecast. Cleared
+        // alongside the other forecast resets. (Relist resets forecasts directly and
+        // is not prediction-history-captured — consistent with expectedExchangeDate
+        // above, which is also reset here without a history row.)
+        overridePredictedDate: null,
         purchasePrice: updatedPrice,
         // Closed-loop chain arc (2026-06-05): the new buyer's purchaseType
         // is the same value used to compute auto-NR codes above. Writing it
