@@ -1604,6 +1604,18 @@ model OutboundMessage {
   providerMessageId   String?
   providerWebhookData Json?
 
+  // Email threading / reply-linkage metadata (Data Optionality capture-now).
+  // Capture-only: NO product surface reads these yet. Null on all historic rows
+  // and on non-email methods. Inbound values are read from Microsoft Graph
+  // (conversationId / internetMessageId / In-Reply-To / References). Outbound
+  // internetMessageId is the deterministic RFC Message-ID we stamp on send.
+  // No uniqueness: conversationId repeats across a thread and internetMessageId
+  // is shared across folder-copies of the same logical message.
+  conversationId    String?
+  internetMessageId String?
+  inReplyTo         String?
+  emailReferences   String?
+
   // WhatsApp sender display name, resolved at ingest (contact name, else agent
   // name, else the formatted number). Rendered on the timeline so the row shows
   // who sent it rather than "System". Null for non-WhatsApp rows.
@@ -1644,6 +1656,9 @@ model OutboundMessage {
   @@index([sentAt])
   @@index([importBatchId])
   @@index([buyerRoundId])
+  @@index([transactionId, conversationId])
+  @@index([internetMessageId])
+  @@index([inReplyTo])
 }
 
 enum CommType {

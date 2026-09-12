@@ -331,6 +331,12 @@ async function logMessage(
       recipientEmail: msg.from,
       ccEmails: msg.cc.length ? msg.cc.join(", ") : null,
       providerMessageId: msg.id,
+      // Threading metadata (capture-only; no consumer reads it yet). Null when
+      // Graph omits the field. Does not affect dedup above.
+      conversationId: msg.conversationId,
+      internetMessageId: msg.internetMessageId,
+      inReplyTo: msg.inReplyTo,
+      emailReferences: msg.references,
       providerWebhookData: {
         source: "outlook",
         folder: msg.folder,

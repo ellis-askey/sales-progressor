@@ -177,6 +177,11 @@ export type OutlookMessage = {
   body: string; // full body as plain text
   webLink: string | null;
   folder: string; // display name of the folder the message lives in
+  // Threading metadata (capture-only; no consumer yet). Null when Graph omits them.
+  conversationId: string | null;
+  internetMessageId: string | null;
+  inReplyTo: string | null;
+  references: string | null;
 };
 
 export type MailFolder = { id: string; displayName: string; totalItemCount: number };
@@ -211,7 +216,7 @@ export async function listMailFolders(accessToken: string): Promise<MailFolder[]
 const addr = (r?: GraphRecipient | null): string | null =>
   r?.emailAddress?.address ? String(r.emailAddress.address) : null;
 
-function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMessage {
+export function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMessage {
   return {
     id: m.id,
     subject: m.subject ?? "",
@@ -224,6 +229,10 @@ function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMessage {
     body: m.body?.content ?? "",
     webLink: m.webLink ?? null,
     folder,
+    conversationId: m.conversationId ?? null,
+    internetMessageId: m.internetMessageId ?? null,
+    inReplyTo: headerValue(m.internetMessageHeaders, "In-Reply-To"),
+    references: headerValue(m.internetMessageHeaders, "References"),
   };
 }
 
@@ -242,7 +251,7 @@ export async function fetchFolderMessagesSince(
   );
   first.searchParams.set(
     "$select",
-    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink"
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders"
   );
   first.searchParams.set("$top", "50");
   first.searchParams.set("$filter", `receivedDateTime ge ${sinceIso}`);
@@ -275,7 +284,7 @@ export async function fetchMessageById(accessToken: string, id: string): Promise
   const url = new URL(`https://graph.microsoft.com/v1.0/me/messages/${id}`);
   url.searchParams.set(
     "$select",
-    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink"
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders"
   );
   const res = await fetch(url.toString(), {
     headers: {
@@ -289,7 +298,8 @@ export async function fetchMessageById(accessToken: string, id: string): Promise
 }
 
 type GraphRecipient = { emailAddress?: { address?: string | null; name?: string | null } | null };
-type GraphMessageRaw = {
+type GraphHeader = { name?: string | null; value?: string | null };
+export type GraphMessageRaw = {
   id: string;
   subject?: string | null;
   from?: GraphRecipient | null;
@@ -299,7 +309,23 @@ type GraphMessageRaw = {
   bodyPreview?: string | null;
   body?: { contentType?: string; content?: string } | null;
   webLink?: string | null;
+  // Threading metadata (Data Optionality capture). conversationId + internetMessageId
+  // are direct Graph properties; In-Reply-To / References live in internetMessageHeaders
+  // (only returned when explicitly $select-ed).
+  conversationId?: string | null;
+  internetMessageId?: string | null;
+  internetMessageHeaders?: GraphHeader[] | null;
 };
+
+/** Case-insensitive lookup of an RFC822 header value from Graph's internetMessageHeaders. */
+function headerValue(headers: GraphHeader[] | null | undefined, name: string): string | null {
+  if (!headers) return null;
+  const target = name.toLowerCase();
+  for (const h of headers) {
+    if ((h.name ?? "").toLowerCase() === target && h.value) return String(h.value);
+  }
+  return null;
+}
 
 export type GraphIdentity = {
   id: string;
