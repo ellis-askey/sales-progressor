@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveSolicitorCc } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { FOLLOWUP_STEPS, type FollowupSide } from "./step-responsibility";
 import { buildFollowupDraft, buildRequestUpdateDraft, type FollowupTone } from "./followup-copy";
@@ -87,8 +88,9 @@ export async function getFollowupNudge(args: {
     select: {
       status: true,
       followupNudgesDisabled: true,
-      vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
-      purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
+      agencyId: true,
+      vendorSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
+      purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
     },
   });
   if (!tx || tx.followupNudgesDisabled || tx.status !== "active") return null;
@@ -100,7 +102,7 @@ export async function getFollowupNudge(args: {
   const { from: agencyCc } = await resolveAgencySenderForTransaction(transactionId).catch(() => ({ from: null as string | null }));
   // CC the agency (so replies land back on the file) plus the solicitor's
   // assistant/secretary when one's on file.
-  const assistantCc = sol.secondaryEmail?.trim() || null;
+  const assistantCc = await resolveSolicitorCc(sol, tx.agencyId);
   const ccEmail = [agencyCc, assistantCc].filter(Boolean).join(",") || null;
 
   // "I" vs "we" by how many clients are on this side; the other side's solicitor

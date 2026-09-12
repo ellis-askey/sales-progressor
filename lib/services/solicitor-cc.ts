@@ -36,11 +36,29 @@ export async function resolveSolicitorCc(
   const gospel = clean(handler.secondaryEmail);
   if (gospel) return gospel;
   if (!agencyId) return null;
-  const override = await prisma.solicitorContactAgencyOverride.findUnique({
-    where: { agencyId_solicitorContactId: { agencyId, solicitorContactId: handler.id } },
-    select: { secondaryEmail: true },
-  });
-  return clean(override?.secondaryEmail);
+  try {
+    const override = await prisma.solicitorContactAgencyOverride.findUnique({
+      where: { agencyId_solicitorContactId: { agencyId, solicitorContactId: handler.id } },
+      select: { secondaryEmail: true },
+    });
+    return clean(override?.secondaryEmail);
+  } catch (err) {
+    // Forward-compatible safety: if the override table is not present yet (the
+    // migration applies on deploy, and a local dev DB may run this code first),
+    // degrade to "no override" — identical to today's behaviour — rather than
+    // throwing on a live send path. Any other error still surfaces.
+    if ((err as { code?: string })?.code === "P2021") return null;
+    throw err;
+  }
+}
+
+/** CC-array form for `cc:` on a send. Precedence via resolveSolicitorCc. */
+export async function solicitorCcForAgency(
+  handler: { id: string; secondaryEmail: string | null } | null | undefined,
+  agencyId: string | null | undefined,
+): Promise<string[] | undefined> {
+  const cc = await resolveSolicitorCc(handler, agencyId);
+  return cc ? [cc] : undefined;
 }
 
 /**
@@ -56,11 +74,16 @@ export async function getSolicitorCcForEditing(
   const gospel = clean(handler.secondaryEmail);
   if (gospel) return { source: "solicitor", value: gospel, editable: false };
   if (!agencyId) return { source: "none", value: null, editable: false };
-  const override = await prisma.solicitorContactAgencyOverride.findUnique({
-    where: { agencyId_solicitorContactId: { agencyId, solicitorContactId: handler.id } },
-    select: { secondaryEmail: true },
-  });
-  return { source: "agency", value: clean(override?.secondaryEmail), editable: true };
+  try {
+    const override = await prisma.solicitorContactAgencyOverride.findUnique({
+      where: { agencyId_solicitorContactId: { agencyId, solicitorContactId: handler.id } },
+      select: { secondaryEmail: true },
+    });
+    return { source: "agency", value: clean(override?.secondaryEmail), editable: true };
+  } catch (err) {
+    if ((err as { code?: string })?.code === "P2021") return { source: "agency", value: null, editable: true };
+    throw err;
+  }
 }
 
 /**

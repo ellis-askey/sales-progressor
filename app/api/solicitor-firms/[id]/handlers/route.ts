@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { titleCase, validateHandlerContact } from "@/lib/utils";
+import { setAgencySolicitorCc, resolveSolicitorCc } from "@/lib/services/solicitor-cc";
 
 // GET /api/solicitor-firms/[id]/handlers
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
   });
 
-  return NextResponse.json(handlers);
+  // Return the EFFECTIVE CC for the caller's agency (solicitor gospel → this
+  // agency's override → none) so the picker shows what will actually be used,
+  // not the raw shared column. (Fix 1.)
+  const agencyId = session.user.agencyId;
+  const withCc = await Promise.all(
+    handlers.map(async (h) => ({ ...h, secondaryEmail: await resolveSolicitorCc(h, agencyId) })),
+  );
+
+  return NextResponse.json(withCc);
 }
 
 // POST /api/solicitor-firms/[id]/handlers  — add handler to existing firm
@@ -40,15 +49,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const firm = await prisma.solicitorFirm.findUnique({ where: { id } });
   if (!firm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Per-agency CC (Fix 1): the handler row itself no longer carries the
+  // agency-entered CC. The solicitor's own secondaryEmail (set in their portal)
+  // is the gospel field and starts empty; any CC the agency enters here is stored
+  // as THIS agency's private override, so it never leaks to other agencies.
   const handler = await prisma.solicitorContact.create({
     data: {
       firmId: id,
       name: titleCase(name.trim()),
       phone: phone?.trim() || null,
       email: email?.trim().toLowerCase() || null,
-      secondaryEmail: secondaryEmail?.trim().toLowerCase() || null,
     },
   });
 
-  return NextResponse.json(handler, { status: 201 });
+  const cc = secondaryEmail?.trim().toLowerCase() || null;
+  const agencyId = session.user.agencyId;
+  if (cc && agencyId) {
+    await setAgencySolicitorCc({ id: handler.id, secondaryEmail: null }, agencyId, cc).catch(() => {});
+  }
+
+  return NextResponse.json({ ...handler, secondaryEmail: agencyId ? cc : null }, { status: 201 });
 }

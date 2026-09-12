@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
-import { sendChainEmail, solicitorCc, buildOutboundMessageId } from "@/lib/email";
+import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
+import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
@@ -454,7 +455,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const outboundMessageId = agentId
     ? buildOutboundMessageId(`sol-${tx.id}-${side}-${now.getTime()}`)
     : undefined;
-  await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
+  await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
 
   // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
   // stamped opened/responded when the solicitor uses their /s/ link (opens via

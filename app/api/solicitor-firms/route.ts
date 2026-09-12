@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validateHandlerContact } from "@/lib/utils";
+import { setAgencySolicitorCc } from "@/lib/services/solicitor-cc";
 
 // GET /api/solicitor-firms?q=smith  — typeahead search
 export async function GET(req: NextRequest) {
@@ -58,16 +59,24 @@ export async function POST(req: NextRequest) {
           (h) => h.name.toLowerCase().trim() === handler.name.toLowerCase().trim()
         );
         if (!existingHandler) {
+          // Per-agency CC (Fix 1): store the agency-entered CC as this agency's
+          // private override, not on the shared handler row.
           const newHandler = await prisma.solicitorContact.create({
             data: {
               firmId: existing.id,
               name: handler.name.trim(),
               phone: handler.phone?.trim() || null,
               email: handler.email?.trim() || null,
-              secondaryEmail: handler.secondaryEmail?.trim().toLowerCase() || null,
             },
           });
-          return NextResponse.json({ ...existing, handlers: [...existing.handlers, newHandler] });
+          const cc = handler.secondaryEmail?.trim().toLowerCase() || null;
+          if (cc && session.user.agencyId) {
+            await setAgencySolicitorCc({ id: newHandler.id, secondaryEmail: null }, session.user.agencyId, cc).catch(() => {});
+          }
+          return NextResponse.json({
+            ...existing,
+            handlers: [...existing.handlers, { ...newHandler, secondaryEmail: session.user.agencyId ? cc : null }],
+          });
         }
       }
       return NextResponse.json(existing);
@@ -84,7 +93,6 @@ export async function POST(req: NextRequest) {
                   name: handler.name.trim(),
                   phone: handler.phone?.trim() || null,
                   email: handler.email?.trim() || null,
-                  secondaryEmail: handler.secondaryEmail?.trim().toLowerCase() || null,
                 },
               },
             }
@@ -92,6 +100,12 @@ export async function POST(req: NextRequest) {
       },
       include: { handlers: true },
     });
+    // Per-agency CC (Fix 1): route the agency-entered CC to this agency's override.
+    const cc = handler?.secondaryEmail?.trim().toLowerCase() || null;
+    if (cc && session.user.agencyId && firm.handlers[0]) {
+      await setAgencySolicitorCc({ id: firm.handlers[0].id, secondaryEmail: null }, session.user.agencyId, cc).catch(() => {});
+      firm.handlers[0].secondaryEmail = cc;
+    }
     return NextResponse.json(firm, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create";

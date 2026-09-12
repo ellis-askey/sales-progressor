@@ -4,6 +4,7 @@ import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
+import { resolveSolicitorCc } from "@/lib/services/solicitor-cc";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
@@ -539,9 +540,10 @@ export async function getPortalTeam(
         agentUser:    { select: { id: true, name: true, email: true, image: true, role: true } },
         vendorSolicitorFirm:    { select: { name: true } },
         purchaserSolicitorFirm: { select: { name: true } },
-        vendorSolicitorContact:    { select: { email: true, secondaryEmail: true } },
-        purchaserSolicitorContact: { select: { email: true, secondaryEmail: true } },
+        vendorSolicitorContact:    { select: { id: true, email: true, secondaryEmail: true } },
+        purchaserSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
         agency: { select: { quoteSenderEmail: true } },
+        agencyId: true,
         contacts: { where: { roleType: side }, select: { name: true } },
         purchaseType: true,
         purchaserBrokerReferral: true,
@@ -602,7 +604,7 @@ export async function getPortalTeam(
       // CC the agency (so replies land back on the file) and the solicitor's
       // assistant/secretary when one's on file.
       const agencyCc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
-      const assistant = solicitorContact?.secondaryEmail?.trim();
+      const assistant = await resolveSolicitorCc(solicitorContact, tx.agencyId);
       const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
       const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");

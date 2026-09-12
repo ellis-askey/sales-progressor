@@ -18,7 +18,8 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, solicitorCc, buildOutboundMessageId } from "@/lib/email";
+import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
+import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { addWorkingDays } from "@/lib/emails/working-hours";
@@ -101,11 +102,11 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           assignedUserId: true,
           agentUserId: true,
           agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
-          vendorSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
+          vendorSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
           vendorSolicitorEmailsPausedUntil: true,
-          purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
+          purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           purchaserSolicitorEmailsPausedUntil: true,
@@ -216,7 +217,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       `enq-${tx.id}-${seller ? "v" : "p"}-${now.getTime()}`,
     );
     try {
-      await sendChainEmail({ to: email, cc: solicitorCc(solicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo, messageId: outboundMessageId });
+      await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo, messageId: outboundMessageId });
       await prisma.enquiryTracker.update({
         where: { id: t.id },
         data: { lastChasedAt: now, chaseCount: { increment: 1 } },

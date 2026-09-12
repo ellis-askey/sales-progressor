@@ -11,7 +11,8 @@
 // replyable per-agency / EXP sender. Gated OFF until the switch is flipped.
 
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, solicitorCc } from "@/lib/email";
+import { sendChainEmail } from "@/lib/email";
+import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
@@ -57,7 +58,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           agentUserId: true,
           activeBuyerRoundId: true,
           agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
-          purchaserSolicitorContact: { select: { email: true, name: true, secondaryEmail: true } },
+          purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
@@ -227,7 +228,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             agentSignatureHtml: agentSig?.html ?? null,
             agentSignatureText: agentSig?.text ?? null,
           });
-          await sendChainEmail({ to: email, cc: solicitorCc(tx.purchaserSolicitorContact), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+          await sendChainEmail({ to: email, cc: await solicitorCcForAgency(tx.purchaserSolicitorContact, tx.agencyId), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
           await logEnquiryChaseComm({
             transactionId: tx.id,

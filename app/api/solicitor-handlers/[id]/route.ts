@@ -1,13 +1,18 @@
 // PATCH /api/solicitor-handlers/[id]
-// Update a solicitor case handler's assistant/secretary email (the address
-// CC'd on comms to that handler). Lets an existing handler already on files
-// gain an assistant without re-creating them. Send an empty string to clear.
+// Set the caller AGENCY's own assistant/secretary CC for a solicitor handler.
+//
+// Per-agency model (Fix 1): the CC an agency sets here is stored as that agency's
+// OWN override (SolicitorContactAgencyOverride), private to them — it never
+// changes another agency's CC, which closes the old shared-directory cross-agency
+// issue by construction. The solicitor's own value (set in their portal) is
+// gospel: when present it is used for every agency and this route refuses to let
+// an agency override it. Send an empty string to clear the agency's override.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
+import { setAgencySolicitorCc, resolveSolicitorCc, SOLICITOR_CC_GOSPEL_SET } from "@/lib/services/solicitor-cc";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,42 +28,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "That email address doesn't look right" }, { status: 400 });
   }
 
-  const existing = await prisma.solicitorContact.findUnique({ where: { id }, select: { id: true } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  // Multi-tenant safety (Law 7). SolicitorContact is a shared GLOBAL directory row
-  // with no agencyId, and secondaryEmail is CC'd on every email we send this handler
-  // across every file they're on. A caller must therefore not be able to edit a
-  // handler that only appears on OTHER agencies' files. Authority rule: the handler
-  // must be on a transaction within the caller's access scope — OR not yet attached
-  // to any transaction at all (the create-handler-then-set-assistant flow in
-  // SolicitorPicker, before the file is saved). Internal staff (scope "all") are
-  // unrestricted. Returns 404 (not 403) so a cross-agency caller can't confirm the
-  // handler exists.
-  const scope = getAccessScope(session);
-  if (scope.kind !== "all") {
-    const onHandlerWhere = {
-      OR: [{ vendorSolicitorContactId: id }, { purchaserSolicitorContactId: id }],
-    };
-    const inScopeCount = await prisma.propertyTransaction.count({
-      where: { ...scopeTransactionWhere(scope), ...onHandlerWhere },
-    });
-    if (inScopeCount === 0) {
-      const anyCount = await prisma.propertyTransaction.count({ where: onHandlerWhere });
-      if (anyCount > 0) {
-        // Handler is used only by files outside the caller's scope.
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-      // anyCount === 0 → brand-new, unattached handler. Safe to edit (not yet
-      // CC'ing anyone and not discoverable via another agency's file).
-    }
-  }
-
-  const handler = await prisma.solicitorContact.update({
+  const handler = await prisma.solicitorContact.findUnique({
     where: { id },
-    data: { secondaryEmail: trimmed || null },
     select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
   });
+  if (!handler) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(handler);
+  // The per-agency override belongs to a specific agency. Only agency users
+  // (director / negotiator) set it; internal staff have no agency to attach it to.
+  const agencyId = session.user.agencyId;
+  if (!agencyId) {
+    return NextResponse.json(
+      { error: "Only your agency's own team can set the assistant email here." },
+      { status: 403 },
+    );
+  }
+
+  try {
+    await setAgencySolicitorCc(handler, agencyId, trimmed || null);
+  } catch (err) {
+    if (err instanceof Error && err.message === SOLICITOR_CC_GOSPEL_SET) {
+      return NextResponse.json(
+        { error: "The solicitor has set this assistant email themselves, so it can't be changed here." },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
+
+  // Return the effective CC (the agency's override, since gospel was absent) so
+  // the picker reflects what will actually be used.
+  const effective = await resolveSolicitorCc(handler, agencyId);
+  return NextResponse.json({
+    id: handler.id,
+    name: handler.name,
+    phone: handler.phone,
+    email: handler.email,
+    secondaryEmail: effective,
+  });
 }
