@@ -955,6 +955,13 @@ export async function portalCompleteMilestone(input: {
   if (!current || (current.state !== "available" && current.state !== "complete")) {
     throw new Error("Milestone not yet available for confirmation");
   }
+  // Idempotency (P1-6): if the step is ALREADY complete, a double-tap / network
+  // retry / re-submit must NOT re-run the completion cascade and re-fire the
+  // client email fan-out. Treat it as a graceful no-op. (The first confirm did
+  // all the work; the row is already complete.)
+  if (current.state === "complete") {
+    return;
+  }
 
   // Resolve bilateral counterpart before opening the transaction (read-only lookup).
   const BILATERAL_PAIRS: Record<string, string> = {

@@ -219,6 +219,17 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
 
     const recipientEmail = rows[0].recipientEmail;
 
+    // Atomic claim (P1-6): flip sentAt null→now for the whole group in a single
+    // conditional write BEFORE sending. Only the run that wins the claim sends;
+    // an overlapping cron run or the "Send now" button that races it matches 0
+    // rows and skips — so the recipient can't receive the same confirmation
+    // twice. On send failure the catch releases the claim (sentAt→null).
+    const claim = await prisma.outboundEmailQueue.updateMany({
+      where: { id: { in: rows.map((r) => r.id) }, sentAt: null, errorAt: null },
+      data: { sentAt: now },
+    });
+    if (claim.count === 0) continue; // lost the race — another drain owns this group
+
     try {
       if (decision.mode === "single") {
         const senderTxId = transactionIdFromSourceId(decision.row.sourceId);
@@ -233,10 +244,7 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           queueId: decision.row.id,
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
-        await prisma.outboundEmailQueue.update({
-          where: { id: decision.row.id },
-          data: { sentAt: now },
-        });
+        // sentAt was already set by the atomic claim before the send.
         // Write the comms-log entry now that the email has actually been
         // handed to SendGrid. The activity feed shows the real body that
         // the recipient received (single-event matrix copy).
@@ -267,10 +275,7 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           queueId: decision.rows.map((r) => r.id).join(","),
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
-        await prisma.outboundEmailQueue.updateMany({
-          where: { id: { in: decision.rows.map((r) => r.id) } },
-          data: { sentAt: now },
-        });
+        // sentAt was already set by the atomic claim before the send.
         // Activity feed gets the digest body — one row per recipient
         // contact, matching exactly what landed in their inbox.
         const txId = transactionIdFromSourceId(decision.rows[0].sourceId);
@@ -286,9 +291,11 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "send error";
+      // Release the claim (sentAt → null) and record the error, so a failed send
+      // is never left marked as sent.
       await prisma.outboundEmailQueue.updateMany({
         where: { id: { in: rows.map((r) => r.id) } },
-        data: { errorAt: now, errorMessage: message },
+        data: { sentAt: null, errorAt: now, errorMessage: message },
       });
       failed += rows.length;
     }
@@ -380,6 +387,15 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
     }
 
     const recipientEmail = rows[0].recipientEmail;
+
+    // Atomic claim (P1-6): see drainMilestoneDigests. Wins the group or skips, so
+    // "Send now" can't double-send a group the cron is already draining.
+    const claim = await prisma.outboundEmailQueue.updateMany({
+      where: { id: { in: rows.map((r) => r.id) }, sentAt: null, errorAt: null },
+      data: { sentAt: now },
+    });
+    if (claim.count === 0) continue; // lost the race — another drain owns this group
+
     try {
       if (decision.mode === "single") {
         const senderTxId = transactionIdFromSourceId(decision.row.sourceId);
@@ -394,10 +410,7 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
           queueId: decision.row.id,
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
-        await prisma.outboundEmailQueue.update({
-          where: { id: decision.row.id },
-          data: { sentAt: now },
-        });
+        // sentAt was already set by the atomic claim before the send.
         const txId = transactionIdFromSourceId(decision.row.sourceId);
         if (txId) {
           await logAutomatedEmail(txId, [contactId], decision.payload.subject, decision.payload.text).catch(() => {});
@@ -416,10 +429,7 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
           queueId: decision.rows.map((r) => r.id).join(","),
           emailType: "MILESTONE_CONFIRMATION", // audit #17 analytics tag
         });
-        await prisma.outboundEmailQueue.updateMany({
-          where: { id: { in: decision.rows.map((r) => r.id) } },
-          data: { sentAt: now },
-        });
+        // sentAt was already set by the atomic claim before the send.
         const txId = transactionIdFromSourceId(decision.rows[0].sourceId);
         if (txId) {
           await logAutomatedEmail(txId, [contactId], decision.assembled.subject, decision.assembled.text).catch(() => {});
@@ -428,9 +438,11 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "send error";
+      // Release the claim (sentAt → null) and record the error, so a failed send
+      // is never left marked as sent.
       await prisma.outboundEmailQueue.updateMany({
         where: { id: { in: rows.map((r) => r.id) } },
-        data: { errorAt: now, errorMessage: message },
+        data: { sentAt: null, errorAt: now, errorMessage: message },
       });
     }
   }
