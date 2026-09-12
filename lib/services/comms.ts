@@ -1377,6 +1377,10 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
 <p><a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">You're receiving this because you have a ${saleWord} in progress with ${agency}.</p>
 </body></html>`,
-    }).catch(() => {});
+      // P1-5: surface a failed send instead of swallowing it silently. This path
+      // doesn't write a "sent" comms row (the visible update itself is recorded by
+      // the caller), so there's nothing to falsely mark sent — but a send failure
+      // must still be observable in the logs rather than disappearing.
+    }).catch((err) => console.error(`[comms] visible-update client email failed tx=${transactionId} to=${c.email}`, err));
   }
 }

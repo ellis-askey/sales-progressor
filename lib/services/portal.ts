@@ -156,6 +156,32 @@ export type PortalUpdate = {
   method: string | null;
 };
 
+// Send a client email, returning whether it ACTUALLY went out (audit P1-5).
+// Before this, synchronous client sends used `sendEmail(...).catch(() => {})` and
+// then recorded a "sent" comms row unconditionally, so a SendGrid rejection (or a
+// malformed address) was shown in the activity feed / "last contacted" as a
+// successful send. This helper awaits the send and, on failure, logs to the
+// console (observable via Vercel logs / Sentry) and returns false — callers MUST
+// only write the logAutomatedEmail / sideLog record when this returns true.
+// Exported for regression testing of the send-truthfulness guarantee.
+export async function trySendClientEmail(
+  args: Parameters<typeof sendEmail>[0],
+  ctx?: { transactionId?: string; subject?: string },
+): Promise<boolean> {
+  try {
+    await sendEmail(args);
+    return true;
+  } catch (err) {
+    console.error(
+      `[portal] client email send failed` +
+        (ctx?.transactionId ? ` tx=${ctx.transactionId}` : "") +
+        (ctx?.subject ? ` subject="${ctx.subject}"` : ""),
+      err,
+    );
+    return false;
+  }
+}
+
 export async function logAutomatedEmail(
   transactionId: string,
   contactIds: string[],
@@ -1488,7 +1514,8 @@ export async function logPortalMilestoneConfirm(
       const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
-      sendEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }).catch(() => {});
+      const sent = await trySendClientEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }, { transactionId, subject });
+      if (!sent) continue; // don't record a "sent" row for a failed send
       const existing = sideLog.get(recipientKey);
       if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
     }
@@ -1522,7 +1549,7 @@ export async function logPortalMilestoneConfirm(
         ``,
         `View your portal: ${portalUrl}`,
       ].join("\n");
-      sendEmail({
+      const confirmSent = await trySendClientEmail({
         to: confirmingContact.email,
         subject: confirmSubject,
         text: confirmText,
@@ -1537,8 +1564,10 @@ export async function logPortalMilestoneConfirm(
           logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
           theme: agencyTheme,
         }),
-      }).catch(() => {});
-      logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
+      }, { transactionId, subject: confirmSubject });
+      if (confirmSent) {
+        logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
+      }
     }
 
     const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
@@ -1569,7 +1598,7 @@ export async function logPortalMilestoneConfirm(
         ``,
         `View your portal: ${portalUrl}`,
       ].join("\n");
-      sendEmail({
+      const otherSent = await trySendClientEmail({
         to: other.email!,
         subject: `Progress update: ${address}`,
         text: otherText,
@@ -1582,8 +1611,8 @@ export async function logPortalMilestoneConfirm(
           ctaUrl: portalUrl,
           theme: agencyTheme,
         }),
-      }).catch(() => {});
-      otherIds.push(other.id);
+      }, { transactionId, subject: `Progress update: ${address}` });
+      if (otherSent) otherIds.push(other.id);
     }
     if (otherIds.length > 0) {
       logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, otherUpdateText).catch(() => {});
@@ -1766,7 +1795,8 @@ export async function sendAdminMilestoneNotificationToPortal(
     if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
 
-    sendEmail({ to: c.email, subject, text: lines.join("\n"), html, from: agencyEmailFrom, replyTo }).catch(() => {});
+    const sent = await trySendClientEmail({ to: c.email, subject, text: lines.join("\n"), html, from: agencyEmailFrom, replyTo }, { transactionId, subject });
+    if (!sent) continue; // don't record a "sent" row for a failed send
 
     // Track per-role for activity log (first contact per role provides the representative body)
     const roleKey = c.roleType === "vendor" ? "vendor" : "purchaser";
@@ -2494,7 +2524,8 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   let vendorPlainForLog = "";
   for (const c of ctx.vendors) {
     const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme });
-    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
+    const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
+    if (!sent) continue; // don't record a "sent" row for a failed send
     vendorIds.push(c.id);
     if (!vendorPlainForLog) vendorPlainForLog = body.text;
   }
@@ -2506,7 +2537,8 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   let purchaserPlainForLog = "";
   for (const c of ctx.purchasers) {
     const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme });
-    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }).catch(() => {});
+    const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
+    if (!sent) continue; // don't record a "sent" row for a failed send
     purchaserIds.push(c.id);
     if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
   }
