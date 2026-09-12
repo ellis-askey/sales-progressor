@@ -1037,6 +1037,29 @@ export async function completeMilestone(
     }
   }
 
+  // Exchange-gate enforcement (audit P1-7). VM18/PM25 have NO DIRECT_PREREQUISITES
+  // entry, so the generic prereq guard above never covers them — the gate's only
+  // protection is the locked→available state that maybeUnlockExchangeGate maintains
+  // (it opens the gate only once every same-side blocksExchange milestone is
+  // complete or not-required). The agent action + API route never checked that
+  // state, so a crafted request could complete a LOCKED gate and skip required
+  // legal steps. Enforce it here at the single chokepoint, for EVERY caller.
+  // bypassPrereqs does not reach here for a gate code (it is only used for the
+  // internal PM20→VM21 reflection), so the gate can't be bypassed that way either.
+  if (EXCHANGE_GATE_CODES.has(def.code)) {
+    const gateRow = await db.milestoneCompletion.findFirst({
+      where: {
+        transactionId: input.transactionId,
+        milestoneDefinitionId: input.milestoneDefinitionId,
+        ...milestoneScopeWhere(scope),
+      },
+      select: { state: true },
+    });
+    if (!gateRow || gateRow.state === "locked") {
+      throw Object.assign(new Error("EXCHANGE_GATE_LOCKED"), { targetCode: def.code });
+    }
+  }
+
   // Solicitor confirms get their own summary voice. The seeded
   // summaryTemplates are written from the AGENT-confirm perspective
   // ("{agent} received confirmation from {solicitor} that…", "{agent}
@@ -1909,6 +1932,34 @@ export async function markNotRequiredWithCascade(input: {
     where: { id: input.milestoneDefinitionId },
     select: { code: true },
   });
+  if (!def?.code) throw new Error("Milestone not found");
+
+  // Manual Not-Required enforcement (audit P1-7). Mirror the allow-list the agent
+  // UI relies on (components/milestones/MilestoneRow.tsx): PM9 and PM24 may be
+  // manually marked Not Required on any file, plus PM8 on a cash file (a cash
+  // buyer needs no searches). A crafted request must not NR any other milestone —
+  // that would inflate progress and, for an exchange blocker, open the gate. This
+  // enforces the UI's product rule (the authoritative "what an agent can do
+  // today"); the seed's canBeMarkedNr enum and MILESTONES_SPEC disagree on
+  // PM8/PM24, but reconciling those is a separate product decision and is
+  // deliberately NOT changed here. Cascade targets (NR_CASCADE) are a permitted
+  // consequence of a valid primary NR, so they are not gated.
+  const NR_MANUAL_ALLOWED_BASE = new Set(["PM9", "PM24"]);
+  const NR_MANUAL_ALLOWED_CASH = new Set(["PM8"]);
+  const effectivePurchaseType =
+    input.purchaseType ??
+    (await prisma.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { purchaseType: true },
+    }))?.purchaseType ??
+    null;
+  const isCashFile =
+    effectivePurchaseType === "cash_buyer" || effectivePurchaseType === "cash_from_proceeds";
+  const manualNrAllowed =
+    NR_MANUAL_ALLOWED_BASE.has(def.code) || (isCashFile && NR_MANUAL_ALLOWED_CASH.has(def.code));
+  if (!manualNrAllowed) {
+    throw Object.assign(new Error("NOT_REQUIRED_NOT_ALLOWED"), { targetCode: def.code });
+  }
 
   if (def?.code && NR_CASCADE[def.code]) {
     const cascadeCodes = NR_CASCADE[def.code];
