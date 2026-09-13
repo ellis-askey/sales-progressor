@@ -68,14 +68,14 @@ No new third-party service or secret is required for this. Optional only.
 
 ## Prospect outreach — set up the new sending domain `salesprogressorapp.co.uk` (2026-09-09)
 
-Prospect outreach is moving off your main domain onto the new domain you bought (`salesprogressorapp.co.uk`). This firewalls your main mail reputation: if cold outreach ever gets marked as spam, it can't drag down your client/solicitor mail. Emails will send from **`ellis@salesprogressorapp.co.uk`**. Replies keep coming back through the existing smart address (`reply.thesalesprogressor.co.uk`) so the flow can auto-detect replies. Nothing sends from the new domain until you finish these steps AND we flip the env var, so there's no rush-risk: the code safely falls back to the current address until then.
+Prospect outreach is moving off your main domain onto the new domain you bought (`salesprogressorapp.co.uk`). This firewalls your main mail reputation: if cold outreach ever gets marked as spam, it can't drag down your client/solicitor mail. Emails will send from **`ellis@salesprogressorapp.co.uk`**. Replies come back through a smart address on the same isolated domain (`reply.salesprogressorapp.co.uk`) so the flow can auto-detect replies. Reply routing is kept entirely off the operational `thesalesprogressor.co.uk` domain. Nothing sends from the new domain until you finish these steps AND we flip the env var.
 
 - [ ] **Authenticate the domain in SendGrid.** SendGrid → Settings → Sender Authentication → **Authenticate Your Domain** → enter `salesprogressorapp.co.uk`. It generates ~3 CNAME records.
 - [ ] **Add those CNAME records in GoDaddy.** GoDaddy → your `salesprogressorapp.co.uk` domain → DNS → add each CNAME exactly as SendGrid shows (name + value). Then back in SendGrid click **Verify**. DNS usually validates within minutes; can take up to ~48h.
 - [ ] **Tell me when it's verified** and I'll set `PROSPECT_FROM_EMAIL=ellis@salesprogressorapp.co.uk` in Vercel (production). That one env var flips every prospect email over — no code change, no deploy risk. To undo, just remove the var.
 - [ ] **Make `ellis@salesprogressorapp.co.uk` a real or forwarded mailbox you can read.** Replies come back through the smart address, but a bounce or the occasional "reply to sender" can hit the from-address directly; without a mailbox there, those vanish.
 - [ ] **Recommended for deliverability — add a DMARC record.** In GoDaddy DNS add a TXT record: host `_dmarc`, value `v=DMARC1; p=none; rua=mailto:ellis@salesprogressorapp.co.uk`. Start at `p=none` (monitor only); tighten later.
-- [ ] **Depends on the existing reply setup being live.** Reply auto-detection (which stops the flow when a prospect replies) relies on SendGrid Inbound Parse for `reply.thesalesprogressor.co.uk` — the unchecked item in the "email + reply tracking setup (2026-08-29)" section below. If that isn't done yet, replies still land in your inbox but won't auto-stop the flow.
+- [ ] **Depends on the reply setup being live.** Reply auto-detection (which stops the flow when a prospect replies) relies on SendGrid Inbound Parse for `reply.salesprogressorapp.co.uk` — the unchecked item in the "email + reply tracking setup (2026-08-29)" section below. If that isn't done yet, replies still land in your inbox but won't auto-stop the flow.
 - The **`.com`** you also bought needs nothing now. Keep it as a protective backup; we can point it at the marketing site later if you want.
 
 ---
@@ -109,7 +109,7 @@ The "Research" button on a prospect researches the agency from the web (Claude +
 ## Prospects — daily follow-up reminder + outreach subdomain (2026-08-29)
 
 - **Daily reminder is live** (cron `prospect-followup-digest`, 07:30 weekdays). It emails you when prospect follow-ups are due to be actioned, and stays silent on empty days. Uses the existing `CRON_SECRET` (no new setup). Change the recipient with env `PROSPECT_DIGEST_TO` if you ever want it somewhere other than ellis@thesalesprogressor.co.uk.
-- **Protecting your main domain (do before real cold volume, not urgent at test scale):** cold outreach currently sends from `ellis@thesalesprogressor.co.uk` — your *root* domain, the same one your client/solicitor mail uses. `reply.thesalesprogressor.co.uk` does NOT protect this: it only *receives* replies, it has nothing to do with sending reputation. To firewall your main mail, authenticate a dedicated sending subdomain in SendGrid (e.g. `outreach.thesalesprogressor.co.uk` — Sender Authentication → Authenticate a Domain, add the CNAME/DKIM records it gives you), then set env `PROSPECT_FROM_EMAIL=ellis@outreach.thesalesprogressor.co.uk`. That's a one-line env change on our side once your DNS is done; no code change.
+- **Protecting your main domain (superseded — now handled by the dedicated `salesprogressorapp.co.uk` domain above):** cold outreach is being isolated onto `salesprogressorapp.co.uk` (send from `ellis@salesprogressorapp.co.uk`, replies via `reply.salesprogressorapp.co.uk`) so it can never affect your operational `thesalesprogressor.co.uk` mail reputation. Note that the reply subdomain only *receives* replies — it has nothing to do with sending reputation; the sending protection comes from authenticating `salesprogressorapp.co.uk` in SendGrid. See the `salesprogressorapp.co.uk` setup section above.
 
 ## Prospects — email + reply tracking setup (2026-08-29)
 
@@ -118,10 +118,10 @@ Phase 3 of the Command Centre → Prospects feature can send outreach from you a
 - [ ] **Send me your signature image** so I can place it at `public/prospect-signature.png` (served at `https://portal.thesalesprogressor.co.uk/prospect-signature.png`, which the email footer references). That's the "last bit" I'll implement once you send it. (Or set env `PROSPECT_SIGNATURE_URL` to a hosted image.)
 - [ ] **Confirm `ellis@thesalesprogressor.co.uk` is a verified SendGrid sender** (you said it's set up — just confirming it can send via the API).
 - [ ] **Enable "click" on the SendGrid Event Webhook** (the one at `/api/webhooks/sendgrid-bounce`). "Opened" was added for client chase; add **Clicked** too so prospect click-tracking lands. Delivered/bounce already on.
-- [ ] **Set up SendGrid Inbound Parse for replies:**
-  - Add an MX record for a subdomain, e.g. `reply.thesalesprogressor.co.uk` → `mx.sendgrid.net` (priority 10).
-  - SendGrid → Settings → Inbound Parse → Add Host & URL: host `reply.thesalesprogressor.co.uk`, destination URL `https://portal.thesalesprogressor.co.uk/api/webhooks/sendgrid-inbound`.
-  - If your reply subdomain differs, set env `PROSPECT_INBOUND_DOMAIN` to it. Replies route to `reply+<token>@<that domain>` and get matched to the prospect automatically.
+- [ ] **Set up SendGrid Inbound Parse for replies** (on the isolated outreach domain `salesprogressorapp.co.uk`):
+  - Add an MX record: host `reply` on `salesprogressorapp.co.uk` (→ `reply.salesprogressorapp.co.uk`) → `mx.sendgrid.net` (priority 10).
+  - SendGrid → Settings → Inbound Parse → Add Host & URL: host `reply.salesprogressorapp.co.uk`, destination URL `https://portal.thesalesprogressor.co.uk/api/webhooks/sendgrid-inbound` (raw MIME unchecked).
+  - Set env `PROSPECT_INBOUND_DOMAIN=reply.salesprogressorapp.co.uk` in Vercel. Replies route to `reply+<token>@<that domain>` and get matched to the prospect automatically.
 - [ ] **Privacy note (your call):** outreach emails carry an open/click tracking pixel + link rewriting. It's B2B and scoped to prospect outreach, but if your privacy policy needs a line, add it.
 - Migration `20260829210000_prospect_email` (the ProspectEmail table) applies via `prisma migrate deploy`, staging-first.
 - Staging note: prospect sends respect `EMAIL_SANDBOX_MODE` — on staging they validate but don't actually deliver, so you can test the flow safely.

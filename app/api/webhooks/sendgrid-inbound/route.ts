@@ -6,9 +6,11 @@
 // and log an "email_received" activity so it shows on the prospect timeline.
 //
 // Setup (Ellis, during the build): SendGrid → Settings → Inbound Parse → add the
-// host (e.g. reply.thesalesprogressor.co.uk) with the POST URL pointing here, and
-// set that subdomain's MX record to mx.sendgrid.net. The replyToken (32 hex
-// chars) is unguessable, which is the auth on this endpoint.
+// host (reply.salesprogressorapp.co.uk) with the POST URL pointing here, and set
+// that subdomain's MX record to mx.sendgrid.net. Prospect outreach is isolated on
+// salesprogressorapp.co.uk, kept off the operational thesalesprogressor.co.uk
+// domain. The replyToken (32 hex chars) is unguessable, which is the auth on this
+// endpoint.
 
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";

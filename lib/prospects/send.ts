@@ -6,10 +6,10 @@
 
 import { applyDevEmailRedirect } from "@/lib/email";
 
-const FROM_EMAIL = process.env.PROSPECT_FROM_EMAIL ?? "ellis@thesalesprogressor.co.uk";
+const FROM_EMAIL = process.env.PROSPECT_FROM_EMAIL ?? "ellis@salesprogressorapp.co.uk";
 const FROM_NAME = process.env.PROSPECT_FROM_NAME ?? "Ellis Askey";
 // Subdomain that MX-routes to SendGrid Inbound Parse (Ellis sets this up).
-const INBOUND_DOMAIN = process.env.PROSPECT_INBOUND_DOMAIN ?? "reply.thesalesprogressor.co.uk";
+const INBOUND_DOMAIN = process.env.PROSPECT_INBOUND_DOMAIN ?? "reply.salesprogressorapp.co.uk";
 // Public URL of Ellis's signature image (served from /public). Ellis provides
 // the asset; until then the img simply doesn't render, the email still sends.
 const SIGNATURE_URL = process.env.PROSPECT_SIGNATURE_URL ?? "https://portal.thesalesprogressor.co.uk/prospect-signature.png";
