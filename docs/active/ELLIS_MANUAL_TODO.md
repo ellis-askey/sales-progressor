@@ -78,6 +78,17 @@ Prospect outreach is moving off your main domain onto the new domain you bought 
 - [ ] **Depends on the reply setup being live.** Reply auto-detection (which stops the flow when a prospect replies) relies on SendGrid Inbound Parse for `reply.salesprogressorapp.co.uk` — the unchecked item in the "email + reply tracking setup (2026-08-29)" section below. If that isn't done yet, replies still land in your inbox but won't auto-stop the flow.
 - The **`.com`** you also bought needs nothing now. Keep it as a protective backup; we can point it at the marketing site later if you want.
 
+## AI Outreach growth engine — add OpenAI (new third-party integration) (2026-09-13)
+
+The AI outreach engine (Command Centre) uses TWO models with different jobs: Claude Opus is the strategist (uses the existing `ANTHROPIC_API_KEY`), and **OpenAI** is the adversarial reviewer that critiques the strategist. OpenAI is a **new third-party integration**, so it needs setup:
+
+- [ ] **Create an OpenAI API key** at https://platform.openai.com (API keys) and **enable billing** on the account (the key must have credit/quota).
+- [ ] **Add `OPENAI_API_KEY` to the LOCAL `.env` now** so the build/testing can run the reviewer. Server-side only; it is never exposed client-side.
+- [ ] **Later (only when we deploy):** add `OPENAI_API_KEY` to Vercel **staging** and **production** env. Not needed until we deploy the engine.
+- [ ] **Optional model overrides:** `OPENAI_REVIEWER_MODEL` (default `gpt-4.1`) and `OUTREACH_STRATEGIST_MODEL` (default `claude-opus-4-8`). **Confirm the exact OpenAI reviewer model** you want — the default is a placeholder.
+- [ ] **UK GDPR / DPA note:** the reviewer receives *aggregated* outreach performance context and the *generated campaign copy* (which can contain a prospect first name / agency name). OpenAI's API does not train on API data by default, but if your privacy policy or a DPA needs a line about a US sub-processor for outreach analysis, add it. No prospect email is ever sent to or by OpenAI — it only critiques text internally.
+- Nothing about this sends email or contacts a prospect. The reviewer's output is internal analysis only.
+
 ---
 
 ## Survey quote requests — set up `quotes@thesalesprogressor.co.uk` (2026-09-08)
