@@ -131,13 +131,13 @@ then: notify the requester (in-app + email "You're in — log in"), and bump the
 - One additive migration (`AgencyJoinRequest` + enum + back-relations). Applies on deploy (Vercel `migrate deploy`), same as the solicitor-CC table. No backfill.
 - Feature-flag the interception (`SIGNUP_JOIN_REQUESTS_ENABLED`, default off) so it can ship dark and be switched on deliberately — matches the house pattern (chase kill-switches).
 
-## 14. Open decisions for Ellis (settle these before build)
+## 14. Decisions — SETTLED (Ellis, 2026-09-13)
 
-- **D1 — email-password disclosure strictness:** B1 verify-first (recommended; adds email verification, closes the oracle) vs B2 reveal-on-match (instant signup, mild oracle, fine for MVP). OAuth is safe either way.
-- **D2 — default role on approval:** approve everyone as **negotiator** (recommended; promote later) vs let the director pick director/negotiator at approval.
-- **D3 — name the agency to the requester** on the pending/approval screens (friendlier) vs keep it generic (slightly less disclosure). For OAuth (proven mailbox) naming is safe; for B2 password, generic is safer.
-- **D4 — no-director fallback:** notify internal TSP staff (recommended) vs auto-expire to new-agency.
-- **D5 — expiry window:** 7 days (mirror invitations) OK?
+- **D1 — email-password:** **B2 instant / reveal-on-match.** No email verification, no added friction. Intercept at `/api/register`; on a verified-domain match create the pending request immediately and show a neutral "needs your administrator's approval". (Revisit verify-first before broad launch.)
+- **D2 — role on approval:** the director **chooses** director/negotiator at approval, **defaulted to the role the signer selected** at signup. So the request stores `requestedRole`, and the approve UI pre-selects it.
+- **D3 — name the agency** to the requester on the pending/approval screens (e.g. "your request to join Hartwell & Partners").
+- **D4 — no-director fallback:** email **support@thesalesprogressor.co.uk** so TSP handles it. The request still persists for any future director.
+- **D5 — expiry:** **7 days.**
 
 ## 15. Build phases (once decisions are in)
 

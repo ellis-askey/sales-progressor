@@ -3,6 +3,9 @@ import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
+import { resolveSignupDestination } from "@/lib/auth/signup-destination";
+import { createJoinRequest } from "@/lib/services/agency-join-requests";
+import type { UserRole } from "@prisma/client";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
@@ -46,6 +49,42 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hash(password, 12);
 
     const attribution = parseAttributionCookie(req.cookies.get(ATTRIBUTION_COOKIE)?.value);
+
+    // Fix 8: if this work email belongs to an agency that has verified its own
+    // domain, route it as a REQUEST TO JOIN that agency (pending a director's
+    // approval) instead of minting a duplicate agency. Gated by
+    // SIGNUP_JOIN_REQUESTS_ENABLED; a no-match / disabled falls through to the
+    // normal new-agency flow below.
+    const destination = await resolveSignupDestination(email);
+    if (destination.kind === "join_request") {
+      const requestedRole: UserRole = role === "director" ? "director" : "negotiator";
+      const user = await prisma.user.create({
+        data: {
+          name: toTitleCase(name),
+          email: email.toLowerCase().trim(),
+          password: hashedPassword,
+          role: "viewer", // stays a no-agency viewer until a director approves
+        },
+        select: { id: true },
+      });
+      await createJoinRequest({
+        requesterUserId: user.id,
+        requesterEmail: email,
+        requesterName: toTitleCase(name),
+        agencyId: destination.agencyId,
+        requestedRole,
+      });
+      console.log(`[AUDIT] join_request_created userId=${user.id} agencyId=${destination.agencyId}`);
+      void trackServerEvent(user.id, ANALYTICS_EVENTS.USER_SIGNED_UP, {
+        provider: "credentials",
+        agencyId: undefined,
+        source: attribution?.source ?? null,
+        marketing_distinct_id: attribution?.marketingDistinctId ?? null,
+      });
+      const res = NextResponse.json({ ok: true, id: user.id, pending: true }, { status: 201 });
+      res.cookies.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 });
+      return res;
+    }
 
     const { userId } = await createDirectorWithAgency({
       name: toTitleCase(name),

@@ -133,6 +133,10 @@ export default function RegisterPage() {
       return;
     }
 
+    // pending === true means the email matched an existing agency's verified
+    // domain, so this is a request to join awaiting a director's approval (Fix 8).
+    const data = await res.json().catch(() => ({}));
+
     const result = await signIn("credentials", {
       email: email.trim().toLowerCase(),
       password,
@@ -143,7 +147,7 @@ export default function RegisterPage() {
       // Full navigation (not router.push) so the pre-paint ThemeModeBoot script
       // runs on the agent app's first load — a client nav skips it and the shell
       // paints a frame with the wrong theme (the "weird nav" on first sign-up).
-      window.location.assign("/agent/hub");
+      window.location.assign(data.pending ? "/signup/pending" : "/agent/hub");
     } else {
       setLoading(false);
       setError("Account created but sign-in failed. Please go to sign in.");

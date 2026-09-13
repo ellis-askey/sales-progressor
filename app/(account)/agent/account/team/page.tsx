@@ -21,6 +21,8 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { TeamManagementPlain } from "@/components/account/v2/TeamManagementPlain";
+import { JoinRequestsPlain } from "@/components/account/v2/JoinRequestsPlain";
+import { listPendingJoinRequests } from "@/lib/services/agency-join-requests";
 import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain";
 import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
@@ -35,7 +37,7 @@ export default async function AccountTeamPage() {
 
   // ── Director branch ─────────────────────────────────────────────────
   if (role === "director") {
-    const [agency, pendingInvitations] = await Promise.all([
+    const [agency, pendingInvitations, joinRequests] = await Promise.all([
       prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
       prisma.negotiatorInvitation.findMany({
         where: { agencyId, cancelledAt: null, acceptedAt: null },
@@ -48,6 +50,7 @@ export default async function AccountTeamPage() {
         },
         orderBy: { createdAt: "desc" },
       }),
+      listPendingJoinRequests(agencyId),
     ]);
 
     return (
@@ -58,6 +61,17 @@ export default async function AccountTeamPage() {
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <AgencyNameForm initialName={agency?.name ?? ""} />
+          {joinRequests.length > 0 && (
+            <JoinRequestsPlain
+              requests={joinRequests.map((r) => ({
+                id: r.id,
+                requesterName: r.requesterName,
+                requesterEmail: r.requesterEmail,
+                requestedRole: r.requestedRole === "director" ? "director" : "negotiator",
+                createdAt: r.createdAt.toISOString(),
+              }))}
+            />
+          )}
           <TeamManagementPlain
             currentUserId={session.user.id}
             pendingInvitations={pendingInvitations.map((inv) => ({

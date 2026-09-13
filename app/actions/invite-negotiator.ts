@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { sendNegotiatorInvitationEmail } from "@/lib/email/negotiator-invitation";
+import { sendMoveInvitationEmail } from "@/lib/email/move-invitation";
+import { moveInvitesEnabled } from "@/lib/auth/move-invites";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,13 +45,33 @@ export async function inviteNegotiator(
     return { ok: false, error: "You can't invite yourself" };
   }
 
-  const existingUser = await prisma.user.findUnique({ where: { email: negotiatorEmail } });
-  if (existingUser) {
+  const existingUser = await prisma.user.findUnique({
+    where: { email: negotiatorEmail },
+    select: { id: true, agencyId: true, role: true },
+  });
+  // Invite-to-move (docs/active/invite-to-move/SPEC.md). With the flag OFF, keep
+  // today's hard stop. With it ON, an email that already has an account is instead
+  // sent a "move into your agency" invite it can accept.
+  if (existingUser && !moveInvitesEnabled()) {
     return {
       ok: false,
       error: "A Sales Progressor account already exists for that email.",
     };
   }
+  if (existingUser && existingUser.agencyId === session.user.agencyId) {
+    return { ok: false, error: "They're already on your team." };
+  }
+  // Internal Sales Progressor staff (no agency) are never moved into an agency.
+  // Respond uniformly ("sent") so the invite box can't be used to probe which
+  // emails are internal — but create nothing.
+  if (
+    existingUser &&
+    existingUser.agencyId === null &&
+    (existingUser.role === "admin" || existingUser.role === "superadmin" || existingUser.role === "sales_progressor")
+  ) {
+    return { ok: true };
+  }
+  const isMoveInvite = !!existingUser;
 
   const pendingInvite = await prisma.negotiatorInvitation.findFirst({
     where: {
@@ -93,14 +115,27 @@ export async function inviteNegotiator(
   const appUrl = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
 
   try {
-    await sendNegotiatorInvitationEmail({
-      to:              negotiatorEmail,
-      negotiatorName:  rawName,
-      invitedByName:   session.user.name,
-      agencyName:      agency.name,
-      agencyId:        session.user.agencyId!,
-      acceptUrl:       `${appUrl}/invite-negotiator/${token}`,
-    });
+    if (isMoveInvite) {
+      // Existing account -> a move invite. Points at the self-contained confirm
+      // route, which requires them to sign in as this email before anything moves.
+      await sendMoveInvitationEmail({
+        to:            negotiatorEmail,
+        recipientName: rawName,
+        invitedByName: session.user.name,
+        agencyName:    agency.name,
+        agencyId:      session.user.agencyId!,
+        acceptUrl:     `${appUrl}/move-invite/${token}`,
+      });
+    } else {
+      await sendNegotiatorInvitationEmail({
+        to:              negotiatorEmail,
+        negotiatorName:  rawName,
+        invitedByName:   session.user.name,
+        agencyName:      agency.name,
+        agencyId:        session.user.agencyId!,
+        acceptUrl:       `${appUrl}/invite-negotiator/${token}`,
+      });
+    }
   } catch (emailError) {
     await prisma.negotiatorInvitation.deleteMany({
       where: { token },
@@ -109,7 +144,7 @@ export async function inviteNegotiator(
     return { ok: false, error: "Couldn't send the email. Please check the address and try again." };
   }
 
-  console.log(`[AUDIT] negotiator_invitation_sent agencyId=${session.user.agencyId} invitedBy=${session.user.id} email=${negotiatorEmail}`);
+  console.log(`[AUDIT] negotiator_invitation_sent agencyId=${session.user.agencyId} invitedBy=${session.user.id} email=${negotiatorEmail} move=${isMoveInvite}`);
   revalidatePath("/agent/account/team");
   return { ok: true };
 }

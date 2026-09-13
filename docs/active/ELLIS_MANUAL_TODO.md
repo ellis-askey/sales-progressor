@@ -4,7 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
+
+---
+
+## Two signup/join features shipped DARK — flip when ready (2026-09-13)
+
+Both features are deployed but gated OFF by default, so live behaviour is unchanged until you switch them on in the Vercel **production** environment.
+
+1. **Request-to-join (Fix 8)** — a colleague who signs up with a work email matching your agency's *verified* domain is held pending your approval instead of minting a duplicate agency. Turn on with `SIGNUP_JOIN_REQUESTS_ENABLED=true`. Directors approve at `/agent/account/team`. Note: only catches agencies that have **verified their email domain** (see the spec for the coverage boundary).
+2. **Invite-to-move** — a director can invite a colleague who *already made their own account*; on the colleague's consent, an empty accidental agency is auto-moved, and anything with real sales is flagged to `support@thesalesprogressor.co.uk` for a hand-checked move. Turn on with `MOVE_INVITES_ENABLED=true`. Spec: `docs/active/invite-to-move/SPEC.md`.
+
+**Leftover test data in STAGING only:** a throwaway "Hartwell Demo (Fix 8)" agency + `director@hartwelldemo.co.uk` + a "Sam" signup were seeded on the **staging** DB to walk the flow. Harmless (staging only, not production), but can be deleted whenever. The `AgencyJoinRequest` table was hand-applied + recorded on staging so the deploy skips it cleanly.
 
 ---
 

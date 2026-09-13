@@ -21,6 +21,12 @@ model Agency {
 
   isInternal Boolean @default(false)
 
+  // Soft-archive: set when an emptied agency is retired — e.g. a solo user with
+  // no sales was moved into another agency via invite-to-move. Reversible; the
+  // row is never hard-deleted. See docs/active/invite-to-move/SPEC.md.
+  archivedAt     DateTime?
+  archivedReason String?
+
   // Master toggle for automated client-facing chase emails on this agency's
   // files. When false, the client-chase cron skips digest enqueue for any
   // file owned by this agency. The chase clock keeps running and the agent
@@ -129,6 +135,7 @@ model Agency {
   chains                  PropertyChain[]
   verifiedDomains         VerifiedDomain[]
   solicitorCcOverrides    SolicitorContactAgencyOverride[]
+  joinRequests            AgencyJoinRequest[]
   recommendedSolicitors   AgencyRecommendedSolicitor[]
   preferredBroker         AgencyPreferredBroker?
   feedbackSubmissions     FeedbackSubmission[]
@@ -282,6 +289,8 @@ model User {
 
   negotiatorInvitationsSent     NegotiatorInvitation[]   @relation("NegotiatorInvitationsSent")
   negotiatorInvitationsAccepted NegotiatorInvitation[]   @relation("NegotiatorInvitationsAccepted")
+  joinRequestsMade              AgencyJoinRequest[]      @relation("JoinRequestRequester")
+  joinRequestsDecided           AgencyJoinRequest[]      @relation("JoinRequestDecidedBy")
   invitationsSent               DirectorInvitation[]     @relation("InvitationsSent")
   invitationsAccepted           DirectorInvitation[]     @relation("InvitationsAccepted")
   fileTimeSessions              FileTimeSession[]
@@ -3370,6 +3379,76 @@ model NegotiatorInvitation {
   @@index([agencyId])
   @@index([token])
   @@index([negotiatorEmail])
+}
+
+// ── AgencyJoinRequest (Fix 8) ────────────────────────────────────────────────
+// The reverse of NegotiatorInvitation: a person who signed up with a work email
+// matching an agency's VERIFIED domain, awaiting that agency's director to
+// approve them in. The requester is a real User (role=viewer, agencyId=null)
+// until approved. See docs/active/signup-request-to-join/SPEC.md.
+model AgencyJoinRequest {
+  id              String            @id @default(cuid())
+  agencyId        String
+  requesterUserId String
+  requesterEmail  String
+  requesterName   String
+  // The role the requester picked at signup — the director's approve screen
+  // defaults to this but can change it.
+  requestedRole   UserRole          @default(negotiator)
+  status          JoinRequestStatus @default(pending)
+  decidedByUserId String?
+  decidedAt       DateTime?
+  expiresAt       DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  agency        Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  requesterUser User   @relation("JoinRequestRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  decidedByUser User?  @relation("JoinRequestDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, status])
+  @@index([requesterUserId])
+  @@index([requesterEmail])
+}
+
+enum JoinRequestStatus {
+  pending
+  approved
+  rejected
+  expired
+  cancelled
+}
+
+// ── AgencyMoveRequest (invite-to-move) ───────────────────────────────────────
+// The support queue for the HEAVY case: an existing user was invited to move
+// into another agency, but their current agency has real sales and/or other
+// staff, so it can't be auto-moved. We record the intent + a snapshot of what's
+// on their agency and email support@thesalesprogressor.co.uk to complete the
+// move by hand. IDs are stored as plain strings (no FK relations) so this queue
+// model never has to touch the heavily-related Agency/User models.
+// See docs/active/invite-to-move/SPEC.md.
+model AgencyMoveRequest {
+  id              String           @id @default(cuid())
+  requesterUserId String
+  requesterEmail  String
+  requesterName   String
+  fromAgencyId    String
+  toAgencyId      String
+  invitedByUserId String
+  salesCount      Int
+  otherStaffCount Int
+  status          AgencyMoveStatus @default(pending)
+  createdAt       DateTime         @default(now())
+  completedAt     DateTime?
+
+  @@index([status])
+  @@index([requesterUserId])
+}
+
+enum AgencyMoveStatus {
+  pending
+  completed
+  cancelled
 }
 
 // ── FileTimeSession ──────────────────────────────────────────────────────────
