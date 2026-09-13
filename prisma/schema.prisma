@@ -4176,6 +4176,7 @@ model Prospect {
   activities      ProspectActivity[]
   emails          ProspectEmail[]
   flows           ProspectFlow[]
+  outreachAssignments OutreachAssignment[]
 
   @@index([status, nextFollowUpAt])
   @@index([nextFollowUpAt])
@@ -4312,11 +4313,19 @@ model ProspectEmail {
   repliedAt     DateTime?
   createdById   String?
 
+  // AI outreach experiment attribution. Loose scalars (matching the contactId
+  // style in this model), joined in code. Null for manual / non-experiment sends.
+  // A reply matched by replyToken therefore resolves to prospect + this email +
+  // experiment + variant.
+  experimentId  String?
+  variantId     String?
+
   prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
 
   @@index([prospectId, sentAt])
   @@index([replyToken])
   @@index([sgMessageId])
+  @@index([experimentId])
 }
 
 // An outreach sequence running against a single prospect: a fixed set of emails
@@ -4406,6 +4415,150 @@ enum ProspectLostReason {
   corporate_decision
   doesnt_outsource
   other
+}
+
+// ─── AI Outreach experiment engine (Command Centre) ───────────────────────────
+// Build Order B of the AI-driven outbound growth engine. Superadmin-only,
+// commandDb space. An experiment pits a FROZEN control variant against an
+// AI-generated challenger over a target prospect segment. Assignments guarantee
+// one variant per prospect per experiment; learnings accrue on an evidence
+// maturity ladder (candidate -> weak -> supported/disproven). This layer only
+// decides WHO / WHICH VARIANT / WHAT CONTENT — sending reuses the existing
+// prospect outreach pipeline (performProspectSend). Reply attribution flows via
+// ProspectEmail.experimentId / variantId. See the audit + build order in
+// [[project_prospect_flow_and_domain]].
+model OutreachExperiment {
+  id                  String                   @id @default(cuid())
+  title               String
+  status              OutreachExperimentStatus @default(draft)
+  hypothesis          String?
+  rationale           String?
+  targetSegment       Json? // structured filter over VERIFIED prospect fields only
+  exclusions          Json?
+  sampleSize          Int?
+  allocationPct       Int? // % of the audience assigned to the challenger
+  primaryMetric       String? // e.g. "positive_reply" | "active_agency"
+  secondaryMetrics    Json?
+  startDate           DateTime?
+  reviewDate          DateTime?
+  strategistReasoning String? // Claude Opus strategist output
+  reviewerCritique    String? // OpenAI adversarial reviewer output
+  strategistRevision  String? // Claude's single revision after the critique
+  finalConclusion     String?
+  winnerVariantId     String?
+  approvedById        String?
+  approvedAt          DateTime?
+  createdById         String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  variants    OutreachVariant[]
+  assignments OutreachAssignment[]
+  modelRuns   AiModelRun[]
+
+  @@index([status])
+  @@index([reviewDate])
+}
+
+// A control or challenger arm of an experiment. `emails` is the ordered step
+// content ([{ stepIndex, subject, body, gapDays }]); FROZEN once the experiment
+// launches (enforced in application code, not the DB).
+model OutreachVariant {
+  id             String              @id @default(cuid())
+  experimentId   String
+  role           OutreachVariantRole
+  name           String
+  emails         Json // ordered steps: subject + body + follow-up timing
+  createdByModel String? // which model authored this arm, for the audit trail
+  createdAt      DateTime            @default(now())
+
+  experiment  OutreachExperiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  assignments OutreachAssignment[]
+
+  @@index([experimentId])
+}
+
+// Which variant a prospect received in an experiment. The unique constraint is
+// the hard guarantee that a prospect never receives both control and challenger.
+model OutreachAssignment {
+  id           String   @id @default(cuid())
+  experimentId String
+  prospectId   String
+  variantId    String
+  assignedAt   DateTime @default(now())
+
+  experiment OutreachExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variant    OutreachVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  prospect   Prospect           @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, prospectId]) // one variant per prospect per experiment
+  @@index([prospectId])
+  @@index([variantId])
+}
+
+// A durable outreach learning with an evidence-maturity ladder. Never a bare
+// "fact": every learning keeps its evidence, sample size, segment, and status so
+// weak evidence is never phrased as established truth.
+model OutreachLearning {
+  id                    String                 @id @default(cuid())
+  statement             String
+  status                OutreachLearningStatus @default(candidate)
+  evidenceExperimentIds String[] // experiment ids backing this learning
+  sampleSize            Int?
+  segment               String?
+  metric                String?
+  evidenceSummary       String?
+  firstObservedAt       DateTime               @default(now())
+  lastReviewedAt        DateTime               @default(now())
+  stillActive           Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([status])
+  @@index([stillActive])
+}
+
+// Cost + provenance for every AI call the engine makes. Mirrors the token
+// accounting already proven on the progression agent (AgentRun.tokensIn/Out).
+model AiModelRun {
+  id            String   @id @default(cuid())
+  purpose       String // "strategist" | "reviewer" | "campaign_gen"
+  provider      String // "anthropic" | "openai"
+  model         String
+  promptVersion String?
+  tokensIn      Int      @default(0)
+  tokensOut     Int      @default(0)
+  costPence     Int      @default(0)
+  experimentId  String?
+  createdAt     DateTime @default(now())
+
+  experiment OutreachExperiment? @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+
+  @@index([experimentId])
+  @@index([purpose, createdAt])
+}
+
+enum OutreachExperimentStatus {
+  draft
+  awaiting_approval
+  approved
+  running
+  review_ready
+  completed
+  rejected
+  archived
+}
+
+enum OutreachVariantRole {
+  control
+  challenger
+}
+
+enum OutreachLearningStatus {
+  candidate
+  weak
+  supported
+  disproven
 }
 
 // Content & Personal Brand: Ellis's thoughts.
