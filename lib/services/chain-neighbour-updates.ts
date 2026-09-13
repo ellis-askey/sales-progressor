@@ -17,6 +17,7 @@
 //
 // See docs/active/three-notes-distilled-2026-08-27.md (Note A).
 
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveChainInviteSender } from "@/lib/chain/invite";
@@ -166,14 +167,23 @@ export async function drainChainNeighbourUpdates(now: Date = new Date()): Promis
     const chainLinkId = rows[0].chainLinkId;
     const direction = directionForCode(rows[0].milestoneCode);
     const rowIds = rows.map((r) => r.id);
+    // Atomic claim (P2): flip sentAt null→now BEFORE sending so an overlapping
+    // drain run (Vercel cron is at-least-once) can't send this neighbour group
+    // twice — the loser matches 0 rows and skips. Kept whether we email or drop
+    // (opted out / suppressed) so a dropped neighbour is never retried; released
+    // back to null in the catch so a genuine send failure retries next drain
+    // (still bounded by the 24h staleCutoff on the query above).
+    const claim = await prisma.chainNeighbourUpdate.updateMany({
+      where: { id: { in: rowIds }, sentAt: null },
+      data: { sentAt: now },
+    });
+    if (claim.count === 0) continue; // another drain owns this group
     try {
       const emailed = await sendNeighbourGroup(chainLinkId, rows, direction);
-      // Mark sent whether we emailed or dropped (opted out / suppressed) so we
-      // never retry a dropped neighbour forever. Only a thrown send error leaves
-      // the rows for the next drain.
-      await prisma.chainNeighbourUpdate.updateMany({ where: { id: { in: rowIds } }, data: { sentAt: now } });
       if (emailed) sent++;
     } catch (err) {
+      await prisma.chainNeighbourUpdate.updateMany({ where: { id: { in: rowIds } }, data: { sentAt: null } });
+      Sentry.captureException(err);
       console.error(`[drainChainNeighbourUpdates] link ${chainLinkId} failed`, err);
     }
   }

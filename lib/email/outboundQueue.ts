@@ -3,8 +3,9 @@
 // Business window: Mon–Fri 08:00–19:00 Europe/London (BST-aware via Intl).
 
 import type { Prisma } from "@prisma/client";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId } from "@/lib/email";
+import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, MAX_SEND_RETRY_MS } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
@@ -173,6 +174,18 @@ export async function drainOutboundQueue(): Promise<{
   let failed = 0;
 
   for (const record of due) {
+    // Retry age-out (P3). A row that has been retrying transient failures for
+    // longer than MAX_SEND_RETRY_MS is dead-lettered (a visible errorAt) rather
+    // than retried forever or dropped silently. The daily alert surfaces these.
+    if (record.createdAt.getTime() < now.getTime() - MAX_SEND_RETRY_MS) {
+      await prisma.outboundEmailQueue.update({
+        where: { id: record.id },
+        data: { errorAt: now, errorMessage: "retry_age_exceeded" },
+      });
+      failed++;
+      continue;
+    }
+
     // Dispatch the suppression check to the right helper based on which
     // recipient column is set. CHECK constraint guarantees exactly one is
     // non-null; defensively skip records that somehow violate it (e.g.
@@ -273,6 +286,21 @@ export async function drainOutboundQueue(): Promise<{
     const outboundMessageId = willMirrorClientChase
       ? buildOutboundMessageId(record.id)
       : undefined;
+
+    // Atomic claim (P2): flip sentAt null→now BEFORE sending. An overlapping
+    // drain run (Vercel cron is at-least-once) or a re-invocation that reads
+    // the same row loses the race — it matches 0 rows here and skips — so the
+    // recipient can't receive the same email twice. Released back to sentAt=null
+    // in the catch below if the send fails.
+    const claim = await prisma.outboundEmailQueue.updateMany({
+      where: { id: record.id, sentAt: null, errorAt: null },
+      data: { sentAt: now },
+    });
+    if (claim.count === 0) {
+      skipped++;
+      continue;
+    }
+
     try {
       await sendChainEmail({
         to: record.recipientEmail,
@@ -408,15 +436,30 @@ export async function drainOutboundQueue(): Promise<{
       sent++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
+      const transient = isTransientSendError(err);
+      // Release the claim (sentAt→null) either way so a failed send is never
+      // left marked as sent (P2). A TRANSIENT failure leaves errorAt null so
+      // the next drain retries it, bounded by the age-out above (P3). A
+      // PERMANENT failure (bad address, rejected payload) is dead-lettered
+      // immediately with errorAt, exactly as before.
       await prisma.outboundEmailQueue.update({
         where: { id: record.id },
-        data: { errorAt: new Date(), errorMessage: message },
+        data: transient
+          ? { sentAt: null, errorMessage: message }
+          : { sentAt: null, errorAt: new Date(), errorMessage: message },
       });
       console.error(
-        `[EMAIL_FAIL] type=${record.emailType} to=${record.recipientEmail} err=${message}`,
+        `[EMAIL_FAIL] type=${record.emailType} to=${record.recipientEmail} transient=${transient} err=${message}`,
       );
       failed++;
     }
+  }
+
+  // Proactive alert (P3): a failed/dead-lettered send would otherwise only be
+  // visible as a red row on the internal health page. Surface it in Sentry so a
+  // SendGrid outage or a run of dead-letters is noticed without anyone looking.
+  if (failed > 0) {
+    Sentry.captureMessage(`[drain-outbound-email] ${failed} send(s) failed or dead-lettered`, "warning");
   }
 
   return { sent, skipped, failed };

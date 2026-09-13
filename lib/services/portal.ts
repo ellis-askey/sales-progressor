@@ -1311,7 +1311,7 @@ export async function logPortalMilestoneConfirm(
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true, stepConfirmPausedAt: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true, stepConfirmPausedAt: true, buyerRoundId: true },
       },
     },
   });
@@ -1445,6 +1445,21 @@ export async function logPortalMilestoneConfirm(
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);
   const confirmingRole = confirmingContact?.roleType;
 
+  // Dead-round recipient gate. Mirrors the queue-drain guard in
+  // lib/email/outboundQueue.ts (reason "recipient_round_archived") and the
+  // milestone-digest drain. A purchaser contact whose buyerRoundId no longer
+  // matches the file's active round is a superseded (fallen-through) buyer
+  // after a relist: their contact row is deliberately LEFT INTACT so their old
+  // link renders a friendly DeadRoundNotice, but they must NOT receive live
+  // milestone emails about the new buyer's transaction. Before this guard the
+  // synchronous portal-confirm fan-out (unlike the queued paths) had no round
+  // filter, so a relisted file's old buyer was still emailed. Vendor and other
+  // file-level contacts are unaffected — they survive across rounds by design.
+  const isDeadRoundRecipient = (c: { roleType: string; buyerRoundId: string | null }) =>
+    c.roleType === "purchaser" &&
+    c.buyerRoundId !== null &&
+    c.buyerRoundId !== tx.activeBuyerRoundId;
+
   const baseRichCopy = milestoneCode ? getMilestoneCopy(milestoneCode).emailCopy : null;
   // Command Centre copy overrides — merge saved scenario-scoped edits over the
   // code default, using the file's real tenure + purchase type.
@@ -1509,6 +1524,9 @@ export async function logPortalMilestoneConfirm(
     const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
+      // Superseded (fallen-through) buyer after a relist — never email them
+      // about the live buyer's transaction.
+      if (isDeadRoundRecipient(c)) continue;
       // Per-person step-confirmation pause (agent-set in Email settings). The
       // file-wide master (suppressPortalConfirmEmails) is checked by callers;
       // this skips just this contact when they're individually paused.
@@ -1595,7 +1613,7 @@ export async function logPortalMilestoneConfirm(
       ? `There's an update on your ${otherSaleWord} at <strong>${address}</strong>: ${otherStep}. Log in to see the latest.`
       : `There's been a progress update on your ${otherSaleWord} at <strong>${address}</strong>. Log in to your portal to see the latest.`;
     const otherContacts = tx.contacts.filter(
-      (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken && c.portalEligible
+      (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken && c.portalEligible && !isDeadRoundRecipient(c)
     );
     const otherIds: string[] = [];
     for (const other of otherContacts) {

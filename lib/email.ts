@@ -93,6 +93,34 @@ export function buildOutboundMessageId(seed: string): string {
   return `<sp-${seed}@thesalesprogressor.co.uk>`;
 }
 
+// ─── Send-failure classification + retry bound (P3) ─────────────────────────
+//
+// A queued email that fails to send used to be marked errored forever and
+// never retried. That silently dropped client emails on a brief SendGrid
+// hiccup. We now distinguish a TRANSIENT failure (provider overloaded, rate
+// limited, network blip — worth retrying) from a PERMANENT one (bad address,
+// rejected payload — retrying can't help). The drains retry transient failures
+// on their next run and dead-letter permanent ones immediately.
+
+// After this long spent retrying a transient failure, a queue row is
+// dead-lettered (a visible errorAt) rather than retried forever or dropped in
+// silence — the daily alert then surfaces it.
+export const MAX_SEND_RETRY_MS = 24 * 60 * 60 * 1000;
+
+// True when a send error is worth retrying. The @sendgrid/mail SDK throws an
+// error carrying a numeric HTTP `code`; network/timeout errors have none.
+//   - no code            → network/timeout → transient (retry)
+//   - 429                → rate limited     → transient (retry)
+//   - >= 500             → provider-side    → transient (retry)
+//   - other 4xx          → bad request/addr → permanent (dead-letter)
+export function isTransientSendError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code !== "number") return true;
+  if (code === 429) return true;
+  if (code >= 500) return true;
+  return false;
+}
+
 export async function sendEmail({
   to,
   cc,

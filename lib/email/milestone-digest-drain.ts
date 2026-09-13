@@ -15,9 +15,10 @@
 // time (sendRichMilestoneEmails) so the drain never sees a row for a
 // suppressed recipient. No re-evaluation here.
 
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { isContactEmailSuppressed } from "@/lib/email";
+import { isContactEmailSuppressed, isTransientSendError, MAX_SEND_RETRY_MS } from "@/lib/email";
 import { logAutomatedEmail } from "@/lib/services/portal";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
@@ -143,12 +144,26 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
     orderBy: { scheduledFor: "asc" },
   });
 
-  const grouped = groupByRecipient(due);
+  // Retry age-out (P3). Rows that have been retrying transient failures for
+  // longer than MAX_SEND_RETRY_MS are dead-lettered (a visible errorAt) rather
+  // than retried forever. Split them off before grouping.
+  const ageCutoff = now.getTime() - MAX_SEND_RETRY_MS;
+  const aged = due.filter((r) => r.createdAt.getTime() < ageCutoff);
+  const fresh = due.filter((r) => r.createdAt.getTime() >= ageCutoff);
+  let failed = 0;
+  if (aged.length > 0) {
+    await prisma.outboundEmailQueue.updateMany({
+      where: { id: { in: aged.map((r) => r.id) } },
+      data: { errorAt: now, errorMessage: "retry_age_exceeded" },
+    });
+    failed += aged.length;
+  }
+
+  const grouped = groupByRecipient(fresh);
 
   let singleSends = 0;
   let digestSends = 0;
   let suppressed = 0;
-  let failed = 0;
 
   for (const [contactId, rows] of grouped) {
     // Suppression check (e.g. recipient hit Unsubscribe). Mark every
@@ -291,14 +306,25 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "send error";
-      // Release the claim (sentAt → null) and record the error, so a failed send
-      // is never left marked as sent.
+      const transient = isTransientSendError(err);
+      // Release the claim (sentAt → null) so a failed send is never left marked
+      // as sent. A TRANSIENT failure leaves errorAt null so the next drain
+      // retries it (bounded by the age-out above); a PERMANENT failure is
+      // dead-lettered immediately with errorAt.
       await prisma.outboundEmailQueue.updateMany({
         where: { id: { in: rows.map((r) => r.id) } },
-        data: { sentAt: null, errorAt: now, errorMessage: message },
+        data: transient
+          ? { sentAt: null, errorMessage: message }
+          : { sentAt: null, errorAt: now, errorMessage: message },
       });
       failed += rows.length;
     }
+  }
+
+  // Proactive alert (P3): surface failed / dead-lettered confirmation sends in
+  // Sentry so they're noticed without anyone watching the internal health page.
+  if (failed > 0) {
+    Sentry.captureMessage(`[send-milestone-digests] ${failed} send(s) failed or dead-lettered`, "warning");
   }
 
   return {
