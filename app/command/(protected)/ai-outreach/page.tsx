@@ -22,6 +22,7 @@ import { getOutreachMetrics } from "@/lib/outreach/metrics";
 import { getAllSegmentFunnels } from "@/lib/outreach/metrics";
 import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segments";
 import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, type ExperimentListItem } from "@/lib/outreach/read";
+import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,17 @@ const STATUS_TONE: Record<string, string> = {
   completed: "bg-neutral-800 text-neutral-300",
   rejected: "bg-red-950 text-red-400 border border-red-900",
   archived: "bg-neutral-800 text-neutral-500",
+};
+
+const REVIEW_TONE: Record<string, string> = {
+  sound: "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  needs_revision: "bg-amber-950 text-amber-400 border border-amber-900",
+  reject: "bg-red-950 text-red-400 border border-red-900",
+};
+const REVIEW_LABEL: Record<string, string> = {
+  sound: "Reviewer: sound",
+  needs_revision: "Reviewer: needs revision",
+  reject: "Reviewer rejected",
 };
 
 const LEARNING_TONE: Record<string, string> = {
@@ -215,11 +227,15 @@ async function Segments() {
 async function Experiments() {
   const experiments = await listExperimentsWithDetail();
   return (
-    <Section title="Experiments" subtitle="Control vs challenger outreach experiments. Winners are only declared when the evidence supports it.">
+    <Section
+      title="Experiments"
+      subtitle="Control vs challenger outreach experiments. Winners are only declared when the evidence supports it."
+      right={<GenerateProposalButton />}
+    >
       {experiments.length === 0 ? (
         <CardEmpty>
-          No experiments yet. When the strategist proposes one and you approve it, it will appear here with its full
-          design, variants, and results.
+          No experiments yet. Use &ldquo;Generate a proposal&rdquo; to have the strategist draft one for review. Nothing
+          sends or launches; a proposal only appears here for you to approve later.
         </CardEmpty>
       ) : (
         <div className="space-y-3">
@@ -245,9 +261,14 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
     <details className="rounded-xl border border-neutral-800 bg-neutral-900 group">
       <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-neutral-100 truncate">{e.title}</span>
             <Badge tone={STATUS_TONE[e.status] ?? "bg-neutral-800 text-neutral-400"}>{e.status.replace(/_/g, " ")}</Badge>
+            {e.reviewOutcome && (
+              <Badge tone={REVIEW_TONE[e.reviewOutcome] ?? "bg-neutral-800 text-neutral-400"}>
+                {REVIEW_LABEL[e.reviewOutcome] ?? `Reviewer: ${e.reviewOutcome}`}
+              </Badge>
+            )}
           </div>
           <p className="text-[11px] text-neutral-600 mt-0.5">
             Primary metric: {e.primaryMetric ?? "—"} · {verdict} · created {fmtDate(e.createdAt)}
@@ -260,6 +281,9 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
         {/* Plain-English design */}
         <Field label="Hypothesis" value={e.hypothesis} />
         <Field label="Rationale" value={e.rationale} />
+
+        <FeasibilityBlock data={e.feasibility} />
+        <ReviewerFindings data={e.reviewerResult} />
 
         {/* Variants side by side */}
         <div>
@@ -316,6 +340,64 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
         </details>
       </div>
     </details>
+  );
+}
+
+function FeasibilityBlock({ data }: { data: unknown }) {
+  if (!data || typeof data !== "object") return null;
+  const f = data as { recommendedSample?: number; eligiblePopulation?: number; feasible?: boolean; note?: string };
+  return (
+    <InsightCard tone={f.feasible ? "neutral" : "watch"}>
+      <span className="font-medium text-neutral-100">Sample feasibility: {f.feasible ? "feasible" : "not feasible right now"}.</span>{" "}
+      Recommended {fmtInt(f.recommendedSample ?? 0)} · eligible population {fmtInt(f.eligiblePopulation ?? 0)}.
+      {f.note ? ` ${f.note}` : ""}
+    </InsightCard>
+  );
+}
+
+function ReviewerFindings({ data }: { data: unknown }) {
+  if (!data || typeof data !== "object") return null;
+  const r = data as {
+    objections?: { category: string; severity: string; issue: string; recommendation: string }[];
+    unsupportedPersonalisation?: string[];
+    sampleSizeConcern?: string | null;
+    suggestedBetterMetric?: string | null;
+    alternativeInterpretation?: string | null;
+  };
+  const hasAny =
+    (r.objections?.length ?? 0) > 0 ||
+    (r.unsupportedPersonalisation?.length ?? 0) > 0 ||
+    r.sampleSizeConcern ||
+    r.suggestedBetterMetric ||
+    r.alternativeInterpretation;
+  if (!hasAny) return null;
+  const sevTone: Record<string, string> = {
+    high: "bg-red-950 text-red-400 border border-red-900",
+    med: "bg-amber-950 text-amber-400 border border-amber-900",
+    low: "bg-neutral-800 text-neutral-400",
+  };
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">Reviewer findings</p>
+      <div className="space-y-1.5">
+        {(r.objections ?? []).map((o, i) => (
+          <div key={i} className="rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Badge tone={sevTone[o.severity] ?? sevTone.low}>{o.severity}</Badge>
+              <span className="text-[11px] text-neutral-500 uppercase tracking-wide">{o.category}</span>
+            </div>
+            <p className="text-[12px] text-neutral-300 mt-1">{o.issue}</p>
+            {o.recommendation && <p className="text-[11px] text-neutral-500 mt-0.5">Recommendation: {o.recommendation}</p>}
+          </div>
+        ))}
+        {(r.unsupportedPersonalisation?.length ?? 0) > 0 && (
+          <p className="text-[11px] text-amber-400">Unsupported personalisation flagged: {r.unsupportedPersonalisation!.join("; ")}</p>
+        )}
+        {r.sampleSizeConcern && <p className="text-[11px] text-neutral-500">Sample-size concern: {r.sampleSizeConcern}</p>}
+        {r.suggestedBetterMetric && <p className="text-[11px] text-neutral-500">Suggested better metric: {r.suggestedBetterMetric}</p>}
+        {r.alternativeInterpretation && <p className="text-[11px] text-neutral-500">Alternative interpretation: {r.alternativeInterpretation}</p>}
+      </div>
+    </div>
   );
 }
 

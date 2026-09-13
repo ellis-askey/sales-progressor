@@ -4441,10 +4441,25 @@ model OutreachExperiment {
   secondaryMetrics    Json?
   startDate           DateTime?
   reviewDate          DateTime?
-  strategistReasoning String? // Claude Opus strategist output
-  reviewerCritique    String? // OpenAI adversarial reviewer output
-  strategistRevision  String? // Claude's single revision after the critique
+  strategistReasoning String? // Claude Opus strategist output (prose summary)
+  reviewerCritique    String? // OpenAI adversarial reviewer output (prose summary)
+  strategistRevision  String? // Claude's single revision after the critique (prose)
   finalConclusion     String?
+  // Structured GPT-5.5 review, so G renders proper findings rather than parsing
+  // prose: { overallAssessment, objections[{category,severity,issue,recommendation}],
+  // unsupportedPersonalisation[], sampleSizeConcern, suggestedBetterMetric,
+  // alternativeInterpretation, summary }.
+  reviewerResult      Json?
+  // reviewer overallAssessment as a queryable scalar. Application code enforces
+  // this is ONLY one of: "sound" | "needs_revision" | "reject".
+  reviewOutcome       String?
+  // App-computed sample feasibility (deterministic, uses eligibility/suppression):
+  // { recommendedSample, eligiblePopulation, feasible, note }. The model never
+  // sees prospect identities.
+  feasibility         Json?
+  // The strategist's pre-revision proposal, retained for audit/history when a
+  // revision runs or the reviewer rejects. Main fields + variants hold the final.
+  originalProposal    Json?
   winnerVariantId     String?
   approvedById        String?
   approvedAt          DateTime?

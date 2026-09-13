@@ -19,6 +19,12 @@ export type ExperimentListItem = {
   reviewerCritique: string | null;
   strategistRevision: string | null;
   finalConclusion: string | null;
+  reviewOutcome: string | null;
+  reviewerResult: unknown;
+  feasibility: unknown;
+  originalProposal: unknown;
+  sampleSize: number | null;
+  allocationPct: number | null;
   variants: { id: string; role: string; name: string; emails: unknown }[];
   modelRuns: {
     purpose: string;
@@ -50,6 +56,12 @@ export async function listExperimentsWithDetail(): Promise<ExperimentListItem[]>
       reviewerCritique: true,
       strategistRevision: true,
       finalConclusion: true,
+      reviewOutcome: true,
+      reviewerResult: true,
+      feasibility: true,
+      originalProposal: true,
+      sampleSize: true,
+      allocationPct: true,
       variants: { select: { id: true, role: true, name: true, emails: true } },
       modelRuns: {
         orderBy: { createdAt: "desc" },
