@@ -5,6 +5,7 @@ import { getOpenEnquiries } from "@/lib/services/enquiries";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
+import { EnquiriesEmptyState } from "@/components/enquiries/EnquiriesEmptyState";
 
 // Enquiries triage. Internal staff plus customer agency staff (director /
 // negotiator) who progress their own files. The read is agency-scoped via
@@ -20,15 +21,25 @@ export default async function EnquiriesPage() {
 
   const scope = getAccessScope(session);
   const rows = await getOpenEnquiries(scope);
-  const signed = await getSignedUrlMap(
-    rows.map((r) => r.photoStoragePath).filter((p): p is string => !!p),
-  ).catch(() => new Map<string, string>());
+  // No open loops → the "all clear" empty state. Only reachable once the agency
+  // has a live file (nav gates on hasSelfManagedFiles), so it reads as a resting
+  // state, not a brand-new-account one. Skip the photo signing when there's
+  // nothing to show.
+  const signed = rows.length
+    ? await getSignedUrlMap(
+        rows.map((r) => r.photoStoragePath).filter((p): p is string => !!p),
+      ).catch(() => new Map<string, string>())
+    : new Map<string, string>();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing." />
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
-        <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} />
+        {rows.length === 0 ? (
+          <EnquiriesEmptyState />
+        ) : (
+          <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} />
+        )}
       </div>
     </div>
   );
