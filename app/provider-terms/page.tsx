@@ -4,10 +4,9 @@
 // terms for the provider request / introduction flow (app/quote/[token]).
 // Right-most tab in the policy nav; linked from the quote request page.
 //
-// Placeholders remaining (tracked for Ellis, rendered with .pending), matching
-// the pattern on the other policy pages:
-//   §1 [Company number] + [Registered office address]; §13 [Postal address].
-// Everything else (date, emails, links, windows) is filled.
+// Company number (17455131), registered office and postal address (5 Hercules
+// Way, Leavesden Park, Watford WD25 7GS, United Kingdom) filled in §1 and §13
+// on 2026-09-14. No placeholders remain on this page.
 
 import { Fragment, type ReactNode } from "react";
 import type { Metadata } from "next";
@@ -19,8 +18,6 @@ export const metadata: Metadata = {
   description: "The terms that apply when you ask to be put in touch with a third-party provider through The Sales Progressor.",
 };
 
-const Pending = ({ children }: { children: ReactNode }) => <em className="pending">{children}</em>;
-
 type Raw = { id: string; title: string; paras: ReactNode[] };
 
 const RAW: Raw[] = [
@@ -29,7 +26,7 @@ const RAW: Raw[] = [
     title: "1. About these terms",
     paras: [
       "These terms apply when you use the Provider Request Service on The Sales Progressor platform to find or ask to be put in touch with a third-party service provider.",
-      <p><>The service is operated by <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales, company number <Pending>[Company number]</Pending>, registered office <Pending>[Registered office address]</Pending> (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;, &ldquo;TSP&rdquo;).</></p>,
+      <p><>The service is operated by <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales, company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;, &ldquo;TSP&rdquo;).</></p>,
       "In these terms:",
       <ul>
         <li>&ldquo;you&rdquo; means the buyer or seller using the service in connection with a residential property transaction;</li>
@@ -224,7 +221,7 @@ const RAW: Raw[] = [
       "If you live in England or Wales, disputes may be brought in the courts of England and Wales. If you live in Scotland or Northern Ireland, you may also be entitled to bring proceedings in your local courts.",
       "These Provider Request Service Terms, together with the relevant provisions of our general platform terms and Privacy Policy, form the agreement between you and us relating to your use of this service.",
       <p>Questions about the Provider Request Service or these terms can be sent to <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>.</p>,
-      <p>Our postal address is: <Pending>[Postal address]</Pending></p>,
+      <p>Our postal address is: 5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom.</p>,
     ],
   },
 ];

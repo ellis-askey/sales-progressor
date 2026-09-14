@@ -41,7 +41,9 @@ const SECTIONS: PolicySection[] = [
     body: (
       <p>
         By saving a payment card, you agree to the pricing and billing terms set out below. Billing
-        is operated by The Sales Progressor.
+        is operated by The Sales Progressor Ltd, a company registered in England and Wales, company
+        number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS,
+        United Kingdom.
       </p>
     ),
   },

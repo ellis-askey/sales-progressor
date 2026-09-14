@@ -8,9 +8,18 @@
 // most need backing).
 //
 // Same structure as the sibling policy pages: a RAW section list mapped into
-// PolicyShell. No placeholders in the supplied copy. Unlike the other legal
-// pages this document does not identify the TSP legal entity (company number /
-// registered office); flagged for Ellis to reconcile if desired.
+// PolicyShell. Entity identification (The Sales Progressor Ltd, company number
+// 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS,
+// United Kingdom) added to the Introduction on 2026-09-14 to match the sibling
+// legal pages.
+//
+// v2.1 (September 2026): adds §20 "Taking Back an Individual Transaction" (full
+// fee still due if a taken-back transaction later exchanges) and §21 "Ending
+// the Outsourced Service" (eight-week notice; full fee during notice, 50% fee
+// on transactions that exchange after handback). The old suspension clause is
+// retitled §23 "Suspension or Withdrawal of Service by TSP" with an added
+// paragraph confirming TSP won't rely on the termination clauses to charge for
+// work it has materially failed to provide. Everything after §19 renumbered.
 
 import { Fragment, type ReactNode } from "react";
 import type { Metadata } from "next";
@@ -30,6 +39,7 @@ const RAW: Raw[] = [
     title: "Introduction",
     paras: [
       <p>These Outsourced Sales Progression Terms of Service (&ldquo;Terms&rdquo;) apply whenever an estate agency (&ldquo;the Agent&rdquo;) instructs The Sales Progressor (&ldquo;TSP&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo; or &ldquo;our&rdquo;) to provide outsourced sales progression services.</p>,
+      <p>The Sales Progressor is operated by <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales, company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom.</p>,
       "By submitting, transferring or otherwise instructing us to progress a transaction, the Agent agrees that these Terms apply to that instruction.",
       <p>These Terms should be read alongside any other applicable terms agreed between TSP and the Agent, including our <Link href="/terms">general Terms of Service</Link>, <Link href="/billing-terms">Billing Terms</Link> and <Link href="/legal/dpa">Data Processing Agreement</Link>.</p>,
     ],
@@ -364,8 +374,35 @@ const RAW: Raw[] = [
     ],
   },
   {
+    id: "taking-back-transaction",
+    title: "20. Taking Back an Individual Transaction",
+    paras: [
+      "Once the Agent has instructed TSP to progress a transaction, that transaction remains subject to these Terms even if the Agent later chooses to resume progression itself or transfers progression to another person or provider.",
+      <p>Where an individual transaction is taken back or removed from TSP <strong>at the Agent’s choice and through no material failure by TSP to provide the agreed service</strong>, no fee is payable at the point the transaction is taken back.</p>,
+      <p>However, if that transaction subsequently exchanges contracts, the <strong>full fee that would have applied had TSP continued progressing the transaction remains payable</strong>.</p>,
+      "This reflects the work already undertaken by TSP and prevents the removal of a transaction shortly before exchange from avoiding the agreed exchange-based fee.",
+      "This provision does not apply where the Agent removes the transaction because of a material breach of these Terms by TSP which has not been remedied within a reasonable period after being brought to our attention.",
+    ],
+  },
+  {
+    id: "ending-service",
+    title: "21. Ending the Outsourced Service",
+    paras: [
+      <p>The Agent may decide to stop using TSP’s outsourced sales progression service altogether by giving us <strong>eight weeks’ written notice</strong>.</p>,
+      "The eight-week notice period begins when we receive clear written notice that the Agent wishes to end the outsourced service relationship, rather than simply take back an individual transaction.",
+      "During the notice period, unless otherwise agreed, we will continue progressing the Agent’s existing outsourced transactions in the normal way.",
+      <p>Any outsourced transaction which exchanges contracts during the eight-week notice period remains subject to the <strong>full fee that would ordinarily apply</strong>.</p>,
+      "At the end of the eight-week notice period, responsibility for any remaining live transactions will return to the Agent or its nominated replacement.",
+      <p>For each such transaction which subsequently exchanges after the notice period has ended, <strong>50% of the fee that would ordinarily have applied to that transaction will become payable on exchange</strong>.</p>,
+      "For example, where the normal fee would have been £300, the fee payable following handback at the end of the notice period would be £150 if that transaction subsequently exchanges.",
+      "No fee is payable for a transaction which falls through before exchange, subject to any separate written terms agreed with the Agent.",
+      "The Agent agrees to provide reasonable cooperation during the notice period so that live transactions can continue to be progressed and, where applicable, handed over in an orderly manner.",
+      "Ending the outsourced service does not affect fees which have already become due or any other rights or obligations which arose before the relationship ended.",
+    ],
+  },
+  {
     id: "out-of-scope-work",
-    title: "20. Unusual or Out-of-Scope Work",
+    title: "22. Unusual or Out-of-Scope Work",
     paras: [
       "Our standard outsourced fee covers normal residential sales progression activity.",
       "Occasionally, a transaction or request may require work materially outside the normal scope of the service.",
@@ -374,7 +411,7 @@ const RAW: Raw[] = [
   },
   {
     id: "suspension-withdrawal",
-    title: "21. Suspension or Withdrawal of Service",
+    title: "23. Suspension or Withdrawal of Service by TSP",
     paras: [
       "We may suspend or withdraw our service from a transaction where:",
       <ul>
@@ -387,21 +424,12 @@ const RAW: Raw[] = [
         <li>another reasonable circumstance means we can no longer provide the service effectively.</li>
       </ul>,
       "Where reasonably possible, we will notify the Agent before withdrawing.",
-    ],
-  },
-  {
-    id: "ending-service",
-    title: "22. Ending the Service",
-    paras: [
-      "Either TSP or the Agent may end the outsourced service arrangement by giving reasonable written notice.",
-      "The parties may agree that existing transactions will continue to be progressed after the wider commercial relationship ends.",
-      "Where our involvement with an individual transaction ends before exchange, we will take reasonable steps to make the latest progression information held by us available to the Agent.",
-      "Termination does not affect fees or other obligations which have already arisen.",
+      "Where TSP withdraws from a transaction or ends the outsourced relationship, the fee treatment will depend upon the reason for withdrawal and any applicable Billing Terms. We will not seek to rely upon the individual-transaction or eight-week termination provisions to charge for work we have materially failed to provide.",
     ],
   },
   {
     id: "availability-events",
-    title: "23. Availability and Events Outside Our Control",
+    title: "24. Availability and Events Outside Our Control",
     paras: [
       "We do not guarantee uninterrupted availability of our platform, communications systems or services.",
       "We will not be responsible for failure or delay caused by circumstances reasonably outside our control, including significant technology or telecommunications failures, third-party platform outages, cyber incidents, severe weather, public emergencies, industrial action or other events which materially prevent normal operation.",
@@ -410,7 +438,7 @@ const RAW: Raw[] = [
   },
   {
     id: "liability",
-    title: "24. Liability",
+    title: "25. Liability",
     paras: [
       "We will provide our outsourced sales progression service with reasonable care and skill.",
       "We are not responsible for losses caused by matters outside our reasonable control, including:",
@@ -433,7 +461,7 @@ const RAW: Raw[] = [
   },
   {
     id: "data-confidentiality",
-    title: "25. Data Protection and Confidentiality",
+    title: "26. Data Protection and Confidentiality",
     paras: [
       "Both parties must comply with applicable UK data protection legislation.",
       "In providing the outsourced service, TSP may process personal and transaction information on behalf of the Agent.",
@@ -443,7 +471,7 @@ const RAW: Raw[] = [
   },
   {
     id: "complaints",
-    title: "26. Complaints",
+    title: "27. Complaints",
     paras: [
       "If the Agent has concerns about our service, these should be raised with us as soon as reasonably possible so that we have an opportunity to investigate and address them.",
       "Where a complaint concerns legal work, professional advice or the conduct of a solicitor, conveyancer or another regulated professional, it should be directed to the relevant organisation.",
@@ -451,7 +479,7 @@ const RAW: Raw[] = [
   },
   {
     id: "changes",
-    title: "27. Changes to These Terms",
+    title: "28. Changes to These Terms",
     paras: [
       "We may update these Terms from time to time to reflect changes to our services, business operations or applicable law.",
       "The current version will be identified by its version number and effective date.",
@@ -460,7 +488,7 @@ const RAW: Raw[] = [
   },
   {
     id: "relationship-other-terms",
-    title: "28. Relationship With Other TSP Terms",
+    title: "29. Relationship With Other TSP Terms",
     paras: [
       "These Terms apply specifically to our outsourced sales progression service.",
       <p>They should be read alongside our <Link href="/terms">general Terms of Service</Link>, <Link href="/billing-terms">Billing Terms</Link>, <Link href="/privacy">Privacy Policy</Link> and <Link href="/legal/dpa">Data Processing Agreement</Link> where applicable.</p>,
@@ -470,7 +498,7 @@ const RAW: Raw[] = [
   },
   {
     id: "no-third-party",
-    title: "29. No Third-Party Contract",
+    title: "30. No Third-Party Contract",
     paras: [
       "Our contractual relationship for the outsourced service is with the Agent.",
       "Although buyers, sellers and other parties may receive communications, access the client portal or otherwise benefit from the service, this does not make them a party to the contract between TSP and the Agent.",
@@ -479,7 +507,7 @@ const RAW: Raw[] = [
   },
   {
     id: "governing-law",
-    title: "30. Governing Law",
+    title: "31. Governing Law",
     paras: [
       "These Terms and any dispute or claim arising from them are governed by the laws of England and Wales.",
       "The courts of England and Wales will have jurisdiction in relation to disputes arising from these Terms.",
@@ -524,7 +552,7 @@ export default function OutsourcedTermsPage() {
       title="Outsourced Sales Progression Terms of Service"
       description="The terms that apply when an estate agency instructs us to progress a sale on its behalf."
       lastUpdated="September 2026"
-      version="2.0"
+      version="2.1"
       sections={SECTIONS}
     />
   );

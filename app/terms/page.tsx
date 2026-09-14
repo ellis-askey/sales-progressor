@@ -12,10 +12,9 @@
 // exposure for single-director agencies considered covered by the
 // non-excludable carve-out — no separate clause needed on the public page.
 //
-// Only remaining placeholders on this page (tracked in
-// docs/policies/PLACEHOLDERS.md):
-//   - [Company number]            — § 1
-//   - [Registered office address] — § 1
+// Company number (17455131) and registered office (5 Hercules Way, Leavesden
+// Park, Watford WD25 7GS, United Kingdom) filled in § 1 on 2026-09-14. No
+// placeholders remain on this page.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -35,8 +34,8 @@ const SECTIONS: PolicySection[] = [
         <p>
           The Sales Progressor is a property transaction management platform operated by{" "}
           <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
-          company number <em className="pending">[Company number]</em>, registered office{" "}
-          <em className="pending">[Registered office address]</em>{" "}
+          company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford
+          WD25 7GS, United Kingdom{" "}
           (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;).
         </p>
         <p>

@@ -13,10 +13,9 @@
 // to ToS, no-special-category-data position) are now the operative copy.
 // Solicitor will still review the finished contract in full.
 //
-// Only remaining placeholders on this page (tracked in
-// docs/policies/PLACEHOLDERS.md):
-//   - [Company number]            — Parties
-//   - [Registered office address] — Parties
+// Company number (17455131) and registered office (5 Hercules Way, Leavesden
+// Park, Watford WD25 7GS, United Kingdom) filled in Parties on 2026-09-14. No
+// placeholders remain on this page.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -46,8 +45,8 @@ const SECTIONS: PolicySection[] = [
           </li>
           <li>
             <strong>The Processor</strong> — <strong>The Sales Progressor Ltd</strong>, company
-            number <em className="pending">[Company number]</em>, registered office{" "}
-            <em className="pending">[Registered office address]</em>{" "}
+            number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS,
+            United Kingdom{" "}
             (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
           </li>
         </ul>

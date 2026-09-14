@@ -1,46 +1,45 @@
-# Unfilled placeholders — final post-incorporation fill list
+# Legal-pack entity placeholders — fill status
 
-Updated 26 May 2026. All `[COUNSEL TO CONFIRM]` flags resolved with settled positions and stripped from the public render; editorial scaffolding removed. Verbose "TBC on incorporation" language replaced with clean inline `[Company number]` / `[Registered office address]` placeholders, now wrapped in the `.pending` chip (subtle yellow highlight in the public render — strips for print/PDF).
+Updated **14 Sept 2026**. The company number and registered office are now confirmed and filled across every static policy page (see below). All `[COUNSEL TO CONFIRM]` flags were resolved back on 25 May 2026; editorial scaffolding removed.
 
-**Only two placeholders remain across the entire legal pack**, both pending Companies House registration. Everything else is settled copy ready for solicitor review.
+**Confirmed entity values (filled 14 Sept 2026):**
 
----
-
-## The two remaining placeholders
-
-| Placeholder | What it needs |
+| Placeholder | Value |
 |---|---|
-| `[Company number]` | The Companies House registered company number for The Sales Progressor Ltd |
-| `[Registered office address]` | The registered office address as filed with Companies House |
+| `[Company number]` | **17455131** |
+| `[Registered office address]` / `[Postal address]` | **5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom** |
 
-Both are filled by the same trigger: Ellis completes the Companies House registration. Both have to be done together; neither requires legal review.
+> Note: Ellis supplied the address as "5 Hercules Way, Leavesden, Park, Watford WD25 7GS". Rendered as **Leavesden Park** (the business-park name at that postcode); confirm if a different reading was intended.
 
 ---
 
-## Where they appear (the fill list)
+## Static public pages — FILLED ✅ (14 Sept 2026)
 
-### Public pages (static React content — search-and-replace fill)
+All `.pending` chips replaced with the confirmed values; no `[…]` placeholders remain in these files.
 
-| Page | Section | Source file | What the line says today |
-|---|---|---|---|
-| **/privacy** | § 1 Who we are | [app/privacy/page.tsx](../../app/privacy/page.tsx) | "...operated by The Sales Progressor Ltd, a company registered in England and Wales, company number [Company number], registered office [Registered office address]." |
-| **/privacy** | § 11 Contact | [app/privacy/page.tsx](../../app/privacy/page.tsx) | "Data controller: The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]." |
-| **/terms** | § 1 About this service | [app/terms/page.tsx](../../app/terms/page.tsx) | "...operated by The Sales Progressor Ltd, a company registered in England and Wales, company number [Company number], registered office [Registered office address]..." |
-| **/legal/dpa** | Parties | [app/legal/dpa/page.tsx](../../app/legal/dpa/page.tsx) | "The Processor — The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]..." |
-| **/billing-terms** | About these terms | [app/billing-terms/page.tsx](../../app/billing-terms/page.tsx) | "...Billing is operated by The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]." |
+| Page | Section | Source file |
+|---|---|---|
+| **/privacy** | § 1 Who we are + § 11 Contact | [app/privacy/page.tsx](../../app/privacy/page.tsx) |
+| **/terms** | § 1 About this service | [app/terms/page.tsx](../../app/terms/page.tsx) |
+| **/legal/dpa** | Parties | [app/legal/dpa/page.tsx](../../app/legal/dpa/page.tsx) |
+| **/provider-terms** | § 1 About these terms + § 13 (postal address) | [app/provider-terms/page.tsx](../../app/provider-terms/page.tsx) |
+| **/billing-terms** | About these terms (public preview) | [app/billing-terms/page.tsx](../../app/billing-terms/page.tsx) |
+| **/outsourced-terms** | Introduction (entity line newly added) | [app/outsourced-terms/page.tsx](../../app/outsourced-terms/page.tsx) |
+| **/cookie-policy** | § 9 Contact (entity line newly added) | [app/cookie-policy/page.tsx](../../app/cookie-policy/page.tsx) |
 
-### DB-versioned billing terms — needs a NEW TermsVersion (v5)
+### DB-versioned billing terms — STILL PENDING a new TermsVersion (v7) ⚠️
 
-The current live billing acknowledgement is **v4** (`2026-06-payments-v4`), which embeds the placeholder language inline because Stripe Elements is gated by the disclosure tick at signup and we cannot edit a TermsVersion in place once it's been acknowledged. To fill the placeholders in the disclosure that directors actually see when saving a card, ship a **v5** TermsVersion with the entity values inline.
+The public `/billing-terms` page is only a preview. The disclosure directors actually **acknowledge when saving a card** is served from the database (`getActiveTermsVersion()`), currently **v6** (`2026-08-payments-v6`). Its "About these terms" body reads:
 
-Process for v5 (when ready, post-incorporation):
+> "By saving a payment card, you agree to the pricing and billing terms set out below. Billing is operated by The Sales Progressor."
 
-1. Update three files with the real values (single edit pattern, copy-paste between):
-   - **NEW** migration: `prisma/migrations/<timestamp>_terms_version_v5/migration.sql` — mirror of v4 with the real entity values substituted into the "About these terms" section body.
-   - **NEW** script: `scripts/insert-prod-terms-v5.ts` — mirror of v4 with the same substitution.
-   - **UPDATE**: `app/billing-terms/page.tsx` — change version string + the inline JSX to match.
-2. Run migration on staging → verify v5 disclosure renders correctly with real entity data.
-3. Run migration on prod → existing directors re-acknowledge v5 on next card action; v4 acknowledgements remain valid against v4 only.
+It has **no company number / registered office** (the entity line was deliberately stripped from v4 while the number was unknown). A TermsVersion cannot be edited in place once acknowledged, so adding the entity details to the acknowledgement disclosure requires shipping a **v7** TermsVersion:
+
+1. **NEW** migration `prisma/migrations/<timestamp>_terms_version_v7/migration.sql` — mirror of v6 with the entity line restored in "About these terms" (company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom).
+2. **NEW** script `scripts/insert-prod-terms-v7.ts` — mirror for prod insert.
+3. Apply on **staging first** (Law 3) → verify the disclosure renders with the entity data → then prod. Existing directors re-acknowledge v7 on their next card action; v6 acknowledgements remain valid against v6.
+
+This is deferred until Ellis confirms he wants the entity details in the card-acknowledgement disclosure too (not just the public pages).
 
 ---
 

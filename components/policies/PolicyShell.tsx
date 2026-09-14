@@ -434,7 +434,30 @@ export function PolicyShell({
           margin: 0;
           padding-left: 22px;
         }
-        .policy-prose li { margin-bottom: 6px; }
+        /* Tailwind's preflight strips list markers (list-style: none). Ordered
+           lists get their decimals back; unordered lists get a brand-coral dot
+           rendered via ::before so we control its colour and vertical alignment
+           against the first line of each item. */
+        .policy-prose ol { list-style: decimal; }
+        .policy-prose ul { list-style: none; padding-left: 4px; }
+        .policy-prose ul > li {
+          position: relative;
+          padding-left: 20px;
+        }
+        .policy-prose ul > li::before {
+          content: "";
+          position: absolute;
+          left: 3px;
+          top: 0.85em;
+          transform: translateY(-50%);
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--agent-coral, #FF6B4A);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .policy-prose li { margin-bottom: 8px; }
         .policy-prose li:last-child { margin-bottom: 0; }
         .policy-prose h3 {
           font-size: 16px;
