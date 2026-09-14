@@ -56,6 +56,7 @@ export function ReconcileLaterBanner({
   tenure,
   purchaseType,
   hasProgress = false,
+  seed,
 }: {
   transactionId: string;
   milestoneDefinitions: MilestoneDefinitionLite[];
@@ -63,12 +64,16 @@ export function ReconcileLaterBanner({
   purchaseType: PurchaseType | null;
   // True once the file has any completed step — the prompt then retires itself.
   hasProgress?: boolean;
+  // Carry-over pre-fill from the chain (both sides), keyed by milestone
+  // definition id. Anonymised upstream — what + date only, never who.
+  seed?: ReconciliationState;
 }) {
   const router = useRouter();
+  const prefilled = !!seed && Object.keys(seed).length > 0;
   const [dismissed, setDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [state, setState] = useState<ReconciliationState>({});
+  const [state, setState] = useState<ReconciliationState>(seed ?? {});
   const [error, setError] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
   const [narration, setNarration] = useState("Updating…");
@@ -171,8 +176,9 @@ export function ReconcileLaterBanner({
           <div className="rec-prompt-text">
             <p className="rec-prompt-title">Where&rsquo;s this sale up to?</p>
             <p className="rec-prompt-body">
-              Tick what&rsquo;s already been done and we&rsquo;ll bring the timeline and
-              predictions up to date.
+              {prefilled
+                ? "We’ve pre-ticked what the chain already reported for this sale. Review and adjust, and we’ll bring the timeline and predictions up to date."
+                : "Tick what’s already been done and we’ll bring the timeline and predictions up to date."}
             </p>
           </div>
           <div className="rec-prompt-actions">
@@ -203,6 +209,7 @@ export function ReconcileLaterBanner({
             onClose={() => setModalOpen(false)}
             onSubmit={handleSubmit}
             submitLabel={narration}
+            prefilled={prefilled}
           />,
           document.body,
         )}
@@ -225,6 +232,7 @@ function ReconcileModal({
   onClose,
   onSubmit,
   submitLabel,
+  prefilled = false,
 }: {
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
@@ -238,6 +246,7 @@ function ReconcileModal({
   onClose: () => void;
   onSubmit: () => void;
   submitLabel: string;
+  prefilled?: boolean;
 }) {
   const onVendor = wizardStep === "vendor";
 
@@ -307,6 +316,11 @@ function ReconcileModal({
               <p className="rec-lede">
                 Tick the steps that have already been completed. Add the real-world date if you know it.
               </p>
+              {prefilled && (
+                <p className="rec-lede" style={{ color: "var(--agent-coral-deep, #E8542F)" }}>
+                  Some steps are pre-ticked from what the chain already reported. Review and adjust before you finish.
+                </p>
+              )}
 
               {tenure && purchaseType ? (
                 <ReconcileMilestonePicker

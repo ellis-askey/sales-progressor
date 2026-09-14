@@ -32,13 +32,29 @@ import {
   setRelatedSaleTypeFactsAction,
   confirmRelatedSaleStepAction,
   undoRelatedSaleStepAction,
+  openOnwardSellerAction,
+  setOnwardSellerTypeFactsAction,
+  confirmOnwardSellerStepAction,
+  undoOnwardSellerStepAction,
+  openRelatedBuyerAction,
+  setRelatedBuyerTypeFactsAction,
+  confirmRelatedBuyerStepAction,
+  undoRelatedBuyerStepAction,
 } from "@/app/actions/onward";
-import type { OnwardTrackerView, OnwardStepView } from "@/lib/services/onward";
+import type {
+  OnwardTrackerView,
+  OnwardStepView,
+  ConfirmOnwardResult,
+  UndoOnwardResult,
+} from "@/lib/services/onward";
 import { DateField } from "@/components/ui/DateField";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
-type Direction = "onward" | "related";
+// near sides: "onward" (our seller buying) / "related" (our buyer selling).
+// far sides (agent-only): "onward_seller" (the onward property's seller) /
+// "related_buyer" (the related sale's buyer).
+type Direction = "onward" | "related" | "onward_seller" | "related_buyer";
 
 const SECONDARY = "var(--agent-text-secondary)";
 const MUTED = "var(--agent-text-muted, var(--agent-text-secondary))";
@@ -73,6 +89,8 @@ export function OnwardPurchaseCard({
   onwardAddress = null,
   direction = "onward",
   embedded = false,
+  seedTenure = null,
+  seedShareOfFreehold = false,
 }: {
   transactionId: string;
   initialView: OnwardTrackerView;
@@ -82,51 +100,100 @@ export function OnwardPurchaseCard({
   // When true, drops the Card + title and renders a compact action area for the
   // chain spine (PropertyChainCard). The step list collapses by default.
   embedded?: boolean;
+  // Far sides: pre-fill the type-facts form from the near sibling (same
+  // property) so the agent never re-enters tenure. Only used when this tracker
+  // has no tenure of its own yet.
+  seedTenure?: Tenure | null;
+  seedShareOfFreehold?: boolean;
 }) {
-  const isRelated = direction === "related";
-  const gateCode = isRelated ? "VM18" : "PM25";
-  const sectionId = isRelated ? "related-sale-section" : "onward-section";
+  // Purchaser-side directions carry a buying axis (purchaseType); vendor-side
+  // don't. onward + related_buyer = purchaser (PM); related + onward_seller = vendor (VM).
+  const isPurchaserSide = direction === "onward" || direction === "related_buyer";
+  const needsPurchaseType = isPurchaserSide;
+  const gateCode = isPurchaserSide ? "PM25" : "VM18";
+  const sectionId = `chain-${direction}-section`;
 
-  const actions = isRelated
-    ? {
-        open: openRelatedSaleAction,
-        confirm: confirmRelatedSaleStepAction,
-        undo: undoRelatedSaleStepAction,
-        setFacts: (i: { transactionId: string; tenure: Tenure; purchaseType: PurchaseType; isShareOfFreehold: boolean }) =>
-          setRelatedSaleTypeFactsAction({ transactionId: i.transactionId, tenure: i.tenure, isShareOfFreehold: i.isShareOfFreehold }),
-      }
-    : {
-        open: openOnwardTrackerAction,
-        confirm: confirmOnwardStepAction,
-        undo: undoOnwardStepAction,
-        setFacts: setOnwardTypeFactsAction,
-      };
+  type SetFactsInput = { transactionId: string; tenure: Tenure; purchaseType: PurchaseType; isShareOfFreehold: boolean };
+  type ConfirmInput = { transactionId: string; milestoneCode: string; eventDate?: string | null };
+  type UndoInput = { transactionId: string; milestoneCode: string };
+  type ActionSet = {
+    open: (txId: string) => Promise<OnwardTrackerView>;
+    confirm: (i: ConfirmInput) => Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }>;
+    undo: (i: UndoInput) => Promise<{ result: UndoOnwardResult; view: OnwardTrackerView }>;
+    setFacts: (i: SetFactsInput) => Promise<OnwardTrackerView>;
+  };
+  const ACTIONS: Record<Direction, ActionSet> = {
+    onward: { open: openOnwardTrackerAction, confirm: confirmOnwardStepAction, undo: undoOnwardStepAction, setFacts: setOnwardTypeFactsAction },
+    related: {
+      open: openRelatedSaleAction, confirm: confirmRelatedSaleStepAction, undo: undoRelatedSaleStepAction,
+      setFacts: (i) => setRelatedSaleTypeFactsAction({ transactionId: i.transactionId, tenure: i.tenure, isShareOfFreehold: i.isShareOfFreehold }),
+    },
+    onward_seller: {
+      open: openOnwardSellerAction, confirm: confirmOnwardSellerStepAction, undo: undoOnwardSellerStepAction,
+      setFacts: (i) => setOnwardSellerTypeFactsAction({ transactionId: i.transactionId, tenure: i.tenure, isShareOfFreehold: i.isShareOfFreehold }),
+    },
+    related_buyer: { open: openRelatedBuyerAction, confirm: confirmRelatedBuyerStepAction, undo: undoRelatedBuyerStepAction, setFacts: setRelatedBuyerTypeFactsAction },
+  };
+  const actions = ACTIONS[direction];
 
-  const txt = isRelated
-    ? {
-        title: "Related sale",
-        supersededTag: "Handled down the chain",
-        supersededBody: "The agent progressing the property this buyer is selling now owns these updates, so the reported tracker here is read-only.",
-        abandonedTag: "Not going ahead",
-        abandonedBody: "This buyer's related sale is no longer going ahead.",
-        signalPrompt: `This buyer is also selling${onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their sale is up to.`,
-        passivePrompt: "If this buyer is also selling a property, track where their sale is up to. Reported progress stays on this file and is not shared with other agencies.",
-        setupCta: "Set up sale tracking",
-        factsPrompt: "Tell us the type of the property they're selling, so we show the right steps.",
-        reportedBy: "As reported by the buyer. Not confirmed by the sale's agent.",
-      }
-    : {
-        title: "Onward purchase",
-        supersededTag: "Handled up the chain",
-        supersededBody: "The agent progressing the property this seller is buying now owns these updates, so the reported tracker here is read-only.",
-        abandonedTag: "Not going ahead",
-        abandonedBody: "This seller's onward purchase is no longer going ahead.",
-        signalPrompt: `This seller is buying onward${onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their purchase is up to.`,
-        passivePrompt: "If this seller is buying onward, track where their purchase is up to. Reported progress stays on this file and is not shared with other agencies.",
-        setupCta: "Set up onward tracking",
-        factsPrompt: "Tell us the onward property type and how they are buying, so we show the right steps.",
-        reportedBy: "As reported by the seller. Not confirmed by the onward agent.",
-      };
+  type CardCopy = {
+    title: string; supersededTag: string; supersededBody: string; abandonedTag: string; abandonedBody: string;
+    signalPrompt: string; passivePrompt: string; setupCta: string; factsPrompt: string; reportedBy: string;
+  };
+  const TXT: Record<Direction, CardCopy> = {
+    onward: {
+      title: "Onward purchase",
+      supersededTag: "Handled up the chain",
+      supersededBody: "The agent progressing the property this seller is buying now owns these updates, so the reported tracker here is read-only.",
+      abandonedTag: "Not going ahead",
+      abandonedBody: "This seller's onward purchase is no longer going ahead.",
+      signalPrompt: `This seller is buying onward${onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their purchase is up to.`,
+      passivePrompt: "If this seller is buying onward, track where their purchase is up to. Reported progress stays on this file and is not shared with other agencies.",
+      setupCta: "Set up onward tracking",
+      factsPrompt: "Tell us the onward property type and how they are buying, so we show the right steps.",
+      reportedBy: "As reported by the seller. Not confirmed by the onward agent.",
+    },
+    related: {
+      title: "Related sale",
+      supersededTag: "Handled down the chain",
+      supersededBody: "The agent progressing the property this buyer is selling now owns these updates, so the reported tracker here is read-only.",
+      abandonedTag: "Not going ahead",
+      abandonedBody: "This buyer's related sale is no longer going ahead.",
+      signalPrompt: `This buyer is also selling${onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their sale is up to.`,
+      passivePrompt: "If this buyer is also selling a property, track where their sale is up to. Reported progress stays on this file and is not shared with other agencies.",
+      setupCta: "Set up sale tracking",
+      factsPrompt: "Tell us the type of the property they're selling, so we show the right steps.",
+      reportedBy: "As reported by the buyer. Not confirmed by the sale's agent.",
+    },
+    // FAR side of the onward purchase: the seller of the property our seller is
+    // buying. Agent-only — you record what the agent up the chain tells you.
+    onward_seller: {
+      title: "Onward · seller's side",
+      supersededTag: "Handled up the chain",
+      supersededBody: "The agent progressing this property now owns these updates, so the reported tracker here is read-only.",
+      abandonedTag: "Not going ahead",
+      abandonedBody: "This onward purchase is no longer going ahead.",
+      signalPrompt: "Track the seller's side of the onward property too, from what the agent up the chain tells you.",
+      passivePrompt: "Track the seller's side of the onward property, from what the agent up the chain tells you. Agent-only, and never shared with other agencies.",
+      setupCta: "Set up the seller's side",
+      factsPrompt: "Confirm the property type, so we show the right steps.",
+      reportedBy: "As recorded by your team from the agent up the chain. Not confirmed by that agent.",
+    },
+    // FAR side of the related sale: the buyer of the home our buyer is selling.
+    related_buyer: {
+      title: "Related · buyer's side",
+      supersededTag: "Handled down the chain",
+      supersededBody: "The agent progressing this property now owns these updates, so the reported tracker here is read-only.",
+      abandonedTag: "Not going ahead",
+      abandonedBody: "This related sale is no longer going ahead.",
+      signalPrompt: "Track the buyer's side of the related sale too, from what the agent down the chain tells you.",
+      passivePrompt: "Track the buyer's side of the related sale, from what the agent down the chain tells you. Agent-only, and never shared with other agencies.",
+      setupCta: "Set up the buyer's side",
+      factsPrompt: "Confirm the property type and how the buyer is buying, so we show the right steps.",
+      reportedBy: "As recorded by your team from the agent down the chain. Not confirmed by that agent.",
+    },
+  };
+  const txt = TXT[direction];
 
   // The name of the first unmet prerequisite, resolved from the visible steps.
   function blockingLabel(step: OnwardStepView, steps: OnwardStepView[]): string {
@@ -144,11 +211,14 @@ export function OnwardPurchaseCard({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Type-facts form state (used when not yet set / editing).
+  // Type-facts form state (used when not yet set / editing). Far sides pre-fill
+  // tenure from the near sibling (same property) when they have none of their own.
   const [editingFacts, setEditingFacts] = useState(false);
-  const [tenure, setTenure] = useState<Tenure | null>(initialView.tenure);
+  const [tenure, setTenure] = useState<Tenure | null>(initialView.tenure ?? seedTenure);
   const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(initialView.purchaseType);
-  const [shareOfFreehold, setShareOfFreehold] = useState(initialView.isShareOfFreehold);
+  const [shareOfFreehold, setShareOfFreehold] = useState(
+    initialView.tenure != null ? initialView.isShareOfFreehold : seedShareOfFreehold,
+  );
 
   // Per-step confirm bar state.
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
@@ -234,7 +304,7 @@ export function OnwardPurchaseCard({
   // ── Type-facts form (not set, or editing) ─────────────────────────────────
   const showFactsForm = !view.typeFactsSet || editingFacts;
   if (showFactsForm) {
-    const canSave = tenure !== null && (isRelated || purchaseType !== null) && !pending;
+    const canSave = tenure !== null && (!needsPurchaseType || purchaseType !== null) && !pending;
     const factsForm = (
       <>
         <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>
@@ -251,7 +321,7 @@ export function OnwardPurchaseCard({
           </label>
         )}
 
-        {!isRelated && (
+        {needsPurchaseType && (
           <FactRow label="Buying with">
             <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
             <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
@@ -296,7 +366,7 @@ export function OnwardPurchaseCard({
   const factsSummary = [
     tenureLabel(view.tenure),
     view.isShareOfFreehold ? "(share of freehold)" : "",
-    isRelated ? "" : purchaseLabel(view.purchaseType),
+    needsPurchaseType ? purchaseLabel(view.purchaseType) : "",
   ]
     .filter(Boolean)
     .join(" ");

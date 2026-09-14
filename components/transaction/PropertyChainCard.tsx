@@ -18,7 +18,7 @@ import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard"
 import { useTabContext } from "@/components/transaction/TabContext";
 import type { OnwardTrackerView } from "@/lib/services/onward";
 
-type Side = { view: OnwardTrackerView; signalActive: boolean; address: string | null };
+type Side = { view: OnwardTrackerView; farView: OnwardTrackerView; signalActive: boolean; address: string | null };
 type CurrentStatus = { label: string; tone: "active" | "hold" | "done" | "off" };
 
 // Split "14 Beaumont Rise, Harpenden, Hertfordshire, AL5 2RT" into a bold
@@ -216,6 +216,12 @@ export function PropertyChainCard({
         /* Inline tracker disclosure */
         .cx-disclosure{margin:2px 0 12px 78px;padding:12px 14px;border-radius:12px;background:var(--agent-surface-nested, rgba(15,23,42,0.03));border:1px solid var(--agent-border-default)}
 
+        /* Near / far side toggle */
+        .cx-sidetoggle{display:inline-flex;gap:2px;padding:2px;margin:0 0 12px;border-radius:9px;background:var(--agent-border-default, rgba(15,23,42,0.06))}
+        .cx-sidetab{appearance:none;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--agent-text-secondary);padding:5px 12px;border-radius:7px;transition:background 120ms ease,color 120ms ease}
+        .cx-sidetab.on{background:var(--agent-surface, #fff);color:var(--agent-text-primary);box-shadow:0 1px 2px rgba(15,23,42,0.10)}
+        .cx-sidetab:focus-visible{outline:2px solid var(--agent-coral);outline-offset:1px}
+
         /* Footer */
         .cx-foot{border-top:0.5px solid var(--agent-border-default);padding:14px 24px 18px;margin-top:8px}
         .cx-foot-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -260,9 +266,15 @@ export function PropertyChainCard({
     transactionId: string;
   }) {
     const [open, setOpen] = useState(false);
+    // Which side of the neighbour deal is showing: the near side (our client) or
+    // the far side (the other party — agent-only). Toggled in the disclosure.
+    const [farSide, setFarSide] = useState(false);
     const addr = splitAddr(side.address);
     const tracked = side.view.exists;
     const isOnward = direction === "onward";
+    const nearLabel = isOnward ? "Buyer's steps" : "Seller's steps";
+    const farLabel = isOnward ? "Seller's steps" : "Buyer's steps";
+    const farDirection: "onward_seller" | "related_buyer" = isOnward ? "onward_seller" : "related_buyer";
 
     return (
       <>
@@ -301,13 +313,25 @@ export function PropertyChainCard({
 
         {open && (
           <div className="cx-disclosure">
+            {/* Near / far side toggle (agent-only far side). */}
+            <div className="cx-sidetoggle" role="tablist" aria-label="Which side of this deal">
+              <button type="button" role="tab" aria-selected={!farSide} className={`cx-sidetab${!farSide ? " on" : ""}`} onClick={() => setFarSide(false)}>
+                {nearLabel}
+              </button>
+              <button type="button" role="tab" aria-selected={farSide} className={`cx-sidetab${farSide ? " on" : ""}`} onClick={() => setFarSide(true)}>
+                {farLabel}
+              </button>
+            </div>
             <OnwardPurchaseCard
+              key={farSide ? "far" : "near"}
               embedded
               transactionId={transactionId}
-              initialView={side.view}
-              signalActive={side.signalActive}
+              initialView={farSide ? side.farView : side.view}
+              signalActive={farSide ? false : side.signalActive}
               onwardAddress={side.address}
-              direction={direction}
+              direction={farSide ? farDirection : direction}
+              seedTenure={farSide ? side.view.tenure : null}
+              seedShareOfFreehold={farSide ? side.view.isShareOfFreehold : false}
             />
           </div>
         )}
