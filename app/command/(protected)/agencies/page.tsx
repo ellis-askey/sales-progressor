@@ -4,8 +4,8 @@ import { commandDb } from "@/lib/command/prisma";
 import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
 import { AgencyChaseControl, type AgencyChaseRow } from "@/components/command/agencies/AgencyChaseControl";
 import { WeeklyUpdateControl, type WeeklyUpdateRow } from "@/components/command/agencies/WeeklyUpdateControl";
-import { AgencyEmailReadiness } from "@/components/command/agencies/AgencyEmailReadiness";
-import { getAgencyEmailReadiness } from "@/lib/command/agency-readiness";
+import { AgencySetupReadiness } from "@/components/command/agencies/AgencySetupReadiness";
+import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
 import InfoTip from "@/components/command/shared/InfoTip";
 
 function fmtDuration(seconds: number): string {
@@ -152,8 +152,8 @@ export default async function AgenciesPage({
   const legacyFeeCount = feeRows.filter((a) => a.feeTier === "legacy").length;
   const freeFeeCount = feeRows.filter((a) => a.feeTier === "free").length;
 
-  // Per-agency email readiness (sender address + domain authentication).
-  const emailReadiness = await getAgencyEmailReadiness();
+  // Per-agency setup readiness (email + experience + team signals).
+  const setupReadiness = await getAgencySetupReadiness();
 
   const agentRows: AgentUsage[] = agents.filter(
     (a) =>
@@ -349,9 +349,9 @@ export default async function AgenciesPage({
         Active = activity in the last 7 days · Quiet = 7&ndash;14 days · Dormant = 14+ days · Never on = invited but never logged in. Hours and files come from the same engaged-time tracking as the Files tab; logins and last-active from the event log.
       </p>
 
-      {/* Email readiness - who can send from their own domain */}
+      {/* Setup readiness - email + experience + team, per agency */}
       <div className="pt-2">
-        <AgencyEmailReadiness rows={emailReadiness.rows} readyCount={emailReadiness.readyCount} total={emailReadiness.total} />
+        <AgencySetupReadiness rows={setupReadiness.rows} readyCount={setupReadiness.readyCount} total={setupReadiness.total} />
       </div>
 
       {/* Agency fees (relocated from /agent/admin) */}
