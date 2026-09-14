@@ -286,10 +286,13 @@ export const TRANSACTION_STATUSES: { value: TransactionStatus; label: string }[]
 ];
 
 /** All contact role options for selects */
+// Roles offered when ADDING a client contact. Brokers are professionals, not
+// clients — they're added/managed on the Professionals tab (the referral broker
+// via BrokerSection), never here. "broker" remains a valid ContactRole for the
+// legacy contacts that predate that move (rendered read-only under Professionals).
 export const CONTACT_ROLES: { value: ContactRole; label: string }[] = [
   { value: "vendor",    label: "Vendor" },
   { value: "purchaser", label: "Purchaser" },
-  { value: "broker",    label: "Broker / IFA" },
   { value: "other",     label: "Other" },
 ];
 

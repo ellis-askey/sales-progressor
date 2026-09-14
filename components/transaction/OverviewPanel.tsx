@@ -40,6 +40,7 @@ import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFi
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow";
+import { BrokerContactsList } from "@/components/transaction/BrokerContactsList";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
@@ -376,6 +377,9 @@ export async function OverviewPanel({
   const onwardSignal = await getOnwardSignalForFile(transaction.id);
   const relatedView = await getOnwardTrackerView(transaction.id, "related_sale");
   const relatedSignal = await getRelatedSaleSignalForFile(transaction.id);
+  // Far sides (agent-only): the onward property's seller + the related sale's buyer.
+  const onwardSellerView = await getOnwardTrackerView(transaction.id, "onward_purchase_seller");
+  const relatedBuyerView = await getOnwardTrackerView(transaction.id, "related_sale_buyer");
 
   // Current-sale status + a short "what's happening now" line for the chain
   // card's middle node. Status from the file status; the sub-line is the live
@@ -415,6 +419,14 @@ export async function OverviewPanel({
     addedByName: r.ownBrokerAddedByName,
   }));
 
+  // Brokers are professionals, not clients: the Clients tab shows vendor /
+  // purchaser / other contacts; any legacy "broker" contacts move to the
+  // Professionals tab (read-only). New brokers are attached via BrokerSection.
+  const clientContacts = transaction.contacts.filter((c) => c.roleType !== "broker");
+  const brokerContacts = transaction.contacts
+    .filter((c) => c.roleType === "broker")
+    .map((c) => ({ name: c.name, phone: c.phone ?? null, email: c.email ?? null }));
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
@@ -425,11 +437,11 @@ export async function OverviewPanel({
         clients={
           <ContactsSection
             transactionId={transaction.id}
-            contacts={transaction.contacts}
+            contacts={clientContacts}
             isInternalStaff={isInternalStaff}
             address={transaction.propertyAddress}
             portalViewDates={Object.fromEntries(
-              transaction.contacts
+              clientContacts
                 .filter((c) => c.lastVisitedPortalAt)
                 .map((c) => [c.id, c.lastVisitedPortalAt as Date]),
             )}
@@ -461,7 +473,24 @@ export async function OverviewPanel({
               isInternalStaff={isInternalStaff}
               embedded
             />
+            {/* Mortgage broker (the referral broker) now lives here with the
+                other professionals, not in a standalone card lower down. */}
+            {(brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage") && (
+              <BrokerSection
+                transactionId={transaction.id}
+                brokerFirmId={brokerRow?.brokerFirmId ?? null}
+                brokerContactId={brokerRow?.brokerContactId ?? null}
+                brokerFirmName={brokerRow?.brokerFirm?.name ?? null}
+                brokerContactName={brokerRow?.brokerContact?.name ?? null}
+                brokerReferralFee={brokerRow?.brokerReferralFee ?? null}
+                brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
+                purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
+                purchaseType={transaction.purchaseType}
+                canEdit={currentUserRole !== "sales_progressor"}
+              />
+            )}
             <ClientOwnBrokerRow brokers={ownBrokers} />
+            <BrokerContactsList contacts={brokerContacts} />
           </div>
         }
       />
@@ -499,8 +528,8 @@ export async function OverviewPanel({
         photoUrl={photoUrl}
         currentStatus={chainCurrentStatus}
         currentSubtext={chainCurrentSubtext}
-        onward={{ view: onwardView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
-        related={{ view: relatedView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
+        onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
+        related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}
         openChain={
           <ViewChainButton
@@ -529,22 +558,7 @@ export async function OverviewPanel({
 
       {/* Chain spine card moved up into the AI-summary slot (2026-09-02). */}
 
-      {/* Solicitors now live in the PeoplePanel "Professionals" tab above. */}
-
-      {(brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage") && (
-        <BrokerSection
-          transactionId={transaction.id}
-          brokerFirmId={brokerRow?.brokerFirmId ?? null}
-          brokerContactId={brokerRow?.brokerContactId ?? null}
-          brokerFirmName={brokerRow?.brokerFirm?.name ?? null}
-          brokerContactName={brokerRow?.brokerContact?.name ?? null}
-          brokerReferralFee={brokerRow?.brokerReferralFee ?? null}
-          brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
-          purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
-          purchaseType={transaction.purchaseType}
-          canEdit={currentUserRole !== "sales_progressor"}
-        />
-      )}
+      {/* Solicitors + broker now live in the PeoplePanel "Professionals" tab above. */}
 
       <RiskScoreWidget input={riskInput} />
       <PropertyIntelCard transactionId={transaction.id} />
