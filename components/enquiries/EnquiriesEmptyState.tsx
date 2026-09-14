@@ -51,7 +51,7 @@ export function EnquiriesEmptyState() {
             glassId="empty-enquiries-chasing"
             label="Enquiries empty · Needs chasing"
             icon={<Clock size={20} weight="regular" />}
-            tint="coral"
+            tint="blue"
             title="Know what needs chasing"
             desc="Once replies are due, we'll show you where things are sitting so you know what needs attention."
           />
