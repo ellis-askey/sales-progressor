@@ -8,6 +8,17 @@ Last updated: 2026-09-14
 
 ---
 
+## Check chain exchange/completion logic with a real multi-agent chain (2026-09-14)
+
+Reminder (raised during the chain far-side work): once you have a **live chain with two or more agents claimed** (real files linked, not shadow trackers), sanity-check how **exchange and completion** behave across the chain:
+- Does one agent completing exchange/completion **alert** the others?
+- Do they have to be done **in order**, or can they be marked independently?
+- Does the cascade land the "exchanged"/"completed" state on the right neighbours?
+
+Can't be verified properly until such a chain exists in real use. Flag anything odd and we'll adjust the cascade rules.
+
+---
+
 ## WhatsApp agent-facing Phase 2 — Railway persistent volume required (2026-09-14)
 
 The bridge now supports many WhatsApp connections at once (the internal number + one per agency). Each connection's login is stored on disk under `AUTH_DIR`, with per-connection watermarks under `QUEUE_DIR`. For connections to survive a redeploy/restart, **those directories must live on a Railway persistent volume** — otherwise every agency (and the internal number) would have to re-scan a QR after each deploy.

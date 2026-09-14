@@ -3811,8 +3811,10 @@ model OnwardTracker {
 }
 
 enum OnwardTrackerKind {
-  onward_purchase // seller buying the property above (PM steps)
-  related_sale    // buyer selling the property below (VM steps)
+  onward_purchase        // seller buying the property above (PM steps)
+  related_sale           // buyer selling the property below (VM steps)
+  onward_purchase_seller // FAR side: the onward property's seller (VM steps); agent-only
+  related_sale_buyer     // FAR side: the related sale's buyer (PM steps); agent-only
 }
 
 enum OnwardTrackerStatus {

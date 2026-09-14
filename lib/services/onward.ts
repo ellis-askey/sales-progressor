@@ -43,7 +43,12 @@ type Direction = {
   completionGateOurCode: string | null;
 };
 
-const DIRECTION: Record<OnwardTrackerKind, Direction> = {
+// Exported for unit tests. The two FAR-side kinds mirror their near sibling but
+// flip to the OTHER milestone side: an onward purchase's SELLER (vendor/VM), and
+// a related sale's BUYER (purchaser/PM). Same gates/cascade as a normal sale —
+// the far side behaves identically, just tracked from the agent's second-hand
+// knowledge. See docs/active/chain-far-side/SPEC.md.
+export const DIRECTION: Record<OnwardTrackerKind, Direction> = {
   onward_purchase: {
     side: "purchaser", prefix: "PM",
     gateCode: "PM25", exchangeCode: "PM26", completionCode: "PM27",
@@ -56,6 +61,30 @@ const DIRECTION: Record<OnwardTrackerKind, Direction> = {
     surveyCodes: [], mortgageCodes: [],
     completionGateOurCode: null, requiresPurchaseType: false,
   },
+  // FAR side of the onward purchase: the seller of the property our seller is
+  // buying. Vendor/VM steps. Completion still gated on our own VM20 (the chain
+  // completes as one), matching the near onward side.
+  onward_purchase_seller: {
+    side: "vendor", prefix: "VM",
+    gateCode: "VM18", exchangeCode: "VM19", completionCode: "VM20",
+    surveyCodes: [], mortgageCodes: [],
+    completionGateOurCode: "VM20", requiresPurchaseType: false,
+  },
+  // FAR side of the related sale: the buyer of the home our buyer is selling.
+  // Purchaser/PM steps, with the buying axis (purchaseType), like a normal buyer.
+  related_sale_buyer: {
+    side: "purchaser", prefix: "PM",
+    gateCode: "PM25", exchangeCode: "PM26", completionCode: "PM27",
+    surveyCodes: ["PM9", "PM10"], mortgageCodes: ["PM5", "PM6", "PM11"],
+    completionGateOurCode: null, requiresPurchaseType: true,
+  },
+};
+
+// FAR-side kind → its NEAR sibling (same property). The UI pre-fills the far
+// side's tenure from the sibling so the agent never re-enters it.
+export const NEAR_SIBLING: Partial<Record<OnwardTrackerKind, OnwardTrackerKind>> = {
+  onward_purchase_seller: "onward_purchase",
+  related_sale_buyer: "related_sale",
 };
 
 export type OnwardStepView = {

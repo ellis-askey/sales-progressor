@@ -22,10 +22,12 @@ the agent can record it.
 
 ## Scope + locked decisions
 
-- **Agent-only. Never the client portal.** A client can't reliably know what the
-  party two doors down has done; an agent can, by calling the neighbour agent.
-  So the far side is confirmable only by the agent (`source: "agent"`), on
-  internal surfaces only. No portal panel, no portal action.
+- **Agent-side only. Never the client portal.** A client can't reliably know
+  what the party two doors down has done; an agent can, by calling the neighbour
+  agent. The far side is confirmable by **any agent-side user in scope of the
+  file** — in-house directors/negotiators AND the outsourced/internal team,
+  exactly like confirming a normal step (`source: "agent"`, `requireTxInScope`).
+  Never the client portal — no portal panel, no portal action.
 - **Two far sides added:**
   - Onward purchase → the **onward seller's** steps (vendor/VM set).
   - Related sale → the **related buyer's** steps (purchaser/PM set).
@@ -86,42 +88,60 @@ two-option toggle at the top:
 Each side renders the existing step list + Reported X/Y + Confirm/Undo. Far side
 shows the same "reported, not confirmed by the neighbour agent" provenance note.
 
-### 6. Carry-over on claim (extend the existing mechanism)
-When a neighbour's real file is claimed, the reconciliation wizard already
-pre-fills from the near-side tracker. Extend it to also pull the far side, so a
-claimed neighbour file gets **both** its sides pre-filled:
-- `getOnwardInheritanceForLink` (`onward.ts:635`) also reads
-  `onward_purchase_seller` (VM) → pre-fills the claimed file's vendor side.
-- `getRelatedSaleInheritanceForLink` (`onward.ts:706`) also reads
-  `related_sale_buyer` (PM) → pre-fills the claimed file's purchaser side.
-- `supersede*ForLink` and the withdrawal cascade (`onward.ts:660/728`,
-  `lib/chain/withdrawal.ts:139`) also retire the far-side trackers.
+### 6. Carry-over on claim (needs wiring — NOT currently live)
+**Finding (2026-09-14):** the "confirm what's already done" step was moved from
+claim-time to a **post-claim** prompt on the file (`ReconcileLaterBanner`, opened
+from a freshly-claimed file). The old claim-time pre-fill (`ClaimConfirmForm` +
+`getOnwardInheritanceForLink`) is built but **gated off** — `SHOW_RECONCILE =
+false` is a **code constant (not an env var)** and stays off. The post-claim
+reconcile **starts blank** (`useState<ReconciliationState>({})`) — it does NOT
+pull the neighbours' reported progress. So the carry-over payoff (claimer sees
+what we/the neighbours recorded, pre-ticked) is **not live today**, for the near
+side either. This work wires it up, for **both near and far sides**:
+- Compute neighbour inheritance for the claimed file and **seed
+  `ReconcileLaterBanner`'s initial ticked state** from it. Extend
+  `getOnwardInheritanceForLink` / `getRelatedSaleInheritanceForLink`
+  (`onward.ts:635/706`) to also read the new far-side kinds, so both sides of the
+  claimed file pre-fill. Union deduped by milestone code.
+- Retirement/fallback already works: the claim route supersedes the near-side
+  trackers (`app/api/claim/route.ts:293-299`); extend `supersede*ForLink` +
+  withdrawal cascade (`onward.ts:660/728`, `lib/chain/withdrawal.ts:139`) to
+  retire the new far-side kinds too, so nothing is double-counted.
 
 ### 7. Out of scope
 - No portal surface for the far side (permanent).
-- No auto-cascade of exchange/completion into the far side from our own
-  milestones (agent confirms it manually from what the neighbour agent says).
 - No cross-agency visibility change.
 
-## Open details (sensible defaults, confirm if you disagree)
-- **Completion gating:** the far side is ungated by our-file gates
-  (`completionGateOurCode: null`) — the agent reports what the neighbour tells
-  them, no chain-order lock. (The near-side onward keeps its existing VM20 gate.)
-- **Neighbour notifications:** far-side confirms are agent-only, so no client
-  digest; leave the `ChainNeighbourUpdate` nudge to the near side as today.
+## Locked behaviour (updated after founder review 2026-09-14)
+- **Ordering locks: same as a normal sale.** The far side gets full within-side
+  ordering locks (can't tick a step before its prerequisites). This also means
+  what carries over on claim is always a valid, in-order set — no impossible
+  state to inherit. (Reversed from the first draft's "ungated".)
+- **Cascade: same as the near side.** A chain exchanges/completes as one event,
+  so our own exchange/completion cascades onto the far side too (bypassing the
+  step gate for the exchange marker, exactly as the near side already does via
+  `cascadeOnwardExchange`). (Reversed from the first draft's "no cascade".)
+- **No far-side notifications.** Far-side confirms fire no neighbour digest — we
+  learned that progress from the neighbour agent, so emailing it back is
+  circular, and more email to cold agents reads as spam without helping
+  conversion. The near-side nudge is unchanged.
 
 ## Sequencing note
-The **related-sale tracker is on staging only, not prod.** The
-`related_sale_buyer` far side rides along with the related-sale prod push; the
-`onward_purchase_seller` far side can ship on prod with the (already-live) onward
-tracker.
+The **related-sale tracker is on staging only, not prod.** This work **includes
+pushing the related-sale tracker (near side) to prod** (founder ask), so the
+related near + far sides go live together. The `onward_purchase_seller` far side
+ships on prod with the already-live onward tracker.
 
 ## Proposed build stages (reviewable)
 1. **Backend** — schema (2 kinds) + DIRECTION + sibling type-facts + agent
    confirm/undo actions + unit tests. No UI yet.
 2. **UI** — the toggle + far-side views in the card.
-3. **Carry-over** — inheritance + supersede + withdrawal wiring for the new
-   kinds + tests.
+3. **Carry-over** — extend the inheritance functions to the new kinds, **seed the
+   post-claim reconcile (`ReconcileLaterBanner`) pre-fill from the neighbour
+   trackers (near + far)** so the claimer actually sees what's already done
+   (this also fixes the currently-missing near-side pre-fill), plus supersede +
+   withdrawal retirement for the new kinds + tests.
+4. **Ship** — push related-sale tracker to prod alongside.
 
 ## Definition of done
 - Agent can open a neighbour card, toggle to the far side, set the buyer's
