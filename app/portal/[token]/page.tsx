@@ -577,43 +577,58 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const tips  = getStageTips(stage, side, token, doneCodes);
 
   // ── Customize overview (Batch 1): which moveable cards are present + order ──
-  const showSurveyQuote    = !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && !surveyBooked && (
+  // A buyer can opt out of the survey (PM9 marked not-required from the portal).
+  // Treat that as "survey settled": stop offering the quote card, but still let
+  // the providers card offer the other trades below.
+  const purchaserSurveyOptedOut = side === "purchaser" && milestones.some((m) => m.code === "PM9" && m.isNotRequired);
+  const showSurveyQuote    = !hasExchanged && !hasCompleted && !hasRequestedQuote && !bookedSurveyorName && !surveyBooked && !purchaserSurveyOptedOut && (
     (side === "purchaser" && instructedDone) ||
     (side === "vendor" && buyingOnward && !onwardSurveySkipped)
   );
   // Buyer's survey card points at their own /quote link; the seller's at the
   // onward variant (?onward=1), which matches surveyors to the onward postcode.
   const surveyQuoteHref = side === "vendor" ? `/quote/${token}?onward=1` : `/quote/${token}`;
-  // Mortgage broker card: useful before the mortgage application is in, so we
-  // show it once instructed and hide it once PM5 (application submitted) is
-  // done, or after exchange/completion. Reactive to milestone state.
-  const pm5Done            = isMilestoneCompleteByCode("PM5");
-  const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm5Done && !hasExchanged && !hasCompleted;
+  // Mortgage broker card: useful while a mortgage is still being arranged, so we
+  // show it once instructed and hide it once the lender valuation is booked
+  // (PM6) — a few days after the application goes in, signalling it's on track —
+  // or after exchange/completion. Reactive to milestone state.
+  const pm6Done            = isMilestoneCompleteByCode("PM6");
+  const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm6Done && !hasExchanged && !hasCompleted;
   // Portal Engagement v2 (Phase 1): top of the service funnel — a service was
   // actually shown to this client. "clicked"/"requested" are logged elsewhere.
   if (showSurveyQuote) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "survey" });
   if (showBrokerCard)  void recordPortalEvent("portal_service_surfaced", contact.id, { service: "broker" });
-  const showSurveyStatus   = (side === "purchaser" || (side === "vendor" && buyingOnward)) && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
+  // Survey status: the "booked with {firm}" line now shows whenever we know the
+  // surveyor's name — from our quote flow OR typed directly onto the file by the
+  // agent (#7). The "quote requested, awaiting" line still needs a real quote.
+  const showSurveyStatus   = (side === "purchaser" || (side === "vendor" && buyingOnward)) && !hasExchanged && !hasCompleted && (
+    !!bookedSurveyorName ||
+    (hasRequestedQuote && !surveyBooked)
+  );
   // "Need anything else?" providers card (2026-09-14). Picks up where the
-  // survey-quote card leaves off: once the buyer's survey is booked, re-link
-  // them to the /quote marketplace for the other local trades (structural
-  // engineer, and future kinds). Buyer-only for now; sellers buying onward are
-  // a follow-up (see docs/POLISH_TBD.md). Hidden when no local firm covers the
-  // area, so it never leads to an empty picker.
-  const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName);
+  // survey-quote card leaves off: once the buyer's survey is settled (booked or
+  // opted out), re-link them to the /quote marketplace for the other trades.
+  // Buyer-only for now; sellers buying onward are a follow-up (docs/POLISH_TBD).
+  // Shows when a local firm covers the area, OR (uncovered area) when the file
+  // has a resolvable mortgage broker — broker-only copy in that case — so it
+  // only ever appears when there is genuinely something to book.
+  const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName || purchaserSurveyOptedOut);
   const providerAvail      = surveyEngaged ? await resolveProviderAvailability(transaction.propertyAddress) : null;
-  const showProvidersCard  = surveyEngaged && providerAvail !== null && providerAvail.hasLocalCovered;
+  const providersLocal     = providerAvail?.hasLocalCovered ?? false;
+  const providersBrokerOnly = !providersLocal && brokerCard !== null; // uncovered area, but a broker applies to this file
+  const showProvidersCard  = surveyEngaged && (providersLocal || providersBrokerOnly);
   if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "providers" });
-  // Subcopy lists only what's genuinely available: the covered local kinds,
-  // plus mortgage advice (brokers are nationwide, always in the /quote picker).
-  const providerServices   = [...(providerAvail?.availableLabels ?? []), "mortgage advice"];
-  const providerCardSub    = (() => {
-    const list = providerServices;
-    const joined = list.length <= 1
-      ? (list[0] ?? "")
-      : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
-    return joined.charAt(0).toUpperCase() + joined.slice(1) + " from trusted firms.";
-  })();
+  // Copy: the local variant lists what's genuinely available (grows as we add
+  // provider kinds), ending "and more"; the broker-only fallback names advice.
+  const providerCardSub    = providersLocal
+    ? (() => {
+        const list = providerAvail?.availableLabels ?? [];
+        const joined = list.length <= 1
+          ? (list[0] ?? "Local firms")
+          : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+        return `${joined.charAt(0).toUpperCase()}${joined.slice(1)} and more, from trusted local firms.`;
+      })()
+    : "Mortgage advice from trusted brokers.";
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
@@ -839,6 +854,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                       : `${quotedFirmNames.length} firms will be in touch with a quote.`}
                     {lastQuotedAt ? ` Requested ${fmtDate(lastQuotedAt)}.` : ""} Not heard back? Let your agent know.
                   </p>
+                  {/* Re-entry to the marketplace: the quote-requested state has
+                      no providers card yet (that arrives on booking), so this is
+                      the buyer's way back to request more quotes or other trades. */}
+                  <Link
+                    href={surveyQuoteHref}
+                    className="pbtn pbtn-press inline-flex items-center gap-1 mt-2"
+                    style={{ fontSize: 12, fontWeight: 700, color: P.accent, textDecoration: "none" }}
+                  >
+                    Request another quote
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                  </Link>
                 </>
               )}
             </div>

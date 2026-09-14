@@ -1,36 +1,40 @@
-// Review seed for the "Need anything else?" providers card (2026-09-14).
+// Review seed for the provider / survey / broker card audit fixes (2026-09-14).
 //
-// Creates two buyer portal files, both with the survey booked (PM9 complete),
-// so the survey-quote card is gone and the providers card takes over:
+// Creates one buyer portal file per behaviour so each audit decision can be
+// reviewed in isolation:
 //
-//   A  covered postcode (BS1)  -> providers card SHOWS  (a local surveyor covers it)
-//   B  uncovered postcode (ZZ9) -> providers card HIDDEN (nothing covers it)
+//   A  covered postcode (BS1), survey booked        -> providers card, LOCAL copy
+//   B  uncovered (ZZ9), survey booked, no broker     -> providers card HIDDEN
+//   C  uncovered (ZZ9), survey booked, broker on file-> providers card, BROKER-ONLY copy
+//   D  covered (BS1), survey OPTED OUT (PM9 not-req) -> survey-quote gone, providers card shows
+//   E  covered (BS1), quote requested, not booked    -> survey-status + "Request another quote" link
 //
-// Also upserts a demo surveyor (Provcard Surveys) + a surveyor service type +
-// coverage for BS1, so tapping the card lands on a non-empty /quote picker.
+// Also upserts a demo surveyor (Provcard Surveys) + coverage for BS1, and a
+// demo broker firm (Provcard Mortgages) for file C.
 //
-// IDEMPOTENT — first wipes anything it previously seeded (address contains
-// "Provcard") then recreates. Only ever touches its own files + its own demo
-// firm. Attaches files to the first agency user found.
+// IDEMPOTENT — wipes anything it previously seeded (address contains "Provcard")
+// then recreates. Staging-guarded (refuses production DB).
 //
 // Run (staging — local dev points here):
 //   npx ts-node --project tsconfig.scripts.json scripts/seed-providers-card.ts
 //
-// Delete criteria: remove once the providers card is signed off.
+// Delete criteria: remove once the provider/survey/broker card audit is signed off.
 
 import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { computeAutoNrCodes } from "../lib/milestone-auto-nr";
 import { DIRECT_PREREQUISITES } from "../lib/milestone-prerequisites";
+import { titleCaseFirm } from "../lib/services/survey-booking";
 
 const EXCHANGE_GATE_CODES = new Set(["VM18", "PM25"]);
 const BURNER = "ellisaskey+providerscard@googlemail.com";
 const MARKER = "Provcard";
 const COVERED_OUTWARD = "BS1";
 
-// Buyer runs through instruction, mortgage, and the survey (PM9/PM10) so the
-// survey is booked and the survey-quote card has handed over.
-const BUYER_DONE = ["PM1", "PM2", "PM3", "PM4", "PM5", "PM6", "PM7", "PM8", "PM9", "PM10", "PM11"];
+// Buyer through the survey booked (PM9) + valuation (PM6).
+const BUYER_SURVEY_BOOKED = ["PM1", "PM2", "PM3", "PM4", "PM5", "PM6", "PM7", "PM8", "PM9", "PM10", "PM11"];
+// Buyer up to searches, survey NOT booked (for opt-out + quote-requested files).
+const BUYER_PRE_SURVEY = ["PM1", "PM2", "PM3", "PM4", "PM5", "PM6", "PM7", "PM8"];
 const SELLER_DONE = ["VM1", "VM2", "VM3", "VM4", "VM5", "VM6", "VM7"];
 
 function daysAgo(d: number): Date { const x = new Date(); x.setDate(x.getDate() - d); return x; }
@@ -56,35 +60,22 @@ async function initMilestones(transactionId: string, createdById: string) {
   });
 }
 
-async function upsertDemoSurveyor() {
-  // Service type — reuse an existing active surveyor type, else create one.
+async function upsertDemoProviders() {
   let serviceType = await prisma.providerServiceType.findFirst({ where: { kind: "surveyor", active: true }, orderBy: { sortOrder: "asc" } });
   if (!serviceType) {
-    serviceType = await prisma.providerServiceType.create({
-      data: { kind: "surveyor", label: "Level 2 HomeBuyer survey", sortOrder: 0, active: true },
-    });
+    serviceType = await prisma.providerServiceType.create({ data: { kind: "surveyor", label: "Level 2 HomeBuyer survey", sortOrder: 0, active: true } });
   }
-
   let firm = await prisma.providerFirm.findFirst({ where: { name: "Provcard Surveys", kind: "surveyor" } });
   if (!firm) {
-    firm = await prisma.providerFirm.create({
-      data: {
-        kind: "surveyor", name: "Provcard Surveys", email: BURNER,
-        ricsRegulated: true, establishedYear: 2008, turnaround: "Quotes within 2 working days", active: true,
-      },
-    });
+    firm = await prisma.providerFirm.create({ data: { kind: "surveyor", name: "Provcard Surveys", email: BURNER, ricsRegulated: true, establishedYear: 2008, turnaround: "Quotes within 2 working days", active: true } });
   }
-  await prisma.providerFirmServiceType.upsert({
-    where: { providerId_serviceTypeId: { providerId: firm.id, serviceTypeId: serviceType.id } },
-    update: {},
-    create: { providerId: firm.id, serviceTypeId: serviceType.id },
-  });
-  await prisma.providerCoverage.upsert({
-    where: { providerId_outwardCode: { providerId: firm.id, outwardCode: COVERED_OUTWARD } },
-    update: {},
-    create: { providerId: firm.id, outwardCode: COVERED_OUTWARD },
-  });
-  return firm;
+  await prisma.providerFirmServiceType.upsert({ where: { providerId_serviceTypeId: { providerId: firm.id, serviceTypeId: serviceType.id } }, update: {}, create: { providerId: firm.id, serviceTypeId: serviceType.id } });
+  await prisma.providerCoverage.upsert({ where: { providerId_outwardCode: { providerId: firm.id, outwardCode: COVERED_OUTWARD } }, update: {}, create: { providerId: firm.id, outwardCode: COVERED_OUTWARD } });
+
+  let broker = await prisma.brokerFirm.findFirst({ where: { name: "Provcard Mortgages" } });
+  if (!broker) broker = await prisma.brokerFirm.create({ data: { name: "Provcard Mortgages" } });
+
+  return { firm, serviceType, brokerFirmId: broker.id };
 }
 
 async function wipePrior() {
@@ -103,8 +94,17 @@ async function wipePrior() {
   }
 }
 
-async function createBuyerFile(opts: { address: string; buyerName: string; sellerName: string; price: number; agencyId: string; agentUserId: string; }) {
-  const { address, buyerName, sellerName, price, agencyId, agentUserId } = opts;
+async function createBuyerFile(opts: {
+  address: string; buyerName: string; sellerName: string; price: number;
+  agencyId: string; agentUserId: string;
+  buyerDone: string[];
+  serviceType?: "self_managed" | "outsourced";
+  brokerFirmId?: string | null;
+  optOutSurvey?: boolean;
+  requestQuote?: { providerId: string; serviceTypeId: string; postcode: string } | null;
+  bookedSurveyorNameRaw?: string | null; // free-text agent-typed name; formatted via the real helper
+}) {
+  const { address, buyerName, sellerName, price, agencyId, agentUserId, buyerDone } = opts;
   const idByCode = new Map((await prisma.milestoneDefinition.findMany({ select: { id: true, code: true } })).map((d) => [d.code, d.id]));
   const buyerToken = randomBytes(24).toString("base64url");
   const sellerToken = randomBytes(24).toString("base64url");
@@ -112,28 +112,43 @@ async function createBuyerFile(opts: { address: string; buyerName: string; selle
   const tx = await prisma.propertyTransaction.create({
     data: {
       propertyAddress: address, agencyId, agentUserId,
-      progressedBy: "agent", serviceType: "self_managed", status: "active",
+      progressedBy: "agent", serviceType: opts.serviceType ?? "self_managed", status: "active",
       tenure: "freehold", purchaseType: "mortgage", purchasePrice: price * 100,
+      brokerFirmId: opts.brokerFirmId ?? null,
+      bookedSurveyorName: opts.bookedSurveyorNameRaw ? titleCaseFirm(opts.bookedSurveyorNameRaw) : null,
       createdAt: daysAgo(70), lastActivityAt: daysAgo(2),
     },
     select: { id: true },
   });
 
-  await prisma.contact.createMany({
-    data: [
-      { propertyTransactionId: tx.id, name: sellerName, email: BURNER, roleType: "vendor", portalToken: sellerToken },
-      { propertyTransactionId: tx.id, name: buyerName, email: BURNER, roleType: "purchaser", portalToken: buyerToken },
-    ],
-  });
+  const [seller, buyer] = await prisma.$transaction([
+    prisma.contact.create({ data: { propertyTransactionId: tx.id, name: sellerName, email: BURNER, roleType: "vendor", portalToken: sellerToken }, select: { id: true } }),
+    prisma.contact.create({ data: { propertyTransactionId: tx.id, name: buyerName, email: BURNER, roleType: "purchaser", portalToken: buyerToken }, select: { id: true } }),
+  ]);
+  void seller;
 
   await initMilestones(tx.id, agentUserId);
 
-  for (const code of [...BUYER_DONE, ...SELLER_DONE]) {
+  for (const code of [...buyerDone, ...SELLER_DONE]) {
     const defId = idByCode.get(code);
     if (!defId) continue;
-    await prisma.milestoneCompletion.updateMany({
-      where: { transactionId: tx.id, milestoneDefinitionId: defId },
-      data: { state: "complete", completedAt: daysAgo(8), completedById: agentUserId },
+    await prisma.milestoneCompletion.updateMany({ where: { transactionId: tx.id, milestoneDefinitionId: defId }, data: { state: "complete", completedAt: daysAgo(8), completedById: agentUserId } });
+  }
+
+  if (opts.optOutSurvey) {
+    const pm9 = idByCode.get("PM9");
+    if (pm9) await prisma.milestoneCompletion.updateMany({ where: { transactionId: tx.id, milestoneDefinitionId: pm9 }, data: { state: "not_required", notRequiredReason: "Buyer opted out of a survey" } });
+  }
+
+  if (opts.requestQuote) {
+    await prisma.quoteRequest.create({
+      data: {
+        transactionId: tx.id, contactId: buyer.id, providerId: opts.requestQuote.providerId, serviceTypeId: opts.requestQuote.serviceTypeId, kind: "surveyor",
+        contactMethod: "either", contactWindow: "anytime", urgency: "within_week",
+        clientName: buyerName, clientEmail: BURNER, propertyAddress: address,
+        propertyPostcode: opts.requestQuote.postcode, propertyOutwardCode: COVERED_OUTWARD,
+        pricePence: price * 100, tenure: "freehold", status: "pending", submittedAt: daysAgo(4),
+      },
     });
   }
 
@@ -142,7 +157,7 @@ async function createBuyerFile(opts: { address: string; buyerName: string; selle
 
 async function main() {
   const isProd = process.env.DATABASE_URL?.includes("gmkfustgwipgihpmpjpr");
-  console.log(`\n=== Seed providers-card review files (${isProd ? "PRODUCTION" : "staging"}) ===`);
+  console.log(`\n=== Seed provider/survey/broker card review files (${isProd ? "PRODUCTION" : "staging"}) ===`);
   if (isProd) throw new Error("Refusing to run against production — staging only.");
 
   const user = await prisma.user.findFirst({ where: { agencyId: { not: null }, role: { in: ["director", "negotiator"] } }, select: { id: true, agencyId: true, name: true } });
@@ -152,26 +167,29 @@ async function main() {
   console.log("\nWiping any prior Provcard seed files…");
   await wipePrior();
 
-  console.log("Upserting demo surveyor + coverage (BS1)…");
-  await upsertDemoSurveyor();
+  console.log("Upserting demo providers (surveyor + coverage BS1, broker firm)…");
+  const { firm, serviceType, brokerFirmId } = await upsertDemoProviders();
 
+  const common = { sellerName: "Grace Whitfield", agencyId: user.agencyId, agentUserId: user.id };
   console.log("Creating fresh files…");
-  const covered = await createBuyerFile({
-    address: `10 ${MARKER} Avenue, Bristol, BS1 4PN`, buyerName: "Omolola Adeyemi", sellerName: "Grace Whitfield",
-    price: 487_000, agencyId: user.agencyId, agentUserId: user.id,
-  });
-  const uncovered = await createBuyerFile({
-    address: `5 ${MARKER} Court, Farville, ZZ9 9ZZ`, buyerName: "Daniel Okoro", sellerName: "Tom Ellison",
-    price: 410_000, agencyId: user.agencyId, agentUserId: user.id,
-  });
+  const A = await createBuyerFile({ ...common, address: `10 ${MARKER} Avenue, Bristol, BS1 4PN`, buyerName: "Omolola Adeyemi", price: 487_000, buyerDone: BUYER_SURVEY_BOOKED });
+  const B = await createBuyerFile({ ...common, address: `5 ${MARKER} Court, Farville, ZZ9 9ZZ`, buyerName: "Daniel Okoro", price: 410_000, buyerDone: BUYER_SURVEY_BOOKED });
+  const C = await createBuyerFile({ ...common, address: `7 ${MARKER} Rise, Farville, ZZ9 9ZZ`, buyerName: "Priya Nair", price: 395_000, buyerDone: BUYER_SURVEY_BOOKED, serviceType: "outsourced", brokerFirmId });
+  const D = await createBuyerFile({ ...common, address: `12 ${MARKER} Lane, Bristol, BS1 4PN`, buyerName: "Marcus Reid", price: 462_000, buyerDone: BUYER_PRE_SURVEY, optOutSurvey: true });
+  const E = await createBuyerFile({ ...common, address: `18 ${MARKER} Close, Bristol, BS1 4PN`, buyerName: "Helena Barnes", price: 448_000, buyerDone: BUYER_PRE_SURVEY, requestQuote: { providerId: firm.id, serviceTypeId: serviceType.id, postcode: "BS1 4PN" } });
+  // F: agent typed the surveyor name straight onto the file (no quote flow). The
+  // raw "AVB surveyors" is run through the real formatter -> "AVB Surveyors".
+  const F = await createBuyerFile({ ...common, address: `22 ${MARKER} Terrace, Bristol, BS1 4PN`, buyerName: "Sofia Marconi", price: 505_000, buyerDone: BUYER_SURVEY_BOOKED, bookedSurveyorNameRaw: "AVB surveyors" });
 
   const base = "http://localhost:3001/portal";
   console.log("\n──────────── REVIEW LINKS (localhost:3001, staging DB) ────────────\n");
-  console.log("A) Providers card SHOWS  (covered postcode BS1, survey booked)");
-  console.log(`   Buyer :  ${base}/${covered.buyerToken}`);
-  console.log("\nB) Providers card HIDDEN (uncovered postcode ZZ9, survey booked)");
-  console.log(`   Buyer :  ${base}/${uncovered.buyerToken}`);
-  console.log("\nTap the card on A to reach the /quote picker (Provcard Surveys covers BS1).\n");
+  console.log(`A) Providers card, LOCAL copy   (covered, survey booked)     ${base}/${A.buyerToken}`);
+  console.log(`B) Providers card HIDDEN         (uncovered, no broker)       ${base}/${B.buyerToken}`);
+  console.log(`C) Providers card, BROKER-ONLY   (uncovered, broker on file)  ${base}/${C.buyerToken}`);
+  console.log(`D) Survey opt-out: quote gone,   providers card shows         ${base}/${D.buyerToken}`);
+  console.log(`E) Quote requested: "Request another quote" link              ${base}/${E.buyerToken}`);
+  console.log(`F) Agent-typed name (#7): "Survey booked with AVB Surveyors"  ${base}/${F.buyerToken}`);
+  console.log("");
 }
 
 main().then(() => prisma.$disconnect()).catch(async (err) => { console.error(err); await prisma.$disconnect(); process.exit(1); });

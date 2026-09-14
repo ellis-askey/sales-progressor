@@ -3,6 +3,7 @@
 // (app/actions/portal.ts, token-scoped). Keeps the status rules in one place.
 
 import { prisma } from "@/lib/prisma";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 export type SurveyBookingOption = {
   quoteRequestId: string;
@@ -20,15 +21,12 @@ export type SurveyBookingChoice =
 // or `expired` quote.
 const MOVABLE = new Set(["pending", "booked", "not_chosen", "lost"]);
 
-// "cameron   SURVEYORS ltd" → "Cameron Surveyors Ltd". Tidies a client's typed
-// firm name so it reads cleanly in the portal, the file and the email.
+// "cameron   surveyors ltd" → "Cameron Surveyors Ltd". Tidies a typed firm name
+// so it reads cleanly in the portal, the file and the email. Preserves acronyms
+// the agent typed in caps (e.g. "AVB", "RICS") rather than mangling them to
+// "Avb" — uses the canonical acronym-safe title-caser. Collapses whitespace.
 export function titleCaseFirm(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
-    .join(" ");
+  return titleCaseKeepAcronyms(raw.replace(/\s+/g, " ").trim());
 }
 
 // The surveyor booked for a file: the chosen quote's firm (still booked or
