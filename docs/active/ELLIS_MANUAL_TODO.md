@@ -12,6 +12,8 @@ Last updated: 2026-09-14
 
 The bridge now supports many WhatsApp connections at once (the internal number + one per agency). Each connection's login is stored on disk under `AUTH_DIR`, with per-connection watermarks under `QUEUE_DIR`. For connections to survive a redeploy/restart, **those directories must live on a Railway persistent volume** — otherwise every agency (and the internal number) would have to re-scan a QR after each deploy.
 
+**Policy wording — DONE 2026-09-14 (live on prod, commit 2d070643):** WhatsApp is now disclosed in the Privacy Policy (new "Connected WhatsApp" subsection + lawful-basis row + Railway sub-processor + Anthropic promise-processing sentence; v1.2), Terms (§4 + §5; v1.2), and DPA (Schedule A + Railway in Schedule B; v1.1). A formal legal-review pass is still advisable before wide rollout, and the `docs/policies/*.md` review mirrors are pre-v1.1 stale and want a separate full re-sync (internal only, not user-facing).
+
 **To do at deploy of the new bridge:**
 1. In Railway, attach a **persistent volume** to the bridge service (e.g. mounted at `/data`).
 2. Set `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue` (any paths on the mounted volume) in the bridge env.
