@@ -8,6 +8,20 @@ Last updated: 2026-09-14
 
 ---
 
+## Add OPENAI_API_KEY to Vercel production (2026-09-14) — blocks AI Outreach "Generate a proposal"
+
+The AI Outreach engine is live in prod, but clicking **Generate a proposal** fails with "reviewer: openai is not configured: set OPENAI_API_KEY". The OpenAI adversarial reviewer runs server-side and reads prod env, where the key was never added (it's only in local `.env`).
+
+**To do:**
+1. Vercel → Sales Progressor project → Settings → Environment Variables.
+2. Add `OPENAI_API_KEY` = the `sk-proj-…` value from local `.env`, scope **Production** (and Preview if wanted).
+3. **Redeploy production** (env changes need a new deployment — Deployments → current Production → ⋯ → Redeploy, or push a commit).
+4. Reload `/command/ai-outreach` → Generate a proposal.
+
+Not needed: `OPENAI_REVIEWER_MODEL` / `OPENAI_REASONING_EFFORT` — code defaults to `gpt-5.5` / `high` already. `AI_OUTREACH_FROM_EMAIL` already set in prod.
+
+---
+
 ## Check chain exchange/completion logic with a real multi-agent chain (2026-09-14)
 
 Reminder (raised during the chain far-side work): once you have a **live chain with two or more agents claimed** (real files linked, not shadow trackers), sanity-check how **exchange and completion** behave across the chain:

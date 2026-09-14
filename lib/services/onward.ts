@@ -690,6 +690,8 @@ export async function retireOnwardTrackerForWithdrawnLink(withdrawnLinkId: strin
   const txId = await sellerBelowTransactionId(withdrawnLinkId);
   if (!txId) return;
   await abandonOnwardTracker(txId);
+  // Far side: the onward property's seller (agent-only) retires too.
+  await abandonOnwardTracker(txId, "onward_purchase_seller");
 }
 
 /**
@@ -700,7 +702,13 @@ export async function supersedeOnwardTrackerForLink(claimedLinkId: string): Prom
   const txId = await sellerBelowTransactionId(claimedLinkId);
   if (!txId) return;
   await prisma.onwardTracker.updateMany({
-    where: { transactionId: txId, kind: "onward_purchase", status: { notIn: ["superseded", "abandoned"] } },
+    where: {
+      transactionId: txId,
+      // Both the near side (our seller's purchase) and the far side (the onward
+      // seller) are now owned by the real claimed file.
+      kind: { in: ["onward_purchase", "onward_purchase_seller"] },
+      status: { notIn: ["superseded", "abandoned"] },
+    },
     data: { status: "superseded" },
   });
 }
@@ -758,6 +766,8 @@ export async function retireRelatedSaleTrackerForWithdrawnLink(withdrawnLinkId: 
   const txId = await relatedSaleAboveTransactionId(withdrawnLinkId);
   if (!txId) return;
   await abandonOnwardTracker(txId, "related_sale");
+  // Far side: the related sale's buyer (agent-only) retires too.
+  await abandonOnwardTracker(txId, "related_sale_buyer");
 }
 
 /**
@@ -768,9 +778,110 @@ export async function supersedeRelatedSaleTrackerForLink(claimedLinkId: string):
   const txId = await relatedSaleAboveTransactionId(claimedLinkId);
   if (!txId) return;
   await prisma.onwardTracker.updateMany({
-    where: { transactionId: txId, kind: "related_sale", status: { notIn: ["superseded", "abandoned"] } },
+    where: {
+      transactionId: txId,
+      kind: { in: ["related_sale", "related_sale_buyer"] },
+      status: { notIn: ["superseded", "abandoned"] },
+    },
     data: { status: "superseded" },
   });
+}
+
+// ── Carry-over into the post-claim reconcile (both sides) ─────────────────────
+//
+// The "confirm what's already done" step now lives POST-claim (ReconcileLater
+// Banner), and it starts blank. This reads the neighbour trackers describing the
+// just-claimed file and returns the reported steps as a pre-fill, covering BOTH
+// sides of the file. Reads INCLUDING superseded trackers on purpose: the claim
+// route retires the neighbours the moment the file is claimed, but their step
+// data remains and is exactly what we want to carry over. Abandoned trackers
+// (client said "not going ahead") are skipped.
+//
+// Privacy: returns only WHAT was done and its date — never who reported it or
+// which agency (that stays on the recording side). See docs/active/chain-far-side.
+
+export type InheritedProgress = {
+  tenure: Tenure | null;
+  purchaseType: PurchaseType | null;
+  isShareOfFreehold: boolean;
+  purchaserCodes: string[]; // PM codes reported for this file's purchaser side
+  vendorCodes: string[]; // VM codes reported for this file's vendor side
+  dates: Record<string, string | null>; // milestone code → ISO date (yyyy-mm-dd) if known
+};
+
+export async function getInheritedProgressForTransaction(
+  transactionId: string,
+): Promise<InheritedProgress | null> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLinkId: true },
+  });
+  if (!tx?.chainLinkId) return null;
+  const link = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { position: true, chainId: true },
+  });
+  if (!link) return null;
+
+  const [below, above] = await Promise.all([
+    prisma.chainLink.findFirst({
+      where: { chainId: link.chainId, position: link.position + 1 },
+      select: { transactionId: true },
+    }),
+    prisma.chainLink.findFirst({
+      where: { chainId: link.chainId, position: link.position - 1 },
+      select: { transactionId: true },
+    }),
+  ]);
+
+  // Four possible sources describe this file's two sides:
+  //   purchaser side ← below.onward_purchase (their seller buying us)
+  //                  ← above.related_sale_buyer (the buyer of us, far side)
+  //   vendor side    ← below.onward_purchase_seller (the seller of us, far side)
+  //                  ← above.related_sale (their buyer selling us)
+  const sources: Array<{ txId: string | null; kind: OnwardTrackerKind; side: MilestoneSide }> = [
+    { txId: below?.transactionId ?? null, kind: "onward_purchase", side: "purchaser" },
+    { txId: below?.transactionId ?? null, kind: "onward_purchase_seller", side: "vendor" },
+    { txId: above?.transactionId ?? null, kind: "related_sale", side: "vendor" },
+    { txId: above?.transactionId ?? null, kind: "related_sale_buyer", side: "purchaser" },
+  ];
+
+  const purchaser = new Set<string>();
+  const vendor = new Set<string>();
+  const dates: Record<string, string | null> = {};
+  let tenure: Tenure | null = null;
+  let purchaseType: PurchaseType | null = null;
+  let isShareOfFreehold = false;
+
+  for (const s of sources) {
+    if (!s.txId) continue;
+    const tracker = await prisma.onwardTracker.findUnique({
+      where: { transactionId_kind: { transactionId: s.txId, kind: s.kind } },
+      include: { steps: true },
+    });
+    if (!tracker || tracker.status === "abandoned") continue;
+    if (tenure == null && tracker.tenure != null) {
+      tenure = tracker.tenure;
+      isShareOfFreehold = tracker.isShareOfFreehold;
+    }
+    if (s.side === "purchaser" && purchaseType == null && tracker.purchaseType != null) {
+      purchaseType = tracker.purchaseType;
+    }
+    for (const step of tracker.steps) {
+      (s.side === "purchaser" ? purchaser : vendor).add(step.milestoneCode);
+      if (!(step.milestoneCode in dates)) dates[step.milestoneCode] = toISODate(step.eventDate);
+    }
+  }
+
+  if (purchaser.size === 0 && vendor.size === 0) return null;
+  return {
+    tenure,
+    purchaseType,
+    isShareOfFreehold,
+    purchaserCodes: [...purchaser],
+    vendorCodes: [...vendor],
+    dates,
+  };
 }
 
 /**
