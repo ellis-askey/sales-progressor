@@ -247,7 +247,8 @@ const SECTIONS: PolicySection[] = [
             <td>
               Tracking residential property transactions; sending progress updates and chase
               communications; providing buyers and sellers with a transaction portal; generating
-              AI-assisted message drafts for the Agency&rsquo;s review
+              AI-assisted message drafts for the Agency&rsquo;s review; capturing messages from
+              linked-WhatsApp property group chats against the matching transaction
             </td>
           </tr>
           <tr>
@@ -255,7 +256,8 @@ const SECTIONS: PolicySection[] = [
             <td>
               Names, email addresses, phone numbers, and transaction roles of buyers, sellers,
               solicitors, and other transaction parties; property addresses; transaction milestone
-              data; communication logs
+              data; communication logs; and, where a user links WhatsApp, the content and metadata
+              (sender, timestamp, attachments) of messages in matching property group chats
             </td>
           </tr>
           <tr>
@@ -290,7 +292,7 @@ const SECTIONS: PolicySection[] = [
     title: "Schedule B — Sub-processors",
     body: (
       <>
-        <p>Current as of 25 May 2026:</p>
+        <p>Current as of 14 September 2026:</p>
         <table>
           <thead>
             <tr>
@@ -342,6 +344,11 @@ const SECTIONS: PolicySection[] = [
               <td>Sentry</td>
               <td>Error monitoring</td>
               <td>EU</td>
+            </tr>
+            <tr>
+              <td>Railway</td>
+              <td>Hosting for the WhatsApp connection service</td>
+              <td>EU (West)</td>
             </tr>
           </tbody>
         </table>
@@ -395,8 +402,8 @@ export default function DPAPage() {
     <PolicyShell
       title="Data Processing Agreement"
       description="UK GDPR Article 28 agreement between an estate agency (data controller) and us (data processor)."
-      lastUpdated="25 May 2026"
-      version="1.0"
+      lastUpdated="14 September 2026"
+      version="1.1"
       sections={SECTIONS}
       showPdfDownload
     />

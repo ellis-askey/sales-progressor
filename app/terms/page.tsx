@@ -114,6 +114,13 @@ const SECTIONS: PolicySection[] = [
           information about how we handle this data is set out in our{" "}
           <Link href="/privacy">Privacy Policy</Link>.
         </p>
+        <p>
+          If you choose to link your WhatsApp, we may access and store messages from property group
+          chats that relate to your sales against the relevant transaction. We do not access your
+          one-to-one chats or other groups, and we never send messages from your WhatsApp. Linking is
+          optional and you can disconnect it at any time. Further information about how we handle this
+          data is set out in our <Link href="/privacy">Privacy Policy</Link>.
+        </p>
       </>
     ),
   },
@@ -147,6 +154,11 @@ const SECTIONS: PolicySection[] = [
           Where you connect an email mailbox, we may use AI to interpret emails relating to a sale
           and suggest relevant updates to the transaction. These suggestions are provided for review
           and are not applied automatically.
+        </p>
+        <p>
+          Where you link WhatsApp and this feature is enabled for your agency, we may use AI to
+          identify commitments you make in property group messages and suggest dated to-dos. These
+          suggestions are provided for your review and are not applied automatically.
         </p>
       </>
     ),
@@ -286,8 +298,8 @@ export default function TermsPage() {
     <PolicyShell
       title="Terms of Service"
       description="The contract between you (or your agency) and us."
-      lastUpdated="31 August 2026"
-      version="1.1"
+      lastUpdated="14 September 2026"
+      version="1.2"
       sections={SECTIONS}
     />
   );

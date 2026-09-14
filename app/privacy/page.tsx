@@ -103,6 +103,22 @@ const SECTIONS: PolicySection[] = [
           mailbox at any time. Connecting your mailbox also allows the platform to send emails from
           your address on your behalf.
         </p>
+        <h3>Connected WhatsApp (optional)</h3>
+        <p>
+          If you choose to link your WhatsApp, we connect it as a linked device — in the same way as
+          WhatsApp Web — and can access messages in property group chats named after a sale, such as
+          &ldquo;Sale of&rdquo; or &ldquo;Purchase of&rdquo; followed by the property address, that
+          match one of your live sales. We save those messages to the matching transaction, which may
+          include the sender, the date, the message content and any attachments, helping to keep a
+          complete record of communication on the file.
+        </p>
+        <p>
+          We only access messages in those matching property groups. We do not access your one-to-one
+          chats or any other groups, and we never send messages from your WhatsApp. The connection is
+          made through an unofficial linked-device method rather than an official WhatsApp integration,
+          and carries a small risk to the linked number. Linking is optional and requires your
+          consent, and you can disconnect at any time, which stops all further access.
+        </p>
         <h3>Technical and usage data</h3>
         <p>
           When you use the platform, our infrastructure and monitoring providers automatically
@@ -164,6 +180,11 @@ const SECTIONS: PolicySection[] = [
               <td>Access and store emails from a connected mailbox that relate to your sales, and send emails from your address on your behalf</td>
               <td>Agency users who connect a mailbox, and the buyers, sellers, solicitors and other parties included in relevant emails</td>
               <td><strong>Consent</strong> from the user connecting the mailbox, which can be withdrawn at any time by disconnecting it. Where emails contain personal data handled by the agency on behalf of its clients, we process that data as the agency&rsquo;s processor.</td>
+            </tr>
+            <tr>
+              <td>Access and store messages from property group chats on a linked WhatsApp that relate to your sales</td>
+              <td>Agency users who link WhatsApp, and the buyers, sellers, solicitors and other parties included in those group chats</td>
+              <td><strong>Consent</strong> from the user who links WhatsApp, which can be withdrawn at any time by disconnecting. Where messages contain personal data handled by the agency on behalf of its clients, we process that data as the agency&rsquo;s processor.</td>
             </tr>
           </tbody>
         </table>
@@ -231,6 +252,10 @@ const SECTIONS: PolicySection[] = [
                 Anthropic to identify and suggest updates to the transaction. AI-generated
                 suggestions are presented for review and are not applied automatically. Data
                 submitted through Anthropic&rsquo;s commercial API is not used to train its models.
+                Where a user has linked WhatsApp and this feature is enabled for their agency, the
+                content of messages they send in matching property groups may also be processed by
+                Anthropic to suggest dated to-dos, which are presented for review and are not applied
+                automatically.
               </td>
               <td>US (SCCs + UK IDTA)</td>
             </tr>
@@ -262,6 +287,15 @@ const SECTIONS: PolicySection[] = [
                 information, and the URL where an error occurred.
               </td>
               <td>EU</td>
+            </tr>
+            <tr>
+              <td>Railway</td>
+              <td>
+                Hosts the always-on service that maintains a linked WhatsApp connection and forwards
+                matched property-group messages to the platform. Message content passes through only
+                to be saved to the matching transaction.
+              </td>
+              <td>EU (West), with appropriate international data-transfer safeguards where required</td>
             </tr>
           </tbody>
         </table>
@@ -436,8 +470,8 @@ export default function PrivacyPage() {
     <PolicyShell
       title="Privacy Policy"
       description="How we collect, use, and protect personal data, and the rights you have over your data."
-      lastUpdated="31 August 2026"
-      version="1.1"
+      lastUpdated="14 September 2026"
+      version="1.2"
       sections={SECTIONS}
     />
   );
