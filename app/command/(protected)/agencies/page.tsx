@@ -4,6 +4,7 @@ import { commandDb } from "@/lib/command/prisma";
 import { AgencyFeeManager, type AgencyFeeRow } from "@/components/command/agencies/AgencyFeeManager";
 import { AgencyChaseControl, type AgencyChaseRow } from "@/components/command/agencies/AgencyChaseControl";
 import { WeeklyUpdateControl, type WeeklyUpdateRow } from "@/components/command/agencies/WeeklyUpdateControl";
+import { WhatsAppControl, type WhatsAppRow } from "@/components/command/agencies/WhatsAppControl";
 import { AgencySetupReadiness } from "@/components/command/agencies/AgencySetupReadiness";
 import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
 import InfoTip from "@/components/command/shared/InfoTip";
@@ -108,6 +109,8 @@ export default async function AgenciesPage({
       enquiryReplyChaseEnabled: true,
       enquiryRaiseChaseEnabled: true,
       weeklyClientUpdatesEnabled: true,
+      whatsAppCaptureEnabled: true,
+      whatsAppTasksEnabled: true,
       _count: { select: { transactions: true } },
     },
   });
@@ -115,6 +118,12 @@ export default async function AgenciesPage({
     id: a.id,
     name: a.name,
     weeklyClientUpdatesEnabled: a.weeklyClientUpdatesEnabled,
+  }));
+  const whatsappRows: WhatsAppRow[] = feeAgencies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    whatsAppCaptureEnabled: a.whatsAppCaptureEnabled,
+    whatsAppTasksEnabled: a.whatsAppTasksEnabled,
   }));
   const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
   const eligibleThisWeek = await commandDb.contact.count({
@@ -367,6 +376,11 @@ export default async function AgenciesPage({
       {/* Weekly client update control */}
       <div className="pt-2">
         <WeeklyUpdateControl agencies={weeklyRows} eligibleThisWeek={eligibleThisWeek} />
+      </div>
+
+      {/* Per-agency WhatsApp controls */}
+      <div className="pt-2">
+        <WhatsAppControl agencies={whatsappRows} />
       </div>
     </div>
   );

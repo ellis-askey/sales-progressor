@@ -12,6 +12,7 @@ export type ConnectionScope = {
   connectionId: string;
   userId: string;
   agencyId: string | null; // null for an internal-staff connection (no agency)
+  captureEnabled: boolean; // the agency's Command Centre WhatsApp kill switch
 };
 
 // Look up which connection (and therefore which agency) a message came through.
@@ -20,10 +21,20 @@ export type ConnectionScope = {
 export async function resolveConnectionScope(connectionId: string): Promise<ConnectionScope | null> {
   const conn = await prisma.whatsAppConnection.findUnique({
     where: { id: connectionId },
-    select: { id: true, userId: true, user: { select: { agencyId: true } } },
+    select: {
+      id: true,
+      userId: true,
+      user: { select: { agencyId: true, agency: { select: { whatsAppCaptureEnabled: true } } } },
+    },
   });
   if (!conn) return null;
-  return { connectionId: conn.id, userId: conn.userId, agencyId: conn.user?.agencyId ?? null };
+  return {
+    connectionId: conn.id,
+    userId: conn.userId,
+    agencyId: conn.user?.agencyId ?? null,
+    // No agency (internal staff) = not gated by the per-agency switch.
+    captureEnabled: conn.user?.agency?.whatsAppCaptureEnabled ?? true,
+  };
 }
 
 // Record that a message just flowed through a connection: keeps lastMessageAt /

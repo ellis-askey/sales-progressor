@@ -288,6 +288,10 @@ export function WhatsappGroupModal({
                   onClick={() => copy(suggestedName, "name", "01")}
                 />
               </div>
+              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                Use this exact name. If you&rsquo;ve linked your WhatsApp, messages in the group are saved to this
+                sale, and the name is how they&rsquo;re matched to the right file.
+              </p>
             </Step>
 
             <Step num="02" title="People to add" sheen={sheenStep === "02"}>

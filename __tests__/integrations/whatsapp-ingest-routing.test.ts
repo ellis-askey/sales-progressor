@@ -136,6 +136,19 @@ describe("per-agency connection scoping (Phase 2)", () => {
     expect(db.whatsAppPendingMessage.create).not.toHaveBeenCalled();
   });
 
+  it("drops messages when the agency's capture kill switch is off", async () => {
+    db.whatsAppConnection.findUnique.mockResolvedValue({
+      id: "conn1",
+      userId: "u1",
+      user: { agencyId: "A", agency: { whatsAppCaptureEnabled: false } },
+    });
+    const [r] = await ingestWhatsAppMessages([msg({ connectionId: "conn1", groupName: "Sale of 1 Test Street" })]);
+    expect(r.status).toBe("ignored");
+    expect(r.reason).toBe("capture_disabled");
+    expect(db.propertyTransaction.findMany).not.toHaveBeenCalled();
+    expect(db.outboundMessage.create).not.toHaveBeenCalled();
+  });
+
   it("drops a message from an unknown connection, storing nothing and not querying files", async () => {
     db.whatsAppConnection.findUnique.mockResolvedValue(null);
     const [r] = await ingestWhatsAppMessages([msg({ connectionId: "ghost", groupName: "Sale of 1 Test Street" })]);

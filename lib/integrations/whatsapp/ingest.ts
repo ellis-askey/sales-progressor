@@ -116,6 +116,11 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   if (m.connectionId) {
     const scope = await resolveConnectionScope(m.connectionId);
     if (!scope) return { waMessageId: m.waMessageId, status: "ignored", reason: "unknown_connection" };
+    // Command Centre kill switch: an agency can be force-disabled even with a
+    // linked connection.
+    if (!scope.captureEnabled) {
+      return { waMessageId: m.waMessageId, status: "ignored", reason: "capture_disabled" };
+    }
     scopeAgencyId = scope.agencyId;
   }
 
@@ -230,6 +235,9 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
   const webhookData: Prisma.InputJsonValue = {
     source: "whatsapp",
     waChatId: m.waChatId,
+    // Which agent connection captured this (null = the internal number). Phase 4
+    // reads this to route WhatsApp promises to the right owner.
+    connectionId: m.connectionId ?? null,
     isGroup: m.isGroup,
     groupName: m.groupName ?? null,
     senderName: m.senderName ?? null,

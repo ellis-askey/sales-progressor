@@ -146,8 +146,20 @@ moves to Phase 3 with the consent screen.
 ## Phase 3 — Agent-facing connect experience + controls
 
 Built in parts (like Phase 2). **Part 1 (plumbing) DONE + committed
-(`3430e71e`).** **Part 2 (connect screen + consent) DONE 2026-09-14 — awaiting
-commit.** **Part 3 (CC off-switch + naming helper) remains.**
+(`3430e71e`).** **Part 2 (connect screen + consent) DONE + committed
+(`ba6f47b6`).** **Part 3 (CC off-switch + naming helper) DONE 2026-09-14 —
+awaiting commit.**
+
+**Part 3 (done):** `Agency.whatsAppCaptureEnabled` (default true, CC kill switch)
++ `whatsAppTasksEnabled` (default false, Phase 4 opt-in) — migration
+`20260914180000_agency_whatsapp_toggles`. `resolveConnectionScope` now returns
+`captureEnabled`; ingest drops a scoped message when it's off
+(`capture_disabled`). Captured messages now record `connectionId` in
+`providerWebhookData` (Phase 4 uses it). New `components/command/agencies/
+WhatsAppControl.tsx` (two toggles) + `app/actions/agency-whatsapp.ts`, wired into
+`/command/agencies`. Naming helper already existed in `WhatsappGroupModal`
+(shows "Sale of {first line}" + copy); added a one-line note that the exact name
+is how messages match the file. 36 tests, `tsc` clean.
 
 **Part 2 (done):** `components/account/WhatsAppConnectionCard.tsx` — cream card
 mirroring the Outlook `AccountConnectionsCard`, added to the existing

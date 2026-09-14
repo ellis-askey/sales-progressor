@@ -71,6 +71,15 @@ model Agency {
   // See docs/active/three-notes-distilled-2026-08-27.md (Note A).
   chainNeighbourUpdatesEnabled Boolean @default(false)
 
+  // WhatsApp capture: a Command Centre kill switch per agency. ON by default —
+  // capture only happens once an agent deliberately links their WhatsApp, so
+  // this is a force-off, not an opt-in. When false, ingest drops that agency's
+  // messages. See docs/active/whatsapp-agent-facing/SPEC.md.
+  whatsAppCaptureEnabled Boolean @default(true)
+  // Auto to-dos from WhatsApp promises for this agency's own connections. OFF by
+  // default (opt-in) — turned on once capture is proven. See the spec, Phase 4.
+  whatsAppTasksEnabled Boolean @default(false)
+
   // The agency's own logo, shown in client-facing emails. Path in the public
   // agency-logos bucket (`{agencyId}.png`); full public URL via getAgencyLogoUrl.
   logoPath String?
