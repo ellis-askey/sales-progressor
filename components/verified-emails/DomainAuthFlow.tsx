@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, CheckCircle, ArrowClockwise, EnvelopeSimple } from "@phosphor-icons/react";
 import { REGISTRAR_GUIDES } from "@/lib/verified-emails/registrar-hints";
 import { relativeHost } from "@/lib/verified-emails/dns-host";
@@ -24,10 +24,34 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<null | { valid: boolean }>(null);
-  const [openGuide, setOpenGuide] = useState<string | null>(null);
+  // Which provider's step-guide is shown. Auto-detected from the domain's
+  // nameservers where possible (Phase 3), else the agent picks. "__other" shows
+  // the generic guidance.
+  const [selectedRegistrar, setSelectedRegistrar] = useState<string | null>(null);
+  const [detectedRegistrar, setDetectedRegistrar] = useState<string | null>(null);
   const [sendingInstructions, setSendingInstructions] = useState(false);
   const [instructionsEmail, setInstructionsEmail] = useState("");
   const [instructionsSent, setInstructionsSent] = useState(false);
+
+  // Best-effort auto-detect of the DNS provider so we can pre-select their exact
+  // steps. Silent on any failure — the picker still works manually.
+  useEffect(() => {
+    if (domain.status === "verified") return;
+    let cancelled = false;
+    fetch("/api/agent/verified-emails/detect-registrar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain: domain.domain }),
+    })
+      .then((r) => r.json())
+      .then((d: { registrar?: string | null }) => {
+        if (cancelled || !d.registrar) return;
+        setDetectedRegistrar(d.registrar);
+        setSelectedRegistrar((cur) => cur ?? d.registrar ?? null);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [domain.domain, domain.status]);
 
   function copyText(text: string, key: string) {
     navigator.clipboard.writeText(text);
@@ -130,29 +154,67 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
             ))}
           </div>
 
-          {/* Registrar guides */}
+          {/* Provider picker + tailored steps (auto-detected where possible) */}
           <div>
-            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-2">Where to add these — step by step</p>
-            <div className="space-y-1">
-              {REGISTRAR_GUIDES.map((g) => (
-                <div key={g.name} className="glass-card overflow-hidden">
+            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-2">
+              Where&apos;s your domain? Pick your provider for exact steps
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {REGISTRAR_GUIDES.map((g) => {
+                const on = selectedRegistrar === g.name;
+                return (
                   <button
-                    onClick={() => setOpenGuide(openGuide === g.name ? null : g.name)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    key={g.name}
+                    onClick={() => setSelectedRegistrar(g.name)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${on ? "border-[#FF6B4A] bg-[#FF6B4A]/10 text-[#E24E2E]" : "border-slate-900/10 text-slate-900/55 hover:border-[#FF6B4A]/40 hover:text-[#E24E2E]"}`}
                   >
-                    <span className="text-sm font-medium text-slate-900/80">{g.name}</span>
-                    <span className="text-slate-900/30 text-xs">{openGuide === g.name ? "▲" : "▼"}</span>
+                    {g.name}
+                    {detectedRegistrar === g.name && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-emerald-600">detected</span>
+                    )}
                   </button>
-                  {openGuide === g.name && (
-                    <div className="px-4 pb-3">
-                      <p className="text-xs text-slate-900/60 leading-relaxed">
-                        {g.steps.replace(/{host}/g, records[0] ? relativeHost(records[0].host, domain.domain) : "").replace(/{data}/g, records[0]?.data ?? "")}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
+              <button
+                onClick={() => setSelectedRegistrar("__other")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${selectedRegistrar === "__other" ? "border-[#FF6B4A] bg-[#FF6B4A]/10 text-[#E24E2E]" : "border-slate-900/10 text-slate-900/55 hover:border-[#FF6B4A]/40 hover:text-[#E24E2E]"}`}
+              >
+                Other / not sure
+              </button>
             </div>
+
+            {selectedRegistrar && selectedRegistrar !== "__other" && (() => {
+              const g = REGISTRAR_GUIDES.find((x) => x.name === selectedRegistrar);
+              if (!g) return null;
+              const steps = g.steps
+                .replace(/{host}/g, records[0] ? relativeHost(records[0].host, domain.domain) : "")
+                .replace(/{data}/g, records[0]?.data ?? "");
+              return (
+                <div className="glass-card p-4">
+                  {detectedRegistrar === g.name && (
+                    <p className="text-[11px] text-emerald-600 font-medium mb-1.5">
+                      Looks like your domain is on {g.name}, here&apos;s exactly what to do.
+                    </p>
+                  )}
+                  <p className="text-sm font-medium text-slate-900/80 mb-1">{g.name}</p>
+                  <p className="text-xs text-slate-900/60 leading-relaxed">{steps}</p>
+                </div>
+              );
+            })()}
+
+            {selectedRegistrar === "__other" && (
+              <div className="glass-card p-4">
+                <p className="text-xs text-slate-900/60 leading-relaxed">
+                  In your domain&apos;s DNS settings, add each record above as type <strong>CNAME</strong>,
+                  using the short <strong>Host / Name</strong> and the <strong>Value / Points to</strong> shown.
+                  If your provider only offers a &ldquo;full name&rdquo; field, use the full name shown under each record instead.
+                </p>
+              </div>
+            )}
+
+            {!selectedRegistrar && (
+              <p className="text-xs text-slate-900/40">Pick your provider above for step-by-step instructions.</p>
+            )}
           </div>
 
           {/* Email instructions */}

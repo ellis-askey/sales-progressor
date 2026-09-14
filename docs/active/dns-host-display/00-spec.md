@@ -1,6 +1,10 @@
 # DNS host display — make domain verification foolproof
 
-Owner: Ellis · Drafted 2026-09-13 · Status: Phase 1 building
+Owner: Ellis · Drafted 2026-09-13 · Status: Phases 1–3 built (verified on prod data + live DNS)
+
+Follow-up worth doing: several agency domains are on AWS Route53 and Wix, which
+aren't in REGISTRAR_GUIDES yet — add those two guides (detection falls back to the
+manual picker for them today, which works but isn't tailored).
 
 Domain authentication is the make-or-break onboarding step: if an agency can't get
 their DNS records in correctly, they can't send from their own domain and get ~10%
