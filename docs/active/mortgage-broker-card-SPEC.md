@@ -132,6 +132,10 @@ Assuming a broker is resolved, not confirmed, not dismissed:
 | Valuation booked (PM6) onward | **Hidden — for good** |
 | Exchanged / completed | Hidden |
 
+Why PM6 is the cutoff: once the lender has booked its valuation the mortgage is
+effectively secured and the offer follows shortly, so a "find a broker" prompt
+past that point serves no purpose. (Founder call, 2026-09-14.)
+
 Any time within that window: buyer taps it → "Request sent" acknowledgment; buyer taps the X → dismissed (stored in `overviewLayout.hidden`).
 
 ### Broker card by setup
