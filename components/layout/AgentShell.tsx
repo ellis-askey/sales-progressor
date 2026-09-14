@@ -69,9 +69,9 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
-    // Chains is a controlled-rollout surface: internal staff + a named email
-    // allowlist only. Same canSeeChains gate as the server route guard.
-    ...(canSeeChains(role, email) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple }] : []),
+    // Chains: internal staff + self-managing agencies (+ the named allowlist).
+    // Same canSeeChains gate as the server route guard.
+    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple }] : []),
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];

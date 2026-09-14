@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope } from "@/lib/services/chains";
 import { canSeeChains } from "@/lib/chain/chains-access";
+import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
 
@@ -16,10 +17,15 @@ export const dynamic = "force-dynamic";
 export default async function AgentChainsPage() {
   const session = await requireSession();
 
-  // Controlled rollout: only internal staff + a named email allowlist may see
-  // the chains workspace. Server guard mirrors the nav gate (both use
-  // canSeeChains) so the route can't be reached by URL either.
-  if (!canSeeChains(session.user.role, session.user.email)) {
+  // Internal staff + self-managing agencies (+ named allowlist) may see the
+  // chains workspace. Server guard mirrors the nav gate (both use canSeeChains)
+  // so the route can't be reached by URL either.
+  const hasSelfManagedFiles = await agencyUserHasSelfManagedFiles(
+    session.user.role,
+    session.user.id,
+    session.user.agencyId,
+  );
+  if (!canSeeChains(session.user.role, session.user.email, hasSelfManagedFiles)) {
     redirect("/agent/hub");
   }
 
