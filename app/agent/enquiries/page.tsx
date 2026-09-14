@@ -6,12 +6,15 @@ import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
 
-// Enquiries triage. Internal only for now (widens to agents later, same gate).
-// See docs/active/enquiries-triage/00-spec.md.
+// Enquiries triage. Internal staff plus customer agency staff (director /
+// negotiator) who progress their own files. The read is agency-scoped via
+// getAccessScope, so an agency user only ever sees their own agency's open
+// loops (and an all-outsourced agency simply sees an empty list). The nav item
+// mirrors this with the self-managed gate. See docs/active/enquiries-triage/00-spec.md.
 export default async function EnquiriesPage() {
   const session = await requireSession();
   const role = session.user.role;
-  if (!(role === "admin" || role === "sales_progressor" || role === "superadmin")) {
+  if (!(role === "admin" || role === "sales_progressor" || role === "superadmin" || role === "director" || role === "negotiator")) {
     notFound();
   }
 

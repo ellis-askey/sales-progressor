@@ -68,9 +68,11 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     : (await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role))
       + (await countReviewsDue(getAccessScope(session)).catch(() => 0));
 
-  // Enquiries nav badge — open enquiry loops the internal team can triage.
-  // Internal-only for now, so skip the query for agency users entirely.
-  const enquiriesOpenCount = isInternalStaff
+  // Enquiries nav badge — open enquiry loops to triage. Shown to whoever gets
+  // the nav item: internal staff, plus agencies that progress their own files
+  // (hasSelfManagedFiles is true for internal staff too, so it matches the
+  // nav's showSelfPages gate). getAccessScope keeps the count agency-scoped.
+  const enquiriesOpenCount = hasSelfManagedFiles
     ? await countOpenEnquiries(getAccessScope(session)).catch(() => 0)
     : 0;
 

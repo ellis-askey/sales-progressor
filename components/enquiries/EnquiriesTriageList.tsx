@@ -125,13 +125,17 @@ export function EnquiriesTriageList({
     return list;
   }, [rows, q, side, sort]);
 
-  function run(id: string, fn: () => Promise<{ ok: boolean }>, msg: string) {
+  function run(id: string, fn: () => Promise<{ ok: boolean; reason?: string }>, msg: string) {
     if (busyId) return;
     setBusyId(id);
     startTransition(async () => {
       try {
         const res = await fn();
         if (res?.ok) { toast.success(msg); router.refresh(); }
+        // Give the real reason where we have one. "prereqs_missing" means an
+        // earlier step on the file isn't confirmed yet, so the loop can't close.
+        // Tell the agent that rather than the generic "try again".
+        else if (res?.reason === "prereqs_missing") toast.error("An earlier step needs confirming first before you can mark enquiries satisfied.");
         else toast.error("That didn't save. Please try again.");
       } catch { toast.error("That didn't save. Please try again."); }
       finally { setBusyId(null); }

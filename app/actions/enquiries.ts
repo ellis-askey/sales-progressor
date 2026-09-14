@@ -81,6 +81,7 @@ export async function logEnquiryMovementAction(input: {
     createdByUserId: userId,
   });
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");
   return { ok };
 }
@@ -105,6 +106,7 @@ export async function logEnquiryChaseAction(input: {
     createdByUserId: userId,
   });
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");
   return { ok };
 }
@@ -122,6 +124,7 @@ export async function setEnquiryExpectedDateAction(input: {
     await setEnquirySnooze(input.transactionId, null);
   }
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");
   return { ok: true };
 }
@@ -172,6 +175,7 @@ export async function setEnquiryOutstandingAction(input: {
   await assertInScope(input.transactionId);
   await setEnquiryOutstandingNote(input.transactionId, input.note);
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   return { ok: true };
 }
 
@@ -182,5 +186,6 @@ export async function setEnquirySnoozeAction(input: {
   await assertInScope(input.transactionId);
   await setEnquirySnooze(input.transactionId, input.workingDays);
   revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   return { ok: true };
 }

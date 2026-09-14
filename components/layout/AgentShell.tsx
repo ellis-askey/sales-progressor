@@ -56,13 +56,14 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
   // unaffected — hasSelfManagedFiles is true for them. Founder, 2026-08-09.
   const isAgencyUser = role === "director" || role === "negotiator";
   const showSelfPages = isAgencyUser ? hasSelfManagedFiles : true;
-  // Enquiries triage is internal-only for now (widens to agents later — see
-  // docs/active/enquiries-triage/00-spec.md).
-  const isInternal = role === "admin" || role === "sales_progressor" || role === "superadmin";
+  // Enquiries triage: internal staff always, plus any agency that progresses
+  // its own live files (same self-managed gate as Reminders/Auto emails). An
+  // all-outsourced agency has no self-managed enquiries to triage, so it's
+  // hidden for them. See docs/active/enquiries-triage/00-spec.md.
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
     ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
-    ...(isInternal ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
+    ...(showSelfPages ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
