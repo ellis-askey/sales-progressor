@@ -33,6 +33,17 @@ export type ExperimentListItem = {
   reviewerOverriddenAt: Date | null;
   approvedAt: Date | null;
   contentHash: string | null;
+  launchedAt: Date | null;
+  launch: {
+    actualSample: number;
+    assignedControl: number;
+    assignedChallenger: number;
+    initialSent: number;
+    initialFailed: number;
+    initialUncertain: number;
+    initialSuppressed: number;
+    status: string;
+  } | null;
   variants: { id: string; role: string; name: string; emails: unknown }[];
   modelRuns: {
     purpose: string;
@@ -78,6 +89,13 @@ export async function listExperimentsWithDetail(): Promise<ExperimentListItem[]>
       reviewerOverriddenAt: true,
       approvedAt: true,
       contentHash: true,
+      launchedAt: true,
+      launch: {
+        select: {
+          actualSample: true, assignedControl: true, assignedChallenger: true,
+          initialSent: true, initialFailed: true, initialUncertain: true, initialSuppressed: true, status: true,
+        },
+      },
       variants: { select: { id: true, role: true, name: true, emails: true } },
       modelRuns: {
         orderBy: { createdAt: "desc" },

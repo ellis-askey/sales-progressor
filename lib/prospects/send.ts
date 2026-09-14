@@ -42,6 +42,10 @@ export async function sendProspectOutreach(args: {
   // wrapping the plain text in the Ellis-signature template. Used by the agency
   // invitation, which carries its own full design + footer.
   html?: string;
+  // Per-send sender override. The AI outreach engine (Build Order H) passes its
+  // own identity (hello@salesprogressorapp.co.uk) here; manual outreach passes
+  // nothing and keeps the default PROSPECT_FROM_EMAIL identity unchanged.
+  from?: { email: string; name: string };
 }): Promise<{ sgMessageId: string | null }> {
   const sgMail = (await import("@sendgrid/mail")).default;
   sgMail.setApiKey(process.env.SENDGRID_API_KEY ?? "");
@@ -49,7 +53,7 @@ export async function sendProspectOutreach(args: {
 
   const [res] = await sgMail.send(applyDevEmailRedirect({
     to: args.to,
-    from: { email: FROM_EMAIL, name: FROM_NAME },
+    from: args.from ?? { email: FROM_EMAIL, name: FROM_NAME },
     replyTo: `reply+${args.replyToken}@${INBOUND_DOMAIN}`,
     subject: args.subject,
     text: args.html ? args.text : `${args.text}\n\nEllis Askey\nOperations Director, The Sales Progressor\nellis@thesalesprogressor.co.uk`,

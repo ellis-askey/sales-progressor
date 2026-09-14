@@ -4399,12 +4399,26 @@ model ProspectEmail {
   experimentId  String?
   variantId     String?
 
+  // Build Order H send-state lifecycle for experiment sends. sendDedupeKey =
+  // "<experimentId>:<prospectId>:<stepIndex>" so the DB physically refuses a
+  // second row for the same experiment-step-prospect. sendState is app-enforced:
+  // pending | sending | accepted | failed_before_acceptance | uncertain |
+  // skipped_suppressed. dispatchStartedAt is stamped at pending->sending, the
+  // point of no certainty. Null on legacy / manual immediate sends.
+  sendDedupeKey     String?   @unique
+  sendState         String?
+  dispatchStartedAt DateTime?
+  acceptedAt        DateTime?
+  attemptCount      Int       @default(0)
+  failReason        String?
+
   prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
 
   @@index([prospectId, sentAt])
   @@index([replyToken])
   @@index([sgMessageId])
   @@index([experimentId])
+  @@index([sendState])
 }
 
 // An outreach sequence running against a single prospect: a fixed set of emails
@@ -4424,11 +4438,21 @@ model ProspectFlow {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  prospect Prospect           @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-  steps    ProspectFlowStep[]
+  // AI outreach experiment link (null for manual flows). An experiment flow's
+  // steps carry the FROZEN approved variant content; follow-ups reuse it. Reply/
+  // bounce webhooks already halt ProspectFlows, so suppression is inherited.
+  experimentId String?
+  variantId    String?
+
+  prospect   Prospect            @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  steps      ProspectFlowStep[]
+  experiment OutreachExperiment? @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  variant    OutreachVariant?    @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([prospectId])
   @@index([status])
+  @@index([experimentId])
+  @@index([variantId])
 }
 
 // One email within a flow. Starts `scheduled` (scheduledFor is set for step 0 at
@@ -4560,6 +4584,12 @@ model OutreachExperiment {
   reviewerOverriddenAt   DateTime?
   reviewerOverriddenById String?
 
+  // Build Order H launch audit stamps. Approval marks intent; launch is a
+  // separate deliberate superadmin action. One launch per experiment (enforced by
+  // OutreachLaunch.experimentId @unique).
+  launchedById String?
+  launchedAt   DateTime?
+
   createdById         String?
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
@@ -4568,9 +4598,41 @@ model OutreachExperiment {
   assignments OutreachAssignment[]
   modelRuns   AiModelRun[]
   cycles      StrategyCycle[]
+  flows       ProspectFlow[]
+  launch      OutreachLaunch?
 
   @@index([status])
   @@index([reviewDate])
+}
+
+// One launch per experiment (DB-enforced via experimentId @unique). Resume
+// continues this row; it never creates a second. Records the launch-time
+// eligibility resolution (NOT the G feasibility snapshot), the deterministic
+// cohort/allocation counts, the verified content hash, and running send tallies.
+// status is strictly application-controlled: armed | sending | partially_failed |
+// completed.
+model OutreachLaunch {
+  id                 String    @id @default(cuid())
+  experimentId       String    @unique
+  launchedById       String?
+  launchedAt         DateTime  @default(now())
+  contentHash        String
+  requestedSample    Int
+  eligibleCount      Int
+  actualSample       Int
+  assignedControl    Int
+  assignedChallenger Int
+  exclusionCounts    Json // { opted_out, bounced, converted, archived, no_email, active_flow, other_running_experiment, status_excluded }
+  initialSent        Int       @default(0)
+  initialFailed      Int       @default(0)
+  initialUncertain   Int       @default(0)
+  initialSuppressed  Int       @default(0)
+  status             String
+  finishedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  experiment OutreachExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 }
 
 // Every strategy cycle, successful OR failed, so runs stay auditable even when no
@@ -4612,6 +4674,7 @@ model OutreachVariant {
 
   experiment  OutreachExperiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   assignments OutreachAssignment[]
+  flows       ProspectFlow[]
 
   @@index([experimentId])
 }

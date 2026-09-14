@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { runStrategyCycle } from "@/lib/outreach/orchestrator";
+import { preflightExperiment, launchExperiment, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
 import {
   approveExperiment,
   rejectExperiment,
@@ -80,4 +81,28 @@ export async function overrideReviewerRejectAction(experimentId: string, reason:
   const res = await overrideReviewerReject(experimentId, session.user.id, reason);
   if (res.ok) revalidatePath(REVALIDATE);
   return res;
+}
+
+// ── H: launch (preflight / launch / resume) ──────────────────────────────────
+// These use the real SendGrid transport in production. Per the Build Order H
+// gate, a real end-to-end email test is separately approved; this is not invoked
+// during verification (tests drive lib/outreach/launch with a mocked transport).
+
+export async function preflightExperimentAction(experimentId: string): Promise<Preflight | { error: string }> {
+  await requireSuperAdmin();
+  return preflightExperiment(experimentId);
+}
+
+export async function launchExperimentAction(experimentId: string, opts?: { confirmUnderSample?: boolean }): Promise<LaunchResult> {
+  const session = await requireSuperAdmin();
+  const res = await launchExperiment({ experimentId, actorUserId: session.user.id, confirmUnderSample: opts?.confirmUnderSample });
+  if ("ok" in res && res.ok) revalidatePath(REVALIDATE);
+  return res;
+}
+
+export async function resumeLaunchAction(experimentId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  await resumeLaunch({ experimentId });
+  revalidatePath(REVALIDATE);
+  return { ok: true };
 }

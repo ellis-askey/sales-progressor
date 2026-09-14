@@ -214,6 +214,14 @@ async function applyUpdate(queueIds: string[], update: QueueUpdate): Promise<num
 // also flags the prospect so future sends are blocked).
 async function applyProspectEmailEvent(id: string, event: SendGridEvent): Promise<void> {
   const at = typeof event.timestamp === "number" && Number.isFinite(event.timestamp) ? new Date(event.timestamp * 1000) : new Date();
+  // Any SendGrid event proves the message was accepted. If our experiment send was
+  // left `uncertain` (crash/timeout after dispatch) or still `sending`, this is the
+  // evidence that resolves it to `accepted` (Build Order H). Never overrides a
+  // terminal state that isn't one of these.
+  await prisma.prospectEmail.updateMany({
+    where: { id, sendState: { in: ["uncertain", "sending"] } },
+    data: { sendState: "accepted", acceptedAt: at },
+  });
   switch (event.event) {
     case "delivered":
       await prisma.prospectEmail.updateMany({ where: { id }, data: { deliveredAt: at } });

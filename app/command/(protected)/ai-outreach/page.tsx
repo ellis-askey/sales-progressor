@@ -23,6 +23,7 @@ import { getAllSegmentFunnels } from "@/lib/outreach/metrics";
 import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segments";
 import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, type ExperimentListItem } from "@/lib/outreach/read";
 import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
+import { LaunchPanel } from "@/components/command/ai-outreach/LaunchPanel";
 import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
 
 export const dynamic = "force-dynamic";
@@ -302,6 +303,10 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
 
         <FeasibilityBlock data={e.feasibility} />
         <ReviewerFindings data={e.reviewerResult} />
+
+        {(e.status === "approved" || e.status === "running") && (
+          <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />
+        )}
 
         {/* Variants side by side */}
         <div>
