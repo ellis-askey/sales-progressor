@@ -35,6 +35,9 @@ const COVERED_OUTWARD = "BS1";
 const BUYER_SURVEY_BOOKED = ["PM1", "PM2", "PM3", "PM4", "PM5", "PM6", "PM7", "PM8", "PM9", "PM10", "PM11"];
 // Buyer up to searches, survey NOT booked (for opt-out + quote-requested files).
 const BUYER_PRE_SURVEY = ["PM1", "PM2", "PM3", "PM4", "PM5", "PM6", "PM7", "PM8"];
+// Instructed, before the lender valuation (PM6) — the mortgage broker card's
+// window. Broker scenarios use this now that the broker card is its own card.
+const BUYER_EARLY = ["PM1", "PM2", "PM3", "PM4"];
 const SELLER_DONE = ["VM1", "VM2", "VM3", "VM4", "VM5", "VM6", "VM7"];
 
 function daysAgo(d: number): Date { const x = new Date(); x.setDate(x.getDate() - d); return x; }
@@ -184,38 +187,41 @@ async function main() {
 
   const common = { sellerName: "Grace Whitfield", agencyId: user.agencyId, agentUserId: user.id };
   console.log("Creating fresh files…");
+  // Providers card scenarios (survey-booked stage, local trades only).
   const A = await createBuyerFile({ ...common, address: `10 ${MARKER} Avenue, Bristol, BS1 4PN`, buyerName: "Omolola Adeyemi", price: 487_000, buyerDone: BUYER_SURVEY_BOOKED });
   const B = await createBuyerFile({ ...common, address: `5 ${MARKER} Court, Farville, ZZ9 9ZZ`, buyerName: "Daniel Okoro", price: 410_000, buyerDone: BUYER_SURVEY_BOOKED });
-  const C = await createBuyerFile({ ...common, address: `7 ${MARKER} Rise, Farville, ZZ9 9ZZ`, buyerName: "Priya Nair", price: 395_000, buyerDone: BUYER_SURVEY_BOOKED, serviceType: "outsourced", brokerFirmId });
   const D = await createBuyerFile({ ...common, address: `12 ${MARKER} Lane, Bristol, BS1 4PN`, buyerName: "Marcus Reid", price: 462_000, buyerDone: BUYER_PRE_SURVEY, optOutSurvey: true });
   const E = await createBuyerFile({ ...common, address: `18 ${MARKER} Close, Bristol, BS1 4PN`, buyerName: "Helena Barnes", price: 448_000, buyerDone: BUYER_PRE_SURVEY, requestQuote: { providerId: firm.id, serviceTypeId: serviceType.id, postcode: "BS1 4PN" } });
   // F: agent typed the surveyor name straight onto the file (no quote flow). The
   // raw "AVB surveyors" is run through the real formatter -> "AVB Surveyors".
   const F = await createBuyerFile({ ...common, address: `22 ${MARKER} Terrace, Bristol, BS1 4PN`, buyerName: "Sofia Marconi", price: 505_000, buyerDone: BUYER_SURVEY_BOOKED, bookedSurveyorNameRaw: "AVB surveyors" });
-  // G: broker-only, "defaulting to ours" — outsourced file, no broker on the
-  // file, so it resolves to the TSP-default broker (no "Recommended by" line).
-  // Only seeded when a TSP-default broker actually exists.
+
+  // Broker card scenarios (early stage: instructed, before the valuation).
+  // C: agency set their own broker -> "Speak to a mortgage broker · Recommended by [agency]".
+  const C = await createBuyerFile({ ...common, address: `7 ${MARKER} Rise, Bristol, BS1 4PN`, buyerName: "Priya Nair", price: 395_000, buyerDone: BUYER_EARLY, brokerFirmId });
+  // G: outsourced, no broker on file -> our TSP-default broker (no "Recommended by").
   const G = tspBrokerName
-    ? await createBuyerFile({ ...common, address: `9 ${MARKER} Way, Farville, ZZ9 9ZZ`, buyerName: "Owen Pryce", price: 372_000, buyerDone: BUYER_SURVEY_BOOKED, serviceType: "outsourced" })
+    ? await createBuyerFile({ ...common, address: `9 ${MARKER} Way, Bristol, BS1 4PN`, buyerName: "Owen Pryce", price: 372_000, buyerDone: BUYER_EARLY, serviceType: "outsourced" })
     : null;
-  // H: buyer named their OWN broker while ours is still on offer -> the offer
-  // card flips to "Compare mortgage deals".
-  const H = await createBuyerFile({ ...common, address: `3 ${MARKER} Mews, Farville, ZZ9 9ZZ`, buyerName: "Leah Nkemdirim", price: 418_000, buyerDone: BUYER_SURVEY_BOOKED, brokerFirmId, ownBrokerName: "Kingsway Mortgages" });
+  // H: buyer named their OWN broker while ours is on offer -> card flips to "Compare".
+  const H = await createBuyerFile({ ...common, address: `3 ${MARKER} Mews, Bristol, BS1 4PN`, buyerName: "Leah Nkemdirim", price: 418_000, buyerDone: BUYER_EARLY, brokerFirmId, ownBrokerName: "Kingsway Mortgages" });
   // I: agency's broker referral CONFIRMED -> broker sits in Your team, no offer card.
-  const I = await createBuyerFile({ ...common, address: `6 ${MARKER} Green, Farville, ZZ9 9ZZ`, buyerName: "Tomasz Wolak", price: 389_000, buyerDone: BUYER_SURVEY_BOOKED, brokerFirmId, purchaserBrokerReferral: true });
+  const I = await createBuyerFile({ ...common, address: `6 ${MARKER} Green, Bristol, BS1 4PN`, buyerName: "Tomasz Wolak", price: 389_000, buyerDone: BUYER_EARLY, brokerFirmId, purchaserBrokerReferral: true });
 
   const base = "http://localhost:3001/portal";
   console.log("\n──────────── REVIEW LINKS (localhost:3001, staging DB) ────────────\n");
-  console.log(`A) Providers card, LOCAL copy   (covered, survey booked)     ${base}/${A.buyerToken}`);
-  console.log(`B) Providers card HIDDEN         (uncovered, no broker)       ${base}/${B.buyerToken}`);
-  console.log(`C) Broker card, AGENCY'S OWN     (uncovered, broker on file)  ${base}/${C.buyerToken}`);
-  console.log(`D) Survey opt-out: quote gone,   providers card shows         ${base}/${D.buyerToken}`);
-  console.log(`E) Quote requested: "Request another quote" link              ${base}/${E.buyerToken}`);
-  console.log(`F) Agent-typed name (#7): "Survey booked with AVB Surveyors"  ${base}/${F.buyerToken}`);
-  if (G) console.log(`G) Broker card, OUR DEFAULT      (uncovered, no broker on file) ${base}/${G.buyerToken}  [${tspBrokerName}]`);
-  else console.log(`G) (skipped — no TSP-default broker exists to show the "our default" variant)`);
-  console.log(`H) Buyer has own broker: card flips to "Compare mortgage deals"  ${base}/${H.buyerToken}`);
-  console.log(`I) Referral CONFIRMED: no offer card, broker sits in Your team    ${base}/${I.buyerToken}`);
+  console.log("PROVIDERS CARD (local trades only, survey-booked stage):");
+  console.log(`  A) Providers card shows, LOCAL copy   (covered postcode)      ${base}/${A.buyerToken}`);
+  console.log(`  B) Providers card HIDDEN              (uncovered postcode)    ${base}/${B.buyerToken}`);
+  console.log(`  D) Survey opt-out: quote gone, providers card shows          ${base}/${D.buyerToken}`);
+  console.log(`  E) Quote requested: "Request another quote" link             ${base}/${E.buyerToken}`);
+  console.log(`  F) Agent-typed name (#7): "Survey booked with AVB Surveyors" ${base}/${F.buyerToken}`);
+  console.log("\nBROKER CARD (its own card, early stage — instructed, pre-valuation):");
+  console.log(`  C) Agency's own broker: "Speak... Recommended by [agency]"   ${base}/${C.buyerToken}`);
+  if (G) console.log(`  G) Our default broker: "Speak..." (no recommended-by)        ${base}/${G.buyerToken}  [${tspBrokerName}]`);
+  else console.log(`  G) (skipped — no TSP-default broker exists)`);
+  console.log(`  H) Buyer has own broker: card flips to "Compare mortgage deals" ${base}/${H.buyerToken}`);
+  console.log(`  I) Referral CONFIRMED: no card, broker sits in Your team      ${base}/${I.buyerToken}`);
   console.log("");
 }
 
