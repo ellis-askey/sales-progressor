@@ -103,4 +103,9 @@ export const DEFAULT_PICKS: GlassPicks = {
   "empty-partners-network": { dark: "v04" },
   // Mirrors the All Files "finished example" card.
   "empty-partners-nosales": { light: "v25", dark: "v21" },
+
+  // Enquiries "all clear" empty state — matched to the other empty-state cards
+  // (dark v04, light stays v00) so the how-it-works cards render identically.
+  "empty-enquiries-overview": { dark: "v04" },
+  "empty-enquiries-chasing": { dark: "v04" },
 };
