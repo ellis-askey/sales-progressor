@@ -2648,16 +2648,17 @@ model OutlookConnection {
 // Baileys session credentials live on the bridge host, NOT here — this row is
 // pairing/status only, so nothing sensitive is stored in the app DB.
 model WhatsAppConnection {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phoneNumber   String // E.164 of the linked account, once known
-  displayName   String?
-  status        String    @default("pending_qr") // pending_qr | connected | disconnected
-  lastSeenAt    DateTime? // last time the bridge reported the socket alive
-  lastMessageAt DateTime? // last message ingested through this connection
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber       String? // E.164 of the linked account; null until the QR is scanned and the socket opens
+  displayName       String?
+  status            String    @default("pending_qr") // pending_qr | connected | disconnected
+  consentAcceptedAt DateTime? // when the agent accepted the connect consent
+  lastSeenAt        DateTime? // last time the bridge reported the socket alive
+  lastMessageAt     DateTime? // last message ingested through this connection
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([userId, phoneNumber])
 }

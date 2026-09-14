@@ -145,6 +145,40 @@ moves to Phase 3 with the consent screen.
 
 ## Phase 3 — Agent-facing connect experience + controls
 
+Built in parts (like Phase 2). **Part 1 (plumbing) DONE 2026-09-14** — awaiting
+commit. **Parts 2 (connect screen + consent) and 3 (CC off-switch + naming
+helper) remain.**
+
+**Part 1 (done):** schema — `WhatsAppConnection.phoneNumber` made nullable (a row
+exists from pairing start, before the number is known) + `consentAcceptedAt`
+added (migration `20260914170000_whatsapp_connection_agent_fields`, applies on
+deploy, staging first). Server-side `lib/integrations/whatsapp/bridge-client.ts`
+(per-connection control calls, secret stays server-side, never throws).
+Session-scoped `lib/integrations/whatsapp/agent-connections.ts`
+(`getMyWhatsAppStatus` / `startMyWhatsAppPairing` / `disconnectMyWhatsApp`, each
+touches only the caller's own row). Agent API `app/api/agent/whatsapp/
+{status,pair,disconnect}` (director/negotiator only; pair requires the consent
+tick). 9 new unit tests (35 total), `tsc` clean.
+
+**Founder-approved consent copy (verbatim, for the Part 2 screen):**
+
+> Link your WhatsApp so your property group chats appear on the right sale, with
+> nothing to copy across.
+>
+> **What appears on your files:** Only group chats named "Sale of [address]" or
+> "Purchase of [address]" that match one of your live sales. Messages from those
+> groups will appear on the property's timeline.
+>
+> **What we never see:** Your one-to-one chats or any groups that aren't property
+> groups. We don't read, store or have access to them.
+>
+> **How the link works:** Your WhatsApp is connected as a linked device, in the
+> same way as WhatsApp Web. This is an unofficial connection, so there is a small
+> risk to your number. We only ever read messages and never send them, which
+> helps keep that risk low. You can disconnect at any time from this screen.
+>
+> ☐ I understand and want to link my WhatsApp.
+
 Everything an agency needs to turn it on themselves, in the agent app (cream
 chrome), reusing the Account > Connections pattern already built for Outlook
 (`components/account/AccountConnectionsCard.tsx`).
