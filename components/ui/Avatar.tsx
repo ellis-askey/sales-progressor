@@ -230,8 +230,10 @@ type ContactAvatarProps = {
   // Override the tint side. Used for solicitors, which have no side of their
   // own — the solicitor card tints its id-card to the side it acts for
   // (vendor blue / buyer green). Omit it (e.g. on the portal) to get the neutral
-  // navy solicitor tone instead.
-  sideTint?: "vendor" | "purchaser";
+  // navy solicitor tone instead. "agent" gives the coral/primary tone — used by
+  // the broker recommendation card so its £ art matches the coral accents rather
+  // than clashing in violet.
+  sideTint?: "vendor" | "purchaser" | "agent";
   // A photo / logo. When set it fills the circle and the art becomes the
   // fallback (e.g. a broker firm logo, else the £ art).
   image?: string | null;

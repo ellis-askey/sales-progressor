@@ -12,6 +12,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { P, PORTAL_BTN } from "@/components/portal/portal-ui";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { requestBrokerCallbackAction } from "@/app/actions/broker-callback";
 import { portalSaveOverviewLayout } from "@/app/actions/portal";
 
@@ -28,13 +29,6 @@ export type PortalBrokerCardProps = {
   order: string[];
   hidden: string[];
 };
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 export function PortalBrokerCard({
   token,
@@ -326,21 +320,16 @@ export function PortalBrokerCard({
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {/* Avatar: provider logo, or the firm's initials on a dark disc, with a light ring. */}
+          {/* Avatar: provider logo, or the branded £ broker art in the coral
+              primary (via sideTint="agent"), so it sits with the card's coral
+              accents rather than clashing in the violet broker tone. Light ring. */}
           <div
             style={{
-              width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
-              background: "#0f1729", border: "4px solid #ffffff",
-              boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
-              display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
+              borderRadius: "50%", flexShrink: 0, border: "4px solid #ffffff",
+              boxShadow: "0 2px 8px rgba(15,23,42,0.12)", overflow: "hidden", lineHeight: 0,
             }}
           >
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={firmName} width={72} height={72} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <span style={{ fontSize: 24, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>{initials(firmName)}</span>
-            )}
+            <ContactAvatar contact={{ name: firmName, roleType: "broker" }} image={logoUrl} size={64} sideTint="agent" />
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
