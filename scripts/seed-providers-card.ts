@@ -75,7 +75,12 @@ async function upsertDemoProviders() {
   let broker = await prisma.brokerFirm.findFirst({ where: { name: "Provcard Mortgages" } });
   if (!broker) broker = await prisma.brokerFirm.create({ data: { name: "Provcard Mortgages" } });
 
-  return { firm, serviceType, brokerFirmId: broker.id };
+  // Whether a TSP-default mortgage broker exists — drives the "defaulting to
+  // ours" variant (File G). We never create/flip a tspDefault here (that could
+  // hijack the real default); we only use one if it already exists.
+  const tspBroker = await prisma.providerFirm.findFirst({ where: { kind: "mortgage_broker", tspDefault: true, active: true }, select: { name: true } });
+
+  return { firm, serviceType, brokerFirmId: broker.id, tspBrokerName: tspBroker?.name ?? null };
 }
 
 async function wipePrior() {
@@ -168,7 +173,7 @@ async function main() {
   await wipePrior();
 
   console.log("Upserting demo providers (surveyor + coverage BS1, broker firm)…");
-  const { firm, serviceType, brokerFirmId } = await upsertDemoProviders();
+  const { firm, serviceType, brokerFirmId, tspBrokerName } = await upsertDemoProviders();
 
   const common = { sellerName: "Grace Whitfield", agencyId: user.agencyId, agentUserId: user.id };
   console.log("Creating fresh files…");
@@ -180,15 +185,23 @@ async function main() {
   // F: agent typed the surveyor name straight onto the file (no quote flow). The
   // raw "AVB surveyors" is run through the real formatter -> "AVB Surveyors".
   const F = await createBuyerFile({ ...common, address: `22 ${MARKER} Terrace, Bristol, BS1 4PN`, buyerName: "Sofia Marconi", price: 505_000, buyerDone: BUYER_SURVEY_BOOKED, bookedSurveyorNameRaw: "AVB surveyors" });
+  // G: broker-only, "defaulting to ours" — outsourced file, no broker on the
+  // file, so it resolves to the TSP-default broker (no "Recommended by" line).
+  // Only seeded when a TSP-default broker actually exists.
+  const G = tspBrokerName
+    ? await createBuyerFile({ ...common, address: `9 ${MARKER} Way, Farville, ZZ9 9ZZ`, buyerName: "Owen Pryce", price: 372_000, buyerDone: BUYER_SURVEY_BOOKED, serviceType: "outsourced" })
+    : null;
 
   const base = "http://localhost:3001/portal";
   console.log("\n──────────── REVIEW LINKS (localhost:3001, staging DB) ────────────\n");
   console.log(`A) Providers card, LOCAL copy   (covered, survey booked)     ${base}/${A.buyerToken}`);
   console.log(`B) Providers card HIDDEN         (uncovered, no broker)       ${base}/${B.buyerToken}`);
-  console.log(`C) Providers card, BROKER-ONLY   (uncovered, broker on file)  ${base}/${C.buyerToken}`);
+  console.log(`C) Broker card, AGENCY'S OWN     (uncovered, broker on file)  ${base}/${C.buyerToken}`);
   console.log(`D) Survey opt-out: quote gone,   providers card shows         ${base}/${D.buyerToken}`);
   console.log(`E) Quote requested: "Request another quote" link              ${base}/${E.buyerToken}`);
   console.log(`F) Agent-typed name (#7): "Survey booked with AVB Surveyors"  ${base}/${F.buyerToken}`);
+  if (G) console.log(`G) Broker card, OUR DEFAULT      (uncovered, no broker on file) ${base}/${G.buyerToken}  [${tspBrokerName}]`);
+  else console.log(`G) (skipped — no TSP-default broker exists to show the "our default" variant)`);
   console.log("");
 }
 

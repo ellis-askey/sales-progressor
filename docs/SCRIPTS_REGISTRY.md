@@ -320,7 +320,7 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete this script + this entry once the portal "cards" arc (item B) is signed off.
 
 ### seed-providers-card.ts
-- **Purpose:** review seed for the provider/survey/broker card audit fixes. Six buyer files, one per behaviour: providers card local copy (covered), hidden (uncovered, no broker), broker-only copy (uncovered + broker on file), survey opt-out (quote card gone, providers shows), quote-requested ("Request another quote" link), and agent-typed surveyor name (#7, "Survey booked with AVB Surveyors" via the acronym-safe formatter). Upserts a demo surveyor ("Provcard Surveys") + BS1 coverage + a demo broker firm.
+- **Purpose:** review seed for the provider/survey/broker card audit fixes. Up to seven buyer files, one per behaviour: providers card local copy (covered), hidden (uncovered, no broker), broker card via agency's own broker (uncovered + broker on file), survey opt-out (quote card gone, providers shows), quote-requested ("Request another quote" link), agent-typed surveyor name (#7, "Survey booked with AVB Surveyors" via the acronym-safe formatter), and — when a TSP-default broker exists — broker card via our default (no "Recommended by" line). Upserts a demo surveyor ("Provcard Surveys") + BS1 coverage + a demo broker firm.
 - **Lifetime:** one-shot (throwaway). Idempotent (wipes its own "Provcard" files then recreates); staging-guarded (refuses production DB).
 - **Author/date:** Claude, 2026-09-14.
 - **Deletion criteria:** delete this script + this entry (and the "Provcard" files + "Provcard Surveys"/"Provcard Mortgages" firms + coverage) once the provider card audit is signed off.

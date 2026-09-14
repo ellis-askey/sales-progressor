@@ -609,26 +609,29 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // survey-quote card leaves off: once the buyer's survey is settled (booked or
   // opted out), re-link them to the /quote marketplace for the other trades.
   // Buyer-only for now; sellers buying onward are a follow-up (docs/POLISH_TBD).
-  // Shows when a local firm covers the area, OR (uncovered area) when the file
-  // has a resolvable mortgage broker — broker-only copy in that case — so it
-  // only ever appears when there is genuinely something to book.
+  //
+  // Two variants:
+  //  - LOCAL: a local firm covers the area -> the generic services link card.
+  //  - BROKER-ONLY: no local coverage, but the file has a resolvable broker ->
+  //    render the real broker card here (source-aware "Recommended by {agency}"
+  //    vs our default, plus the call-back drawer), NOT a generic link. Only when
+  //    the dedicated broker card isn't already showing, so it never doubles up.
   const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName || purchaserSurveyOptedOut);
   const providerAvail      = surveyEngaged ? await resolveProviderAvailability(transaction.propertyAddress) : null;
   const providersLocal     = providerAvail?.hasLocalCovered ?? false;
-  const providersBrokerOnly = !providersLocal && brokerCard !== null; // uncovered area, but a broker applies to this file
+  const providersBrokerOnly = !providersLocal && brokerCard !== null && !showBrokerCard;
   const showProvidersCard  = surveyEngaged && (providersLocal || providersBrokerOnly);
-  if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "providers" });
-  // Copy: the local variant lists what's genuinely available (grows as we add
-  // provider kinds), ending "and more"; the broker-only fallback names advice.
-  const providerCardSub    = providersLocal
-    ? (() => {
-        const list = providerAvail?.availableLabels ?? [];
-        const joined = list.length <= 1
-          ? (list[0] ?? "Local firms")
-          : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
-        return `${joined.charAt(0).toUpperCase()}${joined.slice(1)} and more, from trusted local firms.`;
-      })()
-    : "Mortgage advice from trusted brokers.";
+  if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: providersLocal ? "providers" : "broker" });
+  // Local-variant subcopy: lists what's genuinely available (grows as we add
+  // provider kinds), ending "and more". The broker-only variant has no subcopy —
+  // it renders the broker card, which carries its own copy.
+  const providerCardSub    = (() => {
+    const list = providerAvail?.availableLabels ?? [];
+    const joined = list.length <= 1
+      ? (list[0] ?? "Local firms")
+      : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+    return `${joined.charAt(0).toUpperCase()}${joined.slice(1)} and more, from trusted local firms.`;
+  })();
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
@@ -875,11 +878,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         </div>
       )}
 
-      {/* ── "Need anything else?" providers card (buyers, survey booked) ──
-             Re-links to the /quote marketplace for the other local trades once
-             the survey is booked. Only rendered when a local firm covers the
-             area (see resolveProviderAvailability), so it never dead-ends. */}
-      {showProvidersCard && (
+      {/* ── Providers card (buyers, survey settled) ──────────────────
+             LOCAL variant: a generic "Need anything else?" link into the /quote
+             marketplace for the other local trades. BROKER-ONLY variant (no
+             local coverage, but a broker applies): render the real broker card,
+             so it's broker-aimed and source-aware, not a generic link. */}
+      {showProvidersCard && providersLocal && (
         <div style={slot("providers")}>
         <Link
           href={`/quote/${token}`}
@@ -916,6 +920,27 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </Link>
+        </div>
+      )}
+      {showProvidersCard && providersBrokerOnly && brokerCard && (
+        <div style={slot("providers")}>
+          <PortalBrokerCard
+            token={token}
+            source={brokerCard.source}
+            firmName={brokerCard.firmName}
+            logoUrl={brokerCard.logoUrl}
+            agencyName={brokerCard.agencyName}
+            requested={brokerCard.requested}
+            prefill={{
+              name: brokerCard.prefill.name,
+              email: brokerCard.prefill.email,
+              phone: brokerCard.prefill.phone,
+              contactMethodLabel: brokerCard.prefill.contactMethod === "whatsapp" ? "WhatsApp" : "Phone or email",
+            }}
+            cardKey="providers"
+            order={orderedMovableKeys}
+            hidden={Array.from(layoutHidden)}
+          />
         </div>
       )}
 
