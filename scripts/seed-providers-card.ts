@@ -108,6 +108,8 @@ async function createBuyerFile(opts: {
   optOutSurvey?: boolean;
   requestQuote?: { providerId: string; serviceTypeId: string; postcode: string } | null;
   bookedSurveyorNameRaw?: string | null; // free-text agent-typed name; formatted via the real helper
+  purchaserBrokerReferral?: boolean;     // referral confirmed -> broker lands in Your team, offer card hides
+  ownBrokerName?: string | null;         // buyer named their own broker -> offer card flips to "compare"
 }) {
   const { address, buyerName, sellerName, price, agencyId, agentUserId, buyerDone } = opts;
   const idByCode = new Map((await prisma.milestoneDefinition.findMany({ select: { id: true, code: true } })).map((d) => [d.code, d.id]));
@@ -120,6 +122,7 @@ async function createBuyerFile(opts: {
       progressedBy: "agent", serviceType: opts.serviceType ?? "self_managed", status: "active",
       tenure: "freehold", purchaseType: "mortgage", purchasePrice: price * 100,
       brokerFirmId: opts.brokerFirmId ?? null,
+      purchaserBrokerReferral: opts.purchaserBrokerReferral ?? false,
       bookedSurveyorName: opts.bookedSurveyorNameRaw ? titleCaseFirm(opts.bookedSurveyorNameRaw) : null,
       createdAt: daysAgo(70), lastActivityAt: daysAgo(2),
     },
@@ -143,6 +146,10 @@ async function createBuyerFile(opts: {
   if (opts.optOutSurvey) {
     const pm9 = idByCode.get("PM9");
     if (pm9) await prisma.milestoneCompletion.updateMany({ where: { transactionId: tx.id, milestoneDefinitionId: pm9 }, data: { state: "not_required", notRequiredReason: "Buyer opted out of a survey" } });
+  }
+
+  if (opts.ownBrokerName) {
+    await prisma.clientMoveInfo.create({ data: { transactionId: tx.id, side: "purchaser", ownBrokerName: opts.ownBrokerName } });
   }
 
   if (opts.requestQuote) {
@@ -191,6 +198,11 @@ async function main() {
   const G = tspBrokerName
     ? await createBuyerFile({ ...common, address: `9 ${MARKER} Way, Farville, ZZ9 9ZZ`, buyerName: "Owen Pryce", price: 372_000, buyerDone: BUYER_SURVEY_BOOKED, serviceType: "outsourced" })
     : null;
+  // H: buyer named their OWN broker while ours is still on offer -> the offer
+  // card flips to "Compare mortgage deals".
+  const H = await createBuyerFile({ ...common, address: `3 ${MARKER} Mews, Farville, ZZ9 9ZZ`, buyerName: "Leah Nkemdirim", price: 418_000, buyerDone: BUYER_SURVEY_BOOKED, brokerFirmId, ownBrokerName: "Kingsway Mortgages" });
+  // I: agency's broker referral CONFIRMED -> broker sits in Your team, no offer card.
+  const I = await createBuyerFile({ ...common, address: `6 ${MARKER} Green, Farville, ZZ9 9ZZ`, buyerName: "Tomasz Wolak", price: 389_000, buyerDone: BUYER_SURVEY_BOOKED, brokerFirmId, purchaserBrokerReferral: true });
 
   const base = "http://localhost:3001/portal";
   console.log("\n──────────── REVIEW LINKS (localhost:3001, staging DB) ────────────\n");
@@ -202,6 +214,8 @@ async function main() {
   console.log(`F) Agent-typed name (#7): "Survey booked with AVB Surveyors"  ${base}/${F.buyerToken}`);
   if (G) console.log(`G) Broker card, OUR DEFAULT      (uncovered, no broker on file) ${base}/${G.buyerToken}  [${tspBrokerName}]`);
   else console.log(`G) (skipped — no TSP-default broker exists to show the "our default" variant)`);
+  console.log(`H) Buyer has own broker: card flips to "Compare mortgage deals"  ${base}/${H.buyerToken}`);
+  console.log(`I) Referral CONFIRMED: no offer card, broker sits in Your team    ${base}/${I.buyerToken}`);
   console.log("");
 }
 

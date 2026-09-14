@@ -28,6 +28,10 @@ export type PortalBrokerCardProps = {
   cardKey: string;
   order: string[];
   hidden: string[];
+  // "arrange" (default): the buyer has no broker of their own — offer to connect
+  // them. "compare": the buyer has already named their own broker, so frame our
+  // broker as a free second opinion / rate comparison instead.
+  variant?: "arrange" | "compare";
 };
 
 export function PortalBrokerCard({
@@ -41,6 +45,7 @@ export function PortalBrokerCard({
   cardKey,
   order,
   hidden,
+  variant = "arrange",
 }: PortalBrokerCardProps) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
@@ -69,6 +74,12 @@ export function PortalBrokerCard({
   // We present as the agent on every file (in-house and outsourced), so the
   // recommendation is branded as the agency, not the generic "your agent".
   const recommendLine = `Recommended by ${agencyName}`;
+
+  // Copy flips when the buyer already has their own broker: we're no longer
+  // helping them find one, we're offering a free second opinion / comparison.
+  const copy = variant === "compare"
+    ? { title: "Compare mortgage deals", tagline: "A free second opinion on your rate", cta: "Compare" }
+    : { title: "Speak to a mortgage broker", tagline: "Free, no-obligation advice", cta: "Get in touch" };
 
   function submit() {
     if (!consented) return;
@@ -334,7 +345,7 @@ export function PortalBrokerCard({
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
-              Speak to a mortgage broker
+              {copy.title}
             </p>
 
             {/* Recommended-by line — only when the AGENCY chose the broker. For
@@ -351,9 +362,9 @@ export function PortalBrokerCard({
 
             {/* Tagline + CTA */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 15, color: P.textMuted }}>Free, no-obligation advice</span>
+              <span style={{ fontSize: 15, color: P.textMuted }}>{copy.tagline}</span>
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 15, fontWeight: 700, color: P.accent, whiteSpace: "nowrap" }}>
-                Get in touch
+                {copy.cta}
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>

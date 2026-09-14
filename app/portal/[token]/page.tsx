@@ -592,8 +592,16 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // show it once instructed and hide it once the lender valuation is booked
   // (PM6) — a few days after the application goes in, signalling it's on track —
   // or after exchange/completion. Reactive to milestone state.
+  //
+  // The card is the OFFER. Once a broker is CONFIRMED on the file (the agent's
+  // referral is ticked, or our default's quote is won) it lands in Your team and
+  // there's nothing left to offer, so the card hides. When the buyer has named
+  // their OWN broker, the copy flips to a "compare / second opinion" pitch.
+  const brokerConfirmed    = team.broker != null;
+  const hasOwnBroker       = team.ownBroker != null;
+  const brokerVariant      = hasOwnBroker ? "compare" as const : "arrange" as const;
   const pm6Done            = isMilestoneCompleteByCode("PM6");
-  const showBrokerCard     = side === "purchaser" && brokerCard !== null && instructedDone && !pm6Done && !hasExchanged && !hasCompleted;
+  const showBrokerCard     = side === "purchaser" && brokerCard !== null && !brokerConfirmed && instructedDone && !pm6Done && !hasExchanged && !hasCompleted;
   // Portal Engagement v2 (Phase 1): top of the service funnel — a service was
   // actually shown to this client. "clicked"/"requested" are logged elsewhere.
   if (showSurveyQuote) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "survey" });
@@ -619,7 +627,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName || purchaserSurveyOptedOut);
   const providerAvail      = surveyEngaged ? await resolveProviderAvailability(transaction.propertyAddress) : null;
   const providersLocal     = providerAvail?.hasLocalCovered ?? false;
-  const providersBrokerOnly = !providersLocal && brokerCard !== null && !showBrokerCard;
+  const providersBrokerOnly = !providersLocal && brokerCard !== null && !brokerConfirmed && !showBrokerCard;
   const showProvidersCard  = surveyEngaged && (providersLocal || providersBrokerOnly);
   if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: providersLocal ? "providers" : "broker" });
   // Local-variant subcopy: lists what's genuinely available (grows as we add
@@ -817,6 +825,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               contactMethodLabel: brokerCard.prefill.contactMethod === "whatsapp" ? "WhatsApp" : "Phone or email",
             }}
             cardKey="mortgage-broker"
+            variant={brokerVariant}
             order={orderedMovableKeys}
             hidden={Array.from(layoutHidden)}
           />
@@ -938,6 +947,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
               contactMethodLabel: brokerCard.prefill.contactMethod === "whatsapp" ? "WhatsApp" : "Phone or email",
             }}
             cardKey="providers"
+            variant={brokerVariant}
             order={orderedMovableKeys}
             hidden={Array.from(layoutHidden)}
           />
