@@ -324,3 +324,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Idempotent (wipes its own "Provcard" files then recreates); staging-guarded (refuses production DB).
 - **Author/date:** Claude, 2026-09-14.
 - **Deletion criteria:** delete this script + this entry (and the "Provcard" files + "Provcard Surveys"/"Provcard Mortgages" firms + coverage) once the provider card audit is signed off.
+
+### seed-chain-far-side.ts
+- **Purpose:** walkable demo for the chain far-side feature. On the first non-internal agency, stands up a file "12 Chain Demo Road" in the middle of a 3-link chain (onward stub "2 Evans Way" above, related stub "8 Brambling Crescent" below) and populates all four trackers (onward_purchase, onward_purchase_seller, related_sale, related_sale_buyer) with a few reported steps, so the near/far toggle and both far sides show real data. See docs/active/chain-far-side/WALKTHROUGH.md.
+- **Lifetime:** one-shot (throwaway). Idempotent-ish (reuses the demo file + chain; already-reported steps are skipped by the service).
+- **Author/date:** Claude, 2026-09-14.
+- **Deletion criteria:** delete this script + this entry (and the "12 Chain Demo Road" file + its chain + trackers) once the chain far-side feature is signed off.
