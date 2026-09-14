@@ -92,7 +92,27 @@ changed the scope from agencies-only). No schema change, no agent surface yet.
    (Prisma-mocked: DM ignored, non-property ignored, parsed-unmatched queued,
    matched logged+mapped, explicit mapping still honoured). `tsc` clean.
 
-## Phase 2 — Per-agency connection (the heavy lift)
+## Phase 2 — Per-agency connection — DONE (2026-09-14, committed unpushed)
+
+Login-storage decision: **Railway persistent disk** (founder pick). No PWA schema
+change was needed. Split into part A (app-side scoping, unit-tested here) and
+part B (bridge multi-connection, type-checked, deploy+test on Railway by founder).
+
+- **A (app):** `lib/integrations/whatsapp/connections.ts` (`resolveConnectionScope`
+  → agency, `touchConnectionMessage`); `ingest.ts` scopes group matching to the
+  connection's agency, drops unknown-connection messages (`unknown_connection`),
+  and drops an agency's unmatched-but-named group instead of leaking it to the
+  internal queue (`no_file_in_agency`). Legacy internal number (no connectionId)
+  unchanged. 4 new tests (26 total), `tsc` clean.
+- **B (bridge):** refactored the single-socket bridge into `Connection` +
+  `ConnectionManager` holding the internal number plus one socket per agency.
+  Per-connection auth under `AUTH_DIR/conn/<id>` (internal keeps the `AUTH_DIR`
+  root → no re-scan), per-connection watermark, `resumeAll()` reconnects every
+  linked connection after a restart, new `/connections/:id/{pair,status,qr,repair,
+  disconnect}` + `/connections/:id/pair-page` control endpoints, agency messages
+  stamped with `connectionId` and `syncFullHistory:false` (fingerprint
+  reduction). Bridge `tsc --noEmit` clean. Requires a Railway persistent volume
+  (see `docs/active/ELLIS_MANUAL_TODO.md`).
 
 Make the bridge and ingest multi-tenant so each agency's messages can only ever
 touch that agency's files.
@@ -119,8 +139,9 @@ touch that agency's files.
    from connect-time forward, not the whole history), `markOnlineOnConnect:
    false` (already set), quiet presence, human-paced reconnect/backoff.
 
-**Schema (Phase 2):** add `WhatsAppConnection.consentAcceptedAt DateTime?`.
-Migration to staging first (Law 3).
+**Schema (Phase 2):** none — the existing `WhatsAppConnection` model suffices
+(its `id` is the connectionId, `userId` resolves the agency). `consentAcceptedAt`
+moves to Phase 3 with the consent screen.
 
 ## Phase 3 — Agent-facing connect experience + controls
 

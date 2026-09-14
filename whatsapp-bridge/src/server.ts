@@ -1,67 +1,102 @@
-// Tiny HTTP surface for health + pairing. /health is open (for platform health
-// checks); /status and /qr require the control secret so the PWA can read the
-// pairing QR and connection state during Phase 4's connect flow.
+// HTTP surface for health, pairing, and per-connection control. /health is open
+// (platform health checks); everything else needs the control secret so the PWA
+// (and a browser, for manual pairing) can drive and read connections.
+//
+// Back-compat: the bare /status, /qr, /pair, /repair endpoints operate on the
+// internal number, exactly as before. Agency connections use /connections/:id/*.
 
 import http from "node:http";
 import type { BridgeConfig } from "./config.js";
+import type { BridgeState } from "./types.js";
+import { ConnectionManager, INTERNAL_ID } from "./manager.js";
 import { log } from "./logger.js";
 
-export type BridgeState = {
-  connection: "connecting" | "qr" | "open" | "close";
-  qrDataUrl: string | null;
-  phoneNumber: string | null;
-  lastMessageAt: string | null;
-};
+const DEFAULT_STATE: BridgeState = { connection: "connecting", qrDataUrl: null, phoneNumber: null, lastMessageAt: null };
 
-export type BridgeControls = {
-  // Drop credentials and bounce the socket so a fresh QR is emitted.
-  repair: () => Promise<void>;
-};
+export function startHttpServer(cfg: BridgeConfig, manager: ConnectionManager) {
+  const stateOf = (id: string): BridgeState => manager.get(id)?.state ?? DEFAULT_STATE;
+  const authed = (req: http.IncomingMessage) => req.headers["authorization"] === `Bearer ${cfg.controlSecret}`;
 
-export function startHttpServer(cfg: BridgeConfig, state: BridgeState, controls?: BridgeControls) {
   const server = http.createServer((req, res) => {
     const parsed = new URL(req.url ?? "/", "http://localhost");
     const path = parsed.pathname;
+    const method = req.method ?? "GET";
 
-    if (req.method === "GET" && path === "/health") {
-      return json(res, 200, { status: "ok", connection: state.connection });
+    if (method === "GET" && path === "/health") {
+      return json(res, 200, { status: "ok", connection: stateOf(INTERNAL_ID).connection });
     }
 
-    // Force a re-pair: clears credentials and restarts pairing so a new QR shows.
-    // Secret-gated. Called by the Command Centre "Re-pair" control.
-    if (req.method === "POST" && path === "/repair") {
-      if (req.headers["authorization"] !== `Bearer ${cfg.controlSecret}`) {
-        return json(res, 401, { error: "unauthorized" });
+    // ── Per-connection control: /connections/:id/<action> ──
+    const parts = path.split("/").filter(Boolean);
+    if (parts[0] === "connections" && parts.length >= 2) {
+      const id = decodeURIComponent(parts[1]);
+      const action = parts[2] ?? "";
+
+      // Browser pairing page for a specific connection (secret via ?key=).
+      if (method === "GET" && action === "pair-page") {
+        if (parsed.searchParams.get("key") !== cfg.controlSecret) {
+          return html(res, 401, "<h1>Unauthorized</h1><p>Add ?key=YOUR_SECRET to the URL.</p>");
+        }
+        void manager.ensure(id).catch((err) => log.warn("ensure failed", { id, error: (err as Error).message }));
+        return html(res, 200, pairPage(stateOf(id)));
       }
-      state.connection = "connecting";
-      state.qrDataUrl = null;
-      void controls?.repair();
+
+      if (!authed(req)) return json(res, 401, { error: "unauthorized" });
+
+      if (method === "POST" && action === "pair") {
+        void manager.ensure(id).catch((err) => log.warn("ensure failed", { id, error: (err as Error).message }));
+        return json(res, 200, { ok: true });
+      }
+      if (method === "GET" && action === "status") {
+        const s = stateOf(id);
+        return json(res, 200, {
+          connection: s.connection,
+          phoneNumber: s.phoneNumber,
+          hasQr: s.qrDataUrl != null,
+          lastMessageAt: s.lastMessageAt,
+        });
+      }
+      if (method === "GET" && action === "qr") {
+        const s = stateOf(id);
+        return json(res, 200, { qr: s.qrDataUrl, connection: s.connection });
+      }
+      if (method === "POST" && action === "repair") {
+        void manager.get(id)?.repair();
+        return json(res, 200, { ok: true });
+      }
+      if (method === "POST" && action === "disconnect") {
+        void manager.remove(id);
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: "not_found" });
+    }
+
+    // ── Internal number (back-compat) ──
+    if (method === "POST" && path === "/repair") {
+      if (!authed(req)) return json(res, 401, { error: "unauthorized" });
+      void manager.get(INTERNAL_ID)?.repair();
       return json(res, 200, { ok: true });
     }
 
-    // Browser pairing page — shows a clean, auto-refreshing QR to scan.
-    // Secret-gated via ?key= because scanning this QR links a device to the
-    // WhatsApp account. Meant for one-time pairing from a browser.
-    if (req.method === "GET" && path === "/pair") {
+    if (method === "GET" && path === "/pair") {
       if (parsed.searchParams.get("key") !== cfg.controlSecret) {
         return html(res, 401, "<h1>Unauthorized</h1><p>Add ?key=YOUR_SECRET to the URL.</p>");
       }
-      return html(res, 200, pairPage(state));
+      return html(res, 200, pairPage(stateOf(INTERNAL_ID)));
     }
 
-    if (req.method === "GET" && (path === "/status" || path === "/qr")) {
-      if (req.headers["authorization"] !== `Bearer ${cfg.controlSecret}`) {
-        return json(res, 401, { error: "unauthorized" });
-      }
+    if (method === "GET" && (path === "/status" || path === "/qr")) {
+      if (!authed(req)) return json(res, 401, { error: "unauthorized" });
+      const s = stateOf(INTERNAL_ID);
       if (path === "/status") {
         return json(res, 200, {
-          connection: state.connection,
-          phoneNumber: state.phoneNumber,
-          hasQr: state.qrDataUrl != null,
-          lastMessageAt: state.lastMessageAt,
+          connection: s.connection,
+          phoneNumber: s.phoneNumber,
+          hasQr: s.qrDataUrl != null,
+          lastMessageAt: s.lastMessageAt,
         });
       }
-      return json(res, 200, { qr: state.qrDataUrl, connection: state.connection });
+      return json(res, 200, { qr: s.qrDataUrl, connection: s.connection });
     }
 
     json(res, 404, { error: "not_found" });

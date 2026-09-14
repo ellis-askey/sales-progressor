@@ -14,6 +14,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     whatsAppIgnoredChat: { findUnique: jest.fn() },
     whatsAppGroupMapping: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
+    whatsAppConnection: { findUnique: jest.fn(), update: jest.fn() },
     propertyTransaction: { findMany: jest.fn(), findUnique: jest.fn() },
     contact: { findMany: jest.fn() },
     user: { findMany: jest.fn(), findUnique: jest.fn() },
@@ -50,6 +51,8 @@ beforeEach(() => {
   db.whatsAppIgnoredChat.findUnique.mockResolvedValue(null);
   db.whatsAppGroupMapping.findUnique.mockResolvedValue(null);
   db.whatsAppGroupMapping.create.mockResolvedValue({});
+  db.whatsAppConnection.findUnique.mockResolvedValue(null);
+  db.whatsAppConnection.update.mockResolvedValue({});
   db.propertyTransaction.findMany.mockResolvedValue([]);
   db.propertyTransaction.findUnique.mockResolvedValue({
     agencyId: "a1",
@@ -102,5 +105,54 @@ describe("groups-only ingest routing", () => {
     expect(r.status).toBe("logged");
     expect(r.transactionId).toBe("t9");
     expect(db.outboundMessage.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("per-agency connection scoping (Phase 2)", () => {
+  it("scopes matching to the connection's agency and captures a match there", async () => {
+    db.whatsAppConnection.findUnique.mockResolvedValue({ id: "conn1", userId: "u1", user: { agencyId: "A" } });
+    db.propertyTransaction.findMany.mockResolvedValue([
+      { id: "tA", status: "active", propertyAddress: "1 Test Street, Town, AB1 2CD" },
+    ]);
+    const [r] = await ingestWhatsAppMessages([msg({ connectionId: "conn1", groupName: "Sale of 1 Test Street" })]);
+    expect(r.status).toBe("logged");
+    expect(r.transactionId).toBe("tA");
+    // The property lookup was scoped to agency A.
+    const where = db.propertyTransaction.findMany.mock.calls[0][0].where;
+    expect(where.agencyId).toBe("A");
+    // The connection's activity timestamps were touched.
+    expect(db.whatsAppConnection.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT capture a group whose address matches only another agency's file", async () => {
+    db.whatsAppConnection.findUnique.mockResolvedValue({ id: "conn1", userId: "u1", user: { agencyId: "A" } });
+    // Scoped query finds nothing in agency A (the file lives in agency B).
+    db.propertyTransaction.findMany.mockResolvedValue([]);
+    const [r] = await ingestWhatsAppMessages([msg({ connectionId: "conn1", groupName: "Sale of 8 Other Road" })]);
+    expect(r.status).toBe("ignored");
+    expect(r.reason).toBe("no_file_in_agency");
+    expect(db.outboundMessage.create).not.toHaveBeenCalled();
+    // And it is NOT leaked into the internal needs-assigning queue.
+    expect(db.whatsAppPendingMessage.create).not.toHaveBeenCalled();
+  });
+
+  it("drops a message from an unknown connection, storing nothing and not querying files", async () => {
+    db.whatsAppConnection.findUnique.mockResolvedValue(null);
+    const [r] = await ingestWhatsAppMessages([msg({ connectionId: "ghost", groupName: "Sale of 1 Test Street" })]);
+    expect(r.status).toBe("ignored");
+    expect(r.reason).toBe("unknown_connection");
+    expect(db.propertyTransaction.findMany).not.toHaveBeenCalled();
+    expect(db.outboundMessage.create).not.toHaveBeenCalled();
+  });
+
+  it("legacy internal number (no connectionId) stays unscoped across agencies", async () => {
+    db.propertyTransaction.findMany.mockResolvedValue([
+      { id: "tX", status: "active", propertyAddress: "1 Test Street, Town, AB1 2CD" },
+    ]);
+    const [r] = await ingestWhatsAppMessages([msg({ groupName: "Sale of 1 Test Street" })]);
+    expect(r.status).toBe("logged");
+    const where = db.propertyTransaction.findMany.mock.calls[0][0].where;
+    expect(where.agencyId).toBeUndefined();
+    expect(db.whatsAppConnection.update).not.toHaveBeenCalled();
   });
 });

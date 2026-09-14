@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
+
+---
+
+## WhatsApp agent-facing Phase 2 — Railway persistent volume required (2026-09-14)
+
+The bridge now supports many WhatsApp connections at once (the internal number + one per agency). Each connection's login is stored on disk under `AUTH_DIR`, with per-connection watermarks under `QUEUE_DIR`. For connections to survive a redeploy/restart, **those directories must live on a Railway persistent volume** — otherwise every agency (and the internal number) would have to re-scan a QR after each deploy.
+
+**To do at deploy of the new bridge:**
+1. In Railway, attach a **persistent volume** to the bridge service (e.g. mounted at `/data`).
+2. Set `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue` (any paths on the mounted volume) in the bridge env.
+3. Redeploy the bridge with the multi-connection code. The internal number keeps its existing auth location (the `AUTH_DIR` root), so it should resume **without** a re-scan — verify it reconnects on boot and still captures a test group message.
+4. Nothing new is needed on the PWA/Vercel side for Phase 2.
+
+This is still an **internal-only** capability until Phase 3 ships the agent connect screen (which will drive per-agency pairing via the new `/connections/:id/*` bridge endpoints). No agency can pair yet — Phase 2 is the plumbing.
 
 ---
 

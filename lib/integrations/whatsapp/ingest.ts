@@ -19,6 +19,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/utils";
 import { parseGroupName, firstLineAddress, chooseTransaction, type Side } from "./match";
+import { resolveConnectionScope, touchConnectionMessage } from "./connections";
 
 // Re-exported for existing importers (lib/command/whatsapp.ts, command actions).
 export { parseGroupName };
@@ -37,6 +38,9 @@ export type BridgeMedia = {
 export type BridgeMessage = {
   waMessageId: string; // WhatsApp message id — the idempotency key
   waChatId: string; // group id (…@g.us) or DM id (…@s.whatsapp.net)
+  // Which agent-linked connection forwarded this. Absent = the legacy internal
+  // number (unscoped). A known id scopes matching to that connection's agency.
+  connectionId?: string | null;
   isGroup: boolean;
   groupName?: string | null;
   fromMe: boolean; // true when Ellis sent it from his own app
@@ -103,6 +107,18 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   });
   if (ignored) return { waMessageId: m.waMessageId, status: "ignored" };
 
+  // Resolve which connection (and agency) this came through. No connectionId =
+  // the legacy internal number: unscoped, matches across all agencies, unchanged.
+  // A known connectionId scopes matching to that connection's agency. An unknown
+  // connectionId is dropped — we never capture from a connection we can't
+  // attribute.
+  let scopeAgencyId: string | null = null;
+  if (m.connectionId) {
+    const scope = await resolveConnectionScope(m.connectionId);
+    if (!scope) return { waMessageId: m.waMessageId, status: "ignored", reason: "unknown_connection" };
+    scopeAgencyId = scope.agencyId;
+  }
+
   // A chat that's already been assigned (group OR direct, auto or manually) is
   // the source of truth — survives renames and never re-asks.
   const mapping = await prisma.whatsAppGroupMapping.findUnique({
@@ -111,6 +127,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   });
   if (mapping) {
     await writeMessage(m, mapping.transactionId, mapping.side as Side);
+    if (m.connectionId) await touchConnectionMessage(m.connectionId);
     return { waMessageId: m.waMessageId, status: "logged", transactionId: mapping.transactionId };
   }
 
@@ -120,19 +137,26 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
     return { waMessageId: m.waMessageId, status: "ignored", reason: "not_group" };
   }
 
-  const match = await matchGroup(m);
+  const match = await matchGroup(m, scopeAgencyId);
 
   if (match.txId) {
     await writeMessage(m, match.txId, match.side);
+    if (m.connectionId) await touchConnectionMessage(m.connectionId);
     return { waMessageId: m.waMessageId, status: "logged", transactionId: match.txId };
   }
 
   // A group that isn't a "Sale of / Purchase of {address}" property group is
-  // silently ignored — never stored, never queued. A correctly-named property
-  // group that doesn't resolve to one file yet stays in the needs-assigning
-  // queue so it can be matched manually and self-heal later.
+  // silently ignored — never stored, never queued.
   if (match.reason === "not_property") {
     return { waMessageId: m.waMessageId, status: "ignored", reason: "not_property" };
+  }
+
+  // An agency connection whose correctly-named group doesn't resolve to one of
+  // that agency's files is dropped — we never spill an agency's WhatsApp content
+  // into the internal needs-assigning queue. Only the legacy internal number
+  // keeps the queue (so internal staff can hand-match a stray group).
+  if (scopeAgencyId) {
+    return { waMessageId: m.waMessageId, status: "ignored", reason: "no_file_in_agency" };
   }
 
   await writePending(m, match.reason ?? "no_match", match.candidates ?? []);
@@ -141,7 +165,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
 
 // ── Group matching ───────────────────────────────────────────────────────────
 
-async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
+async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null): Promise<MatchResult> {
   // Mapping is checked upstream in ingestOne. Here we only name-match a group
   // we've never seen before.
   const name = (m.groupName ?? "").trim();
@@ -153,13 +177,15 @@ async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
   // group named with either the full address or just the first line resolves to
   // the same file. Narrow in the DB by a first-line substring, then refine with
   // exact first-line equality in chooseTransaction (a substring alone would let
-  // "18 High St" mis-hit "118 High St").
+  // "18 High St" mis-hit "118 High St"). When scoped to an agency, only that
+  // agency's files are considered (multi-tenant safety).
   const needle = firstLineAddress(parsed.address);
   if (!needle) return { txId: null, side: null, reason: "not_property" };
 
   const rows = await prisma.propertyTransaction.findMany({
     where: {
       status: { in: [...ACTIVE_STATUSES] },
+      ...(scopeAgencyId ? { agencyId: scopeAgencyId } : {}),
       propertyAddress: { contains: needle, mode: "insensitive" },
     },
     select: { id: true, status: true, propertyAddress: true },

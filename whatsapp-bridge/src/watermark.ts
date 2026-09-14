@@ -9,15 +9,17 @@
 // files with old history; that history is what the paste importer is for.
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 export class Watermark {
   private path: string;
   private value: number;
   private dirty = false;
 
-  constructor(dir: string) {
-    this.path = join(dir, "watermark.json");
+  // Full path to this connection's watermark file (per-connection, so streams
+  // don't share a floor).
+  constructor(filePath: string) {
+    this.path = filePath;
     this.value = Date.now();
   }
 
