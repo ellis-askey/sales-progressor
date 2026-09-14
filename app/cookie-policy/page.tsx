@@ -249,6 +249,11 @@ const SECTIONS: PolicySection[] = [
           <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>
         </p>
         <p>
+          This service is operated by The Sales Progressor Ltd, a company registered in England and
+          Wales, company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford
+          WD25 7GS, United Kingdom.
+        </p>
+        <p>
           For the full picture of how we handle personal data, see our{" "}
           <Link href="/privacy">Privacy Policy</Link>.
         </p>

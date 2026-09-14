@@ -7,10 +7,9 @@
 // original draft + the open questions that were resolved. Solicitor will
 // still review the finished document.
 //
-// Only remaining placeholders on this page (tracked in
-// docs/policies/PLACEHOLDERS.md):
-//   - [Company number]            — § 1, § 11
-//   - [Registered office address] — § 1, § 11
+// Company number (17455131) and registered office (5 Hercules Way, Leavesden
+// Park, Watford WD25 7GS, United Kingdom) filled in § 1 and § 11 on 2026-09-14.
+// No placeholders remain on this page.
 
 import type { Metadata } from "next";
 import { PolicyShell, type PolicySection } from "@/components/policies/PolicyShell";
@@ -31,8 +30,8 @@ const SECTIONS: PolicySection[] = [
           The Sales Progressor (&ldquo;Sales Progressor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
           &ldquo;our&rdquo;) is a property transaction management platform operated by{" "}
           <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
-          company number <em className="pending">[Company number]</em>, registered office{" "}
-          <em className="pending">[Registered office address]</em>.
+          company number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford
+          WD25 7GS, United Kingdom.
         </p>
         <p>
           This policy explains how we collect, use, and protect personal data in connection with the
@@ -424,9 +423,8 @@ const SECTIONS: PolicySection[] = [
           <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>
         </p>
         <p>
-          Data controller: The Sales Progressor Ltd, company number{" "}
-          <em className="pending">[Company number]</em>, registered office{" "}
-          <em className="pending">[Registered office address]</em>.
+          Data controller: The Sales Progressor Ltd, company number 17455131, registered office
+          5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom.
         </p>
       </>
     ),
