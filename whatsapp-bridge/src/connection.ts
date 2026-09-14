@@ -165,7 +165,7 @@ export class Connection {
         const loggedOut = statusCode === DisconnectReason.loggedOut;
         log.warn("connection closed", { id: this.id, statusCode, loggedOut });
         if (loggedOut) {
-          log.error("logged out — clearing credentials and restarting pairing", { id: this.id });
+          log.error("logged out: clearing credentials and restarting pairing", { id: this.id });
           await this.clearAuth();
           setTimeout(() => void this.connect(), 3000);
           return;
