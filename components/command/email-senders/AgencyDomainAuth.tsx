@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { setupAgencyDomainAction, checkAgencyDomainAction, type SerializedDomain } from "@/app/command/(protected)/email-senders/actions";
 import { REGISTRAR_GUIDES } from "@/lib/verified-emails/registrar-hints";
+import { relativeHost } from "@/lib/verified-emails/dns-host";
 
 type Agency = { id: string; name: string; quoteSenderEmail: string | null };
 
@@ -71,7 +72,7 @@ export function AgencyDomainAuth({ agency, initial }: { agency: Agency; initial:
   const records = record?.cnameRecords ?? [];
   const agencyMessage = records.length
     ? `Hi,\n\nTo send email from ${record?.domain} we need these ${records.length} DNS records added (all type CNAME):\n\n` +
-      records.map((r, i) => `${i + 1}. Host / Name: ${r.host}\n   Value / Points to: ${r.data}`).join("\n\n") +
+      records.map((r, i) => `${i + 1}. Host / Name (enter this): ${relativeHost(r.host, record?.domain ?? "")}\n   (full name, only if your provider asks for it: ${r.host})\n   Value / Points to: ${r.data}`).join("\n\n") +
       `\n\nThese go in your domain's DNS (at your registrar, e.g. Cloudflare or GoDaddy) and usually take about 30 minutes to take effect. Let us know once they're in and we'll verify.\n\nThanks`
     : "";
 
@@ -157,9 +158,10 @@ export function AgencyDomainAuth({ agency, initial }: { agency: Agency; initial:
                         <div className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-[9px] uppercase tracking-wide text-neutral-600 mb-0.5">Host / Name</p>
-                            <code className="block text-[11px] font-mono text-neutral-300 truncate">{r.host}</code>
+                            <code className="block text-[11px] font-mono text-neutral-300 truncate">{relativeHost(r.host, record?.domain ?? "")}</code>
+                            <p className="text-[9px] text-neutral-600 mt-0.5 truncate">full: <span className="font-mono">{r.host}</span></p>
                           </div>
-                          <button onClick={() => copy(r.host, `h${i}`)} className="text-[11px] px-2 py-1 rounded border border-neutral-700 text-neutral-400 hover:bg-neutral-800">{copied === `h${i}` ? "✓" : "Copy"}</button>
+                          <button onClick={() => copy(relativeHost(r.host, record?.domain ?? ""), `h${i}`)} className="text-[11px] px-2 py-1 rounded border border-neutral-700 text-neutral-400 hover:bg-neutral-800">{copied === `h${i}` ? "✓" : "Copy"}</button>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
@@ -182,7 +184,7 @@ export function AgencyDomainAuth({ agency, initial }: { agency: Agency; initial:
                         </button>
                         {openGuide === g.name && (
                           <p className="px-3 pb-2 text-[11px] text-neutral-500 leading-relaxed">
-                            {g.steps.replace(/{host}/g, records[0]?.host ?? "").replace(/{data}/g, records[0]?.data ?? "")}
+                            {g.steps.replace(/{host}/g, records[0] ? relativeHost(records[0].host, record?.domain ?? "") : "").replace(/{data}/g, records[0]?.data ?? "")}
                           </p>
                         )}
                       </div>

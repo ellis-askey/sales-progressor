@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, CheckCircle, ArrowClockwise, EnvelopeSimple } from "@phosphor-icons/react";
 import { REGISTRAR_GUIDES } from "@/lib/verified-emails/registrar-hints";
+import { relativeHost } from "@/lib/verified-emails/dns-host";
 
 type CnameRecord = { host: string; data: string; type: string };
 type DomainRecord = {
@@ -48,7 +49,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
     if (!instructionsEmail.trim()) return;
     setSendingInstructions(true);
     const records = (domain.cnameRecords as CnameRecord[])
-      .map((r, i) => `Record ${i + 1}:\n  Type: CNAME\n  Host: ${r.host}\n  Value: ${r.data}`)
+      .map((r, i) => `Record ${i + 1}:\n  Type: CNAME\n  Host / Name (enter this): ${relativeHost(r.host, domain.domain)}\n  (full name, only if your DNS provider asks for it: ${r.host})\n  Value / Points to: ${r.data}`)
       .join("\n\n");
     await fetch("/api/agent/send-instructions-email", {
       method: "POST",
@@ -78,9 +79,16 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
             <p className="text-sm font-semibold text-amber-800 mb-1">DNS setup required</p>
             <p className="text-xs text-amber-700">
               Add these {records.length} CNAME records to <strong>{domain.domain}</strong>&apos;s DNS.
-              Your IT team or domain registrar can do this — it usually takes 30 minutes to take effect.
+              Your IT team or domain registrar can do this. It usually takes 30 minutes to take effect.
             </p>
           </div>
+
+          <p className="text-xs text-slate-900/60 leading-relaxed">
+            Enter just the <strong>Host / Name</strong> shown for each record. Most providers
+            (GoDaddy, Namecheap, IONOS) add <span className="font-mono">{domain.domain}</span> for
+            you automatically, so you only need the short part. Only use the full name if your
+            provider specifically asks for it.
+          </p>
 
           {/* CNAME records */}
           <div className="space-y-3">
@@ -93,10 +101,13 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-slate-900/40 font-medium uppercase tracking-wide mb-0.5">Host / Name</p>
-                      <code className="block text-xs font-mono text-slate-900/80 truncate bg-white/60 px-2 py-1.5 rounded-lg">{r.host}</code>
+                      <code className="block text-xs font-mono text-slate-900/80 truncate bg-white/60 px-2 py-1.5 rounded-lg">{relativeHost(r.host, domain.domain)}</code>
+                      <p className="text-[10px] text-slate-900/40 mt-1 truncate">
+                        Full name if asked: <span className="font-mono">{r.host}</span>
+                      </p>
                     </div>
                     <button
-                      onClick={() => copyText(r.host, `host-${i}`)}
+                      onClick={() => copyText(relativeHost(r.host, domain.domain), `host-${i}`)}
                       className="flex-shrink-0 px-2.5 py-1.5 text-xs font-medium agent-badge-brand rounded-lg transition-colors"
                     >
                       {copied === `host-${i}` ? "✓" : <Copy className="w-3.5 h-3.5" />}
@@ -135,7 +146,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
                   {openGuide === g.name && (
                     <div className="px-4 pb-3">
                       <p className="text-xs text-slate-900/60 leading-relaxed">
-                        {g.steps.replace(/{host}/g, records[0]?.host ?? "").replace(/{data}/g, records[0]?.data ?? "")}
+                        {g.steps.replace(/{host}/g, records[0] ? relativeHost(records[0].host, domain.domain) : "").replace(/{data}/g, records[0]?.data ?? "")}
                       </p>
                     </div>
                   )}
