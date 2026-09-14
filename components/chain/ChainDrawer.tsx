@@ -543,19 +543,19 @@ export function ChainDrawer({
           (link.transactionId !== null && link.createdByUserId === currentUserId)
         }
         onResendInvite={
-          canEditLink(link, currentUserId, currentUserRole) && !!link.stubAgentEmail
+          mayEditStub && !!link.stubAgentEmail
             ? (id) => { void handleResendInvite(id); }
             : undefined
         }
         onEditStub={mayEditStub ? (l) => { onOpenAddNode?.("above", chainId, l); } : undefined}
         onDeleteStub={mayEditStub ? (id) => setConfirmingDeleteId(id) : undefined}
         onCopyShareLink={
-          canEditLink(link, currentUserId, currentUserRole)
+          mayEditStub
             ? (id) => { void handleCopyShareLink(id); }
             : undefined
         }
         onRevokeShareLink={
-          canEditLink(link, currentUserId, currentUserRole)
+          mayEditStub
             ? (id) => { void handleRevokeShareLink(id); }
             : undefined
         }
@@ -564,7 +564,7 @@ export function ChainDrawer({
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
         onUploadPhoto={
-          canEditLink(link, currentUserId, currentUserRole)
+          mayEditStub
             ? (id, file) => handleUploadPhoto(id, file)
             : undefined
         }

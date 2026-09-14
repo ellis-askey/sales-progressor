@@ -13,6 +13,10 @@ type LinkPermissionData = {
 type ChainLinkSummary = {
   claimedByUserId: string | null;
   createdByUserId: string | null;
+  // Owning agency of this link's claimed file (null for an unclaimed stub).
+  // Lets the whole owning agency see the chain, not just the individual who
+  // built or claimed the link. Optional so legacy/test callers still compile.
+  txAgencyId?: string | null;
 };
 
 function isOriginator(link: LinkPermissionData, userId: string): boolean {
@@ -40,22 +44,10 @@ export function isInternalStaff(role?: string | null): boolean {
 }
 
 // Edit stub data (address, agency, email, notes) — originator (or internal
-// staff) only while unclaimed
+// staff) only while unclaimed. Kept for the client-side fallback in ChainDrawer;
+// the authoritative server gate for stub edit/remove/invite/share/photo is now
+// canManageStub (lib/chain/stub-permissions.ts), which is agency-aware.
 export function canEditLink(link: LinkPermissionData, userId: string, role?: string | null): boolean {
-  return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
-}
-
-// Send or resend an invite — originator/internal staff, unclaimed, must have email
-export function canSendInvite(link: LinkPermissionData, userId: string, role?: string | null): boolean {
-  return (
-    (isInternalStaff(role) || isOriginator(link, userId)) &&
-    isUnclaimed(link) &&
-    !!link.stubAgentEmail
-  );
-}
-
-// Delete (cancel) a link — originator/internal staff while unclaimed
-export function canDeleteLink(link: LinkPermissionData, userId: string, role?: string | null): boolean {
   return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
 }
 
@@ -95,18 +87,27 @@ const INTERNAL_ROLES_SEE_ALL_CHAINS = new Set(["admin", "superadmin", "sales_pro
 // The `role` argument is optional so existing test callers keep working — a
 // missing role falls through to the participant check, which is the safest
 // default. Production callers always pass session.user.role.
+//
+// viewerAgencyId (2026-09-14): a customer agency works as a team, so anyone in
+// the agency that owns a file in this chain may see it — not just the individual
+// who created or claimed the link. Without this a director was locked out of a
+// chain their own negotiator built ("Ask the person who added it"). Internal
+// staff (agencyId null) already bypass via role. Optional so existing callers
+// that don't pass it keep the person-only behaviour.
 export function canViewChain(
   allLinks: ChainLinkSummary[],
   userId: string,
   role?: string | null,
+  viewerAgencyId?: string | null,
 ): boolean {
   if (role && INTERNAL_ROLES_SEE_ALL_CHAINS.has(role)) return true;
-  return allLinks.some(
-    (l) => l.claimedByUserId === userId || l.createdByUserId === userId,
-  );
-}
-
-// View stub private details (email, phone, notes) — originator/internal staff while unclaimed
-export function canViewStubDetails(link: LinkPermissionData, userId: string, role?: string | null): boolean {
-  return (isInternalStaff(role) || isOriginator(link, userId)) && isUnclaimed(link);
+  // Person-based: the viewer created or claimed a link.
+  if (allLinks.some((l) => l.claimedByUserId === userId || l.createdByUserId === userId)) {
+    return true;
+  }
+  // Agency-wide: the viewer's agency owns a file (a claimed link) in this chain.
+  if (viewerAgencyId && allLinks.some((l) => l.txAgencyId && l.txAgencyId === viewerAgencyId)) {
+    return true;
+  }
+  return false;
 }

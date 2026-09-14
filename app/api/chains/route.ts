@@ -45,17 +45,22 @@ export async function GET(req: NextRequest) {
     const allLinks = chain.links.map((l) => ({
       claimedByUserId: l.claimedByUserId,
       createdByUserId: l.createdByUserId,
+      txAgencyId: l.transaction?.agencyId ?? null,
     }));
     // 2026-07-14: pass role so internal staff (admin / superadmin /
     // sales_progressor) bypass the participant check. Everyone else stays
     // gated by membership.
+    //
+    // 2026-09-14: pass the viewer's agencyId so the whole owning agency
+    // (director + negotiators) sees the chain, not only the individual who
+    // built or claimed the link.
     //
     // When gated out we now surface an explicit flag so the drawer can
     // render "This file is in a chain" honest copy instead of the "No
     // chain yet + Create" empty state — the latter was misleading (chain
     // does exist) AND set up a double-create trap that immediately errored
     // with "Transaction already in a chain".
-    if (!canViewChain(allLinks, session.user.id, session.user.role)) {
+    if (!canViewChain(allLinks, session.user.id, session.user.role, session.user.agencyId ?? null)) {
       return NextResponse.json({ chain: null, notAParticipant: true });
     }
 

@@ -8,7 +8,7 @@ import {
   upsertChainLink,
   deleteChainLink,
 } from "@/lib/services/chains";
-import { canViewChain } from "@/lib/chain/permissions";
+import { canViewChain, isInternalStaff } from "@/lib/chain/permissions";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -24,8 +24,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   const allLinks = chain.links.map((l) => ({
     claimedByUserId: l.claimedByUserId,
     createdByUserId: l.createdByUserId,
+    txAgencyId: l.transaction?.agencyId ?? null,
   }));
-  if (!canViewChain(allLinks, session.user.id, session.user.role)) {
+  if (!canViewChain(allLinks, session.user.id, session.user.role, session.user.agencyId ?? null)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -42,7 +43,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     where: { id },
     select: { agencyId: true },
   });
-  if (!chain || chain.agencyId !== session.user.agencyId) {
+  // Internal staff (agencyId null) manage any chain; a customer agency user is
+  // scoped to their own agency's chain. The old `chain.agencyId !==
+  // session.user.agencyId` check wrongly locked out internal staff (null !== a
+  // set agencyId), the exact ad-hoc pattern Law 7 bans.
+  if (!chain || (!isInternalStaff(session.user.role) && chain.agencyId !== session.user.agencyId)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -85,8 +90,14 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const chain = await getChainV2(id);
   if (!chain) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Only the chain creator or an admin can delete
-  if (chain.createdByUserId !== session.user.id && session.user.role !== "admin") {
+  // Who may delete a whole chain: its creator, internal staff (admin /
+  // superadmin / sales_progressor), or a director in the owning agency. The old
+  // check allowed only the creator or `admin` — it dropped superadmin and blocked
+  // a director from removing a chain their own negotiator created.
+  const isCreator = chain.createdByUserId === session.user.id;
+  const isOwningDirector =
+    session.user.role === "director" && !!chain.agencyId && chain.agencyId === session.user.agencyId;
+  if (!isCreator && !isInternalStaff(session.user.role) && !isOwningDirector) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

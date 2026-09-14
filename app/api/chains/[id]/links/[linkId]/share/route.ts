@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canEditLink } from "@/lib/chain/permissions";
+import { canManageStub, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
 import crypto from "crypto";
 
 type RouteParams = { params: Promise<{ id: string; linkId: string }> };
@@ -16,6 +16,9 @@ const SELECT = {
   stubAgentEmail: true,
   inviteStatus: true,
   shareToken: true,
+  // Ownership facts for the agency-aware stub gate (canManageStub).
+  createdBy: { select: { agencyId: true } },
+  transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true } },
 } as const;
 
 function claimBase(): string {
@@ -36,7 +39,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   if (!link || link.chainId !== chainId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!canEditLink(link, session.user.id, session.user.role)) {
+  if (!canManageStub(session, ownershipFromLinkRow(link))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -65,7 +68,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   if (!link || link.chainId !== chainId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!canEditLink(link, session.user.id, session.user.role)) {
+  if (!canManageStub(session, ownershipFromLinkRow(link))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

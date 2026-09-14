@@ -117,7 +117,9 @@ export type ChainLinkV2 = {
   claimedAt: Date | null;
   stubPropertyAddress: string | null;
   stubAgencyName: string | null;
-  // Private fields — callers must gate on canViewStubDetails before exposing
+  // Private fields — getChainV2 nulls these for any viewer who isn't the owning
+  // agency (or internal staff), so they never reach another agency in a shared
+  // chain. Present on the type as string | null for the owning-side viewer.
   stubAgentEmail: string | null;
   stubAgentName: string | null;
   stubAgentPhone: string | null;
@@ -673,6 +675,14 @@ export async function getChainV2(
         lastChainCheckAt,
         stubPhotoStoragePath,
         shareToken,
+        // Private stub fields (contact + notes) — pulled off here so they never
+        // ride the default wire shape; re-added below only for a viewer allowed
+        // to see them. Without this they leak to every agency in a shared chain
+        // (the notes field is shown to its author as "Only you can see this").
+        stubAgentEmail,
+        stubAgentName,
+        stubAgentPhone,
+        stubNotes,
         transaction: rawTx,
         createdBy: rawCreatedBy,
         ...linkRest
@@ -711,6 +721,13 @@ export async function getChainV2(
             lastChainCheckAt: lastChainCheckAt ?? null,
           }
         : null;
+      // Private stub contact + notes: same trust tier as intel (owning agency +
+      // internal staff only). Re-added to the wire only when visible; null for
+      // every other agency. Nulling has no visible status effect — an uninvited
+      // stub reads "Unclaimed" whether or not the email is present.
+      const stubPrivate = intelVisible
+        ? { stubAgentEmail, stubAgentName, stubAgentPhone, stubNotes }
+        : { stubAgentEmail: null, stubAgentName: null, stubAgentPhone: null, stubNotes: null };
       // Own-side gate for price / onward / stuck-step: the SAME rule as intel, so
       // the whole owning agency (creator, assigned neg, director) + internal staff
       // see them; another agency never does. Legacy callers without viewer context
@@ -720,6 +737,7 @@ export async function getChainV2(
       if (!rawTx) {
         return {
           ...linkRest,
+          ...stubPrivate,
           createdBy,
           photoUrl: stubPhotoUrl,
           transaction: null,
@@ -765,6 +783,7 @@ export async function getChainV2(
       // is the valuePence aggregate above.
       return {
         ...linkRest,
+        ...stubPrivate,
         // Link-level photo: the claimed transaction's signed photo (falls back to
         // the stub photo if somehow set). Mirrors transaction.photoUrl below so the
         // card can read one field regardless of claimed/unclaimed.

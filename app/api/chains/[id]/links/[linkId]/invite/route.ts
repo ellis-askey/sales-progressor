@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canSendInvite } from "@/lib/chain/permissions";
+import { canManageStub, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
 import { sendChainInvite } from "@/lib/chain/invite";
 
 type RouteParams = { params: Promise<{ id: string; linkId: string }> };
@@ -28,6 +28,9 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       stubAgencyName: true,
       inviteStatus: true,
       inviteResendCount: true,
+      // Ownership facts for the agency-aware stub gate (canManageStub).
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true } },
       chain: {
         select: {
           createdByUserId: true,
@@ -46,8 +49,13 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   });
 
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (!canSendInvite(link, session.user.id, session.user.role)) {
+  if (!canManageStub(session, ownershipFromLinkRow(link))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // canSendInvite used to fold in the "has an email" requirement; keep it as an
+  // explicit guard now the permission check is agency-scoped.
+  if (!link.stubAgentEmail) {
+    return NextResponse.json({ error: "Add an email for this contact before inviting them." }, { status: 400 });
   }
 
   // Resend cap: one initial send plus up to five resends. Beyond that a resend

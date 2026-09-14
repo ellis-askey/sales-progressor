@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canEditLink } from "@/lib/chain/permissions";
+import { canManageStub, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from "@/lib/supabase-storage";
 
 // Internal stub-photo upload for an UNCLAIMED chain link. Same permission as
@@ -37,6 +37,9 @@ async function loadLink(linkId: string) {
       stubAgentEmail: true,
       inviteStatus: true,
       stubPhotoStoragePath: true,
+      // Ownership facts for the agency-aware stub gate (canManageStub).
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true } },
     },
   });
 }
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const { linkId } = await params;
   const link = await loadLink(linkId);
   if (!link) return NextResponse.json({ error: "Link not found" }, { status: 404 });
-  if (!canEditLink(link, session.user.id, session.user.role)) {
+  if (!canManageStub(session, ownershipFromLinkRow(link))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -89,7 +92,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const { linkId } = await params;
   const link = await loadLink(linkId);
   if (!link) return NextResponse.json({ error: "Link not found" }, { status: 404 });
-  if (!canEditLink(link, session.user.id, session.user.role)) {
+  if (!canManageStub(session, ownershipFromLinkRow(link))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
