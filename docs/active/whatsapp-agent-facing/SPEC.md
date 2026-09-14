@@ -232,7 +232,27 @@ chrome), reusing the Account > Connections pattern already built for Outlook
 **Schema (Phase 3):** add `Agency.whatsAppCaptureEnabled`. Migration staging
 first.
 
-## Phase 4 — Agent-facing to-dos (last, only once capture is solid)
+## Phase 4 — Agent-facing to-dos — DONE 2026-09-14 (awaiting commit)
+
+**Done:** `ManualTask.completedAt` added (migration
+`20260914190000_manual_task_completed_at`); the three task-update helpers stamp
+it when status flips to done and clear it on reopen. The promises engine
+(`whatsapp-promises.ts`) now branches on the captured message's `connectionId`:
+no connectionId = internal number → internal self-assigned task (unchanged); a
+connectionId = an agency's own linked number → an AGENCY-VISIBLE dated to-do on
+the file, but only when that agency has `whatsAppTasksEnabled` (opt-in, default
+off) — otherwise no task is created (an agency's promises never fall into the
+internal pile). The per-agency toggle is the "Auto to-dos" switch shipped in
+Part 3. 3 new tests (39 total), `tsc` clean. Because the toggle defaults off and
+capture isn't live, this is inert until an agency opts in after capture is
+deployed and proven.
+
+**Deferred (stretch):** auto-completing a to-do from a confirmation in the
+WhatsApp group. It needs inbound-group-message interpretation and reliable
+in-group sender identity (unreliable today, LID privacy), so it waits until
+capture is proven live. In-app completion works now.
+
+Original plan (superseded above):
 
 Extend the existing promises engine to agencies, turn-off-able.
 

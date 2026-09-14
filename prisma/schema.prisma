@@ -1971,6 +1971,7 @@ model ManualTask {
   progressorNote         String?
   progressorNoteAt       DateTime?
   status                 ManualTaskStatus @default(open)
+  completedAt            DateTime? // stamped when status flips to done; cleared on reopen
   assignedToId           String?
   dueDate                DateTime?
   isAgentRequest         Boolean          @default(false)

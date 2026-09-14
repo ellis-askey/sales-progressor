@@ -9,6 +9,7 @@ export type ManualTaskWithRelations = {
   progressorNote: string | null;
   progressorNoteAt: Date | null;
   status: "open" | "done";
+  completedAt?: Date | null;
   dueDate: Date | null;
   createdAt: Date;
   isAgentRequest: boolean;
@@ -139,7 +140,7 @@ export async function updateInternalManualTask(
   const updated = await prisma.manualTask.update({
     where: { id },
     data: {
-      ...(data.status  !== undefined && { status: data.status }),
+      ...(data.status  !== undefined && { status: data.status, completedAt: data.status === "done" ? new Date() : null }),
       ...(data.title   !== undefined && { title: data.title }),
       ...(data.notes   !== undefined && { notes: data.notes }),
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
@@ -179,7 +180,7 @@ export async function updateManualTask(
         progressorNote: data.progressorNote,
         progressorNoteAt: data.progressorNote ? new Date() : null,
       }),
-      ...(data.status !== undefined && { status: data.status }),
+      ...(data.status !== undefined && { status: data.status, completedAt: data.status === "done" ? new Date() : null }),
       ...(data.assignedToId !== undefined && { assignedToId: data.assignedToId }),
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
     },
@@ -264,7 +265,7 @@ export async function updateManualTaskAsProgressor(
   const updated = await prisma.manualTask.update({
     where: { id },
     data: {
-      ...(data.status    !== undefined && { status: data.status }),
+      ...(data.status    !== undefined && { status: data.status, completedAt: data.status === "done" ? new Date() : null }),
       ...(data.title     !== undefined && { title: data.title }),
       ...(data.notes     !== undefined && { notes: data.notes }),
       ...(data.dueDate   !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),

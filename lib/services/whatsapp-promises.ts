@@ -3,10 +3,13 @@ import { callClaude } from "@/lib/anthropic";
 import { createManualTask } from "@/lib/services/manual-tasks";
 import { toUKDateStr } from "@/lib/utils";
 
-// "Promises" — turn a WhatsApp message the progressor SENT into an internal
-// to-do, but ONLY when they commit to doing something themselves AND give a
-// timeframe. Internal-only (isInternalSelfAssigned tasks, which surface on
-// /agent/to-do for internal staff and never to customer-agency users).
+// "Promises" — turn a WhatsApp message the operator SENT into a to-do, but ONLY
+// when they commit to doing something themselves AND give a timeframe.
+//   - Internal number (no connectionId): internal self-assigned tasks, which
+//     surface on /agent/to-do for internal staff and never to agency users.
+//   - An agency's own linked number (connectionId set): AGENCY-VISIBLE dated
+//     to-dos on the file, but only when that agency has opted in
+//     (Agency.whatsAppTasksEnabled). If not opted in, no task is created.
 //
 // Passive: it only READS outbound WhatsApp content and writes a private task.
 // It never sends anything on WhatsApp. Each outbound message is scanned at most
@@ -142,6 +145,8 @@ export async function scanWhatsAppPromises(limit = 25): Promise<{ scanned: numbe
       createdAt: true,
       transactionId: true,
       createdById: true,
+      agencyId: true,
+      providerWebhookData: true,
       transaction: { select: { assignedUserId: true, agentUserId: true } },
     },
   });
@@ -157,7 +162,24 @@ export async function scanWhatsAppPromises(limit = 25): Promise<{ scanned: numbe
         // The task belongs to whoever manages the file (set on the message at
         // ingest). Without an owner we can't create a ManualTask, so skip.
         const ownerId = m.createdById ?? m.transaction?.assignedUserId ?? m.transaction?.agentUserId ?? null;
-        if (ownerId) {
+
+        // Which connection captured this: null = the internal number (keeps its
+        // internal self-assigned to-dos, unchanged). A connectionId means an
+        // agency's own linked number — those become AGENCY-VISIBLE dated to-dos,
+        // but only if that agency has opted in (whatsAppTasksEnabled). Otherwise
+        // we create nothing (an agency's promises never fall into the internal pile).
+        const connectionId = (m.providerWebhookData as { connectionId?: string | null } | null)?.connectionId ?? null;
+        let agencyVisible = false;
+        let makeTask = true;
+        if (connectionId) {
+          const agency = m.agencyId
+            ? await prisma.agency.findUnique({ where: { id: m.agencyId }, select: { whatsAppTasksEnabled: true } })
+            : null;
+          if (agency?.whatsAppTasksEnabled) agencyVisible = true;
+          else makeTask = false;
+        }
+
+        if (ownerId && makeTask) {
           const already = await prisma.manualTask.count({ where: { sourceMessageId: m.id } });
           if (already === 0) {
             const promises = await extractPromises(text, anchor);
@@ -165,13 +187,14 @@ export async function scanWhatsAppPromises(limit = 25): Promise<{ scanned: numbe
               const due = resolveDue(anchor, p.when, p.time);
               if (!due) continue; // undated promise — out of scope, skip
               await createManualTask({
-                agencyId: null,
+                agencyId: agencyVisible ? m.agencyId : null,
                 createdById: ownerId,
                 title: p.title,
-                notes: `From WhatsApp — "${text.slice(0, 160)}"`,
+                notes: `From WhatsApp: "${text.slice(0, 160)}"`,
                 transactionId: m.transactionId!,
                 dueDate: due.toISOString(),
-                isInternalSelfAssigned: true,
+                assignedToId: agencyVisible ? ownerId : undefined,
+                isInternalSelfAssigned: !agencyVisible,
                 sourceMessageId: m.id,
               });
               created++;
