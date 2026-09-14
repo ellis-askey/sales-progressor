@@ -10,6 +10,7 @@ import { Suspense } from "react";
 import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { AccountConnectionsCard } from "@/components/account/AccountConnectionsCard";
+import { WhatsAppConnectionCard } from "@/components/account/WhatsAppConnectionCard";
 
 export default async function AccountConnectionsPage() {
   const session = await requireSession();
@@ -44,6 +45,16 @@ export default async function AccountConnectionsPage() {
       >
         <AccountConnectionsCard />
       </Suspense>
+
+      <div>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+          Link your WhatsApp so your property group chats are saved to the right sale. We only ever read
+          your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you can
+          disconnect at any time.
+        </p>
+      </div>
+      <WhatsAppConnectionCard />
     </div>
   );
 }

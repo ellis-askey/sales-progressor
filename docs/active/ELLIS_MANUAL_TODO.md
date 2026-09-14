@@ -20,6 +20,13 @@ The bridge now supports many WhatsApp connections at once (the internal number +
 
 This is still an **internal-only** capability until Phase 3 ships the agent connect screen (which will drive per-agency pairing via the new `/connections/:id/*` bridge endpoints). No agency can pair yet — Phase 2 is the plumbing.
 
+### WhatsApp agent-facing — privacy/DPA before agencies can link (Phase 3, 2026-09-14)
+
+The agent connect screen is now built (Account → Connections → WhatsApp, director/negotiator only). Once the bridge is deployed with a Railway volume, agencies could start linking their own WhatsApp, which is a **new customer-facing data flow**. Before that goes live in production:
+1. Add a WhatsApp line to the **Privacy Policy** (we link an agent's WhatsApp as a device and read only their property group chats; unofficial connection; can disconnect any time). The in-app consent screen captures affirmative consent (`consentAcceptedAt`), but the policy should describe it too.
+2. Confirm the **DPA** covers this processing.
+3. The screen only shows a real connect option when the bridge is configured/reachable; until then it reads "WhatsApp linking isn't switched on yet", so shipping the code to prod is safe ahead of the bridge going live.
+
 ---
 
 ## Two signup/join features shipped DARK — flip when ready (2026-09-13)

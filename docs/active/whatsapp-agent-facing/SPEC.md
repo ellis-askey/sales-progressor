@@ -145,9 +145,19 @@ moves to Phase 3 with the consent screen.
 
 ## Phase 3 — Agent-facing connect experience + controls
 
-Built in parts (like Phase 2). **Part 1 (plumbing) DONE 2026-09-14** — awaiting
-commit. **Parts 2 (connect screen + consent) and 3 (CC off-switch + naming
-helper) remain.**
+Built in parts (like Phase 2). **Part 1 (plumbing) DONE + committed
+(`3430e71e`).** **Part 2 (connect screen + consent) DONE 2026-09-14 — awaiting
+commit.** **Part 3 (CC off-switch + naming helper) remains.**
+
+**Part 2 (done):** `components/account/WhatsAppConnectionCard.tsx` — cream card
+mirroring the Outlook `AccountConnectionsCard`, added to the existing
+`/agent/account/connections` page under a "WhatsApp" section (no nav change; the
+Connections tab already exists). States: not-switched-on, consent (founder copy
+verbatim, tick gates the action), waiting-to-scan (polls every 3s, shows the QR
+once the bridge emits it), connected (shows the number + disconnect). Talks only
+to `/api/agent/whatsapp/*`. DPA/privacy note added to `ELLIS_MANUAL_TODO.md`.
+`tsc` clean; 35 tests still pass. Not visually screenshotted (auth-gated + bridge
+off locally) — verify on staging.
 
 **Part 1 (done):** schema — `WhatsAppConnection.phoneNumber` made nullable (a row
 exists from pairing start, before the number is known) + `consentAcceptedAt`
