@@ -14,6 +14,8 @@ import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
+import { postChaseEcho } from "@/lib/services/chase-echo";
+import type { EchoSide } from "@/lib/portal/chase-echo-copy";
 import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
 import { confirmationSubtext, confirmerBucket } from "@/lib/milestone-confirmation-subtext";
@@ -877,9 +879,34 @@ export async function createCommunicationRecord(input: CreateCommInput) {
   // stays classified as overdue after the chase email lands, which is the
   // bug fixed on 2026-06.
   if (input.chaseTaskId && input.type === "outbound") {
+    // Read the pre-chase count + step BEFORE the bump so we can throttle the
+    // portal echo to the FIRST chase of this step (Ellis: first chase per step,
+    // not every repeat). Only for human chases — the auto engine never echoes.
+    const preChase = input.isAutomated
+      ? null
+      : await prisma.chaseTask.findUnique({
+          where: { id: input.chaseTaskId },
+          select: { chaseCount: true, reminderLog: { select: { reminderRule: { select: { targetMilestoneCode: true } } } } },
+        });
     // An agent-composed outbound chase is a human chase; an automated one
     // (isAutomated) is not — route so only human chases arm escalation.
     await applyChaseToTask(input.chaseTaskId, { origin: input.isAutomated ? "auto" : "manual" });
+    // First manual chase of this step → mirror it to the portal(s). Empty
+    // contactIds means the recipient was a solicitor (both sides hear it); a
+    // client contact means we chased the client (only the other side hears it).
+    const code = preChase?.reminderLog?.reminderRule?.targetMilestoneCode ?? null;
+    if (preChase && preChase.chaseCount === 0 && code) {
+      const chasedSide: EchoSide | null = code.startsWith("VM") ? "vendor" : code.startsWith("PM") ? "purchaser" : null;
+      if (chasedSide) {
+        postChaseEcho({
+          transactionId: input.transactionId,
+          code,
+          recipientType: input.contactIds.length === 0 ? "solicitor" : "client",
+          chasedSide,
+          actorUserId: input.createdById,
+        }).catch(() => {});
+      }
+    }
   }
 
   touchLastActivity(input.transactionId).catch(() => {});

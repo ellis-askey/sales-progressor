@@ -28,6 +28,10 @@ export function timelineActor(
     }
     return { role: "progressor", image: entry.completedByImage ?? null, name: entry.completedByName ?? "Your team" };
   }
-  // A document or an agent update — from the team.
+  // A signed update (chase / enquiry echo) shows the person who did it.
+  if (entry.type === "update" && entry.actorName) {
+    return { role: "progressor", image: entry.actorImage ?? null, name: entry.actorName };
+  }
+  // A document or an unattributed agency update — from the team.
   return { role: "progressor", image: null, name: "Your team" };
 }

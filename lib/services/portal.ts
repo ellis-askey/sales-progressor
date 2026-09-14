@@ -2693,6 +2693,11 @@ export type TimelineEntry =
       content: string;
       method: string | null;
       createdAt: Date;
+      // Signed updates (chase / enquiry echoes) carry the person who did it, so
+      // the portal shows their photo + name instead of the anonymous "Your team".
+      // Null on unattributed agency updates (e.g. the exchange-date change).
+      actorName?: string | null;
+      actorImage?: string | null;
     }
   | {
       type: "document";
@@ -2853,7 +2858,7 @@ export async function getPortalTimeline(
       prisma.outboundMessage.findMany({
         where: messageWhere,
         orderBy: { createdAt: "desc" },
-        select: { id: true, content: true, method: true, createdAt: true, selfNoteActorContactId: true, selfNoteSelfText: true },
+        select: { id: true, content: true, method: true, createdAt: true, selfNoteActorContactId: true, selfNoteSelfText: true, channel: true, isAutomated: true, createdById: true },
       }),
       prisma.transactionDocument.findMany({
         where: documentWhere,
@@ -2913,15 +2918,35 @@ export async function getPortalTimeline(
         };
       });
 
-    const updateEntries: TimelineEntry[] = updates.map((u) => ({
-      type: "update" as const,
-      id: u.id,
-      // Self-note swap: the actor reads "You updated…"; everyone else reads the
-      // name-led form stored in `content`.
-      content: u.selfNoteActorContactId === contactId && u.selfNoteSelfText ? u.selfNoteSelfText : u.content,
-      method: u.method,
-      createdAt: u.createdAt,
-    }));
+    // Signed updates (chase / enquiry echoes) attribute to the person who did
+    // it. A signed row is a passive in_app agency update that isn't automated
+    // and isn't a client self-note — resolve those actors' name + photo in one
+    // batch so the portal shows their face instead of the anonymous "Your team".
+    const isSignedUpdate = (u: (typeof updates)[number]): boolean =>
+      u.channel === "in_app" && !u.isAutomated && !u.selfNoteActorContactId && !!u.createdById;
+    const actorUserIds = [...new Set(updates.filter(isSignedUpdate).map((u) => u.createdById).filter((x): x is string => !!x))];
+    const actorById = actorUserIds.length
+      ? new Map(
+          (
+            await prisma.user.findMany({ where: { id: { in: actorUserIds } }, select: { id: true, name: true, image: true } })
+          ).map((u) => [u.id, u] as const),
+        )
+      : new Map<string, { name: string | null; image: string | null }>();
+
+    const updateEntries: TimelineEntry[] = updates.map((u) => {
+      const actor = isSignedUpdate(u) && u.createdById ? actorById.get(u.createdById) : null;
+      return {
+        type: "update" as const,
+        id: u.id,
+        // Self-note swap: the actor reads "You updated…"; everyone else reads the
+        // name-led form stored in `content`.
+        content: u.selfNoteActorContactId === contactId && u.selfNoteSelfText ? u.selfNoteSelfText : u.content,
+        method: u.method,
+        createdAt: u.createdAt,
+        actorName: actor?.name ?? null,
+        actorImage: actor?.image ?? null,
+      };
+    });
 
     const { getSignedUrl } = await import("@/lib/supabase-storage");
     const documentEntries: TimelineEntry[] = await Promise.all(

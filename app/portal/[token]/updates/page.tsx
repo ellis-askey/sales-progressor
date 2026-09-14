@@ -263,6 +263,9 @@ export default async function PortalUpdatesPage({
 
                 /* ── Agent update (email / phone / etc.) ── */
                 const method = entry.method ? METHOD_META[entry.method] : null;
+                // Signed chase/enquiry echoes show the person who did it; plain
+                // agency updates fall back to "Your team" (handled in timelineActor).
+                const a = timelineActor(entry, side);
                 return (
                   <PortalGlassCard
                     key={entry.id}
@@ -272,7 +275,7 @@ export default async function PortalUpdatesPage({
                     className="flex items-start gap-3.5 px-5 py-4"
                   >
                     <div className="flex-shrink-0 mt-0.5">
-                      <ActorAvatar name="Your team" role="progressor" size={32} />
+                      <ActorAvatar name={a.name} role={a.role} image={a.image} size={32} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>

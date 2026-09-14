@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getEnquiryHistory, type EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import { confirmMilestoneAction } from "./milestones";
+import { postEnquiryEcho } from "@/lib/services/chase-echo";
 import {
   logEnquiryMovement,
   setEnquiryOutstandingNote,
@@ -80,6 +81,12 @@ export async function logEnquiryMovementAction(input: {
     occurredAt,
     createdByUserId: userId,
   });
+  // Mirror the meaningful enquiry movements onto the client portal(s) as a
+  // passive, signed update. Replies-sent / partial / raised only; the internal
+  // "still with them" touch stays silent (nothing changed for the client).
+  if (ok && (input.kind === "replies_sent" || input.kind === "partial_replies" || input.kind === "raised")) {
+    postEnquiryEcho({ transactionId: input.transactionId, kind: input.kind, actorUserId: userId }).catch(() => {});
+  }
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");

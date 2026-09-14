@@ -7,6 +7,7 @@ import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snooze
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
 import { sendMilestoneConfirmationNotifications } from "@/lib/services/milestone-confirm-notify";
 import { createCommunicationRecord } from "@/lib/services/comms";
+import { postChaseEcho, classifyChaseFromCode } from "@/lib/services/chase-echo";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 import { formatDate } from "@/lib/utils";
@@ -299,7 +300,33 @@ export async function chaseNowFromLogAction(
 
 export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
-  await advanceChaseTask(taskId, getAccessScope(session));
+  const scope = getAccessScope(session);
+  // Read the step + pre-chase count (scope-guarded) so the portal echo fires
+  // only on the FIRST chase of this step.
+  const task = await prisma.chaseTask.findFirst({
+    where: scopeChaseTaskWhere(scope, taskId),
+    select: {
+      chaseCount: true,
+      transactionId: true,
+      reminderLog: { select: { reminderRule: { select: { targetMilestoneCode: true } } } },
+    },
+  });
+  await advanceChaseTask(taskId, scope);
+  const code = task?.reminderLog?.reminderRule?.targetMilestoneCode ?? null;
+  if (task && task.chaseCount === 0 && code) {
+    // The ↻ Chased button picks no recipient, so infer it from the step. Shared
+    // steps (client + solicitor) can't be told apart here, so they're skipped.
+    const cls = classifyChaseFromCode(code);
+    if (cls) {
+      postChaseEcho({
+        transactionId: task.transactionId,
+        code,
+        recipientType: cls.recipientType,
+        chasedSide: cls.chasedSide,
+        actorUserId: session.user.id,
+      }).catch(() => {});
+    }
+  }
   revalidatePath(pathname, "page");
 }
 
