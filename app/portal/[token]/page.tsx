@@ -5,6 +5,7 @@ import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, g
 import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
 import { getPortalBrokerCard } from "@/lib/services/broker-card";
 import { PortalBrokerCard } from "@/components/portal/PortalBrokerCard";
+import { resolveProviderAvailability } from "@/lib/services/provider-availability";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
@@ -593,16 +594,37 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   if (showSurveyQuote) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "survey" });
   if (showBrokerCard)  void recordPortalEvent("portal_service_surfaced", contact.id, { service: "broker" });
   const showSurveyStatus   = (side === "purchaser" || (side === "vendor" && buyingOnward)) && !hasExchanged && !hasCompleted && hasRequestedQuote && (!!bookedSurveyorName || !surveyBooked);
+  // "Need anything else?" providers card (2026-09-14). Picks up where the
+  // survey-quote card leaves off: once the buyer's survey is booked, re-link
+  // them to the /quote marketplace for the other local trades (structural
+  // engineer, and future kinds). Buyer-only for now; sellers buying onward are
+  // a follow-up (see docs/POLISH_TBD.md). Hidden when no local firm covers the
+  // area, so it never leads to an empty picker.
+  const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName);
+  const providerAvail      = surveyEngaged ? await resolveProviderAvailability(transaction.propertyAddress) : null;
+  const showProvidersCard  = surveyEngaged && providerAvail !== null && providerAvail.hasLocalCovered;
+  if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "providers" });
+  // Subcopy lists only what's genuinely available: the covered local kinds,
+  // plus mortgage advice (brokers are nationwide, always in the /quote picker).
+  const providerServices   = [...(providerAvail?.availableLabels ?? []), "mortgage advice"];
+  const providerCardSub    = (() => {
+    const list = providerServices;
+    const joined = list.length <= 1
+      ? (list[0] ?? "")
+      : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+    return joined.charAt(0).toUpperCase() + joined.slice(1) + " from trusted firms.";
+  })();
   const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
   const showGuidance       = stage === "completed" ? true : tips.length > 0;
   const showExplain        = !hasCompleted;
 
-  const MOVABLE_KEYS = ["survey-quote","survey-status","mortgage-broker","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
+  const MOVABLE_KEYS = ["survey-quote","survey-status","providers","mortgage-broker","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
   const MOVABLE_LABELS: Record<string, string> = {
     "survey-quote": "Get a survey quote",
     "survey-status": "Survey",
+    "providers": "More services",
     "mortgage-broker": "Mortgage broker",
     "costs": "Your costs",
     "team": "Your team",
@@ -616,6 +638,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const MOVABLE_PRESENT: Record<string, boolean> = {
     "survey-quote": showSurveyQuote,
     "survey-status": showSurveyStatus,
+    "providers": showProvidersCard,
     "mortgage-broker": showBrokerCard,
     "costs": showCosts,
     "team": true,
@@ -821,6 +844,50 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
             </div>
           </div>
         </div>
+        </div>
+      )}
+
+      {/* ── "Need anything else?" providers card (buyers, survey booked) ──
+             Re-links to the /quote marketplace for the other local trades once
+             the survey is booked. Only rendered when a local firm covers the
+             area (see resolveProviderAvailability), so it never dead-ends. */}
+      {showProvidersCard && (
+        <div style={slot("providers")}>
+        <Link
+          href={`/quote/${token}`}
+          className="pbtn pbtn-press block"
+          style={{
+            borderRadius: 16,
+            textDecoration: "none",
+            padding: 16,
+            background: "linear-gradient(160deg, rgba(10,132,255,0.10), rgba(10,132,255,0.03))",
+            border: "0.5px solid rgba(10,132,255,0.12)",
+            boxShadow: P.shadowSm,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{ width: 52, height: 52, borderRadius: 14, background: "#fff", color: "#0A84FF", boxShadow: "0 2px 8px rgba(10,132,255,0.20)" }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[15px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
+              Need anything else?
+            </p>
+            <p className="text-[12px]" style={{ color: P.textSecondary, lineHeight: 1.4 }}>
+              {providerCardSub}
+            </p>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
         </div>
       )}
 

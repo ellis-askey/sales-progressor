@@ -126,6 +126,7 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | `/agent/polish/*` and `/agent/audit/*` reachable in production | Gate behind feature flag or middleware deny-list | migrate | filed 2026-06-05 | Existing entry; tracked from POST_LAUNCH_FIXES.md |
 | `/agent/settings` redirect | Confirm nothing in email templates or retention copy still references the bare path | migrate | filed 2026-06-05 | Existing entry |
 | Predicted exchange date doesn't recalibrate in first week | Edge case from `B5 (partial)` in POST_LAUNCH_FIXES.md. Behavioural improvement, not a bug | defer-Q3-2026 | filed 2026-04-? | Existing entry |
+| Portal "Need anything else?" providers card is buyer-only | Mirror it for sellers buying onward (using the onward postcode, like the existing onward survey card) so onward sellers also get the post-survey providers re-entry | tbd | filed 2026-09-14 | Filed by CC while building the buyer providers card (scoped to buyer per Law 5). Would call `resolveProviderAvailability` with the onward address + add a `vendor && buyingOnward` branch to the gate. |
 
 ### Multi-tenant scope review (Phase 1)
 

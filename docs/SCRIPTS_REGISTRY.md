@@ -318,3 +318,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Idempotent (deletes its own ", Cardview" files then recreates); additive otherwise.
 - **Author/date:** Claude, 2026-09-12.
 - **Deletion criteria:** delete this script + this entry once the portal "cards" arc (item B) is signed off.
+
+### seed-providers-card.ts
+- **Purpose:** review seed for the "Need anything else?" providers card. Two buyer files (survey booked) — one in a covered postcode (BS1, card shows), one uncovered (ZZ9, card hidden) — plus an upserted demo surveyor ("Provcard Surveys") + coverage so tapping the card lands on a non-empty /quote picker.
+- **Lifetime:** one-shot (throwaway). Idempotent (wipes its own "Provcard" files then recreates); staging-guarded (refuses production DB).
+- **Author/date:** Claude, 2026-09-14.
+- **Deletion criteria:** delete this script + this entry (and the "Provcard" files + "Provcard Surveys" firm/coverage) once the providers card is signed off.
