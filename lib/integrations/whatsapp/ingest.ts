@@ -1,6 +1,14 @@
 // WhatsApp ingest — turns a normalised message from the bridge into either an
 // OutboundMessage on the right property file, or a WhatsAppPendingMessage in the
-// "needs assigning" holding area. See docs/WHATSAPP_INTEGRATION.md §4-5.
+// "needs assigning" holding area. See docs/WHATSAPP_INTEGRATION.md §4-5 and
+// docs/active/whatsapp-agent-facing/SPEC.md §"Phase 1".
+//
+// GROUPS-ONLY (decision 2026-09-14, applies to every connection incl. the
+// internal number): only WhatsApp *group* chats are captured. Direct 1-to-1
+// chats are never auto-captured, and a group not named "Sale of {address}" /
+// "Purchase of {address}" is silently ignored — never stored, never queued. A
+// correctly-named property group that doesn't yet resolve to a single file is
+// kept in the needs-assigning queue (manual match + self-heal).
 //
 // This is an internal, system-level ingest (the bridge is operated by internal
 // staff), so matching queries run unscoped across all agencies; the written
@@ -10,6 +18,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/utils";
+import { parseGroupName, firstLineAddress, chooseTransaction, type Side } from "./match";
+
+// Re-exported for existing importers (lib/command/whatsapp.ts, command actions).
+export { parseGroupName };
+export type { Side };
 
 const ACTIVE_STATUSES = ["draft", "active", "on_hold"] as const;
 
@@ -41,7 +54,6 @@ export type IngestResult = {
   reason?: string;
 };
 
-export type Side = "BUYER" | "SELLER";
 type MatchResult = {
   txId: string | null;
   side: Side | null;
@@ -102,11 +114,25 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
     return { waMessageId: m.waMessageId, status: "logged", transactionId: mapping.transactionId };
   }
 
-  const match = m.isGroup ? await matchGroup(m) : await matchDirect(m);
+  // Groups-only: a direct 1-to-1 chat is never auto-captured. Only an explicit
+  // prior mapping (handled above) can attach a DM to a file.
+  if (!m.isGroup) {
+    return { waMessageId: m.waMessageId, status: "ignored", reason: "not_group" };
+  }
+
+  const match = await matchGroup(m);
 
   if (match.txId) {
     await writeMessage(m, match.txId, match.side);
     return { waMessageId: m.waMessageId, status: "logged", transactionId: match.txId };
+  }
+
+  // A group that isn't a "Sale of / Purchase of {address}" property group is
+  // silently ignored — never stored, never queued. A correctly-named property
+  // group that doesn't resolve to one file yet stays in the needs-assigning
+  // queue so it can be matched manually and self-heal later.
+  if (match.reason === "not_property") {
+    return { waMessageId: m.waMessageId, status: "ignored", reason: "not_property" };
   }
 
   await writePending(m, match.reason ?? "no_match", match.candidates ?? []);
@@ -120,28 +146,28 @@ async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
   // we've never seen before.
   const name = (m.groupName ?? "").trim();
   const parsed = parseGroupName(name);
-  if (!parsed) return { txId: null, side: null, reason: "no_match" };
+  // Not a property group ("Sale of…" / "Purchase of…") → caller silently ignores.
+  if (!parsed) return { txId: null, side: null, reason: "not_property" };
+
+  // Match on the first line of the address (text before the first comma) so a
+  // group named with either the full address or just the first line resolves to
+  // the same file. Narrow in the DB by a first-line substring, then refine with
+  // exact first-line equality in chooseTransaction (a substring alone would let
+  // "18 High St" mis-hit "118 High St").
+  const needle = firstLineAddress(parsed.address);
+  if (!needle) return { txId: null, side: null, reason: "not_property" };
 
   const rows = await prisma.propertyTransaction.findMany({
     where: {
       status: { in: [...ACTIVE_STATUSES] },
-      propertyAddress: { contains: parsed.address, mode: "insensitive" },
+      propertyAddress: { contains: needle, mode: "insensitive" },
     },
-    select: { id: true, status: true },
+    select: { id: true, status: true, propertyAddress: true },
     orderBy: { updatedAt: "desc" },
-    take: 10,
+    take: 25,
   });
 
-  // Pick the file. If several addresses match, prefer the one live file: a
-  // property commonly has a `draft` shadow twin alongside the `active` record,
-  // so favour a single active/on_hold match over draft before giving up.
-  let chosenId: string | null = null;
-  if (rows.length === 1) {
-    chosenId = rows[0].id;
-  } else if (rows.length > 1) {
-    const live = rows.filter((r) => r.status === "active" || r.status === "on_hold");
-    if (live.length === 1) chosenId = live[0].id;
-  }
+  const chosenId = chooseTransaction(needle, rows);
   if (!chosenId) return { txId: null, side: null, reason: "no_match" };
 
   // Persist the permanent mapping so we never name-match this group again.
@@ -160,55 +186,9 @@ async function matchGroup(m: BridgeMessage): Promise<MatchResult> {
   return { txId: chosenId, side: parsed.side };
 }
 
-// "Sale of {address}" → SELLER; "Purchase of {address}" → BUYER. Returns the
-// address remainder used as a single-match `contains` needle against
-// propertyAddress (same shape as the Outlook folder-hint matcher).
-export function parseGroupName(name: string): { side: Side; address: string } | null {
-  const sale = name.match(/^sale of\s+(.+)$/i);
-  if (sale) return { side: "SELLER", address: sale[1].trim() };
-  const purchase = name.match(/^purchase of\s+(.+)$/i);
-  if (purchase) return { side: "BUYER", address: purchase[1].trim() };
-  return null;
-}
-
-// ── Direct-message matching ──────────────────────────────────────────────────
-
-async function matchDirect(m: BridgeMessage): Promise<MatchResult> {
-  const norm = m.senderPhone ? normalizePhone(m.senderPhone) : "";
-  if (!norm) return { txId: null, side: null, reason: "no_match" };
-
-  // Narrow in the DB by the last 9 digits, then confirm with an exact
-  // normalised compare (stored numbers vary in formatting).
-  const last9 = norm.replace(/\D/g, "").slice(-9);
-  const contacts = await prisma.contact.findMany({
-    where: {
-      roleType: { in: ["purchaser", "vendor"] },
-      phone: { contains: last9 },
-      transaction: { status: { in: [...ACTIVE_STATUSES] } },
-    },
-    select: { id: true, phone: true, roleType: true, propertyTransactionId: true },
-  });
-
-  const byTx = new Map<string, { contactId: string; roleType: string }>();
-  for (const c of contacts) {
-    if (!c.phone || normalizePhone(c.phone) !== norm) continue;
-    if (!byTx.has(c.propertyTransactionId)) {
-      byTx.set(c.propertyTransactionId, { contactId: c.id, roleType: c.roleType });
-    }
-  }
-
-  const txIds = [...byTx.keys()];
-  if (txIds.length === 1) {
-    const info = byTx.get(txIds[0])!;
-    return {
-      txId: txIds[0],
-      side: info.roleType === "vendor" ? "SELLER" : "BUYER",
-      contactId: info.contactId,
-    };
-  }
-  if (txIds.length > 1) return { txId: null, side: null, reason: "ambiguous", candidates: txIds };
-  return { txId: null, side: null, reason: "no_match" };
-}
+// Direct-message matching was removed with the groups-only decision
+// (2026-09-14): DMs are no longer auto-captured. resolveSender below still
+// matches a sender's phone to name them inside a matched group.
 
 // ── Writers ──────────────────────────────────────────────────────────────────
 
