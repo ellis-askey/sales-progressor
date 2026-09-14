@@ -4542,6 +4542,24 @@ model OutreachExperiment {
   winnerVariantId     String?
   approvedById        String?
   approvedAt          DateTime?
+
+  // ── Build Order G: approval, edit-audit, immutability, reviewer override ──
+  // Exact approved control+challenger+target+allocation+metrics, captured at
+  // approval; canonical contentHash of it. H verifies the hash before any send.
+  approvedSnapshot       Json?
+  contentHash            String?
+  // Human edits to the mutable proposal pre-approval.
+  lastEditedById         String?
+  lastEditedAt           DateTime?
+  editedAfterReview      Boolean   @default(false)
+  humanRejectionReason   String? // reason on a human Reject; NEVER reused for overrides
+  // Reviewer-override audit (promoting a GPT-rejected draft). Kept SEPARATE from
+  // humanRejectionReason. reviewOutcome stays "reject" and reviewerResult stays
+  // intact so it is always clear GPT originally rejected it.
+  reviewerOverrideReason String?
+  reviewerOverriddenAt   DateTime?
+  reviewerOverriddenById String?
+
   createdById         String?
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
@@ -4549,9 +4567,35 @@ model OutreachExperiment {
   variants    OutreachVariant[]
   assignments OutreachAssignment[]
   modelRuns   AiModelRun[]
+  cycles      StrategyCycle[]
 
   @@index([status])
   @@index([reviewDate])
+}
+
+// Every strategy cycle, successful OR failed, so runs stay auditable even when no
+// OutreachExperiment was created (a fail-closed strategist/reviewer/guardrail
+// failure). Real failed-run history must NOT be auto-deleted in production. Model
+// calls / provider / model / prompt version / tokens / cost are read from the
+// linked AiModelRun rows (via cycleId). `outcome` and `failedStage` are String but
+// their values are strictly controlled by application validation/writes.
+model StrategyCycle {
+  id            String    @id @default(cuid())
+  outcome       String // "succeeded" | "failed_strategist" | "failed_reviewer" | "failed_revision" | "failed_guardrail"
+  failedStage   String? // stage name when failed
+  error         String? // error message when failed
+  initiatedById String? // superadmin who triggered it
+  experimentId  String? // linked experiment if one was created
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  experiment OutreachExperiment? @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  modelRuns  AiModelRun[]
+
+  @@index([outcome, startedAt])
+  @@index([experimentId])
+  @@index([startedAt])
 }
 
 // A control or challenger arm of an experiment. `emails` is the ordered step
@@ -4624,12 +4668,15 @@ model AiModelRun {
   tokensOut     Int      @default(0)
   costPence     Int      @default(0)
   experimentId  String?
+  cycleId       String? // the StrategyCycle this call belonged to (audit, incl. failed cycles)
   createdAt     DateTime @default(now())
 
   experiment OutreachExperiment? @relation(fields: [experimentId], references: [id], onDelete: SetNull)
+  cycle      StrategyCycle?      @relation(fields: [cycleId], references: [id], onDelete: SetNull)
 
   @@index([experimentId])
   @@index([purpose, createdAt])
+  @@index([cycleId])
 }
 
 enum OutreachExperimentStatus {

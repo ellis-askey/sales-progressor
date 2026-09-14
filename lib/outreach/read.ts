@@ -23,8 +23,16 @@ export type ExperimentListItem = {
   reviewerResult: unknown;
   feasibility: unknown;
   originalProposal: unknown;
+  secondaryMetrics: unknown;
   sampleSize: number | null;
   allocationPct: number | null;
+  editedAfterReview: boolean;
+  lastEditedAt: Date | null;
+  humanRejectionReason: string | null;
+  reviewerOverrideReason: string | null;
+  reviewerOverriddenAt: Date | null;
+  approvedAt: Date | null;
+  contentHash: string | null;
   variants: { id: string; role: string; name: string; emails: unknown }[];
   modelRuns: {
     purpose: string;
@@ -60,8 +68,16 @@ export async function listExperimentsWithDetail(): Promise<ExperimentListItem[]>
       reviewerResult: true,
       feasibility: true,
       originalProposal: true,
+      secondaryMetrics: true,
       sampleSize: true,
       allocationPct: true,
+      editedAfterReview: true,
+      lastEditedAt: true,
+      humanRejectionReason: true,
+      reviewerOverrideReason: true,
+      reviewerOverriddenAt: true,
+      approvedAt: true,
+      contentHash: true,
       variants: { select: { id: true, role: true, name: true, emails: true } },
       modelRuns: {
         orderBy: { createdAt: "desc" },
@@ -106,6 +122,41 @@ export async function listLearnings(): Promise<LearningItem[]> {
       firstObservedAt: true,
       lastReviewedAt: true,
       stillActive: true,
+    },
+  });
+}
+
+export type CycleListItem = {
+  id: string;
+  outcome: string;
+  failedStage: string | null;
+  error: string | null;
+  initiatedById: string | null;
+  experimentId: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+  modelRuns: { purpose: string; provider: string; model: string; promptVersion: string | null; tokensIn: number; tokensOut: number; costPence: number }[];
+};
+
+// Cycle history: successful AND failed cycles, so failed model runs (which have no
+// experiment) remain auditable. Newest first.
+export async function listCycles(limit = 50): Promise<CycleListItem[]> {
+  return commandDb.strategyCycle.findMany({
+    orderBy: { startedAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      outcome: true,
+      failedStage: true,
+      error: true,
+      initiatedById: true,
+      experimentId: true,
+      startedAt: true,
+      finishedAt: true,
+      modelRuns: {
+        orderBy: { createdAt: "asc" },
+        select: { purpose: true, provider: true, model: true, promptVersion: true, tokensIn: true, tokensOut: true, costPence: true },
+      },
     },
   });
 }

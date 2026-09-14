@@ -21,17 +21,19 @@ import {
 import { getOutreachMetrics } from "@/lib/outreach/metrics";
 import { getAllSegmentFunnels } from "@/lib/outreach/metrics";
 import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segments";
-import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, type ExperimentListItem } from "@/lib/outreach/read";
+import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, type ExperimentListItem } from "@/lib/outreach/read";
 import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
+import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
 
 export const dynamic = "force-dynamic";
 
-type ViewKey = "overview" | "segments" | "experiments" | "learnings" | "activity";
+type ViewKey = "overview" | "segments" | "experiments" | "learnings" | "cycles" | "activity";
 const VIEW_OPTIONS: { key: ViewKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "segments", label: "Segments" },
   { key: "experiments", label: "Experiments" },
   { key: "learnings", label: "Learnings" },
+  { key: "cycles", label: "Cycle history" },
   { key: "activity", label: "AI activity" },
 ];
 
@@ -100,6 +102,7 @@ export default async function AiOutreachPage({ searchParams }: { searchParams: P
       {view === "segments" && <Segments />}
       {view === "experiments" && <Experiments />}
       {view === "learnings" && <Learnings />}
+      {view === "cycles" && <Cycles />}
       {view === "activity" && <Activity />}
     </div>
   );
@@ -257,6 +260,15 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
     : e.rollup && e.rollup.variants.length < 2
       ? "Awaiting variants"
       : "No data yet";
+  const challenger = e.variants.find((v) => v.role === "challenger");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const challengerSteps = Array.isArray(challenger?.emails)
+    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (challenger!.emails as any[]).map((s) => ({ stepIndex: Number(s.stepIndex ?? 0), gapDays: Number(s.gapDays ?? 0), subject: String(s.subject ?? ""), body: String(s.body ?? "") }))
+    : [];
+  const tgt = e.targetSegment as { kind?: string; dimension?: string; values?: string[] } | null;
+  const targetKind: "all_eligible" | "segment" = tgt?.kind === "segment" ? "segment" : "all_eligible";
+  const feas = e.feasibility as { feasible?: boolean } | null;
   return (
     <details className="rounded-xl border border-neutral-800 bg-neutral-900 group">
       <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
@@ -269,6 +281,8 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
                 {REVIEW_LABEL[e.reviewOutcome] ?? `Reviewer: ${e.reviewOutcome}`}
               </Badge>
             )}
+            {e.reviewerOverriddenAt && <Badge tone="bg-amber-950 text-amber-400 border border-amber-900">Reviewer rejection overridden</Badge>}
+            {e.editedAfterReview && <Badge tone="bg-amber-950 text-amber-300 border border-amber-900">Edited after AI review</Badge>}
           </div>
           <p className="text-[11px] text-neutral-600 mt-0.5">
             Primary metric: {e.primaryMetric ?? "—"} · {verdict} · created {fmtDate(e.createdAt)}
@@ -281,6 +295,10 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
         {/* Plain-English design */}
         <Field label="Hypothesis" value={e.hypothesis} />
         <Field label="Rationale" value={e.rationale} />
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">Audience</p>
+          <p className="text-[12px] text-neutral-300">{targetLabel(e.targetSegment)}</p>
+        </div>
 
         <FeasibilityBlock data={e.feasibility} />
         <ReviewerFindings data={e.reviewerResult} />
@@ -338,8 +356,79 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
             )}
           </div>
         </details>
+
+        {/* Original (pre-revision) proposal + revision note, when a revision ran */}
+        {e.originalProposal != null ? (
+          <details className="rounded-lg border border-neutral-800 bg-neutral-950/40">
+            <summary className="cursor-pointer px-3 py-2 text-[11px] text-neutral-500">Original proposal (before revision) + what changed</summary>
+            <div className="px-3 py-2 space-y-2 border-t border-neutral-800">
+              <Field label="What the strategist changed and why" value={e.strategistRevision} small />
+              <pre className="text-[10px] text-neutral-600 whitespace-pre-wrap break-words max-h-56 overflow-auto">{JSON.stringify(e.originalProposal, null, 2)}</pre>
+            </div>
+          </details>
+        ) : (
+          <p className="text-[11px] text-neutral-600">No revision was needed (the reviewer had no actionable objections).</p>
+        )}
+
+        <ExperimentReviewActions
+          experimentId={e.id}
+          status={e.status}
+          reviewOutcome={e.reviewOutcome}
+          feasible={feas?.feasible ?? null}
+          sampleSize={e.sampleSize}
+          allocationPct={e.allocationPct}
+          primaryMetric={e.primaryMetric}
+          challengerSteps={challengerSteps}
+          targetKind={targetKind}
+          targetDimension={tgt?.dimension}
+          targetValues={tgt?.values}
+        />
       </div>
     </details>
+  );
+}
+
+function targetLabel(target: unknown): string {
+  const t = target as { kind?: string; dimension?: string; values?: string[] } | null;
+  if (!t) return "—";
+  if (t.kind === "all_eligible") return "All eligible prospects";
+  if (t.kind === "segment") return `Segment: ${t.dimension} = ${(t.values ?? []).join(", ")}`;
+  // Legacy shape tolerance
+  if (t.dimension) return `Segment: ${t.dimension} = ${(t.values ?? []).join(", ")}`;
+  return "—";
+}
+
+async function Cycles() {
+  const cycles = await listCycles();
+  return (
+    <Section title="Cycle history" subtitle="Every strategy cycle, successful and failed. Failed cycles keep their model runs for audit even though no experiment was created.">
+      {cycles.length === 0 ? (
+        <CardEmpty>No strategy cycles yet.</CardEmpty>
+      ) : (
+        <div className="space-y-2">
+          {cycles.map((c) => {
+            const cost = c.modelRuns.reduce((s, r) => s + r.costPence, 0);
+            const failed = c.outcome !== "succeeded";
+            return (
+              <div key={c.id} className={`rounded-lg border px-3.5 py-2.5 ${failed ? "border-red-900/50 bg-red-950/10" : "border-neutral-800 bg-neutral-900"}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge tone={failed ? "bg-red-950 text-red-400 border border-red-900" : "bg-emerald-950 text-emerald-400 border border-emerald-900"}>{c.outcome}</Badge>
+                  {c.failedStage && <span className="text-[11px] text-neutral-500">failed at: {c.failedStage}</span>}
+                  <span className="text-[11px] text-neutral-600">{c.modelRuns.length} model call(s) · {fmtGBP(cost)} · {fmtDate(c.startedAt)}</span>
+                  {c.experimentId ? <span className="text-[10px] text-neutral-600">experiment linked</span> : <span className="text-[10px] text-neutral-700">no experiment</span>}
+                </div>
+                {c.error && <p className="text-[11px] text-red-400/80 mt-1">{c.error}</p>}
+                <div className="mt-1 text-[10px] text-neutral-600 tabular-nums">
+                  {c.modelRuns.map((r, i) => (
+                    <span key={i} className="mr-3">{r.purpose}:{r.provider}/{r.model}{r.promptVersion ? `@${r.promptVersion}` : ""} {r.tokensIn}+{r.tokensOut}t {fmtGBP(r.costPence)}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Section>
   );
 }
 

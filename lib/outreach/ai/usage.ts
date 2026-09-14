@@ -12,6 +12,7 @@ export async function recordModelRun(args: {
   usage: AIUsage;
   promptVersion?: string | null;
   experimentId?: string | null;
+  cycleId?: string | null;
 }): Promise<{ id: string | null; costPence: number }> {
   const costPence = estimateCostPence(args.model, args.usage);
   if (!hasRate(args.model)) {
@@ -29,6 +30,7 @@ export async function recordModelRun(args: {
         tokensOut: args.usage.outputTokens,
         costPence,
         experimentId: args.experimentId ?? null,
+        cycleId: args.cycleId ?? null,
       },
       select: { id: true },
     });

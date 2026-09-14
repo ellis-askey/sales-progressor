@@ -90,6 +90,7 @@ export async function runStructured<T>(opts: {
   prompt: string;
   maxTokens?: number;
   experimentId?: string | null;
+  cycleId?: string | null;
   promptVersion?: string | null;
   maxAttempts?: number; // default 2 (one corrective retry)
 }): Promise<StructuredRunResult<T>> {
@@ -127,6 +128,7 @@ export async function runStructured<T>(opts: {
       usage: res.usage,
       promptVersion: opts.promptVersion,
       experimentId: opts.experimentId,
+      cycleId: opts.cycleId,
     });
     totalCost += logged.costPence;
     lastRunId = logged.id;

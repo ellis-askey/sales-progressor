@@ -16,6 +16,7 @@ import { getStrategist, getReviewer, runStructured, type AIProvider } from "./ai
 import { buildOutreachContext, serializeContext } from "./context";
 import { validateChallengerCopy, type CopyViolation } from "./guardrails";
 import { computeFeasibility, type Feasibility } from "./feasibility";
+import { outcomeForStage, type CycleStage } from "./approval";
 import { DEFAULT_SEQUENCE, FLOW_SENDER_NAME, buildStepDraft } from "@/lib/prospects/flow";
 import { commandDb } from "@/lib/command/prisma";
 
@@ -26,13 +27,19 @@ const PLACEHOLDERS = { firstName: "{{firstName}}", agencyName: "{{agencyName}}",
 export const PROMPT_VERSIONS = { strategist: "strategist-v1", reviewer: "reviewer-v1", revision: "revision-v1" } as const;
 
 const SegmentFilterSchema = z.object({ dimension: z.enum(DIMENSIONS), values: z.array(z.string()) });
+// Explicit targeting: everyone eligible, or a specific segment. "all_eligible" is
+// a first-class kind, never a fake source value.
+const TargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("all_eligible") }),
+  z.object({ kind: z.literal("segment"), dimension: z.enum(DIMENSIONS), values: z.array(z.string()) }),
+]);
 const StepSchema = z.object({ stepIndex: z.number().int(), subject: z.string(), body: z.string(), gapDays: z.number().int() });
 
 const ProposalSchema = z.object({
   title: z.string(),
   hypothesis: z.string(),
   rationale: z.string(),
-  targetSegment: SegmentFilterSchema,
+  targetSegment: TargetSchema,
   exclusions: z.array(SegmentFilterSchema),
   sampleSizeRecommendation: z.number().int(),
   allocationPct: z.number().int(),
@@ -71,7 +78,7 @@ const PROPOSAL_SHAPE = `Return a single JSON object with EXACTLY these keys and 
   "title": string,
   "hypothesis": string,
   "rationale": string,
-  "targetSegment": { "dimension": "source" | "branch_structure" | "contact_history" | "region", "values": string[] },
+  "targetSegment": { "kind": "all_eligible" }  OR  { "kind": "segment", "dimension": "source" | "branch_structure" | "contact_history" | "region", "values": string[] },
   "exclusions": [ { "dimension": "source" | "branch_structure" | "contact_history" | "region", "values": string[] } ],
   "sampleSizeRecommendation": integer,
   "allocationPct": integer,
@@ -99,7 +106,7 @@ const STRATEGIST_SYSTEM = [
   "You are the growth strategist for The Sales Progressor, a UK estate-agency sales-progression product.",
   "Using ONLY the aggregated context provided (you never receive prospect identities), propose exactly ONE outbound experiment.",
   "You author the CHALLENGER only. The control is the current incumbent sequence shown in the context; do not rewrite it.",
-  "Target only via the four available segment dimensions (source, branch_structure, contact_history, region).",
+  "Target either everyone eligible (targetSegment { kind: 'all_eligible' }) or ONE of the four available segment dimensions (targetSegment { kind: 'segment', dimension, values }). Never invent a segment; if the data does not support a specific segment, use all_eligible.",
   "Optimise toward the deepest reliable objective (an activated agency: a converted agency with at least one genuine sale). Opens and clicks are diagnostic only.",
   "Be honest about small samples. Personalise ONLY with {{firstName}} and {{agencyName}}, and never assert an unsupported fact about a prospect.",
   "Follow the voice rules in the context. No em dashes. No exclamation marks. Do not use the word 'outsource'.",
@@ -135,6 +142,7 @@ export type StrategyCycleResult =
   | {
       ok: true;
       experimentId: string;
+      cycleId: string;
       status: string;
       reviewOutcome: string;
       revisionRan: boolean;
@@ -143,7 +151,7 @@ export type StrategyCycleResult =
       proposal: Proposal;
       review: Review;
     }
-  | { ok: false; stage: string; error: string };
+  | { ok: false; cycleId: string; stage: string; error: string };
 
 export async function runStrategyCycle(opts: {
   actorUserId: string | null;
@@ -152,8 +160,27 @@ export async function runStrategyCycle(opts: {
 }): Promise<StrategyCycleResult> {
   const strategist = opts.strategist ?? getStrategist();
   const reviewer = opts.reviewer ?? getReviewer();
-  const runIds: string[] = [];
   let modelCalls = 0;
+
+  // A StrategyCycle is created up front so EVERY model call (even ones from a
+  // cycle that later fails before any experiment exists) is linked via cycleId and
+  // stays auditable. finishedAt=null marks it in-progress. Failed-run history is
+  // never auto-deleted in production.
+  const cycle = await commandDb.strategyCycle.create({
+    data: { outcome: "succeeded", initiatedById: opts.actorUserId },
+    select: { id: true },
+  });
+  const cycleId = cycle.id;
+
+  // Finalise the cycle as failed and return a fail result (no experiment). The
+  // AiModelRuns are already linked to the cycle via cycleId.
+  async function failCycle(stage: CycleStage, error: string): Promise<StrategyCycleResult> {
+    await commandDb.strategyCycle.update({
+      where: { id: cycleId },
+      data: { outcome: outcomeForStage(stage), failedStage: stage, error: error.slice(0, 500), finishedAt: new Date() },
+    });
+    return { ok: false, cycleId, stage, error };
+  }
 
   const ctx = await buildOutreachContext();
   const { json: contextJson } = serializeContext(ctx);
@@ -168,17 +195,17 @@ export async function runStrategyCycle(opts: {
       system: STRATEGIST_SYSTEM,
       prompt: contextJson,
       promptVersion: PROMPT_VERSIONS.strategist,
+      cycleId,
     });
     modelCalls++;
-    if (run.runId) runIds.push(run.runId);
     proposal = run.data;
   } catch (e) {
-    return { ok: false, stage: "strategist", error: e instanceof Error ? e.message : "strategist failed" };
+    return failCycle("strategist", e instanceof Error ? e.message : "strategist failed");
   }
 
   const g1 = validateChallengerCopy(proposal.challenger.steps);
   if (!g1.ok) {
-    return { ok: false, stage: "strategist_guardrail", error: `Challenger copy failed guardrails: ${summariseViolations(g1.violations)}` };
+    return failCycle("strategist_guardrail", `Challenger copy failed guardrails: ${summariseViolations(g1.violations)}`);
   }
 
   // ── 2. Reviewer critique ──
@@ -191,12 +218,12 @@ export async function runStrategyCycle(opts: {
       system: REVIEWER_SYSTEM,
       prompt: reviewerPrompt(contextJson, proposal),
       promptVersion: PROMPT_VERSIONS.reviewer,
+      cycleId,
     });
     modelCalls++;
-    if (run.runId) runIds.push(run.runId);
     review = run.data;
   } catch (e) {
-    return { ok: false, stage: "reviewer", error: e instanceof Error ? e.message : "reviewer failed" };
+    return failCycle("reviewer", e instanceof Error ? e.message : "reviewer failed");
   }
 
   // ── 3. Conditional single revision ──
@@ -220,12 +247,12 @@ export async function runStrategyCycle(opts: {
         system: REVISION_SYSTEM,
         prompt: revisionPrompt(contextJson, proposal, review),
         promptVersion: PROMPT_VERSIONS.revision,
+        cycleId,
       });
       modelCalls++;
-      if (run.runId) runIds.push(run.runId);
       const g2 = validateChallengerCopy(run.data.challenger.steps);
       if (!g2.ok) {
-        return { ok: false, stage: "revision_guardrail", error: `Revised challenger failed guardrails: ${summariseViolations(g2.violations)}` };
+        return failCycle("revision_guardrail", `Revised challenger failed guardrails: ${summariseViolations(g2.violations)}`);
       }
       originalProposal = proposal;
       revisionText = run.data.responseToCritique;
@@ -233,7 +260,7 @@ export async function runStrategyCycle(opts: {
       void responseToCritique;
       finalProposal = rest;
     } catch (e) {
-      return { ok: false, stage: "revision", error: e instanceof Error ? e.message : "revision failed" };
+      return failCycle("revision", e instanceof Error ? e.message : "revision failed");
     }
   }
 
@@ -287,13 +314,18 @@ export async function runStrategyCycle(opts: {
     data: { experimentId: experiment.id, role: "challenger", name: finalProposal.title.slice(0, 80) || "Challenger", emails: finalProposal.challenger.steps },
   });
 
-  if (runIds.length) {
-    await commandDb.aiModelRun.updateMany({ where: { id: { in: runIds } }, data: { experimentId: experiment.id } });
-  }
+  // Link this cycle's model runs to the experiment (they are already linked to the
+  // cycle via cycleId), and finalise the cycle as succeeded.
+  await commandDb.aiModelRun.updateMany({ where: { cycleId }, data: { experimentId: experiment.id } });
+  await commandDb.strategyCycle.update({
+    where: { id: cycleId },
+    data: { outcome: "succeeded", experimentId: experiment.id, finishedAt: new Date() },
+  });
 
   return {
     ok: true,
     experimentId: experiment.id,
+    cycleId,
     status,
     reviewOutcome,
     revisionRan: needsRevision,

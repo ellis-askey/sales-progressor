@@ -11,6 +11,10 @@ import { SEGMENT_DIMENSIONS, segmentValue, type SegmentDimension } from "./segme
 
 export type SegmentFilter = { dimension: SegmentDimension; values: string[] };
 
+// Explicit targeting model: either everyone eligible, or a specific segment.
+// "all_eligible" is a first-class kind, NOT a fake source value.
+export type Target = { kind: "all_eligible" } | { kind: "segment"; dimension: SegmentDimension; values: string[] };
+
 export type Feasibility = {
   recommendedSample: number;
   eligiblePopulation: number;
@@ -41,7 +45,7 @@ async function loadEligible() {
 // Count eligible prospects matching the target filter minus any exclusion filters,
 // using the SAME segment logic as metrics for consistency.
 export async function computeFeasibility(args: {
-  target: SegmentFilter | null;
+  target: Target | null;
   exclusions?: SegmentFilter[];
   recommendedSample: number;
 }): Promise<Feasibility> {
@@ -51,8 +55,10 @@ export async function computeFeasibility(args: {
     f.values.includes(segmentValue(f.dimension, row));
 
   let pool = rows;
-  if (args.target && isSegmentDimension(args.target.dimension) && args.target.values.length > 0) {
-    pool = pool.filter((r) => matchesFilter(r, args.target as SegmentFilter));
+  // all_eligible = the whole eligible pool; segment = filter by the chosen dimension.
+  if (args.target && args.target.kind === "segment" && isSegmentDimension(args.target.dimension) && args.target.values.length > 0) {
+    const seg: SegmentFilter = { dimension: args.target.dimension, values: args.target.values };
+    pool = pool.filter((r) => matchesFilter(r, seg));
   }
   for (const ex of args.exclusions ?? []) {
     if (isSegmentDimension(ex.dimension) && ex.values.length > 0) {
