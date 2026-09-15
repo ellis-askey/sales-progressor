@@ -136,6 +136,10 @@ export type ChainLinkV2 = {
   inviteResendCount: number;
   withdrawalStatus: string | null;
   withdrawalRespondedAt: Date | null;
+  // When our team last chased this neighbour's agent for an update. Not private
+  // (a working timestamp), so it rides the default wire shape. Optional so
+  // hand-built demo/dev link objects are unaffected; getChainV2 always populates it.
+  lastAgentChasedAt?: Date | null;
   transaction: {
     id: string;
     propertyAddress: string;
@@ -331,6 +335,7 @@ const LINK_V2_SELECT = {
   inviteResendCount: true,
   withdrawalStatus: true,
   withdrawalRespondedAt: true,
+  lastAgentChasedAt: true,
   // Chain-node intel (own-side private) — gated per viewer in getChainV2.
   breakChainStance: true,
   breakChainConditions: true,

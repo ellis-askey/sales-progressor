@@ -9,6 +9,7 @@
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   draftNeighbourChase,
   sendNeighbourChase,
@@ -34,22 +35,33 @@ export async function draftNeighbourChaseAction(input: {
   direction: NeighbourChaseDirection;
   tone: string;
 }): Promise<DraftNeighbourResult> {
-  await requireTxInScope(input.transactionId);
-  return draftNeighbourChase(input.transactionId, input.direction, input.tone);
+  const { session } = await requireTxInScope(input.transactionId);
+  const senderFirstName = session.user.name ? extractFirstName(session.user.name) : "the team";
+  return draftNeighbourChase(input.transactionId, input.direction, input.tone, senderFirstName);
 }
 
 export async function sendNeighbourChaseAction(input: {
   transactionId: string;
   direction: NeighbourChaseDirection;
   subject: string;
-  body: string;
+  bodyHtml: string;
+  bodyText: string;
+  force?: boolean;
 }): Promise<SendNeighbourResult> {
   const { session } = await requireTxInScope(input.transactionId);
   return sendNeighbourChase({
     transactionId: input.transactionId,
     direction: input.direction,
     subject: input.subject,
-    body: input.body,
-    userId: session.user.id,
+    bodyHtml: input.bodyHtml,
+    bodyText: input.bodyText,
+    force: input.force,
+    user: {
+      id: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      role: session.user.role,
+      agencyId: session.user.agencyId,
+    },
   });
 }

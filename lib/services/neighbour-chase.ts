@@ -6,18 +6,21 @@
 // agent above (onward) or below (related), asking them to confirm the next
 // outstanding step on the far-side tracker we keep for their side.
 //
-// Reuses the same agency-branded sender as the outbound pipeline
-// (resolveChainInviteSender) and the same phrasing building blocks as the
-// client/solicitor chase (lib/chase/guidance.ts) — but touches NONE of the
-// ChaseTask / Contact / client-solicitor machinery. Recipient is a ChainLink
-// stub, not a Contact. Scope is guarded by the caller (app/actions/neighbour-chase.ts).
+// Reuses the same phrasing building blocks as the client/solicitor chase
+// (lib/chase/guidance.ts) AND the same sender + signature resolvers, so it
+// presents identically to any other chase (branded from the sending agent, with
+// their signature) — but touches NONE of the ChaseTask / Contact machinery. The
+// recipient is a ChainLink stub, not a Contact. Scope is guarded by the caller
+// (app/actions/neighbour-chase.ts).
 //
 // Spec: docs/active/chain-agent-chase/00-spec.md Part C.
 
 import { prisma } from "@/lib/prisma";
 import { getOnwardTrackerView } from "@/lib/services/onward";
-import { resolveChainInviteSender } from "@/lib/chain/invite";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { resolveSenderForTransaction } from "@/lib/email";
+import { resolveEmailSignature } from "@/lib/email/signature";
+import { sanitizeSignatureHtml } from "@/lib/email/sanitize-signature";
 import { greetingName } from "@/lib/contacts/displayName";
 import {
   TONE_KEY_MAP,
@@ -36,6 +39,19 @@ const FAR_KIND: Record<NeighbourChaseDirection, "onward_purchase_seller" | "rela
   related: "related_sale_buyer",
 };
 
+// A resend within this window is blocked unless the caller forces it — a soft
+// guard against accidentally chasing the same cold agent twice in a row.
+const RESEND_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+// Minimal session-user shape the sender + signature resolvers need.
+export type ChaseSender = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+  agencyId?: string | null;
+};
+
 export type NeighbourChaseTarget = {
   chainLinkId: string;
   chainId: string;
@@ -43,16 +59,20 @@ export type NeighbourChaseTarget = {
   neighbourAgentEmail: string;
   neighbourAddress: string | null;
   farKind: "onward_purchase_seller" | "related_sale_buyer";
-  // The next not-done, unlocked step on the far-side tracker, if the tracker is
-  // set up. Null → chase for a general update instead.
+  // The next not-done, unlocked step on the far-side tracker, if set up. Null →
+  // chase for a general update instead.
   nextStep: { code: string; name: string } | null;
   completeCount: number;
   applicableCount: number;
+  // When this neighbour was last chased (for the "chased X ago" hint + dedup).
+  lastChasedAt: Date | null;
 };
+
+export type NeighbourChaseReason = "no_chain" | "no_neighbour" | "no_email" | "claimed";
 
 export type ResolveNeighbourResult =
   | { ok: true; target: NeighbourChaseTarget }
-  | { ok: false; reason: "no_chain" | "no_neighbour" | "no_email" | "claimed" };
+  | { ok: false; reason: NeighbourChaseReason };
 
 // Resolve the stub neighbour to chase for this file + direction, plus the next
 // outstanding far-side step. Scope-agnostic — the caller guards access first.
@@ -83,6 +103,7 @@ export async function resolveNeighbourChaseTarget(
       stubAgentName: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
+      lastAgentChasedAt: true,
     },
   });
   if (!neighbour) return { ok: false, reason: "no_neighbour" };
@@ -106,24 +127,9 @@ export async function resolveNeighbourChaseTarget(
       nextStep: nextStep ? { code: nextStep.code, name: nextStep.name } : null,
       completeCount: view.completeCount,
       applicableCount: view.applicableCount,
+      lastChasedAt: neighbour.lastAgentChasedAt,
     },
   };
-}
-
-// Agency-branded sender for this file (never "Sales Progressor"), mirroring the
-// outbound neighbour-update pipeline.
-async function resolveSender(transactionId: string) {
-  const tx = await prisma.propertyTransaction.findUnique({
-    where: { id: transactionId },
-    select: { agencyId: true, agency: { select: { name: true } } },
-  });
-  const agencyName = tx?.agency?.name ?? "Sales Progressor";
-  const sender = await resolveChainInviteSender(transactionId, {
-    name: agencyName,
-    agencyId: tx?.agencyId ?? null,
-    agencyName,
-  });
-  return { sender, agencyId: tx?.agencyId ?? null };
 }
 
 // Strip em/en dashes so one never reaches a recipient (mirrors generate-chase).
@@ -134,34 +140,41 @@ function stripDashes(s: string): string {
     .replace(/,\s*,\s*/g, ", ");
 }
 
+async function agencyBrand(transactionId: string): Promise<string> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agency: { select: { name: true } } },
+  });
+  return tx?.agency?.name ?? "Sales Progressor";
+}
+
 export type NeighbourDraft = {
   subject: string;
   body: string;
   neighbourName: string | null;
   neighbourEmail: string;
   stepName: string | null;
+  lastChasedAt: Date | null;
 };
-
-export type NeighbourChaseReason = "no_chain" | "no_neighbour" | "no_email" | "claimed";
 
 export type DraftNeighbourResult =
   | { ok: true; draft: NeighbourDraft }
   | { ok: false; reason: NeighbourChaseReason | "ai_unavailable" | "ai_failed" };
 
-// Draft the chase with the AI phrasing engine — agent-to-agent voice, reusing
-// the shared tone + channel guidance (email only).
+// Draft the chase with the AI phrasing engine — agent-to-agent voice, reusing the
+// shared tone + channel guidance (email only). Signs off as the sending agent so
+// it matches the appended signature.
 export async function draftNeighbourChase(
   transactionId: string,
   direction: NeighbourChaseDirection,
   tone: string,
+  senderFirstName: string,
 ): Promise<DraftNeighbourResult> {
   const resolved = await resolveNeighbourChaseTarget(transactionId, direction);
   if (!resolved.ok) return { ok: false, reason: resolved.reason };
   const { target } = resolved;
 
-  const { sender } = await resolveSender(transactionId);
-  const senderFirstName = sender.displayFirstName || "the team";
-  const displayAgency = sender.displayAgency;
+  const displayAgency = await agencyBrand(transactionId);
 
   const toneKey = TONE_KEY_MAP[tone] ?? "professional";
   const channelGuidance = CHANNEL_GUIDANCE.email.replace(/\{senderFirstName\}/g, senderFirstName);
@@ -178,7 +191,7 @@ export async function draftNeighbourChase(
     AGENT_RECIPIENT_GUIDANCE,
     channelGuidance,
     toneGuidance,
-    `Rules: British English. Never use em dashes or en dashes. No exclamation marks. Do not invent facts about their sale. Sign off as ${senderFirstName} at ${displayAgency}. Output ONLY the email body — no subject line, no preamble, no "Here is the email".`,
+    `Rules: British English. Never use em dashes or en dashes. No exclamation marks. Do not invent facts about their sale. Sign off simply as ${senderFirstName} (a full signature is added automatically, so do not add contact details). Output ONLY the email body — no subject line, no preamble, no "Here is the email".`,
   ].join("\n\n");
 
   const askLine = target.nextStep
@@ -225,6 +238,7 @@ export async function draftNeighbourChase(
         neighbourName: target.neighbourAgentName,
         neighbourEmail: target.neighbourAgentEmail,
         stepName: target.nextStep?.name ?? null,
+        lastChasedAt: target.lastChasedAt,
       },
     };
   } catch (err) {
@@ -233,57 +247,95 @@ export async function draftNeighbourChase(
   }
 }
 
-function bodyToHtml(text: string): string {
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const paras = text
-    .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br/>")}</p>`)
-    .join("");
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a">${paras}</div>`;
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Wrap the (rich) body + resolved signature in the same shell the client/solicitor
+// chase uses, so a neighbour chase looks identical to any other chase.
+function wrapEmailHtml(bodyHtml: string, signatureHtml: string): string {
+  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${bodyHtml}${signatureHtml}</div>`;
 }
 
 export type SendNeighbourResult =
   | { ok: true; toEmail: string }
-  | { ok: false; reason: "no_chain" | "no_neighbour" | "no_email" | "claimed" | "empty_body" };
+  | { ok: false; reason: NeighbourChaseReason | "empty_body" | "recently_chased"; lastChasedAt?: Date | null };
 
-// Send the (agent-edited) chase to the neighbour stub agent, agency-branded.
-// Logged via AgentEmailLog (kind chain_neighbour_chase, meta.chainLinkId) for the
-// audit trail — no ChaseTask, no Contact.
+// Send the (agent-edited) chase to the neighbour stub agent. Branded from the
+// sending agent with their signature (resolveSenderForTransaction +
+// resolveEmailSignature — same as any chase). Logged via AgentEmailLog (kind
+// chain_neighbour_chase, meta.chainLinkId) and stamps lastAgentChasedAt for the
+// hint + dedup. A resend inside RESEND_WINDOW_MS needs force = true.
 export async function sendNeighbourChase(input: {
   transactionId: string;
   direction: NeighbourChaseDirection;
   subject: string;
-  body: string;
-  userId: string;
+  bodyHtml: string;
+  bodyText: string;
+  user: ChaseSender;
+  force?: boolean;
 }): Promise<SendNeighbourResult> {
-  const body = input.body.trim();
-  if (!body) return { ok: false, reason: "empty_body" };
+  const bodyText = input.bodyText.trim();
+  if (!bodyText) return { ok: false, reason: "empty_body" };
 
   const resolved = await resolveNeighbourChaseTarget(input.transactionId, input.direction);
   if (!resolved.ok) return { ok: false, reason: resolved.reason };
   const { target } = resolved;
 
-  const { sender, agencyId } = await resolveSender(input.transactionId);
+  // Dedup guard: block a repeat within the window unless explicitly forced.
+  if (
+    !input.force &&
+    target.lastChasedAt &&
+    Date.now() - new Date(target.lastChasedAt).getTime() < RESEND_WINDOW_MS
+  ) {
+    return { ok: false, reason: "recently_chased", lastChasedAt: target.lastChasedAt };
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: {
+      agencyId: true,
+      agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+    },
+  });
+
+  const { from, replyTo } = await resolveSenderForTransaction(input.transactionId, {
+    id: input.user.id,
+    email: input.user.email,
+    name: input.user.name,
+    role: input.user.role ?? "",
+    agencyId: input.user.agencyId,
+  });
+
+  const sig = await resolveEmailSignature({
+    userId: input.user.id,
+    agency: tx?.agency ?? null,
+    fallbackName: input.user.name,
+  });
+
+  const renderedBody = input.bodyHtml.trim()
+    ? sanitizeSignatureHtml(input.bodyHtml)
+    : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
+  const html = wrapEmailHtml(renderedBody, sig.html);
   const subject = input.subject.trim() || `Quick chain update: ${target.neighbourAddress ?? "the chain"}`;
 
   await sendAgentEmail({
     to: target.neighbourAgentEmail,
     subject,
-    text: body,
-    html: bodyToHtml(body),
-    from: sender.from,
-    replyTo: sender.replyTo,
+    text: bodyText + sig.text,
+    html,
+    from,
+    replyTo,
     kind: "chain_neighbour_chase",
-    userId: input.userId,
-    agencyId,
+    userId: input.user.id,
+    agencyId: tx?.agencyId ?? null,
     transactionId: input.transactionId,
-    meta: {
-      chainLinkId: target.chainLinkId,
-      direction: input.direction,
-      originatorAgency: sender.displayAgency,
-    },
+    meta: { chainLinkId: target.chainLinkId, direction: input.direction },
   });
+
+  await prisma.chainLink
+    .update({ where: { id: target.chainLinkId }, data: { lastAgentChasedAt: new Date() } })
+    .catch(() => {}); // stamp is best-effort; the send already succeeded
 
   return { ok: true, toEmail: target.neighbourAgentEmail };
 }

@@ -4,18 +4,21 @@
 //
 // A focused, lean drawer — deliberately NOT the ChaseDrawer (which is built around
 // ChaseTask + Contact recipients for client/solicitor chases and must stay
-// untouched). It reuses the AI phrasing engine via the neighbour-chase actions,
-// but the recipient is a chain stub agent and there is no task. Email only.
+// untouched). It reuses the AI phrasing engine and the rich ChaseComposer, but the
+// recipient is a chain stub agent and there is no task. Email only. The send is
+// branded from the sending agent with their signature (same as any chase).
 //
 // Spec: docs/active/chain-agent-chase/00-spec.md Part C.
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Sparkle, PaperPlaneTilt, CircleNotch } from "@phosphor-icons/react";
+import { X, Sparkle, PaperPlaneTilt, CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
+import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import {
   draftNeighbourChaseAction,
   sendNeighbourChaseAction,
@@ -36,7 +39,6 @@ const TONE_DISPLAY: Record<Tone, string> = {
 type Props = {
   transactionId: string;
   direction: NeighbourChaseDirection;
-  // Optional, for an immediate header while the draft loads.
   neighbourName?: string | null;
   neighbourAddress?: string | null;
   onClose: () => void;
@@ -61,6 +63,19 @@ function reasonMessage(reason: string, direction: NeighbourChaseDirection): stri
   }
 }
 
+function relativeAgo(value: Date | string | null): string {
+  if (!value) return "";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "";
+  const mins = Math.round((Date.now() - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
 export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const { toast } = useAgentToast();
@@ -78,11 +93,13 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [drafting, setDrafting] = useState(true);
   const [errorReason, setErrorReason] = useState<string | null>(null);
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
   const [name, setName] = useState<string | null>(neighbourName ?? null);
   const [email, setEmail] = useState<string | null>(null);
   const [stepName, setStepName] = useState<string | null>(null);
+  const [lastChasedAt, setLastChasedAt] = useState<Date | string | null>(null);
   const [sending, setSending] = useState(false);
+  const [confirmResend, setConfirmResend] = useState(false);
 
   const draft = useCallback(async (withTone: Tone) => {
     setDrafting(true);
@@ -92,21 +109,34 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     if (!res) { setErrorReason("ai_failed"); return; }
     if (!res.ok) { setErrorReason(res.reason); return; }
     setSubject(res.draft.subject);
-    setBody(res.draft.body);
+    setBodyHtml(textToHtml(res.draft.body));
     setName(res.draft.neighbourName);
     setEmail(res.draft.neighbourEmail);
     setStepName(res.draft.stepName);
+    setLastChasedAt(res.draft.lastChasedAt);
   }, [transactionId, direction]);
 
   // Draft once on open with the default tone.
   useEffect(() => { void draft("Professional"); }, [draft]);
 
-  async function handleSend() {
-    if (!body.trim()) return;
+  async function handleSend(force: boolean) {
+    if (isHtmlEmpty(bodyHtml)) return;
     setSending(true);
-    const res = await sendNeighbourChaseAction({ transactionId, direction, subject, body }).catch(() => null);
+    const res = await sendNeighbourChaseAction({
+      transactionId,
+      direction,
+      subject,
+      bodyHtml,
+      bodyText: htmlToText(bodyHtml),
+      force,
+    }).catch(() => null);
     setSending(false);
     if (!res || !res.ok) {
+      if (res && !res.ok && res.reason === "recently_chased" && !force) {
+        setLastChasedAt(res.lastChasedAt ?? lastChasedAt);
+        setConfirmResend(true);
+        return;
+      }
       toast.error(res && !res.ok ? reasonMessage(res.reason, direction) : "Couldn't send the chase. Try again.");
       return;
     }
@@ -126,7 +156,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         aria-label="Chase the neighbour agent"
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: "min(460px, 100vw)",
+          width: "min(480px, 100vw)",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
@@ -138,10 +168,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         {/* Header */}
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <SheetBandHeader
-              kicker="Chain"
-              title={`Chase the agent ${whichNeighbour}`}
-            />
+            <SheetBandHeader kicker="Chain" title={`Chase the agent ${whichNeighbour}`} />
           </div>
           <button
             onClick={doClose}
@@ -173,6 +200,11 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                 </p>
                 {email && <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>{email}</p>}
                 {neighbourAddress && <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>{neighbourAddress}</p>}
+                {lastChasedAt && (
+                  <p className="text-xs mt-1.5" style={{ color: "var(--agent-text-muted)" }}>
+                    Last chased {relativeAgo(lastChasedAt)}
+                  </p>
+                )}
               </div>
 
               {/* What we're asking */}
@@ -220,7 +252,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                 />
               </div>
 
-              {/* Body */}
+              {/* Message */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>Message</label>
@@ -235,16 +267,27 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                     {drafting ? "Drafting…" : "Regenerate"}
                   </button>
                 </div>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  disabled={drafting}
-                  rows={12}
+                <ChaseComposer
+                  valueHtml={bodyHtml}
+                  onChangeHtml={(html) => { setBodyHtml(html); setConfirmResend(false); }}
                   placeholder={drafting ? "Drafting…" : "Write your message…"}
-                  className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all resize-none"
-                  style={{ lineHeight: 1.6 }}
+                  attachments={[]}
+                  onAttachmentsChange={() => {}}
+                  charCount={htmlToText(bodyHtml).length}
                 />
+                <p className="text-[11px]" style={{ color: "var(--agent-text-muted)" }}>
+                  Sends from you, with your signature.
+                </p>
               </div>
+
+              {confirmResend && (
+                <div className="rounded-lg px-3 py-2.5 flex items-start gap-2" style={{ background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.3)" }}>
+                  <WarningCircle size={15} weight="fill" style={{ color: "#b45309", flexShrink: 0, marginTop: 1 }} />
+                  <p className="text-xs" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
+                    You chased this agent {relativeAgo(lastChasedAt)}. Send another chase?
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -257,12 +300,12 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
             </button>
             {!blocked && (
               <button
-                onClick={() => { void handleSend(); }}
-                disabled={drafting || sending || !body.trim()}
+                onClick={() => { void handleSend(confirmResend); }}
+                disabled={drafting || sending || isHtmlEmpty(bodyHtml)}
                 className="flex-1 inline-flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {sending ? <CircleNotch size={15} className="animate-spin" /> : <PaperPlaneTilt size={15} weight="fill" />}
-                {sending ? "Sending…" : "Send chase"}
+                {sending ? "Sending…" : confirmResend ? "Send anyway" : "Send chase"}
               </button>
             )}
           </div>

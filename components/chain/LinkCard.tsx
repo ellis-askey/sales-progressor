@@ -927,9 +927,14 @@ export function LinkCard({
           {/* Chase this neighbour's agent for an update. Shown only on the stub
               directly above/below your own file (ChainView gates it). */}
           {onChaseNeighbour && (
-            <button type="button" onClick={onChaseNeighbour} className="chain-act-link">
-              Chase agent
-            </button>
+            <>
+              {link.lastAgentChasedAt && (
+                <span className="chain-acts-meta">Chased {relativeTime(link.lastAgentChasedAt)}</span>
+              )}
+              <button type="button" onClick={onChaseNeighbour} className="chain-act-link">
+                Chase agent
+              </button>
+            </>
           )}
 
           {/* Stub actions: prefer the server-computed permission (internal team,

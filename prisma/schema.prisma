@@ -2212,6 +2212,9 @@ model ChainLink {
   expectedTimescale    String?
   chainNotes           String?
   lastChainCheckAt     DateTime?
+  // When our team last chased this neighbour's agent for an update (the manual
+  // chain-neighbour chase). Powers the "chased X ago" hint + a resend dedup guard.
+  lastAgentChasedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
