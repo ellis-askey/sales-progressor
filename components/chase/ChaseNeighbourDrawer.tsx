@@ -54,7 +54,7 @@ function reasonMessage(reason: string, direction: NeighbourChaseDirection): stri
     case "no_email":
       return `We don't have an email for the agent ${where} in the chain. Add their email on the Chain tab, then you can chase them.`;
     case "claimed":
-      return "That agent is already on the platform and gets their own updates, so there's no need to chase them here.";
+      return "That agent already has an account with us and gets their own updates, so there's no need to chase them here.";
     case "ai_unavailable":
     case "ai_failed":
       return "We couldn't draft a message just now. Try again in a moment.";
@@ -137,7 +137,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         setConfirmResend(true);
         return;
       }
-      toast.error(res && !res.ok ? reasonMessage(res.reason, direction) : "Couldn't send the chase. Try again.");
+      toast.error(res && !res.ok ? reasonMessage(res.reason, direction) : "Couldn't send the chase, try again.");
       return;
     }
     toast.success(name ? `Chase sent to ${name}` : "Chase sent");

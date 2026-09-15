@@ -191,7 +191,7 @@ export async function draftNeighbourChase(
     AGENT_RECIPIENT_GUIDANCE,
     channelGuidance,
     toneGuidance,
-    `Rules: British English. Never use em dashes or en dashes. No exclamation marks. Do not invent facts about their sale. Sign off simply as ${senderFirstName} (a full signature is added automatically, so do not add contact details). Output ONLY the email body — no subject line, no preamble, no "Here is the email".`,
+    `Rules: British English. Never use em dashes or en dashes. No exclamation marks. Do not invent facts about their sale. Sign off simply as ${senderFirstName} (a full signature is added after your sign-off, so do not add contact details). Output ONLY the email body, with no subject line, no preamble, and no "Here is the email".`,
   ].join("\n\n");
 
   const askLine = target.nextStep
@@ -229,7 +229,7 @@ export async function draftNeighbourChase(
     }
     const data = await res.json();
     const body = stripDashes(data.content?.[0]?.text ?? "").trim();
-    const subject = `Quick chain update: ${target.neighbourAddress ?? "your side of the chain"}`;
+    const subject = `Quick update on ${target.neighbourAddress ?? "your side of the chain"}?`;
     return {
       ok: true,
       draft: {
@@ -317,7 +317,7 @@ export async function sendNeighbourChase(input: {
     ? sanitizeSignatureHtml(input.bodyHtml)
     : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
   const html = wrapEmailHtml(renderedBody, sig.html);
-  const subject = input.subject.trim() || `Quick chain update: ${target.neighbourAddress ?? "the chain"}`;
+  const subject = input.subject.trim() || `Quick update on ${target.neighbourAddress ?? "the chain"}?`;
 
   await sendAgentEmail({
     to: target.neighbourAgentEmail,

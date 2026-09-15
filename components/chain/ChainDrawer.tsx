@@ -707,8 +707,9 @@ export function ChainView({
 
   const shell = (
     <div
-      role="dialog"
-      aria-label="Chain"
+      // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
+      role={inline ? undefined : "dialog"}
+      aria-label={inline ? undefined : "Chain"}
       className={inline ? "chain-view-inline flex flex-col" : "relative z-10 flex flex-col h-full"}
       style={
         inline
