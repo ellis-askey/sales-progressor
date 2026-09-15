@@ -560,23 +560,38 @@ export async function updateAgencyChasePolicy(
     }
   }
 
-  // Single transaction so the master toggle + rule edits land together.
+  // Per-agency overrides (not the shared ReminderRule). ReminderRule holds the
+  // single platform default; we write this agency's own timings into
+  // AgencyChaseRuleOverride so they apply to THIS agency's self-managed files
+  // only, never to outsourced files or any other agency. A value saved back at
+  // the platform default clears the override (a clean reset-to-default).
+  const defaults = await prisma.reminderRule.findMany({
+    where: { isActive: true, targetMilestoneCode: { in: input.rules.map((r) => r.milestoneCode) } },
+    select: { targetMilestoneCode: true, graceDays: true, repeatEveryDays: true },
+  });
+  const defaultByCode = new Map(defaults.map((d) => [d.targetMilestoneCode!, d]));
+
+  // Single transaction so the master toggle + override edits land together.
   await prisma.$transaction(async (txc) => {
     await txc.agency.update({
       where: { id: agencyId },
       data: { chaseEmailsEnabled: input.chaseEmailsEnabled },
     });
     for (const r of input.rules) {
-      // ReminderRule is currently global (not per-agency) — see plan
-      // decision 2. Update by targetMilestoneCode. Multiple rules per code
-      // is rare; we update all matching to keep behaviour consistent.
-      await txc.reminderRule.updateMany({
-        where: { isActive: true, targetMilestoneCode: r.milestoneCode },
-        data: {
-          graceDays: r.graceDays,
-          repeatEveryDays: r.repeatEveryDays,
-        },
-      });
+      const def = defaultByCode.get(r.milestoneCode);
+      const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
+      if (matchesDefault) {
+        // Back at our default — drop any override so the file uses the default.
+        await txc.agencyChaseRuleOverride.deleteMany({
+          where: { agencyId, milestoneCode: r.milestoneCode },
+        });
+      } else {
+        await txc.agencyChaseRuleOverride.upsert({
+          where: { agencyId_milestoneCode: { agencyId, milestoneCode: r.milestoneCode } },
+          create: { agencyId, milestoneCode: r.milestoneCode, graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+          update: { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+        });
+      }
     }
   });
 

@@ -30,7 +30,7 @@ export default async function AutomationSettingsPage() {
   const agencyId = session.user.agencyId;
   if (!agencyId) notFound();
 
-  const [agency, rules, defs, solicitorSettings, solicitorRules] = await Promise.all([
+  const [agency, rules, overrides, defs, solicitorSettings, solicitorRules] = await Promise.all([
     prisma.agency.findUnique({
       where: { id: agencyId },
       select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true, chainNeighbourUpdatesEnabled: true },
@@ -42,6 +42,11 @@ export default async function AutomationSettingsPage() {
         graceDays: true,
         repeatEveryDays: true,
       },
+    }),
+    // This agency's own overrides (empty = every rule still on our default).
+    prisma.agencyChaseRuleOverride.findMany({
+      where: { agencyId },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
     }),
     prisma.milestoneDefinition.findMany({
       select: { code: true, name: true, side: true, orderIndex: true },
@@ -55,6 +60,9 @@ export default async function AutomationSettingsPage() {
   if (!agency) notFound();
 
   const defByCode = new Map(defs.map((d) => [d.code, d]));
+  // Overlay this agency's overrides on the platform default so the form shows
+  // their effective timings (a milestone with no override shows the default).
+  const overrideByCode = new Map(overrides.map((o) => [o.milestoneCode, o]));
 
   // Filter to chaseable codes only — exchange/completion/gate codes can't
   // receive client chases so editing their grace/repeat is meaningless.
@@ -62,13 +70,14 @@ export default async function AutomationSettingsPage() {
     .filter((r) => r.targetMilestoneCode && isClientChaseable(r.targetMilestoneCode))
     .map((r) => {
       const def = defByCode.get(r.targetMilestoneCode!);
+      const ov = overrideByCode.get(r.targetMilestoneCode!);
       return {
         milestoneCode: r.targetMilestoneCode!,
         milestoneName: def?.name ?? r.targetMilestoneCode!,
         side: (def?.side ?? "vendor") as "vendor" | "purchaser",
         orderIndex: def?.orderIndex ?? 9999,
-        graceDays: r.graceDays,
-        repeatEveryDays: r.repeatEveryDays,
+        graceDays: ov?.graceDays ?? r.graceDays,
+        repeatEveryDays: ov?.repeatEveryDays ?? r.repeatEveryDays,
       };
     })
     // Vendor first, then purchaser; within each side, follow the milestone

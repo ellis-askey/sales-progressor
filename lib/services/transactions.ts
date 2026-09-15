@@ -837,7 +837,14 @@ export type CreateTransactionInput = {
 // snapshot is missing or malformed. Migration backfilled snapshots for
 // pre-existing transactions; this function seeds them at creation time
 // from here on.
-async function buildChaseRuleSnapshot(): Promise<Record<string, {
+async function buildChaseRuleSnapshot(
+  // The file's agency + whether it's self-managed. Per-agency chase-timing
+  // overrides apply ONLY to that agency's own self-managed files. Outsourced
+  // files (and any call without an agency, e.g. migrations) always snapshot the
+  // platform default so an agency can never shift the SP team's cadence.
+  agencyId?: string,
+  isSelfManaged?: boolean,
+): Promise<Record<string, {
   graceDays: number;
   repeatEveryDays: number;
   useEventDate: boolean;
@@ -855,6 +862,19 @@ async function buildChaseRuleSnapshot(): Promise<Record<string, {
       anchorMilestone: { select: { code: true } },
     },
   });
+
+  // Overlay this agency's overrides only for self-managed files.
+  let overrides: Record<string, { graceDays: number; repeatEveryDays: number }> = {};
+  if (agencyId && isSelfManaged) {
+    const rows = await prisma.agencyChaseRuleOverride.findMany({
+      where: { agencyId },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+    });
+    overrides = Object.fromEntries(
+      rows.map((r) => [r.milestoneCode, { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays }]),
+    );
+  }
+
   const out: Record<string, {
     graceDays: number;
     repeatEveryDays: number;
@@ -864,9 +884,10 @@ async function buildChaseRuleSnapshot(): Promise<Record<string, {
   }> = {};
   for (const r of rules) {
     if (!r.targetMilestoneCode) continue;
+    const ov = overrides[r.targetMilestoneCode];
     out[r.targetMilestoneCode] = {
-      graceDays: r.graceDays,
-      repeatEveryDays: r.repeatEveryDays,
+      graceDays: ov?.graceDays ?? r.graceDays,
+      repeatEveryDays: ov?.repeatEveryDays ?? r.repeatEveryDays,
       useEventDate: r.useEventDate,
       requiresExchangeReady: r.requiresExchangeReady,
       anchorMilestoneCode: r.anchorMilestone?.code ?? null,
@@ -892,7 +913,10 @@ export async function createTransaction(input: CreateTransactionInput) {
   const autoExchangeDate = new Date(anchor);
   autoExchangeDate.setDate(autoExchangeDate.getDate() + 84);
 
-  const chaseRuleSnapshot = await buildChaseRuleSnapshot();
+  // Self-managed files snapshot this agency's own chase timings; outsourced
+  // files snapshot the platform default (matches the serviceType rule below).
+  const isSelfManaged = (input.progressedBy ?? "progressor") === "agent";
+  const chaseRuleSnapshot = await buildChaseRuleSnapshot(input.agencyId, isSelfManaged);
 
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment

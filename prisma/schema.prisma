@@ -159,6 +159,7 @@ model Agency {
   milestoneEmailOverrides MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
   agencyEmailTemplates    AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
   agencyEmailEdits        AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
+  chaseRuleOverrides      AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -1553,6 +1554,29 @@ model ReminderRule {
 
   anchorMilestone MilestoneDefinition? @relation("AnchorMilestone", fields: [anchorMilestoneId], references: [id])
   reminderLogs    ReminderLog[]
+}
+
+// Per-agency client-chase timing override. ReminderRule holds the single
+// platform default (our controlled cadence); a row here lets ONE agency shift
+// the grace/repeat days for a given milestone on THEIR OWN self-managed files.
+// Outsourced files never read these — they always snapshot the platform default
+// so the SP team's cadence can't be changed by an agency. Absence of a row for
+// a (agency, milestone) pair means "use the default", so deleting a row is a
+// clean reset-to-default. Applied forward-only via chaseRuleSnapshot at file
+// creation, exactly like ReminderRule.
+model AgencyChaseRuleOverride {
+  id              String   @id @default(cuid())
+  agencyId        String
+  milestoneCode   String
+  graceDays       Int
+  repeatEveryDays Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, milestoneCode])
+  @@index([agencyId])
 }
 
 model ReminderLog {
