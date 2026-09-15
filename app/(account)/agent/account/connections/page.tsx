@@ -10,6 +10,7 @@ import { Suspense } from "react";
 import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { AccountConnectionsCard } from "@/components/account/AccountConnectionsCard";
+import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
 import { WhatsAppConnectionCard } from "@/components/account/WhatsAppConnectionCard";
 
 export default async function AccountConnectionsPage() {
@@ -45,6 +46,8 @@ export default async function AccountConnectionsPage() {
       >
         <AccountConnectionsCard />
       </Suspense>
+
+      <ImapConnectionCard />
 
       <div>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
