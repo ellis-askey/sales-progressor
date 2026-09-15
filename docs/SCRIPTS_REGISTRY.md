@@ -330,3 +330,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Idempotent-ish (reuses the demo file + chain; already-reported steps are skipped by the service).
 - **Author/date:** Claude, 2026-09-14.
 - **Deletion criteria:** delete this script + this entry (and the "12 Chain Demo Road" file + its chain + trackers) once the chain far-side feature is signed off.
+
+### seed-onward-broker-demo.ts
+- **Purpose:** demo for the seller's onward broker (Phase 2). Applies the onward-broker columns to staging idempotently via the pooler (local can't run prisma migrate — direct DB host unreachable), then seeds four Hartwell & Partners files (", Onward Demo") covering the Professionals card, Fees card, completions, analytics, and the revenue-at-risk warning.
+- **Lifetime:** one-shot (throwaway). Idempotent (wipes its own ", Onward Demo" files then recreates); staging-guarded.
+- **Author/date:** Claude, 2026-09-15.
+- **Deletion criteria:** delete this script + this entry (and the ", Onward Demo" files + "Onward Finance (demo)" firm) once the onward broker feature is signed off.
