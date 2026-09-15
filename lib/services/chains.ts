@@ -1254,12 +1254,19 @@ export async function insertLinkAdjacent(input: {
   const result = await prisma.$transaction(async (tx) => {
     const anchor = await tx.chainLink.findFirst({
       where: { id: anchorLinkId, chainId },
-      select: { id: true, branchKey: true, position: true },
+      select: { id: true, branchKey: true, position: true, forkFromLinkId: true },
     });
     if (!anchor) return { ok: false as const, reason: "not_found" as const };
 
     const ladderKey = anchor.branchKey ?? "";
     const insertPos = placement === "above" ? anchor.position : anchor.position + 1;
+
+    // Inserting BELOW the bottom of a branch (the link that forks off a node)
+    // means slotting the new sale between that node and the branch — the split
+    // "+". The new link takes over the fork connection so it becomes the branch's
+    // new bottom, and the anchor is reparented above it on the same ladder. On the
+    // spine / interior of a ladder there's no fork to inherit, so this is a no-op.
+    const inheritFork = placement === "below" && anchor.forkFromLinkId ? anchor.forkFromLinkId : null;
 
     // Shift every link at or below the insert point down one. Highest position
     // first so no single update ever collides on the
@@ -1281,9 +1288,15 @@ export async function insertLinkAdjacent(input: {
         branchKey: ladderKey,
         position: insertPos,
         createdByUserId: userId,
+        ...(inheritFork ? { forkFromLinkId: inheritFork } : {}),
         ...stubFields(stub),
       },
     });
+    // Hand the fork connection to the new bottom link so the anchor no longer
+    // forks off the node directly (it now sits above the inserted sale).
+    if (inheritFork) {
+      await tx.chainLink.update({ where: { id: anchor.id }, data: { forkFromLinkId: null } });
+    }
     return { ok: true as const };
   });
 

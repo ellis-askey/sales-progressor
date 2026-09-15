@@ -70,17 +70,48 @@ function ChainIcon() {
 // to each onward column above it — a V for 2, a trident for 3. The SVG stretches
 // to the columns' width (preserveAspectRatio none), and non-scaling strokes keep
 // the lines crisp at any width.
-function ForkConnector({ count }: { count: number }) {
+function ForkConnector({
+  count,
+  legs,
+  onInsert,
+}: {
+  count: number;
+  // One entry per leg (same order as the columns above), so a "+" can be placed
+  // on each. Omitted / no onInsert = a plain connector.
+  legs?: { onwardId: string }[];
+  onInsert?: (anchorOnwardId: string) => void;
+}) {
   const H = 26;
   return (
-    <svg width="100%" height={H} viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible" }}>
-      {Array.from({ length: count }).map((_, i) => {
+    <div className="chain-fork-connector">
+      <svg width="100%" height={H} viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden style={{ display: "block", overflow: "visible" }}>
+        {Array.from({ length: count }).map((_, i) => {
+          const x = ((i + 0.5) / count) * 100;
+          return (
+            <line key={i} x1={50} y1={H} x2={x} y2={0} stroke="var(--agent-border-strong)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          );
+        })}
+      </svg>
+      {/* Insert-between "+" per leg, sitting at the 50% midpoint of each diagonal
+          (the leg runs from the fork node at x=50 up to x=((i+0.5)/count)*100). */}
+      {onInsert && legs?.map((leg, i) => {
         const x = ((i + 0.5) / count) * 100;
+        const midX = (50 + x) / 2;
         return (
-          <line key={i} x1={50} y1={H} x2={x} y2={0} stroke="var(--agent-border-strong)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          <button
+            key={leg.onwardId}
+            type="button"
+            onClick={() => onInsert(leg.onwardId)}
+            className="chain-fork-insert"
+            style={{ left: `${midX}%`, top: "50%" }}
+            aria-label="Insert a sale here"
+            title="Insert a sale here"
+          >
+            +
+          </button>
         );
       })}
-    </svg>
+    </div>
   );
 }
 
@@ -699,7 +730,15 @@ export function ChainView({
             </div>
           ))}
         </div>
-        <ForkConnector count={onwards.length} />
+        <ForkConnector
+          count={onwards.length}
+          legs={onwards.map((o) => ({ onwardId: o.id }))}
+          onInsert={
+            !!onOpenAddNode && (isInternal || canAddAbove(link, currentUserId, currentUserRole))
+              ? (anchorOnwardId) => onOpenAddNode?.("above", chainId, undefined, undefined, undefined, { anchorLinkId: anchorOnwardId, placement: "below" })
+              : undefined
+          }
+        />
         {card}
       </div>
     );

@@ -1273,6 +1273,20 @@ select {
 .chain-connector-insert:focus-visible { opacity: 1; outline: none;
   box-shadow: var(--agent-focus-ring-tight); }
 
+/* Split "+" — the same insert-between affordance on each fork leg, positioned at
+   the 50% midpoint of the diagonal via inline left/top. Fades in on fork hover. */
+.chain-fork-connector { position: relative; }
+.chain-fork-insert { position: absolute; transform: translate(-50%, -50%); width: 18px; height: 18px; padding: 0;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 14px; line-height: 1; font-weight: 600; color: var(--agent-text-muted);
+  background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-default);
+  opacity: 0; cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease; }
+.chain-fork:hover .chain-fork-insert { opacity: 1; }
+.chain-fork-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint); }
+.chain-fork-insert:focus-visible { opacity: 1; outline: none;
+  box-shadow: var(--agent-focus-ring-tight); }
+
 .chain-card { display: flex; gap: 13px; padding: 12px;
   background: var(--agent-surface-elevated);
   border: 1px solid var(--agent-border-default); border-radius: 14px;
