@@ -432,7 +432,9 @@ export async function OverviewPanel({
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
 
       {/* People: Clients (contacts) + Professionals (solicitors) in one card
-          with a header toggle, so the solicitor is one tap away. */}
+          with a header toggle, so the solicitor is one tap away.
+          id="setup-people": jump target for the File setup tab's contact items. */}
+      <div id="setup-people" style={{ scrollMarginTop: 100 }}>
       <PeoplePanel
         clients={
           <ContactsSection
@@ -512,6 +514,7 @@ export async function OverviewPanel({
           </div>
         }
       />
+      </div>
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +
           purchaser NextMilestoneWidget replaced here 2026-07-03: the
@@ -546,6 +549,7 @@ export async function OverviewPanel({
         photoUrl={photoUrl}
         currentStatus={chainCurrentStatus}
         currentSubtext={chainCurrentSubtext}
+        currentPercent={progress.percent}
         onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
         related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}

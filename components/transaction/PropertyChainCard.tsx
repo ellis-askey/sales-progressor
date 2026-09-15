@@ -1,29 +1,39 @@
 "use client";
 
-// PropertyChainCard — the file's chain, as one card (the "chain spine").
+// PropertyChainCard — the file's chain as three property-photo link cards.
 //
-// Reads top-to-bottom as a chain: the seller's onward purchase (up), this sale
-// in the middle, the buyer's related sale (down), threaded on one dotted spine.
-// Rebuilt 2026-09-02 to the approved mock: direction kickers, property title +
-// address split, a highlighted current-sale row with the photo + status, a
-// per-link tracking status with an inline "Set up tracking" disclosure, and a
-// footer explainer. Each link's tracker reuses OnwardPurchaseCard (Law 4); the
-// "Open chain" link routes to the file's Chain tab (setActiveTab) rather than a
-// slide-over, since on the property file the full chain lives on its own tab.
+// Direction C (approved 2026-09-15, see the redesign artifact): the outer card
+// is the normal agent card; inside, the chain reads as three small photo cards
+// — related sale (left) · this sale (middle) · onward purchase (right) — each
+// with its content on a deep-frost glass inset (GlassCard, default v08) so the
+// property photo shows through. Tapping a card focuses it; the focus panel below
+// shows that link's detail. Every link's tracker reuses OnwardPurchaseCard
+// (Law 4) so nothing behavioural is lost: set-up, steps, confirm, chase agent,
+// edit type, buyer's/seller's toggle all live there.
+//
+// Layout: the strip is a container query, not a viewport media query — it stacks
+// (onward → this sale → related) the moment the CARD is too narrow to hold three
+// across without squishing, regardless of the browser width.
 
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { useTabContext } from "@/components/transaction/TabContext";
 import type { OnwardTrackerView } from "@/lib/services/onward";
 
-type Side = { view: OnwardTrackerView; farView: OnwardTrackerView; signalActive: boolean; address: string | null };
+type Side = {
+  view: OnwardTrackerView;
+  farView: OnwardTrackerView;
+  signalActive: boolean;
+  address: string | null;
+  // Optional property photo for the link card. Absent → the universal fallback.
+  photoUrl?: string | null;
+};
 type CurrentStatus = { label: string; tone: "active" | "hold" | "done" | "off" };
+type FocusKey = "onward" | "current" | "related";
 
-// Split "14 Beaumont Rise, Harpenden, Hertfordshire, AL5 2RT" into a bold
-// property line + a muted rest-of-address line, like the mock.
 function splitAddr(a: string | null): { title: string; rest: string } {
   if (!a) return { title: "", rest: "" };
   const i = a.indexOf(",");
@@ -31,11 +41,30 @@ function splitAddr(a: string | null): { title: string; rest: string } {
   return { title: a.slice(0, i).trim(), rest: a.slice(i + 1).trim() };
 }
 
-const ArrowGlyph = () => (
-  <svg className="agent-arrow-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M5 12h14M13 6l6 6-6 6" />
-  </svg>
-);
+// Progress ring — same look on every link card.
+function Ring({ pct, tone }: { pct: number; tone: "coral" | "blue" }) {
+  const r = 19, c = 2 * Math.PI * r, off = c * (1 - Math.min(100, Math.max(0, pct)) / 100);
+  const col = tone === "blue" ? "var(--agent-info, #3E63E8)" : "var(--agent-coral, #FF6B4A)";
+  return (
+    <svg className="cx2-ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden>
+      <circle cx="23" cy="23" r={r} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="4.5" />
+      <circle cx="23" cy="23" r={r} fill="none" stroke={col} strokeWidth="4.5" strokeLinecap="round"
+        strokeDasharray={c.toFixed(1)} strokeDashoffset={off.toFixed(1)} transform="rotate(-90 23 23)"
+        style={{ transition: "stroke-dashoffset 600ms cubic-bezier(0.22,1,0.36,1)" }} />
+      <text x="23" y="27" textAnchor="middle" fontSize="11.5" fontWeight="800" fill="#fff" style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</text>
+    </svg>
+  );
+}
+
+function LockCircle() {
+  return (
+    <span className="cx2-lock" aria-hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4.5" y="11" width="15" height="9" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+      </svg>
+    </span>
+  );
+}
 
 export function PropertyChainCard({
   transactionId,
@@ -43,6 +72,7 @@ export function PropertyChainCard({
   photoUrl = null,
   currentStatus,
   currentSubtext,
+  currentPercent = null,
   onward,
   related,
   showRelated,
@@ -52,120 +82,194 @@ export function PropertyChainCard({
   photoUrl?: string | null;
   currentStatus: CurrentStatus;
   currentSubtext: string;
+  // The live sale's weighted milestone % — drives the current card's ring.
+  currentPercent?: number | null;
   onward: Side;
   related: Side;
   showRelated: boolean;
-  // uninvitedCount kept in the caller; the nudge moved out of this card's mock.
 }) {
   const { setActiveTab } = useTabContext();
+  const [focus, setFocus] = useState<FocusKey>("current");
+  const [farSide, setFarSide] = useState<{ onward: boolean; related: boolean }>({ onward: false, related: false });
   const [learnOpen, setLearnOpen] = useState(false);
   const here = splitAddr(thisSaleAddress);
 
-  return (
-    <Card id="chain-section" padding="none">
-      <div className="cx">
-        {/* Header */}
-        <div className="cx-hd">
-          <div className="cx-hd-text">
-            <h3 className="cx-heading">Property chain</h3>
-            <p className="cx-sub">See how this sale fits into the chain and track the other links.</p>
-          </div>
-          <div className="cx-open">
-            {/* On the property file the full chain lives on its own tab — this
-                routes there rather than opening the slide-over (off-file, the
-                Chains workspace still opens the drawer). */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("chain")}
-              className="agent-link"
-              style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
-            >
-              Open chain
-              <LinkArrow style={{ marginLeft: 0 }} />
+  function selectFocus(k: FocusKey) { setFocus(k); }
+  function keyActivate(e: React.KeyboardEvent, k: FocusKey) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectFocus(k); }
+  }
+
+  // ── One photo link card ─────────────────────────────────────────────────────
+  function LinkCard({ which }: { which: FocusKey }) {
+    const isCurrent = which === "current";
+    const side = which === "onward" ? onward : which === "related" ? related : null;
+    const isOnward = which === "onward";
+    const kicker = isCurrent ? "Current sale" : isOnward ? "Onward purchase" : "Related sale";
+    const addr = isCurrent ? here : splitAddr(side!.address);
+    const photo = isCurrent ? photoUrl : side?.photoUrl ?? null;
+    const sel = focus === which;
+
+    let visual: React.ReactNode;
+    let statusText: string;
+    if (isCurrent) {
+      visual = <Ring pct={currentPercent ?? 0} tone="coral" />;
+      statusText = currentSubtext;
+    } else if (side!.view.exists) {
+      const pct = side!.view.applicableCount > 0
+        ? Math.round((side!.view.completeCount / side!.view.applicableCount) * 100) : 0;
+      visual = <Ring pct={pct} tone={isOnward ? "coral" : "blue"} />;
+      statusText = `Tracking ${side!.view.completeCount}/${side!.view.applicableCount}`;
+    } else {
+      visual = <LockCircle />;
+      statusText = "Not tracked";
+    }
+
+    return (
+      <div
+        className={`cx2-link cx2-${which}${sel ? " sel" : ""}${isCurrent ? " here" : ""}`}
+        role="button"
+        tabIndex={0}
+        aria-pressed={sel}
+        aria-label={`${kicker}: ${addr.title || "chain link"}`}
+        onClick={() => selectFocus(which)}
+        onKeyDown={(e) => keyActivate(e, which)}
+      >
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" className="cx2-bg" />
+        ) : (
+          <span className="cx2-bg property-photo-fallback" aria-hidden />
+        )}
+        <span className="cx2-scrim" aria-hidden />
+        <GlassCard glassId="chain-link-frost" label="Chain link · frost inset" defaultVariant="v08" className="cx2-frost">
+          <span className="cx2-txt">
+            {isCurrent
+              ? <span className="cx2-badge">Current sale</span>
+              : <span className="cx2-kicker">{kicker}</span>}
+            <span className="cx2-linktitle">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</span>
+            <span className="cx2-linkstat">{statusText}</span>
+          </span>
+          {visual}
+        </GlassCard>
+      </div>
+    );
+  }
+
+  // ── The focus panel (detail for the selected link) ──────────────────────────
+  function FocusPanel() {
+    if (focus === "current") {
+      return (
+        <div className="cx2-focus">
+          <div className="cx2-focus-hd">
+            <div style={{ minWidth: 0 }}>
+              {/* Coral label (primary colour), not a pill — matches the kicker
+                  form of onward/related while marking it as the current sale. */}
+              <div className="cx2-fkicker cur">Current sale</div>
+              <div className="cx2-ftitle">{here.title}</div>
+              {here.rest && <div className="cx2-faddr">{here.rest}</div>}
+            </div>
+            <button type="button" className="agent-link cx2-openfile" onClick={() => setActiveTab("milestones")}>
+              Open the file<LinkArrow style={{ marginLeft: 0 }} />
             </button>
+          </div>
+          <div className="cx2-fstatus">
+            <span className="cx2-dot" data-tone={currentStatus.tone} />
+            <span>{currentStatus.label}</span>
+            <span className="cx2-fsub">· {currentSubtext}</span>
           </div>
         </div>
+      );
+    }
 
-        {/* Spine */}
-        <div className="cx-spine">
-          {/* Up the chain — the seller's onward purchase */}
-          <TrackRow
-            direction="onward"
-            first
-            transactionId={transactionId}
-            kicker="Onward purchase"
-            side={onward}
-          />
+    const which = focus; // "onward" | "related"
+    const side = which === "onward" ? onward : related;
+    const isOnward = which === "onward";
+    const far = farSide[which];
+    const addr = splitAddr(side.address);
+    const nearLabel = isOnward ? "Buyer's steps" : "Seller's steps";
+    const farLabel = isOnward ? "Seller's steps" : "Buyer's steps";
+    const farDirection: "onward_seller" | "related_buyer" = isOnward ? "onward_seller" : "related_buyer";
 
-          {/* This sale — highlighted, with the property photo + status */}
-          <div className="cx-row">
-            <div className="cx-rail">
-              <span className="cx-conn" aria-hidden />
-              <span className="cx-tile cx-tile-here" aria-hidden>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 11.2 12 4l9 7.2" />
-                  <path d="M5.5 9.5V20h13V9.5" />
-                  <path d="M10 20v-5h4v5" />
-                </svg>
-              </span>
-              <span className="cx-conn" aria-hidden data-hide={showRelated ? undefined : "true"} />
-            </div>
-            <button type="button" className="cx-here" onClick={() => setActiveTab("milestones")}>
-              {photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoUrl} alt="" className="cx-photo" />
-              ) : (
-                <span className="cx-photo" aria-hidden>
-                  <span className="property-photo-fallback" style={{ display: "block", width: "100%", height: "100%", borderRadius: "inherit" }} />
-                </span>
-              )}
-              <div className="cx-here-main">
-                <Pill glass tone="brand" size="sm" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Current sale</Pill>
-                <div className="cx-title cx-title-lg">{here.title}</div>
-                {here.rest && <div className="cx-addr">{here.rest}</div>}
-              </div>
-              <div className="cx-here-status">
-                <div className="cx-status-line">
-                  <span className="cx-dot" data-tone={currentStatus.tone} />
-                  <span className="cx-status-label">{currentStatus.label}</span>
-                </div>
-                <span className="cx-status-sub">{currentSubtext}</span>
-              </div>
-              <svg className="cx-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
+    return (
+      <div className="cx2-focus">
+        <div className="cx2-focus-hd">
+          <div style={{ minWidth: 0 }}>
+            <div className="cx2-fkicker">{isOnward ? "Onward purchase" : "Related sale"}</div>
+            <div className="cx2-ftitle">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</div>
+            {addr.rest && <div className="cx2-faddr">{addr.rest}</div>}
           </div>
-
-          {/* Down the chain — the buyer's related sale */}
-          {showRelated && (
-            <TrackRow
-              direction="related"
-              last
-              transactionId={transactionId}
-              kicker="Related sale"
-              side={related}
-            />
+          {side.view.exists && (
+            <div className="cx2-sidetoggle" role="tablist" aria-label="Which side of this deal">
+              <button
+                type="button" role="tab" aria-selected={!far}
+                className={`agent-segment-pill agent-segment-pill-sm${!far ? " on" : ""}`}
+                onClick={() => setFarSide((s) => ({ ...s, [which]: false }))}
+              >{nearLabel}</button>
+              <button
+                type="button" role="tab" aria-selected={far}
+                className={`agent-segment-pill agent-segment-pill-sm${far ? " on" : ""}`}
+                onClick={() => setFarSide((s) => ({ ...s, [which]: true }))}
+              >{farLabel}</button>
+            </div>
           )}
         </div>
+        <OnwardPurchaseCard
+          key={`${which}-${far ? "far" : "near"}`}
+          embedded
+          defaultStepsOpen
+          transactionId={transactionId}
+          initialView={far ? side.farView : side.view}
+          signalActive={far ? false : side.signalActive}
+          onwardAddress={side.address}
+          direction={far ? farDirection : which}
+          seedTenure={far ? side.view.tenure : null}
+          seedShareOfFreehold={far ? side.view.isShareOfFreehold : false}
+        />
+      </div>
+    );
+  }
 
-        {/* Footer — what tracking gives you */}
-        <div className="cx-foot">
-          <div className="cx-foot-row">
-            <span className="cx-foot-left">
+  return (
+    <Card id="chain-section" padding="none">
+      <div className="cx2">
+        {/* Header */}
+        <div className="cx2-hd">
+          <div>
+            <h3 className="cx2-heading">Property chain</h3>
+            <p className="cx2-sub">See how this sale fits into the chain and track the other links.</p>
+          </div>
+          <button type="button" onClick={() => setActiveTab("chain")} className="agent-link cx2-open">
+            Open chain<LinkArrow style={{ marginLeft: 0 }} />
+          </button>
+        </div>
+
+        {/* Strip of photo link cards — related (left) · this sale · onward (right) */}
+        <div className="cx2-strip">
+          <LinkCard which="onward" />
+          {showRelated && <span className="cx2-bar" aria-hidden />}
+          <LinkCard which="current" />
+          {showRelated && <LinkCard which="related" />}
+        </div>
+
+        {/* Focus panel for the selected link */}
+        <div className="cx2-panelwrap"><FocusPanel /></div>
+
+        {/* Footer */}
+        <div className="cx2-foot">
+          <div className="cx2-foot-row">
+            <span className="cx2-foot-left">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <rect x="4.5" y="11" width="15" height="9" rx="2" />
-                <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+                <rect x="4.5" y="11" width="15" height="9" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
               </svg>
-              Tracking gives you visibility and progress updates on the linked properties.
+              Reported progress stays on your file and isn&rsquo;t shared with other agencies.
             </span>
-            <button type="button" className="cx-learn" onClick={() => setLearnOpen((o) => !o)} aria-expanded={learnOpen}>
+            <button type="button" className="agent-link cx2-learn" onClick={() => setLearnOpen((o) => !o)} aria-expanded={learnOpen}>
               Learn more<LinkArrow style={{ marginLeft: 0 }} />
             </button>
           </div>
-          <div className="cx-learn-wrap" data-open={learnOpen ? "true" : undefined}>
-            <div className="cx-learn-inner">
-              <p className="cx-learn-body">
+          <div className="cx2-learn-wrap" data-open={learnOpen ? "true" : undefined}>
+            <div className="cx2-learn-inner">
+              <p className="cx2-learn-body">
                 Set up tracking on a link and we&rsquo;ll keep its reported progress here. Your client can also keep you updated on their related sale or purchase through their portal. Anything reported stays on your file and isn&rsquo;t shared with other agencies.
               </p>
             </div>
@@ -174,180 +278,86 @@ export function PropertyChainCard({
       </div>
 
       <style>{`
-        .cx{display:flex;flex-direction:column}
-        .cx-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px 6px}
-        .cx-heading{margin:0;font-size:20px;font-weight:700;letter-spacing:-0.01em;color:var(--agent-text-primary)}
-        .cx-sub{margin:5px 0 0;font-size:13.5px;color:var(--agent-text-secondary);line-height:1.45}
-        .cx-open{flex-shrink:0;padding-top:3px}
+        .cx2{display:flex;flex-direction:column;container-type:inline-size}
+        .cx2-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 4px}
+        .cx2-heading{margin:0;font-size:18px;font-weight:700;letter-spacing:-0.015em;color:var(--agent-text-primary)}
+        .cx2-sub{margin:4px 0 0;font-size:13px;color:var(--agent-text-secondary);line-height:1.45}
+        .cx2-open{flex-shrink:0;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
 
-        .cx-spine{padding:10px 24px 4px}
-        .cx-row{display:flex;gap:18px;align-items:stretch}
-        .cx-rail{position:relative;width:60px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
-        .cx-conn{width:0;flex:1 1 auto;min-height:14px;border-left:3px dotted var(--agent-border-strong, rgba(15,23,42,0.16))}
-        .cx-conn[data-hide="true"]{visibility:hidden}
+        /* Strip: related (left) · current (middle) · onward (right) via row-reverse
+           over DOM order [onward, current, related]. */
+        .cx2-strip{display:flex;flex-direction:row-reverse;align-items:stretch;gap:0;padding:14px 22px 6px}
+        .cx2-bar{align-self:center;height:2px;flex:0 0 20px;min-width:12px;background:var(--agent-border-strong, rgba(15,23,42,0.16));border-radius:2px}
 
-        .cx-tile{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;margin:6px 0}
-        .cx-tile-dir{width:52px;height:52px;border-radius:15px}
-        .cx-tile-onward{background:rgba(255,107,74,0.12);color:var(--agent-coral-deep, #E8542F)}
-        .cx-tile-related{background:rgba(62,99,232,0.11);color:var(--agent-info, #3E63E8)}
-        .cx-tile-here{width:60px;height:60px;border-radius:50%;background:var(--agent-coral, #FF6B4A);color:#fff;box-shadow:0 6px 18px rgba(255,107,74,0.35)}
+        .cx2-link{flex:1;min-width:0;position:relative;border-radius:14px;overflow:hidden;min-height:126px;cursor:pointer;
+          isolation:isolate;background:var(--agent-surface-nested, rgba(15,23,42,0.04));
+          transition:transform 160ms cubic-bezier(0.22,1,0.36,1),box-shadow 160ms ease}
+        .cx2-link:hover{transform:translateY(-1px)}
+        .cx2-link:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px}
+        .cx2-link.sel{box-shadow:0 0 0 2px rgba(var(--agent-coral-rgb),0.5)}
+        .cx2-link.sel.here{box-shadow:0 0 0 2px var(--agent-coral)}
+        .cx2-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;display:block}
+        .cx2-scrim{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(16,20,28,0.20),rgba(16,20,28,0.52))}
 
-        /* Direction rows (onward / related) */
-        .cx-dirrow{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;flex-wrap:wrap}
-        .cx-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--agent-text-muted)}
-        .cx-title{font-size:17px;font-weight:600;letter-spacing:-0.01em;color:var(--agent-text-primary);margin-top:2px}
-        .cx-title-lg{font-size:22px;font-weight:700}
-        .cx-addr{font-size:14px;color:var(--agent-text-secondary);margin-top:2px}
+        /* Frost inset (GlassCard v08 deep frost default) — light text over the photo */
+        .cx2-frost{position:absolute;inset:10px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+          gap:12px;padding:0 13px;overflow:hidden}
+        .cx2-txt{min-width:0;text-align:left;display:flex;flex-direction:column;gap:2px}
+        .cx2-kicker{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,0.72)}
+        .cx2-linktitle{font-size:13.5px;font-weight:650;line-height:1.2;color:#fff}
+        .cx2-linkstat{font-size:11px;color:rgba(255,255,255,0.82)}
+        .cx2-ring{flex-shrink:0}
+        .cx2-lock{width:46px;height:46px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+          border-radius:50%;border:1.5px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75)}
+        /* Filled coral badge so the current-sale marker stays visible on any frost */
+        .cx2-badge{align-self:flex-start;display:inline-flex;align-items:center;font-size:9.5px;font-weight:800;
+          letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;color:#fff;margin-bottom:3px;
+          background:var(--agent-coral, #FF6B4A);
+          background-image:linear-gradient(180deg,rgba(255,255,255,0.32),rgba(255,255,255,0) 62%);
+          box-shadow:0 1px 3px rgba(0,0,0,0.28),inset 0 1px 0 rgba(255,255,255,0.4)}
 
-        /* Right-hand tracking status */
-        .cx-track{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-        .cx-status-line{display:inline-flex;align-items:center;gap:7px}
-        .cx-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--agent-text-muted)}
-        .cx-dot[data-tone="active"],.cx-dot[data-tone="done"]{background:var(--agent-success, #16a34a)}
-        .cx-dot[data-tone="hold"]{background:var(--agent-warning, #D59929)}
-        .cx-dot[data-tone="off"]{background:var(--agent-text-muted)}
-        .cx-status-label{font-size:14px;color:var(--agent-text-primary)}
-        .cx-status-muted .cx-status-label{color:var(--agent-text-secondary)}
-        .cx-status-sub{font-size:13px;color:var(--agent-text-secondary)}
-        .cx-track-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--agent-coral-deep, #E8542F)}
-        .cx-track-btn:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px;border-radius:4px}
-
-        /* Current-sale highlighted row */
-        .cx-here{flex:1;min-width:0;display:flex;align-items:center;gap:16px;text-align:left;cursor:pointer;
-          background:rgba(255,107,74,0.06);border:1px solid rgba(255,107,74,0.30);border-radius:16px;
-          padding:14px 16px;margin:6px 0;transition:background 160ms ease,border-color 160ms ease}
-        .cx-here:hover{background:rgba(255,107,74,0.10);border-color:rgba(255,107,74,0.45)}
-        .cx-here:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px}
-        .cx-photo{width:88px;height:72px;border-radius:12px;object-fit:cover;flex-shrink:0;display:block;background:var(--agent-surface-nested, rgba(15,23,42,0.04))}
-        .cx-here-main{flex:1;min-width:0}
-        .cx-here-main .cx-title-lg{margin-top:5px}
-        .cx-here-status{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-        .cx-chev{color:var(--agent-text-muted);flex-shrink:0;transition:transform 200ms cubic-bezier(0.22,1,0.36,1)}
-        .cx-here:hover .cx-chev{transform:translateX(3px)}
-
-        /* Inline tracker disclosure */
-        .cx-disclosure{margin:2px 0 12px 78px;padding:12px 14px;border-radius:12px;background:var(--agent-surface-nested, rgba(15,23,42,0.03));border:1px solid var(--agent-border-default)}
-
-        /* Near / far side toggle */
-        .cx-sidetoggle{display:inline-flex;gap:2px;padding:2px;margin:0 0 12px;border-radius:9px;background:var(--agent-border-default, rgba(15,23,42,0.06))}
-        .cx-sidetab{appearance:none;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--agent-text-secondary);padding:5px 12px;border-radius:7px;transition:background 120ms ease,color 120ms ease}
-        .cx-sidetab.on{background:var(--agent-surface, #fff);color:var(--agent-text-primary);box-shadow:0 1px 2px rgba(15,23,42,0.10)}
-        .cx-sidetab:focus-visible{outline:2px solid var(--agent-coral);outline-offset:1px}
+        /* Focus panel */
+        .cx2-panelwrap{padding:2px 22px 4px}
+        .cx2-focus{padding:14px 15px;border-radius:14px;background:var(--agent-surface-nested, rgba(15,23,42,0.03));border:1px solid var(--agent-border-default)}
+        .cx2-focus-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+        .cx2-fkicker{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--agent-text-muted)}
+        .cx2-fkicker.cur{color:var(--agent-coral-deep, #E8542F)}
+        .cx2-ftitle{font-size:16px;font-weight:700;letter-spacing:-0.01em;color:var(--agent-text-primary);margin-top:2px}
+        .cx2-faddr{font-size:12.5px;color:var(--agent-text-secondary);margin-top:1px}
+        .cx2-openfile{font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
+        .cx2-fstatus{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:13px;color:var(--agent-text-primary)}
+        .cx2-fsub{color:var(--agent-text-secondary)}
+        .cx2-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--agent-text-muted)}
+        .cx2-dot[data-tone="active"],.cx2-dot[data-tone="done"]{background:var(--agent-success, #16a34a)}
+        .cx2-dot[data-tone="hold"]{background:var(--agent-warning, #D59929)}
+        .cx2-sidetoggle{display:inline-flex;gap:3px;padding:3px;border-radius:10px;background:var(--agent-border-default, rgba(15,23,42,0.06));flex-shrink:0}
 
         /* Footer */
-        .cx-foot{border-top:0.5px solid var(--agent-border-default);padding:14px 24px 18px;margin-top:8px}
-        .cx-foot-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-        .cx-foot-left{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;color:var(--agent-text-secondary);min-width:0}
-        .cx-foot-left svg{flex-shrink:0;color:var(--agent-text-muted)}
-        .cx-learn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-size:13px;font-weight:500;color:var(--agent-coral-deep, #E8542F);flex-shrink:0}
-        .cx-learn:focus-visible{outline:2px solid var(--agent-coral);outline-offset:2px;border-radius:4px}
-        /* Smooth reveal: animate the grid row from 0fr to 1fr so the panel
-           slides open/closed instead of snapping. */
-        .cx-learn-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows 260ms cubic-bezier(0.22,1,0.36,1)}
-        .cx-learn-wrap[data-open="true"]{grid-template-rows:1fr}
-        .cx-learn-inner{overflow:hidden;min-height:0}
-        .cx-learn-body{margin:0;padding-top:10px;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:640px}
-        @media (prefers-reduced-motion: reduce){.cx-learn-wrap{transition:none}}
+        .cx2-foot{border-top:0.5px solid var(--agent-border-default);padding:13px 22px 16px;margin-top:8px}
+        .cx2-foot-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+        .cx2-foot-left{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;color:var(--agent-text-secondary);min-width:0}
+        .cx2-foot-left svg{flex-shrink:0;color:var(--agent-text-muted)}
+        .cx2-learn{font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
+        .cx2-learn-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows 260ms cubic-bezier(0.22,1,0.36,1)}
+        .cx2-learn-wrap[data-open="true"]{grid-template-rows:1fr}
+        .cx2-learn-inner{overflow:hidden;min-height:0}
+        .cx2-learn-body{margin:0;padding-top:10px;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:640px}
+        @media (prefers-reduced-motion:reduce){.cx2-learn-wrap,.cx2-link,.cx2-ring circle{transition:none}}
 
-        @media (max-width: 560px){
-          .cx-hd,.cx-spine,.cx-foot{padding-left:16px;padding-right:16px}
-          .cx-rail{width:48px}
-          .cx-tile-here{width:52px;height:52px}
-          .cx-tile-dir{width:46px;height:46px}
-          .cx-dirrow,.cx-here-status,.cx-track{text-align:left;align-items:flex-start}
-          .cx-here{flex-wrap:wrap}
-          .cx-disclosure{margin-left:0}
+        /* Stack when the CARD (not the viewport) is too narrow for three across —
+           onward on top, then this sale, then related, all full width. */
+        @container (max-width: 560px){
+          .cx2-strip{flex-direction:column;gap:8px}
+          .cx2-bar{display:none}
+        }
+        /* Fallback for browsers without container queries */
+        @supports not (container-type: inline-size){
+          @media (max-width: 720px){
+            .cx2-strip{flex-direction:column;gap:8px}
+            .cx2-bar{display:none}
+          }
         }
       `}</style>
     </Card>
   );
-
-  function TrackRow({
-    direction,
-    kicker,
-    side,
-    first,
-    last,
-    transactionId,
-  }: {
-    direction: "onward" | "related";
-    kicker: string;
-    side: Side;
-    first?: boolean;
-    last?: boolean;
-    transactionId: string;
-  }) {
-    const [open, setOpen] = useState(false);
-    // Which side of the neighbour deal is showing: the near side (our client) or
-    // the far side (the other party — agent-only). Toggled in the disclosure.
-    const [farSide, setFarSide] = useState(false);
-    const addr = splitAddr(side.address);
-    const tracked = side.view.exists;
-    const isOnward = direction === "onward";
-    const nearLabel = isOnward ? "Buyer's steps" : "Seller's steps";
-    const farLabel = isOnward ? "Seller's steps" : "Buyer's steps";
-    const farDirection: "onward_seller" | "related_buyer" = isOnward ? "onward_seller" : "related_buyer";
-
-    return (
-      <>
-        <div className="cx-row">
-          <div className="cx-rail">
-            <span className="cx-conn" aria-hidden data-hide={first ? "true" : undefined} />
-            <span className={`cx-tile cx-tile-dir ${isOnward ? "cx-tile-onward" : "cx-tile-related"}`} aria-hidden>
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                {isOnward ? <path d="M12 19V5M6 11l6-6 6 6" /> : <path d="M12 5v14M6 13l6 6 6-6" />}
-              </svg>
-            </span>
-            <span className="cx-conn" aria-hidden data-hide={last ? "true" : undefined} />
-          </div>
-
-          <div className="cx-dirrow">
-            <div style={{ minWidth: 0 }}>
-              <div className="cx-kicker">{kicker}</div>
-              <div className="cx-title">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</div>
-              {addr.rest ? <div className="cx-addr">{addr.rest}</div> : <div className="cx-addr">Not linked yet</div>}
-            </div>
-
-            <div className={`cx-track ${tracked ? "" : "cx-status-muted"}`}>
-              <div className="cx-status-line">
-                <span className="cx-dot" data-tone={tracked ? "active" : "off"} />
-                <span className="cx-status-label">
-                  {tracked ? `Tracking · ${side.view.completeCount}/${side.view.applicableCount}` : "Not tracked"}
-                </span>
-              </div>
-              <button type="button" className="cx-track-btn" onClick={() => setOpen((o) => !o)}>
-                {open ? "Hide" : tracked ? "View" : "Set up tracking"}
-                <ArrowGlyph />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {open && (
-          <div className="cx-disclosure">
-            {/* Near / far side toggle (agent-only far side). */}
-            <div className="cx-sidetoggle" role="tablist" aria-label="Which side of this deal">
-              <button type="button" role="tab" aria-selected={!farSide} className={`cx-sidetab${!farSide ? " on" : ""}`} onClick={() => setFarSide(false)}>
-                {nearLabel}
-              </button>
-              <button type="button" role="tab" aria-selected={farSide} className={`cx-sidetab${farSide ? " on" : ""}`} onClick={() => setFarSide(true)}>
-                {farLabel}
-              </button>
-            </div>
-            <OnwardPurchaseCard
-              key={farSide ? "far" : "near"}
-              embedded
-              transactionId={transactionId}
-              initialView={farSide ? side.farView : side.view}
-              signalActive={farSide ? false : side.signalActive}
-              onwardAddress={side.address}
-              direction={farSide ? farDirection : direction}
-              seedTenure={farSide ? side.view.tenure : null}
-              seedShareOfFreehold={farSide ? side.view.isShareOfFreehold : false}
-            />
-          </div>
-        )}
-      </>
-    );
-  }
 }

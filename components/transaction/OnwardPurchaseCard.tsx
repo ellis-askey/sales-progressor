@@ -93,6 +93,7 @@ export function OnwardPurchaseCard({
   embedded = false,
   seedTenure = null,
   seedShareOfFreehold = false,
+  defaultStepsOpen = false,
 }: {
   transactionId: string;
   initialView: OnwardTrackerView;
@@ -107,6 +108,10 @@ export function OnwardPurchaseCard({
   // has no tenure of its own yet.
   seedTenure?: Tenure | null;
   seedShareOfFreehold?: boolean;
+  // When embedded inside the chain card's focus panel the link is already
+  // selected, so the step list opens straight away instead of behind a
+  // "View steps" tap.
+  defaultStepsOpen?: boolean;
 }) {
   // Purchaser-side directions carry a buying axis (purchaseType); vendor-side
   // don't. onward + related_buyer = purchaser (PM); related + onward_seller = vendor (VM).
@@ -226,8 +231,9 @@ export function OnwardPurchaseCard({
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const [confirmDate, setConfirmDate] = useState("");
 
-  // Embedded step list starts collapsed behind the "Reported X/Y" summary.
-  const [stepsOpen, setStepsOpen] = useState(false);
+  // Embedded step list starts collapsed behind the "Reported X/Y" summary,
+  // unless the chain focus panel opens it straight away.
+  const [stepsOpen, setStepsOpen] = useState(defaultStepsOpen);
 
   // Far sides (agent records the neighbour's side) can chase that neighbour agent
   // for an update — the inbound twin of the far-side tracker. Never on near sides
