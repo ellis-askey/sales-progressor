@@ -243,11 +243,16 @@ export function PropertyChainCard({
           </button>
         </div>
 
-        {/* Strip of photo link cards — related (left) · this sale · onward (right) */}
+        {/* Strip of photo link cards — related (left) · this sale · onward (right).
+            A connector bar sits in EVERY gap (never just one side) so spacing is
+            even and no two cards touch. DOM order is [onward, current, related];
+            row-reverse flips it to the visual order, and collapses to
+            onward → current → related top-to-bottom when stacked. */}
         <div className="cx2-strip">
           <LinkCard which="onward" />
-          {showRelated && <span className="cx2-bar" aria-hidden />}
+          <span className="cx2-bar" aria-hidden />
           <LinkCard which="current" />
+          {showRelated && <span className="cx2-bar" aria-hidden />}
           {showRelated && <LinkCard which="related" />}
         </div>
 
