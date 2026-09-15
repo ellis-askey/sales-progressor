@@ -52,15 +52,20 @@ export function EnquiryCourtChip({
   const [pending, start] = useTransition();
   const [optimistic, setOptimistic] = useState<Court | null>(null);
   const side: Court = optimistic ?? data.currentlyWith;
-  const tone = TONE[data.status];
+  // A handover restarts the chase clock, so mid-handover the ball is freshly
+  // "chasing" the new side — reflect that in the colour + caption immediately
+  // rather than lagging on the previous status until the refresh lands.
+  const midHandover = optimistic != null;
+  const tone = TONE[midHandover ? "chasing" : data.status];
 
   // Clear the optimistic override once the refreshed server state agrees.
   useEffect(() => {
     if (optimistic && data.currentlyWith === optimistic) setOptimistic(null);
   }, [data.currentlyWith, optimistic]);
 
-  const caption =
-    data.status === "stalled"
+  const caption = midHandover
+    ? "Chasing"
+    : data.status === "stalled"
       ? "Stalled"
       : data.status === "snoozed"
         ? "Snoozed"
