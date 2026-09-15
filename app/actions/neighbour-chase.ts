@@ -35,10 +35,12 @@ export async function draftNeighbourChaseAction(input: {
   transactionId: string;
   direction: NeighbourChaseDirection;
   tone: string;
+  // Optional: chase about a specific far-side step (per-step chase).
+  stepName?: string | null;
 }): Promise<DraftNeighbourResult> {
   const { session } = await requireTxInScope(input.transactionId);
   const senderFirstName = session.user.name ? extractFirstName(session.user.name) : "the team";
-  return draftNeighbourChase(input.transactionId, input.direction, input.tone, senderFirstName);
+  return draftNeighbourChase(input.transactionId, input.direction, input.tone, senderFirstName, input.stepName);
 }
 
 export async function sendNeighbourChaseAction(input: {
@@ -48,6 +50,8 @@ export async function sendNeighbourChaseAction(input: {
   bodyHtml: string;
   bodyText: string;
   force?: boolean;
+  // Opt-in CC of our own client (seller/buyer). Resolved server-side.
+  includeCc?: boolean;
 }): Promise<SendNeighbourResult> {
   const { session } = await requireTxInScope(input.transactionId);
   return sendNeighbourChase({
@@ -57,6 +61,7 @@ export async function sendNeighbourChaseAction(input: {
     bodyHtml: input.bodyHtml,
     bodyText: input.bodyText,
     force: input.force,
+    includeCc: input.includeCc,
     user: {
       id: session.user.id,
       name: session.user.name,

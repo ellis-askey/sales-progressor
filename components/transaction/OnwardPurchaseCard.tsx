@@ -234,7 +234,8 @@ export function OnwardPurchaseCard({
   // (those are our own client's reported progress).
   const isFarSide = direction === "onward_seller" || direction === "related_buyer";
   const chaseDir: NeighbourChaseDirection = direction === "onward_seller" ? "onward" : "related";
-  const [chaseOpen, setChaseOpen] = useState(false);
+  // Per-step chase: the far-side step we're chasing the neighbour agent about.
+  const [chaseStep, setChaseStep] = useState<{ code: string; name: string } | null>(null);
 
   function run(fn: () => Promise<OnwardTrackerView>) {
     setError(null);
@@ -415,7 +416,7 @@ export function OnwardPurchaseCard({
               ) : null}
             </div>
 
-            <div style={{ flexShrink: 0 }}>
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
               {step.isComplete ? (
                 <Button
                   variant="ghost"
@@ -434,9 +435,22 @@ export function OnwardPurchaseCard({
                   Undo
                 </Button>
               ) : step.isAvailable && confirmingCode !== step.code ? (
-                <Button variant="secondary" size="xs" disabled={pending} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
-                  Confirm
-                </Button>
+                <>
+                  <Button variant="secondary" size="xs" disabled={pending} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
+                    Confirm
+                  </Button>
+                  {/* Far side only: chase the neighbour agent about THIS step. */}
+                  {isFarSide && (
+                    <button
+                      type="button"
+                      onClick={() => setChaseStep({ code: step.code, name: step.name })}
+                      className="agent-link"
+                      style={{ fontSize: 11, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", color: SECONDARY }}
+                    >
+                      Chase agent
+                    </button>
+                  )}
+                </>
               ) : null}
             </div>
           </div>
@@ -490,30 +504,17 @@ export function OnwardPurchaseCard({
     </ul>
   );
 
-  // "Chase the neighbour agent" — far sides only. Opens the lean neighbour-chase
-  // drawer, which resolves the stub agent above/below server-side and drafts the
-  // ask from this far-side tracker's next outstanding step.
-  const chaseUi = isFarSide ? (
-    <>
-      <div style={{ padding: "6px 8px 2px" }}>
-        <button
-          type="button"
-          onClick={() => setChaseOpen(true)}
-          className="agent-link"
-          style={{ fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}
-        >
-          Chase the agent {chaseDir === "onward" ? "above" : "below"} for an update
-        </button>
-      </div>
-      {chaseOpen && (
-        <ChaseNeighbourDrawer
-          transactionId={transactionId}
-          direction={chaseDir}
-          neighbourAddress={onwardAddress}
-          onClose={() => setChaseOpen(false)}
-        />
-      )}
-    </>
+  // "Chase the neighbour agent" — far sides only, now per-step (the link sits on
+  // each unlocked-but-incomplete step in the list above). The drawer resolves the
+  // stub agent above/below server-side and drafts the ask about the chosen step.
+  const chaseDrawer = chaseStep ? (
+    <ChaseNeighbourDrawer
+      transactionId={transactionId}
+      direction={chaseDir}
+      neighbourAddress={onwardAddress}
+      targetStepName={chaseStep.name}
+      onClose={() => setChaseStep(null)}
+    />
   ) : null;
 
   // Embedded: a compact "Reported X/Y" summary with a slim progress bar; the
@@ -545,7 +546,7 @@ export function OnwardPurchaseCard({
           <>
             <p style={{ margin: "6px 0 0", fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
             {stepList}
-            {chaseUi}
+            {chaseDrawer}
           </>
         )}
         {error && <p style={errStyle}>{error}</p>}
@@ -571,7 +572,7 @@ export function OnwardPurchaseCard({
 
       {stepList}
 
-      <div style={{ padding: "0 8px 6px" }}>{chaseUi}</div>
+      {chaseDrawer}
 
       {error && <p style={{ padding: "0 16px 12px", margin: 0, color: "var(--agent-danger, #c0392b)", fontSize: 12 }}>{error}</p>}
     </Card>

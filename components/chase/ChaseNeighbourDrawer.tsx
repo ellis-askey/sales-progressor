@@ -48,6 +48,9 @@ type Props = {
   // Fired after a chase is successfully sent (either path) so the parent can
   // refresh the chain activity feed without waiting for a reopen.
   onSent?: () => void;
+  // Per-step chase: the specific far-side step to ask about. Omitted → the
+  // draft falls back to the tracker's next outstanding step.
+  targetStepName?: string | null;
 };
 
 function reasonMessage(reason: string, direction: NeighbourChaseDirection): string {
@@ -82,7 +85,7 @@ function relativeAgo(value: Date | string | null): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent }: Props) {
+export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent, targetStepName }: Props) {
   const { theme, isNight } = usePortalTheme();
   const { toast } = useAgentToast();
   const [closing, setClosing] = useState(false);
@@ -106,11 +109,16 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [lastChasedAt, setLastChasedAt] = useState<Date | string | null>(null);
   const [sending, setSending] = useState(false);
   const [confirmResend, setConfirmResend] = useState(false);
+  // Optional CC of our own client (seller/buyer). Off by default (opt-in),
+  // mirroring the original chase drawer. Only shown when the draft resolves a
+  // client with an email.
+  const [ccCandidate, setCcCandidate] = useState<{ name: string; email: string } | null>(null);
+  const [ccOn, setCcOn] = useState(false);
 
   const draft = useCallback(async (withTone: Tone) => {
     setDrafting(true);
     setErrorReason(null);
-    const res = await draftNeighbourChaseAction({ transactionId, direction, tone: withTone }).catch(() => null);
+    const res = await draftNeighbourChaseAction({ transactionId, direction, tone: withTone, stepName: targetStepName }).catch(() => null);
     setDrafting(false);
     if (!res) { setErrorReason("ai_failed"); return; }
     if (!res.ok) { setErrorReason(res.reason); return; }
@@ -120,7 +128,8 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setEmail(res.draft.neighbourEmail);
     setStepName(res.draft.stepName);
     setLastChasedAt(res.draft.lastChasedAt);
-  }, [transactionId, direction]);
+    setCcCandidate(res.draft.ccCandidate);
+  }, [transactionId, direction, targetStepName]);
 
   // Draft once on open with the default tone.
   useEffect(() => { void draft("Professional"); }, [draft]);
@@ -135,6 +144,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
       bodyHtml,
       bodyText: htmlToText(bodyHtml),
       force,
+      includeCc: ccOn,
     }).catch(() => null);
     setSending(false);
     if (!res || !res.ok) {
@@ -173,6 +183,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
       return;
     }
     const params = new URLSearchParams();
+    if (ccOn && ccCandidate) params.set("cc", ccCandidate.email);
     params.set("subject", subject);
     params.set("body", htmlToText(bodyHtml));
     const query = params.toString().replace(/\+/g, "%20");
@@ -337,12 +348,22 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         </div>
 
         {/* Footer / Send — same layout, styling and behaviour as the real chase
-            drawer (email only: no channel toggle, no attachments, no CC). */}
+            drawer (email only: no channel toggle, no attachments). Optional CC of
+            our own client, off by default, mirrors the real chase drawer. */}
         <div className="glass-v03" style={{ padding: "14px 20px 18px", border: "none", borderTop: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" }}>
           {blocked ? (
             <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
           ) : (
             <>
+              {ccCandidate && (
+                <label
+                  style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12.5, color: "var(--agent-text-secondary)", cursor: "pointer" }}
+                  title={`Also copy ${ccCandidate.name} on this email`}
+                >
+                  <input type="checkbox" checked={ccOn} onChange={(e) => setCcOn(e.target.checked)} />
+                  CC {ccCandidate.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>(your client)</span>
+                </label>
+              )}
               <button
                 onClick={() => { void handleSend(confirmResend); }}
                 disabled={isHtmlEmpty(bodyHtml) || drafting || sending}
