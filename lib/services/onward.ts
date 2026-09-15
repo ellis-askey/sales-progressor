@@ -87,6 +87,16 @@ export const NEAR_SIBLING: Partial<Record<OnwardTrackerKind, OnwardTrackerKind>>
   related_sale_buyer: "related_sale",
 };
 
+// Both-directions sibling pairing (same property, the OTHER side). Setting up one
+// side copies the tenure across so the sibling auto-sets-up: a vendor-side sibling
+// needs only tenure (fully ready), a purchaser-side sibling still needs its method.
+export const SIBLING_KIND: Record<OnwardTrackerKind, OnwardTrackerKind> = {
+  onward_purchase: "onward_purchase_seller",
+  onward_purchase_seller: "onward_purchase",
+  related_sale: "related_sale_buyer",
+  related_sale_buyer: "related_sale",
+};
+
 export type OnwardStepView = {
   code: string;
   name: string;
@@ -496,6 +506,26 @@ export async function setOnwardTypeFacts(
   if (strandedCodes.length) {
     await prisma.onwardStepConfirmation.deleteMany({
       where: { trackerId: tracker.id, milestoneCode: { in: strandedCodes } },
+    });
+  }
+
+  // Same property → copy the tenure to the sibling side so it auto-sets-up: a
+  // vendor-side sibling (tenure only) becomes fully ready with no re-confirm; a
+  // purchaser-side sibling gets its tenure pre-filled and only needs its method.
+  // Never copy purchaseType (that belongs to the buying side). Direct upsert (not
+  // a recursive setOnwardTypeFacts) so this can't loop.
+  const siblingKind = SIBLING_KIND[kind];
+  const sib = await prisma.onwardTracker.upsert({
+    where: { transactionId_kind: { transactionId, kind: siblingKind } },
+    create: { transactionId, kind: siblingKind, tenure: facts.tenure, isShareOfFreehold: facts.isShareOfFreehold },
+    update: { tenure: facts.tenure, isShareOfFreehold: facts.isShareOfFreehold },
+    include: { steps: true },
+  });
+  const sibNr = computeAutoNrCodes(sib.purchaseType, facts.tenure);
+  const sibStranded = sib.steps.filter((s) => sibNr.has(s.milestoneCode)).map((s) => s.milestoneCode);
+  if (sibStranded.length) {
+    await prisma.onwardStepConfirmation.deleteMany({
+      where: { trackerId: sib.id, milestoneCode: { in: sibStranded } },
     });
   }
 }
