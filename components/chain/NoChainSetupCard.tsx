@@ -21,13 +21,14 @@ function monthsSince(iso: string): number {
 }
 
 // Text-link action matching ViewChainButton's agent-link hover language.
-function LinkAction({ children, tone, onClick }: { children: React.ReactNode; tone: "success" | "muted"; onClick: () => void }) {
+function LinkAction({ children, tone, onClick, disabled }: { children: React.ReactNode; tone: "success" | "muted"; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className="agent-link"
-      style={{ fontSize: 13, fontWeight: 500, color: tone === "success" ? "var(--agent-success)" : "var(--agent-text-muted)" }}
+      style={{ fontSize: 13, fontWeight: 500, color: tone === "success" ? "var(--agent-success)" : "var(--agent-text-muted)", opacity: disabled ? 0.5 : 1, cursor: disabled ? "default" : "pointer" }}
     >
       {children}
     </button>
@@ -41,6 +42,7 @@ export function NoChainSetupCard({
   showAgency,
   onConfirmNoChain,
   onUndoNoChain,
+  pending = false,
 }: {
   sale: NoChainSale;
   currentUserId: string;
@@ -48,6 +50,9 @@ export function NoChainSetupCard({
   showAgency: boolean;
   onConfirmNoChain: (transactionId: string) => void;
   onUndoNoChain: (transactionId: string) => void;
+  // True while a confirm/undo for this sale is in flight — dims + locks the
+  // action link so it reads as working rather than dead.
+  pending?: boolean;
 }) {
   const agreed = saleAgreedAgo(sale.createdAt);
   const agencyName = showAgency ? sale.agencyName : null;
@@ -118,17 +123,17 @@ export function NoChainSetupCard({
                 <CheckCircle size={16} weight="fill" aria-hidden />
                 No chain
               </span>
-              <LinkAction tone="muted" onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</LinkAction>
+              <LinkAction tone="muted" disabled={pending} onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</LinkAction>
             </>
           ) : sale.noChainRequired ? (
             <>
-              <LinkAction tone="success" onClick={() => onConfirmNoChain(sale.transactionId)}>Confirm no chain</LinkAction>
+              <LinkAction tone="success" disabled={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>Confirm no chain</LinkAction>
               <ViewChainButton transactionId={sale.transactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} label="Set up chain" />
             </>
           ) : (
             <>
               <ViewChainButton transactionId={sale.transactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} label="Set up chain" />
-              <LinkAction tone="muted" onClick={() => onConfirmNoChain(sale.transactionId)}>No chain</LinkAction>
+              <LinkAction tone="muted" disabled={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>No chain</LinkAction>
             </>
           )}
         </div>

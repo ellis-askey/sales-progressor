@@ -277,9 +277,16 @@ export function ChainsWorkspace({
   const router = useRouter();
   const { toast } = useAgentToast();
 
+  // Optimistic local copy of the no-chain sales so confirm/undo can move a card
+  // between tabs (and retint the counts) instantly, then reconcile when the
+  // server data lands via router.refresh(). Reverts on a failed save.
+  const [noChainLocal, setNoChainLocal] = useState(noChain);
+  useEffect(() => { setNoChainLocal(noChain); }, [noChain]);
+  const [pendingNoChainId, setPendingNoChainId] = useState<string | null>(null);
+
   // Split the no-chain sales into the unresolved queue and the confirmed set.
-  const needsSetupAll = useMemo(() => noChain.filter((s) => !isConfirmedNoChain(s)), [noChain]);
-  const noChainAll = useMemo(() => noChain.filter((s) => isConfirmedNoChain(s)), [noChain]);
+  const needsSetupAll = useMemo(() => noChainLocal.filter((s) => !isConfirmedNoChain(s)), [noChainLocal]);
+  const noChainAll = useMemo(() => noChainLocal.filter((s) => isConfirmedNoChain(s)), [noChainLocal]);
 
   const [tab, setTab] = useState<Tab>(chains.length === 0 && needsSetupAll.length > 0 ? "needs" : "chains");
   const [query, setQuery] = useState("");
@@ -293,21 +300,31 @@ export function ChainsWorkspace({
   const showAgency = isInternalStaff(currentUserRole);
 
   function handleConfirmNoChain(id: string) {
+    const prev = noChainLocal;
+    setPendingNoChainId(id);
+    // Optimistically move the sale into the "No chain" set.
+    setNoChainLocal((list) => list.map((s) => s.transactionId === id ? { ...s, noChainConfirmedAt: new Date().toISOString(), resurfaced: false } : s));
     confirmNoChainAction(id)
       .then(() => { toast.success("Marked as no chain"); router.refresh(); })
-      .catch(() => toast.error("Couldn't update that sale"));
+      .catch(() => { setNoChainLocal(prev); toast.error("Couldn't update that sale"); })
+      .finally(() => setPendingNoChainId(null));
   }
   function handleUndoNoChain(id: string) {
+    const prev = noChainLocal;
+    setPendingNoChainId(id);
+    // Optimistically drop it back into the setup queue.
+    setNoChainLocal((list) => list.map((s) => s.transactionId === id ? { ...s, noChainConfirmedAt: null } : s));
     undoNoChainAction(id)
       .then(() => { toast.success("Back in the setup queue"); router.refresh(); })
-      .catch(() => toast.error("Couldn't update that sale"));
+      .catch(() => { setNoChainLocal(prev); toast.error("Couldn't update that sale"); })
+      .finally(() => setPendingNoChainId(null));
   }
 
   // Summary figures — derived, never hard-coded.
   const filesInChains = useMemo(() => chains.reduce((n, c) => n + c.ourFileCount, 0), [chains]);
   const agentsToInvite = useMemo(() => chains.reduce((n, c) => n + c.needsInviteCount, 0), [chains]);
   const chainsWithInvites = useMemo(() => chains.filter((c) => c.needsInviteCount > 0).length, [chains]);
-  const activeSales = filesInChains + noChain.length;
+  const activeSales = filesInChains + noChainLocal.length;
 
   const q = query.trim().toLowerCase();
 
@@ -537,6 +554,7 @@ export function ChainsWorkspace({
                 showAgency={showAgency}
                 onConfirmNoChain={handleConfirmNoChain}
                 onUndoNoChain={handleUndoNoChain}
+                pending={pendingNoChainId === s.transactionId}
               />
             ))}
           </div>
