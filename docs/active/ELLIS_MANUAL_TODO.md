@@ -33,6 +33,45 @@ Can't be verified properly until such a chain exists in real use. Flag anything 
 
 ---
 
+## Gmail one-click — start Google verification NOW (2026-09-15, runs in parallel with the IMAP build)
+
+Gmail's one-click "Sign in with Google" needs the `gmail.readonly` scope, which Google treats as a **restricted scope**. Using it with external agents requires Google's OAuth **app verification + a paid annual third-party CASA security assessment** (typically weeks-to-months, and costs money). This runs in the background; the IMAP connector I'm building makes Gmail work immediately in the meantime, so this is not blocking — but the sooner you start, the sooner the nicer one-click path can land.
+
+Steps to start now (Google Cloud Console, on the company Google account):
+1. Create/select a Google Cloud **project** (e.g. "Sales Progressor").
+2. **Enable the Gmail API** (APIs & Services → Library → Gmail API → Enable).
+3. **OAuth consent screen**: User type **External**; app name "Sales Progressor"; support email; app logo; app homepage `https://thesalesprogressor.co.uk`; **privacy policy URL** `https://portal.thesalesprogressor.co.uk/privacy`; authorized domain `thesalesprogressor.co.uk`.
+4. Add scope: `https://www.googleapis.com/auth/gmail.readonly` (restricted).
+5. Add yourself as a **test user** (lets us test before verification passes).
+6. **Credentials → Create OAuth client ID → Web application.** Authorized redirect URI: `https://portal.thesalesprogressor.co.uk/api/integrations/gmail/callback` (I'll confirm/adjust the exact path when I build the Gmail phase). Save the Client ID + Secret for later (env vars `GMAIL_OAUTH_CLIENT_ID` / `GMAIL_OAUTH_CLIENT_SECRET`, TBC).
+7. **Submit for verification** and expect Google to require: a demo video, scope justification, and a **CASA assessment** via an approved assessor. Our Privacy Policy must state that use of Google user data complies with the **Google API Services User Data Policy, including the Limited Use requirements** (I'll make sure the policy wording is right before submission).
+
+Note: none of this is needed for Outlook (already live) or the IMAP connector (Gmail via app-password, no Google review).
+
+---
+
+## WhatsApp GO-LIVE runbook (2026-09-15) — code is done + pushed, this is pure ops
+
+Make WhatsApp 100% live (all code is on master + prod; only config/deploy remains):
+
+Shared secret (same value in Railway + Vercel): `c260e401170fad40bae934eaa49329ced7d90bb723318b0857409b0fa8a68bc6`
+
+1. **Railway** → deploy this repo, **Root Directory `whatsapp-bridge`**. Add a **Volume at `/data`**. Variables:
+   - `PWA_INGEST_URL=https://portal.thesalesprogressor.co.uk/api/integrations/whatsapp/ingest`
+   - `WHATSAPP_BRIDGE_SECRET=<shared secret>`
+   - `AUTH_DIR=/data/auth`, `QUEUE_DIR=/data/queue`
+   - `NPM_CONFIG_PRODUCTION=false` (gotcha-guard: bridge runs via `tsx`, a devDependency; without this Railway skips it and boot fails)
+   - Leave `BRIDGE_CONTROL_SECRET` UNSET (falls back to the bridge secret; the app only knows `WHATSAPP_BRIDGE_SECRET`).
+   - Generate a public domain; verify `<url>/health` returns `{"status":"ok"}`.
+2. **Vercel prod** → add `WHATSAPP_BRIDGE_URL=<railway domain, no trailing slash/path>` + `WHATSAPP_BRIDGE_SECRET=<shared secret>` → **redeploy**.
+3. **Command Centre → Agencies → WhatsApp** → toggle the agency's capture on.
+4. Agent: **Account → Connections → WhatsApp** → consent → Show QR → scan (Linked Devices).
+5. Verify: message in a "Sale of {address}" group matching a live file → appears on that file's Activity tab.
+
+Optional: internal WhatsApp Business number links via `<railway url>/pair?key=<secret>` (idle until scanned).
+
+---
+
 ## WhatsApp agent-facing Phase 2 — Railway persistent volume required (2026-09-14)
 
 The bridge now supports many WhatsApp connections at once (the internal number + one per agency). Each connection's login is stored on disk under `AUTH_DIR`, with per-connection watermarks under `QUEUE_DIR`. For connections to survive a redeploy/restart, **those directories must live on a Railway persistent volume** — otherwise every agency (and the internal number) would have to re-scan a QR after each deploy.
