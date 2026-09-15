@@ -2,7 +2,7 @@
 
 import { useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
-import { CaretDown, Tag, ChatCircle, Paperclip } from "@phosphor-icons/react";
+import { CaretDown, Tag, ChatCircle, Paperclip, Bell } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
@@ -49,7 +49,7 @@ function exchangeLabel(iso: string | null): string | null {
   return `about ${weeks} week${weeks === 1 ? "" : "s"} to exchange`;
 }
 
-export type UpdateKind = "milestone" | "price" | "note" | "reply" | "document";
+export type UpdateKind = "milestone" | "price" | "note" | "reply" | "document" | "notification";
 export type UpdateWho = "agent" | "client" | "helper" | "solicitor";
 export type UpdateSide = "vendor" | "purchaser" | null;
 
@@ -60,7 +60,8 @@ export type UpdateRow =
   | (RowBase & { kind: "price"; oldPrice: number | null; newPrice: number; reason: string | null; byName: string | null })
   | (RowBase & { kind: "note"; content: string; byName: string | null; byImage: string | null })
   | (RowBase & { kind: "reply"; content: string })
-  | (RowBase & { kind: "document"; filename: string; mimeType: string; docUrl: string | null; byName: string | null });
+  | (RowBase & { kind: "document"; filename: string; mimeType: string; docUrl: string | null; byName: string | null })
+  | (RowBase & { kind: "notification"; sentence: string; pill: string | null });
 
 export type TxGroup = {
   transactionId: string;
@@ -113,6 +114,7 @@ function Leading({ u }: { u: UpdateRow }) {
   }
   if (u.kind === "price") return <KindBadge><Tag size={14} weight="regular" /></KindBadge>;
   if (u.kind === "reply") return <KindBadge><ChatCircle size={14} weight="regular" /></KindBadge>;
+  if (u.kind === "notification") return <KindBadge><Bell size={14} weight="regular" /></KindBadge>;
   return <KindBadge><Paperclip size={14} weight="regular" /></KindBadge>;
 }
 
@@ -137,6 +139,8 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
   } else if (u.kind === "reply") {
     main = "A solicitor replied to our chase";
     secondary = u.content?.trim() || null;
+  } else if (u.kind === "notification") {
+    main = u.sentence;
   } else {
     // document
     const label = `${u.byName ?? "Your team"} uploaded ${u.filename}`;
@@ -154,6 +158,9 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
         <p className="text-[13px] font-medium" style={{ color: primary, lineHeight: 1.4 }}>{main}</p>
         {u.kind === "note" && (
           <p className="text-[10.5px]" style={{ color: muted, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Shared with client</p>
+        )}
+        {u.kind === "notification" && u.pill && (
+          <p className="text-[10.5px]" style={{ color: muted, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{u.pill}</p>
         )}
         {secondary && (
           <p className="text-[12px]" style={{ color: muted, marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -243,6 +250,7 @@ const TYPE_OPTIONS: { key: UpdateKind; label: string }[] = [
   { key: "note", label: "Notes" },
   { key: "reply", label: "Replies" },
   { key: "document", label: "Docs" },
+  { key: "notification", label: "Alerts" },
 ];
 const WHO_OPTIONS: { key: UpdateWho; label: string }[] = [
   { key: "agent", label: "Us" },

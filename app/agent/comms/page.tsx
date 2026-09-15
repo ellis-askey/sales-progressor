@@ -45,6 +45,8 @@ function toRow(e: UpdateFeedEntry, signed: Map<string, string>): UpdateRow {
       return { ...base, kind: "reply", content: e.content };
     case "document":
       return { ...base, kind: "document", filename: e.filename, mimeType: e.mimeType, docUrl: e.storagePath ? signed.get(e.storagePath) ?? null : null, byName: e.byName };
+    case "notification":
+      return { ...base, kind: "notification", sentence: e.sentence, pill: e.pill };
   }
 }
 

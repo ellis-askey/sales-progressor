@@ -2,42 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { confirmationSentence, bellNotificationSentence, resolveConfirmer } from "@/lib/updates-copy";
+import { confirmationSentence, bellNotificationSentence, resolveConfirmer, BELL_NOTIFICATION_TYPES, pillLabelForType } from "@/lib/updates-copy";
 import { prisma } from "@/lib/prisma";
 
-// Non-milestone notification types the bell surfaces ("more than just
-// confirmations"): a client added their chain agent (#16), set an expected
-// date, or left a note on a chase reply. Strict allowlist so the legacy
-// Notification backlog doesn't flood the bell; scoped to the caller's userId.
-const BELL_NOTIFICATION_TYPES = [
-  "portal_chain_agent_updated",
-  "portal_expected_date_set",
-  "portal_chase_note",
-  "portal_chases_paused",
-  // Enquiries rework: surface the tracker's 3-week "stalled" escalation, the
-  // raise-chase "still not raised" escalation, and a solicitor leaving an
-  // enquiries update, so self-managed (agent-owned) files see them in the bell.
-  "enquiries_stalled",
-  "enquiries_raise_stalled",
-  "solicitor_update",
-  // Broker card: a buyer asked their agency's own broker to call back (needs
-  // the agent to pass it on), and the delivery-failed safety net. Both carry a
-  // pre-rendered body the sentence builder falls back to.
-  "broker_callback_requested",
-  "broker_callback_bounced",
-  // Tier-1 automation: a client's mortgage offer is nearing (or past) expiry.
-  "mortgage_offer_expiring",
-];
-
-// The small pill shown on a bell item, per notification type. "Paused" for a
-// chase pause; "Stalled" for the enquiries escalation; "Update" otherwise.
-function pillLabelForType(type: string): string {
-  if (type === "portal_chases_paused") return "Paused";
-  if (type === "enquiries_stalled" || type === "enquiries_raise_stalled") return "Stalled";
-  if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
-  if (type === "mortgage_offer_expiring") return "Expiring";
-  return "Update";
-}
+// BELL_NOTIFICATION_TYPES + pillLabelForType now live in lib/updates-copy so the
+// Updates feed can share the same allowlist and stay a superset of the bell.
 
 // Bell feed = the same "completed step" activity shown on the Updates page
 // (/agent/comms), scoped through the canonical visibility resolver so every

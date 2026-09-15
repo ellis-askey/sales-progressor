@@ -3,7 +3,7 @@ import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
-import { confirmationSentence, resolveConfirmer } from "@/lib/updates-copy";
+import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
@@ -354,6 +354,10 @@ export type UpdateFeedEntry = {
   | { kind: "note"; content: string; byName: string | null; byImage: string | null }
   | { kind: "reply"; content: string }
   | { kind: "document"; documentId: string; filename: string; mimeType: string; storagePath: string; byName: string | null }
+  // Non-confirmation alerts (the same allowlist the bell surfaces), so the
+  // Updates page is a superset of the bell rather than a dead-end for the item
+  // that alerted you.
+  | { kind: "notification"; sentence: string; pill: string | null }
 );
 
 const FEED_TX_SELECT = {
@@ -549,6 +553,31 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       // admin) carry the uploading user. Null only for legacy rows predating
       // the uploadedBy column — the feed shows a generic label then.
       byName: d.contact?.name ?? d.uploadedBy?.name ?? null,
+    });
+  }
+
+  // Alerts: the same allowlisted notifications the bell shows THIS user, so the
+  // Updates page is a superset of the bell. Scoped to vis.userId (the recipient)
+  // exactly like the bell route, so no cross-tenant leak. Only file-tied ones
+  // appear here (the feed is grouped by file).
+  const notifRows = await prisma.notification.findMany({
+    where: { userId: vis.userId, type: { in: BELL_NOTIFICATION_TYPES }, transactionId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { transaction: { select: FEED_TX_SELECT } },
+  });
+  for (const n of notifRows) {
+    if (!n.transaction) continue;
+    const payload = (n.payload ?? {}) as Record<string, unknown>;
+    entries.push({
+      kind: "notification",
+      id: n.id,
+      at: n.createdAt,
+      who: "client",
+      side: null,
+      transaction: n.transaction,
+      sentence: bellNotificationSentence(n.type, payload),
+      pill: pillLabelForType(n.type),
     });
   }
 

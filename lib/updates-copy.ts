@@ -460,3 +460,29 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
   // portal_chain_agent_updated + others carry a pre-rendered body/title.
   return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");
 }
+
+// The non-confirmation notification types the agent bell surfaces. Shared with
+// the Updates feed so "View all updates" always contains whatever pinged the
+// bell (the bell stays the curated recent view; Updates is the full list).
+export const BELL_NOTIFICATION_TYPES = [
+  "portal_chain_agent_updated",
+  "portal_expected_date_set",
+  "portal_chase_note",
+  "portal_chases_paused",
+  "enquiries_stalled",
+  "enquiries_raise_stalled",
+  "solicitor_update",
+  "broker_callback_requested",
+  "broker_callback_bounced",
+  "mortgage_offer_expiring",
+];
+
+// The small pill shown on a bell/feed item, per notification type. "Paused" for
+// a chase pause; "Stalled" for the enquiries escalation; "Update" otherwise.
+export function pillLabelForType(type: string): string {
+  if (type === "portal_chases_paused") return "Paused";
+  if (type === "enquiries_stalled" || type === "enquiries_raise_stalled") return "Stalled";
+  if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
+  if (type === "mortgage_offer_expiring") return "Expiring";
+  return "Update";
+}
