@@ -16,8 +16,10 @@ export function ExperimentActions({
 }) {
   const [pending, startTransition] = useTransition();
   const [concluding, setConcluding] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>("win");
   const [note, setNote] = useState("");
+  const [abandonReason, setAbandonReason] = useState("");
 
   if (status === "proposed") {
     return (
@@ -67,6 +69,33 @@ export function ExperimentActions({
       );
     }
 
+    if (abandoning) {
+      return (
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            value={abandonReason}
+            onChange={(e) => setAbandonReason(e.target.value)}
+            placeholder="Reason for abandoning…"
+            autoFocus
+            className="text-xs bg-neutral-800 text-neutral-200 border border-neutral-700 rounded px-2 py-1 w-48 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500"
+          />
+          <button
+            disabled={pending || !abandonReason.trim()}
+            onClick={() => startTransition(() => abandonExperimentAction(experimentId, abandonReason.trim()))}
+            className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-300 border border-neutral-700 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+          >
+            {pending ? "…" : "Confirm"}
+          </button>
+          <button
+            onClick={() => { setAbandoning(false); setAbandonReason(""); }}
+            className="text-xs px-2 py-1 text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center gap-1.5">
         <button
@@ -77,12 +106,7 @@ export function ExperimentActions({
         </button>
         <button
           disabled={pending}
-          onClick={() => {
-            const reason = window.prompt("Reason for abandoning?");
-            if (reason?.trim()) {
-              startTransition(() => abandonExperimentAction(experimentId, reason.trim()));
-            }
-          }}
+          onClick={() => setAbandoning(true)}
           className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-400 hover:bg-neutral-700 transition-colors disabled:opacity-40"
         >
           Abandon
