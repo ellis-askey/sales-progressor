@@ -339,3 +339,61 @@ export async function sendNeighbourChase(input: {
 
   return { ok: true, toEmail: target.neighbourAgentEmail };
 }
+
+// "Open in my email" handoff: the agent will send from their own mail client, so
+// we DON'T send — we just record it as chased (AgentEmailLog + stamp
+// lastAgentChasedAt) and hand the recipient/subject/body back for the mailto. Same
+// dedup guard as the real send. Mirrors the ChaseDrawer "Open in my email" path,
+// which logs on faith and opens the agent's inbox.
+export async function logNeighbourChaseHandoff(input: {
+  transactionId: string;
+  direction: NeighbourChaseDirection;
+  subject: string;
+  bodyText: string;
+  user: ChaseSender;
+  force?: boolean;
+}): Promise<SendNeighbourResult> {
+  const bodyText = input.bodyText.trim();
+  if (!bodyText) return { ok: false, reason: "empty_body" };
+
+  const resolved = await resolveNeighbourChaseTarget(input.transactionId, input.direction);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+
+  if (
+    !input.force &&
+    target.lastChasedAt &&
+    Date.now() - new Date(target.lastChasedAt).getTime() < RESEND_WINDOW_MS
+  ) {
+    return { ok: false, reason: "recently_chased", lastChasedAt: target.lastChasedAt };
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { agencyId: true },
+  });
+  const subject = input.subject.trim() || `Quick update on ${target.neighbourAddress ?? "the chain"}?`;
+
+  // Log it as chased (handed to the agent's own email), without app-sending.
+  await prisma.agentEmailLog
+    .create({
+      data: {
+        toEmail: target.neighbourAgentEmail,
+        userId: input.user.id,
+        agencyId: tx?.agencyId ?? null,
+        transactionId: input.transactionId,
+        kind: "chain_neighbour_chase",
+        subject,
+        text: bodyText,
+        html: null,
+        meta: { chainLinkId: target.chainLinkId, direction: input.direction, viaOwnEmail: true },
+      },
+    })
+    .catch(() => {}); // logging is best-effort; the stamp below is what gates dedup
+
+  await prisma.chainLink
+    .update({ where: { id: target.chainLinkId }, data: { lastAgentChasedAt: new Date() } })
+    .catch(() => {});
+
+  return { ok: true, toEmail: target.neighbourAgentEmail };
+}

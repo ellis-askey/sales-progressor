@@ -7,6 +7,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
+import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
@@ -161,13 +162,6 @@ async function fileToAttachment(file: File): Promise<{ content: string; filename
   return { content: base64, filename: file.name, type: file.type || "application/octet-stream" };
 }
 
-// "a" / "a and b" / "a, b and c" — for the signature-completion nudge.
-function formatList(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
-  if (items.length === 2) return `${items[0]} and ${items[1]}`;
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
 export function ChaseDrawer({
   chaseTaskId,
   transactionId,
@@ -318,31 +312,8 @@ export function ChaseDrawer({
   const { toast } = useAgentToast();
   const [generatedContext, setGeneratedContext] = useState<{ primaryContact: { name: string; role: string } | null } | null>(null);
 
-  // White-label sign-off we append when we send it. Fetched once so the agent
-  // sees exactly how the email signs off, plus any pieces still to fill in.
-  const [signature, setSignature] = useState<{ html: string; missing: string[]; mode?: string; name?: string | null } | null>(null);
   // Collapsible "which steps" list for a Chase all (animates open/closed).
   const [stepsOpen, setStepsOpen] = useState(false);
-  useEffect(() => {
-    let active = true;
-    const load = () => {
-      fetch(`/api/chase/signature-preview?transactionId=${transactionId}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (active && d) setSignature(d); })
-        .catch(() => {});
-    };
-    load();
-    // Refetch when the agent comes back to this tab (e.g. after editing their
-    // profile in another tab) so the sign-off updates without a manual refresh.
-    const onReturn = () => { if (document.visibilityState !== "hidden") load(); };
-    window.addEventListener("focus", onReturn);
-    document.addEventListener("visibilitychange", onReturn);
-    return () => {
-      active = false;
-      window.removeEventListener("focus", onReturn);
-      document.removeEventListener("visibilitychange", onReturn);
-    };
-  }, [transactionId]);
 
   // Channel crossfade — displayChannel lags channel by 120ms so content fades
   // out before swapping. Channel buttons update immediately (driven by channel).
@@ -1266,31 +1237,9 @@ export function ChaseDrawer({
             )}
 
             {/* Rendered sign-off, shown inline once there's a message so the
-                compose reads like the email that actually goes out. The
-                signature HTML brings its own top divider + spacing. The
-                "Open in my email" path uses the agent's own client signature. */}
-            {channel === "email" && signature && !isHtmlEmpty(message) && (
-              <div>
-                {/* Rendered on white regardless of drawer theme — it's a preview
-                    of the email, which is always light. */}
-                <div style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, padding: "4px 16px 14px", overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: signature.html }} />
-                <p style={{ margin: "12px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-                  Your signature is added when you send. Open in my email uses your own email app&rsquo;s signature instead.
-                </p>
-                {/* Finish-your-signature nudge — only for the BASIC fallback
-                    signature (IMAGE / CUSTOM have nothing to complete). */}
-                {signature.mode === "BASIC" && (() => {
-                  const personal = signature.missing.filter((m) => m !== "agency logo");
-                  if (personal.length === 0) return null;
-                  return (
-                    <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-                      Add your {formatList(personal)} to finish your signature.{" "}
-                      <a href="/agent/account/profile" target="_blank" rel="noreferrer" style={{ color: "var(--agent-coral-deep)", fontWeight: 600 }}>Update profile</a>
-                    </p>
-                  );
-                })()}
-              </div>
-            )}
+                compose reads like the email that actually goes out. Shared with
+                the neighbour-chase drawer so the preview is identical. */}
+            <ChaseSignaturePreview transactionId={transactionId} visible={channel === "email" && !isHtmlEmpty(message)} />
           </div>
 
           {/* Scroll-fade — the compose area is often taller than the drawer, so

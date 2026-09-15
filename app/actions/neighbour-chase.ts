@@ -13,6 +13,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   draftNeighbourChase,
   sendNeighbourChase,
+  logNeighbourChaseHandoff,
   type NeighbourChaseDirection,
   type DraftNeighbourResult,
   type SendNeighbourResult,
@@ -54,6 +55,32 @@ export async function sendNeighbourChaseAction(input: {
     direction: input.direction,
     subject: input.subject,
     bodyHtml: input.bodyHtml,
+    bodyText: input.bodyText,
+    force: input.force,
+    user: {
+      id: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      role: session.user.role,
+      agencyId: session.user.agencyId,
+    },
+  });
+}
+
+// "Open in my email" — record the chase (logged, not app-sent) and hand back the
+// recipient so the drawer can open the agent's own mail client via mailto.
+export async function openNeighbourChaseInEmailAction(input: {
+  transactionId: string;
+  direction: NeighbourChaseDirection;
+  subject: string;
+  bodyText: string;
+  force?: boolean;
+}): Promise<SendNeighbourResult> {
+  const { session } = await requireTxInScope(input.transactionId);
+  return logNeighbourChaseHandoff({
+    transactionId: input.transactionId,
+    direction: input.direction,
+    subject: input.subject,
     bodyText: input.bodyText,
     force: input.force,
     user: {
