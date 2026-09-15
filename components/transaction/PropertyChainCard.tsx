@@ -66,6 +66,18 @@ function LockCircle() {
   );
 }
 
+// Settled marker for a sale confirmed chain-free — a calm check, not the lock
+// nag, so a resolved "no onward purchase" reads as done rather than pending.
+function FreeCircle() {
+  return (
+    <span className="cx2-free" aria-hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </span>
+  );
+}
+
 export function PropertyChainCard({
   transactionId,
   thisSaleAddress,
@@ -76,6 +88,7 @@ export function PropertyChainCard({
   onward,
   related,
   showRelated,
+  noChainConfirmed = false,
 }: {
   transactionId: string;
   thisSaleAddress: string;
@@ -87,12 +100,23 @@ export function PropertyChainCard({
   onward: Side;
   related: Side;
   showRelated: boolean;
+  // The sale was marked "No chain" on the Chains page (noChainNeededAt set).
+  // Lets the onward slot read as settled chain-free instead of a setup nag.
+  noChainConfirmed?: boolean;
 }) {
   const { setActiveTab } = useTabContext();
   const [focus, setFocus] = useState<FocusKey>("current");
   const [farSide, setFarSide] = useState<{ onward: boolean; related: boolean }>({ onward: false, related: false });
   const [learnOpen, setLearnOpen] = useState(false);
+  const [reopenedOnward, setReopenedOnward] = useState(false);
   const here = splitAddr(thisSaleAddress);
+
+  // A sale confirmed chain-free on the Chains page has no onward purchase, so the
+  // onward slot reads as settled rather than nagging to set up — unless a tracker
+  // already exists, the client has since signalled they're buying on, or the
+  // agent has clicked through here to reopen setup.
+  const onwardChainFree =
+    noChainConfirmed && !reopenedOnward && !onward.view.exists && !onward.signalActive;
 
   function selectFocus(k: FocusKey) { setFocus(k); }
   function keyActivate(e: React.KeyboardEvent, k: FocusKey) {
@@ -111,6 +135,7 @@ export function PropertyChainCard({
 
     let visual: React.ReactNode;
     let statusText: string;
+    let linkTitle = addr.title || (isOnward ? "Onward purchase" : "Related sale");
     if (isCurrent) {
       visual = <Ring pct={currentPercent ?? 0} tone="coral" />;
       statusText = currentSubtext;
@@ -119,6 +144,10 @@ export function PropertyChainCard({
         ? Math.round((side!.view.completeCount / side!.view.applicableCount) * 100) : 0;
       visual = <Ring pct={pct} tone={isOnward ? "coral" : "blue"} />;
       statusText = `Tracking ${side!.view.completeCount}/${side!.view.applicableCount}`;
+    } else if (isOnward && onwardChainFree) {
+      visual = <FreeCircle />;
+      statusText = "No onward purchase";
+      linkTitle = "Chain-free";
     } else {
       visual = <LockCircle />;
       statusText = "Not tracked";
@@ -146,7 +175,7 @@ export function PropertyChainCard({
             {isCurrent
               ? <span className="cx2-badge">Current sale</span>
               : <span className="cx2-kicker">{kicker}</span>}
-            <span className="cx2-linktitle">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</span>
+            <span className="cx2-linktitle">{linkTitle}</span>
             <span className="cx2-linkstat">{statusText}</span>
           </span>
           {visual}
@@ -189,6 +218,29 @@ export function PropertyChainCard({
     const nearLabel = isOnward ? "Buyer's steps" : "Seller's steps";
     const farLabel = isOnward ? "Seller's steps" : "Buyer's steps";
     const farDirection: "onward_seller" | "related_buyer" = isOnward ? "onward_seller" : "related_buyer";
+
+    // Settled chain-free onward: this sale was marked "No chain" on the Chains
+    // page, so instead of the setup prompt we confirm the decision and offer a
+    // quiet way back in. Clicking through reveals the normal setup; actually
+    // opening the tracker clears the No-chain flag server-side (openOnwardTracker).
+    if (isOnward && onwardChainFree) {
+      return (
+        <div className="cx2-focus">
+          <div className="cx2-focus-hd">
+            <div style={{ minWidth: 0 }}>
+              <div className="cx2-fkicker">Onward purchase</div>
+              <div className="cx2-ftitle">Chain-free</div>
+              <div className="cx2-faddr">
+                You confirmed this seller isn&rsquo;t buying another property, so there&rsquo;s no onward purchase to track.
+              </div>
+            </div>
+          </div>
+          <button type="button" className="agent-link cx2-reopen" onClick={() => setReopenedOnward(true)}>
+            They&rsquo;re buying onward after all<LinkArrow style={{ marginLeft: 0 }} />
+          </button>
+        </div>
+      );
+    }
 
     return (
       <div className="cx2-focus">
@@ -314,6 +366,9 @@ export function PropertyChainCard({
         .cx2-ring{flex-shrink:0}
         .cx2-lock{width:46px;height:46px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
           border-radius:50%;border:1.5px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75)}
+        .cx2-free{width:46px;height:46px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+          border-radius:50%;border:1.5px solid rgba(255,255,255,0.45);color:#fff}
+        .cx2-reopen{margin-top:12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
         /* Filled coral badge so the current-sale marker stays visible on any frost */
         .cx2-badge{align-self:flex-start;display:inline-flex;align-items:center;font-size:9.5px;font-weight:800;
           letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;color:#fff;margin-bottom:3px;

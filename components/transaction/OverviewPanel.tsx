@@ -82,6 +82,7 @@ type Props = {
     completionDate: Date | null;
     clientEmailsPaused: boolean;
     chainLinkId?: string | null;
+    noChainNeededAt?: Date | null;
     referredFirmId: string | null;
     referralFee: number | null;
     holdPeriods: Array<{ startedAt: Date; endedAt: Date | null }>;
@@ -553,6 +554,7 @@ export async function OverviewPanel({
         onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
         related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}
+        noChainConfirmed={transaction.noChainNeededAt != null}
       />
 
       <ActivityNotesCard

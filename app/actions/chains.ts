@@ -27,6 +27,9 @@ export async function confirmNoChainAction(transactionId: string): Promise<void>
   });
   await logActivity(transactionId, `${session.user.name} confirmed no chain is needed.`, session.user.id);
   revalidatePath("/agent/chains");
+  // The file's Overview chain card reads this flag too — keep an open file tab in sync.
+  revalidatePath(`/agent/transactions/${transactionId}`, "page");
+  revalidatePath(`/transactions/${transactionId}`, "page");
 }
 
 // Undo — put the sale back in the setup queue.
@@ -46,4 +49,7 @@ export async function undoNoChainAction(transactionId: string): Promise<void> {
   });
   await logActivity(transactionId, `${session.user.name} reopened the sale for chain setup.`, session.user.id);
   revalidatePath("/agent/chains");
+  // The file's Overview chain card reads this flag too — keep an open file tab in sync.
+  revalidatePath(`/agent/transactions/${transactionId}`, "page");
+  revalidatePath(`/transactions/${transactionId}`, "page");
 }

@@ -31,6 +31,19 @@ function revalidateTx(id: string) {
   revalidatePath(`/agent/transactions/${id}`, "page");
 }
 
+// Setting up an onward PURCHASE means the seller IS buying another property, so
+// this sale is no longer "chain-free". Clear any No-chain confirmation from the
+// Chains page (noChainNeededAt) so the two surfaces can't contradict each other.
+// Guarded updateMany → a no-op write when the flag isn't set. Only the onward
+// actions call this; the related-sale actions concern the buyer's own sale.
+async function clearNoChainFlag(transactionId: string) {
+  const { count } = await prisma.propertyTransaction.updateMany({
+    where: { id: transactionId, noChainNeededAt: { not: null } },
+    data: { noChainNeededAt: null, noChainNeededById: null },
+  });
+  if (count > 0) revalidatePath("/agent/chains");
+}
+
 // Ownership gate. Throws if the transaction is out of the caller's scope.
 async function requireTxInScope(transactionId: string) {
   const session = await requireSession();
@@ -51,6 +64,7 @@ export async function getOnwardTrackerViewAction(transactionId: string): Promise
 export async function openOnwardTrackerAction(transactionId: string): Promise<OnwardTrackerView> {
   await requireTxInScope(transactionId);
   await openOnwardTracker(transactionId);
+  await clearNoChainFlag(transactionId);
   revalidateTx(transactionId);
   return getOnwardTrackerView(transactionId);
 }
@@ -67,6 +81,7 @@ export async function setOnwardTypeFactsAction(input: {
     purchaseType: input.purchaseType,
     isShareOfFreehold: input.isShareOfFreehold,
   });
+  await clearNoChainFlag(input.transactionId);
   revalidateTx(input.transactionId);
   return getOnwardTrackerView(input.transactionId);
 }
