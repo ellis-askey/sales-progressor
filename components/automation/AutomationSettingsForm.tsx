@@ -7,9 +7,10 @@
 // Live "Effect" line computed client-side: chase 1 on day {grace},
 // chase 2 on day {grace + repeat}, escalate after that.
 //
-// Submit calls updateAgencyChasePolicy. Settings edits are forward-only —
-// in-flight transactions keep their chaseRuleSnapshot. New transactions
-// pick up the updated ReminderRule values via buildChaseRuleSnapshot.
+// Submit calls updateAgencyChasePolicy, which stores this agency's own
+// overrides. Settings edits are forward-only: in-flight transactions keep their
+// chaseRuleSnapshot; new self-managed files pick up this agency's timings via
+// buildChaseRuleSnapshot (outsourced files always use the platform default).
 
 import { useState, useTransition } from "react";
 import { updateAgencyChasePolicy } from "@/app/actions/automation";
@@ -37,6 +38,14 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Baseline = the last saved state. Dirty-tracking against it lets us disable
+  // Save when nothing has changed and drop the "Saved at" note the moment the
+  // user starts editing again (so the label never lies).
+  const [baselineEnabled, setBaselineEnabled] = useState(initialChaseEmailsEnabled);
+  const [baselineRules, setBaselineRules] = useState<RuleRow[]>(initialRules);
+  const dirty =
+    chaseEmailsEnabled !== baselineEnabled ||
+    JSON.stringify(rules) !== JSON.stringify(baselineRules);
 
   function updateRule(idx: number, patch: Partial<RuleRow>) {
     setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -54,6 +63,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         })),
       });
       if (result.ok) {
+        // Rebase so the form reads clean until the next edit.
+        setBaselineEnabled(chaseEmailsEnabled);
+        setBaselineRules(rules);
         setSavedAt(new Date());
       } else {
         setError(result.error);
@@ -120,20 +132,24 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         <div className="text-sm">
           {error ? (
             <span className="text-red-700">{error}</span>
+          ) : dirty ? (
+            <span className="text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
+              Changes are not saved until you click Save.
+            </span>
           ) : savedAt ? (
             <span className="text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
               Saved at {savedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.
             </span>
           ) : (
             <span className="text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
-              Changes are not saved until you click Save.
+              No unsaved changes.
             </span>
           )}
         </div>
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={isPending}
+          disabled={isPending || !dirty}
           className="px-4 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: "#FF6B4A" }}
         >
