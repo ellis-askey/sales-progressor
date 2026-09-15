@@ -312,6 +312,7 @@ model User {
   pricingAcknowledgements       PricingAcknowledgement[]
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
   outlookConnections            OutlookConnection[]
+  imapConnections               ImapConnection[]
   agentEmailLogs                AgentEmailLog[]
   whatsAppConnections           WhatsAppConnection[]
 }
@@ -2662,6 +2663,40 @@ model OutlookConnection {
   // a different mailbox adds a new row.
   @@unique([userId, microsoftUserId])
   @@index([microsoftUserId])
+}
+
+// A mailbox connected over IMAP with an app-password. Covers Gmail, Yahoo,
+// custom-domain and any other IMAP provider — the connectors that don't (yet)
+// have a one-click OAuth path. Feeds the same provider-neutral match + ingest
+// core as Outlook (lib/integrations/mail/*). The password is an app-password
+// (not the account password) and is stored encrypted, same scheme as the Outlook
+// tokens (lib/security/token-crypto), never logged, never sent to the client.
+model ImapConnection {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Mailbox identity + where to reach it.
+  email       String // login / address, shown in the UI
+  displayName String?
+  provider    String  @default("imap") // "gmail" | "outlook" | "yahoo" | "icloud" | "imap"
+  host        String
+  port        Int     @default(993)
+  secure      Boolean @default(true) // implicit TLS (993); false = STARTTLS (143)
+
+  // Encrypted app-password (iv:tag:ciphertext hex). Never logged or returned.
+  encryptedPassword String
+
+  // Operational state for the UI + cron.
+  lastSyncedAt DateTime?
+  lastError    String? // last sync/login failure, for a helpful "reconnect" nudge
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One row per (user, mailbox): reconnecting the same mailbox updates it.
+  @@unique([userId, email])
+  @@index([userId])
 }
 
 // ── WhatsApp integration ─────────────────────────────────────────────────────
