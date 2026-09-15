@@ -36,6 +36,9 @@ type ChainDrawerProps = {
     editingLink?: EditingLinkData,
     forkFromLinkId?: string,
     aboveOfLinkId?: string,
+    // Insert-between: slot a new sale at a specific interior position beside an
+    // anchor link, rather than a column top or the chain ends.
+    insertBetween?: { anchorLinkId: string; placement: "above" | "below" },
   ) => void;
   declineNotification?: { address: string; at: string } | null;
   refreshKey?: number;
@@ -627,10 +630,24 @@ export function ChainDrawer({
       );
     }
     if (onwards.length === 1) {
+      // Offer insert-between only when the single onward is the sale stacked
+      // directly above in the SAME ladder (a true adjacent pair). When it's a
+      // fork (a different branch), "between" is ambiguous — the connector there
+      // is a fork relationship, not an insertion point.
+      const upperInSameLadder = (onwards[0].branchKey ?? "") === (link.branchKey ?? "");
+      const canInsertHere =
+        !!onOpenAddNode &&
+        (isInternal || canAddAbove(link, currentUserId, currentUserRole));
       return (
         <div key={link.id}>
           {renderNode(onwards[0], chainId)}
-          <ChainConnector />
+          <ChainConnector
+            onInsert={
+              canInsertHere && upperInSameLadder
+                ? () => onOpenAddNode?.("above", chainId, undefined, undefined, undefined, { anchorLinkId: link.id, placement: "above" })
+                : undefined
+            }
+          />
           {card}
         </div>
       );

@@ -51,6 +51,10 @@ type Props = {
   // When set, this adds a sale at the TOP of that link's column (the spine or a
   // branch) — "add above" scoped to one ladder rather than the whole chain.
   aboveOfLinkId?: string;
+  // When set, this inserts a sale at a specific interior position beside an anchor
+  // link (between two existing links) rather than at a column top or the ends.
+  // Stub-only (self-linking your own file between two links isn't supported yet).
+  insertBetween?: { anchorLinkId: string; placement: "above" | "below" };
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
@@ -178,6 +182,7 @@ export function AddNodeDrawer({
   editingLink,
   forkFromLinkId,
   aboveOfLinkId,
+  insertBetween,
   onSaveToMemory,
   onClose,
   onSaved,
@@ -232,7 +237,7 @@ export function AddNodeDrawer({
   // Add mode: a hand-typed placeholder ("stub") or one of your own live files
   // ("own"). Self-linking only makes sense on an existing chain (there's an API
   // to hit) and never while editing an existing link.
-  const canSelfLink = isExistingChain && !isEditMode;
+  const canSelfLink = isExistingChain && !isEditMode && !insertBetween;
   const [mode, setMode] = useState<"stub" | "own">("stub");
   const [fileQuery, setFileQuery] = useState("");
   const [fileResults, setFileResults] = useState<{ id: string; propertyAddress: string }[]>([]);
@@ -357,13 +362,16 @@ export function AddNodeDrawer({
         method: isEditMode ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Three add shapes: a branch (extra onward, forkFromLinkId), a
-          // column-top add (aboveOfLinkId), or a plain spine above/below stub.
-          ...(isBranch
-            ? { forkFromLinkId }
-            : aboveOfLinkId
-              ? { aboveOfLinkId }
-              : { direction }),
+          // Four add shapes: insert-between (betweenAnchorLinkId), a branch (extra
+          // onward, forkFromLinkId), a column-top add (aboveOfLinkId), or a plain
+          // spine above/below stub.
+          ...(insertBetween
+            ? { betweenAnchorLinkId: insertBetween.anchorLinkId, betweenPlacement: insertBetween.placement }
+            : isBranch
+              ? { forkFromLinkId }
+              : aboveOfLinkId
+                ? { aboveOfLinkId }
+                : { direction }),
           stubPropertyAddress: stubPropertyAddress.trim(),
           stubAgencyName: form.stubAgencyName.trim(),
           stubAgentName: form.stubAgentName.trim() || null,
@@ -392,6 +400,8 @@ export function AddNodeDrawer({
 
   const title = isEditMode
     ? "Edit sale"
+    : insertBetween
+    ? "Insert sale between"
     : isBranch
     ? "Add another onward purchase"
     : direction === "above"
@@ -402,6 +412,8 @@ export function AddNodeDrawer({
     ? "Add to chain"
     : isEditMode
     ? "Save changes"
+    : insertBetween
+    ? "Save and insert"
     : isBranch
     ? "Save onward purchase"
     : direction === "above"
@@ -412,8 +424,9 @@ export function AddNodeDrawer({
   // required stub fields in stub mode.
   const canSubmit = mode === "own" ? !!selectedFile : requiredFilled;
 
-  const propertyDesc =
-    direction === "above"
+  const propertyDesc = insertBetween
+    ? "Add the property that sits between these two sales in the chain."
+    : direction === "above"
       ? "Add the property that sits above this sale in the chain."
       : "Add the property that sits below this sale in the chain.";
 

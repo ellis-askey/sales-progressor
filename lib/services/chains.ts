@@ -1224,6 +1224,68 @@ export async function addAboveLink(input: {
   return { ok: true, chain: (await getChainV2(chainId))! };
 }
 
+// Insert a sale directly between two adjacent links in one ladder. Unlike
+// addAboveLink (which drops a sale at the TOP of a whole column), this slots a new
+// link at a specific interior position: every link at or below the insert point
+// shifts down one and the new sale takes the gap. `placement` says which side of
+// the anchor to land on — "above" inserts at the anchor's own position (pushing the
+// anchor and everything below it down); "below" inserts just beneath the anchor.
+// Works on the spine (branchKey "") or any branch ladder. This is what lets you
+// slot a discovered middle link in without deleting and re-adding the ends.
+export async function insertLinkAdjacent(input: {
+  chainId: string;
+  userId: string;
+  anchorLinkId: string;
+  placement: "above" | "below";
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+}): Promise<{ ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" }> {
+  const { chainId, userId, anchorLinkId, placement, ...stub } = input;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const anchor = await tx.chainLink.findFirst({
+      where: { id: anchorLinkId, chainId },
+      select: { id: true, branchKey: true, position: true },
+    });
+    if (!anchor) return { ok: false as const, reason: "not_found" as const };
+
+    const ladderKey = anchor.branchKey ?? "";
+    const insertPos = placement === "above" ? anchor.position : anchor.position + 1;
+
+    // Shift every link at or below the insert point down one. Highest position
+    // first so no single update ever collides on the
+    // @@unique([chainId, branchKey, position]) index (same pattern as addChainLink).
+    const toShift = await tx.chainLink.findMany({
+      where: { chainId, branchKey: ladderKey, position: { gte: insertPos } },
+      orderBy: { position: "desc" },
+    });
+    for (const link of toShift) {
+      await tx.chainLink.update({
+        where: { id: link.id },
+        data: { position: link.position + 1 },
+      });
+    }
+
+    await tx.chainLink.create({
+      data: {
+        chainId,
+        branchKey: ladderKey,
+        position: insertPos,
+        createdByUserId: userId,
+        ...stubFields(stub),
+      },
+    });
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  return { ok: true, chain: (await getChainV2(chainId))! };
+}
+
 // Add an extra onward purchase (a branch) above a sale. The first onward is a
 // normal spine link ("add sale above"); the 2nd/3rd are branches that fork from
 // the same node. Each branch is its own ladder (unique branchKey), starting at

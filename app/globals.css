@@ -1254,6 +1254,21 @@ select {
 .chain-connector { width: 2px; height: 16px; margin-left: 52px;
   background: linear-gradient(var(--agent-border-strong), transparent); }
 
+/* Insert-between affordance: a "+" that fades in on the connector line so a sale
+   can be slotted between the two cards it joins. Hidden until hover/focus. */
+.chain-connector-wrap { position: relative; height: 16px; }
+.chain-connector-insert { position: absolute; left: 53px; top: 50%;
+  transform: translate(-50%, -50%); width: 18px; height: 18px; padding: 0;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 14px; line-height: 1; font-weight: 600; color: var(--agent-text-muted);
+  background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-default);
+  opacity: 0; cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease; }
+.chain-connector-wrap:hover .chain-connector-insert { opacity: 1; }
+.chain-connector-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint); }
+.chain-connector-insert:focus-visible { opacity: 1; outline: none;
+  box-shadow: var(--agent-focus-ring-tight); }
+
 .chain-card { display: flex; gap: 13px; padding: 12px;
   background: var(--agent-surface-elevated);
   border: 1px solid var(--agent-border-default); border-radius: 14px;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getChainV2, addChainLink, addChainBranch, addAboveLink, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
+import { getChainV2, addChainLink, addChainBranch, addAboveLink, insertLinkAdjacent, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { prisma } from "@/lib/prisma";
@@ -32,6 +32,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     direction?: "above" | "below";
     forkFromLinkId?: string;
     aboveOfLinkId?: string;
+    // Insert-between mode: slot a new sale at a specific interior position next to
+    // an anchor link (not at a column top). placement says which side.
+    betweenAnchorLinkId?: string;
+    betweenPlacement?: "above" | "below";
     // Self-link mode: drop one of the caller's OWN files in as a claimed node
     // instead of a hand-typed stub. Mutually exclusive with the stub fields.
     linkTransactionId?: string;
@@ -171,6 +175,40 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
     }
     return NextResponse.json({ chain: aboveResult.chain, inviteSent: false }, { status: 201 });
+  }
+
+  // Insert-between mode: slot a stub at a specific interior position beside an
+  // anchor link. Placement drives the permission (above → canAddAbove on the
+  // anchor, below → canAddBelow) and the position the new link lands on. Stub-only
+  // for now — self-linking your own file between two links isn't supported yet.
+  if (body.betweenAnchorLinkId) {
+    const anchor = chain.links.find((l) => l.id === body.betweenAnchorLinkId);
+    if (!anchor) {
+      return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+    }
+    const placement = body.betweenPlacement === "below" ? "below" : "above";
+    const permitted = placement === "above"
+      ? canAddAbove(anchor, session.user.id, session.user.role)
+      : canAddBelow(anchor, session.user.id, session.user.role);
+    if (!permitted) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const insertResult = await insertLinkAdjacent({
+      chainId,
+      userId: session.user.id,
+      anchorLinkId: body.betweenAnchorLinkId,
+      placement,
+      stubPropertyAddress: normaliseAddressString(body.stubPropertyAddress),
+      stubAgencyName: body.stubAgencyName,
+      stubAgentEmail: body.stubAgentEmail ?? null,
+      stubAgentName: body.stubAgentName ?? null,
+      stubAgentPhone: body.stubAgentPhone ?? null,
+      stubNotes: body.stubNotes ?? null,
+    });
+    if (!insertResult.ok) {
+      return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+    }
+    return NextResponse.json({ chain: insertResult.chain, inviteSent: false }, { status: 201 });
   }
 
   if (!body.direction) {

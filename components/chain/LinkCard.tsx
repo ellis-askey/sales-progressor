@@ -994,7 +994,23 @@ export function LinkCard({
   );
 }
 
-// Connector visual between chain cards
-export function ChainConnector() {
-  return <div className="chain-connector" aria-hidden />;
+// Connector visual between chain cards. When onInsert is passed, a small "+"
+// affordance appears on hover so a sale can be slotted between the two cards this
+// connector joins — tucked away on the line, not a full-width button.
+export function ChainConnector({ onInsert }: { onInsert?: () => void }) {
+  if (!onInsert) return <div className="chain-connector" aria-hidden />;
+  return (
+    <div className="chain-connector-wrap">
+      <div className="chain-connector" aria-hidden />
+      <button
+        type="button"
+        onClick={onInsert}
+        className="chain-connector-insert"
+        aria-label="Insert a sale here"
+        title="Insert a sale here"
+      >
+        +
+      </button>
+    </div>
+  );
 }
