@@ -5,7 +5,7 @@
 // Direction C (approved 2026-09-15, see the redesign artifact): the outer card
 // is the normal agent card; inside, the chain reads as three small photo cards
 // — related sale (left) · this sale (middle) · onward purchase (right) — each
-// with its content on a deep-frost glass inset (GlassCard, default v08) so the
+// with its content on a thin-glass inset (GlassCard, default v04) so the
 // property photo shows through. Tapping a card focuses it; the focus panel below
 // shows that link's detail. Every link's tracker reuses OnwardPurchaseCard
 // (Law 4) so nothing behavioural is lost: set-up, steps, confirm, chase agent,
@@ -141,7 +141,7 @@ export function PropertyChainCard({
           <span className="cx2-bg property-photo-fallback" aria-hidden />
         )}
         <span className="cx2-scrim" aria-hidden />
-        <GlassCard glassId="chain-link-frost" label="Chain link · frost inset" defaultVariant="v08" className="cx2-frost">
+        <GlassCard glassId="chain-link-frost" label="Chain link · frost inset" defaultVariant="v04" className="cx2-frost">
           <span className="cx2-txt">
             {isCurrent
               ? <span className="cx2-badge">Current sale</span>
@@ -299,7 +299,7 @@ export function PropertyChainCard({
         .cx2-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;display:block}
         .cx2-scrim{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(16,20,28,0.20),rgba(16,20,28,0.52))}
 
-        /* Frost inset (GlassCard v08 deep frost default) — light text over the photo */
+        /* Frost inset (GlassCard v04 thin-glass default) — light text over the photo */
         .cx2-frost{position:absolute;inset:10px;border-radius:11px;display:flex;align-items:center;justify-content:center;
           gap:12px;padding:0 13px;overflow:hidden}
         .cx2-txt{min-width:0;text-align:left;display:flex;flex-direction:column;gap:2px}

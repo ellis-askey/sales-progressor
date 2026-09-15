@@ -19,7 +19,7 @@
 // Everything is labelled "reported" and never leaves our side.
 // Spec: docs/active/onward-visibility/00-discovery.md + docs/active/related-sale/00-spec.md.
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -215,7 +215,14 @@ export function OnwardPurchaseCard({
   }
 
   const [view, setView] = useState<OnwardTrackerView>(initialView);
-  const [pending, startTransition] = useTransition();
+  // Manual pending flag (not useTransition): the onward actions call
+  // revalidateTx, which re-renders the heavy Overview panel. A transition would
+  // stay pending until that whole re-render settled — the spinner would hang
+  // for seconds and the deferred commit would appear to wipe in-progress picks.
+  // The card already updates from the value each action returns (setView), so
+  // the spinner should end the moment the write resolves; the revalidate then
+  // refreshes the rest of the page in the background.
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Type-facts form state (used when not yet set / editing). Far sides pre-fill
@@ -245,14 +252,17 @@ export function OnwardPurchaseCard({
 
   function run(fn: () => Promise<OnwardTrackerView>) {
     setError(null);
-    startTransition(async () => {
+    setPending(true);
+    (async () => {
       try {
         const next = await fn();
         setView(next);
       } catch {
         setError("Something went wrong. Try again.");
+      } finally {
+        setPending(false);
       }
-    });
+    })();
   }
 
   // Wrap a state's body in the right shell: bare div when embedded (the spine
