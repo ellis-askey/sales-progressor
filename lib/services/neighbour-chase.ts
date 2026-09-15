@@ -74,12 +74,27 @@ export type ResolveNeighbourResult =
   | { ok: true; target: NeighbourChaseTarget }
   | { ok: false; reason: NeighbourChaseReason };
 
-// Resolve the stub neighbour to chase for this file + direction, plus the next
-// outstanding far-side step. Scope-agnostic — the caller guards access first.
-export async function resolveNeighbourChaseTarget(
+type NeighbourStubLink = {
+  id: string;
+  chainId: string;
+  transactionId: string | null;
+  stubAgentName: string | null;
+  stubAgentEmail: string | null;
+  stubPropertyAddress: string | null;
+  lastAgentChasedAt: Date | null;
+};
+
+type FindStubResult =
+  | { ok: true; link: NeighbourStubLink }
+  | { ok: false; reason: "no_chain" | "no_neighbour" | "claimed" };
+
+// Find the unclaimed stub neighbour one up (onward) / one down (related) in our
+// own ladder. Shared by the chase resolver (needs the email) and the "add the
+// agent's details" setter (needs the link, email absent). Scope-agnostic.
+async function findNeighbourStubLink(
   transactionId: string,
   direction: NeighbourChaseDirection,
-): Promise<ResolveNeighbourResult> {
+): Promise<FindStubResult> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: { chainLinkId: true },
@@ -92,7 +107,6 @@ export async function resolveNeighbourChaseTarget(
   });
   if (!ownLink) return { ok: false, reason: "no_chain" };
 
-  // The neighbour in our OWN ladder: one up (onward) or one down (related).
   const neighbourPos = direction === "onward" ? ownLink.position - 1 : ownLink.position + 1;
   const neighbour = await prisma.chainLink.findFirst({
     where: { chainId: ownLink.chainId, branchKey: ownLink.branchKey ?? "", position: neighbourPos },
@@ -110,6 +124,18 @@ export async function resolveNeighbourChaseTarget(
   // Only stub (not-yet-joined) neighbours: a claimed link is another agency on
   // the platform getting their own reminders, not someone we cold-email.
   if (neighbour.transactionId !== null) return { ok: false, reason: "claimed" };
+  return { ok: true, link: neighbour };
+}
+
+// Resolve the stub neighbour to chase for this file + direction, plus the next
+// outstanding far-side step. Scope-agnostic — the caller guards access first.
+export async function resolveNeighbourChaseTarget(
+  transactionId: string,
+  direction: NeighbourChaseDirection,
+): Promise<ResolveNeighbourResult> {
+  const found = await findNeighbourStubLink(transactionId, direction);
+  if (!found.ok) return { ok: false, reason: found.reason };
+  const neighbour = found.link;
   if (!neighbour.stubAgentEmail) return { ok: false, reason: "no_email" };
 
   const view = await getOnwardTrackerView(transactionId, FAR_KIND[direction]);
@@ -130,6 +156,30 @@ export async function resolveNeighbourChaseTarget(
       lastChasedAt: neighbour.lastAgentChasedAt,
     },
   };
+}
+
+export type SetNeighbourAgentResult =
+  | { ok: true; neighbourAddress: string | null }
+  | { ok: false; reason: "no_chain" | "no_neighbour" | "claimed" | "invalid_email" };
+
+// Save the neighbour agent's name + email onto the chain stub above/below, so a
+// chase can go out and the details are remembered next time. Used by the inline
+// "add the agent's details" entry when we don't have their email yet.
+export async function setNeighbourAgent(
+  transactionId: string,
+  direction: NeighbourChaseDirection,
+  name: string,
+  email: string,
+): Promise<SetNeighbourAgentResult> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (!cleanEmail.includes("@")) return { ok: false, reason: "invalid_email" };
+  const found = await findNeighbourStubLink(transactionId, direction);
+  if (!found.ok) return { ok: false, reason: found.reason };
+  await prisma.chainLink.update({
+    where: { id: found.link.id },
+    data: { stubAgentName: name.trim() || found.link.stubAgentName, stubAgentEmail: cleanEmail },
+  });
+  return { ok: true, neighbourAddress: found.link.stubPropertyAddress };
 }
 
 // Strip em/en dashes so one never reaches a recipient (mirrors generate-chase).

@@ -14,9 +14,11 @@ import {
   draftNeighbourChase,
   sendNeighbourChase,
   logNeighbourChaseHandoff,
+  setNeighbourAgent,
   type NeighbourChaseDirection,
   type DraftNeighbourResult,
   type SendNeighbourResult,
+  type SetNeighbourAgentResult,
 } from "@/lib/services/neighbour-chase";
 
 // Ownership gate. Throws if the transaction is out of the caller's scope.
@@ -29,6 +31,19 @@ async function requireTxInScope(transactionId: string) {
   });
   if (!tx) throw new Error("Transaction not found");
   return { session };
+}
+
+// Save the neighbour agent's name + email onto the chain stub above/below, so
+// the chase can go out and we remember them. Used by the drawer's inline "add
+// the agent's details" entry when we don't have their email yet.
+export async function setNeighbourAgentAction(input: {
+  transactionId: string;
+  direction: NeighbourChaseDirection;
+  name: string;
+  email: string;
+}): Promise<SetNeighbourAgentResult> {
+  await requireTxInScope(input.transactionId);
+  return setNeighbourAgent(input.transactionId, input.direction, input.name, input.email);
 }
 
 export async function draftNeighbourChaseAction(input: {
