@@ -472,7 +472,7 @@ function AnimatedCheckbox({
 
 export function ContactsSection({
   transactionId,
-  contacts,
+  contacts: contactsProp,
   address = "",
   portalViewDates = {},
   automatedEmailCounts = {},
@@ -524,6 +524,15 @@ export function ContactsSection({
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+
+  // Optimistic local copy of the contacts list (mirrors SolicitorSection).
+  // Add / edit / remove reflect in the card instantly instead of waiting on
+  // the server round-trip; the list then reconciles when the fresh server
+  // data lands via the action's revalidateTx (the useEffect re-syncs it). On a
+  // failed save we revert to the pre-change snapshot and surface an error, so
+  // the row can never keep showing a value the save didn't actually persist.
+  const [contacts, setContacts] = useState(contactsProp);
+  useEffect(() => { setContacts(contactsProp); }, [contactsProp]);
 
   // Intro call: internal-team-only. Launched per client card from the kebab
   // menu; the drawer scopes to that contact's side (vendor -> seller sections,
@@ -631,11 +640,27 @@ export function ContactsSection({
     const isHelper = (form.roleType === "vendor" || form.roleType === "purchaser") && form.isHelper;
     const snap = { propertyTransactionId: transactionId, name: titleCaseKeepAcronyms(form.name), email: form.email.trim().toLowerCase() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true };
     const formSnap = { ...form };
+    // Optimistically add the row so it appears the instant Add is pressed. The
+    // temp id is replaced by the real record when the server data re-syncs.
+    const prevContacts = contacts;
+    const optimistic: Contact = {
+      id: `temp-${Date.now()}`,
+      name: snap.name,
+      phone: snap.phone,
+      email: snap.email,
+      roleType: snap.roleType,
+      portalToken: null,
+      createdAt: new Date(),
+      isPrincipal: snap.isPrincipal,
+      portalEligible: snap.portalEligible,
+    };
+    setContacts((list) => [...list, optimistic]);
     startTransition(async () => {
       try {
         await createContactAction(snap);
         setForm(EMPTY_FORM);
       } catch (err: unknown) {
+        setContacts(prevContacts); // pull the optimistic row back out on failure
         setForm(formSnap);
         setError(describeContactError(err));
         setShowForm(true);
@@ -684,6 +709,22 @@ export function ContactsSection({
       isPrincipal: canHelper ? !isHelper : undefined,
       portalEligible: isHelper ? editForm.givePortal : undefined,
     };
+    // Optimistically apply the edit to the collapsed row straight away.
+    const prevContacts = contacts;
+    setContacts((list) =>
+      list.map((c) =>
+        c.id === contactId
+          ? {
+              ...c,
+              name: snap.name,
+              phone: snap.phone,
+              email: snap.email,
+              ...(snap.isPrincipal !== undefined ? { isPrincipal: snap.isPrincipal } : {}),
+              ...(snap.portalEligible !== undefined ? { portalEligible: snap.portalEligible } : {}),
+            }
+          : c,
+      ),
+    );
     startTransition(async () => {
       try {
         await updateContactAction(snap);
@@ -696,6 +737,7 @@ export function ContactsSection({
           setExitingId(null);
         }, 150);
       } catch (err: unknown) {
+        setContacts(prevContacts); // revert the optimistic edit on failure
         setEditError(describeContactError(err));
       } finally {
         setEditSaving(false);
@@ -711,10 +753,16 @@ export function ContactsSection({
     if (!confirmDelete) return;
     const contactId = confirmDelete.id;
     setDeleting(true);
+    // Optimistically pull the row out; put it back if the removal fails.
+    const prevContacts = contacts;
+    setContacts((list) => list.filter((c) => c.id !== contactId));
     startTransition(async () => {
       try {
         await deleteContactAction(contactId, transactionId);
         setConfirmDelete(null);
+      } catch {
+        setContacts(prevContacts);
+        toast.error("Couldn't remove that contact");
       } finally {
         setDeleting(false);
       }
