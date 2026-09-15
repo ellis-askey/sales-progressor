@@ -129,10 +129,18 @@ It is the inbound-request twin of the outbound neighbour-update pipeline.
   recipient kind that skips `roleType`-keyed solicitor/client branches entirely.
 
 ### What we build
-- **New recipient kind `chain_agent`** in `ChaseDrawer` (`components/chase/ChaseDrawer.tsx`),
-  sourced from the neighbour link's `stubAgentEmail` / `stubAgentName`. Reuses tone,
-  channel (email only — no WhatsApp to a cold agent), AI draft, and voice profile.
-  Skips: solicitor CC symmetry, client-Contact logging, broker logic.
+- **DECISION REVISED (Ellis 2026-09-15, after reading ChaseDrawer):** the original
+  "extend ChaseDrawer with a chain_agent recipient kind" collides with the hard
+  rule "never touch the solicitor/client chase paths" — ChaseDrawer is built around
+  a **required `chaseTaskId`** (drives `applyChaseToTask` on send), **`Contact`**
+  recipients, and the client/solicitor sender/logging. A neighbour chase has no
+  ChaseTask and a stub (not Contact) recipient, so extending it would branch the
+  send/recipient/task paths inside that machinery. Instead: a **focused
+  `ChaseNeighbourDrawer`** that REUSES the phrasing engine (the `generate-chase`
+  AI route + glossary + tone) + `ChaseComposer` + tone pills, but NOT the
+  ChaseTask/Contact/send machinery. Solicitor/client chases are untouched.
+- Recipient sourced from the neighbour link's `stubAgentEmail` / `stubAgentName`.
+  Email only (no WhatsApp to a cold agent). Reuses tone + AI draft.
 - **Ask derivation:** default to the far-side tracker's next unlocked milestone code
   → the existing glossary/derive layer phrases "please confirm whether [step] has
   happened on [address]". A dedicated small ask path (not the on-file action-holder

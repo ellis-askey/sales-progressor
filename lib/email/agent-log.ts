@@ -38,6 +38,7 @@ export type AgentEmailKind =
   | "chain_invite"
   | "chain_invite_nudge"
   | "chain_neighbour_update"
+  | "chain_neighbour_chase"
   | "milestone_agent"
   | "milestone_progressor"
   | "password_reset";
