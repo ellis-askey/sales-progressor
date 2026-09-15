@@ -875,6 +875,10 @@ export async function changeStatusAction(
   }
 
   revalidateTx(transactionId);
+  // A status change (withdraw / hold / complete) moves the file between hub
+  // buckets and All-Files tabs, so refresh those aggregate surfaces too.
+  revalidatePath("/agent/hub");
+  revalidatePath("/agent/transactions");
 }
 
 export async function savePriceAction(transactionId: string, purchasePrice: number) {

@@ -35,5 +35,11 @@ export async function updateAgencyNameAction(input: { name: string }):
   });
 
   revalidatePath("/agent/account/team", "page");
+  // The agency name is shown across every file hero and the client portal
+  // header, so revalidate those route trees too — the form's own copy promises
+  // the change is global. Route-pattern revalidation covers all files/tokens.
+  revalidatePath("/agent/transactions/[id]", "page");
+  revalidatePath("/portal/[token]", "layout");
+  revalidatePath("/s/[token]", "layout");
   return { ok: true };
 }
