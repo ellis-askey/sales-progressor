@@ -8,9 +8,10 @@
 // address split, a highlighted current-sale row with the photo + status, a
 // per-link tracking status with an inline "Set up tracking" disclosure, and a
 // footer explainer. Each link's tracker reuses OnwardPurchaseCard (Law 4); the
-// chain drawer is the passed-through ViewChainButton (`openChain`).
+// "Open chain" link routes to the file's Chain tab (setActiveTab) rather than a
+// slide-over, since on the property file the full chain lives on its own tab.
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -45,7 +46,6 @@ export function PropertyChainCard({
   onward,
   related,
   showRelated,
-  openChain,
 }: {
   transactionId: string;
   thisSaleAddress: string;
@@ -56,7 +56,6 @@ export function PropertyChainCard({
   related: Side;
   showRelated: boolean;
   // uninvitedCount kept in the caller; the nudge moved out of this card's mock.
-  openChain: ReactNode;
 }) {
   const { setActiveTab } = useTabContext();
   const [learnOpen, setLearnOpen] = useState(false);
@@ -71,7 +70,20 @@ export function PropertyChainCard({
             <h3 className="cx-heading">Property chain</h3>
             <p className="cx-sub">See how this sale fits into the chain and track the other links.</p>
           </div>
-          <div className="cx-open">{openChain}</div>
+          <div className="cx-open">
+            {/* On the property file the full chain lives on its own tab — this
+                routes there rather than opening the slide-over (off-file, the
+                Chains workspace still opens the drawer). */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("chain")}
+              className="agent-link"
+              style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
+            >
+              Open chain
+              <LinkArrow style={{ marginLeft: 0 }} />
+            </button>
+          </div>
         </div>
 
         {/* Spine */}

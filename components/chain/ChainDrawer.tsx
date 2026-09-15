@@ -21,13 +21,24 @@ import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
 
-type ChainDrawerProps = {
+// This file holds ONE chain body — `ChainView` — rendered two ways:
+//   - variant="drawer" (default): a right-hand slide-over via createPortal, used
+//     off the property file (the Chains workspace). `ChainDrawer` is the thin
+//     wrapper for that.
+//   - variant="inline": the same body rendered flat into a page, used by the
+//     Chain tab on the property file (ChainTabPanel). No portal, no backdrop, no
+//     close button, no scroll-lock.
+// One source of truth so the tab and the drawer never drift apart.
+type ChainViewProps = {
   transactionId: string;
   currentUserId: string;
   // Session role — lets internal staff (admin / superadmin / sales_progressor)
   // edit chains on outsourced files they progress but didn't originate.
   currentUserRole?: string | null;
+  // Called when the drawer chrome closes. Ignored in inline (tab) mode.
   onClose: () => void;
+  // "drawer" = portal slide-over (default). "inline" = flat page tab.
+  variant?: "drawer" | "inline";
   // forkFromLinkId set => opening the drawer to add an EXTRA onward purchase (a
   // branch) forking above that sale, rather than a normal above/below stub.
   onOpenAddNode?: (
@@ -149,15 +160,17 @@ function defaultWaitDateStr(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function ChainDrawer({
+export function ChainView({
   transactionId,
   currentUserId,
   currentUserRole,
   onClose,
+  variant = "drawer",
   onOpenAddNode,
   declineNotification,
   refreshKey = 0,
-}: ChainDrawerProps) {
+}: ChainViewProps) {
+  const inline = variant === "inline";
   const { theme, isNight } = usePortalTheme();
   // Internal staff progress files they didn't originate — they get the same
   // edit reach the server now grants (mirrors canViewChain).
@@ -171,7 +184,8 @@ export function ChainDrawer({
       closeTimer.current = setTimeout(onClose, 200);
     }
   }
-  useOverlayChrome(doClose);
+  // Inline (tab) mode must not scroll-lock the page or hijack Escape.
+  useOverlayChrome(doClose, !inline);
   const [chain, setChain] = useState<ChainV2 | null>(null);
   const [notAParticipant, setNotAParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -667,30 +681,30 @@ export function ChainDrawer({
     );
   };
 
-  return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
-      {/* Backdrop */}
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
-
-      {/* Panel */}
-      <div
-        role="dialog"
-        aria-label="Chain"
-        className="relative z-10 flex flex-col h-full"
-        style={{
-          // Scale with the widest fork so columns never bunch: linear stays
-          // narrow, a V split gets more room, a trident opens almost full width.
-          width: maxFanout >= 3 ? "min(1440px, 96vw)" : maxFanout === 2 ? "min(1120px, 96vw)" : "min(760px, 100vw)",
-          transition: "width 260ms cubic-bezier(0.25,0,0,1)",
-          background: "var(--agent-surface-elevated)",
-          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
-          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
-          animation: closing
-            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
-            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-      >
-        {/* Header */}
+  const shell = (
+    <div
+      role="dialog"
+      aria-label="Chain"
+      className={inline ? "chain-view-inline flex flex-col" : "relative z-10 flex flex-col h-full"}
+      style={
+        inline
+          ? undefined
+          : {
+              // Scale with the widest fork so columns never bunch: linear stays
+              // narrow, a V split gets more room, a trident opens almost full width.
+              width: maxFanout >= 3 ? "min(1440px, 96vw)" : maxFanout === 2 ? "min(1120px, 96vw)" : "min(760px, 100vw)",
+              transition: "width 260ms cubic-bezier(0.25,0,0,1)",
+              background: "var(--agent-surface-elevated)",
+              borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+              boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
+              animation: closing
+                ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+                : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
+            }
+      }
+    >
+      {/* Header — drawer chrome only; the property-file tab has its own heading. */}
+      {!inline && (
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <SheetBandHeader
@@ -716,6 +730,7 @@ export function ChainDrawer({
             <X size={14} weight="bold" />
           </button>
         </div>
+      )}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -1079,8 +1094,32 @@ export function ChainDrawer({
             </button>
           </div>
         )}
+    </div>
+  );
+
+  // Inline (tab) mode: render the body flat, no portal / backdrop / scroll-lock.
+  if (inline) {
+    return (
+      <div data-theme={theme} data-night={isNight ? "" : undefined}>
+        {shell}
       </div>
+    );
+  }
+
+  // Drawer mode: the same body inside a right-hand slide-over.
+  return createPortal(
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
+      {/* Backdrop */}
+      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
+      {shell}
     </div>,
     document.body,
   );
+}
+
+// Thin wrapper: the chain body as a right-hand slide-over. Used off the property
+// file (the Chains workspace, via ViewChainButton). On the property file itself
+// the chain lives on its own tab through ChainTabPanel (ChainView variant="inline").
+export function ChainDrawer(props: Omit<ChainViewProps, "variant">) {
+  return <ChainView {...props} variant="drawer" />;
 }

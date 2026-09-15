@@ -34,7 +34,6 @@ import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
-import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { PropertyChainCard } from "@/components/transaction/PropertyChainCard";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
@@ -180,7 +179,6 @@ export async function OverviewPanel({
     lastContactedByContactId,
     linkSentByContactId,
     brokerRow,
-    currentUserNotifications,
   ] = await Promise.all([
     prisma.propertyTransaction
       .findUnique({
@@ -227,11 +225,6 @@ export async function OverviewPanel({
         onwardBrokerFirm: { select: { id: true, name: true } },
         onwardBrokerContact: { select: { id: true, name: true } },
       },
-    }).catch(() => null),
-
-    prisma.user.findUnique({
-      where: { id: currentUserId },
-      select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
     }).catch(() => null),
   ]);
 
@@ -556,22 +549,6 @@ export async function OverviewPanel({
         onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
         related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
         showRelated={relatedView.exists || relatedSignal.selling}
-        openChain={
-          <ViewChainButton
-            transactionId={transaction.id}
-            currentUserId={currentUserId}
-            currentUserRole={currentUserRole}
-            declineNotification={
-              currentUserNotifications?.chainDeclineNotificationAddress &&
-              currentUserNotifications?.chainDeclineNotificationAt
-                ? {
-                    address: currentUserNotifications.chainDeclineNotificationAddress,
-                    at: currentUserNotifications.chainDeclineNotificationAt.toISOString(),
-                  }
-                : null
-            }
-          />
-        }
       />
 
       <ActivityNotesCard

@@ -1251,6 +1251,10 @@ select {
 .chain-side  { display: flex; flex-direction: column; gap: 12px; }
 @media (max-width: 720px) { .chain-dbody { grid-template-columns: 1fr; } }
 
+/* ChainView rendered inline (the property-file Chain tab) rather than as a
+   slide-over — full width, no drawer chrome. */
+.chain-view-inline { width: 100%; }
+
 .chain-connector { width: 2px; height: 16px; margin-left: 52px;
   background: linear-gradient(var(--agent-border-strong), transparent); }
 

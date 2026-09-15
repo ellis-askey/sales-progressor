@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
-import type { AddNodeSavedResult, EditingLinkData } from "@/components/chain/AddNodeDrawer";
-import { useAgentToast } from "@/components/agent/AgentToaster";
+import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type Props = {
@@ -20,48 +18,7 @@ type Props = {
 
 export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification, label }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const router = useRouter();
-  const [addNode, setAddNode] = useState<{
-    direction: "above" | "below";
-    chainId: string;
-    editingLink?: EditingLinkData;
-    forkFromLinkId?: string;
-    aboveOfLinkId?: string;
-    insertBetween?: { anchorLinkId: string; placement: "above" | "below" };
-  } | null>(null);
-  const { toast } = useAgentToast();
-
-  function handleOpenAddNode(
-    direction: "above" | "below",
-    chainId: string,
-    link?: EditingLinkData,
-    forkFromLinkId?: string,
-    aboveOfLinkId?: string,
-    insertBetween?: { anchorLinkId: string; placement: "above" | "below" },
-  ) {
-    setAddNode({ direction, chainId, editingLink: link, forkFromLinkId, aboveOfLinkId, insertBetween });
-  }
-
-  function handleCloseAddNode() {
-    setAddNode(null);
-  }
-
-  function handleNodeSaved(result?: AddNodeSavedResult) {
-    setAddNode(null);
-    setRefreshKey((k) => k + 1);
-    // Also refresh the surrounding server surface (the chains workspace counts
-    // and tab membership, or the file page) — adding/editing a node otherwise
-    // only refetches the drawer. The AddNode save goes through an /api/chains
-    // route handler, which can't revalidate on its own.
-    router.refresh();
-    if (!result) return;
-    if (result.kind === "edited") {
-      toast.success("Sale updated");
-    } else {
-      toast.success(result.inviteSent ? "Sale added · Invite sent" : "Sale added");
-    }
-  }
+  const { addNode, openAddNode, closeAddNode, onNodeSaved, refreshKey } = useChainAddNode();
 
   return (
     <>
@@ -80,7 +37,7 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           onClose={() => setDrawerOpen(false)}
-          onOpenAddNode={handleOpenAddNode}
+          onOpenAddNode={openAddNode}
           declineNotification={declineNotification}
           refreshKey={refreshKey}
         />
@@ -95,8 +52,8 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
           forkFromLinkId={addNode.forkFromLinkId}
           aboveOfLinkId={addNode.aboveOfLinkId}
           insertBetween={addNode.insertBetween}
-          onClose={handleCloseAddNode}
-          onSaved={handleNodeSaved}
+          onClose={closeAddNode}
+          onSaved={onNodeSaved}
         />
       )}
     </>

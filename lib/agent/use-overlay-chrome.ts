@@ -24,12 +24,17 @@
 
 import { useEffect, useRef } from "react";
 
-export function useOverlayChrome(onClose: () => void): void {
+// `enabled` lets a component that renders the same body both as a portal overlay
+// AND inline (e.g. ChainView as a drawer vs a page tab) skip the overlay
+// behaviours when inline — a tab must never scroll-lock the page or hijack Escape.
+// Defaults to true so every existing single-arg caller is unchanged.
+export function useOverlayChrome(onClose: () => void, enabled: boolean = true): void {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
 
     const prevOverflow = document.body.style.overflow;
@@ -48,5 +53,5 @@ export function useOverlayChrome(onClose: () => void): void {
       document.body.style.overflow = prevOverflow;
       previouslyFocused.current?.focus?.();
     };
-  }, []);
+  }, [enabled]);
 }

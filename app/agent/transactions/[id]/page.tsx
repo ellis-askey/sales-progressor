@@ -61,6 +61,7 @@ import { PerfOverlay } from "@/components/debug/PerfOverlay";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
+import { ChainTabLoader } from "@/components/transaction/ChainTabLoader";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
@@ -301,6 +302,7 @@ export default async function AgentTransactionDetailPage({
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
     { key: "milestones", label: "Steps", icon: "steps" },
+    { key: "chain",      label: "Chain", icon: "chain" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
     ...(showChaseTimeline ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
@@ -590,7 +592,17 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
 
-        {/* Tab 2: Reminders */}
+        {/* Tab 2: Chain — the chain on its own tab (ChainView inline). Off the
+            file, the Chains workspace opens the same view as a slide-over. */}
+        <Suspense fallback={<TabPanelSkeleton rows={5} />}>
+          <ChainTabLoader
+            transactionId={transaction.id}
+            currentUserId={session.user.id}
+            currentUserRole={session.user.role}
+          />
+        </Suspense>
+
+        {/* Tab 3: Reminders */}
         <Suspense fallback={<TabPanelSkeleton rows={4} />}>
           <RemindersPanel
             transactionId={transaction.id}
