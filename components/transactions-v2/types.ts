@@ -1,5 +1,7 @@
 // Shared types for the new-sale flow (transactions-v2)
 
+import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
+
 export type MemoSource = "extracted" | "failed" | "not_on_memos" | null;
 
 export type MemoSources = {
@@ -64,6 +66,13 @@ export type DraftEntry = {
   purchaserSolicitor: SolicitorSelection | null;
   referredFirmId: string | null;
   referralFee: number | null;
+  // Buyer's broker + the seller's onward broker, restored on draft resume.
+  broker: BrokerSelection | null;
+  brokerReferralFee: number | null;
+  purchaserBrokerReferral: boolean;
+  onwardBroker: BrokerSelection | null;
+  onwardBrokerReferralFee: number | null;
+  onwardBrokerReferral: boolean;
   mosStoragePath: string | null;
   mosFileSize: number | null;
   mosMimeType: string | null;

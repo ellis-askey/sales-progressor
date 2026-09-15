@@ -1599,6 +1599,11 @@ export async function saveDraftAction(data: {
   brokerFirmId?: string | null;
   brokerContactId?: string | null;
   brokerReferralFee?: number | null;
+  purchaserBrokerReferral?: boolean;
+  onwardBrokerFirmId?: string | null;
+  onwardBrokerContactId?: string | null;
+  onwardBrokerReferralFee?: number | null;
+  onwardBrokerReferral?: boolean;
   mosStoragePath?: string | null;
   mosFileSize?: number | null;
   mosMimeType?: string | null;
@@ -1642,6 +1647,11 @@ export async function saveDraftAction(data: {
     brokerFirmId: data.brokerFirmId ?? null,
     brokerContactId: data.brokerContactId ?? null,
     brokerReferralFee: data.brokerReferralFee ?? null,
+    purchaserBrokerReferral: data.purchaserBrokerReferral ?? false,
+    onwardBrokerFirmId: data.onwardBrokerFirmId ?? null,
+    onwardBrokerContactId: data.onwardBrokerContactId ?? null,
+    onwardBrokerReferralFee: data.onwardBrokerReferralFee ?? null,
+    onwardBrokerReferral: data.onwardBrokerReferral ?? false,
   };
 
   async function saveMosDocument(transactionId: string) {

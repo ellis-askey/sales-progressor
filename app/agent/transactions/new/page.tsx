@@ -126,6 +126,12 @@ export default async function AgentNewSaleV2Page() {
         purchaserSolicitorFirm: { select: { name: true } },
         purchaserSolicitorContact: { select: { name: true, phone: true, email: true } },
         referredFirmId: true, referralFee: true,
+        brokerFirmId: true, brokerContactId: true, brokerReferralFee: true, purchaserBrokerReferral: true,
+        brokerFirm: { select: { name: true } },
+        brokerContact: { select: { name: true, phone: true, email: true } },
+        onwardBrokerFirmId: true, onwardBrokerContactId: true, onwardBrokerReferralFee: true, onwardBrokerReferral: true,
+        onwardBrokerFirm: { select: { name: true } },
+        onwardBrokerContact: { select: { name: true, phone: true, email: true } },
         progressedBy: true,
         contacts: { select: { name: true, phone: true, email: true, roleType: true } },
         documents: { where: { source: "mos" }, select: { storagePath: true, fileSize: true, mimeType: true, filename: true }, take: 1 },
@@ -169,6 +175,12 @@ export default async function AgentNewSaleV2Page() {
       const purchaserSol = r.purchaserSolicitorFirmId && r.purchaserSolicitorFirm
         ? { firmId: r.purchaserSolicitorFirmId, firmName: r.purchaserSolicitorFirm.name, contactId: r.purchaserSolicitorContactId ?? null, contactName: r.purchaserSolicitorContact?.name ?? null, phone: r.purchaserSolicitorContact?.phone ?? null, email: r.purchaserSolicitorContact?.email ?? null }
         : null;
+      const buyerBroker = r.brokerFirmId && r.brokerFirm
+        ? { firmId: r.brokerFirmId, firmName: r.brokerFirm.name, contactId: r.brokerContactId ?? null, contactName: r.brokerContact?.name ?? null, phone: r.brokerContact?.phone ?? null, email: r.brokerContact?.email ?? null }
+        : null;
+      const onwardBrokerSel = r.onwardBrokerFirmId && r.onwardBrokerFirm
+        ? { firmId: r.onwardBrokerFirmId, firmName: r.onwardBrokerFirm.name, contactId: r.onwardBrokerContactId ?? null, contactName: r.onwardBrokerContact?.name ?? null, phone: r.onwardBrokerContact?.phone ?? null, email: r.onwardBrokerContact?.email ?? null }
+        : null;
       return {
         id: r.id,
         propertyAddress: r.propertyAddress,
@@ -186,6 +198,12 @@ export default async function AgentNewSaleV2Page() {
         purchaserSolicitor: purchaserSol,
         referredFirmId: r.referredFirmId ?? null,
         referralFee: r.referralFee ?? null,
+        broker: buyerBroker,
+        brokerReferralFee: r.brokerReferralFee ?? null,
+        purchaserBrokerReferral: r.purchaserBrokerReferral ?? false,
+        onwardBroker: onwardBrokerSel,
+        onwardBrokerReferralFee: r.onwardBrokerReferralFee ?? null,
+        onwardBrokerReferral: r.onwardBrokerReferral ?? false,
         mosStoragePath: mosDoc?.storagePath ?? null,
         mosFileSize: mosDoc?.fileSize ?? null,
         mosMimeType: mosDoc?.mimeType ?? null,
