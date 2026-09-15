@@ -133,6 +133,7 @@ function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: s
 type SPUser = { id: string; name: string };
 
 function AssignInline({ transactionId, onAssigned }: { transactionId: string; onAssigned: () => void }) {
+  const { toast } = useAgentToast();
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<SPUser[]>([]);
   const [selected, setSelected] = useState("");
@@ -151,8 +152,12 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
   function save() {
     if (!selected) return;
     startTransition(async () => {
-      await assignUserAction(transactionId, selected);
-      onAssigned();
+      try {
+        await assignUserAction(transactionId, selected);
+        onAssigned();
+      } catch {
+        toast.error("Couldn't assign that file. Try again.");
+      }
     });
   }
 
@@ -274,6 +279,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
       try {
         await acknowledgeRelistAction(roundId);
         setRelists((prev) => prev.filter((r) => r.roundId !== roundId));
+      } catch {
+        toast.error("Couldn't update that. Try again.");
       } finally {
         setBusyId(null);
       }
@@ -286,6 +293,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
       try {
         await clearChainSetupPendingAction(transactionId);
         setChainSetup((prev) => prev.filter((f) => f.transactionId !== transactionId));
+      } catch {
+        toast.error("Couldn't update that. Try again.");
       } finally {
         setBusyId(null);
       }

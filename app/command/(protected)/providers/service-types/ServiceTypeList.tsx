@@ -57,6 +57,7 @@ function RowView({ row }: { row: Row }) {
   }
 
   function toggleActive() {
+    setError(null);
     startTransition(async () => {
       const r = await updateServiceType(row.id, {
         kind: row.kind,
@@ -66,6 +67,7 @@ function RowView({ row }: { row: Row }) {
         active: !row.active,
       });
       if (r.ok) router.refresh();
+      else setError(r.error); // was silent — a failed toggle now says why
     });
   }
 
