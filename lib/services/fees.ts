@@ -3,6 +3,7 @@
 
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 import { computeFee } from "@/lib/billing/fee";
+import { pooledCompletionRaw } from "@/lib/milestones/progress-percent";
 
 
 // ─── Fee calculation ──────────────────────────────────────────────────────────
@@ -305,11 +306,9 @@ export function calculateProgress(
   const purchaserRaw  = calcSideRaw(purchaser);
 
   // Pooled weighted progress: single ratio across all applicable milestones.
-  // Each milestone contributes its weight to one shared denominator regardless of side.
-  const allApplicable       = [...vendor, ...purchaser].filter((m) => !m.isNotRequired);
-  const totalApplicable     = allApplicable.reduce((s, m) => s + m.weight, 0);
-  const totalCompleted      = allApplicable.filter((m) => m.isComplete).reduce((s, m) => s + m.weight, 0);
-  const overallRaw          = totalApplicable > 0 ? (totalCompleted / totalApplicable) * 100 : 100;
+  // Shared with the live file-page hero via pooledCompletionRaw so the browser
+  // recomputes the identical number on an optimistic tick (no second copy).
+  const overallRaw          = pooledCompletionRaw([...vendor, ...purchaser]);
 
   const percent          = Math.round(overallRaw);
   const vendorPercent    = Math.round(vendorRaw);

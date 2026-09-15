@@ -21,6 +21,7 @@ import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-s
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
+import { useFileProgress } from "@/components/transaction/FileProgressContext";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
 
@@ -171,6 +172,18 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   useEffect(() => {
     if (def.isComplete) setError(null);
   }, [def.isComplete]);
+
+  // Report this row's live (optimistic) completion state up to the file-page
+  // progress provider, so the hero % moves together with the tick. Follows the
+  // row's own useOptimistic value, so it auto-reverts on error and reconciles
+  // when fresh server data lands. No-op when rendered outside the provider.
+  const reportProgress = useFileProgress()?.report;
+  useEffect(() => {
+    reportProgress?.(def.id, {
+      isComplete: optimisticState.isComplete,
+      isNotRequired: optimisticState.isNotRequired,
+    });
+  }, [reportProgress, def.id, optimisticState.isComplete, optimisticState.isNotRequired]);
 
   useEffect(() => {
     if (!counterpartNotice) setShowCounterpartNotice(false);

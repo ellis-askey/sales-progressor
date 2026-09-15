@@ -42,6 +42,7 @@ import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBan
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
+import { FileProgressProvider } from "@/components/transaction/FileProgressContext";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { DocumentsPanel } from "@/components/transaction/DocumentsPanel";
 import { ClientMortgageExpiryCard } from "@/components/transaction/ClientMortgageExpiryCard";
@@ -221,6 +222,14 @@ export default async function AgentTransactionDetailPage({
     ...(milestoneData?.purchaser ?? []),
   ];
   const completedMilestoneCodes = allMilestones.filter((m) => m.isComplete).map((m) => m.code);
+  // Seed for the live hero % — same milestone ids the Steps rows report against,
+  // so ticking a step recomputes the hero instantly (see FileProgressProvider).
+  const progressSeed = allMilestones.map((m) => ({
+    id: m.id,
+    weight: Number(m.weight),
+    isComplete: m.isComplete,
+    isNotRequired: m.isNotRequired,
+  }));
   const allCompletions = allMilestones
     .map((m) => m.completion)
     .filter((c): c is NonNullable<typeof c> => c != null);
@@ -473,6 +482,9 @@ export default async function AgentTransactionDetailPage({
         tenure={transaction.tenure ?? null}
         purchaseType={transaction.purchaseType ?? null}
       />
+      {/* One live progress source for the hero + steps: ticking a step updates
+          the hero % instantly, using the same pooled maths the server uses. */}
+      <FileProgressProvider seed={progressSeed} fallbackPercent={progress.percent}>
       {/* ── Zone 1: Hero ── */}
       <div style={{ marginBottom: 20 }}>
         <PropertyHero
@@ -685,6 +697,7 @@ export default async function AgentTransactionDetailPage({
         )}
       </PropertyFileTabs>
       </RevealCoordinator>
+      </FileProgressProvider>
 
       {/* Review tray — floating pill (bottom-right) that appears when
           milestone-confirmation client emails are queued for this file.

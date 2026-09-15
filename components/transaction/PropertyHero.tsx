@@ -6,6 +6,7 @@ import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@pris
 import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
+import { useFileProgress } from "./FileProgressContext";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
 import { HeroAddressEdit } from "./HeroAddressEdit";
@@ -238,6 +239,11 @@ function HeroStatCell({
 export function PropertyHero({
   address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, enquiryChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
+  // Live progress: on the file page the hero reads the shared source so the %
+  // moves the instant a step is ticked. Falls back to the server prop anywhere
+  // the provider isn't present.
+  const livePercent = useFileProgress()?.percent;
+  const shownPercent = livePercent ?? percent;
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
   const barColor = TRACK_BAR[onTrack];
@@ -432,7 +438,7 @@ export function PropertyHero({
               : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
             }
             <div style={{ flex: "1 1 180px", maxWidth: 280, minWidth: 150 }}>
-              <HeroProgressBar percent={percent} />
+              <HeroProgressBar percent={shownPercent} />
             </div>
           </div>
 
@@ -830,12 +836,12 @@ export function PropertyHero({
             <div className="min-w-[140px]">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Progress</p>
-                <p className="text-sm font-bold text-white tabular-nums">{percent}%</p>
+                <p className="text-sm font-bold text-white tabular-nums">{shownPercent}%</p>
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                  style={{ width: `${Math.max(percent, 2)}%` }}
+                  style={{ width: `${Math.max(shownPercent, 2)}%` }}
                 />
               </div>
             </div>
