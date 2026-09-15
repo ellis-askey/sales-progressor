@@ -45,6 +45,9 @@ type Props = {
   neighbourName?: string | null;
   neighbourAddress?: string | null;
   onClose: () => void;
+  // Fired after a chase is successfully sent (either path) so the parent can
+  // refresh the chain activity feed without waiting for a reopen.
+  onSent?: () => void;
 };
 
 function reasonMessage(reason: string, direction: NeighbourChaseDirection): string {
@@ -79,7 +82,7 @@ function relativeAgo(value: Date | string | null): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose }: Props) {
+export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent }: Props) {
   const { theme, isNight } = usePortalTheme();
   const { toast } = useAgentToast();
   const [closing, setClosing] = useState(false);
@@ -144,6 +147,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
       return;
     }
     toast.success(name ? `Chase sent to ${name}` : "Chase sent");
+    onSent?.();
     onClose();
   }
 
@@ -174,6 +178,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     const query = params.toString().replace(/\+/g, "%20");
     window.location.href = `mailto:${email}?${query}`;
     toast.success("Opened in your email");
+    onSent?.();
     onClose();
   }
 

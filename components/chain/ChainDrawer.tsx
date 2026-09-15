@@ -275,6 +275,9 @@ export function ChainView({
   const seenLinkIds = useRef<Set<string>>(new Set());
   const firstLoad = useRef(true);
   const [newLinkIds, setNewLinkIds] = useState<Set<string>>(new Set());
+  // Local bump for the activity feed (added to the parent's refreshKey) so a
+  // neighbour chase refetches the feed in place without needing a reopen.
+  const [activityTick, setActivityTick] = useState(0);
 
   const router = useRouter();
 
@@ -1134,7 +1137,7 @@ export function ChainView({
               {/* Right column: value summary + activity feed */}
               <div className="chain-side">
                 <ChainSummaryCard chain={chain} />
-                <ChainActivityCard chainId={chain.id} refreshKey={refreshKey} />
+                <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
               </div>
             </div>
           )}
@@ -1168,6 +1171,7 @@ export function ChainView({
       direction={chaseNeighbour.direction}
       neighbourAddress={chaseNeighbour.address}
       onClose={() => setChaseNeighbour(null)}
+      onSent={() => setActivityTick((t) => t + 1)}
     />
   ) : null;
 
