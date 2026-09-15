@@ -102,3 +102,84 @@ onward-tracker rework are live, so we're not building portal UI on a moving base
 4. New-sale flow — onward broker step after the chain step.
 5. Analytics — include onward broker fees.
 6. (Phase 3, separate) seller-portal onward broker card.
+
+---
+
+## Locked build plan (2026-09-15) — decisions + exact fee-feed map
+
+Founder decisions:
+- **Storage: Option A** — parallel `onwardBroker*` fields on `PropertyTransaction`.
+- **Gaps: close them for BOTH buyer and onward** — broker fees also go into the
+  CSV export, the completions screen, and the revenue warnings (they are absent
+  today even for the buyer broker).
+- **Analytics: MERGE** — onward broker fees fold into the same per-firm broker
+  income figure (a firm can be a buyer-broker on one file and an onward-broker on
+  another). No separate line.
+
+### Schema (staging migration first)
+
+Add to `PropertyTransaction` (mirrors the buyer set at schema.prisma:457-461):
+`onwardBrokerFirmId`, `onwardBrokerContactId`, `onwardBrokerReferralFee Int?`,
+`onwardBrokerReferralFeeReceived Boolean`, `onwardBrokerReferral Boolean`.
+
+A second relation to `BrokerFirm`/`BrokerContact` forces **named relations** on
+both sides (Prisma). Name the existing buyer relations and add the onward pair:
+- `brokerFirm @relation("TxBuyerBroker")` + `onwardBrokerFirm @relation("TxOnwardBroker")`
+- `brokerContact @relation("TxBuyerBrokerContact")` + `onwardBrokerContact @relation("TxOnwardBrokerContact")`
+- back-relations on `BrokerFirm` / `BrokerContact` (`transactions` + `onwardTransactions`).
+Relation names are Prisma-logical only — the migration adds columns + 2 FKs, nothing else.
+
+### Exact places the buyer broker fee feeds today — onward must feed all of them
+
+Verified by trace (2026-09-15):
+1. **Add-sale "what you'll earn"** — `components/transactions-v2/EarningsBuilder.tsx:83,93`
+   (`net = commission(incVAT) + solicitorRef + brokerRef − progressionCost`). Add
+   `onwardBrokRef` term + a breakdown row.
+2. **Property file "Fees" card** — `components/transaction/AgentFileSidebar.tsx:231-235,245`
+   (`totalFeesPence` + `referrals`); source select in `SidebarPanel.tsx:128-129,332`
+   and `OverviewPanel.tsx:217-218`. Add the onward term to both + a display row.
+3. **Analytics broker income** — `lib/services/analytics.ts` `brokerReferralStatsFromWhere`
+   (286-315). MERGE: widen `where` to also match `onwardBrokerFirmId`, select onward
+   fee/received, add into `feeExpectedPence/feeReceivedPence/referralCount/pendingCount`.
+   Auto-flows to the analytics card (`AnalyticsClientShell.tsx:631-660`) and Partners.
+
+Progression-fee note: the broker referral is **always income, added on top**. Our
+fee is only subtracted on **outsourced** files (self-progressed = nothing
+subtracted). The onward broker fee is never netted against our fee.
+
+### Gaps to CLOSE (decision b) — for BOTH buyer + onward
+
+These ignore the broker fee today; add both buyer + onward broker fees:
+1. **CSV export** — `app/api/agent/analytics-export/route.ts` (REFERRAL INCOME
+   section sums `referralFee` only); requires selecting the broker fees in
+   `getAgentTransactions` (`lib/services/agent.ts:137-139`).
+2. **Completions** — `components/completions/CompletionsGroupList.tsx`,
+   `CompletedSection.tsx`, `CompletionFileRowView.tsx` (agent fee only today);
+   add broker fees to the row types + `groupFeeTotal` + row displays.
+3. **Revenue warnings** — `lib/services/signals/detectors/revenue-at-risk.ts`
+   (fires on missing agent fee) and `components/analytics/MissingFeeRow.tsx`.
+   Decision within: flag a file where a broker is set but its fee is missing /
+   unreceived, and include broker fees in the "at risk" figures.
+
+### Side-aware components
+
+- `components/transaction/BrokerSection.tsx` — add `side: "purchaser" | "vendor"`;
+  switch heading, gating (buyer = `purchaseType === "mortgage"`; onward =
+  `buyingOnward`), copy, the referred flag, and the field-set read/written.
+- `app/actions/transactions.ts` `saveBrokerReferralAction` (~1438-1476) — add
+  `side`, branch the `update` data to the buyer or onward columns; create-path
+  (~1576-1622) accepts onward fields.
+- `components/transaction/OverviewPanel.tsx` — render a second `BrokerSection`
+  (`side="vendor"`) in Professionals, gated on `buyingOnward`.
+- New-sale: `form/types.ts` (+ field + default), `Stage2Sections`/`SolicitorSection`
+  (second broker slot, gated on chain/onward), `NewSaleFlow.tsx:887` (submit),
+  draft round-trip, `createTransactionAction`.
+
+### Build stages (each a commit, tsc-clean)
+
+1. Schema + migration (staging) + `prisma generate`.
+2. Side-aware save action + `BrokerSection` + Professionals second slot.
+3. New-sale onward broker slot + add-sale total.
+4. Property-file fee tot-up.
+5. Analytics merge.
+6. Gap-closing: export + completions + warnings (buyer + onward).

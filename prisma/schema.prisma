@@ -459,6 +459,14 @@ model PropertyTransaction {
   brokerReferralFee           Int?
   brokerReferralFeeReceived   Boolean           @default(false)
   purchaserBrokerReferral     Boolean           @default(false)
+  // Seller's onward-purchase broker (Phase 2, 2026-09-15). Mirrors the buyer set
+  // above; only meaningful when the seller is buying onward. Fee is agent income
+  // like the buyer's. See docs/active/onward-broker/SPEC.md.
+  onwardBrokerFirmId          String?
+  onwardBrokerContactId       String?
+  onwardBrokerReferralFee     Int?
+  onwardBrokerReferralFeeReceived Boolean       @default(false)
+  onwardBrokerReferral        Boolean           @default(false)
 
   // True when this file was added via the admin Migrate Sale page rather
   // than the standard create flow. Used to EXCLUDE backdated/historical
@@ -624,8 +632,10 @@ model PropertyTransaction {
   purchaserSolicitorFirm           SolicitorFirm?                    @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
   purchaserSolicitorContact        SolicitorContact?                 @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
   referredFirm                     SolicitorFirm?                    @relation("ReferredFirm", fields: [referredFirmId], references: [id])
-  brokerFirm                       BrokerFirm?                       @relation(fields: [brokerFirmId], references: [id])
-  brokerContact                    BrokerContact?                    @relation(fields: [brokerContactId], references: [id])
+  brokerFirm                       BrokerFirm?                       @relation("TxBuyerBroker", fields: [brokerFirmId], references: [id])
+  brokerContact                    BrokerContact?                    @relation("TxBuyerBrokerContact", fields: [brokerContactId], references: [id])
+  onwardBrokerFirm                 BrokerFirm?                       @relation("TxOnwardBroker", fields: [onwardBrokerFirmId], references: [id])
+  onwardBrokerContact              BrokerContact?                    @relation("TxOnwardBrokerContact", fields: [onwardBrokerContactId], references: [id])
   milestoneCompletions             MilestoneCompletion[]
   reminderLogs                     ReminderLog[]
   chaseTasks                       ChaseTask[]
@@ -1096,7 +1106,8 @@ model BrokerFirm {
   updatedAt DateTime @updatedAt
 
   handlers     BrokerContact[]
-  transactions PropertyTransaction[]
+  transactions PropertyTransaction[] @relation("TxBuyerBroker")
+  onwardTransactions PropertyTransaction[] @relation("TxOnwardBroker")
   preferences  AgencyPreferredBroker[]
 }
 
@@ -1110,7 +1121,8 @@ model BrokerContact {
   updatedAt DateTime @updatedAt
 
   firm         BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  transactions PropertyTransaction[]
+  transactions PropertyTransaction[] @relation("TxBuyerBrokerContact")
+  onwardTransactions PropertyTransaction[] @relation("TxOnwardBrokerContact")
 }
 
 model AgencyPreferredBroker {
