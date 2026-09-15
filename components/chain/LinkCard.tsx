@@ -113,6 +113,10 @@ type LinkCardProps = {
    *  neighbour in that direction. */
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  /** Chase this neighbour's agent for an update. Present only on the stub link
+   *  directly above/below the viewer's own file (a chaseable neighbour with an
+   *  email); ChainView decides when to pass it. */
+  onChaseNeighbour?: () => void;
   /** Add another onward purchase forking above this sale (in the ⋯ menu).
    *  Present when the viewer may add and the fork isn't at the 3-onward cap. */
   onAddOnward?: () => void;
@@ -608,6 +612,7 @@ export function LinkCard({
   onMoveDown,
   onAddOnward,
   onUploadPhoto,
+  onChaseNeighbour,
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
@@ -917,6 +922,14 @@ export function LinkCard({
             >
               Open file <LinkArrow />
             </Link>
+          )}
+
+          {/* Chase this neighbour's agent for an update. Shown only on the stub
+              directly above/below your own file (ChainView gates it). */}
+          {onChaseNeighbour && (
+            <button type="button" onClick={onChaseNeighbour} className="chain-act-link">
+              Chase agent
+            </button>
           )}
 
           {/* Stub actions: prefer the server-computed permission (internal team,

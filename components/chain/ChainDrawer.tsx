@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import { X, Plus } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
+import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
+import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
@@ -503,6 +505,20 @@ export function ChainView({
     (l) => l.claimedByUserId === currentUserId || l.createdByUserId === currentUserId,
   ) ?? null;
 
+  // Chase-neighbour: the stub agent on the link directly above (onward) or below
+  // (related) OUR OWN file — the inbound twin of the far-side tracker. Gated to a
+  // stub with an email we can see, in our own ladder. Opens ChaseNeighbourDrawer.
+  const ownChainLink = allChainLinks.find((l) => l.transactionId === transactionId) ?? null;
+  const chaseDirForLink = (link: ChainV2["links"][number]): NeighbourChaseDirection | null => {
+    if (!ownChainLink) return null;
+    if ((link.branchKey ?? "") !== (ownChainLink.branchKey ?? "")) return null;
+    if (link.transactionId !== null || !link.stubAgentEmail) return null; // stub with an email only
+    if (link.position === ownChainLink.position - 1) return "onward";
+    if (link.position === ownChainLink.position + 1) return "related";
+    return null;
+  };
+  const [chaseNeighbour, setChaseNeighbour] = useState<{ direction: NeighbourChaseDirection; address: string | null } | null>(null);
+
   // Internal staff own no link on an outsourced file, so they can't anchor an
   // add on "their" link — allow them to add at the chain's bottom directly.
   // ("Add above" now lives at the top of each column in renderNode.)
@@ -580,6 +596,14 @@ export function ChainView({
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
+        onChaseNeighbour={
+          (() => {
+            const dir = chaseDirForLink(link);
+            return dir
+              ? () => setChaseNeighbour({ direction: dir, address: link.stubPropertyAddress ?? null })
+              : undefined;
+          })()
+        }
         onUploadPhoto={
           mayEditStub
             ? (id, file) => handleUploadPhoto(id, file)
@@ -1097,11 +1121,21 @@ export function ChainView({
     </div>
   );
 
+  const chaseNeighbourDrawer = chaseNeighbour ? (
+    <ChaseNeighbourDrawer
+      transactionId={transactionId}
+      direction={chaseNeighbour.direction}
+      neighbourAddress={chaseNeighbour.address}
+      onClose={() => setChaseNeighbour(null)}
+    />
+  ) : null;
+
   // Inline (tab) mode: render the body flat, no portal / backdrop / scroll-lock.
   if (inline) {
     return (
       <div data-theme={theme} data-night={isNight ? "" : undefined}>
         {shell}
+        {chaseNeighbourDrawer}
       </div>
     );
   }
@@ -1112,6 +1146,7 @@ export function ChainView({
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
       {shell}
+      {chaseNeighbourDrawer}
     </div>,
     document.body,
   );
