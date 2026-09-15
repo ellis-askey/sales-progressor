@@ -10,6 +10,7 @@ import {
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
+import { MarkBellReadOnView } from "@/components/agent/MarkBellReadOnView";
 import {
   CommsActivityFeed,
   type DayBucket,
@@ -102,6 +103,8 @@ export default async function AgentCommsPage() {
 
   return (
     <>
+      {/* Reading the Updates page clears the notification bell. */}
+      <MarkBellReadOnView />
       <PageHeader
         title="Updates"
         subtitle={
