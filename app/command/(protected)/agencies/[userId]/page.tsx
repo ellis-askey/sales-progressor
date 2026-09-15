@@ -47,6 +47,10 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ us
   const maxWeek = Math.max(1, ...a.weeksSeconds);
   const maxFile = Math.max(1, ...a.files.map((f) => f.seconds));
 
+  const deviceTotal = a.deviceMobile + a.deviceDesktop;
+  const mobilePct = deviceTotal > 0 ? Math.round((a.deviceMobile / deviceTotal) * 100) : 0;
+  const desktopPct = 100 - mobilePct;
+
   return (
     <div className="space-y-6">
       <Link href="/command/agencies" className="text-xs text-neutral-500 hover:text-neutral-300 inline-flex items-center gap-1">
@@ -122,6 +126,36 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ us
           </div>
         ))}
       </div>
+
+      {/* device split */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Mobile vs desktop</h2>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+          {deviceTotal === 0 ? (
+            <p className="text-sm text-neutral-500">
+              No device signal recorded yet. This fills in once they open a file, and only counts sessions since device tracking began.
+            </p>
+          ) : (
+            <>
+              <div className="flex h-3 rounded-full overflow-hidden bg-neutral-800">
+                <div className="bg-teal-400/80" style={{ width: `${mobilePct}%` }} />
+                <div className="bg-blue-500/80" style={{ width: `${desktopPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between mt-3 text-[12.5px] gap-4">
+                <span className="inline-flex items-center gap-2 text-neutral-300">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-teal-400/80 shrink-0" />
+                  Mobile · {a.deviceMobile} session{a.deviceMobile === 1 ? "" : "s"} ({mobilePct}%)
+                </span>
+                <span className="inline-flex items-center gap-2 text-neutral-300">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-blue-500/80 shrink-0" />
+                  Desktop · {a.deviceDesktop} session{a.deviceDesktop === 1 ? "" : "s"} ({desktopPct}%)
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-600 mt-3">Mobile includes tablets. Based on file sessions, all time.</p>
+            </>
+          )}
+        </div>
+      </section>
 
       {/* weekly trend */}
       <section>

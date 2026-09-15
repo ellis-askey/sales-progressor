@@ -59,6 +59,27 @@ function StatusPill({ status }: { status: UsageStatus }) {
   );
 }
 
+function DeviceSplit({ mobile, desktop }: { mobile: number; desktop: number }) {
+  const total = mobile + desktop;
+  if (total === 0) return <span className="text-neutral-600">—</span>;
+  const mobilePct = Math.round((mobile / total) * 100);
+  const desktopPct = 100 - mobilePct;
+  const primaryMobile = mobile >= desktop;
+  const label = primaryMobile ? `${mobilePct}% mobile` : `${desktopPct}% desktop`;
+  return (
+    <span
+      className="inline-flex items-center gap-2 whitespace-nowrap"
+      title={`Mobile: ${mobile} session${mobile === 1 ? "" : "s"} · Desktop: ${desktop} session${desktop === 1 ? "" : "s"} (last 12 weeks)`}
+    >
+      <span className="inline-flex h-[6px] w-[52px] rounded-full overflow-hidden bg-neutral-800 shrink-0">
+        <i className="h-full bg-teal-400/80" style={{ width: `${mobilePct}%` }} />
+        <i className="h-full bg-blue-500/80" style={{ width: `${desktopPct}%` }} />
+      </span>
+      <span className="text-[11px] text-neutral-400 tabular-nums">{label}</span>
+    </span>
+  );
+}
+
 function Sparkline({ weeks }: { weeks: number[] }) {
   const max = Math.max(1, ...weeks);
   return (
@@ -276,12 +297,13 @@ export default async function AgenciesPage({
           <table className="w-full border-collapse text-[13px] min-w-[720px]">
             <thead>
               <tr className="bg-neutral-950/60">
-                {["Agent", "Agency", "Last active", "Logins · 7d", "Hours · 7d", "Files", "Activity · 12wk", "Status"].map((h, i) => (
+                {["Agent", "Agency", "Last active", "Logins · 7d", "Hours · 7d", "Files", "Activity · 12wk", "Device", "Status"].map((h, i) => (
                   <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}>
                     <span className="inline-flex items-center gap-1">
                       {h}
                       {h === "Activity · 12wk" && <InfoTip label="What the sparkline shows">One bar per week for the last 12 weeks. Bar height is how many sessions that agent had that week.</InfoTip>}
                       {h === "Files" && <InfoTip label="What Files counts">Distinct files the agent touched in the last 7 days.</InfoTip>}
+                      {h === "Device" && <InfoTip label="What Device shows">Split of the agent&rsquo;s file sessions by device over the last 12 weeks. Teal is mobile or tablet, blue is desktop. Sessions from before device tracking, or with no signal, aren&rsquo;t counted.</InfoTip>}
                     </span>
                   </th>
                 ))}
@@ -289,7 +311,7 @@ export default async function AgenciesPage({
             </thead>
             <tbody>
               {agentRows.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agents match this filter." : "No agent activity yet."}</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agents match this filter." : "No agent activity yet."}</td></tr>
               ) : (
                 agentRows.map((a) => (
                   <tr key={a.userId} className="border-b border-neutral-800 last:border-b-0">
@@ -313,6 +335,7 @@ export default async function AgenciesPage({
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{fmtDuration(a.seconds7d)}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.filesTouched7d}</td>
                     <td className="px-3.5 py-2.5"><Sparkline weeks={a.weeks} /></td>
+                    <td className="px-3.5 py-2.5"><DeviceSplit mobile={a.deviceMobile} desktop={a.deviceDesktop} /></td>
                     <td className="px-3.5 py-2.5"><StatusPill status={a.status} /></td>
                   </tr>
                 ))
@@ -323,14 +346,14 @@ export default async function AgenciesPage({
           <table className="w-full border-collapse text-[13px] min-w-[680px]">
             <thead>
               <tr className="bg-neutral-950/60">
-                {["Agency", "Agents", "Active", "Logins · 7d", "Hours · 7d", "Files", "Last active", "Status"].map((h, i) => (
+                {["Agency", "Agents", "Active", "Logins · 7d", "Hours · 7d", "Files", "Device", "Last active", "Status"].map((h, i) => (
                   <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 1 && i <= 5 ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {agencyRows.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agencies match this filter." : "No agency activity yet."}</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agencies match this filter." : "No agency activity yet."}</td></tr>
               ) : (
                 agencyRows.map((a) => (
                   <tr key={a.agencyId} className="border-b border-neutral-800 last:border-b-0">
@@ -344,6 +367,7 @@ export default async function AgenciesPage({
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.logins7d}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{fmtDuration(a.seconds7d)}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.filesTouched7d}</td>
+                    <td className="px-3.5 py-2.5"><DeviceSplit mobile={a.deviceMobile} desktop={a.deviceDesktop} /></td>
                     <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{fmtRelative(a.lastActive)}</td>
                     <td className="px-3.5 py-2.5"><StatusPill status={a.status} /></td>
                   </tr>

@@ -8,6 +8,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import { eventLabel } from "@/lib/command/event-labels";
 import { activitySecondsForUser } from "@/lib/command/activity-time";
+import { classifyDevice } from "@/lib/command/device";
 
 const AGENT_ROLES = ["director", "negotiator"];
 const DAY_MS = 86_400_000;
@@ -30,6 +31,8 @@ export type AgentUsage = {
   logins7d: number;
   seconds7d: number;
   filesTouched7d: number;
+  deviceMobile: number;  // file sessions from a mobile/tablet UA, last 12wk
+  deviceDesktop: number; // file sessions from a desktop UA, last 12wk
   weeks: number[]; // WEEKS weekly session counts, oldest → newest
   status: UsageStatus;
 };
@@ -42,6 +45,8 @@ export type AgencyUsage = {
   logins7d: number;
   seconds7d: number;
   filesTouched7d: number;
+  deviceMobile: number;
+  deviceDesktop: number;
   lastActive: Date | null;
   status: UsageStatus;
 };
@@ -103,15 +108,15 @@ export async function getUsageOverview(): Promise<UsageOverview> {
     }),
     commandDb.fileTimeSession.findMany({
       where: { userId: { in: userIds }, startedAt: { gte: since12w } },
-      select: { userId: true, startedAt: true, endedAt: true, totalEngagedSeconds: true, transactionId: true },
+      select: { userId: true, startedAt: true, endedAt: true, totalEngagedSeconds: true, transactionId: true, userAgent: true },
     }),
   ]);
 
   const loginMap = new Map(loginGroups.map((g) => [g.userId, g._count._all]));
   const lastMap = new Map(lastEventGroups.map((g) => [g.userId, g._max.occurredAt ?? null]));
 
-  const agg = new Map<string, { seconds: number; files: Set<string>; weeks: number[] }>();
-  for (const id of userIds) agg.set(id, { seconds: 0, files: new Set(), weeks: new Array(WEEKS).fill(0) });
+  const agg = new Map<string, { seconds: number; files: Set<string>; weeks: number[]; mobile: number; desktop: number }>();
+  for (const id of userIds) agg.set(id, { seconds: 0, files: new Set(), weeks: new Array(WEEKS).fill(0), mobile: 0, desktop: 0 });
   for (const s of sessions) {
     const a = agg.get(s.userId);
     if (!a) continue;
@@ -119,6 +124,9 @@ export async function getUsageOverview(): Promise<UsageOverview> {
     const weeksAgo = Math.floor((now - started) / (7 * DAY_MS));
     const idx = WEEKS - 1 - Math.min(WEEKS - 1, weeksAgo);
     if (idx >= 0 && idx < WEEKS) a.weeks[idx] += 1;
+    const device = classifyDevice(s.userAgent);
+    if (device === "mobile") a.mobile += 1;
+    else if (device === "desktop") a.desktop += 1;
     if (started >= now - 7 * DAY_MS) {
       if (s.endedAt && s.totalEngagedSeconds) a.seconds += s.totalEngagedSeconds;
       a.files.add(s.transactionId);
@@ -141,6 +149,8 @@ export async function getUsageOverview(): Promise<UsageOverview> {
       logins7d: loginMap.get(u.id) ?? 0,
       seconds7d: a.seconds,
       filesTouched7d: a.files.size,
+      deviceMobile: a.mobile,
+      deviceDesktop: a.desktop,
       weeks: a.weeks,
       status: statusFor(lastActive, now),
     };
@@ -164,6 +174,8 @@ export async function getUsageOverview(): Promise<UsageOverview> {
         logins7d: 0,
         seconds7d: 0,
         filesTouched7d: 0,
+        deviceMobile: 0,
+        deviceDesktop: 0,
         lastActive: null as Date | null,
         status: "dormant" as UsageStatus,
       };
@@ -172,6 +184,8 @@ export async function getUsageOverview(): Promise<UsageOverview> {
     cur.logins7d += ag.logins7d;
     cur.seconds7d += ag.seconds7d;
     cur.filesTouched7d += ag.filesTouched7d;
+    cur.deviceMobile += ag.deviceMobile;
+    cur.deviceDesktop += ag.deviceDesktop;
     if (ag.lastActive && (!cur.lastActive || ag.lastActive > cur.lastActive)) cur.lastActive = ag.lastActive;
     byAgency.set(ag.agencyId, cur);
   }
@@ -226,6 +240,8 @@ export type AgentDetail = {
   totalSeconds: number;
   sessionCount: number;
   logins7d: number;
+  deviceMobile: number;  // file sessions from a mobile/tablet UA, all time
+  deviceDesktop: number; // file sessions from a desktop UA, all time
   weeksSeconds: number[]; // WEEKS weekly engaged-seconds, oldest → newest
   files: AgentFileTime[];
   recent: AgentActivityItem[];
@@ -254,7 +270,7 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
   const [sessions, logins7d, lastEvent, recentEvents] = await Promise.all([
     commandDb.fileTimeSession.findMany({
       where: { userId },
-      select: { transactionId: true, totalEngagedSeconds: true, endedAt: true, startedAt: true, lastActivityAt: true },
+      select: { transactionId: true, totalEngagedSeconds: true, endedAt: true, startedAt: true, lastActivityAt: true, userAgent: true },
     }),
     commandDb.event.count({ where: { userId, type: "user_logged_in" as never, occurredAt: { gte: since7 } } }),
     commandDb.event.aggregate({ where: { userId }, _max: { occurredAt: true } }),
@@ -271,6 +287,8 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
   const weeksSeconds = new Array(WEEKS).fill(0);
   let totalSeconds = 0;
   let sessionCount = 0;
+  let deviceMobile = 0;
+  let deviceDesktop = 0;
   for (const s of sessions) {
     const secs = s.endedAt && s.totalEngagedSeconds ? s.totalEngagedSeconds : 0;
     const cur = byTx.get(s.transactionId) ?? { seconds: 0, sessions: 0, last: null as Date | null };
@@ -280,6 +298,9 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
     byTx.set(s.transactionId, cur);
     totalSeconds += secs;
     sessionCount += 1;
+    const device = classifyDevice(s.userAgent);
+    if (device === "mobile") deviceMobile += 1;
+    else if (device === "desktop") deviceDesktop += 1;
     if (secs > 0 && s.startedAt >= since12w) {
       const idx = WEEKS - 1 - Math.min(WEEKS - 1, Math.floor((now - s.startedAt.getTime()) / (7 * DAY_MS)));
       if (idx >= 0 && idx < WEEKS) weeksSeconds[idx] += secs;
@@ -339,6 +360,8 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
     totalSeconds,
     sessionCount,
     logins7d,
+    deviceMobile,
+    deviceDesktop,
     weeksSeconds,
     files,
     recent,
