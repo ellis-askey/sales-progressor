@@ -1,36 +1,41 @@
 // lib/integrations/outlook/sync.ts
 //
-// Reads recent messages from a connected Outlook mailbox and logs the ones we
-// can confidently match to a property file. Scope of the read:
+// Outlook connector: reads recent messages from a connected Microsoft mailbox
+// and hands them to the shared, provider-neutral match + ingest core in
+// lib/integrations/mail/*. Everything below the fetch (matching a message to a
+// file, de-dup, storing it, the review shape) now lives in that shared core and
+// is identical across Outlook, IMAP and Gmail. This file keeps only the parts
+// that are genuinely Microsoft-specific: token refresh, listing mail folders,
+// and fetching messages via Graph.
+//
+// Scope of the read (unchanged):
 //   - Inbox + folders named after a property (they contain a house number)
 //   - messages received in the last 90 days
-// Matching, in order of confidence:
-//   1. the people on the email (from/to/cc) vs the people on a file (contacts + solicitors + broker)
-//   2. the folder the email is filed in — a "118 Hadley Grange" folder points at that file
-//   3. postcode in the subject, to break ties when one address touches several files
-// A confident single match is stored as an inbound OutboundMessage row (visible
-// on the file's Activity tab). Everything else is returned for review, so a
-// human can hand-place a missed email. Scoped to the connection owner (Law 7).
 
 import "server-only";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, encryptSecret } from "@/lib/security/token-crypto";
-import {
-  getAccessScope,
-  scopeTransactionWhere,
-  type AccessScope,
-} from "@/lib/security/access-scope";
-import { touchLastActivity } from "@/lib/services/activity";
-import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
-import { extractInnerEmails, looksForwarded } from "./forwarded";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { buildFolderHints, looksLikePropertyFolder } from "@/lib/integrations/mail/match";
+import { runMailboxSync, logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
+import type { IngestMessage, SyncSummary, LoggedItem } from "@/lib/integrations/mail/types";
 import {
   refreshAccessToken,
   listMailFolders,
   fetchFolderMessagesSince,
   fetchMessageById,
-  type OutlookMessage,
 } from "./config";
+
+// Re-export the shared types so existing importers of this module keep working.
+export type {
+  IngestMessage,
+  SyncMessageInfo,
+  FileRef,
+  LoggedItem,
+  UnmatchedItem,
+  SyncSummary,
+} from "@/lib/integrations/mail/types";
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000; // refresh 5 min before actual expiry
 const BACKFILL_DAYS = 90;
@@ -45,54 +50,6 @@ export type ConnRow = {
   tokenExpiresAt: Date;
   scope: string;
 };
-
-// A message as shown in the review UI (no full body — kept light).
-export type SyncMessageInfo = {
-  messageId: string;
-  subject: string;
-  from: string;
-  fromName: string | null;
-  folder: string;
-  receivedDateTime: string;
-  preview: string;
-};
-export type FileRef = { transactionId: string; address: string };
-export type LoggedItem = SyncMessageInfo & FileRef;
-export type UnmatchedItem = SyncMessageInfo & { candidates: FileRef[] };
-
-export type SyncSummary = {
-  checked: number;
-  folders: number;
-  folderNames: string[];
-  logged: LoggedItem[];
-  alreadyLogged: LoggedItem[];
-  unmatched: UnmatchedItem[];
-};
-
-// ─── Folder inclusion ─────────────────────────────────────────────────────────
-
-// Folders we never scan even if they somehow contain a digit.
-const SYSTEM_FOLDERS = new Set([
-  "deleted items",
-  "junk email",
-  "junk e-mail",
-  "drafts",
-  "outbox",
-  "sent items",
-  "conversation history",
-  "sync issues",
-  "rss feeds",
-  "rss subscriptions",
-]);
-
-// A "property folder" is one you've named after an address — which always has a
-// house number in it (e.g. "118 Hadley Grange", "8 Brambling Crescent"). Your
-// admin folders (Dev To-Do, Marketing, Contractors, New Business) have none.
-function looksLikePropertyFolder(name: string): boolean {
-  const n = name.trim().toLowerCase();
-  if (!n || n === "inbox" || SYSTEM_FOLDERS.has(n)) return false;
-  return /\d/.test(n);
-}
 
 // ─── Access token (refresh if near expiry) ────────────────────────────────────
 
@@ -111,261 +68,6 @@ async function getValidAccessToken(conn: ConnRow): Promise<string> {
     },
   });
   return tokens.access_token;
-}
-
-// ─── Postcode helpers (disambiguation) ────────────────────────────────────────
-
-const POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/gi;
-
-function extractPostcodes(text: string): Set<string> {
-  const out = new Set<string>();
-  for (const m of text.matchAll(POSTCODE_RE)) {
-    out.add((m[1] + m[2]).toUpperCase().replace(/\s+/g, ""));
-  }
-  return out;
-}
-
-// ─── Email → transaction index ────────────────────────────────────────────────
-
-type Index = {
-  emailToTx: Map<string, Set<string>>;
-  txAddress: Map<string, string>;
-};
-
-async function buildIndex(emails: string[], scope: AccessScope): Promise<Index> {
-  const emailToTx = new Map<string, Set<string>>();
-  const txAddress = new Map<string, string>();
-  if (emails.length === 0) return { emailToTx, txAddress };
-
-  const add = (email: string | null | undefined, txId: string) => {
-    if (!email) return;
-    const k = email.toLowerCase();
-    if (!emailToTx.has(k)) emailToTx.set(k, new Set());
-    emailToTx.get(k)!.add(txId);
-  };
-
-  const orConds: { email: { equals: string; mode: "insensitive" } }[] = emails.map((e) => ({
-    email: { equals: e, mode: "insensitive" },
-  }));
-  // Only ever match emails to LIVE files — never a draft. A stray draft with the
-  // same address as a real file would otherwise (a) show up as a second match and
-  // make a property folder look ambiguous, switching folder-matching off, and
-  // (b) risk pulling an email onto an empty stub. Drafts don't count. (Ellis, 2026-09-11)
-  const txScope = { AND: [scopeTransactionWhere(scope), { status: { not: "draft" as const } }] };
-  const lowerSet = new Set(emails.map((e) => e.toLowerCase()));
-
-  const contacts = await prisma.contact.findMany({
-    where: { AND: [{ OR: orConds }, { transaction: txScope }] },
-    select: { email: true, propertyTransactionId: true },
-  });
-  for (const c of contacts) add(c.email, c.propertyTransactionId);
-
-  const partyTx = await prisma.propertyTransaction.findMany({
-    where: {
-      AND: [
-        txScope,
-        {
-          OR: [
-            { vendorSolicitorContact: { OR: orConds } },
-            { purchaserSolicitorContact: { OR: orConds } },
-            { brokerContact: { OR: orConds } },
-          ],
-        },
-      ],
-    },
-    select: {
-      id: true,
-      vendorSolicitorContact: { select: { email: true } },
-      purchaserSolicitorContact: { select: { email: true } },
-      brokerContact: { select: { email: true } },
-    },
-  });
-  for (const t of partyTx) {
-    for (const email of [
-      t.vendorSolicitorContact?.email,
-      t.purchaserSolicitorContact?.email,
-      t.brokerContact?.email,
-    ]) {
-      if (email && lowerSet.has(email.toLowerCase())) add(email, t.id);
-    }
-  }
-
-  const txIds = [...new Set([...emailToTx.values()].flatMap((s) => [...s]))];
-  if (txIds.length) {
-    const rows = await prisma.propertyTransaction.findMany({
-      where: { id: { in: txIds } },
-      select: { id: true, propertyAddress: true },
-    });
-    for (const r of rows) txAddress.set(r.id, r.propertyAddress ?? "");
-  }
-
-  return { emailToTx, txAddress };
-}
-
-// ─── Folder name → transaction (a property folder points at its file) ─────────
-
-async function buildFolderHints(
-  folderNames: string[],
-  scope: AccessScope
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  // Only ever match emails to LIVE files — never a draft. A stray draft with the
-  // same address as a real file would otherwise (a) show up as a second match and
-  // make a property folder look ambiguous, switching folder-matching off, and
-  // (b) risk pulling an email onto an empty stub. Drafts don't count. (Ellis, 2026-09-11)
-  const txScope = { AND: [scopeTransactionWhere(scope), { status: { not: "draft" as const } }] };
-  for (const name of folderNames) {
-    const core = name.trim();
-    if (core.length < 5) continue;
-    const rows = await prisma.propertyTransaction.findMany({
-      where: { AND: [txScope, { propertyAddress: { contains: core, mode: "insensitive" } }] },
-      select: { id: true },
-      take: 2,
-    });
-    if (rows.length === 1) map.set(name.toLowerCase(), rows[0].id);
-  }
-  return map;
-}
-
-// ─── Match one message to a single file ───────────────────────────────────────
-
-function matchMessage(
-  msg: OutlookMessage,
-  mailbox: string,
-  index: Index,
-  folderHints: Map<string, string>
-): { txId: string | null; candidates: string[] } {
-  const mailboxLc = mailbox.toLowerCase();
-  const participants = [msg.from, ...msg.to, ...msg.cc]
-    .map((e) => e.toLowerCase())
-    .filter((e) => e && e !== mailboxLc);
-
-  const candidateSet = new Set<string>();
-  for (const p of participants) {
-    const txs = index.emailToTx.get(p);
-    if (txs) for (const id of txs) candidateSet.add(id);
-  }
-  // Forward fallback: nothing on the outer envelope matched (e.g. a forward from
-  // the agent to you). Look at who's named INSIDE the forwarded/quoted text —
-  // the real sender/recipients — and try those instead.
-  if (candidateSet.size === 0) {
-    for (const p of extractInnerEmails(msg.body)) {
-      if (p === mailboxLc) continue;
-      const txs = index.emailToTx.get(p);
-      if (txs) for (const id of txs) candidateSet.add(id);
-    }
-  }
-  const candidates = [...candidateSet];
-  const folderTx = msg.folder ? folderHints.get(msg.folder.toLowerCase()) : undefined;
-
-  if (candidateSet.size === 1) return { txId: candidates[0], candidates };
-
-  if (candidateSet.size > 1) {
-    if (folderTx && candidateSet.has(folderTx)) return { txId: folderTx, candidates };
-    const subjectPostcodes = extractPostcodes(msg.subject);
-    if (subjectPostcodes.size > 0) {
-      const byPostcode = candidates.filter((txId) => {
-        const addrPostcodes = extractPostcodes(index.txAddress.get(txId) ?? "");
-        for (const pc of addrPostcodes) if (subjectPostcodes.has(pc)) return true;
-        return false;
-      });
-      if (byPostcode.length === 1) return { txId: byPostcode[0], candidates };
-    }
-    return { txId: null, candidates }; // ambiguous — offer the candidates for review
-  }
-
-  if (folderTx) return { txId: folderTx, candidates: [folderTx] };
-  return { txId: null, candidates: [] };
-}
-
-// ─── Ingest ───────────────────────────────────────────────────────────────────
-
-async function logMessage(
-  txId: string,
-  msg: OutlookMessage
-): Promise<{ status: "logged" | "already"; address: string }> {
-  const tx = await prisma.propertyTransaction.findUnique({
-    where: { id: txId },
-    select: { agencyId: true, propertyAddress: true },
-  });
-  const address = tx?.propertyAddress ?? "";
-
-  const received = new Date(msg.receivedDateTime);
-  // Dedup on the provider id AND on the real message (same file + sender +
-  // subject + received time to the minute). The same email filed in both the
-  // Inbox and a property folder has a different Graph id per folder, so the id
-  // check alone let it in twice; the second arm collapses those copies to one.
-  const existing = await prisma.outboundMessage.findFirst({
-    where: {
-      transactionId: txId,
-      OR: [
-        { providerMessageId: msg.id },
-        {
-          method: "email",
-          recipientEmail: msg.from,
-          subject: msg.subject || "(no subject)",
-          sentAt: { gte: new Date(received.getTime() - 60_000), lte: new Date(received.getTime() + 60_000) },
-        },
-      ],
-    },
-    select: { id: true },
-  });
-  if (existing) return { status: "already", address };
-
-  // Store just the new message (signature + confidentiality footer + quoted
-  // chain trimmed); keep the untouched original in providerWebhookData.raw so a
-  // "show original" is always possible and the cleaning is reversible. Fall back
-  // to the raw if trimming leaves nothing (e.g. an email that is only a quote).
-  const rawBody = (msg.body || msg.bodyPreview || "").trim();
-  const cleaned = cleanIngestedEmail(rawBody) || rawBody;
-  await prisma.outboundMessage.create({
-    data: {
-      transactionId: txId,
-      agencyId: tx?.agencyId ?? null,
-      type: "inbound",
-      method: "email",
-      contactIds: [],
-      subject: msg.subject || "(no subject)",
-      content: cleaned,
-      recipientName: msg.fromName,
-      recipientEmail: msg.from,
-      ccEmails: msg.cc.length ? msg.cc.join(", ") : null,
-      providerMessageId: msg.id,
-      // Threading metadata (capture-only; no consumer reads it yet). Null when
-      // Graph omits the field. Does not affect dedup above.
-      conversationId: msg.conversationId,
-      internetMessageId: msg.internetMessageId,
-      inReplyTo: msg.inReplyTo,
-      emailReferences: msg.references,
-      providerWebhookData: {
-        source: "outlook",
-        folder: msg.folder,
-        from: msg.from,
-        to: msg.to,
-        cc: msg.cc,
-        webLink: msg.webLink,
-        receivedDateTime: msg.receivedDateTime,
-        raw: rawBody,
-      },
-      createdByRole: "system",
-      createdAt: received,
-      sentAt: received,
-    },
-  });
-  await touchLastActivity(txId);
-  return { status: "logged", address };
-}
-
-function toInfo(msg: OutlookMessage): SyncMessageInfo {
-  return {
-    messageId: msg.id,
-    subject: msg.subject || "(no subject)",
-    from: msg.from,
-    fromName: msg.fromName,
-    folder: msg.folder,
-    receivedDateTime: msg.receivedDateTime,
-    preview: msg.bodyPreview,
-  };
 }
 
 // ─── Public: full mailbox sync ────────────────────────────────────────────────
@@ -389,7 +91,7 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
   });
 
   const sinceIso = new Date(Date.now() - BACKFILL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const messages: OutlookMessage[] = [];
+  const messages: IngestMessage[] = [];
   for (const folder of folders) {
     if (messages.length >= GLOBAL_CAP) break;
     const remaining = GLOBAL_CAP - messages.length;
@@ -402,53 +104,14 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
     messages.push(...msgs);
   }
 
-  const mailboxLc = conn.email.toLowerCase();
-  const allEmails = new Set<string>();
-  for (const m of messages) {
-    for (const e of [m.from, ...m.to, ...m.cc]) {
-      const lc = e.toLowerCase();
-      if (lc && lc !== mailboxLc) allEmails.add(lc);
-    }
-    // Index the parties named inside forwarded/quoted text too, so the forward
-    // fallback in matchMessage can resolve them to a file.
-    if (looksForwarded(m)) {
-      for (const e of extractInnerEmails(m.body)) {
-        if (e !== mailboxLc) allEmails.add(e);
-      }
-    }
-  }
-  const index = await buildIndex([...allEmails], scope);
-
-  const summary: SyncSummary = {
-    checked: messages.length,
-    folders: folders.length,
-    folderNames: folders.map((f) => f.displayName),
-    logged: [],
-    alreadyLogged: [],
-    unmatched: [],
-  };
-
-  const fileRef = (txId: string): FileRef => ({
-    transactionId: txId,
-    address: index.txAddress.get(txId) ?? "",
+  return runMailboxSync({
+    messages,
+    mailboxEmail: conn.email,
+    scope,
+    source: "outlook",
+    folderHints,
+    scannedFolderNames: folders.map((f) => f.displayName),
   });
-
-  for (const msg of messages) {
-    const info = toInfo(msg);
-    const { txId, candidates } = matchMessage(msg, conn.email, index, folderHints);
-
-    if (!txId) {
-      summary.unmatched.push({ ...info, candidates: candidates.map(fileRef) });
-      continue;
-    }
-
-    const { status, address } = await logMessage(txId, msg);
-    const item: LoggedItem = { ...info, transactionId: txId, address };
-    if (status === "logged") summary.logged.push(item);
-    else summary.alreadyLogged.push(item);
-  }
-
-  return summary;
 }
 
 // ─── Public: log one message to a chosen file (from the review UI) ────────────
@@ -460,6 +123,5 @@ export async function logSingleMessageToFile(
 ): Promise<LoggedItem> {
   const accessToken = await getValidAccessToken(conn);
   const msg = await fetchMessageById(accessToken, messageId);
-  const { address } = await logMessage(transactionId, msg);
-  return { ...toInfo(msg), transactionId, address };
+  return logSingleIngestMessage(transactionId, msg, "outlook");
 }

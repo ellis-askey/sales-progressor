@@ -5,6 +5,9 @@
 // (the solicitor / client) sits INSIDE the body on the forwarded "From:/To:/Cc:"
 // header lines. extractInnerEmails pulls those addresses so a forward can still
 // be matched to the right file.
+//
+// Provider-neutral (operates on subject + body text only). Moved here from
+// lib/integrations/outlook/forwarded.ts so every mail connector shares it.
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 // A forwarded/quoted header line: "From: …", "To: …", "Cc: …", "Sent by: …",
