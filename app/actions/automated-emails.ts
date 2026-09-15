@@ -225,6 +225,7 @@ export async function cancelPendingEmail(emailId: string): Promise<PendingAction
   });
   if (res.count === 0) return { ok: false, error: "This email has already been sent or cancelled." };
   revalidatePath("/agent/automated-emails");
+  revalidatePath(`/agent/transactions/${txId}`); // the file's email card shows this too
   return { ok: true, message: "Email cancelled" };
 }
 
@@ -261,6 +262,7 @@ export async function sendPendingEmailNow(emailId: string): Promise<PendingActio
   if (suppressed) {
     await prisma.outboundEmailQueue.update({ where: { id: emailId }, data: { sentAt: new Date(), errorMessage: "suppressed:unsubscribed" } });
     revalidatePath("/agent/automated-emails");
+    revalidatePath(`/agent/transactions/${txId}`);
     return { ok: false, error: "The recipient has unsubscribed, so nothing was sent." };
   }
 
@@ -317,11 +319,13 @@ export async function sendPendingEmailNow(emailId: string): Promise<PendingActio
       }).catch(() => {});
     }
     revalidatePath("/agent/automated-emails");
+    revalidatePath(`/agent/transactions/${txId}`);
     return { ok: true, message: "Email sent" };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "send error";
     await prisma.outboundEmailQueue.update({ where: { id: emailId }, data: { errorAt: new Date(), errorMessage: message } });
     revalidatePath("/agent/automated-emails");
+    revalidatePath(`/agent/transactions/${txId}`);
     return { ok: false, error: "Sending failed. The email is marked as errored." };
   }
 }

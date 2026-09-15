@@ -475,6 +475,9 @@ export async function extendHoldAction(
   revalidatePath(`/agent/transactions/${transactionId}`);
   revalidatePath(`/transactions/${transactionId}`);
   revalidatePath(`/agent/hub`);
+  // Extending/clearing a hold can change whether it counts as a due review, so
+  // refresh the layout-scoped sidebar To-Do badge too.
+  revalidatePath("/agent", "layout");
   return { ok: true };
 }
 
@@ -515,6 +518,10 @@ export async function reactivateFile(transactionId: string): Promise<ActionResul
 
   revalidatePath(`/agent/transactions/${transactionId}`);
   revalidatePath(`/transactions/${transactionId}`);
+  // The sidebar To-Do badge counts hold reviews and is computed in the /agent
+  // layout, which a page-scoped revalidate never reaches — refresh it so the
+  // badge decrements the moment a file comes off hold.
+  revalidatePath("/agent", "layout");
   return { ok: true };
 }
 
