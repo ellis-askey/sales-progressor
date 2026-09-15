@@ -237,7 +237,7 @@ export function AddNodeDrawer({
   // Add mode: a hand-typed placeholder ("stub") or one of your own live files
   // ("own"). Self-linking only makes sense on an existing chain (there's an API
   // to hit) and never while editing an existing link.
-  const canSelfLink = isExistingChain && !isEditMode && !insertBetween;
+  const canSelfLink = isExistingChain && !isEditMode;
   const [mode, setMode] = useState<"stub" | "own">("stub");
   const [fileQuery, setFileQuery] = useState("");
   const [fileResults, setFileResults] = useState<{ id: string; propertyAddress: string }[]>([]);
@@ -319,11 +319,13 @@ export function AddNodeDrawer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             linkTransactionId: selectedFile.id,
-            ...(isBranch
-              ? { forkFromLinkId }
-              : aboveOfLinkId
-                ? { aboveOfLinkId }
-                : { direction }),
+            ...(insertBetween
+              ? { betweenAnchorLinkId: insertBetween.anchorLinkId, betweenPlacement: insertBetween.placement }
+              : isBranch
+                ? { forkFromLinkId }
+                : aboveOfLinkId
+                  ? { aboveOfLinkId }
+                  : { direction }),
           }),
         });
         if (!res.ok) {

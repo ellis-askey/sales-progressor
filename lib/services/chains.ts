@@ -1332,6 +1332,7 @@ export async function addChainBranch(
 export type SelfLinkContext =
   | { kind: "spine"; direction: "above" | "below" }
   | { kind: "column"; aboveOfLinkId: string }
+  | { kind: "between"; anchorLinkId: string; placement: "above" | "below" }
   | { kind: "branch"; forkFromLinkId: string };
 
 // Link one of the adder's OWN live files into the chain as a real, claimed node
@@ -1392,6 +1393,24 @@ export async function selfLinkOwnSale(input: {
         await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
       }
       position = 0;
+    } else if (context.kind === "between") {
+      // Slot the file at a specific interior position beside an anchor, mirroring
+      // insertLinkAdjacent: shift everything at/below the insert point down one.
+      const anchor = await tx.chainLink.findFirst({
+        where: { id: context.anchorLinkId, chainId },
+        select: { branchKey: true, position: true },
+      });
+      if (!anchor) return { ok: false as const, reason: "not_found" as const };
+      branchKey = anchor.branchKey ?? "";
+      const insertPos = context.placement === "above" ? anchor.position : anchor.position + 1;
+      const toShift = await tx.chainLink.findMany({
+        where: { chainId, branchKey, position: { gte: insertPos } },
+        orderBy: { position: "desc" },
+      });
+      for (const l of toShift) {
+        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+      }
+      position = insertPos;
     } else {
       const forkNode = await tx.chainLink.findFirst({
         where: { id: context.forkFromLinkId, chainId },

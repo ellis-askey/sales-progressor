@@ -2,12 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink, addChainBranch, addAboveLink, insertLinkAdjacent, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
-import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
+import { isInternalStaff } from "@/lib/chain/permissions";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+// Agency-aware "can work this chain" gate. Internal staff always; a customer
+// agency user (director OR negotiator) when their agency owns or created any link
+// in the chain — so the whole agency can add / insert nodes on a chain one of
+// their files sits in, not just the individual who built it. Widened 2026-09-15
+// from the old person-based canAddAbove/canAddBelow (Ellis: directors + us should
+// be able to add). Blocks a different agency in a shared chain (they own no link).
+async function canManageChain(
+  session: { user: { id: string; role?: string | null; agencyId?: string | null } },
+  chainId: string,
+): Promise<boolean> {
+  if (isInternalStaff(session.user.role)) return true;
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return false;
+  const links = await prisma.chainLink.findMany({
+    where: { chainId },
+    select: {
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true } },
+    },
+  });
+  return links.some(
+    (l) => l.transaction?.agencyId === agencyId || l.createdBy?.agencyId === agencyId,
+  );
+}
 
 // POST /api/chains/[id]/links — add a stub link above or below, OR (when
 // forkFromLinkId is present) an extra onward BRANCH forking above a sale.
@@ -19,12 +44,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const chain = await getChainV2(chainId);
   if (!chain) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Must be a chain participant to add links
-  const allLinks = chain.links.map((l) => ({
-    claimedByUserId: l.claimedByUserId,
-    createdByUserId: l.createdByUserId,
-  }));
-  if (!canViewChain(allLinks, session.user.id, session.user.role)) {
+  // Must be able to work this chain (internal, or the viewer's agency owns/created
+  // a link in it). Agency-aware so a director can add to a colleague's chain.
+  if (!(await canManageChain(session, chainId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -71,28 +93,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     if (body.forkFromLinkId) {
       const forkNode = chain.links.find((l) => l.id === body.forkFromLinkId);
       if (!forkNode) return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
-      if (!canAddAbove(forkNode, session.user.id, session.user.role)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
       context = { kind: "branch", forkFromLinkId: body.forkFromLinkId };
     } else if (body.aboveOfLinkId) {
       const anchor = chain.links.find((l) => l.id === body.aboveOfLinkId);
       if (!anchor) return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
-      if (!canAddAbove(anchor, session.user.id, session.user.role)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
       context = { kind: "column", aboveOfLinkId: body.aboveOfLinkId };
+    } else if (body.betweenAnchorLinkId) {
+      const anchor = chain.links.find((l) => l.id === body.betweenAnchorLinkId);
+      if (!anchor) return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
+      context = {
+        kind: "between",
+        anchorLinkId: body.betweenAnchorLinkId,
+        placement: body.betweenPlacement === "below" ? "below" : "above",
+      };
     } else {
       if (!body.direction) return NextResponse.json({ error: "direction is required" }, { status: 400 });
-      const ownLink = chain.links.find(
-        (l) => l.claimedByUserId === session.user.id || l.createdByUserId === session.user.id,
-      );
-      const anchor = ownLink ?? chain.links[0] ?? null;
-      if (!anchor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      const permitted = body.direction === "above"
-        ? canAddAbove(anchor, session.user.id, session.user.role)
-        : canAddBelow(anchor, session.user.id, session.user.role);
-      if (!permitted) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       context = { kind: "spine", direction: body.direction };
     }
 
@@ -126,9 +141,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     if (!forkNode) {
       return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
     }
-    if (!canAddAbove(forkNode, session.user.id, session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const branchResult = await addChainBranch({
       chainId,
       forkFromLinkId: body.forkFromLinkId,
@@ -157,9 +169,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     if (!anchor) {
       return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
     }
-    if (!canAddAbove(anchor, session.user.id, session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const aboveResult = await addAboveLink({
       chainId,
       userId: session.user.id,
@@ -187,12 +196,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "That sale is not in this chain." }, { status: 400 });
     }
     const placement = body.betweenPlacement === "below" ? "below" : "above";
-    const permitted = placement === "above"
-      ? canAddAbove(anchor, session.user.id, session.user.role)
-      : canAddBelow(anchor, session.user.id, session.user.role);
-    if (!permitted) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     const insertResult = await insertLinkAdjacent({
       chainId,
       userId: session.user.id,
@@ -215,29 +218,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "direction is required" }, { status: 400 });
   }
 
-  // Anchor for the add-permission check: the user's own link when they have
-  // one. Internal staff progressing an OUTSOURCED file own no chain link, so
-  // fall back to any link — canAddAbove/canAddBelow return true for internal
-  // staff regardless of which link is passed (mirrors canViewChain). A normal
-  // non-participant still fails the check on that fallback link, so their
-  // "must own a link" gate is unchanged. addChainLink anchors on chainId +
-  // direction, not this link, so the fallback only affects the permission test.
-  const usersOwnLink = chain.links.find(
-    (l) => l.claimedByUserId === session.user.id || l.createdByUserId === session.user.id,
-  );
-  const anchorLink = usersOwnLink ?? chain.links[0] ?? null;
-  if (!anchorLink) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (body.direction === "above" && !canAddAbove(anchorLink, session.user.id, session.user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (body.direction === "below" && !canAddBelow(anchorLink, session.user.id, session.user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  // Permission is the single agency-aware canManageChain gate at the top; spine
+  // add just needs a direction (addChainLink anchors on chainId + direction).
   // Normalise the postcode portion of the stub address before persisting
   // so chain-invite emails and downstream displays never render "bs1 4pn"
   // style garbage. Leaves street/city untouched — postcode is the only
