@@ -48,6 +48,8 @@ import type {
   UndoOnwardResult,
 } from "@/lib/services/onward";
 import { DateField } from "@/components/ui/DateField";
+import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
+import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
@@ -226,6 +228,13 @@ export function OnwardPurchaseCard({
 
   // Embedded step list starts collapsed behind the "Reported X/Y" summary.
   const [stepsOpen, setStepsOpen] = useState(false);
+
+  // Far sides (agent records the neighbour's side) can chase that neighbour agent
+  // for an update — the inbound twin of the far-side tracker. Never on near sides
+  // (those are our own client's reported progress).
+  const isFarSide = direction === "onward_seller" || direction === "related_buyer";
+  const chaseDir: NeighbourChaseDirection = direction === "onward_seller" ? "onward" : "related";
+  const [chaseOpen, setChaseOpen] = useState(false);
 
   function run(fn: () => Promise<OnwardTrackerView>) {
     setError(null);
@@ -481,6 +490,32 @@ export function OnwardPurchaseCard({
     </ul>
   );
 
+  // "Chase the neighbour agent" — far sides only. Opens the lean neighbour-chase
+  // drawer, which resolves the stub agent above/below server-side and drafts the
+  // ask from this far-side tracker's next outstanding step.
+  const chaseUi = isFarSide ? (
+    <>
+      <div style={{ padding: "6px 8px 2px" }}>
+        <button
+          type="button"
+          onClick={() => setChaseOpen(true)}
+          className="agent-link"
+          style={{ fontSize: 12, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}
+        >
+          Chase the agent {chaseDir === "onward" ? "above" : "below"} for an update
+        </button>
+      </div>
+      {chaseOpen && (
+        <ChaseNeighbourDrawer
+          transactionId={transactionId}
+          direction={chaseDir}
+          neighbourAddress={onwardAddress}
+          onClose={() => setChaseOpen(false)}
+        />
+      )}
+    </>
+  ) : null;
+
   // Embedded: a compact "Reported X/Y" summary with a slim progress bar; the
   // step list expands on demand so the spine stays tight.
   if (embedded) {
@@ -510,6 +545,7 @@ export function OnwardPurchaseCard({
           <>
             <p style={{ margin: "6px 0 0", fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
             {stepList}
+            {chaseUi}
           </>
         )}
         {error && <p style={errStyle}>{error}</p>}
@@ -534,6 +570,8 @@ export function OnwardPurchaseCard({
       <p style={{ padding: "0 16px 8px", margin: 0, fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
 
       {stepList}
+
+      <div style={{ padding: "0 8px 6px" }}>{chaseUi}</div>
 
       {error && <p style={{ padding: "0 16px 12px", margin: 0, color: "var(--agent-danger, #c0392b)", fontSize: 12 }}>{error}</p>}
     </Card>
