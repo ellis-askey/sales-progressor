@@ -182,6 +182,45 @@ export async function setNeighbourAgent(
   return { ok: true, neighbourAddress: found.link.stubPropertyAddress };
 }
 
+export type NeighbourChaseContext = {
+  neighbourName: string | null;
+  neighbourEmail: string;
+  neighbourAddress: string | null;
+  stepName: string | null;
+  lastChasedAt: Date | null;
+  ccCandidate: { name: string; email: string } | null;
+};
+
+export type NeighbourContextResult =
+  | { ok: true; context: NeighbourChaseContext }
+  | { ok: false; reason: NeighbourChaseReason };
+
+// Everything the drawer needs to SHOW (recipient, next step, cc option, last
+// chased) WITHOUT calling the AI — so it loads on open and only writes the draft
+// when the agent clicks Generate (matching the real chase drawer). stepName
+// overrides the auto next-step for a per-step chase.
+export async function getNeighbourChaseContext(
+  transactionId: string,
+  direction: NeighbourChaseDirection,
+  stepName?: string | null,
+): Promise<NeighbourContextResult> {
+  const resolved = await resolveNeighbourChaseTarget(transactionId, direction);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+  const ccCandidate = await resolveCcClient(transactionId, direction);
+  return {
+    ok: true,
+    context: {
+      neighbourName: target.neighbourAgentName,
+      neighbourEmail: target.neighbourAgentEmail,
+      neighbourAddress: target.neighbourAddress,
+      stepName: stepName ?? target.nextStep?.name ?? null,
+      lastChasedAt: target.lastChasedAt,
+      ccCandidate,
+    },
+  };
+}
+
 // Strip em/en dashes so one never reaches a recipient (mirrors generate-chase).
 function stripDashes(s: string): string {
   return s

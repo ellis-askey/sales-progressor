@@ -15,10 +15,12 @@ import {
   sendNeighbourChase,
   logNeighbourChaseHandoff,
   setNeighbourAgent,
+  getNeighbourChaseContext,
   type NeighbourChaseDirection,
   type DraftNeighbourResult,
   type SendNeighbourResult,
   type SetNeighbourAgentResult,
+  type NeighbourContextResult,
 } from "@/lib/services/neighbour-chase";
 
 // Ownership gate. Throws if the transaction is out of the caller's scope.
@@ -31,6 +33,17 @@ async function requireTxInScope(transactionId: string) {
   });
   if (!tx) throw new Error("Transaction not found");
   return { session };
+}
+
+// Load the chase context (recipient, next step, cc option) without writing the
+// AI draft — so the drawer can render on open and only generate on click.
+export async function getNeighbourChaseContextAction(input: {
+  transactionId: string;
+  direction: NeighbourChaseDirection;
+  stepName?: string | null;
+}): Promise<NeighbourContextResult> {
+  await requireTxInScope(input.transactionId);
+  return getNeighbourChaseContext(input.transactionId, input.direction, input.stepName);
 }
 
 // Save the neighbour agent's name + email onto the chain stub above/below, so

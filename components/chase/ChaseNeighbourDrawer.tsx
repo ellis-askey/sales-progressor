@@ -2,17 +2,20 @@
 
 // Chase the neighbour agent above/below in the chain.
 //
-// A focused, lean drawer — deliberately NOT the ChaseDrawer (which is built around
+// A focused drawer — deliberately NOT the ChaseDrawer (which is built around
 // ChaseTask + Contact recipients for client/solicitor chases and must stay
-// untouched). It reuses the AI phrasing engine and the rich ChaseComposer, but the
-// recipient is a chain stub agent and there is no task. Email only. The send is
-// branded from the sending agent with their signature (same as any chase).
+// untouched). It mirrors the real chase drawer's CONTROLS (glowing recipient
+// card, Email/WhatsApp channel row with WhatsApp disabled for a cold agent, a
+// tone dropdown, a Generate button, an optional client CC) but the recipient is
+// a chain stub agent and there is no task. Loads the recipient on open and only
+// writes the AI draft when Generate is pressed. Email-send is branded from the
+// sending agent with their signature (same as any chase).
 //
 // Spec: docs/active/chain-agent-chase/00-spec.md Part C.
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -25,6 +28,8 @@ import {
   draftNeighbourChaseAction,
   sendNeighbourChaseAction,
   openNeighbourChaseInEmailAction,
+  getNeighbourChaseContextAction,
+  setNeighbourAgentAction,
 } from "@/app/actions/neighbour-chase";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 
@@ -98,30 +103,71 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   }, [closing, onClose]);
   useOverlayChrome(doClose);
 
-  const [tone, setTone] = useState<Tone>("Professional");
-  const [drafting, setDrafting] = useState(true);
+  // Recipient / context (loaded on open, no AI).
+  const [loadingContext, setLoadingContext] = useState(true);
   const [errorReason, setErrorReason] = useState<string | null>(null);
-  const [subject, setSubject] = useState("");
-  const [bodyHtml, setBodyHtml] = useState("");
   const [name, setName] = useState<string | null>(neighbourName ?? null);
   const [email, setEmail] = useState<string | null>(null);
-  const [stepName, setStepName] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(neighbourAddress ?? null);
+  const [stepName, setStepName] = useState<string | null>(targetStepName ?? null);
   const [lastChasedAt, setLastChasedAt] = useState<Date | string | null>(null);
+  const [ccCandidate, setCcCandidate] = useState<{ name: string; email: string } | null>(null);
+
+  // Compose.
+  const [tone, setTone] = useState<Tone>("Professional");
+  const [subject, setSubject] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [confirmResend, setConfirmResend] = useState(false);
-  // Optional CC of our own client (seller/buyer). Off by default (opt-in),
-  // mirroring the original chase drawer. Only shown when the draft resolves a
-  // client with an email.
-  const [ccCandidate, setCcCandidate] = useState<{ name: string; email: string } | null>(null);
   const [ccOn, setCcOn] = useState(false);
 
-  const draft = useCallback(async (withTone: Tone) => {
-    setDrafting(true);
+  // Tone dropdown (ported from the real chase drawer).
+  const [toneMenuOpen, setToneMenuOpen] = useState(false);
+  const [toneMenuPos, setToneMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const toneMenuRef = useRef<HTMLDivElement>(null);
+  const closeToneMenu = useCallback(() => setToneMenuOpen(false), []);
+  useEffect(() => {
+    if (!toneMenuOpen) return;
+    function onDown(e: MouseEvent) { if (toneMenuRef.current && !toneMenuRef.current.contains(e.target as Node)) closeToneMenu(); }
+    function onScroll() { closeToneMenu(); }
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", onScroll, true);
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", onScroll, true); };
+  }, [toneMenuOpen, closeToneMenu]);
+
+  // Inline "add the agent's details" (when we have no email yet).
+  const [agentName, setAgentName] = useState("");
+  const [agentEmail, setAgentEmail] = useState("");
+  const [savingAgent, setSavingAgent] = useState(false);
+
+  const hasGenerated = !isHtmlEmpty(bodyHtml);
+
+  const loadContext = useCallback(async () => {
+    setLoadingContext(true);
     setErrorReason(null);
-    const res = await draftNeighbourChaseAction({ transactionId, direction, tone: withTone, stepName: targetStepName }).catch(() => null);
-    setDrafting(false);
-    if (!res) { setErrorReason("ai_failed"); return; }
+    const res = await getNeighbourChaseContextAction({ transactionId, direction, stepName: targetStepName }).catch(() => null);
+    setLoadingContext(false);
+    if (!res) { setErrorReason("no_chain"); return; }
     if (!res.ok) { setErrorReason(res.reason); return; }
+    const c = res.context;
+    setName(c.neighbourName);
+    setEmail(c.neighbourEmail);
+    setAddress(c.neighbourAddress ?? neighbourAddress ?? null);
+    setStepName(c.stepName);
+    setLastChasedAt(c.lastChasedAt);
+    setCcCandidate(c.ccCandidate);
+    setSubject(`Quick update on ${c.neighbourAddress ?? neighbourAddress ?? "your side of the chain"}?`);
+  }, [transactionId, direction, targetStepName, neighbourAddress]);
+
+  useEffect(() => { void loadContext(); }, [loadContext]);
+
+  const generate = useCallback(async (withTone: Tone) => {
+    setGenerating(true);
+    const res = await draftNeighbourChaseAction({ transactionId, direction, tone: withTone, stepName: targetStepName }).catch(() => null);
+    setGenerating(false);
+    if (!res) { toast.error("We couldn't draft a message just now. Try again in a moment."); return; }
+    if (!res.ok) { toast.error(reasonMessage(res.reason, direction)); return; }
     setSubject(res.draft.subject);
     setBodyHtml(textToHtml(res.draft.body));
     setName(res.draft.neighbourName);
@@ -129,10 +175,26 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setStepName(res.draft.stepName);
     setLastChasedAt(res.draft.lastChasedAt);
     setCcCandidate(res.draft.ccCandidate);
-  }, [transactionId, direction, targetStepName]);
+    setConfirmResend(false);
+  }, [transactionId, direction, targetStepName, toast]);
 
-  // Draft once on open with the default tone.
-  useEffect(() => { void draft("Professional"); }, [draft]);
+  // Changing tone re-drafts in the new tone once a draft already exists (else it
+  // just sets the tone the first Generate will use).
+  function chooseTone(t: Tone) {
+    setTone(t);
+    closeToneMenu();
+    if (hasGenerated) void generate(t);
+  }
+
+  async function saveAgent() {
+    if (!agentEmail.includes("@")) return;
+    setSavingAgent(true);
+    const res = await setNeighbourAgentAction({ transactionId, direction, name: agentName, email: agentEmail }).catch(() => null);
+    setSavingAgent(false);
+    if (!res || !res.ok) { toast.error("Couldn't save the agent's details. Check the email and try again."); return; }
+    setErrorReason(null);
+    void loadContext();
+  }
 
   async function handleSend(force: boolean) {
     if (isHtmlEmpty(bodyHtml)) return;
@@ -194,7 +256,8 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   }
 
   const whichNeighbour = direction === "onward" ? "above" : "below";
-  const blocked = !!errorReason && errorReason !== "ai_unavailable" && errorReason !== "ai_failed";
+  // "no_email" gets the inline add-agent form; every other error is a hard block.
+  const blocked = !!errorReason && errorReason !== "no_email";
 
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
@@ -233,7 +296,37 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {blocked ? (
+          {loadingContext ? (
+            <div className="flex items-center justify-center gap-2 py-10" style={{ color: "var(--agent-text-muted)" }}>
+              <CircleNotch size={16} className="animate-spin" /> <span className="text-sm">Loading…</span>
+            </div>
+          ) : errorReason === "no_email" ? (
+            <div className="rounded-xl px-4 py-4 space-y-3" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
+              <p className="text-sm" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
+                We don&apos;t have an email for the agent {whichNeighbour}{address ? ` (handling ${address})` : ""}. Add their details to chase them — we&apos;ll save them against that property for next time.
+              </p>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>Agent name (optional)</label>
+                <input
+                  type="text"
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value)}
+                  placeholder="e.g. Philippa Scott"
+                  className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>Agent email</label>
+                <input
+                  type="email"
+                  value={agentEmail}
+                  onChange={(e) => setAgentEmail(e.target.value)}
+                  placeholder="agent@agency.co.uk"
+                  className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 transition-all"
+                />
+              </div>
+            </div>
+          ) : blocked ? (
             <div className="rounded-xl px-4 py-4" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
               <p className="text-sm" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
                 {reasonMessage(errorReason!, direction)}
@@ -241,8 +334,15 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
             </div>
           ) : (
             <>
-              {/* Recipient */}
-              <div className="rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
+              {/* Recipient — glowing card matching the real chase drawer. */}
+              <div
+                className="rounded-xl px-4 py-3 flex items-start gap-3"
+                style={{
+                  background: "var(--agent-surface-glass)",
+                  border: "0.5px solid var(--agent-border-subtle)",
+                  boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
+                }}
+              >
                 <ContactAvatar contact={{ name: name ?? "Agent", roleType: "agent" }} size={34} />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>To</p>
@@ -250,7 +350,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                     {name ?? `The agent ${whichNeighbour} in the chain`}
                   </p>
                   {email && <p className="text-xs mt-0.5 truncate" style={{ color: "var(--agent-text-muted)" }}>{email}</p>}
-                  {neighbourAddress && <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>{neighbourAddress}</p>}
+                  {address && <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>{address}</p>}
                   {lastChasedAt && (
                     <p className="text-xs mt-1.5" style={{ color: "var(--agent-text-muted)" }}>
                       Last chased {relativeAgo(lastChasedAt)}
@@ -266,29 +366,96 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   : "Asking them for a general update on their side of the chain."}
               </p>
 
-              {/* Tone */}
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: "var(--agent-text-secondary)" }}>Tone</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {TONES.map((t) => {
-                    const active = t === tone;
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => { setTone(t); void draft(t); }}
-                        disabled={drafting || sending}
-                        className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors disabled:opacity-50"
+              {/* Channel + Tone row — mirrors the real chase drawer. WhatsApp is
+                  shown but disabled: we never WhatsApp a cold agent. */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                  <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Channel</p>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      aria-pressed
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                        padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                        border: "1.5px solid var(--agent-coral)", backgroundColor: "var(--agent-coral)", color: "white",
+                        cursor: "default", boxShadow: "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)",
+                      }}
+                    >
+                      <EnvelopeSimple size={15} weight="fill" /> Email
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      title="WhatsApp isn't available for a chain agent we haven't worked with"
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                        padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                        border: "0.5px solid var(--agent-border-subtle)", backgroundColor: "var(--agent-surface-glass)",
+                        color: "var(--agent-text-muted)", cursor: "not-allowed", opacity: 0.5,
+                      }}
+                    >
+                      <ChatText size={15} weight="regular" /> WhatsApp
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tone dropdown */}
+                <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                  <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Tone</p>
+                  <div style={{ position: "relative" }} ref={toneMenuRef}>
+                    <button
+                      type="button"
+                      disabled={generating || sending}
+                      onClick={() => {
+                        if (!toneMenuOpen && toneMenuRef.current) {
+                          const r = toneMenuRef.current.getBoundingClientRect();
+                          setToneMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+                        }
+                        setToneMenuOpen((o) => !o);
+                      }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
+                        background: "var(--agent-surface-glass)", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                        color: "var(--agent-text-primary)",
+                      }}
+                    >
+                      {TONE_DISPLAY[tone]}
+                      <span style={{ color: "var(--agent-text-muted)", display: "flex" }}>
+                        {toneMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
+                      </span>
+                    </button>
+                    {toneMenuOpen && toneMenuPos && typeof document !== "undefined" && createPortal(
+                      <div
+                        data-theme={theme}
+                        data-night={isNight ? "" : undefined}
+                        className="agent-dropdown-in"
                         style={{
-                          border: `1px solid ${active ? "var(--agent-coral)" : "var(--agent-border-default)"}`,
-                          background: active ? "var(--agent-coral-tint, rgba(255,107,74,0.1))" : "transparent",
-                          color: active ? "var(--agent-coral-deep, var(--agent-text-primary))" : "var(--agent-text-secondary)",
+                          position: "fixed", top: toneMenuPos.top, left: toneMenuPos.left, width: toneMenuPos.width,
+                          zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
+                          borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
+                          boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
                         }}
                       >
-                        {TONE_DISPLAY[t]}
-                      </button>
-                    );
-                  })}
+                        {TONES.map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => chooseTone(t)}
+                            style={{
+                              width: "100%", textAlign: "left", padding: "9px 12px", fontSize: 13, fontWeight: 500,
+                              background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
+                              color: tone === t ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
+                              border: "none", cursor: "pointer",
+                            }}
+                          >
+                            {TONE_DISPLAY[t]}
+                          </button>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -299,40 +466,69 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  disabled={drafting}
                   className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 transition-all"
                 />
               </div>
 
-              {/* Message — label + Regenerate match the real chase drawer. */}
+              {/* Message — Generate button until a draft exists, then the composer. */}
               <div className="space-y-2">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <p className="agent-section-label" style={{ margin: 0 }}>Message</p>
-                  <button
-                    type="button"
-                    onClick={() => void draft(tone)}
-                    disabled={drafting || sending}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 5,
-                      background: "none", border: "none", padding: 0,
-                      cursor: drafting || sending ? "not-allowed" : "pointer",
-                      fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)",
-                      opacity: drafting || sending ? 0.5 : 1, transition: "opacity 140ms",
-                    }}
-                  >
-                    <ArrowsClockwise size={13} weight="bold" className={drafting ? "animate-spin" : undefined} /> {drafting ? "Drafting…" : "Regenerate"}
-                  </button>
+                  {hasGenerated && (
+                    <button
+                      type="button"
+                      onClick={() => void generate(tone)}
+                      disabled={generating || sending}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        background: "none", border: "none", padding: 0,
+                        cursor: generating || sending ? "not-allowed" : "pointer",
+                        fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)",
+                        opacity: generating || sending ? 0.5 : 1, transition: "opacity 140ms",
+                      }}
+                    >
+                      <ArrowsClockwise size={13} weight="bold" className={generating ? "animate-spin" : undefined} /> {generating ? "Drafting…" : "Regenerate"}
+                    </button>
+                  )}
                 </div>
-                <ChaseComposer
-                  valueHtml={bodyHtml}
-                  onChangeHtml={(html) => { setBodyHtml(html); setConfirmResend(false); }}
-                  placeholder={drafting ? "Drafting…" : "Write your message…"}
-                  attachments={[]}
-                  onAttachmentsChange={() => {}}
-                  charCount={htmlToText(bodyHtml).length}
-                />
-                {/* Rendered sign-off preview — same component + look as the real chase drawer. */}
-                <ChaseSignaturePreview transactionId={transactionId} visible={!isHtmlEmpty(bodyHtml)} />
+
+                {hasGenerated ? (
+                  <>
+                    <ChaseComposer
+                      valueHtml={bodyHtml}
+                      onChangeHtml={(html) => { setBodyHtml(html); setConfirmResend(false); }}
+                      placeholder="Write your message…"
+                      attachments={[]}
+                      onAttachmentsChange={() => {}}
+                      charCount={htmlToText(bodyHtml).length}
+                    />
+                    <ChaseSignaturePreview transactionId={transactionId} visible={!isHtmlEmpty(bodyHtml)} />
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void generate(tone)}
+                      disabled={generating}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, color: "white",
+                        border: "none", cursor: generating ? "not-allowed" : "pointer",
+                        background: generating
+                          ? "rgba(var(--agent-coral-rgb), 0.5)"
+                          : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
+                        boxShadow: generating ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.32)",
+                      }}
+                    >
+                      {generating
+                        ? <><CircleNotch size={15} className="animate-spin" />Drafting…</>
+                        : <><Sparkle size={15} weight="fill" />Generate message</>}
+                    </button>
+                    <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", textAlign: "center" }}>
+                      We&apos;ll draft a chase based on this property, the agent and tone.
+                    </p>
+                  </>
+                )}
               </div>
 
               {confirmResend && (
@@ -347,11 +543,29 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
           )}
         </div>
 
-        {/* Footer / Send — same layout, styling and behaviour as the real chase
-            drawer (email only: no channel toggle, no attachments). Optional CC of
-            our own client, off by default, mirrors the real chase drawer. */}
+        {/* Footer */}
         <div className="glass-v03" style={{ padding: "14px 20px 18px", border: "none", borderTop: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" }}>
-          {blocked ? (
+          {loadingContext ? (
+            <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
+          ) : errorReason === "no_email" ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => void saveAgent()}
+                disabled={savingAgent || !agentEmail.includes("@")}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, color: "white", border: "none",
+                  cursor: savingAgent || !agentEmail.includes("@") ? "not-allowed" : "pointer",
+                  background: savingAgent || !agentEmail.includes("@")
+                    ? "rgba(var(--agent-coral-rgb), 0.35)"
+                    : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
+                }}
+              >
+                {savingAgent ? <><CircleNotch size={15} className="animate-spin" />Saving…</> : "Save & continue"}
+              </button>
+              <button onClick={doClose} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
+            </div>
+          ) : blocked ? (
             <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
           ) : (
             <>
@@ -366,17 +580,17 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
               )}
               <button
                 onClick={() => { void handleSend(confirmResend); }}
-                disabled={isHtmlEmpty(bodyHtml) || drafting || sending}
+                disabled={!hasGenerated || generating || sending}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   padding: "13px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-                  border: "none", cursor: isHtmlEmpty(bodyHtml) || drafting || sending ? "not-allowed" : "pointer",
+                  border: "none", cursor: !hasGenerated || generating || sending ? "not-allowed" : "pointer",
                   transition: "all 160ms",
-                  background: isHtmlEmpty(bodyHtml) || sending
+                  background: !hasGenerated || sending
                     ? "rgba(var(--agent-coral-rgb), 0.35)"
                     : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
                   color: "white",
-                  boxShadow: isHtmlEmpty(bodyHtml) || sending ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.28)",
+                  boxShadow: !hasGenerated || sending ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.28)",
                 }}
               >
                 {sending
@@ -386,14 +600,14 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
 
               <button
                 onClick={() => { void handleOpenInMyEmail(confirmResend); }}
-                disabled={isHtmlEmpty(bodyHtml) || !email || drafting || sending}
+                disabled={!hasGenerated || !email || generating || sending}
                 title="Opens your own email app with this ready to send"
                 style={{
                   marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)",
-                  color: (isHtmlEmpty(bodyHtml) || !email) ? "var(--agent-text-tertiary)" : "var(--agent-text-primary)",
-                  cursor: (isHtmlEmpty(bodyHtml) || !email || drafting || sending) ? "not-allowed" : "pointer",
+                  color: (!hasGenerated || !email) ? "var(--agent-text-tertiary)" : "var(--agent-text-primary)",
+                  cursor: (!hasGenerated || !email || generating || sending) ? "not-allowed" : "pointer",
                   transition: "all 150ms",
                 }}
               >
