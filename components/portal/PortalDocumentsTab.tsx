@@ -154,6 +154,12 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  // Optimistic share position so the switch flips instantly instead of waiting
+  // on the save + reload. Cleared once the real value catches up; on a failed
+  // save the override is dropped so the switch snaps back to the truth.
+  const [optimisticShared, setOptimisticShared] = useState<boolean | null>(null);
+  useEffect(() => { setOptimisticShared(null); }, [doc.shared]);
+  const shared = optimisticShared ?? doc.shared;
 
   const canShare = doc.mine && isDocShareable(doc.docType);
   const actionCount = (doc.url ? 1 : 0) + (doc.mine ? 1 : 0);
@@ -184,8 +190,11 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
   }
 
   async function toggleShare() {
+    const next = !shared;
+    setOptimisticShared(next); // flip instantly
     setBusy(true);
-    try { await portalToggleDocumentShare({ token, docId: doc.id, shared: !doc.shared }); onChanged(); }
+    try { await portalToggleDocumentShare({ token, docId: doc.id, shared: next }); onChanged(); }
+    catch { setOptimisticShared(null); } // save failed — snap back to the truth
     finally { setBusy(false); }
   }
   async function remove() {
@@ -288,15 +297,15 @@ function DocRow({ doc, token, otherSide, onChanged }: { doc: PortalDoc; token: s
           onClick={toggleShare}
           disabled={busy}
           className="w-full flex items-center gap-3 px-4 py-3 text-left disabled:opacity-60"
-          style={{ borderTop: `1px solid ${P.border}`, background: doc.shared ? P.accentBg : "transparent" }}
+          style={{ borderTop: `1px solid ${P.border}`, background: shared ? P.accentBg : "transparent" }}
         >
           <span
             className="relative inline-flex flex-shrink-0 rounded-full transition-colors"
-            style={{ width: 38, height: 22, background: doc.shared ? P.primary : "rgba(15,23,42,0.18)" }}
+            style={{ width: 38, height: 22, background: shared ? P.primary : "rgba(15,23,42,0.18)" }}
           >
             <span
               className="absolute top-0.5 rounded-full bg-white transition-all"
-              style={{ width: 18, height: 18, left: doc.shared ? 18 : 2, boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
+              style={{ width: 18, height: 18, left: shared ? 18 : 2, boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
             />
           </span>
           <span className="min-w-0">
