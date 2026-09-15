@@ -1101,11 +1101,12 @@ export function ChainView({
           )}
         </div>
 
-        {/* Sticky footer: bulk invite */}
+        {/* Sticky footer: bulk invite — an inset rounded card that floats off the
+            drawer edges rather than a flush square bar. */}
         {invitablePending.length > 0 && (
           <div
-            className="flex-shrink-0 px-6 py-4 flex items-center justify-between"
-            style={{ borderTop: "1px solid var(--agent-border-subtle)", background: "var(--agent-glass-bg-subtle)" }}
+            className="flex-shrink-0 mx-4 mb-4 px-4 py-3 flex items-center justify-between rounded-[14px]"
+            style={{ border: "1px solid var(--agent-border-default)", background: "var(--agent-glass-bg-subtle)", boxShadow: "var(--agent-glass-shadow)" }}
           >
             <p className="text-xs" style={{ color: "var(--agent-text-secondary)" }}>
               {invitablePending.length} agent{invitablePending.length !== 1 ? "s" : ""} ready to invite
