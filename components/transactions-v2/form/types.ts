@@ -30,6 +30,11 @@ export type FormFields = {
   referralFee: number | null;
   brokerReferralFee: number | null;
   purchaserBrokerReferral: boolean;
+  // Seller's onward-purchase broker (Phase 2) — only relevant when the seller is
+  // buying onward (a chain sale above them).
+  onwardBroker: BrokerSelection | null;
+  onwardBrokerReferralFee: number | null;
+  onwardBrokerReferral: boolean;
   notes: string;
   chainStubs: InMemoryStub[];
   chainExpanded: boolean;
@@ -67,6 +72,9 @@ export function defaultFormFields(
     referralFee: null,
     brokerReferralFee: null,
     purchaserBrokerReferral: false,
+    onwardBroker: null,
+    onwardBrokerReferralFee: null,
+    onwardBrokerReferral: false,
     notes: "",
     chainStubs: [],
     chainExpanded: false,

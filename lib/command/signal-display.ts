@@ -65,7 +65,9 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     title: (p) =>
       str(p, "kind") === "unbilled_exchange"
         ? `${str(p, "address")}: exchanged ${num(p, "exchangedDaysAgo")}d ago, no fee recorded`
-        : `${str(p, "address")}: ready to exchange, stalled ${num(p, "daysStalled")}d`,
+        : str(p, "kind") === "unbilled_broker_referral"
+          ? `${str(p, "address")}: broker referred, no broker fee recorded`
+          : `${str(p, "address")}: ready to exchange, stalled ${num(p, "daysStalled")}d`,
     href: filesHref,
   },
   portal_gone_quiet: {

@@ -81,6 +81,7 @@ export function EarningsBuilder({
   // ── Referral income ──
   const solRef = fields.referralFee ?? 0;
   const brokRef = fields.brokerReferralFee ?? 0;
+  const onwardBrokRef = fields.onwardBrokerReferralFee ?? 0;
 
   // ── Progression cost ── self-progress = free; sent-to-us = our fee, but free
   // for the first outsourced sale and for free-plan agencies (mirrors the file).
@@ -90,7 +91,7 @@ export function EarningsBuilder({
     ? (calculateOurFee(feeTier as ClientType, null, price, { feeTier: feeTier as ClientType, legacyOutsourcedFeePence }).fee ?? 0)
     : 0;
 
-  const net: number | null = feeIncVatP != null ? feeIncVatP + solRef + brokRef - progressionCost : null;
+  const net: number | null = feeIncVatP != null ? feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost : null;
 
   const milestones = getVisibleMilestones(allMilestoneDefinitions, fields);
 
@@ -124,6 +125,7 @@ export function EarningsBuilder({
         <Row label="Commission" value={feeIncVatP != null ? `${fmt(feeIncVatP)} inc VAT` : <span style={{ color: "var(--nv2-text-ghost)" }}>—</span>} />
         {solRef > 0 && <Row label="Solicitor referral" value={`+${fmt(solRef)}`} tone="income" />}
         {brokRef > 0 && <Row label="Broker referral" value={`+${fmt(brokRef)}`} tone="income" />}
+        {onwardBrokRef > 0 && <Row label="Seller's broker referral" value={`+${fmt(onwardBrokRef)}`} tone="income" />}
         <Row
           label={outsourced ? "Sent to us" : "Self-progress"}
           value={outsourced ? (chargeable ? `−${fmt(progressionCost)}` : "Free") : "Free"}

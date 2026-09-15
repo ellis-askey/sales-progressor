@@ -95,7 +95,7 @@ export default async function AgentCompletionsPage() {
 
   const totalValue    = files.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
   const filesWithPrice = files.filter((f) => f.purchasePrice).length;
-  const totalFees     = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
+  const totalFees     = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0) + f.brokerFeeTotal, 0);
   const filesWithFee  = files.filter((f) => f.agentFeeAmount).length;
 
   // Brand-new agency user (no pending, no completed history): show the onboarding
@@ -108,7 +108,7 @@ export default async function AgentCompletionsPage() {
     if (group.length === 0) return [];
 
     const groupValue      = group.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
-    const groupFeeTotal   = group.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
+    const groupFeeTotal   = group.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0) + f.brokerFeeTotal, 0);
     const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
 
     /* OLD: server computed daysRel, daysLabel, daysColor (hex strings) and serialised into row.

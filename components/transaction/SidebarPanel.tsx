@@ -130,6 +130,8 @@ export async function SidebarPanel({
         purchaserBrokerReferral: true,
         brokerFirm: { select: { id: true, name: true } },
         brokerContact: { select: { id: true, name: true } },
+        onwardBrokerReferralFee: true,
+        onwardBrokerFirm: { select: { id: true, name: true } },
       },
     }).catch(() => null),
 
@@ -331,6 +333,8 @@ export async function SidebarPanel({
         referredFirmId: transaction.referredFirmId ?? null,
         brokerReferralFee: brokerRow?.brokerReferralFee ?? null,
         brokerFirmName: brokerRow?.brokerFirm?.name ?? null,
+        onwardBrokerReferralFee: brokerRow?.onwardBrokerReferralFee ?? null,
+        onwardBrokerFirmName: brokerRow?.onwardBrokerFirm?.name ?? null,
         serviceType: transaction.serviceType ?? null,
         freeOnExchange: transaction.freeOnExchange ?? null,
         firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,

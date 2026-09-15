@@ -219,6 +219,13 @@ export async function OverviewPanel({
         purchaserBrokerReferral: true,
         brokerFirm: { select: { id: true, name: true } },
         brokerContact: { select: { id: true, name: true } },
+        onwardBrokerFirmId: true,
+        onwardBrokerContactId: true,
+        onwardBrokerReferralFee: true,
+        onwardBrokerReferralFeeReceived: true,
+        onwardBrokerReferral: true,
+        onwardBrokerFirm: { select: { id: true, name: true } },
+        onwardBrokerContact: { select: { id: true, name: true } },
       },
     }).catch(() => null),
 
@@ -485,6 +492,24 @@ export async function OverviewPanel({
                 brokerReferralFee={brokerRow?.brokerReferralFee ?? null}
                 brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
                 purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
+                purchaseType={transaction.purchaseType}
+                canEdit={currentUserRole !== "sales_progressor"}
+              />
+            )}
+            {/* Seller's onward-purchase broker (Phase 2). Only when the seller is
+                buying onward — a second referral + fee, agent income like the
+                buyer's. Also shows if one's already set, even if the signal blips. */}
+            {(onwardSignal.buyingOnward || brokerRow?.onwardBrokerFirmId) && (
+              <BrokerSection
+                transactionId={transaction.id}
+                side="vendor"
+                brokerFirmId={brokerRow?.onwardBrokerFirmId ?? null}
+                brokerContactId={brokerRow?.onwardBrokerContactId ?? null}
+                brokerFirmName={brokerRow?.onwardBrokerFirm?.name ?? null}
+                brokerContactName={brokerRow?.onwardBrokerContact?.name ?? null}
+                brokerReferralFee={brokerRow?.onwardBrokerReferralFee ?? null}
+                brokerReferralFeeReceived={brokerRow?.onwardBrokerReferralFeeReceived ?? false}
+                purchaserBrokerReferral={brokerRow?.onwardBrokerReferral ?? false}
                 purchaseType={transaction.purchaseType}
                 canEdit={currentUserRole !== "sales_progressor"}
               />

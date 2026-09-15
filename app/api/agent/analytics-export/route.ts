@@ -100,6 +100,12 @@ export async function GET(req: NextRequest) {
   const inPipelinePence = inPipelineTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
   const duePence        = dueTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
 
+  // Broker referral income — buyer's broker + the seller's onward broker (Phase 2).
+  const brokerFeeOf     = (t: typeof periodTx[number]) => (t.brokerReferralFee ?? 0) + (t.onwardBrokerReferralFee ?? 0);
+  const brokerTxs       = periodTx.filter(t => brokerFeeOf(t) > 0);
+  const brokerPipelineP = brokerTxs.filter(t => !t.hasExchanged && !t.hasCompleted).reduce((s, t) => s + brokerFeeOf(t), 0);
+  const brokerDueP      = brokerTxs.filter(t => t.hasExchanged || t.hasCompleted).reduce((s, t) => s + brokerFeeOf(t), 0);
+
   // ── Build CSV ──────────────────────────────────────────────────────────────
   const now         = new Date();
   const dateStr     = now.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -151,6 +157,15 @@ export async function GET(req: NextRequest) {
       "REFERRAL INCOME",
       row("In pipeline",          inPipelinePence > 0 ? fmtGBP(inPipelinePence) : "—"),
       row("Exchanged — due", duePence        > 0 ? fmtGBP(duePence)        : "—"),
+    );
+  }
+
+  if (brokerTxs.length > 0) {
+    lines.push(
+      "",
+      "BROKER REFERRAL INCOME",
+      row("In pipeline",     brokerPipelineP > 0 ? fmtGBP(brokerPipelineP) : "—"),
+      row("Exchanged — due", brokerDueP      > 0 ? fmtGBP(brokerDueP)      : "—"),
     );
   }
 

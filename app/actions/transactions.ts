@@ -130,6 +130,10 @@ export async function createTransactionAction(input: {
   brokerContactId?: string | null;
   brokerReferralFee?: number | null;
   purchaserBrokerReferral?: boolean;
+  onwardBrokerFirmId?: string | null;
+  onwardBrokerContactId?: string | null;
+  onwardBrokerReferralFee?: number | null;
+  onwardBrokerReferral?: boolean;
   photoStoragePath?: string | null;
   mosUploaded?: boolean;
   mosStoragePath?: string;
@@ -270,6 +274,10 @@ export async function createTransactionAction(input: {
     brokerContactId: input.brokerContactId ?? null,
     brokerReferralFee: input.brokerReferralFee ?? null,
     purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
+    onwardBrokerFirmId: input.onwardBrokerFirmId ?? null,
+    onwardBrokerContactId: input.onwardBrokerContactId ?? null,
+    onwardBrokerReferralFee: input.onwardBrokerReferralFee ?? null,
+    onwardBrokerReferral: input.onwardBrokerReferral ?? false,
     photoStoragePath: input.photoStoragePath ?? null,
     isMigrated: hasMigrationOverride,
   });
@@ -1446,7 +1454,11 @@ export async function saveBrokerReferralAction(
     // confirmed-broker row on the buyer's portal team). Omitted by the fee
     // editor, which leaves the existing value untouched.
     purchaserBrokerReferral?: boolean;
-  }
+  },
+  // "purchaser" (default) = the buyer's mortgage broker; "vendor" = the seller's
+  // onward-purchase broker (Phase 2). The vendor side writes the parallel
+  // onwardBroker* columns and never touches the buyer's.
+  side: "purchaser" | "vendor" = "purchaser",
 ) {
   const session = await requireSession();
   if (session.user.role === "sales_progressor") throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
@@ -1457,20 +1469,30 @@ export async function saveBrokerReferralAction(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  await prisma.propertyTransaction.update({
-    where: { id: transactionId },
-    data: {
-      brokerFirmId:              data.brokerFirmId,
-      brokerContactId:           data.brokerContactId,
-      brokerReferralFee:         data.brokerReferralFee,
-      brokerReferralFeeReceived: data.brokerReferralFeeReceived,
-      ...(data.purchaserBrokerReferral !== undefined
-        ? { purchaserBrokerReferral: data.purchaserBrokerReferral }
-        : {}),
-    },
-  });
+  const updateData = side === "vendor"
+    ? {
+        onwardBrokerFirmId:              data.brokerFirmId,
+        onwardBrokerContactId:           data.brokerContactId,
+        onwardBrokerReferralFee:         data.brokerReferralFee,
+        onwardBrokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        ...(data.purchaserBrokerReferral !== undefined
+          ? { onwardBrokerReferral: data.purchaserBrokerReferral }
+          : {}),
+      }
+    : {
+        brokerFirmId:              data.brokerFirmId,
+        brokerContactId:           data.brokerContactId,
+        brokerReferralFee:         data.brokerReferralFee,
+        brokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        ...(data.purchaserBrokerReferral !== undefined
+          ? { purchaserBrokerReferral: data.purchaserBrokerReferral }
+          : {}),
+      };
 
-  await logActivity(transactionId, `${session.user.name} updated broker referral details`, session.user.id);
+  await prisma.propertyTransaction.update({ where: { id: transactionId }, data: updateData });
+
+  const label = side === "vendor" ? "seller's onward broker" : "broker referral";
+  await logActivity(transactionId, `${session.user.name} updated ${label} details`, session.user.id);
 
   revalidateTx(transactionId);
 }

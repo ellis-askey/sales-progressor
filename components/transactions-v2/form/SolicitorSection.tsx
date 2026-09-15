@@ -33,6 +33,14 @@ type Props = {
   onBrokerReferralFeeChange: (v: number | null) => void;
   preferredBrokerDefaultFee: number | null;
   onBrokerReferredChange: (referred: boolean) => void;
+  // Seller's onward-purchase broker (Phase 2). Shown only when the seller is
+  // buying onward (a chain sale added above them).
+  showOnwardBroker: boolean;
+  onwardBroker: BrokerSelection | null;
+  onOnwardBrokerChange: (v: BrokerSelection | null) => void;
+  onwardBrokerReferralFee: number | null;
+  onOnwardBrokerReferralFeeChange: (v: number | null) => void;
+  onOnwardBrokerReferredChange: (referred: boolean) => void;
   onEdit: (field: string) => void;
 };
 
@@ -158,6 +166,8 @@ export function SolicitorSection({
   broker, preferredBroker, onBrokerChange,
   brokerReferralFee, onBrokerReferralFeeChange, preferredBrokerDefaultFee,
   onBrokerReferredChange,
+  showOnwardBroker, onwardBroker, onOnwardBrokerChange,
+  onwardBrokerReferralFee, onOnwardBrokerReferralFeeChange, onOnwardBrokerReferredChange,
   onEdit,
 }: Props) {
   return (
@@ -270,6 +280,28 @@ export function SolicitorSection({
           onReferralChange={onBrokerReferredChange}
         />
       </div>
+
+      {/* Seller's onward broker — only when the seller's buying onward (a sale
+          added above them in the chain). A second referral + fee. */}
+      {showOnwardBroker && (
+        <div style={{ borderTop: "0.5px solid var(--nv2-border-dark)", paddingTop: 16 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
+            Seller&rsquo;s onward broker
+            {onwardBroker?.firmId && (
+              <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
+            )}
+          </p>
+          <BrokerField
+            value={onwardBroker}
+            onChange={(v) => { onOnwardBrokerChange(v); onEdit("onwardBroker"); }}
+            preferredBroker={preferredBroker}
+            referralFee={onwardBrokerReferralFee}
+            onReferralFeeChange={(v) => { onOnwardBrokerReferralFeeChange(v); onEdit("onwardBrokerReferralFee"); }}
+            preferredBrokerDefaultFee={preferredBrokerDefaultFee}
+            onReferralChange={onOnwardBrokerReferredChange}
+          />
+        </div>
+      )}
 
     </div>
   );

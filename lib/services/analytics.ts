@@ -284,31 +284,42 @@ export async function getBrokerReferralStatsForScope(scope: AccessScope): Promis
 }
 
 async function brokerReferralStatsFromWhere(base: Prisma.PropertyTransactionWhereInput): Promise<BrokerReferralStat[]> {
+  // Both the buyer's mortgage broker AND the seller's onward broker count as
+  // broker referral income (Phase 2). They're MERGED per firm — a firm can be a
+  // buyer-broker on one file and an onward-broker on another, and both roll into
+  // the same broker's totals.
   const rows = await prisma.propertyTransaction.findMany({
-    where: { ...base, brokerFirmId: { not: null }, status: { not: "draft" } },
+    where: { ...base, status: { not: "draft" }, OR: [{ brokerFirmId: { not: null } }, { onwardBrokerFirmId: { not: null } }] },
     select: {
       brokerReferralFee: true,
       brokerReferralFeeReceived: true,
       brokerFirm: { select: { id: true, name: true } },
+      onwardBrokerReferralFee: true,
+      onwardBrokerReferralFeeReceived: true,
+      onwardBrokerFirm: { select: { id: true, name: true } },
     },
   }).catch(() => []);
 
   const map = new Map<string, BrokerReferralStat>();
-  for (const r of rows) {
-    if (!r.brokerFirm) continue;
-    const existing = map.get(r.brokerFirm.id) ?? {
-      firmId: r.brokerFirm.id,
-      firmName: r.brokerFirm.name,
+  const add = (firm: { id: string; name: string } | null, fee: number | null, received: boolean) => {
+    if (!firm) return;
+    const existing = map.get(firm.id) ?? {
+      firmId: firm.id,
+      firmName: firm.name,
       referralCount: 0,
       feeExpectedPence: 0,
       feeReceivedPence: 0,
       pendingCount: 0,
     };
     existing.referralCount++;
-    existing.feeExpectedPence += r.brokerReferralFee ?? 0;
-    if (r.brokerReferralFeeReceived) existing.feeReceivedPence += r.brokerReferralFee ?? 0;
+    existing.feeExpectedPence += fee ?? 0;
+    if (received) existing.feeReceivedPence += fee ?? 0;
     else existing.pendingCount++;
-    map.set(r.brokerFirm.id, existing);
+    map.set(firm.id, existing);
+  };
+  for (const r of rows) {
+    add(r.brokerFirm, r.brokerReferralFee, r.brokerReferralFeeReceived);
+    add(r.onwardBrokerFirm, r.onwardBrokerReferralFee, r.onwardBrokerReferralFeeReceived);
   }
 
   return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);

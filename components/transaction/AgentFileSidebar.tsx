@@ -72,6 +72,8 @@ type Props = {
     referredFirmId?: string | null;
     brokerReferralFee?: number | null;
     brokerFirmName?: string | null;
+    onwardBrokerReferralFee?: number | null;
+    onwardBrokerFirmName?: string | null;
     serviceType?: "self_managed" | "outsourced" | null;
     freeOnExchange?: boolean | null;
     firstOutsourcedFree?: boolean | null;
@@ -232,6 +234,7 @@ export function AgentFileSidebar({
     (agentFeeCalcPence ?? 0)
     + (transaction.referralFee ?? 0)
     + (transaction.brokerReferralFee ?? 0)
+    + (transaction.onwardBrokerReferralFee ?? 0)
     - progressorFeePence;
   const hasTotal = agentFeeCalcPence != null;
 
@@ -242,7 +245,7 @@ export function AgentFileSidebar({
       : "–";
 
   const VAT = 1.2;
-  const referrals = (transaction.referralFee ?? 0) + (transaction.brokerReferralFee ?? 0);
+  const referrals = (transaction.referralFee ?? 0) + (transaction.brokerReferralFee ?? 0) + (transaction.onwardBrokerReferralFee ?? 0);
   const grossTotalPence: number | null =
     agentFeeCalcPence != null && transaction.agentFeeIsVatInclusive != null
       ? transaction.agentFeeIsVatInclusive
@@ -528,6 +531,12 @@ export function AgentFileSidebar({
           <SidebarRow
             label="Broker referral"
             value={transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "–"}
+          />
+        )}
+        {transaction.onwardBrokerFirmName && (
+          <SidebarRow
+            label="Seller broker referral"
+            value={transaction.onwardBrokerReferralFee != null ? formatFee(transaction.onwardBrokerReferralFee) : "–"}
           />
         )}
         {showOurFee && ourFee.fee != null && !agencyIsFree && (

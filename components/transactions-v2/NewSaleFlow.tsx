@@ -139,6 +139,10 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
     broker: null,
     brokerReferralFee: null,
     purchaserBrokerReferral: false,
+    // Drafts don't carry the onward broker yet (scoped follow-up) — defaults here.
+    onwardBroker: null,
+    onwardBrokerReferralFee: null,
+    onwardBrokerReferral: false,
     notes: draft.notes ?? "",
     chainStubs: draft.chainStubs as InMemoryStub[],
     chainExpanded: draft.chainStubs.length > 0,
@@ -886,6 +890,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         brokerContactId: formFields.broker?.contactId ?? null,
         brokerReferralFee: formFields.broker ? formFields.brokerReferralFee : null,
         purchaserBrokerReferral: formFields.purchaseType === "mortgage" ? formFields.purchaserBrokerReferral : false,
+        // Seller's onward broker — only when they're buying onward (a chain sale above).
+        onwardBrokerFirmId: formFields.onwardBroker?.firmId ?? null,
+        onwardBrokerContactId: formFields.onwardBroker?.contactId ?? null,
+        onwardBrokerReferralFee: formFields.onwardBroker ? formFields.onwardBrokerReferralFee : null,
+        onwardBrokerReferral: formFields.onwardBroker ? formFields.onwardBrokerReferral : false,
         photoStoragePath: formFields.photoStoragePath,
         mosUploaded: flowState === "extracted",
         mosStoragePath: extractedData?.mosStoragePath,

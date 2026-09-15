@@ -53,6 +53,44 @@ export const revenueAtRisk: Detector = async (window) => {
     });
   }
 
+  // C) Broker referred but no broker fee recorded — uncaptured broker referral
+  //    income (buyer's broker or the seller's onward broker). Only on exchanged
+  //    files where the agent confirmed the referral, so it's precise, not noisy.
+  const unbilledBroker = await prisma.propertyTransaction.findMany({
+    where: {
+      exchangedAt: { not: null, gte: unbilledSince },
+      status: { in: ["active", "completed"] },
+      isDemo: false,
+      isMigrated: false,
+      agency: { isInternal: false },
+      OR: [
+        { purchaserBrokerReferral: true, brokerReferralFee: null },
+        { onwardBrokerReferral: true, onwardBrokerReferralFee: null },
+      ],
+    },
+    select: { id: true, propertyAddress: true, exchangedAt: true, agency: { select: { name: true } } },
+    take: 100,
+  });
+
+  for (const t of unbilledBroker) {
+    const daysSince = Math.floor((now.getTime() - (t.exchangedAt as Date).getTime()) / 86_400_000);
+    signals.push({
+      detectorName: "revenue_at_risk",
+      dedupeKey: `revenue_at_risk:unbilled_broker:${t.id}`,
+      payload: {
+        kind: "unbilled_broker_referral",
+        transactionId: t.id,
+        address: t.propertyAddress,
+        agencyName: t.agency?.name ?? null,
+        exchangedDaysAgo: daysSince,
+      },
+      confidence: 1.0,
+      severity: "leak",
+      windowStart: window.current.start,
+      windowEnd: window.current.end,
+    });
+  }
+
   // B) Ready to exchange but stalled — no VM19/PM26 yet and no movement.
   const stalled = await prisma.milestoneCompletion.findMany({
     where: {

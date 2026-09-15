@@ -812,6 +812,10 @@ export type CreateTransactionInput = {
   brokerContactId?: string | null;
   brokerReferralFee?: number | null;
   purchaserBrokerReferral?: boolean;
+  onwardBrokerFirmId?: string | null;
+  onwardBrokerContactId?: string | null;
+  onwardBrokerReferralFee?: number | null;
+  onwardBrokerReferral?: boolean;
   // True when the file is being created via the admin Migrate Sale page.
   // Excludes the row from milestone-velocity analytics — backdated
   // completedAt timestamps would pollute averages otherwise.
@@ -959,6 +963,10 @@ export async function createTransaction(input: CreateTransactionInput) {
       brokerContactId: input.brokerContactId ?? null,
       brokerReferralFee: input.brokerReferralFee ?? null,
       purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
+      onwardBrokerFirmId: input.onwardBrokerFirmId ?? null,
+      onwardBrokerContactId: input.onwardBrokerContactId ?? null,
+      onwardBrokerReferralFee: input.onwardBrokerReferralFee ?? null,
+      onwardBrokerReferral: input.onwardBrokerReferral ?? false,
       twelveWeekTarget,
     },
     });

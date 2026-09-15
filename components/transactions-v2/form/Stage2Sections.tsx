@@ -188,6 +188,12 @@ export function Stage2Sections({
             onBrokerReferralFeeChange={(v) => onChange({ brokerReferralFee: v })}
             preferredBrokerDefaultFee={preferredBrokerDefaultFee}
             onBrokerReferredChange={(referred) => onChange({ purchaserBrokerReferral: referred })}
+            showOnwardBroker={fields.chainStubs.some((s) => s.direction === "above")}
+            onwardBroker={fields.onwardBroker}
+            onOnwardBrokerChange={(v) => { onChange({ onwardBroker: v }); onEdit("onwardBroker"); }}
+            onwardBrokerReferralFee={fields.onwardBrokerReferralFee}
+            onOnwardBrokerReferralFeeChange={(v) => onChange({ onwardBrokerReferralFee: v })}
+            onOnwardBrokerReferredChange={(referred) => onChange({ onwardBrokerReferral: referred })}
             onEdit={onEdit}
           />
         </SectionAccordion>

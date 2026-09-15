@@ -20,7 +20,27 @@ type Props = {
   // hidden from sales_progressor (blocked from commercial data by the action).
   purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
   canEdit?: boolean;
+  // "purchaser" (default) = the buyer's mortgage broker. "vendor" = the seller's
+  // onward-purchase broker (Phase 2) — same card, seller-side copy + columns.
+  // The vendor instance is only rendered when the seller's buying onward, so it
+  // doesn't gate its own add-control on purchaseType.
+  side?: "purchaser" | "vendor";
 };
+
+const COPY = {
+  purchaser: {
+    heading: "Mortgage broker",
+    referredPill: "Purchaser referred to broker",
+    addBlurb: "Add your recommended broker so your buyer can request a call back from their portal.",
+    referredLabel: "Referred the buyer to this broker",
+  },
+  vendor: {
+    heading: "Seller's onward broker",
+    referredPill: "Seller referred to broker",
+    addBlurb: "Add the broker helping the seller with their onward purchase, so the referral and fee are on the file.",
+    referredLabel: "Referred the seller to this broker",
+  },
+} as const;
 
 export function BrokerSection({
   transactionId,
@@ -33,12 +53,14 @@ export function BrokerSection({
   purchaserBrokerReferral,
   purchaseType,
   canEdit = true,
+  side = "purchaser",
 }: Props) {
   const [, startTransition] = useTransition();
   const [feePence, setFeePence] = useState<number | null>(brokerReferralFee);
   const [received, setReceived] = useState(brokerReferralFeeReceived);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const copy = COPY[side];
 
   function save() {
     setSaving(true);
@@ -49,7 +71,7 @@ export function BrokerSection({
           brokerContactId,
           brokerReferralFee: feePence,
           brokerReferralFeeReceived: received,
-        });
+        }, side);
         setDirty(false);
       } finally {
         setSaving(false);
@@ -58,8 +80,10 @@ export function BrokerSection({
   }
 
   if (!brokerFirmId) {
-    if (canEdit && purchaseType === "mortgage") {
-      return <AddBrokerControl transactionId={transactionId} />;
+    // Buyer add is gated to mortgage files; the seller-onward instance is already
+    // gated on "buying onward" by its caller, so it just needs edit rights.
+    if (canEdit && (side === "vendor" || purchaseType === "mortgage")) {
+      return <AddBrokerControl transactionId={transactionId} side={side} />;
     }
     return null;
   }
@@ -68,7 +92,7 @@ export function BrokerSection({
     <section>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
-          Mortgage Broker
+          {copy.heading}
         </h2>
         {dirty && (
           <button
@@ -98,7 +122,7 @@ export function BrokerSection({
               background: "var(--agent-success-bg)",
               border: "1px solid var(--agent-success-border)",
             }}>
-              Purchaser referred to broker
+              {copy.referredPill}
             </span>
           )}
         </div>
@@ -158,11 +182,12 @@ export function BrokerSection({
 // Attach a mortgage broker to a live file (fills the gap where a broker could
 // only be set at new-sale time). Setting one lights up the buyer's portal
 // broker card; ticking "referred" adds them to the portal team once confirmed.
-function AddBrokerControl({ transactionId }: { transactionId: string }) {
+function AddBrokerControl({ transactionId, side }: { transactionId: string; side: "purchaser" | "vendor" }) {
   const [sel, setSel] = useState<BrokerSelection | null>(null);
   const [referred, setReferred] = useState(true);
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
+  const copy = COPY[side];
 
   function save() {
     if (!sel) return;
@@ -175,7 +200,7 @@ function AddBrokerControl({ transactionId }: { transactionId: string }) {
           brokerReferralFee: null,
           brokerReferralFeeReceived: false,
           purchaserBrokerReferral: referred,
-        });
+        }, side);
       } finally {
         setSaving(false);
       }
@@ -185,11 +210,11 @@ function AddBrokerControl({ transactionId }: { transactionId: string }) {
   return (
     <section>
       <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
-        Mortgage Broker
+        {copy.heading}
       </h2>
       <GlassCard glassId="overview-broker" label="Overview · Broker" defaultVariant="v22" className="px-5 py-4 space-y-3">
         <p className="text-xs text-slate-900/50">
-          Add your recommended broker so your buyer can request a call back from their portal.
+          {copy.addBlurb}
         </p>
         <BrokerPicker label="Broker" value={sel} onChange={setSel} />
         <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -199,7 +224,7 @@ function AddBrokerControl({ transactionId }: { transactionId: string }) {
             onChange={(e) => setReferred(e.target.checked)}
             className="w-4 h-4 accent-emerald-500"
           />
-          <span className="text-sm text-slate-900/70">Referred the buyer to this broker</span>
+          <span className="text-sm text-slate-900/70">{copy.referredLabel}</span>
         </label>
         <button
           onClick={save}
