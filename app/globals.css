@@ -1247,13 +1247,24 @@ select {
  * mode automatically (no backdrop-filter is used, so no [data-solid]
  * override is needed). */
 .chain-dbody { display: grid; grid-template-columns: 1fr 244px; gap: 16px; }
-.chain-stack { display: flex; flex-direction: column; min-width: 0; }
+/* container-type: the fork-stacking rules below key off the chain column's own
+   width (not the viewport), so the same thresholds hold in the inline tab and
+   the 760px drawer alike. Each fork column is a container too, so a nested
+   fork measures the column it actually sits in. */
+.chain-stack { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
 .chain-side  { display: flex; flex-direction: column; gap: 12px; }
 @media (max-width: 720px) { .chain-dbody { grid-template-columns: 1fr; } }
 
 /* ChainView rendered inline (the property-file Chain tab) rather than as a
    slide-over — full width, no drawer chrome. */
 .chain-view-inline { width: 100%; }
+/* Inline tab only: the AgentShell sidebar eats ~232px, so below ~1000px
+   viewport the chain column is crushed long before the drawer's 720px rule
+   fires. Drop to one column: chain first, then the value card full width
+   with the activity card beneath it. The drawer keeps its own 720px rule. */
+@media (max-width: 1000px) {
+  .chain-view-inline .chain-dbody { grid-template-columns: 1fr; }
+}
 
 .chain-connector { width: 2px; height: 16px; margin-left: 52px;
   background: linear-gradient(var(--agent-border-strong), transparent); }
@@ -1534,7 +1545,7 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
    cards to half-width one-word-per-line. */
 .chain-fork-cols { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: center; }
 .chain-fork-col { flex: 1 1 300px; min-width: 300px; display: flex; flex-direction: column;
-  justify-content: flex-end; }
+  justify-content: flex-end; container-type: inline-size; }
 /* Inside a fork column every card is narrow, so it stacks its own internals:
    the address takes the full width on its own row, and the price/status/menu
    row sits beneath it rather than stealing horizontal space. The photo shrinks
@@ -1549,9 +1560,44 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
 .chain-fork-col .chain-cright { position: absolute; top: 12px; right: 12px;
   flex-direction: row; align-items: center; align-self: auto;
   justify-content: flex-end; gap: 6px; }
-/* On mobile the fork can't sit side by side. Stack the onward columns, label
-   each branch, and drop the fanning connector (the stacked order reads top→down
-   as branch 1, 2, 3 into the shared sale). */
+/* When the fork can't sit side by side, stack the onward columns, label each
+   branch, and drop the fanning connector (the stacked order reads top→down as
+   branch 1, 2, 3 into the shared sale). Previously the columns flex-WRAPPED at
+   these widths while the connector kept drawing legs to positions that no
+   longer existed — diagonal lines pointing at one stacked property, in a
+   scrambled-looking order.
+   Container-driven (chain column width, not viewport) so the same thresholds
+   hold in the inline file tab and the Chains-workspace drawer:
+   - any fork stacks below 614px  (2 × 300px min columns + 14px gap)
+   - a trident stacks below 928px (3 × 300px + 2 gaps) via data-fanout="3" */
+@container (max-width: 927px) {
+  .chain-fork[data-fanout="3"] > .chain-fork-cols {
+    flex-direction: column; align-items: stretch; gap: 12px; counter-reset: chain-branch;
+  }
+  .chain-fork[data-fanout="3"] > .chain-fork-cols > .chain-fork-col {
+    counter-increment: chain-branch; position: relative;
+  }
+  .chain-fork[data-fanout="3"] > .chain-fork-cols > .chain-fork-col::before {
+    content: "Branch " counter(chain-branch);
+    display: block; margin: 0 0 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--agent-text-muted);
+  }
+  .chain-fork[data-fanout="3"] > .chain-fork-connector { display: none; }
+}
+@container (max-width: 613px) {
+  .chain-fork-cols { flex-direction: column; align-items: stretch; gap: 12px; counter-reset: chain-branch; }
+  .chain-fork-col { counter-increment: chain-branch; position: relative; }
+  .chain-fork-col::before {
+    content: "Branch " counter(chain-branch);
+    display: block; margin: 0 0 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--agent-text-muted);
+  }
+  .chain-fork-connector { display: none; }
+}
+/* Phone fallback (viewport-based) for browsers without container queries.
+   Note: this used to try to hide the fan with `.chain-fork > svg`, but the
+   SVG lives inside .chain-fork-connector — the selector matched nothing and
+   the diagonal lines stayed visible over stacked branches. */
 @media (max-width: 700px) {
   .chain-fork-cols { flex-direction: column; align-items: stretch; gap: 12px; }
   .chain-fork-col { counter-increment: chain-branch; position: relative; }
@@ -1561,7 +1607,7 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
     letter-spacing: .04em; text-transform: uppercase; color: var(--agent-text-muted);
   }
   .chain-fork-cols { counter-reset: chain-branch; }
-  .chain-fork > svg { display: none; }
+  .chain-fork-connector { display: none; }
 }
 
 /* 4. Tab bar (when detached from hero) */

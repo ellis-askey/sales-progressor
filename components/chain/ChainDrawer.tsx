@@ -725,7 +725,9 @@ export function ChainView({
       );
     }
     return (
-      <div key={link.id} className="chain-fork">
+      // data-fanout drives the container-query stacking thresholds in
+      // globals.css — a trident needs more room than a V before it stacks.
+      <div key={link.id} className="chain-fork" data-fanout={onwards.length}>
         <div className="chain-fork-cols">
           {onwards.map((o) => (
             <div key={o.id} className="chain-fork-col">
