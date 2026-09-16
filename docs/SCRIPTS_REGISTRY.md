@@ -342,3 +342,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway).
 - **Author/date:** Claude, 2026-09-16.
 - **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.
+
+### backfill-reclean-inbound.ts
+- **Purpose:** one-shot data backfill. Re-cleans the displayed text (`content`) of inbound emails synced before the Phase A cleaning improvements. Cleaning only runs at ingest and re-syncs de-dupe rather than re-clean, so older emails still show signatures / quoted trails the current cleaner strips. Re-runs `cleanIngestedEmail` over the preserved `providerWebhookData.raw` and updates `content` where it differs. Safe + reversible (raw untouched; re-runnable). Targets inbound email rows only. Dry-run by default; `--apply` writes; `--prod` targets PROD_DATABASE_URL.
+- **Lifetime:** one-shot (throwaway).
+- **Author/date:** Claude, 2026-09-16.
+- **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.
