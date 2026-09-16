@@ -12,6 +12,7 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
+import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
 
 type Props = {
   entries: ActivityEntry[];
@@ -211,7 +212,7 @@ const THREAD_LINK_BTN = {
 } as const;
 
 function EmailThreadCard({
-  thread, open, onToggle, expandedBodies, openOriginals, onToggleBody, onToggleOriginal,
+  thread, open, onToggle, expandedBodies, openOriginals, onToggleBody, onToggleOriginal, transactionId,
 }: {
   thread: ThreadRow;
   open: boolean;
@@ -220,6 +221,7 @@ function EmailThreadCard({
   openOriginals: Set<string>;
   onToggleBody: (id: string) => void;
   onToggleOriginal: (id: string) => void;
+  transactionId: string;
 }) {
   const latest = thread.messages[0];
   return (
@@ -282,6 +284,9 @@ function EmailThreadCard({
                       </button>
                     )}
                   </div>
+                )}
+                {m.aiRead && (
+                  <EmailAiSuggestions transactionId={transactionId} messageId={m.id} aiRead={m.aiRead} />
                 )}
               </div>
             );
@@ -515,6 +520,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       openOriginals={openOriginals}
                       onToggleBody={onToggleBody}
                       onToggleOriginal={onToggleOriginal}
+                      transactionId={transactionId}
                     />
                   ) : entry.kind === "milestone" ? (
                     // ── Milestone card ──────────────────────────────────────
@@ -789,6 +795,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           {/* WhatsApp media attachment (image / video / voice / doc) */}
                           {entry.kind === "comm" && entry.mediaUrl && (
                             <MediaAttachment url={entry.mediaUrl} type={entry.mediaType} />
+                          )}
+
+                          {/* AI read: summary + suggested confirms / to-dos (Phase D3) */}
+                          {entry.kind === "comm" && entry.aiRead && (
+                            <EmailAiSuggestions transactionId={transactionId} messageId={entry.id} aiRead={entry.aiRead} />
                           )}
 
                           {/* Type + who-to — the channel badge and contact pills

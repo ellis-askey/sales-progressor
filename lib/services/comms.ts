@@ -92,9 +92,10 @@ export type ActivityEntry =
       // to group a back-and-forth into one thread card in the feed. (Phase C.)
       conversationId: string | null;
       // AI read of a synced inbound email: a one-line summary + suggested
-      // milestone/chain-step confirms or to-dos. Null unless the read ran and
-      // produced something. Suggest-only; the D3 UI renders accept/dismiss. (Phase D.)
-      aiRead: { summary: string; suggestions: EmailSuggestion[] } | null;
+      // milestone/chain-step confirms or to-dos, each carrying its ORIGINAL index
+      // (so accept/dismiss target the right stored suggestion). Dismissed ones are
+      // filtered out; null when nothing is left to show. Suggest-only. (Phase D.)
+      aiRead: { summary: string; suggestions: (EmailSuggestion & { index: number })[] } | null;
       // WhatsApp: resolved sender display name + stored media (null for other
       // channels). senderLabel is shown as the row's author. mediaUrl is a
       // ready-to-use signed URL (or null); mediaType drives how it renders.
@@ -390,10 +391,18 @@ export async function getActivityTimeline(
       return r && r !== (c.content ?? "").trim() ? r : null;
     })(),
     conversationId: c.type === "inbound" ? (c.conversationId ?? null) : null,
-    aiRead:
-      c.type === "inbound"
-        ? ((c.providerWebhookData as { read?: { summary: string; suggestions: EmailSuggestion[] } } | null)?.read ?? null)
-        : null,
+    aiRead: (() => {
+      if (c.type !== "inbound") return null;
+      const read = (c.providerWebhookData as { read?: { summary?: string; suggestions?: EmailSuggestion[]; dismissed?: number[] } } | null)?.read;
+      if (!read) return null;
+      const dismissed = new Set(read.dismissed ?? []);
+      const suggestions = (read.suggestions ?? [])
+        .map((s, index) => ({ ...s, index }))
+        .filter((s) => !dismissed.has(s.index));
+      const summary = read.summary ?? "";
+      if (!summary && suggestions.length === 0) return null;
+      return { summary, suggestions };
+    })(),
     senderLabel: c.senderLabel ?? null,
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:
