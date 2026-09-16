@@ -112,23 +112,22 @@ function stepChaseLabel(count: number): string {
 
 // Default email subject, pre-set but editable:
 //   - Solicitor recipient → "Purchase/Sale of <address>" (their side).
-//   - Client recipient (seller / buyer / broker) → the client name(s) on that
-//     role, joined with " & " for joint owners.
+//   - Client recipient (seller / buyer / broker) → "Your <purchase|sale> of
+//     <first line of address> - Progression" (side from buyer vs seller).
 function recipientSubject(
   r: { side?: "vendor" | "purchaser" | null; roleType: string; name: string } | null,
   address: string,
-  contacts: { roleType: string; name: string }[],
 ): string {
   if (!r) return `Sale of ${address}`;
   if (r.roleType === "solicitor") {
     const side = r.side ?? "vendor";
     return `${side === "purchaser" ? "Purchase" : "Sale"} of ${address}`;
   }
-  const names = contacts
-    .filter((c) => c.roleType === r.roleType && c.name.trim())
-    .map((c) => c.name.trim());
-  const unique = Array.from(new Set(names.length ? names : [r.name].filter(Boolean)));
-  return unique.length ? unique.join(" & ") : `Sale of ${address}`;
+  // Client (seller / buyer / broker): a friendly, client-facing subject.
+  const side = r.side ?? (r.roleType === "vendor" ? "vendor" : "purchaser");
+  const word = side === "vendor" ? "sale" : "purchase";
+  const firstLine = address.split(",")[0].trim() || address;
+  return `Your ${word} of ${firstLine} - Progression`;
 }
 
 // Recipient avatar: their photo when on file, otherwise the same branded avatar
@@ -288,10 +287,11 @@ export function ChaseDrawer({
   }
 
   const [ccOn, setCcOn] = useState(false);
-  // Email subject — pre-set from the recipient (address for solicitors, client
-  // name(s) otherwise), editable. Not driven by the AI draft; recomputed when
-  // the recipient changes until the agent edits it (subjectDirty).
-  const defaultSubject = recipientSubject(selectedRecipient, propertyAddress, contacts);
+  // Email subject — pre-set from the recipient (address for solicitors, a
+  // client-facing "Your sale/purchase of <first line> - Progression" for
+  // clients), editable. Not driven by the AI draft; recomputed when the
+  // recipient changes until the agent edits it (subjectDirty).
+  const defaultSubject = recipientSubject(selectedRecipient, propertyAddress);
   const [subject, setSubject] = useState(defaultSubject);
   const [subjectDirty, setSubjectDirty] = useState(false);
   // message holds the composer's HTML body; plain-text forms are derived on send.
