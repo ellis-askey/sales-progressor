@@ -13,6 +13,14 @@ import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
 import { buildIndex, buildFolderHints, matchMessage } from "./match";
 import { detectAutoReply } from "./auto-reply";
+import { filterStorableAttachments } from "./attachments";
+import { extractSignaturePhone } from "./signature";
+import { uploadToStorage } from "@/lib/supabase-storage";
+import { buildDocumentStoragePath } from "@/lib/upload/document-upload";
+
+// A "this contact is missing a phone we found in their signature" suggestion,
+// stored on the email and surfaced in the feed for the agent to confirm (F2).
+export type ContactPhoneSuggestion = { contactId: string; contactName: string; phone: string };
 import { readInboundEmail } from "@/lib/services/email-read-context";
 import type { EmailReadResult } from "@/lib/services/email-read";
 import type {
@@ -81,6 +89,14 @@ async function logMessage(
     }).catch(() => null);
   }
 
+  // Signature → contact phone (Phase F2). If the sender is a known contact on
+  // this file with no phone, and their signature carries one, stash a suggestion
+  // for the agent to confirm. Suggest-only — never written silently. Skips
+  // auto-replies (their "signature" is a system footer). Best-effort.
+  const contactSuggestion = autoReply
+    ? null
+    : await buildContactPhoneSuggestion(txId, msg.from, rawBody).catch(() => null);
+
   await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
@@ -111,14 +127,83 @@ async function logMessage(
         raw: rawBody,
         ...(autoReply ? { autoReply: true } : {}),
         ...(read && (read.summary || read.suggestions.length) ? { read } : {}),
+        ...(contactSuggestion ? { contactSuggestion } : {}),
       },
       createdByRole: "system",
       createdAt: received,
       sentAt: received,
     },
   });
+  // File any real attachments into the property's Documents (Phase F1). Runs only
+  // on the "logged" path (a de-duped re-sync returns early above, so files aren't
+  // stored twice). Best-effort per attachment — a single bad upload never blocks
+  // the email being logged or the other attachments.
+  await storeInboundAttachments(txId, msg);
   await touchLastActivity(txId);
   return { status: "logged", address };
+}
+
+// Looks for a phone number in the message's signature that belongs on a known
+// contact who's currently missing one. Returns a suggestion (never writes) or
+// null. Only fires when: the sender matches exactly one contact on this file by
+// email, that contact has no phone, and a valid UK number is found — and the
+// found number isn't already on another contact here (that'd be a dedupe clash).
+async function buildContactPhoneSuggestion(
+  txId: string,
+  fromEmail: string,
+  rawBody: string
+): Promise<ContactPhoneSuggestion | null> {
+  const email = fromEmail.trim();
+  if (!email) return null;
+
+  const contact = await prisma.contact.findFirst({
+    where: { propertyTransactionId: txId, email: { equals: email, mode: "insensitive" } },
+    select: { id: true, name: true, phone: true },
+  });
+  if (!contact || (contact.phone && contact.phone.trim())) return null;
+
+  const phone = extractSignaturePhone(rawBody);
+  if (!phone) return null;
+
+  // Don't suggest a number already held by someone else on this file.
+  const clash = await prisma.contact.findFirst({
+    where: { propertyTransactionId: txId, phone, NOT: { id: contact.id } },
+    select: { id: true },
+  });
+  if (clash) return null;
+
+  return { contactId: contact.id, contactName: contact.name, phone };
+}
+
+// Uploads the storable attachments on a message to the file's document bucket and
+// creates a TransactionDocument row for each (source "email"). Inline logos,
+// disallowed types, oversized and tiny-image parts are filtered upstream.
+async function storeInboundAttachments(txId: string, msg: IngestMessage): Promise<void> {
+  const files = filterStorableAttachments(msg.attachments);
+  if (files.length === 0) return;
+  for (const file of files) {
+    try {
+      const storagePath = buildDocumentStoragePath(txId, file.filename);
+      await uploadToStorage(storagePath, file.content, file.contentType);
+      await prisma.transactionDocument.create({
+        data: {
+          transactionId: txId,
+          filename: file.filename,
+          storagePath,
+          fileSize: file.size,
+          mimeType: file.contentType,
+          source: "email",
+          uploadedById: null,
+          contactId: null,
+        },
+      });
+    } catch (err) {
+      console.error(
+        `[mail] attachment store failed (${file.filename}) on ${txId}:`,
+        (err as Error).message
+      );
+    }
+  }
 }
 
 function toInfo(msg: IngestMessage): SyncMessageInfo {

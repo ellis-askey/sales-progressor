@@ -9,6 +9,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { revalidatePath } from "next/cache";
 import { logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
+import { logSingleMessageToFile } from "@/lib/integrations/outlook/sync";
 import type { IngestMessage } from "@/lib/integrations/mail/types";
 
 export async function filePendingEmailAction(input: {
@@ -29,27 +30,49 @@ export async function filePendingEmailAction(input: {
   });
   if (!tx) return { ok: false };
 
-  // Reconstruct the message and file it via the shared ingest path (dedup +
-  // clean + activity write all happen there). rawBody as the body so it re-cleans
-  // and keeps the original for "show original".
-  const msg: IngestMessage = {
-    id: pending.providerMessageId,
-    subject: pending.subject,
-    from: pending.fromEmail,
-    fromName: pending.fromName,
-    to: [],
-    cc: [],
-    receivedDateTime: pending.receivedAt.toISOString(),
-    bodyPreview: (pending.body ?? "").slice(0, 255),
-    body: pending.rawBody || pending.body,
-    folder: pending.folder,
-    webLink: null,
-    conversationId: null,
-    internetMessageId: null,
-    inReplyTo: null,
-    references: null,
-  };
-  await logSingleIngestMessage(input.transactionId, msg, pending.source);
+  // Prefer re-fetching the original from the provider so attachments (Phase F1),
+  // the full body and threading headers all come across — the stored pending row
+  // only kept the text. Outlook supports a by-id re-fetch; if it fails (mailbox
+  // disconnected, message moved) we fall back to reconstructing from what we saved.
+  let filed = false;
+  if (pending.source === "outlook") {
+    const conn = await prisma.outlookConnection.findFirst({
+      where: { userId: session.user.id },
+      select: { id: true, email: true, accessToken: true, refreshToken: true, tokenExpiresAt: true, scope: true },
+    });
+    if (conn) {
+      try {
+        await logSingleMessageToFile(conn, input.transactionId, pending.providerMessageId);
+        filed = true;
+      } catch {
+        filed = false; // fall through to the reconstruct path below
+      }
+    }
+  }
+
+  if (!filed) {
+    // Reconstruct the message from what we stored and file it via the shared
+    // ingest path (dedup + clean + activity write all happen there). rawBody as
+    // the body so it re-cleans and keeps the original for "show original".
+    const msg: IngestMessage = {
+      id: pending.providerMessageId,
+      subject: pending.subject,
+      from: pending.fromEmail,
+      fromName: pending.fromName,
+      to: [],
+      cc: [],
+      receivedDateTime: pending.receivedAt.toISOString(),
+      bodyPreview: (pending.body ?? "").slice(0, 255),
+      body: pending.rawBody || pending.body,
+      folder: pending.folder,
+      webLink: null,
+      conversationId: null,
+      internetMessageId: null,
+      inReplyTo: null,
+      references: null,
+    };
+    await logSingleIngestMessage(input.transactionId, msg, pending.source);
+  }
 
   await prisma.pendingInboundEmail.update({
     where: { id: pending.id },

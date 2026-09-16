@@ -96,6 +96,10 @@ export type ActivityEntry =
       // (so accept/dismiss target the right stored suggestion). Dismissed ones are
       // filtered out; null when nothing is left to show. Suggest-only. (Phase D.)
       aiRead: { summary: string; suggestions: (EmailSuggestion & { index: number })[] } | null;
+      // Signature → contact phone suggestion (synced inbound emails only). Present
+      // when the sender is a known contact missing a phone and their signature had
+      // one. Cleared once applied or dismissed. Suggest-only. (Phase F2.)
+      contactSuggestion: { contactId: string; contactName: string; phone: string } | null;
       // WhatsApp: resolved sender display name + stored media (null for other
       // channels). senderLabel is shown as the row's author. mediaUrl is a
       // ready-to-use signed URL (or null); mediaType drives how it renders.
@@ -402,6 +406,15 @@ export async function getActivityTimeline(
       const summary = read.summary ?? "";
       if (!summary && suggestions.length === 0) return null;
       return { summary, suggestions };
+    })(),
+    contactSuggestion: (() => {
+      if (c.type !== "inbound") return null;
+      const pwd = c.providerWebhookData as
+        | { contactSuggestion?: { contactId: string; contactName: string; phone: string }; contactSuggestionResolved?: boolean }
+        | null;
+      const s = pwd?.contactSuggestion;
+      if (!s || pwd?.contactSuggestionResolved) return null;
+      return { contactId: s.contactId, contactName: s.contactName, phone: s.phone };
     })(),
     senderLabel: c.senderLabel ?? null,
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below

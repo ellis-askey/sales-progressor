@@ -9,6 +9,7 @@
 // set in the environment (see .env.example). Nothing here runs on the client.
 
 import "server-only";
+import type { IngestAttachment } from "@/lib/integrations/mail/types";
 
 // Delegated Graph scopes. `offline_access` is what gets us a refresh token so a
 // later phase can keep the connection alive without the user re-consenting.
@@ -183,6 +184,7 @@ export type OutlookMessage = {
   inReplyTo: string | null;
   references: string | null;
   headers?: Record<string, string>;
+  attachments?: IngestAttachment[];
 };
 
 export type MailFolder = { id: string; displayName: string; totalItemCount: number };
@@ -270,7 +272,7 @@ export async function fetchFolderMessagesSince(
   );
   first.searchParams.set(
     "$select",
-    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders"
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders,hasAttachments"
   );
   first.searchParams.set("$top", "50");
   first.searchParams.set("$filter", `receivedDateTime ge ${sinceIso}`);
@@ -292,7 +294,15 @@ export async function fetchFolderMessagesSince(
       value?: GraphMessageRaw[];
       "@odata.nextLink"?: string;
     };
-    for (const m of data.value ?? []) out.push(mapGraphMessage(m, folder.displayName));
+    for (const m of data.value ?? []) {
+      const mapped = mapGraphMessage(m, folder.displayName);
+      // Pull attachments only when Graph says there are some (avoids a wasted
+      // request per message). Best-effort — failures yield no attachments.
+      if (m.hasAttachments) {
+        mapped.attachments = await fetchMessageAttachments(accessToken, m.id);
+      }
+      out.push(mapped);
+    }
     next = data["@odata.nextLink"] ?? null;
   }
   return out.slice(0, cap);
@@ -303,7 +313,7 @@ export async function fetchMessageById(accessToken: string, id: string): Promise
   const url = new URL(`https://graph.microsoft.com/v1.0/me/messages/${id}`);
   url.searchParams.set(
     "$select",
-    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders"
+    "id,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,body,webLink,conversationId,internetMessageId,internetMessageHeaders,hasAttachments"
   );
   const res = await fetch(url.toString(), {
     headers: {
@@ -313,7 +323,11 @@ export async function fetchMessageById(accessToken: string, id: string): Promise
   });
   if (!res.ok) throw new Error(`[outlook] Message fetch failed (${res.status})`);
   const m = (await res.json()) as GraphMessageRaw;
-  return mapGraphMessage(m, "");
+  const mapped = mapGraphMessage(m, "");
+  if (m.hasAttachments) {
+    mapped.attachments = await fetchMessageAttachments(accessToken, m.id);
+  }
+  return mapped;
 }
 
 type GraphRecipient = { emailAddress?: { address?: string | null; name?: string | null } | null };
@@ -334,7 +348,63 @@ export type GraphMessageRaw = {
   conversationId?: string | null;
   internetMessageId?: string | null;
   internetMessageHeaders?: GraphHeader[] | null;
+  hasAttachments?: boolean | null;
 };
+
+// A Graph attachment. Only #microsoft.graph.fileAttachment carries contentBytes
+// (base64); item/reference attachments don't and are skipped.
+type GraphAttachmentRaw = {
+  "@odata.type"?: string;
+  id?: string;
+  name?: string | null;
+  contentType?: string | null;
+  size?: number | null;
+  isInline?: boolean | null;
+  contentId?: string | null;
+  contentBytes?: string | null;
+};
+
+/**
+ * Fetches the file attachments for one message. Returns [] on any failure or for
+ * messages with no file attachments — attachments must never break a mail sync.
+ */
+export async function fetchMessageAttachments(
+  accessToken: string,
+  messageId: string
+): Promise<IngestAttachment[]> {
+  const url = new URL(
+    `https://graph.microsoft.com/v1.0/me/messages/${messageId}/attachments`
+  );
+  url.searchParams.set(
+    "$select",
+    "id,name,contentType,size,isInline,contentId,contentBytes"
+  );
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { value?: GraphAttachmentRaw[] };
+    const out: IngestAttachment[] = [];
+    for (const a of data.value ?? []) {
+      // Only file attachments have bytes we can store.
+      if (a["@odata.type"] !== "#microsoft.graph.fileAttachment") continue;
+      if (!a.contentBytes) continue;
+      const content = Buffer.from(a.contentBytes, "base64");
+      out.push({
+        filename: a.name ?? "attachment",
+        contentType: a.contentType ?? "application/octet-stream",
+        content,
+        size: a.size ?? content.length,
+        isInline: a.isInline ?? false,
+        cid: a.contentId ?? null,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 /** Case-insensitive lookup of an RFC822 header value from Graph's internetMessageHeaders. */
 function headerValue(headers: GraphHeader[] | null | undefined, name: string): string | null {

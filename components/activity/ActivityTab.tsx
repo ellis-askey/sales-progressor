@@ -90,6 +90,7 @@ export function ActivityTab(props: Props) {
         rawOriginal: null,
         conversationId: null,
         aiRead: null,
+        contactSuggestion: null,
         senderLabel: null,
         mediaUrl: null,
         mediaType: null,

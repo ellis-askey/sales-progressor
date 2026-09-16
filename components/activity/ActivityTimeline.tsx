@@ -13,6 +13,7 @@ import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
+import { EmailContactSuggestion } from "@/components/activity/EmailContactSuggestion";
 
 type Props = {
   entries: ActivityEntry[];
@@ -287,6 +288,9 @@ function EmailThreadCard({
                 )}
                 {m.aiRead && (
                   <EmailAiSuggestions transactionId={transactionId} messageId={m.id} aiRead={m.aiRead} />
+                )}
+                {m.contactSuggestion && (
+                  <EmailContactSuggestion transactionId={transactionId} messageId={m.id} suggestion={m.contactSuggestion} />
                 )}
               </div>
             );
@@ -800,6 +804,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           {/* AI read: summary + suggested confirms / to-dos (Phase D3) */}
                           {entry.kind === "comm" && entry.aiRead && (
                             <EmailAiSuggestions transactionId={transactionId} messageId={entry.id} aiRead={entry.aiRead} />
+                          )}
+
+                          {/* Signature → contact phone suggestion (Phase F2) */}
+                          {entry.kind === "comm" && entry.contactSuggestion && (
+                            <EmailContactSuggestion transactionId={transactionId} messageId={entry.id} suggestion={entry.contactSuggestion} />
                           )}
 
                           {/* Type + who-to — the channel badge and contact pills

@@ -144,6 +144,17 @@ async function mapMessage(
     inReplyTo: parsed.inReplyTo ?? null,
     references,
     headers: pickAutoReplyHeaders(parsed.headers),
+    // Attachments are already parsed out of the same RFC822 source — no extra
+    // fetch needed. mailparser marks body images with `related`/inline
+    // disposition; we pass that through so the ingest core can skip them (F1).
+    attachments: (parsed.attachments ?? []).map((a) => ({
+      filename: a.filename ?? "attachment",
+      contentType: a.contentType ?? "application/octet-stream",
+      content: a.content as Buffer,
+      size: a.size ?? (a.content as Buffer)?.length ?? 0,
+      isInline: a.related === true || a.contentDisposition === "inline",
+      cid: a.contentId ?? a.cid ?? null,
+    })),
   };
 }
 

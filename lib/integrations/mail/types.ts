@@ -27,6 +27,21 @@ export type IngestMessage = {
   // (auto-submitted, x-autoreply, x-auto-response-suppress, precedence). Each
   // connector populates what it has; optional so older callers still type-check.
   headers?: Record<string, string>;
+  // File attachments carried on the message (Phase F1). Populated by the
+  // connector when it fetched them (Outlook via Graph, IMAP via mailparser).
+  // Optional so callers that don't fetch attachments still type-check.
+  attachments?: IngestAttachment[];
+};
+
+// One file attachment on an inbound email, with its bytes in hand. Filed into
+// the property's Documents by the ingest core (Phase F1).
+export type IngestAttachment = {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+  size: number;
+  isInline?: boolean; // signature logos / inline body images — skipped on filing
+  cid?: string | null; // content-id, when inline
 };
 
 // A message as shown in the review UI (no full body — kept light).
