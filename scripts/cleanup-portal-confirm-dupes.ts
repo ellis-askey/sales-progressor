@@ -12,15 +12,23 @@
 // internal_notes ("... told us ... they're expecting ..." and "... left a note
 // ... about ...") do not match, so they are untouched.
 //
-// Run (dry run):  npx ts-node --project tsconfig.scripts.json scripts/cleanup-portal-confirm-dupes.ts
-// Run (delete):   npx ts-node --project tsconfig.scripts.json scripts/cleanup-portal-confirm-dupes.ts --apply
+// Targets DATABASE_URL by default; pass --prod to target PROD_DATABASE_URL
+// (both read from .env via dotenv, so quoting is handled correctly).
+//
+// Run (staging dry run):  npx ts-node --project tsconfig.scripts.json scripts/cleanup-portal-confirm-dupes.ts
+// Run (staging delete):   ... scripts/cleanup-portal-confirm-dupes.ts --apply
+// Run (prod dry run):     ... scripts/cleanup-portal-confirm-dupes.ts --prod
+// Run (prod delete):      ... scripts/cleanup-portal-confirm-dupes.ts --prod --apply
 // Delete criteria: remove this file once run on staging + prod and confirmed.
 
 import "dotenv/config";
 import { PrismaClient, Prisma } from "@prisma/client";
 
-const prisma = new PrismaClient();
 const APPLY = process.argv.includes("--apply");
+const USE_PROD = process.argv.includes("--prod");
+const url = USE_PROD ? process.env.PROD_DATABASE_URL : process.env.DATABASE_URL;
+if (!url) { console.error(USE_PROD ? "PROD_DATABASE_URL not set" : "DATABASE_URL not set"); process.exit(1); }
+const prisma = new PrismaClient({ datasources: { db: { url } } });
 
 const where: Prisma.OutboundMessageWhereInput = {
   type: "internal_note",
@@ -32,7 +40,7 @@ const where: Prisma.OutboundMessageWhereInput = {
 
 async function main() {
   let host = "(unknown)";
-  try { host = new URL(process.env.DATABASE_URL ?? "").host; } catch { /* noop */ }
+  try { host = new URL(url ?? "").host; } catch { /* noop */ }
   console.log(`DB host: ${host}   mode: ${APPLY ? "APPLY (will delete)" : "DRY RUN"}`);
 
   const count = await prisma.outboundMessage.count({ where });
