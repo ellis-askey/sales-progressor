@@ -156,7 +156,11 @@ export async function getActivityTimeline(
       // round's createdAt are old-sale residue. Filter them out so the live
       // timeline reads as just-this-sale, matching the buyer-attributed scope.
       activeBuyerRound: { select: { createdAt: true } },
-      contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } },
+      // agency name → outbound "Your team" sub-label (Email redesign Phase 1).
+      agency: { select: { name: true } },
+      // email added so an inbound email's sender can be resolved to the person
+      // on the file (real sender identity, not "System"). (Email redesign P1.)
+      contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true, email: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
       // toggle either row when logging the comm). They must be in the
@@ -164,8 +168,10 @@ export async function getActivityTimeline(
       // the result drops the solicitor IDs and the row renders without
       // their names — looks to the agent like the solicitor was never
       // attached at all.
-      vendorSolicitorContact:    { select: { id: true, name: true } },
-      purchaserSolicitorContact: { select: { id: true, name: true } },
+      // email/secondaryEmail/image/firm added so an inbound email FROM a
+      // solicitor resolves to "<name> · Buyer's solicitor · <firm>" with photo.
+      vendorSolicitorContact:    { select: { id: true, name: true, email: true, secondaryEmail: true, image: true, firm: { select: { name: true } } } },
+      purchaserSolicitorContact: { select: { id: true, name: true, email: true, secondaryEmail: true, image: true, firm: { select: { name: true } } } },
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -179,6 +185,33 @@ export async function getActivityTimeline(
     contactInfo.set(tx.vendorSolicitorContact.id, { name: tx.vendorSolicitorContact.name, roleType: "solicitor", image: null });
   if (tx.purchaserSolicitorContact)
     contactInfo.set(tx.purchaserSolicitorContact.id, { name: tx.purchaserSolicitorContact.name, roleType: "solicitor", image: null });
+
+  // ── Sender resolution for inbound emails (Email redesign Phase 1) ──
+  // Map a sender's email address to the person on this file, so an inbound email
+  // reads as a real person (name · role · firm, with their photo), never "System".
+  // Built deterministically from existing contact + solicitor records — no AI.
+  const normEmail = (e: string | null | undefined) => (e ?? "").toLowerCase().trim();
+  const contactByEmail = new Map<string, { name: string; roleType: string | null; image: string | null }>();
+  for (const c of tx.contacts) {
+    const key = normEmail(c.email);
+    if (key) contactByEmail.set(key, { name: c.name, roleType: c.roleType ?? null, image: c.image ?? null });
+  }
+  type SolActor = { name: string; image: string | null; firm: string | null; side: "Buyer" | "Seller" };
+  const solicitorByEmail = new Map<string, SolActor>();
+  const addSolicitor = (
+    sc: { name: string; email: string | null; secondaryEmail: string | null; image: string | null; firm: { name: string } | null } | null,
+    side: "Buyer" | "Seller",
+  ) => {
+    if (!sc) return;
+    const entry: SolActor = { name: sc.name, image: sc.image ?? null, firm: sc.firm?.name ?? null, side };
+    const e1 = normEmail(sc.email);
+    const e2 = normEmail(sc.secondaryEmail);
+    if (e1) solicitorByEmail.set(e1, entry);
+    if (e2) solicitorByEmail.set(e2, entry);
+  };
+  addSolicitor(tx.vendorSolicitorContact, "Seller");
+  addSolicitor(tx.purchaserSolicitorContact, "Buyer");
+  const agencyName = tx.agency?.name ?? null;
 
   const scope = milestoneScope ?? forRound(tx.activeBuyerRoundId, transactionId);
 
@@ -331,12 +364,42 @@ export async function getActivityTimeline(
         return { role, name: viewer.name, image: viewer.image, sub: actorSubLabel(role) };
       }
     }
+    // A synced inbound email: resolve the SENDER (stored on recipientEmail /
+    // recipientName for inbound) to the real person on the file — never "System".
+    // (Email redesign Phase 1.) Deterministic: known contact → known solicitor →
+    // raw sender metadata as a last resort.
+    if (c.type === "inbound") {
+      const from = normEmail(c.recipientEmail);
+      const known = from ? contactByEmail.get(from) : undefined;
+      if (known) {
+        const role = contactRoleToActor(known.roleType);
+        return { role, name: known.name, image: known.image, sub: actorSubLabel(role) };
+      }
+      const sol = from ? solicitorByEmail.get(from) : undefined;
+      if (sol) {
+        return {
+          role: "solicitor" as ActorRole,
+          name: sol.name,
+          image: sol.image,
+          sub: `${sol.side}'s solicitor${sol.firm ? ` · ${sol.firm}` : ""}`,
+        };
+      }
+      // Unknown sender — show the genuine sender metadata, not "System".
+      const rawName = (c.recipientName ?? "").trim();
+      const name = rawName || c.recipientEmail || "Unknown sender";
+      const sub = rawName && c.recipientEmail ? c.recipientEmail : null;
+      return { role: "other" as ActorRole, name, image: null, sub };
+    }
     if (c.createdById) {
+      const role = userRoleToActor(c.createdByRole);
+      // Outbound email from our side → identify it as the team. (Email P1.)
+      const sub =
+        c.type === "outbound" ? (agencyName ? `${agencyName} · Your team` : "Your team") : null;
       return {
-        role: userRoleToActor(c.createdByRole),
+        role,
         name: c.createdBy?.name ?? "Team",
         image: c.createdBy?.image ?? null,
-        sub: null,
+        sub,
       };
     }
     const info = c.contactIds.map((id) => contactInfo.get(id)).find(Boolean);
