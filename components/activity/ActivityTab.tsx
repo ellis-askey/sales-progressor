@@ -87,6 +87,7 @@ export function ActivityTab(props: Props) {
         isAutomated: false,
         tone: null,
         subject: null,
+        rawOriginal: null,
         senderLabel: null,
         mediaUrl: null,
         mediaType: null,

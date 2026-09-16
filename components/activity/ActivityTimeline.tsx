@@ -192,6 +192,18 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [showPortalVisits, setShowPortalVisits] = useState(false);
   const [entriesKey, setEntriesKey] = useState(0);
 
+  // Phase B — per-entry "show more" (long bodies) and "show original" (synced
+  // inbound emails: reveal the full untrimmed original vs the cleaned body).
+  const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
+  const [openOriginals, setOpenOriginals] = useState<Set<string>>(new Set());
+  const toggleInSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const portalViewCount = entries.filter(isPortalView).length;
 
   function handleFilter(f: FilterKind) {
@@ -556,6 +568,21 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               ? stripCommsLinksForAgent(displayContent)
                               : { text: displayContent, portalLinks: [] };
                             const { subject, body } = splitSubject(stripped.text);
+                            // A synced inbound email keeps its full untrimmed
+                            // original; offer "show original" and collapse long bodies.
+                            const hasOriginal = entry.kind === "comm" && !!entry.rawOriginal;
+                            const showingOriginal = hasOriginal && openOriginals.has(entry.id);
+                            const shownBody = showingOriginal ? entry.rawOriginal! : body;
+                            const COLLAPSE_AT = 700;
+                            const isLong = shownBody.length > COLLAPSE_AT;
+                            const isExpanded = expandedBodies.has(entry.id);
+                            const displayBody = isLong && !isExpanded
+                              ? shownBody.slice(0, COLLAPSE_AT).trimEnd() + "…"
+                              : shownBody;
+                            const linkBtn = {
+                              background: "none", border: "none", padding: 0, cursor: "pointer",
+                              fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)",
+                            } as const;
                             return (
                               <>
                                 {subject && (
@@ -564,8 +591,22 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                                   </p>
                                 )}
                                 <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                                  {body}
+                                  {displayBody}
                                 </p>
+                                {(isLong || hasOriginal) && (
+                                  <div style={{ marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                                    {isLong && (
+                                      <button type="button" style={linkBtn} onClick={() => toggleInSet(setExpandedBodies, entry.id)}>
+                                        {isExpanded ? "Show less" : "Show more"}
+                                      </button>
+                                    )}
+                                    {hasOriginal && (
+                                      <button type="button" style={linkBtn} onClick={() => toggleInSet(setOpenOriginals, entry.id)}>
+                                        {showingOriginal ? "Show cleaned" : "Show original"}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                                 {stripped.portalLinks.length > 0 && (
                                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
                                     {stripped.portalLinks.map((url) => (

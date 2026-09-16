@@ -83,6 +83,10 @@ export type ActivityEntry =
       // "Setup note" marks internal notes written from the new-sale
       // form's notes box (2026-08-19) — the Notes card pins these.
       subject: string | null;
+      // For synced inbound emails: the full untrimmed original (quoted history +
+      // signature), when it differs from the cleaned `content`. Null when there's
+      // nothing extra to show. Drives the "show original" toggle. (Phase B.)
+      rawOriginal: string | null;
       // WhatsApp: resolved sender display name + stored media (null for other
       // channels). senderLabel is shown as the row's author. mediaUrl is a
       // ready-to-use signed URL (or null); mediaType drives how it renders.
@@ -371,6 +375,12 @@ export async function getActivityTimeline(
     isAutomated: c.isAutomated,
     tone: c.tone,
     subject: c.subject ?? null,
+    rawOriginal: (() => {
+      if (c.type !== "inbound") return null;
+      const raw = (c.providerWebhookData as { raw?: string } | null)?.raw;
+      const r = typeof raw === "string" ? raw.trim() : "";
+      return r && r !== (c.content ?? "").trim() ? r : null;
+    })(),
     senderLabel: c.senderLabel ?? null,
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:
