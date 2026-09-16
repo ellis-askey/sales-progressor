@@ -182,6 +182,7 @@ export type OutlookMessage = {
   internetMessageId: string | null;
   inReplyTo: string | null;
   references: string | null;
+  headers?: Record<string, string>;
 };
 
 export type MailFolder = { id: string; displayName: string; totalItemCount: number };
@@ -216,6 +217,23 @@ export async function listMailFolders(accessToken: string): Promise<MailFolder[]
 const addr = (r?: GraphRecipient | null): string | null =>
   r?.emailAddress?.address ? String(r.emailAddress.address) : null;
 
+// Pull the auto-reply-relevant headers (lowercased) out of Graph's
+// internetMessageHeaders, for detectAutoReply. Kept small on purpose.
+const AUTO_REPLY_HEADERS = new Set([
+  "auto-submitted",
+  "x-autoreply",
+  "x-auto-response-suppress",
+  "precedence",
+]);
+function pickHeaders(headers: GraphHeader[] | null | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const h of headers ?? []) {
+    const name = (h.name ?? "").toLowerCase();
+    if (AUTO_REPLY_HEADERS.has(name) && h.value != null) out[name] = String(h.value);
+  }
+  return out;
+}
+
 export function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMessage {
   return {
     id: m.id,
@@ -233,6 +251,7 @@ export function mapGraphMessage(m: GraphMessageRaw, folder: string): OutlookMess
     internetMessageId: m.internetMessageId ?? null,
     inReplyTo: headerValue(m.internetMessageHeaders, "In-Reply-To"),
     references: headerValue(m.internetMessageHeaders, "References"),
+    headers: pickHeaders(m.internetMessageHeaders),
   };
 }
 

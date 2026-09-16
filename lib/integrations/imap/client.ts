@@ -143,7 +143,21 @@ async function mapMessage(
     internetMessageId: parsed.messageId ?? null,
     inReplyTo: parsed.inReplyTo ?? null,
     references,
+    headers: pickAutoReplyHeaders(parsed.headers),
   };
+}
+
+// The auto-reply-relevant headers (lowercased) from mailparser's header Map,
+// for detectAutoReply. mailparser lowercases header keys already.
+function pickAutoReplyHeaders(headers: { get(key: string): unknown } | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!headers) return out;
+  for (const key of ["auto-submitted", "x-autoreply", "x-auto-response-suppress", "precedence"]) {
+    const v = headers.get(key);
+    if (v == null) continue;
+    out[key] = String(typeof v === "object" ? ((v as { value?: unknown }).value ?? v) : v);
+  }
+  return out;
 }
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────

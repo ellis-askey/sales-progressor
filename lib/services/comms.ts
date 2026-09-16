@@ -330,7 +330,17 @@ export async function getActivityTimeline(
     return { role: "system" as ActorRole, name: "System", image: null, sub: null };
   };
 
-  const commEntries: ActivityEntry[] = comms.map((c) => {
+  const commEntries: ActivityEntry[] = comms
+    // Hide tagged auto-replies / out-of-office from the default feed (Phase A2).
+    // The row is still stored (providerWebhookData.autoReply) so it's recoverable.
+    .filter(
+      (c) =>
+        !(
+          c.type === "inbound" &&
+          (c.providerWebhookData as { autoReply?: boolean } | null)?.autoReply === true
+        ),
+    )
+    .map((c) => {
     const actor = resolveCommActor(c);
     return {
     kind: "comm",

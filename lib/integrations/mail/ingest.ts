@@ -12,6 +12,7 @@ import { touchLastActivity } from "@/lib/services/activity";
 import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
 import { buildIndex, buildFolderHints, matchMessage } from "./match";
+import { detectAutoReply } from "./auto-reply";
 import type {
   IngestMessage,
   SyncMessageInfo,
@@ -62,6 +63,9 @@ async function logMessage(
   // to the raw if trimming leaves nothing (e.g. an email that is only a quote).
   const rawBody = (msg.body || msg.bodyPreview || "").trim();
   const cleaned = cleanIngestedEmail(rawBody) || rawBody;
+  // Auto-reply / out-of-office / bounce: still stored (recoverable) but tagged so
+  // the activity feed hides it by default — it carries no real update. (Phase A2.)
+  const autoReply = detectAutoReply(msg);
   await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
@@ -90,6 +94,7 @@ async function logMessage(
         webLink: msg.webLink ?? null,
         receivedDateTime: msg.receivedDateTime,
         raw: rawBody,
+        ...(autoReply ? { autoReply: true } : {}),
       },
       createdByRole: "system",
       createdAt: received,

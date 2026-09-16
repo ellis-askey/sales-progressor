@@ -23,6 +23,10 @@ export type IngestMessage = {
   internetMessageId: string | null;
   inReplyTo: string | null;
   references: string | null;
+  // Lowercased subset of raw headers used for auto-reply detection
+  // (auto-submitted, x-autoreply, x-auto-response-suppress, precedence). Each
+  // connector populates what it has; optional so older callers still type-check.
+  headers?: Record<string, string>;
 };
 
 // A message as shown in the review UI (no full body — kept light).
