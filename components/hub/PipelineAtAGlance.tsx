@@ -65,7 +65,7 @@ export function PipelineAtAGlance({
     s?.photoStoragePath ? signedPhotos[s.photoStoragePath] ?? null : null;
 
   return (
-    <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
+    <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" className="pipe-container" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 18 }}>
         <div style={{ minWidth: 0 }}>

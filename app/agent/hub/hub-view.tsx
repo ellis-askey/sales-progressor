@@ -371,11 +371,13 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
           </p>
         </div>
 
-      {/* Ghost pipeline health + momentum (decorative — kept as-is) */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
+      {/* Ghost pipeline health + momentum (decorative). Carries the same
+          .hub-grid-* classes as the real cards so it inherits their responsive
+          collapse — inline-only grids had no narrow fallback (audit B5). */}
+      <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
         <div className="agent-glass" style={{ padding: "20px 24px" }}>
           <p className="agent-eyebrow" style={{ marginBottom: 20 }}>Pipeline health</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+          <div className="hub-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
             {["Active files", "Exchanging soon", "Need attention", "Pipeline value"].map((label, i) => (
               <div key={i} style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
@@ -431,7 +433,7 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
       </div>
 
       {/* Ghost exchange forecast + service split */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
+      <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
         <div className="agent-glass" style={{ padding: "20px 24px" }}>
           <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Exchange forecast</p>
           <div style={{ display: "flex", gap: 3, alignItems: "flex-end", marginBottom: 10 }}>

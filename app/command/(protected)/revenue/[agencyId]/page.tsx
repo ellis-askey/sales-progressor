@@ -199,8 +199,10 @@ function PipelineCell({
 
 function ActiveFilesTable({ rows }: { rows: ActiveFileRow[] }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    // overflow-x-auto + min-w: scroll on narrow screens instead of crushing
+    // (audit F3 — matches the AdoptionTable / ProspectsBoard pattern).
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-x-auto">
+      <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-neutral-800 bg-neutral-800/50">
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Property</th>
@@ -239,8 +241,8 @@ function ActiveFilesTable({ rows }: { rows: ActiveFileRow[] }) {
 
 function RecentExchangesTable({ rows }: { rows: ExchangeRow[] }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-x-auto">
+      <table className="w-full min-w-[520px] text-sm">
         <thead>
           <tr className="border-b border-neutral-800 bg-neutral-800/50">
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Date</th>

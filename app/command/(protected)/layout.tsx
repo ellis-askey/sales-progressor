@@ -90,7 +90,10 @@ export default async function CommandProtectedLayout({
         className="flex-1 overflow-y-auto"
         style={{ background: "#0a0a0a" }}
       >
-        <div className="cmd-content p-8 max-w-6xl">
+        {/* Below lg the sidebar is an off-canvas drawer (CommandSidebar), so the
+            content takes the full width; extra top padding clears the fixed
+            Menu button. */}
+        <div className="cmd-content px-4 pt-14 pb-8 lg:p-8 max-w-6xl">
           <PageFadeIn>{children}</PageFadeIn>
         </div>
       </main>

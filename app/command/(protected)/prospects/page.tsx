@@ -75,7 +75,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
         <p className="text-sm text-neutral-400 mt-1">Estate agencies to win: contact, follow up, land a first sale, watch them become active.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         <Stat label="Total" value={summary.total} />
         <Stat label="Follow-ups due" value={summary.followUpsDue} accent tip="Prospects whose next follow-up date is today or overdue (and not yet active or lost)." />
         <Stat label="Interested" value={summary.interested} />

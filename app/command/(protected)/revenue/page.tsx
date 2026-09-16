@@ -103,7 +103,7 @@ export default async function RevenuePage({
             Paused files sit outside it.
           </InfoTip>
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <PipelineCell label={`${monthLabel} (pipeline)`} bucket={data.pipelineThisMonth} />
           <PipelineCell label={nextMonthLabel} bucket={data.pipelineNextMonth} />
           <PipelineCell label={monthAfterLabel} bucket={data.pipelineMonthAfter} />
@@ -361,8 +361,11 @@ function BreakdownCard({ title, rows }: { title: string; rows: Array<{ label: st
 
 function PerAgencyTable({ rows }: { rows: AgencyRevenueRow[] }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    // overflow-x-auto + min-w: a 10-column fee ledger scrolls horizontally on
+    // narrow screens rather than crushing (same pattern as AdoptionTable /
+    // ProspectsBoard — audit F3; the old overflow-hidden clipped columns).
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-x-auto">
+      <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-neutral-800 bg-neutral-800/50">
             <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Agency</th>
@@ -455,8 +458,8 @@ function AgencyStatusBadge({ row }: { row: AgencyRevenueRow }) {
 
 function RecentExchangesTable({ rows }: { rows: ExchangeRow[] }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-x-auto">
+      <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-neutral-800 bg-neutral-800/50">
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Date</th>

@@ -65,7 +65,10 @@ export function HeroExchangeCell({
       <span style={{ minWidth: 0, flex: 1 }}>
         {editing ? (
           <>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* flexWrap: in the mobile 2-col stat grid this cell is ~155-190px
+                wide; the date field + Save + "Use prediction" (~250px) wrap
+                beneath each other instead of spilling out (audit C3). */}
+            <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <DateField
                 ref={inputRef}
                 value={draft}

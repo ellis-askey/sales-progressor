@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback, Children } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
@@ -71,6 +71,32 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
     setBadges((prev) => ({ ...prev, [key]: count }));
   }, []);
 
+  // Tab-bar overflow affordance (responsive audit C1): the bar scrolls with a
+  // hidden scrollbar, which left trailing tabs (Documents / Activity /
+  // WhatsApp) invisible with no cue they existed — including on 1280px
+  // desktops for internal staff (10 tabs ≈ 1120px). Track which edges have
+  // hidden tabs; CSS fades that edge and a chevron scrolls towards it.
+  const [tabFade, setTabFade] = useState<"none" | "left" | "right" | "both">("none");
+  const updateTabFade = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setTabFade(left && right ? "both" : left ? "left" : right ? "right" : "none");
+  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateTabFade();
+    el.addEventListener("scroll", updateTabFade, { passive: true });
+    const ro = new ResizeObserver(updateTabFade);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateTabFade);
+      ro.disconnect();
+    };
+  }, [updateTabFade]);
+
   function toggleSidebar() {
     const next = !sidebarOpen;
     _sessionSidebarOpen = next;
@@ -131,10 +157,31 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
             className={heroConnected ? "" : "px-4 md:px-8"}
             style={{ display: "flex", alignItems: "center", gap: 12 }}
           >
+            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+            {(tabFade === "left" || tabFade === "both") && (
+              <button
+                type="button"
+                onClick={() => scrollRef.current?.scrollBy({ left: -240, behavior: "smooth" })}
+                className="agent-tab-scroll-btn agent-tab-scroll-left"
+                aria-label="Scroll tabs left"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            )}
+            {(tabFade === "right" || tabFade === "both") && (
+              <button
+                type="button"
+                onClick={() => scrollRef.current?.scrollBy({ left: 240, behavior: "smooth" })}
+                className="agent-tab-scroll-btn agent-tab-scroll-right"
+                aria-label="Scroll tabs right"
+              >
+                <ChevronRight size={14} />
+              </button>
+            )}
             <div
               ref={scrollRef}
+              data-fade={tabFade === "none" ? undefined : tabFade}
               className="agent-tab-bar overflow-x-auto scrollbar-hide"
-              style={{ flex: 1, minWidth: 0 }}
             >
               {/* Sliding underline indicator */}
               {ind && (
@@ -182,6 +229,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
                 );
               })}
             </div>
+            </div>
             {rightSlot && (
               <div style={{ flexShrink: 0, paddingRight: heroConnected ? 12 : 0 }}>
                 {rightSlot}
@@ -204,9 +252,13 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
             rail left the main column ~432px — narrower than the single-column
             view at 1023 (~550px). At xl the main column opens at ~688px. */}
         <div className="xl:hidden border-b border-white/20">
+          {/* Toggle now shows at every width below xl (was md+ only, which
+              left phones with all five sidebar cards permanently expanded
+              above the tab content — audit C5). Collapsed by default. */}
           <button
             onClick={toggleSidebar}
-            className={`hidden md:flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
+            aria-expanded={sidebarOpen}
+            className={`flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
           >
             <span>File details</span>
             <ChevronDown
@@ -215,8 +267,8 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
           </button>
           <div className={[
             !heroConnected ? "px-4" : "",
-            "pt-3 pb-3 md:pb-5",
-            sidebarOpen ? "" : "md:hidden",
+            "pt-3 pb-3 md:pb-5 file-acc-body",
+            sidebarOpen ? "" : "hidden",
           ].filter(Boolean).join(" ")}>
             {sidebar}
           </div>

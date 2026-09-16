@@ -493,7 +493,7 @@ export default async function OverviewPage({
           </InfoTip>
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 flex items-start gap-6">
+          <div className="px-5 py-4 flex items-start gap-6 flex-wrap">
             <div className="flex items-center gap-4">
               <span className="text-4xl font-bold tabular-nums text-emerald-400">
                 {potentialPipelineCount}
@@ -510,7 +510,10 @@ export default async function OverviewPage({
                 </p>
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-5 pl-5 border-l border-neutral-800 self-stretch">
+            {/* flex-wrap on the parent: this cluster drops below the count on
+                narrow content instead of crushing it (audit F4). The border-l
+                divider only reads correctly side-by-side, so it goes at lg+. */}
+            <div className="lg:ml-auto flex items-center gap-5 flex-wrap lg:pl-5 lg:border-l border-neutral-800 self-stretch">
               <div>
                 <p className="text-xs text-neutral-500 mb-0.5 flex items-center gap-1">
                   Conversion
@@ -576,7 +579,7 @@ export default async function OverviewPage({
           Portal opt-out — agents skipping the invite prompt
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
-          <div className="flex items-start gap-6 mb-4">
+          <div className="flex items-start gap-6 mb-4 flex-wrap">
             <div className="flex items-center gap-4">
               <span className={`text-4xl font-bold tabular-nums ${portalSkipUsers > 0 ? "text-amber-400" : "text-neutral-500"}`}>
                 {portalSkipUsers}
@@ -590,7 +593,7 @@ export default async function OverviewPage({
                 </p>
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-5 pl-5 border-l border-neutral-800 self-stretch">
+            <div className="lg:ml-auto flex items-center gap-5 flex-wrap lg:pl-5 lg:border-l border-neutral-800 self-stretch">
               <div>
                 <p className="text-xs text-neutral-500 mb-0.5">Total clicks</p>
                 <p className="text-base font-bold text-white tabular-nums">{portalSkipTotal.toLocaleString()}</p>

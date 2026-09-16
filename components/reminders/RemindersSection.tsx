@@ -238,11 +238,16 @@ function PriorityList({
             : `From ${formatDate(log.nextDueDate)}`;
 
           return (
+            // .rem-row / .rem-row-actions (agent-system.css): the fixed
+            // ~250px action cluster wraps to its own right-aligned line when
+            // the text column would drop below ~200px, instead of crushing
+            // the reminder title into a 90px column on phones (audit C4).
             <div
               key={log.id}
-              style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+              className="rem-row"
+              style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
                   <UrgencyPill label={urgencyLabel} bucket={bucket} chased={hasBeenChased} />
                   <SidePill isBuyer={isBuyer} />
@@ -266,7 +271,7 @@ function PriorityList({
                 )}
               </div>
               {task && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   <Button
                     size="sm"
                     onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer), defaultAddRole: isBuyer ? "purchaser" : "vendor" })}

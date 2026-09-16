@@ -134,7 +134,7 @@ export default async function QuoteInboxPage({
       </p>
 
       {/* Win-rate + referral summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mb-5">
         <QuoteStat
           label="Win rate"
           value={winRate == null ? "—" : `${winRate}%`}

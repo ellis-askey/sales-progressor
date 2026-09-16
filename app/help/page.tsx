@@ -92,9 +92,14 @@ export default async function HelpDrawerPage({
     >
       <HelpSidebar articles={articles} selectedSlug={selectedSlug} />
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <main style={{
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", minWidth: 0 }}>
+        {/* .help-main (agent-system.css): reduced padding + clearance for the
+            fixed Articles toggle below 768; the 240px sidebar becomes a
+            drawer there (audit G1 — the fixed chrome left ~54px of readable
+            text on a 390px phone). */}
+        <main className="help-main" style={{
           flex: 1,
+          minWidth: 0,
           overflowY: "auto",
           padding: "40px 48px 80px",
           background: "#FFFFFF",
@@ -110,7 +115,7 @@ export default async function HelpDrawerPage({
         </main>
 
         {headings.length > 2 && (
-          <aside style={{
+          <aside className="help-toc" style={{
             width: 192,
             flexShrink: 0,
             overflowY: "auto",

@@ -375,11 +375,21 @@ export function ChainsWorkspace({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
+        .chains-summary-card { container-type: inline-size; }
         .chains-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
         .chains-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
         .chains-summary-cell:first-child { border-left: none; }
         .chains-summary-cell-hot:hover { background: rgba(var(--agent-coral-base-rgb), 0.10) !important; }
         .chains-card-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
+        /* Container-driven 4 -> 2 tiles: the old 760px viewport query flipped
+           to 2-col exactly when the sidebar disappears and room INCREASES —
+           tiles crushed through 768-900 (audit E1). The card's own width now
+           decides; the viewport rule stays as a no-container-support fallback. */
+        @container (max-width: 779px) {
+          .chains-summary-grid { grid-template-columns: repeat(2, 1fr); }
+          .chains-summary-cell:nth-child(odd) { border-left: none; }
+          .chains-summary-cell:nth-child(n+3) { border-top: 1px solid var(--agent-border-subtle); }
+        }
         @media (max-width: 760px) {
           .chains-summary-grid { grid-template-columns: repeat(2, 1fr); }
           .chains-summary-cell:nth-child(odd) { border-left: none; }
@@ -388,7 +398,7 @@ export function ChainsWorkspace({
       `}</style>
 
       {/* Summary overview */}
-      <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden" }}>
+      <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" className="chains-summary-card" style={{ borderRadius: 14, overflow: "hidden" }}>
         <div className="chains-summary-grid">
           <SummaryTile
             icon={<House size={20} weight="regular" />}

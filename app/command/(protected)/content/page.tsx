@@ -42,7 +42,7 @@ export default async function ContentOverviewPage() {
       </div>
 
       <Section title="Where things stand">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <Link href="/command/content/inbox"><KpiCard label="Ideas in inbox" value={String(o.inbox.fresh)} accent={o.inbox.fresh > 0} sub={o.inbox.saved > 0 ? `${o.inbox.saved} saved` : undefined} /></Link>
           <Link href="/command/content/thoughts"><KpiCard label="Your thoughts" value={String(o.thoughtsOpen)} sub="open" /></Link>
           <Link href="/command/content/drafts"><KpiCard label="Ready to send" value={String(o.readyToSend)} sub="in batch" /></Link>

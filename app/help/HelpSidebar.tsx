@@ -48,6 +48,10 @@ export function HelpSidebar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
+  // Below 768 the sidebar becomes a slide-in drawer behind an "Articles"
+  // toggle (.help-* rules in agent-system.css) — the fixed 240px column left
+  // no readable article width on phones (responsive audit G1).
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const fuse = useMemo(
     () => new Fuse(articles, { keys: ["title"], threshold: 0.4 }),
@@ -73,10 +77,23 @@ export function HelpSidebar({
     const params = new URLSearchParams(searchParams.toString());
     params.set("slug", slug);
     router.push(`?${params.toString()}`);
+    setMobileOpen(false);
   }
 
   return (
-    <aside style={{
+    <>
+    {/* Drawer toggle + backdrop — rendered (via CSS) below 768 only */}
+    <button
+      type="button"
+      className="help-toggle"
+      onClick={() => setMobileOpen(true)}
+      aria-label="Open the help library"
+      aria-expanded={mobileOpen}
+    >
+      ☰ Articles
+    </button>
+    {mobileOpen && <div className="help-backdrop" onClick={() => setMobileOpen(false)} aria-hidden />}
+    <aside className={`help-sidebar${mobileOpen ? " help-sidebar-open" : ""}`} style={{
       width: 240,
       flexShrink: 0,
       borderRight: "0.5px solid rgba(45,24,16,0.10)",
@@ -165,5 +182,6 @@ export function HelpSidebar({
         })}
       </nav>
     </aside>
+    </>
   );
 }

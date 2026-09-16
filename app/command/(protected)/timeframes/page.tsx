@@ -116,7 +116,7 @@ export default async function TimeframesPage({ searchParams }: { searchParams: P
         tip="Median calendar days from the sale being added (anchored on its true start, so claimed/migrated sales count from the beginning) to that milestone. 'All data' includes migrated and claimed sales; switch to 'Organic only' to see real-time files alone."
         subtitle={`${SEGMENTS.find((s) => s.key === segment)?.label} · ${d.usableSales} of ${d.totalSales} sales contributed data`}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard label="Sale → exchange" value={fmtDays(saleExchange?.median ?? null)} accent sub={`median · n=${saleExchange?.n ?? 0}`} tip="Median days from sale added to contracts exchanged." />
           <KpiCard label="Sale → completion" value={fmtDays(saleCompletion?.median ?? null)} sub={`median · n=${saleCompletion?.n ?? 0}`} tip="Median days from sale added to completion." />
           <KpiCard label="Sales in view" value={String(d.totalSales)} sub={SEGMENTS.find((s) => s.key === segment)?.label ?? ""} />

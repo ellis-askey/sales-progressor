@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
   Activity, Send, HeartPulse, FlaskConical,
   Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer, CalendarDays, Radar,
+  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer, CalendarDays, Radar, Menu,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -292,9 +292,35 @@ export function CommandSidebar({
   showBackToAdmin?: boolean;
 }) {
   const pathname = usePathname();
+  // Below lg (1024) the sidebar is an off-canvas drawer behind a Menu button —
+  // an icon rail would lose the scope filters, so the full panel slides in
+  // instead (responsive programme Phase 2, audit F1). Closes on navigation.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   return (
-    <aside className="w-[220px] flex-shrink-0 flex flex-col h-screen bg-[#111111] border-r border-[#1f1f1f] overflow-y-auto">
+    <>
+      {/* Drawer toggle — fixed top-left, below lg only */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed top-3 left-3 z-40 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#1a1a1a] border border-[#262626] text-[#a3a3a3] hover:text-[#d4d4d4] text-[11px] font-semibold transition-colors"
+        aria-label="Open navigation"
+        aria-expanded={mobileOpen}
+      >
+        <Menu className="w-3.5 h-3.5" strokeWidth={1.75} />
+        Menu
+      </button>
+
+      {/* Backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
+    <aside className={`w-[220px] flex-shrink-0 flex flex-col h-screen bg-[#111111] border-r border-[#1f1f1f] overflow-y-auto fixed inset-y-0 left-0 z-50 transition-transform duration-200 lg:static lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Header */}
       <div className="px-4 pt-5 pb-4 border-b border-[#1f1f1f]">
         {showBackToAdmin && (
@@ -379,5 +405,6 @@ export function CommandSidebar({
         </button>
       </div>
     </aside>
+    </>
   );
 }

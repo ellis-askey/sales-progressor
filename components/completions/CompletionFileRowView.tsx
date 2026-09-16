@@ -108,9 +108,11 @@ export function CompletionFileRowView({
       <PropertyThumb photoUrl={file.photoUrl} size={48} />
 
       <div className="min-w-0 flex-1">
-        {/* Line 1: address + date/countdown */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <p className="text-[15px] font-bold mb-0.5 truncate" style={{ color: "var(--agent-text-primary)" }}>{file.propertyAddress}</p>
+        {/* Line 1: address + date/countdown. flexWrap + the address's flex
+            basis let the date block drop to its own line on narrow rows
+            instead of truncating the address to a few words (audit D5). */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <p className="text-[15px] font-bold mb-0.5 truncate" style={{ color: "var(--agent-text-primary)", flex: "1 1 180px", minWidth: 0 }}>{file.propertyAddress}</p>
           <DateBlock />
         </div>
 

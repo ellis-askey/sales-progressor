@@ -203,7 +203,7 @@ function KnockOn({ m }: { m: LoopMetrics }) {
         The flywheel: agents who joined, then invited their own neighbours. When &ldquo;joined from
         those&rdquo; starts to outpace &ldquo;joined&rdquo;, the product is spreading on its own.
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {cells.map((c) => (
           <div key={c.label} className="rounded-lg bg-neutral-800/40 px-3 py-2">
             <p className="text-xl font-semibold tabular-nums text-neutral-100">{c.value}</p>

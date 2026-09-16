@@ -121,7 +121,7 @@ async function Overview() {
         title="Business outcomes"
         subtitle="What outreach actually produced. Activated agency (a converted agency with at least one genuine sale) is the objective."
       >
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
           <KpiCard label="Replies" value={fmtInt(f.replied)} sub="prospects who replied" />
           <KpiCard label="Interested" value={fmtInt(f.interested)} sub="positive / interested" />
           <KpiCard label="Converted agencies" value={fmtInt(f.convertedToAgency)} sub="signed up" />

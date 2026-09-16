@@ -136,7 +136,7 @@ export default async function WebsiteGrowthPage({ searchParams }: { searchParams
 
       {/* G. Activation & adoption — signup → 1st → 2nd → 5th → 10th sale */}
       <Section title="Activation &amp; adoption" tip="All-time, tier-filtered. Connects acquisition to how deeply agencies actually adopt the product." subtitle="The specialist Getting started / Repeat use pages stay for deeper analysis; this is the growth-level summary.">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KpiCard label="Activation rate" value={fmtPct(d.adoption.activationRate)} sub={`${fmtInt(d.adoption.activated)} of ${fmtInt(d.adoption.totalAgencies)} agencies`} />
           <KpiCard label="Avg days to first sale" value={d.adoption.avgDaysToFirstSale == null ? "—" : `${d.adoption.avgDaysToFirstSale}`} sub={d.adoption.avgDaysToFirstSale == null ? "" : "days"} />
           <KpiCard label="Never activated" value={fmtInt(d.adoption.neverActivated)} sub="signed up, no real sale" />
@@ -206,7 +206,7 @@ export default async function WebsiteGrowthPage({ searchParams }: { searchParams
 
       {/* K. Tracking health */}
       <Section title="Tracking health" subtitle="So analytics never breaks silently.">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <HealthTile label="PostHog capture key" ok={d.tracking.posthogClientKey} />
           <HealthTile label="PostHog read key" ok={d.tracking.posthogReadKey} />
           <HealthTile label="PostHog project id" ok={d.tracking.posthogProjectId} />

@@ -101,7 +101,7 @@ export default async function FeatureUsagePage({ searchParams }: { searchParams:
           <p className="mt-1 text-sm text-neutral-400">{detail.blurb}</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label={`Adopters (${period === "all" ? "all time" : period})`} value={String(detail.metric.adoptersInPeriod)} sub={`${detail.metric.adoptersAllTime} all time · ${adopterNoun(detail.adopterUnit, detail.metric.adoptersAllTime)}`} />
           <Stat label="Uses (period)" value={String(detail.metric.usesInPeriod)} sub={`${detail.metric.usesAllTime} all time`} />
           <Stat label="First used" value={fmtWhen(detail.metric.firstAt)} />
@@ -193,7 +193,7 @@ export default async function FeatureUsagePage({ searchParams }: { searchParams:
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Features tracked" value={String(data.features.length)} />
         <Stat label={`Used in ${period === "all" ? "all time" : period}`} value={String(usedInPeriod)} sub={`of ${data.features.length}`} />
         <Stat label="Never used" value={String(neverUsed)} sub="built but no signal yet" />

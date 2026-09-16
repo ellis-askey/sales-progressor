@@ -1259,6 +1259,45 @@
     overflow-x: auto;   /* allows horizontal scroll on mobile; was overflow:hidden which blocked it */
     overflow-y: hidden; /* still clips the sliding indicator bar vertically */
   }
+  /* Overflow affordance (audit C1): the scrollbar is hidden, so when tabs
+   * overflow the bar fades the hidden edge and shows a chevron that scrolls
+   * towards it. data-fade is set by PropertyFileTabs from real scroll state —
+   * no fade renders when everything fits. */
+  .agent-tab-bar[data-fade="right"] {
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 44px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 44px), transparent 100%);
+  }
+  .agent-tab-bar[data-fade="left"] {
+    mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 100%);
+  }
+  .agent-tab-bar[data-fade="both"] {
+    mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+  }
+  .agent-tab-scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 999px;
+    border: 0.5px solid var(--agent-border-default);
+    background: var(--agent-surface-elevated);
+    color: var(--agent-text-secondary);
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+    transition: color var(--agent-transition-fast), background var(--agent-transition-fast);
+  }
+  .agent-tab-scroll-btn:hover { color: var(--agent-coral-deep); background: var(--agent-hover-tint); }
+  .agent-tab-scroll-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
+  .agent-tab-scroll-left { left: 2px; }
+  .agent-tab-scroll-right { right: 2px; }
   .agent-tab {
     display: inline-flex;
     align-items: center;
@@ -1608,15 +1647,21 @@
   }
 
   /* ── Pipeline at a glance — stage cards ─────────────────────────────────── */
-  /* Six across on wide screens. Deliberate wrap (no horizontal scroll): drop to
-   * three columns, then two, rather than squeezing all six into the width. */
+  /* Six across on wide screens. Deliberate wrap (no horizontal scroll).
+   * Phase 2 responsive programme (audit B3): column count is now driven by the
+   * CARD's own width (container query on .pipe-container, set on the GlassCard
+   * in PipelineAtAGlance.tsx) instead of the viewport, and steps 6 → 4 → 3 → 2
+   * rather than jumping 6 → 3. Thresholds keep each stage card ≥ ~150px.
+   * Browsers without container-query support keep 6 columns. */
+  .pipe-container { container-type: inline-size; }
   .pipe-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
   }
-  @media (max-width: 1240px) { .pipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 680px)  { .pipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @container (max-width: 999px) { .pipe-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @container (max-width: 699px) { .pipe-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @container (max-width: 459px) { .pipe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .pipe-card {
     border-radius: 14px;
     border: 1px solid var(--agent-border-subtle);
@@ -1641,8 +1686,10 @@
   }
   .pipe-prop:hover { background: rgba(var(--agent-coral-rgb), 0.07); }
   .pipe-thumb { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: block; }
-  /* Mobile (2-col grid): drop the thumbnail so the address gets the full width. */
-  @media (max-width: 680px) { .pipe-thumb { display: none; } }
+  /* Narrow cards (3-col and below, container-driven): drop the thumbnail so
+   * the address gets the full width. Was a 680px viewport query; now tied to
+   * the same container as the column count so it can't drift out of step. */
+  @container (max-width: 699px) { .pipe-thumb { display: none; } }
   .pipe-prop-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .pipe-addr { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pipe-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--agent-text-muted); }
@@ -2271,7 +2318,10 @@
   .fsh-ctas    { grid-area: ctas; align-self: start; max-width: 360px; }
   /* Small screens: stack (writing -> card -> CTAs by DOM order) and let the
    * card + buttons run full width. */
-  @media (max-width: 860px) {
+  /* Container-driven (hub content region, audit B6): the old 860px viewport
+   * query ignored the sidebar, so the two-col hero ran cramped through
+   * 861-1120. Stacks whenever the hub region itself is under 800px. */
+  @container (max-width: 799px) {
     .fsh {
       display: flex;
       flex-direction: column;
@@ -3385,6 +3435,36 @@ body[data-demo-file] [data-onboarding-checklist] {
   .agent-nav-recents { display: none; }
 }
 
+/* 2a. Reminders rows (file-page Reminders section). The text column has
+ * flex-basis 200px, so when it can't keep at least that much width the
+ * fixed action cluster (Chase / Chased / Done / Snooze) wraps to its own
+ * right-aligned line instead of crushing the title (audit C4). Width-driven
+ * by the row itself — no media query needed. */
+.rem-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rem-row-actions { margin-left: auto; }
+
+/* 2b. File-details accordion (property file, below xl). The sidebar cards
+ * were tuned for a 288px rail; stretched to the full 484-1150px accordion
+ * they left huge label/value gaps (audit C5). Between md and the xl sidebar
+ * gate they flow as two masonry columns instead. !important beats the
+ * sidebar root's inline display:flex. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .file-acc-body > div {
+    display: block !important;
+    columns: 2;
+    column-gap: 16px;
+  }
+  .file-acc-body > div > * {
+    break-inside: avoid;
+    margin-bottom: 16px;
+  }
+}
+
 /* 3. Files list — card vs grid decided by the LIST's own width (container
  * query), not the viewport, so the sidebar/rail and page padding are accounted
  * for automatically (finding D1: the old md switch ran 500–910px of fixed grid
@@ -3414,4 +3494,53 @@ body[data-demo-file] [data-onboarding-checklist] {
 @container (min-width: 1160px) {
   .files-switch-1160 .files-row-card { display: none; }
   .files-switch-1160 .files-row-grid { display: grid; }
+}
+
+/* 8. Help pages responsive floor (audit G1). Desktop keeps the fixed
+ * 240px sidebar + optional TOC. Below 1024 the TOC drops (article room);
+ * below 768 the sidebar becomes a slide-in drawer behind a fixed
+ * "Articles" toggle — previously the fixed chrome left ~54px of readable
+ * text on a 390px phone. !important beats the inline width/padding. */
+.help-toggle { display: none; }
+@media (max-width: 1023px) {
+  .help-toc { display: none; }
+}
+@media (max-width: 767px) {
+  .help-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 280px !important;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 4px 0 32px rgba(15, 5, 0, 0.18);
+  }
+  .help-sidebar-open { transform: translateX(0); }
+  .help-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    background: rgba(15, 5, 0, 0.35);
+  }
+  .help-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 58;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 0.5px solid rgba(45, 24, 16, 0.18);
+    background: #FFF5EC;
+    color: #5A3A28;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(45, 24, 16, 0.12);
+  }
+  .help-main { padding: 56px 20px 60px !important; }
 }

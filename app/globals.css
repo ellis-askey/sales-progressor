@@ -1042,7 +1042,9 @@ select {
     z-index: 99;
   }
 
-  /* Hub layout responsive grids */
+  /* Hub layout responsive grids (viewport fallback — the container-driven
+   * rules below this media block are the primary mechanism; these keep
+   * browsers without container-query support stacking on phones). */
   .hub-grid-main    { grid-template-columns: 1fr !important; }
   .hub-grid-half    { grid-template-columns: 1fr !important; }
   .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
@@ -1091,6 +1093,19 @@ select {
     min-height: 40px !important;
     padding: 8px !important;
   }
+}
+
+/* ─── Hub grids — container-driven stacking (responsive programme Phase 2,
+ * audit B1/B2). The hub content region is the container, so the 2fr/1fr and
+ * 1fr/1fr rows stack whenever the region itself is too narrow — regardless of
+ * whether the width was eaten by the viewport, the 220px sidebar, or the 64px
+ * tablet rail. 900px is the point where the Wins column would drop below
+ * ~290px and the health card's 4-cell stat row below ~145px per cell.
+ * !important beats the inline gridTemplateColumns on the JSX. */
+.hub-content-pad { container-type: inline-size; }
+@container (max-width: 899px) {
+  .hub-grid-main { grid-template-columns: 1fr !important; }
+  .hub-grid-half { grid-template-columns: 1fr !important; }
 }
 
 /* ─── Reminder card action buttons ──────────────────────────────────────── */
