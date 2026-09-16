@@ -376,8 +376,10 @@ export function DrawerFooter({
       background: "rgba(255, 255, 255, 0.20)",
     };
   return (
+    // .agent-overlay-footer: wraps long button rows; stacks them full-width
+    // below 420px (agent-system.css — responsive programme Phase 3).
     <div
-      className={className}
+      className={`agent-overlay-footer ${className}`}
       style={{
         flexShrink: 0,
         padding: "16px 24px",

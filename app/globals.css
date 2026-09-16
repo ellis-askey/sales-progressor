@@ -1313,6 +1313,15 @@ select {
 .chain-fork-insert:focus-visible { opacity: 1; outline: none;
   box-shadow: var(--agent-focus-ring-tight); }
 
+/* Touch devices have no hover: the insert-between "+", fork-leg "+" and
+ * stub-photo upload affordances render persistently so they stay reachable
+ * (responsive programme Phase 3, audit A4). */
+@media (pointer: coarse) {
+  .chain-connector-insert,
+  .chain-fork-insert { opacity: 1; }
+  .chain-photo-upload { opacity: 1; background: rgba(20, 22, 30, 0.28); }
+}
+
 .chain-card { display: flex; gap: 13px; padding: 12px;
   background: var(--agent-surface-elevated);
   border: 1px solid var(--agent-border-default); border-radius: 14px;

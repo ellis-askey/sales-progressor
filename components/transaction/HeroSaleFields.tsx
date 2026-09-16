@@ -108,7 +108,7 @@ function EditTrigger({ value, label, ariaLabel, sensitive, onClick }: {
         <PencilSimple
           size={12}
           weight="regular"
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          className="hero-edit-pencil opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ color: "var(--agent-text-muted)", flexShrink: 0 }}
         />
       </span>
@@ -199,7 +199,9 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
         style={{
           position: "fixed",
           top: anchor.bottom + 6,
-          left: anchor.left,
+          // Clamp so the ≥180px menu never runs past the right viewport edge
+          // when the stat cell sits near it (audit C6).
+          left: Math.max(8, Math.min(anchor.left, (typeof window !== "undefined" ? window.innerWidth : 9999) - Math.max(180, anchor.width) - 8)),
           zIndex: 60,
           minWidth: Math.max(180, anchor.width),
           background: "var(--agent-surface-elevated, #fff)",

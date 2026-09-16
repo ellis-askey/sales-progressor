@@ -754,14 +754,17 @@ export function ChainView({
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
       role={inline ? undefined : "dialog"}
       aria-label={inline ? undefined : "Chain"}
-      className={inline ? "chain-view-inline flex flex-col" : "relative z-10 flex flex-col h-full"}
+      className={inline ? "chain-view-inline flex flex-col" : "relative z-10 flex flex-col h-full resp-drawer-wide"}
       style={
         inline
           ? undefined
           : {
               // Scale with the widest fork so columns never bunch: linear stays
               // narrow, a V split gets more room, a trident opens almost full width.
-              width: maxFanout >= 3 ? "min(1440px, 96vw)" : maxFanout === 2 ? "min(1120px, 96vw)" : "min(760px, 100vw)",
+              // calc(100vw - 48px) caps guarantee a ≥48px backdrop dismiss gutter;
+              // .resp-drawer-wide commits to full-screen below 900 (audit E2 —
+              // the old 96vw/100vw left an 8px strip at 768).
+              width: maxFanout >= 3 ? "min(1440px, calc(100vw - 48px))" : maxFanout === 2 ? "min(1120px, calc(100vw - 48px))" : "min(760px, calc(100vw - 48px))",
               transition: "width 260ms cubic-bezier(0.25,0,0,1)",
               background: "var(--agent-surface-elevated)",
               borderLeft: "0.5px solid rgba(0,0,0,0.08)",

@@ -3496,6 +3496,49 @@ body[data-demo-file] [data-onboarding-checklist] {
   .files-switch-1160 .files-row-grid { display: grid; }
 }
 
+/* ── Phase 3: touch + overlays (audit A4/A5/A6, E2) ────────────────────── */
+
+/* Coarse pointers (tablets/phones): hover-revealed affordances render
+ * persistently at reduced opacity, and the smallest controls get a real
+ * tap target. !important is needed where the base is a Tailwind utility
+ * (opacity-0) or an inline style (14px chip clears). */
+@media (pointer: coarse) {
+  /* Hero inline-edit pencils + service-swap arrow — visible edit cues */
+  .hero-edit-pencil { opacity: 0.45 !important; }
+  .v2-swap-arrow { width: 12px; margin-left: 4px; opacity: 0.6; }
+  /* Files-table sort chevrons — visible without hover */
+  .files-sort-chevron { opacity: 1 !important; }
+  /* Small icon buttons (drawer closes, chip clear-x) — 22px/14px → ≥32px */
+  .agent-icon-btn-sm { width: 32px !important; height: 32px !important; }
+  /* Text-link buttons (milestone Change date / Undo / Not required) —
+   * enlarged hit area without layout shift */
+  button.agent-link { padding: 10px 8px; margin: -10px -8px; }
+  /* Reminder row actions — 28px buttons → 40px, wider gaps */
+  .rem-row-actions { gap: 8px !important; }
+  .rem-row-actions button { min-height: 40px; }
+}
+
+/* Overlay footers (Modal.Footer / Drawer.Footer primitives). Long button
+ * pairs used to overflow at phone widths (consumers worked around it with
+ * flex-1 — the tell). Wrap by default; below 420px stack full-width with
+ * the primary (last in DOM) on top. */
+.agent-overlay-footer { flex-wrap: wrap; }
+@media (max-width: 420px) {
+  .agent-overlay-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 12px 16px !important;
+  }
+  .agent-overlay-footer > * { width: 100%; justify-content: center; }
+}
+
+/* Bespoke slide-over drawers: reserve a ≥48px backdrop gutter while the
+ * viewport can afford one; below the threshold commit to full-screen.
+ * (Widths themselves are inline min(..., calc(100vw - 48px)) on each
+ * drawer; these classes force the full-screen floor.) */
+@media (max-width: 899px) { .resp-drawer-wide { width: 100vw !important; } }
+@media (max-width: 560px) { .resp-drawer { width: 100vw !important; } }
+
 /* 8. Help pages responsive floor (audit G1). Desktop keeps the fixed
  * 240px sidebar + optional TOC. Below 1024 the TOC drops (article room);
  * below 768 the sidebar becomes a slide-in drawer behind a fixed

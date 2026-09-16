@@ -359,9 +359,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
       <div
         role="dialog"
         aria-label="Intro call"
-        className="relative z-10 flex flex-col h-full"
+        className="relative z-10 flex flex-col h-full resp-drawer-wide"
         style={{
-          width: "min(880px, 100vw)",
+          width: "min(880px, calc(100vw - 48px))",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",

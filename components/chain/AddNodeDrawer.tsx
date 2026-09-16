@@ -441,9 +441,9 @@ export function AddNodeDrawer({
       <div
         role="dialog"
         aria-label={title}
-        className="relative z-10 flex flex-col h-full"
+        className="relative z-10 flex flex-col h-full resp-drawer"
         style={{
-          width: "min(440px, 100vw)",
+          width: "min(440px, calc(100vw - 48px))",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",

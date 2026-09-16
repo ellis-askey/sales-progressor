@@ -101,7 +101,7 @@ export function HeroExchangeCell({
           >
             <span style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
               <span style={VALUE_STYLE}>{fmt(shown)}</span>
-              <PencilSimple size={12} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+              <PencilSimple size={12} weight="regular" className="hero-edit-pencil opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
             </span>
             <span style={LABEL_STYLE}>Expected exchange{overrideDate ? " (set)" : ""}</span>
           </button>

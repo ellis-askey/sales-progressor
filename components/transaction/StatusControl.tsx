@@ -130,7 +130,9 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   function handleOpen() {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+      // Clamp so the ~140px menu never overflows the right viewport edge
+      // (audit E4 — same clamp LinkCard's CardMenu uses).
+      setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 156)) });
     }
     setOpen((o) => !o);
   }
@@ -320,15 +322,18 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
             className="relative bg-white rounded-2xl w-full max-w-sm"
-            style={{ overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
+            // maxHeight + internal scroll (audit E3): the 4 reason cards +
+            // detail input exceeded short viewports and pushed the Confirm
+            // row off-screen with no way to reach it.
+            style={{ overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "calc(100dvh - 48px)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header — Ribbon coral band */}
-            <div style={{ ...SHEET_BAND_STYLE }}>
+            <div style={{ ...SHEET_BAND_STYLE, flexShrink: 0 }}>
               <SheetBandHeader kicker="Withdraw" title="Mark as withdrawn" subtitle="Record why this sale fell through" />
             </div>
 
-            <div className="p-6">
+            <div className="p-6" style={{ overflowY: "auto", minHeight: 0 }}>
             {/* Question 1 — Who pulled out? Drives chain cascade direction
               * via WithdrawalReason. See closed-loop arc 2026-06-05. */}
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
@@ -455,6 +460,9 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               position: "relative",
               zIndex: 1,
               overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: "calc(100dvh - 48px)",
               background: "var(--agent-surface-elevated)",
               border: "0.5px solid rgba(0,0,0,0.08)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
@@ -463,7 +471,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header — Ribbon coral band */}
-            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
               <SheetBandHeader kicker="On hold" title="Put file on hold" />
               <button
                 type="button"
@@ -480,7 +488,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               >×</button>
             </div>
 
-            <div className="px-6 py-5">
+            <div className="px-6 py-5" style={{ overflowY: "auto", minHeight: 0 }}>
               <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
                 Pick a return date and we&apos;ll surface this file on the hub when it&apos;s due — so it doesn&apos;t get forgotten.
               </p>
@@ -561,6 +569,9 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               position: "relative",
               zIndex: 1,
               overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: "calc(100dvh - 48px)",
               background: "var(--agent-surface-elevated)",
               border: "0.5px solid rgba(0,0,0,0.08)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
@@ -569,7 +580,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header — Ribbon coral band */}
-            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
               <SheetBandHeader kicker="Reactivate" title="Take off hold" />
               <button
                 type="button"
@@ -586,7 +597,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               >×</button>
             </div>
 
-            <div className="px-6 py-5 space-y-3">
+            <div className="px-6 py-5 space-y-3" style={{ overflowY: "auto", minHeight: 0 }}>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
                 Pick one — you can always change later.
               </p>

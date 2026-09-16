@@ -63,7 +63,7 @@ function SortChevron({ col, active, dir }: { col: SortKey; active: SortKey; dir:
   const isActive = col === active;
   const up = isActive && dir === "asc";
   return (
-    <span className={`inline-flex flex-col ml-1 -space-y-0.5 opacity-0 group-hover/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
+    <span className={`files-sort-chevron inline-flex flex-col ml-1 -space-y-0.5 opacity-0 group-hover/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
       <svg width="7" height="5" viewBox="0 0 7 5" className={up || !isActive ? (isActive && up ? "text-slate-900/70" : "text-slate-900/25") : "text-slate-900/25"} fill="currentColor">
         <path d="M3.5 0L7 5H0z" />
       </svg>
