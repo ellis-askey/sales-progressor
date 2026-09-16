@@ -62,6 +62,8 @@ import { PerfOverlay } from "@/components/debug/PerfOverlay";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
+import { FileSetupChecklist } from "@/components/transaction/FileSetupChecklist";
+import { getFileSetup } from "@/lib/services/file-setup";
 import { ChainTabLoader } from "@/components/transaction/ChainTabLoader";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
@@ -306,10 +308,15 @@ export default async function AgentTransactionDetailPage({
   const showChaseTimeline =
     isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
 
+  // File setup completeness — how much of the file's own detail is filled in
+  // (distinct from sale progress). Badge shows how many items are still to do.
+  const fileSetup = await getFileSetup(transaction.id).catch(() => null);
+
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
+    { key: "setup",      label: "File setup", badge: fileSetup?.remaining ?? 0, icon: "setup" },
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "chain",      label: "Chain", icon: "chain" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
@@ -486,7 +493,7 @@ export default async function AgentTransactionDetailPage({
           the hero % instantly, using the same pooled maths the server uses. */}
       <FileProgressProvider seed={progressSeed} fallbackPercent={progress.percent}>
       {/* ── Zone 1: Hero ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div id="file-hero" style={{ marginBottom: 20, scrollMarginTop: 12 }}>
         <PropertyHero
           address={transaction.propertyAddress}
           agencyName={transaction.agency.name}
@@ -592,7 +599,10 @@ export default async function AgentTransactionDetailPage({
           </Suspense>
         </RevealSlot>
 
-        {/* Tab 1: Steps */}
+        {/* Tab 1: File setup */}
+        <FileSetupChecklist summary={fileSetup} />
+
+        {/* Tab 2: Steps */}
         <Suspense fallback={<TabPanelSkeleton rows={8} />}>
           <StepsPanel
             transactionId={transaction.id}

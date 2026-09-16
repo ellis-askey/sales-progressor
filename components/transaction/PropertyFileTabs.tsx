@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback, Children } from "react";
 import { ChevronDown } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple } from "@phosphor-icons/react/dist/ssr";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
@@ -17,6 +17,7 @@ export function useTabBadge() { return useContext(TabBadgeContext); }
 // unaffected.
 const TAB_ICONS: Record<string, Icon> = {
   house: House,
+  setup: ClipboardText,
   steps: ListChecks,
   chain: LinkSimple,
   bell: Bell,
@@ -237,8 +238,10 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
             )); })()}
           </div>
 
-          {/* Desktop sidebar — hidden on mobile/tablet */}
-          <div className="hidden lg:block w-72 flex-shrink-0 sticky top-[53px]">
+          {/* Desktop sidebar — hidden on mobile/tablet.
+              id="file-sidebar": jump target for the File setup tab's sale-detail
+              items (price, tenure/method, target date live here). */}
+          <div id="file-sidebar" style={{ scrollMarginTop: 100 }} className="hidden lg:block w-72 flex-shrink-0 sticky top-[53px]">
             {sidebar}
           </div>
         </div>
