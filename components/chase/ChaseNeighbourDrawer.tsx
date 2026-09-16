@@ -17,6 +17,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -43,6 +44,26 @@ const TONE_DISPLAY: Record<Tone, string> = {
   "Urgent": "Urgent",
   "Final Reminder": "Final reminder",
 };
+
+// Coloured dot on the functional tone scale — same colour system as the reminder
+// chase drawer (ChaseDrawer TONE_META).
+const TONE_META: Record<Tone, { dot: string }> = {
+  "Friendly": { dot: "#16a34a" },
+  "Professional": { dot: "#2563eb" },
+  "Polite Yet Firm": { dot: "#ca8a04" },
+  "Chase Up": { dot: "#ea580c" },
+  "Urgent": { dot: "#dc2626" },
+  "Final Reminder": { dot: "#991b1b" },
+};
+
+function TonePill({ tone }: { tone: Tone }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: TONE_META[tone].dot, flexShrink: 0 }} />
+      {TONE_DISPLAY[tone]}
+    </span>
+  );
+}
 
 type Props = {
   transactionId: string;
@@ -189,7 +210,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   async function saveAgent() {
     if (!agentEmail.includes("@")) return;
     setSavingAgent(true);
-    const res = await setNeighbourAgentAction({ transactionId, direction, name: agentName, email: agentEmail }).catch(() => null);
+    const res = await setNeighbourAgentAction({ transactionId, direction, name: titleCaseKeepAcronyms(agentName), email: agentEmail.trim().toLowerCase() }).catch(() => null);
     setSavingAgent(false);
     if (!res || !res.ok) { toast.error("Couldn't save the agent's details. Check the email and try again."); return; }
     setErrorReason(null);
@@ -303,7 +324,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
           ) : errorReason === "no_email" ? (
             <div className="rounded-xl px-4 py-4 space-y-3" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
               <p className="text-sm" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
-                We don&apos;t have an email for the agent {whichNeighbour}{address ? ` (handling ${address})` : ""}. Add their details to chase them — we&apos;ll save them against that property for next time.
+                We don&apos;t have an email for the agent {whichNeighbour}{address ? ` (handling ${address})` : ""}. Add their details to chase them, and we&apos;ll save them against that property for next time.
               </p>
               <div className="space-y-1">
                 <label className="block text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>Agent name (optional)</label>
@@ -311,6 +332,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   type="text"
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
+                  onBlur={(e) => { if (e.target.value.trim()) setAgentName(titleCaseKeepAcronyms(e.target.value)); }}
                   placeholder="e.g. Philippa Scott"
                   className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 transition-all"
                 />
@@ -321,6 +343,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   type="email"
                   value={agentEmail}
                   onChange={(e) => setAgentEmail(e.target.value)}
+                  onBlur={(e) => setAgentEmail(e.target.value.trim().toLowerCase())}
                   placeholder="agent@agency.co.uk"
                   className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 transition-all"
                 />
@@ -421,7 +444,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                         color: "var(--agent-text-primary)",
                       }}
                     >
-                      {TONE_DISPLAY[tone]}
+                      <TonePill tone={tone} />
                       <span style={{ color: "var(--agent-text-muted)", display: "flex" }}>
                         {toneMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
                       </span>
@@ -449,7 +472,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                               border: "none", cursor: "pointer",
                             }}
                           >
-                            {TONE_DISPLAY[t]}
+                            <TonePill tone={t} />
                           </button>
                         ))}
                       </div>,
@@ -458,6 +481,29 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   </div>
                 </div>
               </div>
+
+              {/* CC toggle — beneath the channel/tone row, matching the reminder
+                  chase drawer's placement + toggle style. */}
+              {ccCandidate && (
+                <button
+                  onClick={() => setCcOn((v) => !v)}
+                  title={`Also copy ${ccCandidate.name} on this email`}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "8px 12px", borderRadius: 10,
+                    border: ccOn ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
+                    background: ccOn ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
+                    cursor: "pointer", transition: "all 140ms",
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 500, color: ccOn ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
+                    CC {ccCandidate.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>(your client)</span>
+                  </span>
+                  <span style={{ width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center", background: ccOn ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", marginLeft: ccOn ? 16 : 2, transition: "margin-left 140ms" }} />
+                  </span>
+                </button>
+              )}
 
               {/* Subject */}
               <div className="space-y-1">
@@ -569,15 +615,6 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
             <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
           ) : (
             <>
-              {ccCandidate && (
-                <label
-                  style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12.5, color: "var(--agent-text-secondary)", cursor: "pointer" }}
-                  title={`Also copy ${ccCandidate.name} on this email`}
-                >
-                  <input type="checkbox" checked={ccOn} onChange={(e) => setCcOn(e.target.checked)} />
-                  CC {ccCandidate.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>(your client)</span>
-                </label>
-              )}
               <button
                 onClick={() => { void handleSend(confirmResend); }}
                 disabled={!hasGenerated || generating || sending}
