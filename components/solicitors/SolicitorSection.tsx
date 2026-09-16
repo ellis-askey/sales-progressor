@@ -306,12 +306,12 @@ function SolicitorTile({
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
+          <div className="people-row" style={{ padding: "10px 12px" }}>
             <button
               type="button"
               onClick={() => setExpanded((x) => !x)}
               aria-expanded={expanded}
-              style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+              className="people-row-main"
             >
               <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} sideTint={side} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -323,12 +323,22 @@ function SolicitorTile({
                   {info.contact?.name ? info.contact.name : "No handler on file"}
                 </div>
               </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+            </button>
+            {/* Chevron — its own button so it can drop to the bottom row on
+                narrow cards; toggles the same panel. */}
+            <button
+              type="button"
+              onClick={() => setExpanded((x) => !x)}
+              aria-expanded={expanded}
+              aria-label={expanded ? `Hide details for ${info.firm.name}` : `Show details for ${info.firm.name}`}
+              className="people-row-chevron"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
                 <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             {/* Comms + edit stay on the row (never hidden), like ContactsSection */}
-            <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
+            <div className="people-row-actions">
               <CommsButton compact href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "Call" : "No phone number on file"} />
               <CommsButton compact href={info.contact?.phone ? `https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}` : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "WhatsApp" : "No phone number on file"} />
               <CommsButton compact href={emailHref ?? undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!info.contact?.email} title={info.contact?.email ? "Email" : "No email on file"} />
@@ -582,8 +592,9 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
 
       {/* Full-width stacked tiles — matches the ContactsSection layout so
           Clients and Professionals read identically in the People card. When
-          onlySide is set, only that side's tile renders. */}
-      <div style={{
+          onlySide is set, only that side's tile renders. .people-rows makes
+          this a size container so tiles restack on narrow cards (phones). */}
+      <div className="people-rows" style={{
         display: "flex",
         flexDirection: "column",
         gap: 10,

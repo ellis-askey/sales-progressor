@@ -945,9 +945,10 @@ export function ContactsSection({
         </div>
       )}
 
-      {/* Contact cards, stacked full-width */}
+      {/* Contact cards, stacked full-width. .people-rows makes this wrapper a
+          size container so the rows can restack on narrow cards (phones). */}
       {sortedContacts.length > 0 && (
-        <div style={{ padding: "4px 12px 12px" }}>
+        <div className="people-rows" style={{ padding: "4px 12px 12px" }}>
           {sortedContacts.map((contact, idx) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
@@ -974,13 +975,16 @@ export function ContactsSection({
               >
                 {!isEditing && !isExiting && (
                   <>
-                    {/* Compact roster row — tap the identity area to expand */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 2px" }}>
+                    {/* Compact roster row — tap the identity area to expand.
+                        Layout via .people-row (agent-system.css): one line on
+                        desktop; on narrow cards the identity takes the full
+                        first line and the chevron + buttons drop beneath. */}
+                    <div className="people-row" style={{ padding: "10px 2px" }}>
                       <button
                         type="button"
                         onClick={() => toggleExpand(contact.id)}
                         aria-expanded={expanded}
-                        style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                        className="people-row-main"
                       >
                         <ContactAvatar contact={contact} size={40} art />
 
@@ -1017,12 +1021,22 @@ export function ContactsSection({
                         {dotColor !== "transparent" && (
                           <span title={`Portal ${portalState.replace(/_/g, " ")}`} style={{ width: 7, height: 7, borderRadius: 999, background: dotColor, flexShrink: 0 }} />
                         )}
-                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                      </button>
+                      {/* Chevron — its own button so it can drop to the bottom
+                          row on narrow cards; toggles the same panel. */}
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(contact.id)}
+                        aria-expanded={expanded}
+                        aria-label={expanded ? `Hide details for ${contact.name}` : `Show details for ${contact.name}`}
+                        className="people-row-chevron"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
                           <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                       {/* Comms + kebab stay on the row (never hidden) */}
-                      <div style={{ display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
+                      <div className="people-row-actions">
                         <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
                         <CommsButton compact href={contact.phone ? whatsappHref(contact.phone) : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "WhatsApp" : "No phone number on file"} />
                         <CommsButton compact href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"} />

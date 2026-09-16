@@ -935,6 +935,36 @@
     }
   }
 
+  /* People card roster rows (Clients contacts + Professionals solicitors).
+   * Desktop: one line — [avatar + name/pill + detail] [dot] [chevron] [buttons].
+   * When the card itself is narrower than 460px (container query, so it holds
+   * anywhere the card renders), the identity takes the full first line (name +
+   * pill wrap free, the number shows in full) and the chevron + comms buttons
+   * drop to a bottom row: chevron left, buttons right. */
+  .people-rows { container-type: inline-size; }
+  .people-row { display: flex; align-items: center; gap: 10px; }
+  .people-row-main {
+    display: flex; align-items: center; gap: 11px; flex: 1 1 0; min-width: 0;
+    background: transparent; border: none; padding: 0; cursor: pointer;
+    text-align: left; font-family: inherit;
+  }
+  .people-row-chevron {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0; margin-left: -6px;
+    background: transparent; border: none; border-radius: 6px;
+    color: var(--agent-text-muted); cursor: pointer; flex-shrink: 0;
+    transition: color var(--agent-transition-fast);
+  }
+  .people-row-chevron:hover { color: var(--agent-text-secondary); }
+  .people-row-chevron:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
+  .people-row-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+  @container (max-width: 459px) {
+    .people-row { flex-wrap: wrap; row-gap: 6px; }
+    .people-row-main { flex-basis: 100%; }
+    .people-row-chevron { margin-left: 0; }
+    .people-row-actions { margin-left: auto; }
+  }
+
   /* MilestoneTimelineStrip — stage circles + action buttons.
    * Wide: buttons stack in a column to the right of the strip.
    * <= 500px: buttons drop underneath the strip, side by side, 50% each. */
