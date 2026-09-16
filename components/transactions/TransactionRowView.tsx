@@ -44,6 +44,16 @@ export function filesGridTemplate(cols: FilesColumn[]): string {
   return `4px minmax(0,1fr) ${cols.map((c) => COL_WIDTH[c]).join(" ")}`;
 }
 
+// Minimum list width (px) before the grid beats the mobile card: the fixed
+// tracks + the risk stripe + a floor for the flexible property column (44px
+// thumb + paddings + a readable address). Below this the card layout stays —
+// the old viewport-based md switch ran the fixed tracks into ~484px of content
+// on tablets, collapsing the address to nothing (responsive audit finding D1).
+export const FILES_PROPERTY_MIN = 240;
+export function filesGridMinWidth(cols: FilesColumn[]): number {
+  return 4 + cols.reduce((s, c) => s + parseInt(COL_WIDTH[c], 10), 0) + FILES_PROPERTY_MIN;
+}
+
 export type HealthRaw = {
   pendingOverdueTasks: number;
   escalatedTasks: number;
@@ -543,10 +553,11 @@ export function TransactionRowView({
 
   return (
     <div>
-      {/* ── Mobile card (hidden md+) ─────────────────────────────── */}
+      {/* ── Card row — shown until the list is wide enough for the grid
+          (container-driven via .files-table / .files-switch-N, not viewport) */}
       <Link
         href={`${basePath}/${tx.id}`}
-        className="flex md:hidden agent-hover-row"
+        className="files-row-card agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
       >
         <div style={{ width: 4, alignSelf: "stretch", flexShrink: 0, background: riskStripeColor }} />
@@ -594,7 +605,7 @@ export function TransactionRowView({
        */}
       <Link
         href={`${basePath}/${tx.id}`}
-        className="hidden md:grid items-center agent-hover-row group"
+        className="files-row-grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
         <div style={{ alignSelf: "stretch", background: riskStripeColor }} />

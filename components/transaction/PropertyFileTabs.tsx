@@ -198,8 +198,12 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
           </div>
         )}
 
-        {/* Mobile/tablet collapsible sidebar — hidden on lg+ */}
-        <div className="lg:hidden border-b border-white/20">
+        {/* Mobile/tablet collapsible sidebar — hidden once the fixed sidebar
+            takes over at xl. Phase 1 responsive programme: the gate moved from
+            lg (1024) to xl (1280) because at 1024 the 288px sidebar + 220px nav
+            rail left the main column ~432px — narrower than the single-column
+            view at 1023 (~550px). At xl the main column opens at ~688px. */}
+        <div className="xl:hidden border-b border-white/20">
           <button
             onClick={toggleSidebar}
             className={`hidden md:flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
@@ -219,7 +223,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         </div>
 
         {/* Tab content + desktop sidebar */}
-        <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}pt-3 pb-5 lg:pb-7 flex flex-col lg:flex-row gap-4 lg:gap-5 lg:items-start`}>
+        <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}pt-3 pb-5 lg:pb-7 flex flex-col xl:flex-row gap-4 xl:gap-5 xl:items-start`}>
           <div className="flex-1 min-w-0 relative">
             {/* toArray strips falsy children so a conditionally-omitted tab
                 (e.g. an email-gated one) keeps children index-aligned with tabs. */}
@@ -241,7 +245,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
           {/* Desktop sidebar — hidden on mobile/tablet.
               id="file-sidebar": jump target for the File setup tab's sale-detail
               items (price, tenure/method, target date live here). */}
-          <div id="file-sidebar" style={{ scrollMarginTop: 100 }} className="hidden lg:block w-72 flex-shrink-0 sticky top-[53px]">
+          <div id="file-sidebar" style={{ scrollMarginTop: 100 }} className="hidden xl:block w-72 flex-shrink-0 sticky top-[53px]">
             {sidebar}
           </div>
         </div>

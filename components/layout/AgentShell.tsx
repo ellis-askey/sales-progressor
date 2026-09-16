@@ -389,10 +389,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         }}
       >
         {/* Brand */}
-        <div style={{ padding: "16px 20px 14px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+        <div className="agent-sidebar-brand" style={{ padding: "16px 20px 14px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <BrandMark size={32} />
-            <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="agent-sidebar-brand-text" style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
                 Sales Progressor
               </p>
@@ -414,7 +414,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+        <nav className="agent-sidebar-nav" style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
           {/* New sale CTA */}
           {(() => {
             const isNewSale = pathname.startsWith("/agent/transactions/new");
@@ -423,11 +423,12 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
                 href="/agent/transactions/new"
                 onClick={() => setMobileOpen(false)}
                 className={`agent-newsale-cta${isNewSale ? " is-active" : ""}`}
+                title="New sale"
               >
                 <span className="agent-newsale-badge" aria-hidden>
                   <Plus size={14} weight="bold" color="#fff" />
                 </span>
-                New sale
+                <span className="agent-newsale-label">New sale</span>
               </Link>
             );
           })()}
@@ -442,9 +443,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           {/* Secondary nav group */}
           <AgentNavRail items={navGroups.secondary} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
 
-          {/* Recently viewed */}
+          {/* Recently viewed — hidden in the tablet icon rail (address text is
+              the whole point; five identical clock icons would be noise). */}
           {recentlyViewed.length > 0 && (
-            <>
+            <div className="agent-nav-recents" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "6px 0" }} />
               <p style={{ margin: "0 0 4px 4px", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
                 Recently viewed
@@ -465,7 +467,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
                   </Link>
                 );
               })}
-            </>
+            </div>
           )}
         </nav>
 

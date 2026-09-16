@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { TransactionRowView, filesColumns, filesGridTemplate } from "@/components/transactions/TransactionRowView";
+import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth } from "@/components/transactions/TransactionRowView";
 import type { TransactionRow, HealthRaw, FilesColumn, FilesTab } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
 
@@ -110,6 +110,13 @@ export function TransactionTable({
   const cols = filesColumns(statusFilter, showAssignedToColumn, showAgencyColumn);
   const gridCols = filesGridTemplate(cols);
 
+  // Card ↔ grid switch bucket: the smallest container-query threshold that
+  // fits this column set (fixed tracks + a readable property column). The
+  // matching @container rules live in agent-system.css (.files-switch-N) —
+  // keep SWITCH_BUCKETS in step with them.
+  const SWITCH_BUCKETS = [680, 800, 920, 1040, 1160];
+  const switchBucket = SWITCH_BUCKETS.find((b) => b >= filesGridMinWidth(cols)) ?? 1160;
+
   // Header meta per column. The exchange/completion header re-labels on the
   // Completed tab, where the date shown is the completion date.
   const COL_HEADER: Record<FilesColumn, { label: string; key: SortKey | null }> = {
@@ -128,13 +135,14 @@ export function TransactionTable({
       glassId="myfiles-table"
       label="My files · Table"
       defaultVariant="v05"
+      className={`files-table files-switch-${switchBucket}`}
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10
        * + border-white/20 Tailwind). Sort buttons keep the hover-reveal chevron
        * pattern but inherit canonical link colour transitions on hover. */}
       <div
-        className="hidden md:grid"
+        className="files-row-grid"
         style={{
           gridTemplateColumns: gridCols,
           background: "rgba(var(--agent-shadow-rgb), 0.04)",

@@ -96,6 +96,9 @@ export function AgentNavRail({
             ref={(node) => { itemRefs.current[i] = node; }}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
+            // title doubles as the accessible name in the tablet icon rail,
+            // where the label span is display:none.
+            title={item.label}
             className={`agent-rail-item${active ? " agent-rail-item-active" : ""}`}
           >
             <Icon weight={active ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />

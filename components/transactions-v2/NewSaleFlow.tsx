@@ -378,10 +378,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // Right-column Notes: open by default on desktop, closed on smaller
   // breakpoints. Starts closed (SSR-safe) and opens on desktop after mount; the
   // key remounts CollapsibleSection so its default re-applies when the
-  // breakpoint flips.
+  // breakpoint flips. 1200 matches the .new-sale-two-col split (agent-system
+  // .css) — below it the right column stacks beneath the form, where an
+  // auto-open Notes card would push the page even longer.
   const [notesOpenByDefault, setNotesOpenByDefault] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia("(min-width: 1200px)");
     const apply = () => setNotesOpenByDefault(mq.matches);
     apply();
     mq.addEventListener("change", apply);

@@ -2718,12 +2718,16 @@
   min-width: 0;
 }
 
-@media (max-width: 1023px) {
+/* Phase 1 responsive programme (audit finding D2/D3): the right column used to
+ * be display:none below 1024 — fee entry, referral fee, notes, earnings and
+ * sold-price research simply didn't exist on tablet/mobile. It now STACKS
+ * beneath the form column instead (the grid's DOM order already puts it
+ * second). The two-column split also moved up from 1024 to 1200: at a 1024
+ * viewport the content area is only ~740px, which squeezed the right column
+ * to ~248px; from 1200 it gets a workable ~310px. */
+@media (max-width: 1199px) {
   .new-sale-two-col {
     grid-template-columns: 1fr;
-  }
-  .new-sale-right-col {
-    display: none;
   }
 }
 
@@ -3343,4 +3347,71 @@ body[data-demo-file] [data-onboarding-checklist] {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)) !important;
   -webkit-backdrop-filter: blur(6px) !important;
   backdrop-filter: blur(6px) !important;
+}
+
+/* ─── Responsive programme Phase 1 (docs/audits/RESPONSIVE_AUDIT_2026-09-16.md) ──
+ * Kept together at the end of the file so these override both globals.css
+ * (imported earlier) and the base component rules above. */
+
+/* 1. Tablet icon rail (finding A1). Between md and lg the full 220px sidebar
+ * used to leave tablets LESS content width than phones (484px at a 768 viewport
+ * vs 735px at 767). It now collapses to a 64px icon-only rail: labels, chevrons,
+ * brand text and the recently-viewed list hide; badges pin to the icon corner;
+ * every destination stays reachable (link titles carry the labels). Desktop
+ * ≥1024 and the ≤767 overlay sidebar are untouched. !important is needed only
+ * where the base value is an inline style (width, paddings). */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .agent-main-content { margin-left: 64px; }
+  .agent-topbar { left: 76px; }
+  .agent-sidebar-mobile { width: 64px !important; }
+  .agent-sidebar-brand { padding: 16px 0 14px !important; }
+  .agent-sidebar-brand > div { justify-content: center; }
+  .agent-sidebar-brand-text { display: none; }
+  .agent-sidebar-nav { padding: 12px 8px !important; }
+  .agent-newsale-cta { justify-content: center; padding: 8px 0 !important; }
+  .agent-newsale-label { display: none; }
+  .agent-rail-item { justify-content: center; padding: 10px 0; }
+  .agent-rail-item-label { display: none; }
+  .agent-rail-chevron { display: none; }
+  .agent-rail-badge {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    font-size: 9px;
+  }
+  .agent-nav-recents { display: none; }
+}
+
+/* 3. Files list — card vs grid decided by the LIST's own width (container
+ * query), not the viewport, so the sidebar/rail and page padding are accounted
+ * for automatically (finding D1: the old md switch ran 500–910px of fixed grid
+ * tracks into ~484px of content, collapsing the address column to nothing and
+ * clipping Risk). TransactionTable picks the switch bucket per column set via
+ * filesGridMinWidth. Browsers without container-query support keep the card
+ * layout, which is fully functional. */
+.files-table { container-type: inline-size; }
+.files-row-card { display: flex; }
+.files-row-grid { display: none; }
+@container (min-width: 680px) {
+  .files-switch-680 .files-row-card { display: none; }
+  .files-switch-680 .files-row-grid { display: grid; }
+}
+@container (min-width: 800px) {
+  .files-switch-800 .files-row-card { display: none; }
+  .files-switch-800 .files-row-grid { display: grid; }
+}
+@container (min-width: 920px) {
+  .files-switch-920 .files-row-card { display: none; }
+  .files-switch-920 .files-row-grid { display: grid; }
+}
+@container (min-width: 1040px) {
+  .files-switch-1040 .files-row-card { display: none; }
+  .files-switch-1040 .files-row-grid { display: grid; }
+}
+@container (min-width: 1160px) {
+  .files-switch-1160 .files-row-card { display: none; }
+  .files-switch-1160 .files-row-grid { display: grid; }
 }
