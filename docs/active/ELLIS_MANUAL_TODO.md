@@ -959,3 +959,9 @@ The `20260901160000_account_security` migration added `User.totpBackupCodes` + `
 Email ingestion v2 Phase D reads each new inbound email with Claude Haiku and stores a summary + suggested milestone/chain-step confirms or to-dos on the message (suggest-only). It is gated behind `EMAIL_AI_READ_ENABLED` and ships **dark** (flag absent = off), so no per-email spend happens yet.
 
 **Action:** leave it OFF until the accept/dismiss UI (Phase D3) is live and the prompt is tuned on real emails. To switch on later, set `EMAIL_AI_READ_ENABLED=true` in Vercel (staging first). Cost ~US$0.0035/email on Haiku 4.5; only runs on matched, non-auto-reply inbound emails.
+
+## PendingInboundEmail migration + engine restore (added 2026-09-16)
+
+Email ingestion v2 Phase E2 added a `PendingInboundEmail` table (migration `20260916140000_pending_inbound_email`) for the agent-side "Needs filing" tray. It applies automatically on the next Vercel deploy (`prisma migrate deploy`) — staging first. Local `prisma generate` hit EPERM (the `:3001` dev server holds the query-engine DLL), so it was regenerated with `--no-engine` (types only).
+
+**Action:** stop the `:3001` dev server, then run `npx prisma generate` (restores the engine-equipped client) before relying on a local dev-server restart. Staging/prod unaffected — the Vercel build runs a full generate + migrate deploy.

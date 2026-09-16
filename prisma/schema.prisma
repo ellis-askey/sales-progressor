@@ -314,6 +314,7 @@ model User {
   quoteRequestsStatusChanged    QuoteRequest[]           @relation("QuoteRequestStatusChangedBy")
   outlookConnections            OutlookConnection[]
   imapConnections               ImapConnection[]
+  pendingInboundEmails          PendingInboundEmail[]
   agentEmailLogs                AgentEmailLog[]
   whatsAppConnections           WhatsAppConnection[]
 }
@@ -2721,6 +2722,45 @@ model ImapConnection {
   // One row per (user, mailbox): reconnecting the same mailbox updates it.
   @@unique([userId, email])
   @@index([userId])
+}
+
+// Inbound emails the sync couldn't confidently file (ambiguous — matched people
+// on more than one live file, or no match at all). Kept so the agent has a
+// standing "Needs filing" tray with one-tap file-to-property, instead of the
+// email being silently dropped. One row per (mailbox user, provider message);
+// the unique key means a filed/dismissed email never re-queues on the next sync.
+// (Email ingestion v2, Phase E2.)
+model PendingInboundEmail {
+  id     String @id @default(cuid())
+  userId String // whose connected mailbox surfaced it (agent-side scoping)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agencyId String? // mailbox owner's agency (null for internal staff)
+
+  providerMessageId String // dedup key: Graph id / Message-ID / imap uid
+  source            String // "outlook" | "imap" | provider name
+  folder            String @default("")
+
+  subject    String
+  fromEmail  String
+  fromName   String?
+  body       String   @db.Text // cleaned body (Phase A)
+  rawBody    String   @db.Text // untouched original, for "show original"
+  receivedAt DateTime
+
+  // Candidate files to offer: JSON [{ transactionId, address }].
+  candidates Json @default("[]")
+
+  // Lifecycle. Open until the agent files it to a property or dismisses it.
+  status                String    @default("open") // "open" | "filed" | "dismissed"
+  resolvedTransactionId String?
+  resolvedById          String?
+  resolvedAt            DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, providerMessageId])
+  @@index([userId, status])
+  @@index([agencyId, status])
 }
 
 // ── WhatsApp integration ─────────────────────────────────────────────────────

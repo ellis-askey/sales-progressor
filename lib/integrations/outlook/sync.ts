@@ -111,6 +111,8 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
     source: "outlook",
     folderHints,
     scannedFolderNames: folders.map((f) => f.displayName),
+    mailboxUserId: session.user.id,
+    mailboxAgencyId: session.user.agencyId ?? null,
   });
 }
 

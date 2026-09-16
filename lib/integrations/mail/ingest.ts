@@ -150,8 +150,12 @@ export async function runMailboxSync(opts: {
   // folders that had no messages in the window. When omitted, it's derived from
   // the folders present in the batch.
   scannedFolderNames?: string[];
+  // Whose connected mailbox this is — used to persist unmatched emails into the
+  // agent-side "Needs filing" tray (Phase E2). Omitted → no tray persistence.
+  mailboxUserId?: string;
+  mailboxAgencyId?: string | null;
 }): Promise<SyncSummary> {
-  const { messages, mailboxEmail, scope, source } = opts;
+  const { messages, mailboxEmail, scope, source, mailboxUserId, mailboxAgencyId } = opts;
   const mailboxLc = mailboxEmail.toLowerCase();
 
   const folderHints =
@@ -198,7 +202,34 @@ export async function runMailboxSync(opts: {
     const { txId, candidates } = matchMessage(msg, mailboxEmail, index, folderHints);
 
     if (!txId) {
-      summary.unmatched.push({ ...info, candidates: candidates.map(fileRef) });
+      const candidateRefs = candidates.map(fileRef);
+      summary.unmatched.push({ ...info, candidates: candidateRefs });
+      // Persist to the agent-side "Needs filing" tray (Phase E2). Skip auto-replies
+      // (noise), and only when we know whose mailbox it is. Unique (userId,
+      // providerMessageId) via skipDuplicates → a filed/dismissed email won't
+      // re-queue on the next sync. Best-effort; never breaks the sync.
+      if (mailboxUserId && !detectAutoReply(msg)) {
+        const raw = (msg.body || msg.bodyPreview || "").trim();
+        await prisma.pendingInboundEmail
+          .createMany({
+            data: [{
+              userId: mailboxUserId,
+              agencyId: mailboxAgencyId ?? null,
+              providerMessageId: msg.id,
+              source,
+              folder: msg.folder,
+              subject: msg.subject || "(no subject)",
+              fromEmail: msg.from,
+              fromName: msg.fromName,
+              body: cleanIngestedEmail(raw) || raw,
+              rawBody: raw,
+              receivedAt: new Date(msg.receivedDateTime),
+              candidates: candidateRefs,
+            }],
+            skipDuplicates: true,
+          })
+          .catch(() => {});
+      }
       continue;
     }
 

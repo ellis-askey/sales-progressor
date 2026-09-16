@@ -42,6 +42,8 @@ export async function syncImapMailbox(conn: ImapConnRow, session: Session): Prom
       scope,
       source: conn.provider || "imap",
       scannedFolderNames: scannedFolders,
+      mailboxUserId: session.user.id,
+      mailboxAgencyId: session.user.agencyId ?? null,
     });
 
     await prisma.imapConnection.update({
