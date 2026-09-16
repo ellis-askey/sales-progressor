@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -132,7 +133,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [address, setAddress] = useState<string | null>(neighbourAddress ?? null);
   const [stepName, setStepName] = useState<string | null>(targetStepName ?? null);
   const [lastChasedAt, setLastChasedAt] = useState<Date | string | null>(null);
-  const [ccCandidate, setCcCandidate] = useState<{ name: string; email: string } | null>(null);
+  const [ccCandidates, setCcCandidates] = useState<{ name: string; email: string }[]>([]);
 
   // Compose.
   const [tone, setTone] = useState<Tone>("Professional");
@@ -147,10 +148,19 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [toneMenuOpen, setToneMenuOpen] = useState(false);
   const [toneMenuPos, setToneMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toneMenuRef = useRef<HTMLDivElement>(null);
+  // The dropdown list is portalled to document.body, so it's NOT inside
+  // toneMenuRef. Track it separately so a click on a tone option isn't treated
+  // as an outside-click (which would close+unmount the menu before the option's
+  // onClick fires, leaving the tone stuck).
+  const toneListRef = useRef<HTMLDivElement>(null);
   const closeToneMenu = useCallback(() => setToneMenuOpen(false), []);
   useEffect(() => {
     if (!toneMenuOpen) return;
-    function onDown(e: MouseEvent) { if (toneMenuRef.current && !toneMenuRef.current.contains(e.target as Node)) closeToneMenu(); }
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (toneMenuRef.current?.contains(t) || toneListRef.current?.contains(t)) return;
+      closeToneMenu();
+    }
     function onScroll() { closeToneMenu(); }
     document.addEventListener("mousedown", onDown);
     window.addEventListener("scroll", onScroll, true);
@@ -177,7 +187,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setAddress(c.neighbourAddress ?? neighbourAddress ?? null);
     setStepName(c.stepName);
     setLastChasedAt(c.lastChasedAt);
-    setCcCandidate(c.ccCandidate);
+    setCcCandidates(c.ccCandidates);
     setSubject(`Quick update on ${c.neighbourAddress ?? neighbourAddress ?? "your side of the chain"}?`);
   }, [transactionId, direction, targetStepName, neighbourAddress]);
 
@@ -195,7 +205,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setEmail(res.draft.neighbourEmail);
     setStepName(res.draft.stepName);
     setLastChasedAt(res.draft.lastChasedAt);
-    setCcCandidate(res.draft.ccCandidate);
+    setCcCandidates(res.draft.ccCandidates);
     setConfirmResend(false);
   }, [transactionId, direction, targetStepName, toast]);
 
@@ -266,7 +276,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
       return;
     }
     const params = new URLSearchParams();
-    if (ccOn && ccCandidate) params.set("cc", ccCandidate.email);
+    if (ccOn && ccCandidates.length) params.set("cc", ccCandidates.map((c) => c.email).join(","));
     params.set("subject", subject);
     params.set("body", htmlToText(bodyHtml));
     const query = params.toString().replace(/\+/g, "%20");
@@ -451,6 +461,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                     </button>
                     {toneMenuOpen && toneMenuPos && typeof document !== "undefined" && createPortal(
                       <div
+                        ref={toneListRef}
                         data-theme={theme}
                         data-night={isNight ? "" : undefined}
                         className="agent-dropdown-in"
@@ -483,11 +494,12 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
               </div>
 
               {/* CC toggle — beneath the channel/tone row, matching the reminder
-                  chase drawer's placement + toggle style. */}
-              {ccCandidate && (
+                  chase drawer's placement + toggle style. Copies every client on
+                  this side (e.g. joint sellers or a buyer couple). */}
+              {ccCandidates.length > 0 && (
                 <button
                   onClick={() => setCcOn((v) => !v)}
-                  title={`Also copy ${ccCandidate.name} on this email`}
+                  title={`Also copy ${ccCandidates.map((c) => nameWithoutTitle(c.name)).join(", ")} on this email`}
                   style={{
                     width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "8px 12px", borderRadius: 10,
@@ -497,7 +509,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                   }}
                 >
                   <span style={{ fontSize: 12, fontWeight: 500, color: ccOn ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
-                    CC {ccCandidate.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>(your client)</span>
+                    CC {ccCandidates.map((c) => nameWithoutTitle(c.name)).join(" & ")} <span style={{ fontWeight: 400, opacity: 0.7 }}>(your client{ccCandidates.length > 1 ? "s" : ""})</span>
                   </span>
                   <span style={{ width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center", background: ccOn ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0 }}>
                     <span style={{ width: 14, height: 14, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", marginLeft: ccOn ? 16 : 2, transition: "margin-left 140ms" }} />

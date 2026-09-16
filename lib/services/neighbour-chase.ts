@@ -188,7 +188,7 @@ export type NeighbourChaseContext = {
   neighbourAddress: string | null;
   stepName: string | null;
   lastChasedAt: Date | null;
-  ccCandidate: { name: string; email: string } | null;
+  ccCandidates: { name: string; email: string }[];
 };
 
 export type NeighbourContextResult =
@@ -207,7 +207,7 @@ export async function getNeighbourChaseContext(
   const resolved = await resolveNeighbourChaseTarget(transactionId, direction);
   if (!resolved.ok) return { ok: false, reason: resolved.reason };
   const { target } = resolved;
-  const ccCandidate = await resolveCcClient(transactionId, direction);
+  const ccCandidates = await resolveCcClients(transactionId, direction);
   return {
     ok: true,
     context: {
@@ -216,7 +216,7 @@ export async function getNeighbourChaseContext(
       neighbourAddress: target.neighbourAddress,
       stepName: stepName ?? target.nextStep?.name ?? null,
       lastChasedAt: target.lastChasedAt,
-      ccCandidate,
+      ccCandidates,
     },
   };
 }
@@ -237,22 +237,22 @@ async function agencyBrand(transactionId: string): Promise<string> {
   return tx?.agency?.name ?? "Sales Progressor";
 }
 
-// Our own client on this file who has a stake in this far-side chase — the
-// seller (onward) or buyer (related). Offered as an optional CC so the agent can
-// keep their own client in the loop. Principal contacts only (never a helper),
-// and only when we have an email for them.
-async function resolveCcClient(
+// Our own clients on this file who have a stake in this far-side chase — the
+// seller(s) (onward) or buyer(s) (related). Offered as an optional CC so the
+// agent can keep their own clients in the loop. Returns ALL principal contacts
+// on that side that have an email (e.g. joint sellers or a buyer couple), so the
+// agent can copy everyone in one go — never a helper.
+async function resolveCcClients(
   transactionId: string,
   direction: NeighbourChaseDirection,
-): Promise<{ name: string; email: string } | null> {
+): Promise<{ name: string; email: string }[]> {
   const roleType = direction === "onward" ? "vendor" : "purchaser";
-  const contact = await prisma.contact.findFirst({
+  const contacts = await prisma.contact.findMany({
     where: { propertyTransactionId: transactionId, roleType, isPrincipal: { not: false }, email: { not: null } },
     select: { name: true, email: true },
     orderBy: { createdAt: "asc" },
   });
-  if (!contact?.email) return null;
-  return { name: contact.name, email: contact.email };
+  return contacts.flatMap((c) => (c.email ? [{ name: c.name, email: c.email }] : []));
 }
 
 export type NeighbourDraft = {
@@ -262,9 +262,9 @@ export type NeighbourDraft = {
   neighbourEmail: string;
   stepName: string | null;
   lastChasedAt: Date | null;
-  // The client we could CC (seller/buyer on this file), or null if none has an
-  // email. The drawer shows a default-off "CC {name}" toggle when present.
-  ccCandidate: { name: string; email: string } | null;
+  // The clients we could CC (seller(s)/buyer(s) on this file) that have an email.
+  // The drawer shows a default-off "CC {names}" toggle when the list is non-empty.
+  ccCandidates: { name: string; email: string }[];
 };
 
 export type DraftNeighbourResult =
@@ -287,7 +287,7 @@ export async function draftNeighbourChase(
   if (!resolved.ok) return { ok: false, reason: resolved.reason };
   const { target } = resolved;
 
-  const ccCandidate = await resolveCcClient(transactionId, direction);
+  const ccCandidates = await resolveCcClients(transactionId, direction);
   const displayAgency = await agencyBrand(transactionId);
 
   const toneKey = TONE_KEY_MAP[tone] ?? "professional";
@@ -354,7 +354,7 @@ export async function draftNeighbourChase(
         neighbourEmail: target.neighbourAgentEmail,
         stepName: askStepName,
         lastChasedAt: target.lastChasedAt,
-        ccCandidate,
+        ccCandidates,
       },
     };
   } catch (err) {
@@ -401,7 +401,7 @@ export async function sendNeighbourChase(input: {
   if (!resolved.ok) return { ok: false, reason: resolved.reason };
   const { target } = resolved;
 
-  const ccClient = input.includeCc ? await resolveCcClient(input.transactionId, input.direction) : null;
+  const ccClients = input.includeCc ? await resolveCcClients(input.transactionId, input.direction) : [];
 
   // Dedup guard: block a repeat within the window unless explicitly forced.
   if (
@@ -447,12 +447,12 @@ export async function sendNeighbourChase(input: {
     html,
     from,
     replyTo,
-    cc: ccClient ? [ccClient.email] : undefined,
+    cc: ccClients.length ? ccClients.map((c) => c.email) : undefined,
     kind: "chain_neighbour_chase",
     userId: input.user.id,
     agencyId: tx?.agencyId ?? null,
     transactionId: input.transactionId,
-    meta: { chainLinkId: target.chainLinkId, direction: input.direction, ccClient: ccClient ? true : undefined },
+    meta: { chainLinkId: target.chainLinkId, direction: input.direction, ccCount: ccClients.length || undefined },
   });
 
   await prisma.chainLink
