@@ -1214,17 +1214,12 @@ export async function importWhatsAppChat(
     }
   }
 
-  // Dedupe against existing whatsapp comms on this tx in last 30 days.
-  const sinceCutoff = new Date(Date.now() - 30 * 86_400_000);
+  // Dedupe against the file's ENTIRE whatsapp history, not just the last 30 days.
+  // The old 30-day window let a re-import of an OLDER conversation (or a re-paste
+  // more than 30 days after the first) slip past the check and double every
+  // message. A file's whatsapp history is bounded, so the full scan is cheap.
   const existing = await prisma.outboundMessage.findMany({
-    where: {
-      transactionId,
-      method: "whatsapp",
-      OR: [
-        { createdAt: { gte: sinceCutoff } },
-        { sentAt: { gte: sinceCutoff } },
-      ],
-    },
+    where: { transactionId, method: "whatsapp" },
     select: { content: true, sentAt: true, createdAt: true },
   });
   const existingHashes = new Set(
