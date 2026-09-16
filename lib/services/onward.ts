@@ -97,6 +97,14 @@ export const SIBLING_KIND: Record<OnwardTrackerKind, OnwardTrackerKind> = {
   related_sale_buyer: "related_sale",
 };
 
+// A read-only "due" countdown for an actionable step: it starts when the step's
+// prerequisite was confirmed and is "due" that step's grace days later. Purely a
+// visual signal — nothing is scheduled or sent off it.
+export type StepDueTimer = {
+  startedAt: string; // ISO — when the countdown began (prerequisite confirmed)
+  dueAt: string; // ISO — startedAt + this step's grace days
+};
+
 export type OnwardStepView = {
   code: string;
   name: string;
@@ -107,6 +115,10 @@ export type OnwardStepView = {
   source: OnwardConfirmSource | null;
   confirmedByName: string | null;
   confirmedAt: string | null; // ISO
+  // Present only on an actionable step (available, not complete) that has both a
+  // dated prerequisite AND a grace figure in the file's chase-rule snapshot. The
+  // non-chaseable exchange/completion tail has no grace, so it carries no timer.
+  dueTimer?: StepDueTimer | null;
 };
 
 export type OnwardTrackerView = {
@@ -174,6 +186,63 @@ export function computeOnwardStepAvailability(
     }
     const prereqs = DIRECT_PREREQUISITES[d.code] ?? [];
     out.set(d.code, prereqs.every(isSatisfied));
+  }
+  return out;
+}
+
+// Grace days per milestone code from a file's chaseRuleSnapshot (the same
+// per-step timings reminders use: the agency's own on self-managed files, our
+// platform defaults on outsourced, captured at file creation so it never applies
+// retrospectively). Codes absent from the snapshot (the non-chaseable
+// exchange/completion tail) simply don't appear — those steps get no timer.
+function graceDaysFromSnapshot(snapshot: unknown): Map<string, number> {
+  const m = new Map<string, number>();
+  if (snapshot && typeof snapshot === "object") {
+    for (const [code, rule] of Object.entries(snapshot as Record<string, unknown>)) {
+      const g = (rule as { graceDays?: unknown } | null)?.graceDays;
+      if (typeof g === "number" && Number.isFinite(g)) m.set(code, g);
+    }
+  }
+  return m;
+}
+
+// Due-timer per actionable step. A step starts counting the moment its
+// prerequisite is confirmed (prefer the real event date, else the recorded-at
+// date) and is due that step's grace days later. A step whose prerequisites are
+// all already satisfied with no dated one to anchor on — chiefly the first step
+// of a fresh tracker — falls back to when tracking was set up (fallbackAnchor),
+// so the next-up step always shows a live countdown. No grace in the snapshot →
+// no timer (we never invent a date). Pure over the view's own steps; exported
+// for unit testing.
+export function computeStepDueTimers(
+  steps: OnwardStepView[],
+  graceDaysByCode: Map<string, number>,
+  fallbackAnchor?: Date | null,
+): Map<string, StepDueTimer> {
+  const byCode = new Map(steps.map((s) => [s.code, s]));
+  const fallbackMs =
+    fallbackAnchor && !Number.isNaN(fallbackAnchor.getTime()) ? fallbackAnchor.getTime() : null;
+  const out = new Map<string, StepDueTimer>();
+  for (const s of steps) {
+    if (s.isComplete || !s.isAvailable) continue;
+    const grace = graceDaysByCode.get(s.code);
+    if (grace == null) continue; // non-chaseable tail → no fuse
+    let anchor: number | null = null;
+    for (const p of DIRECT_PREREQUISITES[s.code] ?? []) {
+      const row = byCode.get(p);
+      if (!row || !row.isComplete) continue;
+      const when = row.eventDate ?? row.confirmedAt;
+      if (!when) continue;
+      const t = new Date(when).getTime();
+      if (Number.isNaN(t)) continue;
+      if (anchor == null || t > anchor) anchor = t;
+    }
+    if (anchor == null) anchor = fallbackMs; // first step of a fresh tracker
+    if (anchor == null) continue; // still nothing to anchor on → no fuse
+    out.set(s.code, {
+      startedAt: new Date(anchor).toISOString(),
+      dueAt: new Date(anchor + grace * 86_400_000).toISOString(),
+    });
   }
   return out;
 }
@@ -277,8 +346,33 @@ export async function getOnwardTrackerView(
           : contactName.get(row.confirmedByContactId ?? "") ?? null
         : null,
       confirmedAt: row ? row.confirmedAt.toISOString() : null,
+      dueTimer: null,
     };
   });
+
+  // Read-only due-timers: grace from the file's chase-rule snapshot (same source
+  // reminders use), anchored on each step's confirmed prerequisite. Computed here
+  // so every consumer — the file view AND the view returned after a confirm/undo
+  // — carries them consistently.
+  const txRow = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chaseRuleSnapshot: true },
+  });
+  let graceByCode = graceDaysFromSnapshot(txRow?.chaseRuleSnapshot);
+  if (graceByCode.size === 0) {
+    // Legacy file created before chaseRuleSnapshot existed: fall back to the live
+    // platform default timings so the timer still works (new files carry their
+    // own snapshot, which is what keeps it non-retrospective).
+    const rules = await prisma.reminderRule.findMany({
+      where: { isActive: true, targetMilestoneCode: { not: null } },
+      select: { targetMilestoneCode: true, graceDays: true },
+    });
+    graceByCode = new Map(
+      rules.map((r) => [r.targetMilestoneCode as string, r.graceDays]),
+    );
+  }
+  const timers = computeStepDueTimers(steps, graceByCode, tracker.createdAt);
+  for (const s of steps) s.dueTimer = timers.get(s.code) ?? null;
 
   return {
     exists: true,

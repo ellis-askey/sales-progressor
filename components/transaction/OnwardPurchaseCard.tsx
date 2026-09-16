@@ -19,7 +19,7 @@
 // Everything is labelled "reported" and never leaves our side.
 // Spec: docs/active/onward-visibility/00-discovery.md + docs/active/related-sale/00-spec.md.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -60,6 +60,60 @@ type Direction = "onward" | "related" | "onward_seller" | "related_buyer";
 
 const SECONDARY = "var(--agent-text-secondary)";
 const MUTED = "var(--agent-text-muted, var(--agent-text-secondary))";
+
+// Read-only due countdown ("fuse") for an actionable step. The grace period fills
+// the bar as it elapses, ramping calm blue → amber → red, then reads "Due" once
+// the deadline passes. Ticks each minute client-side; suppressHydrationWarning
+// because the value is time-relative (server HTML and first client paint can
+// differ by seconds). Nothing is scheduled off this — purely a glance signal.
+function DueFuse({ startedAt, dueAt }: { startedAt: string; dueAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const start = Date.parse(startedAt);
+  const due = Date.parse(dueAt);
+  const total = Math.max(1, due - start);
+  const remaining = due - now;
+  const overdue = remaining <= 0;
+  const pct = overdue ? 100 : Math.max(0, Math.min(100, ((now - start) / total) * 100));
+  const remH = remaining / 3_600_000;
+
+  const tone = overdue ? "due" : remH < 6 ? "red" : remH < 48 ? "amber" : "calm";
+  const fill =
+    tone === "due" || tone === "red" ? "#DC2626"
+    : tone === "amber" ? "var(--agent-warning, #D59929)"
+    : "var(--agent-info, #3E63E8)";
+  const lblColor =
+    tone === "due" ? "var(--agent-coral-deep, #E8542F)"
+    : tone === "red" ? "#DC2626"
+    : tone === "amber" ? "var(--agent-warning, #D59929)"
+    : "var(--agent-info, #3E63E8)";
+
+  let label: string;
+  if (overdue) {
+    label = "Due";
+  } else {
+    const d = Math.floor(remH / 24);
+    const h = Math.round(remH % 24);
+    if (d >= 1) label = h > 0 ? `Due in ${d}d ${h}h` : `Due in ${d}d`;
+    else if (remH >= 1) label = `Due in ${Math.round(remH)}h`;
+    else label = "Due within the hour";
+  }
+
+  return (
+    <div style={{ marginTop: 6, maxWidth: 240 }} suppressHydrationWarning>
+      <div style={{ height: 5, borderRadius: 3, background: "var(--agent-surface-nested, rgba(15,23,42,0.06))", overflow: "hidden", position: "relative" }}>
+        <div style={{ position: "absolute", inset: "0 auto 0 0", width: `${pct}%`, background: fill, borderRadius: 3, transition: "width .3s ease, background .3s ease" }} />
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 650, marginTop: 3, color: lblColor, fontVariantNumeric: "tabular-nums" }}>
+        {label}
+      </div>
+    </div>
+  );
+}
 
 function tenureLabel(t: Tenure | null) {
   return t === "leasehold" ? "Leasehold" : t === "freehold" ? "Freehold" : "";
@@ -429,6 +483,8 @@ export function OnwardPurchaseCard({
                 </div>
               ) : !step.isAvailable ? (
                 <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Waiting on {blockingLabel(step, view.steps)}</div>
+              ) : step.dueTimer ? (
+                <DueFuse startedAt={step.dueTimer.startedAt} dueAt={step.dueTimer.dueAt} />
               ) : null}
             </div>
 
