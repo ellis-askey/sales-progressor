@@ -36,16 +36,20 @@ export function CommsButton({
     border: "0.5px solid var(--agent-border-default)",
     background: "var(--agent-surface-elevated)",
     textDecoration: "none",
-    minWidth: compact ? undefined : 88,
+    // Shrink-tolerant (audit A7): the old minWidth 88 made three labelled
+    // buttons overflow any card under ~300px. No live consumer uses the
+    // labelled variant today (all pass compact), so this is future-proofing.
+    minWidth: compact ? undefined : 0,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.5 : 1,
     transition: "background 140ms ease, border-color 140ms ease, transform 120ms ease",
   };
+  const labelStyle: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
   if (disabled || !href) {
     return (
       <button type="button" disabled title={title ?? label} aria-label={label} style={style}>
         {icon}
-        {!compact && <span>{label}</span>}
+        {!compact && <span style={labelStyle}>{label}</span>}
       </button>
     );
   }
@@ -61,7 +65,7 @@ export function CommsButton({
       onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
     >
       {icon}
-      {!compact && <span>{label}</span>}
+      {!compact && <span style={labelStyle}>{label}</span>}
     </a>
   );
 }

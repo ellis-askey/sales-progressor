@@ -113,6 +113,12 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 **Decision:** for architectural/security/schema questions, quote the file or paste the Sentry trace. Save interpretation for after evidence is on screen.
 **Source:** CLAUDE.md Rule 10. Enforced verbally every Sentry handover.
 
+## 2026-09-16 · responsive · Shell tiers + container-query rule locked; account shell stays on its own breakpoint.
+
+**Why:** the responsive programme (audit `docs/audits/RESPONSIVE_AUDIT_2026-09-16.md`, Phases 1–4) established that viewport breakpoints lie about available width wherever a sidebar/rail is present.
+**Decision:** (1) Shell tiers: <768 overlay nav, 768–1023 icon rail (agent) / drawer (Command Centre), 1024–1279 full nav no secondary columns, ≥1280 full composition. (2) Components nested in columns use container queries with content-derived thresholds — see DESIGN_TOKENS.md "Responsive breakpoints". (3) AccountShell keeps its own 260px/≤860 drawer breakpoint — it works, and aligning it to the main shell risks regressions for zero user-visible gain. (4) Legacy 639/640, 767/768, 1023/1024 off-by-one pairs are grandfathered; normalise only when editing the rule anyway.
+**Source:** responsive programme commits `495d7343`, `64d41698`, `0857051b` + Phase 4.
+
 ---
 
 *Append new entries at the bottom. Don't edit historical entries — supersede them with a follow-up.*

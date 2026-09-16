@@ -281,7 +281,7 @@ export function ProposalReview({ proposals, resolved, shadowRuns = [] }: { propo
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl divide-y divide-neutral-800 opacity-70">
             {resolved.map((r) => (
               <div key={r.id} className="px-4 py-2.5 flex items-center gap-3 text-xs">
-                <span className="flex-1 min-w-0 truncate text-neutral-300">{r.propertyAddress}</span>
+                <span className="flex-1 min-w-0 text-neutral-300" style={{ overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{r.propertyAddress}</span>
                 {r.stepLabel && <span className="text-neutral-500 truncate">{r.stepLabel}</span>}
                 <span className="text-neutral-600 shrink-0">{fmtWhen(r.decidedAt)}</span>
               </div>

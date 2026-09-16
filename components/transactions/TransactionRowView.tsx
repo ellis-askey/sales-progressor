@@ -614,7 +614,9 @@ export function TransactionRowView({
         <div className="px-4 py-3.5 min-w-0 flex items-center gap-3">
           <PropertyThumb photoUrl={tx.photoUrl} size={44} />
           <PropertyPeopleHover contacts={tx.contacts} className="min-w-0 flex-1">
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="agent-group-link transition-colors">
+            {/* 2-line clamp instead of single-line ellipsis (audit A8): the
+                address is the row's identity and should wrap before it hides. */}
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }} className="agent-group-link transition-colors">
               {line}
             </p>
             {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}

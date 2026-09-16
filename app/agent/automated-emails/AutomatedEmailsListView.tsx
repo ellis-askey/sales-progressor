@@ -226,7 +226,10 @@ export function AutomatedEmailsListView(props: Props) {
         <a
           href={exportHref()}
           download
-          className="agent-input agent-input-sm"
+          className="agent-input agent-input-sm autoemails-export"
+          // .autoemails-export drops the auto margin when the toolbar has
+          // wrapped (narrow widths) so Export doesn't sit orphaned on its own
+          // right-aligned line (audit D4).
           style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, textDecoration: "none", cursor: "pointer" }}
           aria-label="Export current view as CSV"
         >

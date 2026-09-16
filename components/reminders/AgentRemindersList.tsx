@@ -226,7 +226,8 @@ function SplitFileCard({
         <div style={{ minWidth: 0, flex: 1 }}>
           {/* Only line 1 is the link (inline-flex); the town/postcode sits below it. */}
           <Link href={`/agent/transactions/${txId}`} className="agent-link" style={{ textDecoration: "none", maxWidth: "100%" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+            {/* 2-line clamp (audit A8) — the address is the card's identity. */}
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
               {line}
             </span>
             <LinkArrow />

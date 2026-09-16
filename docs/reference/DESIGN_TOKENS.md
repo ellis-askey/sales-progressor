@@ -288,6 +288,44 @@ For `rgba(var(--x), alpha)` composition. From [themes.css](../../app/agent/style
 
 ---
 
+## Responsive breakpoints (established 2026-09-16, responsive programme Phases 1–4)
+
+Canonical audit + rationale: [docs/audits/RESPONSIVE_AUDIT_2026-09-16.md](../audits/RESPONSIVE_AUDIT_2026-09-16.md).
+
+### Shell tiers (viewport media queries — shell chrome ONLY)
+
+| Tier | Viewport | Shell behaviour |
+|---|---|---|
+| Wide desktop | ≥ 1280 (`xl`) | Full composition. Property-file secondary sidebar appears at `xl` only. |
+| Compact desktop | 1024–1279 (`lg`) | Full 220px agent sidebar; NO secondary columns (file sidebar, new-sale split waits for ~1200). |
+| Tablet | 768–1023 (`md`) | Agent sidebar collapses to the 64px icon rail (`agent-system.css` end-of-file block). Command Centre sidebar becomes an off-canvas drawer below `lg`. |
+| Mobile | < 768 | Overlay sidebar + hamburger (`globals.css` ≤767 block). |
+
+### Component rule — container queries, not viewport
+
+Anything nested inside a variable-width column responds to **its own container**,
+not the viewport (the sidebar/rail makes viewport width a lie). Existing
+containers: `.hub-content-pad`, `.pipe-container`, `.chain-stack` +
+`.chain-fork-col`, `.people-rows`, `.files-table`, `.chains-summary-card`.
+Thresholds are content-derived per component (what the cells actually need),
+not taken from a global scale. Follow this pattern for new nested layouts;
+use viewport queries only for shell chrome.
+
+### Interaction tier
+
+`@media (pointer: coarse)` carries the touch adaptations (persistent
+hover-affordances, ≥32–40px tap targets) — see the Phase 3 block at the end of
+`agent-system.css`. Never gate functionality on hover alone.
+
+### Legacy off-by-ones (documented, deliberately not swept)
+
+`639/640`, `767/768`, `1023/1024` pairs coexist in older rules. They express
+the same intended tiers; harmonising them is churn with zero visual gain, so
+they are grandfathered (Law 19) — normalise only when a rule is being edited
+anyway. New rules use the canonical values above.
+
+---
+
 ## Known outliers (grandfathered)
 
 | Outlier | Where | Why grandfathered |

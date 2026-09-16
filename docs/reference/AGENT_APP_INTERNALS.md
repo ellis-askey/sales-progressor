@@ -122,3 +122,33 @@ Analytics, Partners) follows one system:
 Animation values (keyframes for the popup, chooser arrow slide, etc.) belong in
 [MOTION_GUIDE.md](MOTION_GUIDE.md); the popup's own keyframes are the
 `partner-*` rules in `app/globals.css`.
+
+## Responsive patterns (programme of 2026-09-16 — reuse these, don't reinvent)
+
+Shell tiers + the container-query rule are documented in
+[DESIGN_TOKENS.md](DESIGN_TOKENS.md) § Responsive breakpoints. Reusable
+mechanics introduced by the programme:
+
+- **Container-driven layout switch** — make the wrapper a container
+  (`container-type: inline-size`) and switch nested grids/flex with
+  `@container (max-width: …)`. Live examples: `.files-table` /
+  `.files-switch-N` (card↔grid per column set, bucket picked in
+  `TransactionTable` via `filesGridMinWidth`), `.pipe-container` (6/4/3/2
+  columns), `.hub-content-pad`, `.people-rows`, `.chain-stack`.
+- **Tab-bar overflow affordance** — `data-fade` edge masks +
+  `.agent-tab-scroll-btn` chevrons, driven by scroll/Resize observation in
+  `PropertyFileTabs`. Adopt for any other `.agent-tab-bar` that can overflow.
+- **Slide-over gutter classes** — inline `min(<w>px, calc(100vw - 48px))`
+  width plus `.resp-drawer` (full-screen ≤560) or `.resp-drawer-wide`
+  (full-screen ≤899) for bespoke drawers not on the `Drawer` primitive.
+- **Overlay footers** — `Modal.Footer` / `Drawer.Footer` carry
+  `.agent-overlay-footer` (wraps; stacks full-width ≤420). Don't add
+  per-consumer `flex-1` workarounds for fit any more; keep `flex-1` only
+  where equal-width buttons are the intended look.
+- **Touch tier** — the `@media (pointer: coarse)` block at the end of
+  `agent-system.css` (persistent affordances + tap-target floor). Extend it
+  rather than sprinkling one-off touch rules.
+- **Action-cluster wrap** — text column `flex: 1 1 <basis>px` + cluster
+  `margin-left: auto` inside a `flex-wrap` row (`.rem-row`,
+  `.people-row-actions` with `flex-basis: 100%`) so buttons drop to their
+  own line instead of crushing the label.

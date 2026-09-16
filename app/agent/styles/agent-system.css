@@ -1774,7 +1774,9 @@
 
   /* Expanded detail */
   .enq-detail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 0 16px 16px 82px; border-top: 0.5px solid var(--agent-border-subtle); padding-top: 14px; margin-top: 2px; }
-  @media (max-width: 1024px) { .enq-detail { grid-template-columns: repeat(2, 1fr); padding-left: 16px; } }
+  /* 1180 (was 1024): with the 220px sidebar the desktop row only has real
+   * room above ~1180 viewport (responsive programme Phase 4, audit D6). */
+  @media (max-width: 1180px) { .enq-detail { grid-template-columns: repeat(2, 1fr); padding-left: 16px; } }
   .enq-detail-h { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--agent-text-muted); margin-bottom: 6px; }
   .enq-detail-b { font-size: 12.5px; color: var(--agent-text-primary); line-height: 1.5; }
   .enq-detail-meta { font-size: 11px; color: var(--agent-text-muted); margin-top: 3px; }
@@ -1797,7 +1799,7 @@
 
   .enq-foot { margin-top: 14px; font-size: 12px; color: var(--agent-text-muted); text-align: center; }
 
-  @media (max-width: 1024px) {
+  @media (max-width: 1180px) {
     .enq-row2 { flex-wrap: wrap; }
     .enq-idcol, .enq-statuscol { width: auto; }
     .enq-slider { flex-basis: 100%; order: 5; }
@@ -1835,7 +1837,7 @@
   .enq-btn-cancel { background: var(--agent-surface-overlay); color: var(--agent-text-secondary); }
   .enq-btn-cancel:hover:not(:disabled) { color: var(--agent-coral-deep); }
 
-  @media (max-width: 1024px) {
+  @media (max-width: 1180px) {
     .enq-a-desktop { display: none !important; }
     .enq-a-mobile { display: inline-flex; }
     .enq-actions-backdate { flex-wrap: wrap; justify-content: flex-end; }
@@ -3538,6 +3540,14 @@ body[data-demo-file] [data-onboarding-checklist] {
  * drawer; these classes force the full-screen floor.) */
 @media (max-width: 899px) { .resp-drawer-wide { width: 100vw !important; } }
 @media (max-width: 560px) { .resp-drawer { width: 100vw !important; } }
+
+/* Auto-emails toolbar: once the filter row has wrapped there is no "right
+ * edge of the row" for Export to align to — drop the auto margin so it sits
+ * inline with the other controls (audit D4). !important beats the inline
+ * marginLeft:auto. */
+@media (max-width: 960px) {
+  .autoemails-export { margin-left: 0 !important; }
+}
 
 /* 8. Help pages responsive floor (audit G1). Desktop keeps the fixed
  * 240px sidebar + optional TOC. Below 1024 the TOC drops (article room);
