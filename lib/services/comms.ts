@@ -87,6 +87,9 @@ export type ActivityEntry =
       // signature), when it differs from the cleaned `content`. Null when there's
       // nothing extra to show. Drives the "show original" toggle. (Phase B.)
       rawOriginal: string | null;
+      // Email conversation id (synced inbound emails only; null otherwise). Used
+      // to group a back-and-forth into one thread card in the feed. (Phase C.)
+      conversationId: string | null;
       // WhatsApp: resolved sender display name + stored media (null for other
       // channels). senderLabel is shown as the row's author. mediaUrl is a
       // ready-to-use signed URL (or null); mediaType drives how it renders.
@@ -381,6 +384,7 @@ export async function getActivityTimeline(
       const r = typeof raw === "string" ? raw.trim() : "";
       return r && r !== (c.content ?? "").trim() ? r : null;
     })(),
+    conversationId: c.type === "inbound" ? (c.conversationId ?? null) : null,
     senderLabel: c.senderLabel ?? null,
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:

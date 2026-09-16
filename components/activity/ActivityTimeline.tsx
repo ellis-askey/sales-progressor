@@ -160,6 +160,138 @@ function splitSubject(text: string): { subject: string | null; body: string } {
   return { subject: m[1].trim(), body };
 }
 
+// ─── Email threading (Phase C) ─────────────────────────────────────────────────
+// Group a synced-email back-and-forth (same conversationId, 2+ messages) into one
+// collapsible thread row, so a conversation reads as one item instead of N rows.
+// Grouping happens after filtering, so search/filter still work per message.
+
+type CommEntry = Extract<ActivityEntry, { kind: "comm" }>;
+type ThreadRow = {
+  threadKind: "email-thread";
+  id: string;
+  at: Date;
+  subject: string | null;
+  messages: CommEntry[]; // newest first (input list is already time-desc)
+};
+type Row = ActivityEntry | ThreadRow;
+
+function groupThreads(list: ActivityEntry[]): Row[] {
+  const count = new Map<string, number>();
+  for (const e of list) {
+    if (e.kind === "comm" && e.type === "inbound" && e.conversationId) {
+      count.set(e.conversationId, (count.get(e.conversationId) ?? 0) + 1);
+    }
+  }
+  const seen = new Set<string>();
+  const rows: Row[] = [];
+  for (const e of list) {
+    const cid = e.kind === "comm" && e.type === "inbound" ? e.conversationId : null;
+    if (cid && (count.get(cid) ?? 0) >= 2) {
+      if (seen.has(cid)) continue; // already emitted this thread at its latest message
+      seen.add(cid);
+      const messages = list.filter(
+        (x): x is CommEntry => x.kind === "comm" && x.type === "inbound" && x.conversationId === cid,
+      );
+      rows.push({ threadKind: "email-thread", id: `thread-${cid}`, at: messages[0].at, subject: messages[0].subject, messages });
+    } else {
+      rows.push(e);
+    }
+  }
+  return rows;
+}
+
+function firstLine(s: string): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > 100 ? t.slice(0, 100).trimEnd() + "…" : t;
+}
+
+const THREAD_LINK_BTN = {
+  background: "none", border: "none", padding: 0, cursor: "pointer",
+  fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)",
+} as const;
+
+function EmailThreadCard({
+  thread, open, onToggle, expandedBodies, openOriginals, onToggleBody, onToggleOriginal,
+}: {
+  thread: ThreadRow;
+  open: boolean;
+  onToggle: () => void;
+  expandedBodies: Set<string>;
+  openOriginals: Set<string>;
+  onToggleBody: (id: string) => void;
+  onToggleOriginal: (id: string) => void;
+}) {
+  const latest = thread.messages[0];
+  return (
+    <GlassCard glassId="activity-timeline-entry" label="Activity · Timeline entries" defaultVariant="v05" style={{ padding: "10px 14px", borderRadius: 10 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", display: "flex", gap: 8, alignItems: "flex-start" }}
+      >
+        <ActorAvatar name={latest.actorName} role={latest.actorRole} image={latest.actorImage} size={22} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {thread.subject && (
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{thread.subject}</p>
+          )}
+          {!open && (
+            <p style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {latest.actorName}: {firstLine(splitSubject(latest.content).body)}
+            </p>
+          )}
+        </div>
+        <time style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{formatTimestamp(latest.at)}</time>
+      </button>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <Pill glass tone="default" size="sm"><span aria-hidden>✉</span> Email</Pill>
+        <button type="button" style={THREAD_LINK_BTN} onClick={onToggle}>
+          {open ? "Hide thread" : `${thread.messages.length} messages`}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+          {thread.messages.map((m) => {
+            const { body } = splitSubject(m.content);
+            const hasOriginal = !!m.rawOriginal;
+            const showingOriginal = hasOriginal && openOriginals.has(m.id);
+            const shownBody = showingOriginal ? m.rawOriginal! : body;
+            const COLLAPSE_AT = 700;
+            const isLong = shownBody.length > COLLAPSE_AT;
+            const isExpanded = expandedBodies.has(m.id);
+            const displayBody = isLong && !isExpanded ? shownBody.slice(0, COLLAPSE_AT).trimEnd() + "…" : shownBody;
+            return (
+              <div key={m.id} style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 10 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                  <ActorAvatar name={m.actorName} role={m.actorRole} image={m.actorImage} size={18} />
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{m.actorName}</span>
+                  <time style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--agent-text-muted)" }}>{formatTimestamp(m.at)}</time>
+                </div>
+                <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>{displayBody}</p>
+                {(isLong || hasOriginal) && (
+                  <div style={{ marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {isLong && (
+                      <button type="button" style={THREAD_LINK_BTN} onClick={() => onToggleBody(m.id)}>
+                        {isExpanded ? "Show less" : "Show more"}
+                      </button>
+                    )}
+                    {hasOriginal && (
+                      <button type="button" style={THREAD_LINK_BTN} onClick={() => onToggleOriginal(m.id)}>
+                        {showingOriginal ? "Show cleaned" : "Show original"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts, solicitors }: Props) {
@@ -196,6 +328,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   // inbound emails: reveal the full untrimmed original vs the cleaned body).
   const [expandedBodies, setExpandedBodies] = useState<Set<string>>(new Set());
   const [openOriginals, setOpenOriginals] = useState<Set<string>>(new Set());
+  // Phase C — which email threads are expanded.
+  const [openThreads, setOpenThreads] = useState<Set<string>>(new Set());
   const toggleInSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) =>
     setter((prev) => {
       const next = new Set(prev);
@@ -203,6 +337,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
       else next.add(id);
       return next;
     });
+  const onToggleBody = (id: string) => toggleInSet(setExpandedBodies, id);
+  const onToggleOriginal = (id: string) => toggleInSet(setOpenOriginals, id);
 
   const portalViewCount = entries.filter(isPortalView).length;
 
@@ -232,8 +368,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     return true;
   });
 
-  const visible = showAll ? filtered : filtered.slice(0, 10);
-  const hasMore = filtered.length > 10;
+  // Group synced-email conversations into thread rows (Phase C), then cap.
+  const rows = groupThreads(filtered);
+  const visible = showAll ? rows : rows.slice(0, 10);
+  const hasMore = rows.length > 10;
 
   function startEdit(entry: Extract<ActivityEntry, { kind: "comm" }>) {
     const override = localEdits[entry.id];
@@ -363,12 +501,22 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
               >
                 {/* Coloured dot */}
                 <div className="flex-shrink-0 z-10 mt-3">
-                  <div className="w-2 h-2 rounded-full" style={{ background: dotColor(entry) }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: "threadKind" in entry ? "var(--agent-coral)" : dotColor(entry) }} />
                 </div>
 
                 {/* Card */}
                 <div className="flex-1 min-w-0">
-                  {entry.kind === "milestone" ? (
+                  {"threadKind" in entry ? (
+                    <EmailThreadCard
+                      thread={entry}
+                      open={openThreads.has(entry.id)}
+                      onToggle={() => toggleInSet(setOpenThreads, entry.id)}
+                      expandedBodies={expandedBodies}
+                      openOriginals={openOriginals}
+                      onToggleBody={onToggleBody}
+                      onToggleOriginal={onToggleOriginal}
+                    />
+                  ) : entry.kind === "milestone" ? (
                     // ── Milestone card ──────────────────────────────────────
                     // Design Lab: `activity-timeline-entry` (shared with comm
                     // rows below so one pick styles the whole timeline).
