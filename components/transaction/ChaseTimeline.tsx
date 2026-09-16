@@ -12,9 +12,16 @@ import {
   PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight,
 } from "@phosphor-icons/react";
 import type {
-  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState,
+  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
 } from "@/lib/services/chase-timeline";
 import { NextChaseControl } from "@/components/transaction/NextChaseControl";
+import { Pill } from "@/components/ui/Pill";
+
+// State → glossy Pill tone (the app's canonical pill, not a flat chip).
+const STATE_TONE: Record<ChaseThreadState, "info" | "brand" | "warning" | "success" | "danger" | "muted"> = {
+  escalated: "danger", manual_chasing: "brand", handed_to_team: "warning",
+  auto_chasing: "info", scheduled: "muted", snoozed: "muted", completed: "success", cancelled: "muted",
+};
 
 // ── meta maps ──────────────────────────────────────────────────────────────
 const STATE_META: Record<ChaseThreadState, { label: string; color: string; rgb: string }> = {
@@ -60,14 +67,7 @@ function fmtDateTime(iso: string): string {
 
 // ── chips ──────────────────────────────────────────────────────────────────
 function StateChip({ state }: { state: ChaseThreadState }) {
-  const m = STATE_META[state];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
-      padding: "2px 8px", borderRadius: 999, color: m.color, background: `rgba(${m.rgb}, 0.12)`,
-      whiteSpace: "nowrap",
-    }}>{m.label}</span>
-  );
+  return <Pill glass dot size="sm" tone={STATE_TONE[state]}>{STATE_META[state].label}</Pill>;
 }
 
 function ChaseCountBadge({ auto, you }: { auto: number; you: number }) {
@@ -241,79 +241,106 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: 8 }}>{children}</div>;
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+// ── detail: one "Up next" send card (glossy, per recipient lane) ─────────────
+function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: string }) {
+  const isSol = send.lane === "solicitor";
+  const accent = isSol ? "#0E8C86" : "var(--agent-info)";
+  const whenLabel = send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
+  const kicker = send.handedToTeam
+    ? "Auto-chase done"
+    : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-      <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", textAlign: "right" }}>{value}</span>
+    <div className="chase-upnext-card" style={{
+      position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
+      background: "var(--agent-surface-nested, var(--agent-surface-elevated))", border: "0.5px solid var(--agent-border-subtle)",
+    }}>
+      <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} aria-hidden />
+      <Pill glass dot size="sm" tone={isSol ? "brand" : "info"}>{send.recipientLabel}</Pill>
+      <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "9px 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
+      <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{kicker}</div>
+      {send.overrideTarget && !send.handedToTeam && (
+        <NextChaseControl transactionId={transactionId} target={send.overrideTarget} edited={send.edited} skipped={send.skipped} />
+      )}
+    </div>
+  );
+}
+
+// ── detail: a future (predicted) node for the unified timeline ────────────────
+function FutureRow({ send }: { send: NextSend }) {
+  const isSol = send.lane === "solicitor";
+  const accent = isSol ? "#0E8C86" : "var(--agent-info)";
+  return (
+    <div style={{ display: "flex", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: `1.5px dashed ${accent}` }}>
+          <PaperPlaneTilt size={14} weight="bold" color={accent} />
+        </div>
+        <div style={{ width: 2, flex: 1, minHeight: 18, background: "var(--agent-border-subtle)", marginTop: 2 }} />
+      </div>
+      <div style={{ flex: 1, paddingBottom: 18, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+            {send.handedToTeam ? `${send.recipientLabel} — with your team` : `Next: chase ${send.recipientLabel}`}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>Upcoming</span>
+          {send.dueAt && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
+        </div>
+        <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
+          {send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
+        </p>
+      </div>
     </div>
   );
 }
 
 // ── detail pane ──────────────────────────────────────────────────────────────
 function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transactionId: string }) {
+  const isExchange = thread.track === "exchange";
+  // Future nodes lead the timeline (soonest first), then the past events.
+  const futureSends = [...thread.nextSends].sort((a, b) => {
+    const at = a.dueAt ? new Date(a.dueAt).getTime() : Infinity;
+    const bt = b.dueAt ? new Date(b.dueAt).getTime() : Infinity;
+    return at - bt;
+  });
+  const subtitle = isExchange
+    ? `${thread.autoChases} email${thread.autoChases === 1 ? "" : "s"} today · started ${fmtDate(thread.startedAt)}`
+    : `Waiting on ${thread.waitingOn} · ${thread.autoChases} chase${thread.autoChases === 1 ? "" : "s"} sent${thread.manualChases ? ` (${thread.manualChases} by you)` : ""} · since ${fmtDate(thread.startedAt)}`;
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+      <style>{`.chase-upnext-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease}
+        .chase-upnext-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,23,42,0.06)}
+        @media (prefers-reduced-motion:reduce){.chase-upnext-card{transition:none}}`}</style>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)", margin: 0 }}>{thread.title}</h3>
         <StateChip state={thread.state} />
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", fontSize: 12, color: "var(--agent-text-secondary)", marginBottom: 18 }}>
-        {thread.track === "exchange" ? (
-          <>
-            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Emails today:</b> {thread.autoChases}</span>
-            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Started:</b> {fmtDate(thread.startedAt)}</span>
-          </>
-        ) : (
-          <>
-            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Waiting on:</b> {thread.waitingOn}</span>
-            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Chased:</b> {thread.autoChases} auto{thread.manualChases ? ` · ${thread.manualChases} by you` : ""}</span>
-            <span><b style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Started:</b> {fmtDate(thread.startedAt)}</span>
-          </>
-        )}
+      <p style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", margin: "0 0 18px" }}>{subtitle}</p>
+
+      {/* Up next — one card per recipient lane (buyer + solicitor) */}
+      {futureSends.length > 0 && (
+        <div style={{ marginBottom: 22 }}>
+          <SectionLabel>Up next</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: futureSends.length > 1 ? "1fr 1fr" : "1fr", gap: 12 }}>
+            {futureSends.map((s, i) => <UpNextCard key={i} send={s} transactionId={transactionId} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Timeline — upcoming (dashed) flowing into what's happened */}
+      <div style={{ marginBottom: isExchange ? 0 : 22 }}>
+        <SectionLabel>Timeline</SectionLabel>
+        <div>
+          {futureSends.map((s, i) => <FutureRow key={`f${i}`} send={s} />)}
+          {thread.events.map((ev, i) => (
+            <EventRow key={i} ev={ev} last={i === thread.events.length - 1} />
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px]" style={{ gap: 24 }}>
-        {/* events */}
-        <div>
-          <SectionLabel>History</SectionLabel>
-          <div>
-            {thread.events.map((ev, i) => (
-              <EventRow key={i} ev={ev} last={i === thread.events.length - 1} />
-            ))}
-          </div>
-        </div>
-        {/* details + escalation */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div>
-            <SectionLabel>Details</SectionLabel>
-            {thread.track === "exchange" ? (
-              <>
-                <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
-                <DetailRow label="Emails sent today" value={String(thread.autoChases)} />
-                <DetailRow label="Last email" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
-                <DetailRow label="Status" value={STATE_META[thread.state].label} />
-              </>
-            ) : (
-              <>
-                <DetailRow label="Who we're waiting on" value={thread.waitingOn} />
-                <DetailRow label="Last chased" value={thread.lastChasedAt ? fmtDate(thread.lastChasedAt) : "-"} />
-                <DetailRow label={thread.nextIsAutomated ? "Next auto-chase" : "Next (reminder)"} value={thread.nextDueAt ? fmtDate(thread.nextDueAt) : "-"} />
-                <DetailRow label="Escalates after" value={thread.track === "enquiry" ? "if it stalls" : `${thread.escalatesAfter} of your chases`} />
-              </>
-            )}
-          </div>
-          {thread.overrideTarget && thread.state !== "completed" && thread.state !== "cancelled" && (
-            <NextChaseControl
-              transactionId={transactionId}
-              target={thread.overrideTarget}
-              edited={thread.overrideEdited}
-              skipped={thread.overrideSkipped}
-            />
-          )}
-          {thread.track !== "exchange" && <EscalationPath thread={thread} />}
-        </div>
-      </div>
+      {/* If it stalls */}
+      {!isExchange && <EscalationPath thread={thread} />}
     </div>
   );
 }

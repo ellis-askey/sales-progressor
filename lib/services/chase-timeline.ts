@@ -15,6 +15,23 @@ import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { getChaseOverridesForTimeline } from "@/lib/services/chase-overrides";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
+
+// Add N London working days (Mon-Fri) to a date. Mirrors the solicitor-chase
+// sender's cadence unit so predicted solicitor dates match what actually sends.
+function addWorkingDays(from: Date, n: number): Date {
+  const d = new Date(from);
+  let added = 0;
+  while (added < n) {
+    d.setDate(d.getDate() + 1);
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) added++;
+  }
+  return d;
+}
+// Solicitor cadence fallback when a code has no SolicitorReminderRule row.
+const SOL_FALLBACK = { graceWorkingDays: 5, repeatWorkingDays: 5, maxChases: 2 };
 
 // The client auto-chase pipeline stops after this many emails, then hands the
 // file to the team. Mirrors CLIENT_CHASE_COUNT_CAP in client-chase-cron.ts;
@@ -83,6 +100,25 @@ export type ChaseThread = {
     | null;
   overrideEdited: boolean;  // a subject/body edit is staged for the next chase
   overrideSkipped: boolean; // the next chase is set to skip
+  // The upcoming send(s) for this step, per recipient lane — the "Up next"
+  // cards. A step chased on BOTH lanes (e.g. searches: buyer + buyer's
+  // solicitor) carries two. Empty when nothing more will send (done / capped
+  // with no date / not chaseable). Additive: existing consumers ignore it.
+  nextSends: NextSend[];
+};
+
+// One upcoming chase for a step, to a specific recipient lane.
+export type NextSend = {
+  lane: "client" | "solicitor";
+  recipientLabel: string; // "Buyer · Mrs Guduri" / "Buyer's solicitor · Elena-Rose"
+  dueAt: string | null; // ISO; null = no date (handed to team / capped)
+  chaseNumber: number; // 1-based: which chase this will be
+  capOf: number; // the lane's auto cap
+  isAutomated: boolean; // true = autopilot sends it; false = a nudge for the team
+  handedToTeam: boolean; // auto cap reached — it's on the team now
+  overrideTarget: ChaseThread["overrideTarget"]; // drives the per-lane edit/skip
+  edited: boolean; // a subject/body edit is staged for this lane's next send
+  skipped: boolean; // this lane's next send is set to skip
 };
 
 export type ChaseTimelineStats = {
@@ -152,7 +188,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules] = await Promise.all([
     prisma.reminderLog.findMany({
       where: { transactionId, status: { in: ["active", "completed", "cancelled"] } },
       select: {
@@ -209,7 +245,12 @@ export async function getChaseTimeline(
     // (expectedDate), plus the step name for the thread title.
     prisma.milestoneCompletion.findMany({
       where: { transactionId, ...milestoneScopeWhere(forRound(tx.activeBuyerRoundId ?? null, transactionId)) },
-      select: { state: true, expectedDate: true, milestoneDefinition: { select: { code: true, side: true, name: true } } },
+      select: { state: true, expectedDate: true, completedAt: true, eventDate: true, milestoneDefinition: { select: { code: true, side: true, name: true } } },
+    }),
+    // Per-code solicitor cadence (grace/repeat/cap) so we can predict the next —
+    // and the FIRST — solicitor chase date, mirroring the sender.
+    prisma.solicitorReminderRule.findMany({
+      select: { milestoneCode: true, graceWorkingDays: true, repeatWorkingDays: true, maxChases: true, anchorMilestoneCode: true, useAnchorEventDate: true, active: true },
     }),
   ]);
 
@@ -250,6 +291,50 @@ export async function getChaseTimeline(
     const arr = msgsByTask.get(m.chaseTaskId) ?? [];
     arr.push(m);
     msgsByTask.set(m.chaseTaskId, arr);
+  }
+
+  const solRuleByCode = new Map(solRules.map((r) => [r.milestoneCode, r]));
+
+  // Predict the next solicitor chase for a step: from an existing chase-state
+  // (last chased + repeat), or — when never chased yet — the FIRST chase from the
+  // step's prerequisite completion + grace (mirrors the sender's working-day
+  // cadence). Returns null when the step isn't solicitor-chased, is already done,
+  // or its prerequisite isn't complete yet (nothing to anchor on).
+  function solicitorNextSend(side: "vendor" | "purchaser", code: string | null): NextSend | null {
+    if (!code || !solicitorCodesForSide(side).has(code)) return null;
+    const rule = solRuleByCode.get(code);
+    if (rule && rule.active === false) return null;
+    const mc = completionByKey.get(`${side}|${code}`);
+    if (mc && (mc.state === "complete" || mc.state === "not_required")) return null; // done
+    const grace = rule?.graceWorkingDays ?? SOL_FALLBACK.graceWorkingDays;
+    const repeat = rule?.repeatWorkingDays ?? SOL_FALLBACK.repeatWorkingDays;
+    const cap = rule?.maxChases ?? SOL_FALLBACK.maxChases;
+    const label = side === "vendor" ? "Seller's solicitor" : "Buyer's solicitor";
+    const target = { kind: "solicitor" as const, side, milestoneCode: code };
+    const ov = overrideByKey.get(`sol:${side}|${code}`);
+    const edited = !!ov?.edited, skipped = !!ov?.skipped;
+    const st = solByCode.get(code);
+    if (st) {
+      const capped = st.chaseCount >= cap || st.status === "escalated";
+      const dueAt = !capped && st.lastChasedAt ? addWorkingDays(st.lastChasedAt, repeat) : null;
+      return { lane: "solicitor", recipientLabel: label, dueAt: dueAt ? dueAt.toISOString() : null,
+        chaseNumber: Math.min(st.chaseCount + 1, cap), capOf: cap, isAutomated: !capped, handedToTeam: capped, overrideTarget: target, edited, skipped };
+    }
+    // Never chased yet → project the first chase from the prerequisite (or the
+    // rule's explicit anchor) completion + grace.
+    const anchorCodes = rule?.anchorMilestoneCode ? [rule.anchorMilestoneCode] : (DIRECT_PREREQUISITES[code] ?? []);
+    if (anchorCodes.length === 0) return null;
+    let anchor: Date | null = null;
+    for (const p of anchorCodes) {
+      const pmc = completionByKey.get(`${side}|${p}`);
+      const when = pmc && pmc.state === "complete" ? (pmc.eventDate ?? pmc.completedAt) : null;
+      if (!when) return null; // a prerequisite isn't done → can't chase yet
+      const t = new Date(when);
+      if (!anchor || t > anchor) anchor = t;
+    }
+    if (!anchor) return null;
+    return { lane: "solicitor", recipientLabel: label, dueAt: addWorkingDays(anchor, grace).toISOString(),
+      chaseNumber: 1, capOf: cap, isAutomated: true, handedToTeam: false, overrideTarget: target, edited, skipped };
   }
 
   const todayStr = toUKDateStr(new Date());
@@ -390,6 +475,28 @@ export async function getChaseTimeline(
       : null;
     const ov = ovKey ? overrideByKey.get(ovKey) : undefined;
 
+    // Up-next cards: the client's next reminder (while the client log is live)
+    // AND the solicitor's next chase for the same step (searches, contract pack,
+    // etc. are chased on both lanes). Either may be null.
+    const clientOverrideTarget = code && clientContactId
+      ? { kind: "client" as const, contactId: clientContactId, milestoneCode: code } : null;
+    const clientNext: NextSend | null = (log.status === "active" && !snoozedActive)
+      ? {
+          lane: "client",
+          recipientLabel: `${side === "vendor" ? "Seller" : "Buyer"} · ${clientName}`,
+          dueAt: log.nextDueDate.toISOString(),
+          chaseNumber: Math.min((cs?.chaseCount ?? 0) + 1, CLIENT_CHASE_CAP),
+          capOf: CLIENT_CHASE_CAP,
+          isAutomated: !cs || (cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP),
+          handedToTeam: !!cs && cs.chaseCount >= CLIENT_CHASE_CAP,
+          overrideTarget: clientOverrideTarget,
+          edited: !!(clientContactId && overrideByKey.get(`contact:${clientContactId}|${code}`)?.edited),
+          skipped: !!(clientContactId && overrideByKey.get(`contact:${clientContactId}|${code}`)?.skipped),
+        }
+      : null;
+    const solNext = snoozedActive ? null : solicitorNextSend(side, code);
+    const nextSends: NextSend[] = [clientNext, solNext].filter((s): s is NextSend => s != null);
+
     return {
       id: log.id,
       title: stripChase(rule.name),
@@ -412,6 +519,7 @@ export async function getChaseTimeline(
       overrideTarget,
       overrideEdited: ov?.edited ?? false,
       overrideSkipped: ov?.skipped ?? false,
+      nextSends,
     };
   });
 
@@ -444,6 +552,7 @@ export async function getChaseTimeline(
       escalatesAfter: 0, escalated: esc, snoozedUntil: null,
       startedAt: raiseChase.openedAt.toISOString(), events,
       overrideTarget: null, overrideEdited: false, overrideSkipped: false,
+      nextSends: [],
     });
   }
 
@@ -475,6 +584,7 @@ export async function getChaseTimeline(
       escalatesAfter: 0, escalated: esc, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: et.openedAt.toISOString(), events,
       overrideTarget: null, overrideEdited: false, overrideSkipped: false,
+      nextSends: [],
     });
   }
 
@@ -559,6 +669,7 @@ export async function getChaseTimeline(
       startedAt: startedAt.toISOString(),
       events,
       overrideTarget: null, overrideEdited: false, overrideSkipped: false,
+      nextSends: [],
     });
   }
 
@@ -618,6 +729,8 @@ export async function getChaseTimeline(
     });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
+    const solNext = done || snoozeAt ? null : solicitorNextSend(side, row.milestoneCode);
+
     threads.push({
       id: `sol-${row.side}-${row.milestoneCode}`,
       title: stripChase(mc.milestoneDefinition.name),
@@ -626,7 +739,7 @@ export async function getChaseTimeline(
       state, waitingOn: who,
       autoChases: n, manualChases: 0, totalChases: n,
       lastChasedAt: row.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: null, // precise next-due prediction lands with the next-email work
+      nextDueAt: solNext?.dueAt ?? null, // now predicted (last chased + repeat working days)
       nextIsAutomated: !done && !snoozeAt && !escalated && n < SOLICITOR_CHASE_CAP,
       escalatesAfter: SOLICITOR_CHASE_CAP,
       escalated, snoozedUntil: snoozeAt?.toISOString() ?? null,
@@ -634,6 +747,7 @@ export async function getChaseTimeline(
       overrideTarget: { kind: "solicitor", side, milestoneCode: row.milestoneCode },
       overrideEdited: overrideByKey.get(`sol:${side}|${row.milestoneCode}`)?.edited ?? false,
       overrideSkipped: overrideByKey.get(`sol:${side}|${row.milestoneCode}`)?.skipped ?? false,
+      nextSends: solNext ? [solNext] : [],
     });
   }
 
