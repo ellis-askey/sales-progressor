@@ -589,18 +589,15 @@ export function EmailSettingsButton({
         ? "Some emails paused"
         : "Emails on";
 
-  // Theme-aware, not photo-aware: the pill sits on the hero surface (top-
-  // right), never over the photo, so it follows light/dark. A clean light chip
-  // in light mode; the agent tokens flip the fill + amber for dark mode.
-  // Attention (paused / on hold) is carried by the amber label + border, not
-  // the fill — so the pill is always legible, never a chip that vanishes.
-  const fill = "var(--agent-surface-overlay)";
+  // Fill + border live in CSS (.email-settings-pill, agent-system.css): a
+  // theme-aware chip on desktop where the pill sits on the hero surface; the
+  // v08 "Deep frost" glass at <= 767px where the hero photo runs behind it.
+  // Attention (paused / on hold) is carried by the amber label + border
+  // (.is-attention), not the fill — so the pill is always legible, never a
+  // chip that vanishes.
   const tone = attention
     ? "var(--agent-warning, #C97D1A)"
     : "var(--agent-text-secondary, #475569)";
-  const borderColor = attention
-    ? "var(--agent-warning-border-strong, rgba(201,125,26,0.50))"
-    : "var(--agent-border-default, rgba(15,23,42,0.12))";
 
   return (
     <>
@@ -608,14 +605,13 @@ export function EmailSettingsButton({
         type="button"
         onClick={() => setOpen(true)}
         title="Email settings for this file"
+        className={attention ? "email-settings-pill is-attention" : "email-settings-pill"}
         style={{
           display: "inline-flex",
           alignItems: "center",
           gap: 7,
           padding: "5px 12px",
           borderRadius: 999,
-          background: fill,
-          border: `0.5px solid ${borderColor}`,
           cursor: "pointer",
           flexShrink: 0,
           whiteSpace: "nowrap",

@@ -911,6 +911,30 @@
     }
   }
 
+  /* Email-settings pill (property-hero top-right trigger).
+   * Desktop: theme-aware chip on the hero surface (former inline styles).
+   * <= 767px: the hero photo runs behind it, so it takes the v08 "Deep
+   * frost" glass recipe (app/styles/glass.css) to stay legible over any
+   * photo. The amber attention border (.is-attention) wins in both modes. */
+  .email-settings-pill {
+    background: var(--agent-surface-overlay);
+    border: 0.5px solid var(--agent-border-default, rgba(15, 23, 42, 0.12));
+  }
+  .email-settings-pill.is-attention {
+    border-color: var(--agent-warning-border-strong, rgba(201, 125, 26, 0.50));
+  }
+  @media (max-width: 767px) {
+    .email-settings-pill {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.40);
+      box-shadow:
+        0 10px 34px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+      -webkit-backdrop-filter: blur(40px) saturate(1.2);
+      backdrop-filter: blur(40px) saturate(1.2);
+    }
+  }
+
   /* MilestoneTimelineStrip — stage circles + action buttons.
    * Wide: buttons stack in a column to the right of the strip.
    * <= 500px: buttons drop underneath the strip, side by side, 50% each. */
