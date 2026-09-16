@@ -960,9 +960,9 @@
   .people-row-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
   @container (max-width: 459px) {
     .people-row { flex-wrap: wrap; row-gap: 6px; }
-    .people-row-main { flex-basis: 100%; }
-    .people-row-chevron { margin-left: 0; }
-    .people-row-actions { margin-left: auto; }
+    /* Identity + dot + chevron stay together on the first line; only the
+       comms buttons drop to a bottom row, right-aligned. */
+    .people-row-actions { flex-basis: 100%; justify-content: flex-end; }
   }
 
   /* MilestoneTimelineStrip — stage circles + action buttons.
