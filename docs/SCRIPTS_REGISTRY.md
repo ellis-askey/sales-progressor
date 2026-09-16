@@ -336,3 +336,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway). Idempotent (wipes its own ", Onward Demo" files then recreates); staging-guarded.
 - **Author/date:** Claude, 2026-09-15.
 - **Deletion criteria:** delete this script + this entry (and the ", Onward Demo" files + "Onward Finance (demo)" firm) once the onward broker feature is signed off.
+
+### cleanup-portal-confirm-dupes.ts
+- **Purpose:** one-shot data cleanup. Removes the redundant "X confirmed \"...\" via the client portal" internal_note rows created on portal milestone confirmations. These duplicated the "Confirmed by client" milestone-completion entry in the activity timeline and were mis-stamped with the file agent's id (so they wore the agent's photo). The write that produced them was removed from lib/services/portal.ts on 2026-09-16. Targets ONLY confirm notes (type internal_note, content contains `confirmed "` and ends with `via the client portal`); the other portal internal_notes (expected-date, left-a-note) do not match. Dry-run by default; `--apply` deletes.
+- **Lifetime:** one-shot (throwaway).
+- **Author/date:** Claude, 2026-09-16.
+- **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.

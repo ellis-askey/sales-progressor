@@ -1345,27 +1345,18 @@ export async function logPortalMilestoneConfirm(
         }
       : null;
 
-  const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
+  // NOTE (2026-09-16): we no longer write an internal_note for a portal
+  // confirmation. The milestone completion itself already renders in the
+  // activity timeline as a "Confirmed by client" entry (naming the client),
+  // so the note was a duplicate — and worse, it was stamped with the file
+  // agent's id, so it wore the agent's photo. The bell + emails below are the
+  // agent-facing signal; the timeline shows the completion directly.
 
-  const createdById = tx.assignedUser?.id ?? tx.agentUser?.id;
-  if (createdById) {
-    await prisma.outboundMessage.create({
-      data: {
-        transactionId,
-        type: "internal_note",
-        contactIds: [contactId],
-        content,
-        createdById,
-      },
-    });
-  }
-
-  // Structured notification for the file-owner's bell. Additive — the
-  // OutboundMessage above still feeds the activity timeline. Fires for
-  // BOTH outsourced (assignedUser) and self-managed (agentUser) files —
-  // before this generalisation, the bell only rang on outsourced files
-  // and self-managed agents had to spot client confirms in the activity
-  // feed manually. Now they ring for whoever owns the file.
+  // Structured notification for the file-owner's bell. Fires for BOTH
+  // outsourced (assignedUser) and self-managed (agentUser) files — before this
+  // generalisation, the bell only rang on outsourced files and self-managed
+  // agents had to spot client confirms in the activity feed manually. Now they
+  // ring for whoever owns the file.
   const bellUserId = tx.assignedUser?.id ?? tx.agentUser?.id;
   if (bellUserId) {
     const contact = tx.contacts.find((c) => c.id === contactId);
