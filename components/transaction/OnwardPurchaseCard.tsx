@@ -51,6 +51,7 @@ import { DateField } from "@/components/ui/DateField";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { getEventDateLabel } from "@/lib/portal-copy";
+import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
@@ -305,6 +306,16 @@ const cardHeaderStyle: React.CSSProperties = {
 };
 const titleStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: SECONDARY, margin: 0 };
 const errStyle: React.CSSProperties = { color: "var(--agent-danger, #c0392b)", fontSize: 12, marginTop: 8 };
+
+// Section header tints — mirror the main-sale Steps tab palette (MilestonePanel
+// SECTION_COLORS) so the grouping reads the same on onward/related trackers.
+const SECTION_TINT: Record<string, string> = {
+  "Onboarding": "#60a5fa",
+  "Finances": "#a78bfa",
+  "Surveys": "#38bdf8",
+  "Conveyancing": "#f59e0b",
+  "Exchange & Completion": "#10b981",
+};
 
 export function OnwardPurchaseCard({
   transactionId,
@@ -664,21 +675,66 @@ export function OnwardPurchaseCard({
     </button>
   );
 
+  // Group the steps into the SAME named sections as the main-sale Steps tab, in
+  // the same curated order (milestone-sections.ts) — so an onward/related tracker
+  // reads identically (Finances before Conveyancing, PM11 before the survey,
+  // VM21 after VM10) instead of a flat numeric run. Reuses the one canonical
+  // grouping, so it can't drift from the main sale.
+  const sectionDefs = isPurchaserSide ? PURCHASER_SECTIONS : VENDOR_SECTIONS;
+  const stepByCode = new Map(view.steps.map((s) => [s.code, s]));
+  const grouped = sectionDefs
+    .map((sec) => ({
+      label: sec.label,
+      steps: sec.codes.map((c) => stepByCode.get(c)).filter((s): s is OnwardStepView => s != null),
+    }))
+    .filter((g) => g.steps.length > 0);
+  // Safety net: never silently drop a confirmable step that isn't in a section.
+  const grouped_codes = new Set(grouped.flatMap((g) => g.steps.map((s) => s.code)));
+  const leftover = view.steps.filter((s) => !grouped_codes.has(s.code));
+
+  function renderRows(steps: OnwardStepView[]) {
+    return (
+      <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 6px" }}>
+        {steps.map((step) => (
+          <OnwardStepRow
+            key={step.code}
+            step={step}
+            isFarSide={isFarSide}
+            isOwnAgencyFile={view.isOwnAgencyFile}
+            waitingLabel={blockingLabel(step, view.steps)}
+            onConfirm={confirmStepRow}
+            onUndo={undoStepRow}
+            onChase={(code, name) => setChaseStep({ code, name })}
+          />
+        ))}
+      </ul>
+    );
+  }
+
+  function sectionHeader(label: string) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 10px 3px" }}>
+        <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: SECTION_TINT[label] ?? MUTED }} />
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: SECONDARY }}>{label}</span>
+      </div>
+    );
+  }
+
   const stepList = (
-    <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 10px" }}>
-      {view.steps.map((step) => (
-        <OnwardStepRow
-          key={step.code}
-          step={step}
-          isFarSide={isFarSide}
-          isOwnAgencyFile={view.isOwnAgencyFile}
-          waitingLabel={blockingLabel(step, view.steps)}
-          onConfirm={confirmStepRow}
-          onUndo={undoStepRow}
-          onChase={(code, name) => setChaseStep({ code, name })}
-        />
+    <div style={{ paddingBottom: 6 }}>
+      {grouped.map((g) => (
+        <div key={g.label}>
+          {sectionHeader(g.label)}
+          {renderRows(g.steps)}
+        </div>
       ))}
-    </ul>
+      {leftover.length > 0 && (
+        <div>
+          {sectionHeader("Other steps")}
+          {renderRows(leftover)}
+        </div>
+      )}
+    </div>
   );
 
   // "Chase the neighbour agent" — far sides only, now per-step (the link sits on
