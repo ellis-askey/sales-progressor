@@ -231,6 +231,26 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
 
   const sender = await resolveSender(m, txId, tx?.assignedUserId ?? tx?.agentUserId ?? null);
   const content = (m.body && m.body.trim()) || mediaPlaceholder(m.media) || "[no content]";
+  const sentAt = toDate(m.timestamp);
+
+  // Cross-connection dedup. When two linked accounts are both in a group they
+  // each forward the same message with DIFFERENT ids, so the id check in
+  // ingestOne can't catch it. The same underlying message always shares the file,
+  // the exact text, and the WhatsApp timestamp — so a row already on this file
+  // with the same content + sentAt is that other account's copy: skip it. (Two
+  // genuinely separate sends of the same text have different timestamps.)
+  const twin = await prisma.outboundMessage.findFirst({
+    where: { transactionId: txId, method: "whatsapp", content, sentAt },
+    select: { id: true },
+  });
+  if (twin) return;
+
+  // Direction by WHO sent it, not which account saw it. A message is "ours"
+  // (right/green) when the sending account is us (fromMe) OR the sender resolves
+  // to one of our own users (an agent/progressor). Otherwise it's incoming from a
+  // client (left). This is what stops an agent's own message being drawn on the
+  // left just because a second linked account captured it as a participant.
+  const isOurs = m.fromMe || sender.createdById != null;
 
   const webhookData: Prisma.InputJsonValue = {
     source: "whatsapp",
@@ -249,18 +269,18 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
     data: {
       transactionId: txId,
       agencyId: tx?.agencyId ?? null,
-      type: m.fromMe ? "outbound" : "inbound",
+      type: isOurs ? "outbound" : "inbound",
       method: "whatsapp",
       channel: "other", // no WhatsApp value in OutboundChannel yet — timeline keys off `method`
       purpose: "other",
-      status: m.fromMe ? "sent" : "delivered",
+      status: isOurs ? "sent" : "delivered",
       contactIds: sender.contactId ? [sender.contactId] : [],
       content,
       mediaUrl: mediaUrl ?? null,
       senderLabel: sender.label,
-      recipientName: m.fromMe ? null : sender.label,
+      recipientName: isOurs ? null : sender.label,
       recipientHandle: m.senderPhone ?? null,
-      sentAt: toDate(m.timestamp),
+      sentAt,
       createdById: sender.createdById,
       createdByRole: "system",
       providerMessageId: m.waMessageId,
