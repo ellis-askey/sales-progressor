@@ -886,6 +886,67 @@
     padding-left: 0;
   }
 
+  /* PropertyHero remove-photo pill.
+   * Desktop (>= md): bottom-left, over the photo column.
+   * Tablet (< md): the photo becomes a top strip, so bottom-left would land
+   * on the content — tuck it top-right instead, underneath the email-settings
+   * pill (which sits at top: 14).
+   * Mobile: hidden — the photo can still be changed from the File setup tab. */
+  .hero-remove-photo {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+  }
+  @media (max-width: 767px) {
+    .hero-remove-photo {
+      bottom: auto;
+      left: auto;
+      top: 48px;
+      right: 14px;
+    }
+  }
+  @media (max-width: 639px) {
+    .hero-remove-photo {
+      display: none;
+    }
+  }
+
+  /* MilestoneTimelineStrip — stage circles + action buttons.
+   * Wide: buttons stack in a column to the right of the strip.
+   * <= 500px: buttons drop underneath the strip, side by side, 50% each. */
+  .mts-root {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .mts-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    align-self: center;
+    align-items: stretch;
+  }
+  @media (max-width: 500px) {
+    .mts-root {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .mts-actions {
+      flex-direction: row;
+      align-self: stretch;
+    }
+    .mts-actions > * {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    /* Buttons nested inside a wrapper (e.g. the locked exchange-day span)
+     * still fill their half. */
+    .mts-actions .agent-btn {
+      width: 100%;
+    }
+  }
+
   /* TransactionStatsStrip - responsive icon + value.
    * Icon shrinks 32 -> 26 on mobile so the label/value column has more
    * room. Value shrinks 16 -> 13 on mobile so long strings like
@@ -1526,6 +1587,8 @@
   }
   .pipe-prop:hover { background: rgba(var(--agent-coral-rgb), 0.07); }
   .pipe-thumb { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: block; }
+  /* Mobile (2-col grid): drop the thumbnail so the address gets the full width. */
+  @media (max-width: 680px) { .pipe-thumb { display: none; } }
   .pipe-prop-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .pipe-addr { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pipe-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--agent-text-muted); }

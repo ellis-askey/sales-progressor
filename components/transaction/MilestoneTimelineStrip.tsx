@@ -126,7 +126,10 @@ export function MilestoneTimelineStrip({
   if (stages.length === 0) return null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    // .mts-root / .mts-actions (agent-system.css): buttons column sits to the
+    // right of the strip on wide screens; at <= 500px the buttons drop
+    // underneath the strip, side by side at 50% width each.
+    <div className="mts-root">
       <div
         role="list"
         aria-label="File progress stages"
@@ -168,7 +171,7 @@ export function MilestoneTimelineStrip({
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, alignSelf: "center", alignItems: "stretch" }}>
+      <div className="mts-actions">
         {!exchangeDayActive && (
           <button
             type="button"

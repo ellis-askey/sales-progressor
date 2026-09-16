@@ -681,7 +681,9 @@ export function PropertyHero({
           />
         )}
 
-        {/* Remove-photo pill — bottom-left of the card, over the photo. Fades
+        {/* Remove-photo pill — positioned via .hero-remove-photo: bottom-left
+            over the photo on desktop, top-right under the email-settings pill
+            on tablet, hidden on mobile (File setup tab still has it). Fades
             in (delayed, after the zone widens) when a photo is set; fades out
             quickly when removing. */}
         {transactionId && (
@@ -690,10 +692,8 @@ export function PropertyHero({
             onClick={photo.remove}
             disabled={photo.busy || !photo.hasPhoto}
             aria-hidden={!photo.hasPhoto}
+            className="hero-remove-photo"
             style={{
-              position: "absolute",
-              bottom: 14,
-              left: 14,
               zIndex: 2,
               display: "inline-flex",
               alignItems: "center",
