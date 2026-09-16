@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { CommType, CommMethod } from "@prisma/client";
+import type { EmailSuggestion } from "@/lib/services/email-read";
 import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -90,6 +91,10 @@ export type ActivityEntry =
       // Email conversation id (synced inbound emails only; null otherwise). Used
       // to group a back-and-forth into one thread card in the feed. (Phase C.)
       conversationId: string | null;
+      // AI read of a synced inbound email: a one-line summary + suggested
+      // milestone/chain-step confirms or to-dos. Null unless the read ran and
+      // produced something. Suggest-only; the D3 UI renders accept/dismiss. (Phase D.)
+      aiRead: { summary: string; suggestions: EmailSuggestion[] } | null;
       // WhatsApp: resolved sender display name + stored media (null for other
       // channels). senderLabel is shown as the row's author. mediaUrl is a
       // ready-to-use signed URL (or null); mediaType drives how it renders.
@@ -385,6 +390,10 @@ export async function getActivityTimeline(
       return r && r !== (c.content ?? "").trim() ? r : null;
     })(),
     conversationId: c.type === "inbound" ? (c.conversationId ?? null) : null,
+    aiRead:
+      c.type === "inbound"
+        ? ((c.providerWebhookData as { read?: { summary: string; suggestions: EmailSuggestion[] } } | null)?.read ?? null)
+        : null,
     senderLabel: c.senderLabel ?? null,
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:

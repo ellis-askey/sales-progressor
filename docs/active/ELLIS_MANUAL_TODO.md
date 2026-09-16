@@ -953,3 +953,9 @@ The pricing migration went live on prod 2026-08-31 (self-progress now free; JSON
 The `20260901160000_account_security` migration added `User.totpBackupCodes` + `User.sessionVersion`. Regenerating the Prisma client locally failed with EPERM because the `:3001` dev server holds the query-engine DLL, so it was regenerated with `--no-engine` (types only). The runtime client is therefore engine-less until a full regenerate.
 
 **Action:** stop the `:3001` dev server, then run `npx prisma generate` (restores the engine-equipped client). Otherwise a dev-server restart hits P6001 on DB calls. Staging/prod are unaffected — the Vercel build runs a full `prisma generate` + `migrate deploy`.
+
+## Email AI read — env flag EMAIL_AI_READ_ENABLED (added 2026-09-16)
+
+Email ingestion v2 Phase D reads each new inbound email with Claude Haiku and stores a summary + suggested milestone/chain-step confirms or to-dos on the message (suggest-only). It is gated behind `EMAIL_AI_READ_ENABLED` and ships **dark** (flag absent = off), so no per-email spend happens yet.
+
+**Action:** leave it OFF until the accept/dismiss UI (Phase D3) is live and the prompt is tuned on real emails. To switch on later, set `EMAIL_AI_READ_ENABLED=true` in Vercel (staging first). Cost ~US$0.0035/email on Haiku 4.5; only runs on matched, non-auto-reply inbound emails.

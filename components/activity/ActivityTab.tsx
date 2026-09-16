@@ -89,6 +89,7 @@ export function ActivityTab(props: Props) {
         subject: null,
         rawOriginal: null,
         conversationId: null,
+        aiRead: null,
         senderLabel: null,
         mediaUrl: null,
         mediaType: null,

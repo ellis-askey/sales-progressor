@@ -13,6 +13,8 @@ import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
 import { buildIndex, buildFolderHints, matchMessage } from "./match";
 import { detectAutoReply } from "./auto-reply";
+import { readInboundEmail } from "@/lib/services/email-read-context";
+import type { EmailReadResult } from "@/lib/services/email-read";
 import type {
   IngestMessage,
   SyncMessageInfo,
@@ -66,6 +68,19 @@ async function logMessage(
   // Auto-reply / out-of-office / bounce: still stored (recoverable) but tagged so
   // the activity feed hides it by default — it carries no real update. (Phase A2.)
   const autoReply = detectAutoReply(msg);
+
+  // AI read (Phase D2): summarise + suggest milestone/chain-step confirms or a
+  // to-do. Gated behind EMAIL_AI_READ_ENABLED (ships dark — no spend until the
+  // accept/dismiss UI is live and the prompt is tuned). Skips auto-replies.
+  // Best-effort: a failed read never blocks the email being stored.
+  let read: EmailReadResult | null = null;
+  if (!autoReply && process.env.EMAIL_AI_READ_ENABLED === "true") {
+    read = await readInboundEmail(txId, tx?.agencyId ?? null, {
+      subject: msg.subject || "(no subject)",
+      body: cleaned,
+    }).catch(() => null);
+  }
+
   await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
@@ -95,6 +110,7 @@ async function logMessage(
         receivedDateTime: msg.receivedDateTime,
         raw: rawBody,
         ...(autoReply ? { autoReply: true } : {}),
+        ...(read && (read.summary || read.suggestions.length) ? { read } : {}),
       },
       createdByRole: "system",
       createdAt: received,
