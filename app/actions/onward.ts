@@ -90,6 +90,8 @@ export async function confirmOnwardStepAction(input: {
   transactionId: string;
   milestoneCode: string;
   eventDate?: string | null;
+  keyCollectionRequired?: boolean | null;
+  bookedSurveyorName?: string | null;
 }): Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }> {
   const { session } = await requireTxInScope(input.transactionId);
   const result = await confirmOnwardStep(
@@ -97,6 +99,8 @@ export async function confirmOnwardStepAction(input: {
     input.milestoneCode,
     input.eventDate ?? null,
     { source: "agent", userId: session.user.id },
+    "onward_purchase",
+    { keyCollectionRequired: input.keyCollectionRequired ?? null, bookedSurveyorName: input.bookedSurveyorName ?? null },
   );
   revalidateTx(input.transactionId);
   const view = await getOnwardTrackerView(input.transactionId);
@@ -150,6 +154,8 @@ export async function confirmRelatedSaleStepAction(input: {
   transactionId: string;
   milestoneCode: string;
   eventDate?: string | null;
+  keyCollectionRequired?: boolean | null;
+  bookedSurveyorName?: string | null;
 }): Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }> {
   const { session } = await requireTxInScope(input.transactionId);
   const result = await confirmOnwardStep(
@@ -158,6 +164,7 @@ export async function confirmRelatedSaleStepAction(input: {
     input.eventDate ?? null,
     { source: "agent", userId: session.user.id },
     "related_sale",
+    { keyCollectionRequired: input.keyCollectionRequired ?? null, bookedSurveyorName: input.bookedSurveyorName ?? null },
   );
   revalidateTx(input.transactionId);
   const view = await getOnwardTrackerView(input.transactionId, "related_sale");
@@ -212,6 +219,8 @@ export async function confirmOnwardSellerStepAction(input: {
   transactionId: string;
   milestoneCode: string;
   eventDate?: string | null;
+  keyCollectionRequired?: boolean | null;
+  bookedSurveyorName?: string | null;
 }): Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }> {
   const { session } = await requireTxInScope(input.transactionId);
   const result = await confirmOnwardStep(
@@ -220,6 +229,7 @@ export async function confirmOnwardSellerStepAction(input: {
     input.eventDate ?? null,
     { source: "agent", userId: session.user.id },
     "onward_purchase_seller",
+    { keyCollectionRequired: input.keyCollectionRequired ?? null, bookedSurveyorName: input.bookedSurveyorName ?? null },
   );
   revalidateTx(input.transactionId);
   const view = await getOnwardTrackerView(input.transactionId, "onward_purchase_seller");
@@ -269,6 +279,8 @@ export async function confirmRelatedBuyerStepAction(input: {
   transactionId: string;
   milestoneCode: string;
   eventDate?: string | null;
+  keyCollectionRequired?: boolean | null;
+  bookedSurveyorName?: string | null;
 }): Promise<{ result: ConfirmOnwardResult; view: OnwardTrackerView }> {
   const { session } = await requireTxInScope(input.transactionId);
   const result = await confirmOnwardStep(
@@ -277,6 +289,7 @@ export async function confirmRelatedBuyerStepAction(input: {
     input.eventDate ?? null,
     { source: "agent", userId: session.user.id },
     "related_sale_buyer",
+    { keyCollectionRequired: input.keyCollectionRequired ?? null, bookedSurveyorName: input.bookedSurveyorName ?? null },
   );
   revalidateTx(input.transactionId);
   const view = await getOnwardTrackerView(input.transactionId, "related_sale_buyer");

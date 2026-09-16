@@ -3911,6 +3911,14 @@ model OnwardStepConfirmation {
   // Real-world date the step happened, if known. Null = "reported done, date
   // unknown" (mirrors reconciliation's null-date semantics).
   eventDate            DateTime?
+  // Access arrangement for a booked survey / lender valuation (PM6 / PM9),
+  // mirroring MilestoneCompletion.keyCollectionRequired. Only captured when the
+  // linked onward/related sale is the agency's OWN file (they hold the keys and
+  // arrange access); null on anyone else's listing, where it'd be meaningless.
+  keyCollectionRequired Boolean?
+  // Free-text surveyor firm recorded on the survey-booked step (PM9). Same rule:
+  // only when the linked sale is the agency's own file. Null otherwise.
+  bookedSurveyorName    String?
   source               OnwardConfirmSource
   // Whoever confirmed it — the seller's Contact, or the agent/user. One is set.
   confirmedByContactId String?

@@ -50,6 +50,7 @@ import type {
 import { DateField } from "@/components/ui/DateField";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
+import { getEventDateLabel } from "@/lib/portal-copy";
 
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
@@ -126,6 +127,173 @@ function ukDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+type StepRowPayload = {
+  eventDate: string | null;
+  keyCollectionRequired: boolean | null;
+  bookedSurveyorName: string | null;
+};
+
+// One reported step. Each row owns its OWN pending state, so confirming one never
+// disables the others — an agent can rip straight down a backlog. The primary
+// button stays pinned top-right and is REUSED: first tap arms an inline form,
+// second tap on the same spot commits (Cancel sits to its left so a fast
+// double-tap can't land on it). Optimistic: the row flips to done instantly.
+// Mirrors the main-sale MilestoneRow. Date labels come from getEventDateLabel;
+// the desktop-valuation / keys / surveyor extras match the main sale, with keys +
+// surveyor shown only when the linked sale is the agency's own file.
+function OnwardStepRow({
+  step,
+  isFarSide,
+  isOwnAgencyFile,
+  waitingLabel,
+  onConfirm,
+  onUndo,
+  onChase,
+}: {
+  step: OnwardStepView;
+  isFarSide: boolean;
+  isOwnAgencyFile: boolean;
+  waitingLabel: string;
+  onConfirm: (code: string, payload: StepRowPayload) => Promise<boolean>;
+  onUndo: (code: string) => Promise<boolean>;
+  onChase: (code: string, name: string) => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  const [date, setDate] = useState("");
+  const [desktop, setDesktop] = useState(false);
+  const [keys, setKeys] = useState(false);
+  const [surveyor, setSurveyor] = useState("");
+  const [pending, setPending] = useState(false);
+  const [optimisticDone, setOptimisticDone] = useState(false);
+
+  const isPM6 = step.code === "PM6"; // lender valuation
+  const isPM9 = step.code === "PM9"; // book survey
+  const canKeys = isOwnAgencyFile && (isPM6 || isPM9);
+  const canSurveyor = isOwnAgencyFile && isPM9;
+  const done = step.isComplete || optimisticDone;
+  const desktopChosen = isPM6 && desktop;
+  const dateLabel = step.eventDateRequired ? getEventDateLabel(step.code) : "Date this happened";
+  const dateRequired = step.eventDateRequired && !desktopChosen;
+  const canSave = !pending && (!dateRequired || !!date);
+
+  function arm() {
+    setArmed(true);
+    // Optional-date steps pre-fill today so it's still a same-spot double-tap;
+    // required-date steps open blank so the agent must enter the real date.
+    setDate(step.eventDateRequired ? "" : new Date().toISOString().slice(0, 10));
+    setDesktop(false); setKeys(false); setSurveyor("");
+  }
+  async function commit() {
+    if (!canSave) return;
+    setPending(true); setOptimisticDone(true);
+    const ok = await onConfirm(step.code, {
+      eventDate: desktopChosen ? null : (date || null),
+      keyCollectionRequired: canKeys && !desktopChosen ? keys : null,
+      bookedSurveyorName: canSurveyor ? (surveyor.trim() || null) : null,
+    });
+    setPending(false);
+    if (!ok) setOptimisticDone(false); else setArmed(false);
+  }
+  async function undo() {
+    setPending(true);
+    const ok = await onUndo(step.code);
+    setPending(false);
+    if (ok) setOptimisticDone(false);
+  }
+
+  let completedSub = "";
+  if (step.isComplete) {
+    const who = step.confirmedByName ? ` by ${step.confirmedByName}` : "";
+    const when = isPM6 && !step.eventDate ? " · Desktop valuation" : step.eventDate ? ` · ${ukDate(step.eventDate)}` : " · date not given";
+    const firm = step.bookedSurveyorName ? ` · Booked with ${step.bookedSurveyorName}` : "";
+    const k = step.keyCollectionRequired ? " · Keys from us" : "";
+    completedSub = `Reported${who}${when}${firm}${k}`;
+  }
+
+  return (
+    <li style={{ padding: "8px 8px", borderTop: "1px solid var(--agent-border, rgba(0,0,0,0.06))" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: done || step.isAvailable ? "var(--agent-text-primary, #111)" : MUTED, fontWeight: done ? 500 : 400 }}>
+            {step.name}
+          </div>
+          {done ? (
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{step.isComplete ? completedSub : "Reported · saving…"}</div>
+          ) : !step.isAvailable ? (
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Waiting on {waitingLabel}</div>
+          ) : !armed && step.dueTimer ? (
+            <DueFuse startedAt={step.dueTimer.startedAt} dueAt={step.dueTimer.dueAt} />
+          ) : null}
+        </div>
+
+        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+          {done ? (
+            <Button variant="ghost" size="xs" loading={pending} onClick={undo}>Undo</Button>
+          ) : step.isAvailable ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {armed && (
+                  <button type="button" onClick={() => setArmed(false)} className="agent-link"
+                    style={{ fontSize: 11, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", color: MUTED }}>
+                    Cancel
+                  </button>
+                )}
+                <Button variant={armed ? "primary" : "secondary"} size="xs" loading={pending}
+                  disabled={armed ? !canSave : false} onClick={armed ? commit : arm}>
+                  {armed ? "Save reported" : "Confirm"}
+                </Button>
+              </div>
+              {!armed && isFarSide && (
+                <button type="button" onClick={() => onChase(step.code, step.name)} className="agent-link"
+                  style={{ fontSize: 11, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", color: SECONDARY }}>
+                  Chase agent
+                </button>
+              )}
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {armed && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
+          {!desktopChosen && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 11, color: MUTED }}>{dateLabel}</label>
+              <DateField
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                wrapperStyle={{ display: "inline-block" }}
+                style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6 }}
+              />
+            </div>
+          )}
+          {isPM6 && (
+            <label style={{ fontSize: 12, color: SECONDARY, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={desktop} onChange={(e) => { setDesktop(e.target.checked); if (e.target.checked) { setDate(""); setKeys(false); } }} />
+              Desktop valuation, no date
+            </label>
+          )}
+          {canKeys && !desktopChosen && (
+            <label style={{ fontSize: 12, color: SECONDARY, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={keys} onChange={(e) => setKeys(e.target.checked)} />
+              {isPM9 ? "Surveyor collects keys from us" : "Valuer collects keys from us"}
+            </label>
+          )}
+          {canSurveyor && (
+            <input
+              type="text"
+              value={surveyor}
+              onChange={(e) => setSurveyor(e.target.value)}
+              placeholder="Surveyor firm (optional)"
+              style={{ fontSize: 12, padding: "4px 8px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6, maxWidth: 260 }}
+            />
+          )}
+        </div>
+      )}
+    </li>
+  );
 }
 
 const cardHeaderStyle: React.CSSProperties = {
@@ -288,10 +456,6 @@ export function OnwardPurchaseCard({
     initialView.tenure != null ? initialView.isShareOfFreehold : seedShareOfFreehold,
   );
 
-  // Per-step confirm bar state.
-  const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
-  const [confirmDate, setConfirmDate] = useState("");
-
   // Embedded step list starts collapsed behind the "Reported X/Y" summary,
   // unless the chain focus panel opens it straight away.
   const [stepsOpen, setStepsOpen] = useState(defaultStepsOpen);
@@ -317,6 +481,45 @@ export function OnwardPurchaseCard({
         setPending(false);
       }
     })();
+  }
+
+  // Per-step confirm/undo — NOT via run(), so each row's own spinner covers only
+  // itself and the list never locks. Each returns success so the row can keep or
+  // revert its optimistic "done" state; the fresh view keeps counts + unlocks in
+  // sync. errors surface at the card level.
+  async function confirmStepRow(code: string, payload: StepRowPayload): Promise<boolean> {
+    setError(null);
+    try {
+      const { result, view: next } = await actions.confirm({ transactionId, milestoneCode: code, ...payload });
+      if (result.ok === false) {
+        setError(
+          result.reason === "locked" ? "Confirm the earlier step first."
+          : result.reason === "awaiting_our_completion" ? "The onward can't complete until this sale completes."
+          : "Could not report this step.",
+        );
+        return false;
+      }
+      setView(next);
+      return true;
+    } catch {
+      setError("Something went wrong. Try again.");
+      return false;
+    }
+  }
+  async function undoStepRow(code: string): Promise<boolean> {
+    setError(null);
+    try {
+      const { result, view: next } = await actions.undo({ transactionId, milestoneCode: code });
+      if (result.ok === false) {
+        setError(result.reason === "has_dependents" ? "Undo the later reported step first." : "Couldn't undo this step.");
+        return false;
+      }
+      setView(next);
+      return true;
+    } catch {
+      setError("Something went wrong. Try again.");
+      return false;
+    }
   }
 
   // Wrap a state's body in the right shell: bare div when embedded (the spine
@@ -464,114 +667,16 @@ export function OnwardPurchaseCard({
   const stepList = (
     <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 10px" }}>
       {view.steps.map((step) => (
-        <li key={step.code} style={{ padding: "8px 8px", borderTop: "1px solid var(--agent-border, rgba(0,0,0,0.06))" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: step.isComplete ? "var(--agent-text-primary, #111)" : step.isAvailable ? "var(--agent-text-primary, #111)" : MUTED,
-                  fontWeight: step.isComplete ? 500 : 400,
-                }}
-              >
-                {step.name}
-              </div>
-              {step.isComplete ? (
-                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-                  Reported{step.confirmedByName ? ` by ${step.confirmedByName}` : ""}
-                  {step.eventDate ? ` · ${ukDate(step.eventDate)}` : " · date not given"}
-                </div>
-              ) : !step.isAvailable ? (
-                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Waiting on {blockingLabel(step, view.steps)}</div>
-              ) : step.dueTimer ? (
-                <DueFuse startedAt={step.dueTimer.startedAt} dueAt={step.dueTimer.dueAt} />
-              ) : null}
-            </div>
-
-            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-              {step.isComplete ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={pending}
-                  onClick={() =>
-                    run(async () => {
-                      const { result, view: next } = await actions.undo({ transactionId, milestoneCode: step.code });
-                      if (result.ok === false && result.reason === "has_dependents") {
-                        setError("Undo the later reported step first.");
-                      }
-                      return next;
-                    })
-                  }
-                >
-                  Undo
-                </Button>
-              ) : step.isAvailable && confirmingCode !== step.code ? (
-                <>
-                  <Button variant="secondary" size="xs" disabled={pending} onClick={() => { setConfirmingCode(step.code); setConfirmDate(""); setError(null); }}>
-                    Confirm
-                  </Button>
-                  {/* Far side only: chase the neighbour agent about THIS step. */}
-                  {isFarSide && (
-                    <button
-                      type="button"
-                      onClick={() => setChaseStep({ code: step.code, name: step.name })}
-                      className="agent-link"
-                      style={{ fontSize: 11, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", color: SECONDARY }}
-                    >
-                      Chase agent
-                    </button>
-                  )}
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          {confirmingCode === step.code && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              <label style={{ fontSize: 11, color: MUTED }}>
-                {step.eventDateRequired ? "Date it happened" : "Date (optional)"}
-              </label>
-              <DateField
-                value={confirmDate}
-                onChange={(e) => setConfirmDate(e.target.value)}
-                wrapperStyle={{ display: "inline-block" }}
-                style={{ fontSize: 12, padding: "3px 6px", border: "1px solid var(--agent-border, rgba(0,0,0,0.15))", borderRadius: 6 }}
-              />
-              <Button
-                variant="primary"
-                size="xs"
-                loading={pending}
-                onClick={() =>
-                  run(async () => {
-                    const { result, view: next } = await actions.confirm({
-                      transactionId,
-                      milestoneCode: step.code,
-                      eventDate: confirmDate || null,
-                    });
-                    if (result.ok === false) {
-                      setError(
-                        result.reason === "locked"
-                          ? "Confirm the earlier step first."
-                          : result.reason === "awaiting_our_completion"
-                            ? "The onward can't complete until this sale completes."
-                            : "Could not report this step.",
-                      );
-                    } else {
-                      setConfirmingCode(null);
-                    }
-                    return next;
-                  })
-                }
-              >
-                Save reported
-              </Button>
-              <Button variant="ghost" size="xs" disabled={pending} onClick={() => setConfirmingCode(null)}>
-                Cancel
-              </Button>
-            </div>
-          )}
-        </li>
+        <OnwardStepRow
+          key={step.code}
+          step={step}
+          isFarSide={isFarSide}
+          isOwnAgencyFile={view.isOwnAgencyFile}
+          waitingLabel={blockingLabel(step, view.steps)}
+          onConfirm={confirmStepRow}
+          onUndo={undoStepRow}
+          onChase={(code, name) => setChaseStep({ code, name })}
+        />
       ))}
     </ul>
   );

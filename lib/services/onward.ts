@@ -112,6 +112,10 @@ export type OnwardStepView = {
   isComplete: boolean;
   isAvailable: boolean; // prereqs satisfied → can be reported now. false = locked.
   eventDate: string | null; // ISO (yyyy-mm-dd) if a real date was reported
+  // Survey/valuation extras, captured only when the linked sale is the agency's
+  // own file (see OnwardTrackerView.isOwnAgencyFile). null everywhere else.
+  keyCollectionRequired: boolean | null; // PM6/PM9: keys collected from the branch
+  bookedSurveyorName: string | null; // PM9: which surveyor firm
   source: OnwardConfirmSource | null;
   confirmedByName: string | null;
   confirmedAt: string | null; // ISO
@@ -132,6 +136,10 @@ export type OnwardTrackerView = {
   completeCount: number;
   applicableCount: number;
   surveySkipped: boolean; // seller opted out of the survey (mirrors the buyer skip)
+  // True when the onward/related sale is the agency's OWN file (linked to a real
+  // transaction in the same agency). Gates the key-collection + surveyor-firm
+  // capture — meaningless on another agency's listing or a neighbour's far side.
+  isOwnAgencyFile: boolean;
 };
 
 // The survey pair a seller can opt out of, mirroring the buyer's manual skip
@@ -287,6 +295,7 @@ export async function getOnwardTrackerView(
       completeCount: 0,
       applicableCount: 0,
       surveySkipped: false,
+      isOwnAgencyFile: false,
     };
   }
 
@@ -305,6 +314,7 @@ export async function getOnwardTrackerView(
       completeCount: 0,
       applicableCount: 0,
       surveySkipped: surveyOptOut(tracker.manualNrCodes),
+      isOwnAgencyFile: false,
     };
   }
 
@@ -339,6 +349,8 @@ export async function getOnwardTrackerView(
       isComplete: row != null,
       isAvailable: availability.get(d.code) ?? false,
       eventDate: row ? toISODate(row.eventDate) : null,
+      keyCollectionRequired: row?.keyCollectionRequired ?? null,
+      bookedSurveyorName: row?.bookedSurveyorName ?? null,
       source: row?.source ?? null,
       confirmedByName: row
         ? row.source === "agent"
@@ -374,6 +386,8 @@ export async function getOnwardTrackerView(
   const timers = computeStepDueTimers(steps, graceByCode, tracker.createdAt);
   for (const s of steps) s.dueTimer = timers.get(s.code) ?? null;
 
+  const isOwnAgencyFile = await isLinkedSaleOwnAgency(transactionId, kind);
+
   return {
     exists: true,
     status: tracker.status,
@@ -385,7 +399,37 @@ export async function getOnwardTrackerView(
     completeCount: steps.filter((s) => s.isComplete).length,
     applicableCount: steps.length,
     surveySkipped: surveyOptOut(tracker.manualNrCodes),
+    isOwnAgencyFile,
   };
+}
+
+// Is the onward/related sale this tracker mirrors actually the agency's OWN file?
+// True only for a NEAR-side tracker whose adjacent chain link (onward = the link
+// above, related = the link below) resolves to a real transaction in the SAME
+// agency. Far-side trackers are the neighbour's own agent's side — never ours.
+// Used to gate key-collection + surveyor-firm capture (see OnwardStepView).
+async function isLinkedSaleOwnAgency(
+  transactionId: string,
+  kind: OnwardTrackerKind,
+): Promise<boolean> {
+  // Only the near sides can be our own sale.
+  if (kind !== "onward_purchase" && kind !== "related_sale") return false;
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agencyId: true, chainLinkId: true },
+  });
+  if (!tx?.agencyId || !tx.chainLinkId) return false;
+  const link = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { position: true, chainId: true },
+  });
+  if (!link) return false;
+  const adjacentPosition = kind === "onward_purchase" ? link.position - 1 : link.position + 1;
+  const adjacent = await prisma.chainLink.findFirst({
+    where: { chainId: link.chainId, position: adjacentPosition },
+    select: { transaction: { select: { agencyId: true } } },
+  });
+  return adjacent?.transaction?.agencyId != null && adjacent.transaction.agencyId === tx.agencyId;
 }
 
 /**
@@ -648,6 +692,9 @@ export async function confirmOnwardStep(
   eventDate: string | null,
   confirmer: { source: "agent"; userId: string } | { source: "seller" | "buyer"; contactId: string },
   kind: OnwardTrackerKind = "onward_purchase",
+  // Survey/valuation extras (PM6/PM9). Only meaningful when the linked sale is
+  // the agency's own file; the caller passes them from the gated UI.
+  extra?: { keyCollectionRequired?: boolean | null; bookedSurveyorName?: string | null },
 ): Promise<ConfirmOnwardResult> {
   const dir = DIRECTION[kind];
   const tracker = await prisma.onwardTracker.findUnique({
@@ -694,6 +741,8 @@ export async function confirmOnwardStep(
       trackerId: tracker.id,
       milestoneCode,
       eventDate: eventDateObj,
+      keyCollectionRequired: extra?.keyCollectionRequired ?? null,
+      bookedSurveyorName: extra?.bookedSurveyorName?.trim() || null,
       source: confirmer.source,
       confirmedByUserId: confirmer.source === "agent" ? confirmer.userId : null,
       confirmedByContactId: confirmer.source === "agent" ? null : confirmer.contactId,
