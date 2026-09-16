@@ -42,6 +42,8 @@ import { AttentionCard } from "@/components/hub/AttentionCard";
 import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
 import { BookingsToConfirmCard, type BookingConfirmRow } from "@/components/hub/BookingsToConfirmCard";
+import { NeedsFilingCard } from "@/components/hub/NeedsFilingCard";
+import { getPendingInboundEmails } from "@/lib/services/pending-inbound";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { SectionLoading } from "@/components/hub/SectionLoading";
@@ -480,6 +482,11 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
+      {/* Needs filing — inbound emails the sync couldn't match to a file (Phase E2). */}
+      <Suspense fallback={null}>
+        <NeedsFilingSlot />
+      </Suspense>
+
       {/* Reviews due — compact pointer to the "Reviews due" section on /agent/to-do.
           Files on hold past their return date (incl. chain-collapse waits) live
           there now, not in Needs-you. Hidden when nothing is due. */}
@@ -725,6 +732,18 @@ function buildBookingRows(
       eventDateISO: i.eventDate ? new Date(i.eventDate).toISOString().slice(0, 10) : null,
     };
   });
+}
+
+// Inbound emails the sync couldn't confidently file, from the agent's own
+// connected mailbox (scoped inside the service). Hidden when the tray is empty.
+async function NeedsFilingSlot() {
+  const rows = await getPendingInboundEmails();
+  if (rows.length === 0) return null;
+  return (
+    <SectionReveal order={1}>
+      <NeedsFilingCard rows={rows} />
+    </SectionReveal>
+  );
 }
 
 // Fetches the lower cards together. Mortgage + gone-quiet are deduped against
