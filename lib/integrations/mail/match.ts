@@ -148,12 +148,26 @@ export async function buildFolderHints(
     if (core.length < 5) continue;
     const rows = await prisma.propertyTransaction.findMany({
       where: { AND: [txScope, { propertyAddress: { contains: core, mode: "insensitive" } }] },
-      select: { id: true },
-      take: 2,
+      select: { id: true, propertyAddress: true },
+      take: 5,
     });
-    if (rows.length === 1) map.set(name.toLowerCase(), rows[0].id);
+    // Tighten the DB `contains` prefilter: require the folder to be the address's
+    // first line (before the first comma) or a start-of-address match at a word
+    // boundary — so a "2 Evans Way" folder can't grab "12 Evans Way".
+    const precise = rows.filter((r) => matchesAddressStart(core, r.propertyAddress ?? ""));
+    if (precise.length === 1) map.set(name.toLowerCase(), precise[0].id);
   }
   return map;
+}
+
+// Does the folder name identify the START of this address (not a mid-string
+// substring)? Kills the house-number-substring false match (2 vs 12).
+export function matchesAddressStart(folder: string, address: string): boolean {
+  const f = folder.trim().toLowerCase();
+  const addr = address.trim().toLowerCase();
+  if (!f || !addr) return false;
+  const firstLine = addr.split(",")[0].trim();
+  return firstLine === f || addr.startsWith(`${f},`) || addr.startsWith(`${f} `);
 }
 
 // ─── Match one message to a single file ───────────────────────────────────────
@@ -187,10 +201,18 @@ export function matchMessage(
   const candidates = [...candidateSet];
   const folderTx = msg.folder ? folderHints.get(msg.folder.toLowerCase()) : undefined;
 
+  // Folder is authoritative: filing an email into a property folder (e.g.
+  // "8 Brambling Crescent") is a deliberate signal from the agent, so it wins
+  // over participant/subject matching — even when the sender also appears on
+  // another file (a solicitor acting on several sales, say).
+  if (folderTx) return { txId: folderTx, candidates: candidates.length ? candidates : [folderTx] };
+
+  // No property folder → fall back to who's on the email.
   if (candidateSet.size === 1) return { txId: candidates[0], candidates };
 
   if (candidateSet.size > 1) {
-    if (folderTx && candidateSet.has(folderTx)) return { txId: folderTx, candidates };
+    // Several files share a participant and there's no folder to disambiguate —
+    // try a postcode in the subject; otherwise send it to review, don't guess.
     const subjectPostcodes = extractPostcodes(msg.subject);
     if (subjectPostcodes.size > 0) {
       const byPostcode = candidates.filter((txId) => {
@@ -203,6 +225,5 @@ export function matchMessage(
     return { txId: null, candidates }; // ambiguous — offer the candidates for review
   }
 
-  if (folderTx) return { txId: folderTx, candidates: [folderTx] };
   return { txId: null, candidates: [] };
 }

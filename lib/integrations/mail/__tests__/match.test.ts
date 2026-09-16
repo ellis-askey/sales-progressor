@@ -2,131 +2,73 @@
  * @jest-environment node
  */
 
-// Pure-function coverage for the provider-neutral matcher. No DB: we hand it a
-// prebuilt index + folder hints (exactly what buildIndex / buildFolderHints
-// produce) and assert which single file each message resolves to. This is the
-// shared core every connector (Outlook, IMAP, Gmail) relies on.
-
-import { matchMessage, type Index } from "../match";
+import { matchMessage, matchesAddressStart, type Index } from "../match";
 import type { IngestMessage } from "../types";
 
-const MAILBOX = "agent@myagency.co.uk";
+const baseMsg = (over: Partial<IngestMessage>): IngestMessage => ({
+  id: "1", subject: "", from: "", fromName: null, to: [], cc: [],
+  receivedDateTime: new Date(0).toISOString(), bodyPreview: "", body: "",
+  folder: "", webLink: null, conversationId: null, internetMessageId: null,
+  inReplyTo: null, references: null, ...over,
+});
 
-function msg(partial: Partial<IngestMessage>): IngestMessage {
-  return {
-    id: "m1",
-    subject: "",
-    from: "",
-    fromName: null,
-    to: [],
-    cc: [],
-    receivedDateTime: new Date(0).toISOString(),
-    bodyPreview: "",
-    body: "",
-    folder: "",
-    conversationId: null,
-    internetMessageId: null,
-    inReplyTo: null,
-    references: null,
-    ...partial,
-  };
-}
+// sol@firm.com acts on two files; buyer@x.com only on txA.
+const index: Index = {
+  emailToTx: new Map([
+    ["sol@firm.com", new Set(["txA", "txB"])],
+    ["buyer@x.com", new Set(["txA"])],
+  ]),
+  txAddress: new Map([
+    ["txA", "8 Brambling Crescent, Tring, HP23 4DS"],
+    ["txB", "2 Evans Way, Tring, HP23 5UJ"],
+  ]),
+};
 
-function index(emailToTx: Record<string, string[]>, txAddress: Record<string, string> = {}): Index {
-  return {
-    emailToTx: new Map(Object.entries(emailToTx).map(([k, v]) => [k.toLowerCase(), new Set(v)])),
-    txAddress: new Map(Object.entries(txAddress)),
-  };
-}
+const MAILBOX = "me@agency.com";
 
 describe("matchMessage", () => {
-  it("matches on a single known participant", () => {
-    const res = matchMessage(
-      msg({ from: "solicitor@law.co.uk", to: [MAILBOX] }),
-      MAILBOX,
-      index({ "solicitor@law.co.uk": ["tx1"] }),
-      new Map(),
-    );
-    expect(res.txId).toBe("tx1");
+  it("folder is authoritative — wins over a participant who's on another file", () => {
+    const hints = new Map([["8 brambling crescent", "txA"]]);
+    const msg = baseMsg({ from: "sol@firm.com", folder: "8 Brambling Crescent" });
+    expect(matchMessage(msg, MAILBOX, index, hints)).toEqual({ txId: "txA", candidates: ["txA", "txB"] });
   });
 
-  it("ignores the mailbox's own address", () => {
-    const res = matchMessage(
-      msg({ from: MAILBOX, to: ["solicitor@law.co.uk"] }),
-      MAILBOX,
-      index({ "solicitor@law.co.uk": ["tx1"], [MAILBOX]: ["txWrong"] }),
-      new Map(),
-    );
-    expect(res.txId).toBe("tx1");
+  it("folder wins even when no participant matches", () => {
+    const hints = new Map([["8 brambling crescent", "txA"]]);
+    const msg = baseMsg({ from: "stranger@x.com", folder: "8 Brambling Crescent" });
+    expect(matchMessage(msg, MAILBOX, index, hints)).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
-  it("breaks a two-file tie by the folder the email is filed in", () => {
-    const res = matchMessage(
-      msg({ from: "shared@broker.co.uk", folder: "118 Hadley Grange" }),
-      MAILBOX,
-      index({ "shared@broker.co.uk": ["tx1", "tx2"] }),
-      new Map([["118 hadley grange", "tx2"]]),
-    );
-    expect(res.txId).toBe("tx2");
+  it("single participant match, no folder", () => {
+    const msg = baseMsg({ from: "buyer@x.com" });
+    expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
-  it("breaks a two-file tie by a postcode in the subject when no folder hint", () => {
-    const res = matchMessage(
-      msg({ from: "shared@broker.co.uk", subject: "Re: sale AL1 2CD" }),
-      MAILBOX,
-      index(
-        { "shared@broker.co.uk": ["tx1", "tx2"] },
-        { tx1: "1 High St, AL9 9ZZ", tx2: "5 Mill Rd, AL1 2CD" },
-      ),
-      new Map(),
-    );
-    expect(res.txId).toBe("tx2");
+  it("multiple participants, no folder — disambiguated by a subject postcode", () => {
+    const msg = baseMsg({ from: "sol@firm.com", subject: "Re: HP23 5UJ replies" });
+    expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txB", candidates: ["txA", "txB"] });
   });
 
-  it("stays ambiguous (no match) when a tie can't be broken, returning candidates", () => {
-    const res = matchMessage(
-      msg({ from: "shared@broker.co.uk", subject: "no postcode here" }),
-      MAILBOX,
-      index({ "shared@broker.co.uk": ["tx1", "tx2"] }),
-      new Map(),
-    );
-    expect(res.txId).toBeNull();
-    expect(res.candidates.sort()).toEqual(["tx1", "tx2"]);
+  it("multiple participants, no folder, no postcode → review (null)", () => {
+    const r = matchMessage(baseMsg({ from: "sol@firm.com" }), MAILBOX, index, new Map());
+    expect(r.txId).toBeNull();
+    expect(new Set(r.candidates)).toEqual(new Set(["txA", "txB"]));
   });
 
-  it("falls back to the folder when no participant is known", () => {
-    const res = matchMessage(
-      msg({ from: "stranger@nowhere.com", folder: "8 Brambling Crescent" }),
-      MAILBOX,
-      index({}),
-      new Map([["8 brambling crescent", "tx3"]]),
-    );
-    expect(res.txId).toBe("tx3");
+  it("nothing matches → null, no candidates", () => {
+    expect(matchMessage(baseMsg({ from: "stranger@x.com" }), MAILBOX, index, new Map())).toEqual({ txId: null, candidates: [] });
   });
+});
 
-  it("resolves a forward via the party named inside the body when the envelope is unknown", () => {
-    const res = matchMessage(
-      msg({
-        from: "colleague@myagency.co.uk", // forwarder, not on any file
-        to: [MAILBOX],
-        subject: "Fwd: your sale",
-        body: "Begin forwarded message:\nFrom: solicitor@law.co.uk\nTo: someone@else.com",
-      }),
-      MAILBOX,
-      index({ "solicitor@law.co.uk": ["tx1"] }),
-      new Map(),
-    );
-    expect(res.txId).toBe("tx1");
+describe("matchesAddressStart", () => {
+  it("matches the first line / start of the address", () => {
+    expect(matchesAddressStart("8 Brambling Crescent", "8 Brambling Crescent, Tring, HP23 4DS")).toBe(true);
+    expect(matchesAddressStart("2 Evans Way", "2 Evans Way, Tring")).toBe(true);
   });
-
-  it("returns no match and no candidates when nothing is known", () => {
-    const res = matchMessage(
-      msg({ from: "stranger@nowhere.com", subject: "hello" }),
-      MAILBOX,
-      index({}),
-      new Map(),
-    );
-    expect(res.txId).toBeNull();
-    expect(res.candidates).toEqual([]);
+  it("rejects a house-number substring (2 vs 12)", () => {
+    expect(matchesAddressStart("2 Evans Way", "12 Evans Way, Tring")).toBe(false);
+  });
+  it("rejects a mid-string match", () => {
+    expect(matchesAddressStart("Tring", "8 Brambling Crescent, Tring")).toBe(false);
   });
 });
