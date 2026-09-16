@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   return runJob("outlook-sync", async () => {
   const connections = await prisma.outlookConnection.findMany({
     select: {
-      id: true, email: true, accessToken: true, refreshToken: true, tokenExpiresAt: true, scope: true,
+      id: true, email: true, accessToken: true, refreshToken: true, tokenExpiresAt: true, scope: true, lastSentSyncAt: true,
       user: { select: { id: true, role: true, agencyId: true, email: true } },
     },
   });
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     } as unknown as Session;
     try {
       const summary = await syncOutlookMailbox(
-        { id: conn.id, email: conn.email, accessToken: conn.accessToken, refreshToken: conn.refreshToken, tokenExpiresAt: conn.tokenExpiresAt, scope: conn.scope },
+        { id: conn.id, email: conn.email, accessToken: conn.accessToken, refreshToken: conn.refreshToken, tokenExpiresAt: conn.tokenExpiresAt, scope: conn.scope, lastSentSyncAt: conn.lastSentSyncAt },
         session,
       );
       mailboxes++;
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
   // the same shared engine. Owner-scoped exactly like Outlook above.
   const imapConns = await prisma.imapConnection.findMany({
     select: {
-      id: true, email: true, provider: true, host: true, port: true, secure: true, encryptedPassword: true,
+      id: true, email: true, provider: true, host: true, port: true, secure: true, encryptedPassword: true, lastSentSyncAt: true,
       user: { select: { id: true, role: true, agencyId: true, email: true } },
     },
   });
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     } as unknown as Session;
     try {
       const summary = await syncImapMailbox(
-        { id: conn.id, email: conn.email, provider: conn.provider, host: conn.host, port: conn.port, secure: conn.secure, encryptedPassword: conn.encryptedPassword },
+        { id: conn.id, email: conn.email, provider: conn.provider, host: conn.host, port: conn.port, secure: conn.secure, encryptedPassword: conn.encryptedPassword, lastSentSyncAt: conn.lastSentSyncAt },
         session,
       );
       mailboxes++;

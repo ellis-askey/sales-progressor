@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   const conn = await prisma.imapConnection.findFirst({
     where: { id: body.connectionId, userId: session.user.id },
-    select: { id: true, email: true, provider: true, host: true, port: true, secure: true, encryptedPassword: true },
+    select: { id: true, email: true, provider: true, host: true, port: true, secure: true, encryptedPassword: true, lastSentSyncAt: true },
   });
   if (!conn) {
     return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });

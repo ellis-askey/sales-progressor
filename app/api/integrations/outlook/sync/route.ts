@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       refreshToken: true,
       tokenExpiresAt: true,
       scope: true,
+      lastSentSyncAt: true,
     },
   });
   if (!conn) {

@@ -31,6 +31,10 @@ export type IngestMessage = {
   // connector when it fetched them (Outlook via Graph, IMAP via mailparser).
   // Optional so callers that don't fetch attachments still type-check.
   attachments?: IngestAttachment[];
+  // True when this message came from the mailbox's Sent folder — i.e. the agent
+  // sent it (our side). Drives outbound direction on ingest. (Complete Email
+  // History, Phase 2.) Undefined/false = received (inbound), the default.
+  outbound?: boolean;
 };
 
 // One file attachment on an inbound email, with its bytes in hand. Filed into

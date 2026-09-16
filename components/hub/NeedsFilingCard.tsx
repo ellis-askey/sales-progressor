@@ -72,7 +72,7 @@ export function NeedsFilingCard({ rows }: { rows: PendingInboundRow[] }) {
                 {r.subject || "(no subject)"}
               </span>
               <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
-                {r.fromName || r.fromEmail}
+                {r.direction === "outbound" ? "To: " : "From: "}{r.partyName || r.partyEmail}
               </span>
             </div>
             {r.preview && (

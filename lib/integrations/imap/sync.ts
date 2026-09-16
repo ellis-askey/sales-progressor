@@ -15,6 +15,10 @@ import { fetchImapMessages } from "./client";
 const BACKFILL_DAYS = 90;
 const PER_FOLDER_CAP = 200;
 const GLOBAL_CAP = 800;
+// Sent-Items capture (Phase 2): separate 30-day first window + own cap so a busy
+// Sent folder can't starve inbound property mail.
+const SENT_BACKFILL_DAYS = 30;
+const SENT_CAP = 200;
 
 export type ImapConnRow = {
   id: string;
@@ -24,16 +28,27 @@ export type ImapConnRow = {
   port: number;
   secure: boolean;
   encryptedPassword: string;
+  lastSentSyncAt?: Date | null;
 };
 
 export async function syncImapMailbox(conn: ImapConnRow, session: Session): Promise<SyncSummary> {
   const scope = getAccessScope(session);
   const pass = decryptSecret(conn.encryptedPassword);
 
+  const sentEnabled = process.env.SENT_ITEMS_ENABLED === "true";
+  const sentSince = conn.lastSentSyncAt
+    ? conn.lastSentSyncAt
+    : new Date(Date.now() - SENT_BACKFILL_DAYS * 24 * 60 * 60 * 1000);
+
   try {
     const { messages, scannedFolders } = await fetchImapMessages(
       { host: conn.host, port: conn.port, secure: conn.secure, user: conn.email, pass },
-      { sinceDays: BACKFILL_DAYS, perFolderCap: PER_FOLDER_CAP, globalCap: GLOBAL_CAP }
+      {
+        sinceDays: BACKFILL_DAYS,
+        perFolderCap: PER_FOLDER_CAP,
+        globalCap: GLOBAL_CAP,
+        ...(sentEnabled ? { sent: { sentSince, sentCap: SENT_CAP } } : {}),
+      }
     );
 
     const summary = await runMailboxSync({
@@ -44,11 +59,16 @@ export async function syncImapMailbox(conn: ImapConnRow, session: Session): Prom
       scannedFolderNames: scannedFolders,
       mailboxUserId: session.user.id,
       mailboxAgencyId: session.user.agencyId ?? null,
+      mailboxUserRole: session.user.role ?? null,
     });
 
     await prisma.imapConnection.update({
       where: { id: conn.id },
-      data: { lastSyncedAt: new Date(), lastError: null },
+      data: {
+        lastSyncedAt: new Date(),
+        lastError: null,
+        ...(sentEnabled ? { lastSentSyncAt: new Date() } : {}),
+      },
     });
     return summary;
   } catch (err) {

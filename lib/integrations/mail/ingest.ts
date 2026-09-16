@@ -33,28 +33,39 @@ import type {
 
 // ─── Ingest one matched message ────────────────────────────────────────────────
 
+// Attribution + direction for a logged message. mailboxUserId/Role identify the
+// agent whose connected mailbox produced a SENT (outbound) email, so it renders
+// as "<agent> · <agency> · Your team". (Complete Email History, Phase 2.)
+type LogOpts = { mailboxUserId?: string | null; mailboxUserRole?: string | null };
+
 async function logMessage(
   txId: string,
   msg: IngestMessage,
-  source: string
+  source: string,
+  opts: LogOpts = {}
 ): Promise<{ status: "logged" | "already"; address: string }> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
     select: { agencyId: true, propertyAddress: true },
   });
   const address = tx?.propertyAddress ?? "";
+  const outbound = msg.outbound === true;
 
   const received = new Date(msg.receivedDateTime);
-  // Dedup on the provider id AND on the real message (same file + sender +
-  // subject + received time to the minute). The same email filed in both the
-  // Inbox and a property folder has a different provider id per folder, so the id
-  // check alone let it in twice; the second arm collapses those copies to one —
-  // and also catches the same email arriving via two different connectors.
+  // Dedup on the provider id, the RFC Message-ID, AND the real message (same file
+  // + sender + subject + received time to the minute). The same email filed in
+  // both the Inbox and a property folder has a different provider id per folder,
+  // so the id check alone let it in twice; the extra arms collapse those copies
+  // to one — and catch the same email arriving via two connectors. The
+  // internetMessageId arm is null-safe (only added when the incoming id is set,
+  // and it can never match a stored NULL), giving cheap defence-in-depth without
+  // relying on the fuzzy arm.
   const existing = await prisma.outboundMessage.findFirst({
     where: {
       transactionId: txId,
       OR: [
         { providerMessageId: msg.id },
+        ...(msg.internetMessageId ? [{ internetMessageId: msg.internetMessageId }] : []),
         {
           method: "email",
           recipientEmail: msg.from,
@@ -81,8 +92,10 @@ async function logMessage(
   // to-do. Gated behind EMAIL_AI_READ_ENABLED (ships dark — no spend until the
   // accept/dismiss UI is live and the prompt is tuned). Skips auto-replies.
   // Best-effort: a failed read never blocks the email being stored.
+  // AI read + signature suggestion are INBOUND-only concepts (they read the
+  // sender's message/signature). Never run for our own sent mail.
   let read: EmailReadResult | null = null;
-  if (!autoReply && process.env.EMAIL_AI_READ_ENABLED === "true") {
+  if (!outbound && !autoReply && process.env.EMAIL_AI_READ_ENABLED === "true") {
     read = await readInboundEmail(txId, tx?.agencyId ?? null, {
       subject: msg.subject || "(no subject)",
       body: cleaned,
@@ -92,8 +105,8 @@ async function logMessage(
   // Signature → contact phone (Phase F2). If the sender is a known contact on
   // this file with no phone, and their signature carries one, stash a suggestion
   // for the agent to confirm. Suggest-only — never written silently. Skips
-  // auto-replies (their "signature" is a system footer). Best-effort.
-  const contactSuggestion = autoReply
+  // auto-replies (their "signature" is a system footer) and our own sent mail.
+  const contactSuggestion = outbound || autoReply
     ? null
     : await buildContactPhoneSuggestion(txId, msg.from, rawBody).catch(() => null);
 
@@ -101,17 +114,21 @@ async function logMessage(
     data: {
       transactionId: txId,
       agencyId: tx?.agencyId ?? null,
-      type: "inbound",
+      // A Sent-Items email is our side (outbound); received mail is inbound.
+      type: outbound ? "outbound" : "inbound",
       method: "email",
       contactIds: [],
       subject: msg.subject || "(no subject)",
       content: cleaned,
-      recipientName: msg.fromName,
-      recipientEmail: msg.from,
+      // Inbound: recipientEmail carries the SENDER (feed convention). Outbound:
+      // it carries the primary recipient (who we sent to); the author is the
+      // mailbox owner, attributed via createdById below.
+      recipientName: outbound ? null : msg.fromName,
+      recipientEmail: outbound ? (msg.to[0] ?? null) : msg.from,
       ccEmails: msg.cc.length ? msg.cc.join(", ") : null,
       providerMessageId: msg.id,
-      // Threading metadata (capture-only; no consumer reads it yet). Null when
-      // the source omits the field. Does not affect dedup above.
+      // Threading metadata — shared across inbound + outbound so a sent email and
+      // its reply group into one conversation.
       conversationId: msg.conversationId,
       internetMessageId: msg.internetMessageId,
       inReplyTo: msg.inReplyTo,
@@ -119,6 +136,7 @@ async function logMessage(
       providerWebhookData: {
         source,
         folder: msg.folder,
+        direction: outbound ? "outbound" : "inbound",
         from: msg.from,
         to: msg.to,
         cc: msg.cc,
@@ -129,7 +147,10 @@ async function logMessage(
         ...(read && (read.summary || read.suggestions.length) ? { read } : {}),
         ...(contactSuggestion ? { contactSuggestion } : {}),
       },
-      createdByRole: "system",
+      // Outbound sent mail is attributed to the mailbox owner (the agent) so it
+      // renders as "<agent> · Your team"; inbound stays a system-logged row.
+      createdById: outbound ? (opts.mailboxUserId ?? null) : null,
+      createdByRole: outbound ? (opts.mailboxUserRole ?? null) : "system",
       createdAt: received,
       sentAt: received,
     },
@@ -183,6 +204,15 @@ async function storeInboundAttachments(txId: string, msg: IngestMessage): Promis
   if (files.length === 0) return;
   for (const file of files) {
     try {
+      // Document dedup (Phase 2, §8): skip if the same file (name + size) is
+      // already on this property — whether from a prior sync or the app's own
+      // sending workflow. Prevents a sent email re-filing a document TSP already
+      // holds.
+      const dupe = await prisma.transactionDocument.findFirst({
+        where: { transactionId: txId, filename: file.filename, fileSize: file.size },
+        select: { id: true },
+      });
+      if (dupe) continue;
       const storagePath = buildDocumentStoragePath(txId, file.filename);
       await uploadToStorage(storagePath, file.content, file.contentType);
       await prisma.transactionDocument.create({
@@ -236,11 +266,13 @@ export async function runMailboxSync(opts: {
   // the folders present in the batch.
   scannedFolderNames?: string[];
   // Whose connected mailbox this is — used to persist unmatched emails into the
-  // agent-side "Needs filing" tray (Phase E2). Omitted → no tray persistence.
+  // agent-side "Needs filing" tray (Phase E2), and to attribute SENT mail to the
+  // agent (Phase 2). Omitted → no tray persistence / no outbound attribution.
   mailboxUserId?: string;
   mailboxAgencyId?: string | null;
+  mailboxUserRole?: string | null;
 }): Promise<SyncSummary> {
-  const { messages, mailboxEmail, scope, source, mailboxUserId, mailboxAgencyId } = opts;
+  const { messages, mailboxEmail, scope, source, mailboxUserId, mailboxAgencyId, mailboxUserRole } = opts;
   const mailboxLc = mailboxEmail.toLowerCase();
 
   const folderHints =
@@ -289,6 +321,11 @@ export async function runMailboxSync(opts: {
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);
       summary.unmatched.push({ ...info, candidates: candidateRefs });
+      // Privacy gate (Phase 2, §9): a SENT email with NO candidate file has no
+      // evidence of belonging to TSP — it's personal/unrelated mail. Drop it
+      // entirely: no pending row, no trace. Inbound keeps its historic behaviour
+      // (a received email to the connected mailbox is still worth surfacing).
+      if (msg.outbound && candidateRefs.length === 0) continue;
       // Persist to the agent-side "Needs filing" tray (Phase E2). Skip auto-replies
       // (noise), and only when we know whose mailbox it is. Unique (userId,
       // providerMessageId) via skipDuplicates → a filed/dismissed email won't
@@ -303,9 +340,13 @@ export async function runMailboxSync(opts: {
               providerMessageId: msg.id,
               source,
               folder: msg.folder,
+              direction: msg.outbound ? "outbound" : "inbound",
               subject: msg.subject || "(no subject)",
+              // Inbound → From: the sender. Outbound → To: the recipient.
               fromEmail: msg.from,
               fromName: msg.fromName,
+              toEmail: msg.outbound ? (msg.to[0] ?? null) : null,
+              toName: null,
               body: cleanIngestedEmail(raw) || raw,
               rawBody: raw,
               receivedAt: new Date(msg.receivedDateTime),
@@ -318,7 +359,7 @@ export async function runMailboxSync(opts: {
       continue;
     }
 
-    const { status, address } = await logMessage(txId, msg, source);
+    const { status, address } = await logMessage(txId, msg, source, { mailboxUserId, mailboxUserRole });
     const item: LoggedItem = { ...info, transactionId: txId, address };
     if (status === "logged") summary.logged.push(item);
     else summary.alreadyLogged.push(item);
@@ -332,8 +373,9 @@ export async function runMailboxSync(opts: {
 export async function logSingleIngestMessage(
   txId: string,
   msg: IngestMessage,
-  source: string
+  source: string,
+  opts: LogOpts = {}
 ): Promise<LoggedItem> {
-  const { address } = await logMessage(txId, msg, source);
+  const { address } = await logMessage(txId, msg, source, opts);
   return { ...toInfo(msg), transactionId: txId, address };
 }

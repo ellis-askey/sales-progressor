@@ -9,6 +9,7 @@ import "server-only";
 import { ImapFlow, type ListResponse } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
 import { looksLikePropertyFolder } from "@/lib/integrations/mail/match";
+import { findSentMailbox } from "./sent-mailbox";
 import type { IngestMessage } from "@/lib/integrations/mail/types";
 
 export type ImapCreds = {
@@ -116,7 +117,8 @@ async function mapMessage(
   source: Buffer,
   folderPath: string,
   uid: number,
-  internalDate: Date | undefined
+  internalDate: Date | undefined,
+  outbound = false
 ): Promise<IngestMessage> {
   const parsed = await simpleParser(source);
   const from = parsed.from?.value?.[0];
@@ -155,6 +157,8 @@ async function mapMessage(
       isInline: a.related === true || a.contentDisposition === "inline",
       cid: a.contentId ?? a.cid ?? null,
     })),
+    // Sent-folder messages are our side (Phase 2). Received mail leaves this false.
+    outbound,
   };
 }
 
@@ -194,7 +198,15 @@ export type ImapFetchResult = { messages: IngestMessage[]; scannedFolders: strin
 
 export async function fetchImapMessages(
   creds: ImapCreds,
-  opts: { sinceDays: number; perFolderCap: number; globalCap: number }
+  opts: {
+    sinceDays: number;
+    perFolderCap: number;
+    globalCap: number;
+    // Sent-Items capture (Phase 2). When provided, ALSO scan the Sent mailbox on
+    // its OWN bounded budget (from `sentSince`, capped at `sentCap`), tagging
+    // those messages outbound. Omitted → inbound-only (today's behaviour).
+    sent?: { sentSince: Date; sentCap: number };
+  }
 ): Promise<ImapFetchResult> {
   const client = makeClient(creds);
   const messages: IngestMessage[] = [];
@@ -229,6 +241,33 @@ export async function fetchImapMessages(
         scannedFolders.push(displayFolder(path));
       } finally {
         lock.release();
+      }
+    }
+
+    // Sent mailbox — separate budget so it can't starve inbound above.
+    if (opts.sent) {
+      const sentPath = findSentMailbox(boxes);
+      if (sentPath) {
+        const lock = await client.getMailboxLock(sentPath);
+        try {
+          const found = (await client.search({ since: opts.sent.sentSince }, { uid: true })) || [];
+          const uids = Array.isArray(found) ? found : [];
+          if (uids.length) {
+            const chosen = uids.slice(-opts.sent.sentCap);
+            for await (const msg of client.fetch(
+              chosen,
+              { uid: true, source: true, internalDate: true },
+              { uid: true }
+            )) {
+              if (!msg.source) continue;
+              const internal = msg.internalDate ? new Date(msg.internalDate) : undefined;
+              messages.push(await mapMessage(msg.source, sentPath, msg.uid, internal, true));
+            }
+          }
+          scannedFolders.push(displayFolder(sentPath));
+        } finally {
+          lock.release();
+        }
       }
     }
   } finally {

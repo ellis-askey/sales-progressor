@@ -2684,6 +2684,11 @@ model OutlookConnection {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Sent-Items capture cursor (Phase 2). Null until the first Sent sync; then the
+  // watermark to fetch forward from, so we don't rescan the 30-day history every
+  // run. Only used when SENT_ITEMS_ENABLED. (Complete Email History.)
+  lastSentSyncAt  DateTime?
+
   // One row per (user, mailbox): reconnecting the same mailbox updates it,
   // a different mailbox adds a new row.
   @@unique([userId, microsoftUserId])
@@ -2715,6 +2720,8 @@ model ImapConnection {
   // Operational state for the UI + cron.
   lastSyncedAt DateTime?
   lastError    String? // last sync/login failure, for a helpful "reconnect" nudge
+  // Sent-Items capture cursor (Phase 2). See OutlookConnection.lastSentSyncAt.
+  lastSentSyncAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2724,12 +2731,17 @@ model ImapConnection {
   @@index([userId])
 }
 
-// Inbound emails the sync couldn't confidently file (ambiguous — matched people
-// on more than one live file, or no match at all). Kept so the agent has a
-// standing "Needs filing" tray with one-tap file-to-property, instead of the
-// email being silently dropped. One row per (mailbox user, provider message);
-// the unique key means a filed/dismissed email never re-queues on the next sync.
-// (Email ingestion v2, Phase E2.)
+// Emails the sync couldn't confidently file (ambiguous — matched people on more
+// than one live file). Kept so the agent has a standing "Needs filing" tray with
+// one-tap file-to-property, instead of the email being silently dropped. One row
+// per (mailbox user, provider message); the unique key means a filed/dismissed
+// email never re-queues on the next sync. (Email ingestion v2, Phase E2.)
+//
+// Direction-aware since Complete Email History (Phase 2): "inbound" (received —
+// show "From:") or "outbound" (a Sent-Items email we couldn't uniquely place —
+// show "To:"). Zero-candidate SENT mail is never queued here (privacy); only
+// inbound keeps its historic zero-candidate behaviour. The model name is kept to
+// avoid a risky rename.
 model PendingInboundEmail {
   id     String @id @default(cuid())
   userId String // whose connected mailbox surfaced it (agent-side scoping)
@@ -2739,10 +2751,15 @@ model PendingInboundEmail {
   providerMessageId String // dedup key: Graph id / Message-ID / imap uid
   source            String // "outlook" | "imap" | provider name
   folder            String @default("")
+  // "inbound" (received) | "outbound" (sent). Drives From:/To: in the tray.
+  direction         String @default("inbound")
 
   subject    String
   fromEmail  String
   fromName   String?
+  // Primary recipient (outbound only — who the agent sent it to). Null on inbound.
+  toEmail    String?
+  toName     String?
   body       String   @db.Text // cleaned body (Phase A)
   rawBody    String   @db.Text // untouched original, for "show original"
   receivedAt DateTime

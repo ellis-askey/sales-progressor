@@ -30,6 +30,11 @@ export async function filePendingEmailAction(input: {
   });
   if (!tx) return { ok: false };
 
+  // Direction carries through so a filed SENT email lands as our side, attributed
+  // to the mailbox owner (who — because the tray is owner-scoped — is the caller).
+  const outbound = pending.direction === "outbound";
+  const attribution = { mailboxUserId: session.user.id, mailboxUserRole: session.user.role };
+
   // Prefer re-fetching the original from the provider so attachments (Phase F1),
   // the full body and threading headers all come across — the stored pending row
   // only kept the text. Outlook supports a by-id re-fetch; if it fails (mailbox
@@ -42,7 +47,7 @@ export async function filePendingEmailAction(input: {
     });
     if (conn) {
       try {
-        await logSingleMessageToFile(conn, input.transactionId, pending.providerMessageId);
+        await logSingleMessageToFile(conn, input.transactionId, pending.providerMessageId, { outbound, ...attribution });
         filed = true;
       } catch {
         filed = false; // fall through to the reconstruct path below
@@ -59,7 +64,7 @@ export async function filePendingEmailAction(input: {
       subject: pending.subject,
       from: pending.fromEmail,
       fromName: pending.fromName,
-      to: [],
+      to: outbound && pending.toEmail ? [pending.toEmail] : [],
       cc: [],
       receivedDateTime: pending.receivedAt.toISOString(),
       bodyPreview: (pending.body ?? "").slice(0, 255),
@@ -70,8 +75,9 @@ export async function filePendingEmailAction(input: {
       internetMessageId: null,
       inReplyTo: null,
       references: null,
+      outbound,
     };
-    await logSingleIngestMessage(input.transactionId, msg, pending.source);
+    await logSingleIngestMessage(input.transactionId, msg, pending.source, attribution);
   }
 
   await prisma.pendingInboundEmail.update({
