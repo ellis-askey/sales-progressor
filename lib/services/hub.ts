@@ -1757,6 +1757,12 @@ export type HubAttentionItem = {
   escalationReason: string | null;
   escalatedAt: Date | null;
   escalatedByName: string | null;
+  // Hub chase split-button (2026-09-18): the pending chase task (null when
+  // the engine hasn't opened one yet - chaseNowFromLogAction creates it on
+  // demand) and the reminder's target milestone, for the confirm-done flow.
+  // Both null on the synthetic exchange-overdue ("xovr-") items.
+  taskId: string | null;
+  targetMilestoneCode: string | null;
 };
 
 export async function getHubAttentionItems(
@@ -1817,6 +1823,7 @@ export async function getHubAttentionItems(
       chaseTasks: {
         where: { status: "pending" },
         select: {
+          id: true, // hub chase split-button: mark-chased / done / snooze act on this task
           status: true, priority: true, chaseCount: true,
           fallbackKind: true, // resolveAutopilot: a handed-back chase is "manual".
           // 2026-07-13 (Chunk 8): needed to build the Escalated tooltip.
@@ -1868,6 +1875,10 @@ export async function getHubAttentionItems(
         escalationReason: task?.escalationReason ?? null,
         escalatedAt: task?.escalatedAt ?? null,
         escalatedByName: task?.escalatedBy?.name ?? null,
+        // Explicit widening: chaseTasks[0] is typed non-optional by the
+        // indexed access, but is undefined at runtime when no task is open.
+        taskId: (task?.id ?? null) as string | null,
+        targetMilestoneCode: (log.reminderRule.targetMilestoneCode ?? null) as string | null,
       };
     })
     .filter((x): x is HubAttentionItem => x !== null);
@@ -1945,6 +1956,8 @@ export async function getHubAttentionItems(
       escalationReason: "Exchange date passed and the file's gone quiet",
       escalatedAt: null,
       escalatedByName: null,
+      taskId: null,
+      targetMilestoneCode: null,
     });
   }
 

@@ -31,19 +31,25 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { ExchangeOverdueActions } from "@/components/hub/ExchangeOverdueActions";
+import { RowActionMenu } from "@/components/hub/RowActionMenu";
+import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import {
   Warning,
   CaretDown,
   Check,
   CalendarPlus,
   UserPlus,
+  ArrowsClockwise,
+  Clock,
+  CalendarBlank,
 } from "@phosphor-icons/react/dist/ssr";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction } from "@/app/actions/transactions";
+import { advanceChaseTaskAction, completeTaskAction, snoozeTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { assignWaitBadge } from "@/lib/hub/assign-wait";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -127,6 +133,117 @@ function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: s
     <Pill glass tone={tone === "coral" ? "brand" : tone} size="md" title={title} style={{ flexShrink: 0 }}>
       {label}
     </Pill>
+  );
+}
+
+// ── Chase split-button (reminder rows, Ellis 2026-09-18) ───────────────
+// [Chase | ⌄] on every reminder row. Chase opens the file's Reminders tab,
+// where the full chase composer lives. The chevron covers everything you'd
+// otherwise need the chase drawer for, done in place: mark as chased,
+// confirm the step done (with the date prompt where the milestone needs
+// one), or snooze. In-place actions clear the row from the card.
+function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
+  item: WithPhoto<HubAttentionItem>;
+  onResolved: () => void;
+  toastSuccess: (msg: string, desc?: string) => void;
+  toastError: (msg: string) => void;
+}) {
+  const pathname = usePathname();
+  const [busy, setBusy] = useState(false);
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // Most actions act on the pending chase task; the engine may not have
+  // opened one yet, so create-or-fetch on demand (same pattern as the work
+  // queue's chase-early path).
+  async function ensureTaskId(): Promise<string> {
+    if (item.taskId) return item.taskId;
+    const { taskId } = await chaseNowFromLogAction(item.id, pathname);
+    return taskId;
+  }
+
+  function run(fn: (taskId: string) => Promise<unknown>, okMsg: string, okDesc: string) {
+    setBusy(true);
+    startTransition(async () => {
+      try {
+        const taskId = await ensureTaskId();
+        await fn(taskId);
+        toastSuccess(okMsg, okDesc);
+        onResolved();
+      } catch {
+        toastError("Couldn't do that. Try again.");
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
+
+  const confirmDone = (eventDate?: string | null) =>
+    run(
+      (taskId) => completeTaskAction(taskId, pathname, eventDate ?? null),
+      "Step confirmed",
+      `${item.reminderName} marked done on the file.`,
+    );
+
+  return (
+    <>
+      <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
+        <Link
+          href={`/agent/transactions/${item.transaction.id}?tab=reminders`}
+          className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0, textDecoration: "none" }}
+        >
+          Chase
+        </Link>
+        <RowActionMenu
+          joined
+          disabled={busy}
+          items={[
+            {
+              key: "chased",
+              icon: <ArrowsClockwise size={16} weight="bold" />,
+              title: "Mark as chased",
+              sub: "Advances the next chase date. No email is sent.",
+              onClick: () => run((taskId) => advanceChaseTaskAction(taskId, pathname), "Marked as chased", "Next chase date advanced."),
+            },
+            {
+              key: "done",
+              icon: <Check size={16} weight="bold" />,
+              title: "Confirm step done",
+              sub: "Marks the step complete on the file.",
+              onClick: () => {
+                if (milestoneNeedsDatePrompt(item.targetMilestoneCode)) setDateModalOpen(true);
+                else confirmDone(null);
+              },
+            },
+            {
+              key: "snooze-tomorrow",
+              icon: <Clock size={16} weight="bold" />,
+              title: "Snooze until tomorrow",
+              sub: "Back on this list tomorrow.",
+              onClick: () => run((taskId) => snoozeTaskAction(taskId, { hours: 24 }, pathname), "Snoozed", "Back on the list tomorrow."),
+            },
+            {
+              key: "snooze-week",
+              icon: <CalendarBlank size={16} weight="bold" />,
+              title: "Snooze for a week",
+              sub: "Back on this list in 7 days.",
+              onClick: () => run((taskId) => snoozeTaskAction(taskId, { hours: 168 }, pathname), "Snoozed", "Back on the list in a week."),
+            },
+          ]}
+        />
+      </div>
+      {dateModalOpen && (
+        <ConfirmMilestoneDateModal
+          open={dateModalOpen}
+          milestoneCode={item.targetMilestoneCode}
+          milestoneName={item.reminderName}
+          loading={busy}
+          onConfirm={(eventDate) => { setDateModalOpen(false); confirmDone(eventDate); }}
+          onClose={() => setDateModalOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -229,6 +346,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   const [showCleared, setShowCleared] = useState(initialEmpty);
   const [flash, setFlash] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  // Reminder rows cleared in place via the Chase split-button this session.
+  const [resolvedReminderIds, setResolvedReminderIds] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
   const [listRef] = useAutoAnimate<HTMLDivElement>();
 
@@ -306,7 +425,11 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   // ── Assemble the ranked row list ────────────────────────────────────
   // Reminders keep their existing cap of 3 (the work-queue link covers
   // the rest); other types were already capped by their services.
-  const visibleReminders = reminders.slice(0, 3);
+  // resolvedReminderIds: rows cleared in place via the Chase split-button
+  // (marked chased / confirmed done / snoozed) — the next lower-ranked
+  // reminder naturally rises into the freed slot.
+  const liveReminders = reminders.filter((r) => !resolvedReminderIds.has(r.id));
+  const visibleReminders = liveReminders.slice(0, 3);
   const escalated = visibleReminders.filter((r) => r.urgency === "escalated");
   const overdue = visibleReminders.filter((r) => r.urgency === "overdue");
   const dueToday = visibleReminders.filter((r) => r.urgency === "due_today");
@@ -339,8 +462,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   // honestly — the "All reminders" link carries the rest.
   if (visibleReminders.length) {
     summaryParts.push(
-      reminders.length > visibleReminders.length
-        ? `${visibleReminders.length} of ${reminders.length} reminders`
+      liveReminders.length > visibleReminders.length
+        ? `${visibleReminders.length} of ${liveReminders.length} reminders`
         : `${visibleReminders.length} ${visibleReminders.length === 1 ? "reminder" : "reminders"}`,
     );
   }
@@ -513,6 +636,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
                   onAssigned={(id) => setUnassigned((prev) => prev.filter((f) => f.id !== id))}
                   onAcknowledge={acknowledge}
                   onDismissChain={dismissChain}
+                  onReminderResolved={(logId) => setResolvedReminderIds((prev) => new Set(prev).add(logId))}
+                  toastSuccess={(msg, desc) => toast.success(msg, desc ? { description: desc } : undefined)}
                   toastError={(msg) => toast.error(msg)}
                 />
               ))}
@@ -632,7 +757,7 @@ function AttentionRow({
   row, topBorder, busyId,
   showExtenderFor, extenderDate, setExtenderDate,
   onOpenExtender, onCloseExtender, onExtend, onOpenResume,
-  onAssigned, onAcknowledge, onDismissChain, toastError,
+  onAssigned, onAcknowledge, onDismissChain, onReminderResolved, toastSuccess, toastError,
 }: {
   row:
     | { kind: "reminder"; key: string; item: WithPhoto<HubAttentionItem> }
@@ -652,6 +777,8 @@ function AttentionRow({
   onAssigned: (id: string) => void;
   onAcknowledge: (roundId: string) => void;
   onDismissChain: (id: string) => void;
+  onReminderResolved: (logId: string) => void;
+  toastSuccess: (msg: string, desc?: string) => void;
   toastError: (msg: string) => void;
 }) {
   // Resolve per-type presentation.
@@ -737,25 +864,19 @@ function AttentionRow({
       <PropertyThumb photoUrl={row.item.photoUrl} />
       <div style={{ minWidth: 0, flex: "1 1 220px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          {row.kind === "reminder" ? (
-            <p style={{
-              margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {address}
-            </p>
-          ) : (
-            <Link
-              href={href}
-              style={{
-                fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
-                textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}
-              className="hover:underline"
-            >
-              {address}
-            </Link>
-          )}
+          {/* Every row's address is a link — reminder rows stopped being
+              whole-row links when the Chase split button arrived (nested
+              interactive elements), so the address carries the navigation. */}
+          <Link
+            href={href}
+            style={{
+              fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
+              textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}
+            className="hover:underline"
+          >
+            {address}
+          </Link>
           <TypePill label={pill.label} tone={tone} title={pill.title} />
         </div>
         <p
@@ -772,38 +893,19 @@ function AttentionRow({
   );
 
   if (row.kind === "reminder") {
-    // The synthetic "Exchange date passed" item (id "xovr-…") is actionable: a
-    // ▾ dropdown to set a new date / recalibrate / snooze, and its address links
-    // to the file Overview (where the revise banner lives) — not the Reminders
-    // tab. Every OTHER reminder stays a pure link into the Reminders tab.
-    if (row.item.id.startsWith("xovr-")) {
-      return (
-        <div style={rowStyle} className="agent-hover-row">
-          <PropertyThumb photoUrl={row.item.photoUrl} />
-          <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-              <Link
-                href={`/agent/transactions/${txId}`}
-                className="hover:underline"
-                style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-              >
-                {address}
-              </Link>
-              <TypePill label={pill.label} tone={tone} title={pill.title} />
-            </div>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {secondary}
-            </p>
-          </div>
-          <ExchangeOverdueActions transactionId={txId} />
-        </div>
-      );
-    }
+    // Reminder rows (exchange-overdue items now live on their own card):
+    // address links into the Reminders tab; the [Chase | ⌄] split button
+    // carries the in-place actions.
     return (
-      <Link href={href} style={{ ...rowStyle, textDecoration: "none" }} className="agent-hover-row">
+      <div style={rowStyle} className="agent-hover-row">
         {body}
-        <LinkArrow size={14} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-      </Link>
+        <ChaseSplitButton
+          item={row.item}
+          onResolved={() => onReminderResolved(row.item.id)}
+          toastSuccess={toastSuccess}
+          toastError={toastError}
+        />
+      </div>
     );
   }
 

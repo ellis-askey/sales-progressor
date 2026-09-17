@@ -14,7 +14,12 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { recalibrateExchangeDateAction, snoozeExchangeReminderAction } from "@/app/actions/transactions";
 import { RowActionMenu } from "@/components/hub/RowActionMenu";
 
-export function ExchangeOverdueActions({ transactionId }: { transactionId: string }) {
+export function ExchangeOverdueActions({ transactionId, onDone }: {
+  transactionId: string;
+  // Called after a successful in-place resolution (recalibrate / snooze), so
+  // the hosting card can remove the row without waiting for a reload.
+  onDone?: () => void;
+}) {
   const { toast } = useAgentToast();
   const [busy, setBusy] = useState(false);
   const [, startTransition] = useTransition();
@@ -26,6 +31,7 @@ export function ExchangeOverdueActions({ transactionId }: { transactionId: strin
         const res = await action();
         if (!res.ok) throw new Error("rejected");
         toast.success(okMsg, { description: okDesc });
+        onDone?.();
       } catch {
         toast.error(failMsg);
       } finally {

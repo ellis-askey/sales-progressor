@@ -39,6 +39,7 @@ import {
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
+import { ExchangeOverdueCard } from "@/components/hub/ExchangeOverdueCard";
 import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
 import { BookingsToConfirmCard, type BookingConfirmRow } from "@/components/hub/BookingsToConfirmCard";
@@ -599,17 +600,30 @@ async function AttentionSlot({
   ]);
   const signed = (path: string | null) => (path ? photoUrlMap.get(path) ?? null : null);
 
+  // Split (Ellis, 2026-09-18): the synthetic exchange-overdue items ("xovr-…")
+  // get their own card, leaving Needs-your-attention for real reminders.
+  const withPhotos = initialAttentionItems.map((i) => ({ ...i, photoUrl: signed(i.transaction.photoStoragePath) }));
+  const exchangeOverdue = withPhotos.filter((i) => i.id.startsWith("xovr-"));
+  const reminderItems = withPhotos.filter((i) => !i.id.startsWith("xovr-"));
+
   return (
     <SectionReveal order={1}>
-      <AnimatedSection>
-        <AttentionCard
-          holds={[]}
-          reminders={initialAttentionItems.map((i) => ({ ...i, photoUrl: signed(i.transaction.photoStoragePath) }))}
-          unassigned={unassignedFiles.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
-          relists={relistsToAcknowledge.map((r) => ({ ...r, photoUrl: signed(r.photoStoragePath) }))}
-          chainSetup={chainSetupPending.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
-        />
-      </AnimatedSection>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <AnimatedSection>
+          <AttentionCard
+            holds={[]}
+            reminders={reminderItems}
+            unassigned={unassignedFiles.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
+            relists={relistsToAcknowledge.map((r) => ({ ...r, photoUrl: signed(r.photoStoragePath) }))}
+            chainSetup={chainSetupPending.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
+          />
+        </AnimatedSection>
+        {exchangeOverdue.length > 0 && (
+          <AnimatedSection>
+            <ExchangeOverdueCard items={exchangeOverdue} />
+          </AnimatedSection>
+        )}
+      </div>
     </SectionReveal>
   );
 }
