@@ -9,6 +9,7 @@ import { resolveImapSettings, resolveSmtpSettings } from "./config";
 import { verifyImapLogin } from "./client";
 import { verifySmtpLogin } from "@/lib/integrations/smtp/client";
 import { sendViaMailboxConnection } from "@/lib/integrations/smtp/send";
+import { buildMailboxSendingTest } from "@/lib/email/mailbox-sending-notices";
 
 // What the send control on a connection row should truthfully be. Sending only
 // ever applies to the mailbox matching the agent's SIGN-IN address (the sender
@@ -299,14 +300,12 @@ export async function enableMailboxSending(
 
   // One-off proof it works, addressed to the mailbox itself. Best-effort: the
   // enable already succeeded, and the send path stamps its own health state.
+  const test = buildMailboxSendingTest();
   await sendViaMailboxConnection(updated, {
     from: updated.email,
     to: updated.email,
-    subject: "Sending is set up",
-    text:
-      "Emails you send from Sales Progressor on your files will now come from this address. " +
-      "A copy of each one is filed in this mailbox's Sent folder, and replies land straight back here. " +
-      "This is a one-off confirmation that sending works. There's nothing you need to do.",
+    subject: test.subject,
+    text: test.text,
   }).catch(() => {});
 
   return { ok: true };

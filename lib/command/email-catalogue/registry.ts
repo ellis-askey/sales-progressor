@@ -65,6 +65,7 @@ import { buildTeamJoined } from "@/lib/emails/team-joined";
 import { buildMorningBrief } from "@/lib/emails/morning-brief";
 import { buildWeeklyBrief } from "@/lib/emails/weekly-brief";
 import { buildRetentionEmail, RETENTION_EMAIL_KEYS } from "@/lib/emails/retention";
+import { buildMailboxSendingTest, buildMailboxSendingStopped } from "@/lib/email/mailbox-sending-notices";
 
 export type RenderedEmail = { subject: string; html: string };
 
@@ -807,6 +808,36 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
 
   // ── Platform / system ─────────────────────────────────────────────────────────
+  {
+    id: "mailbox-sending-test",
+    category: "agent",
+    name: "Mailbox sending confirmed",
+    description:
+      "One-off proof email fired the moment an agent switches on sending from a connected inbox. Sends FROM the agent's own mailbox TO itself, through the newly enabled route, so its arrival is the proof it works.",
+    trigger: "An agent turns on sending for a connected inbox (or connects one with the send option ticked).",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () => {
+      const t = buildMailboxSendingTest();
+      return asText(t.subject, t.text);
+    },
+  },
+  {
+    id: "mailbox-sending-stopped",
+    category: "agent",
+    name: "Mailbox sending stopped",
+    description:
+      "Tells the agent their connected inbox's app-password no longer works, sending has switched itself off, and their emails go out from our address (replies still reaching them) until they reconnect. Sent once per outage, from our own address.",
+    trigger: "Two consecutive sends through a connected inbox fail authentication.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () => {
+      const t = buildMailboxSendingStopped(FIXTURE_AGENT.email);
+      return asText(t.subject, t.text);
+    },
+  },
   {
     id: "password-reset",
     category: "perfected",

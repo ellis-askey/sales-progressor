@@ -18,6 +18,7 @@ import { decryptSecret } from "@/lib/security/token-crypto";
 import { resolveSmtpSettings } from "@/lib/integrations/imap/config";
 import { appendToSentMailbox } from "@/lib/integrations/imap/client";
 import { sendSmtpMessage, type SmtpMessage } from "./client";
+import { buildMailboxSendingStopped } from "@/lib/email/mailbox-sending-notices";
 import type { ImapConnection } from "@prisma/client";
 
 // The routing lookup lives in ./mailbox-lookup (light import, no transport
@@ -116,14 +117,11 @@ async function disableSendingAndNotify(conn: ImapConnection): Promise<void> {
   // import back would be a cycle. The notification goes out from our own
   // verified address (no from override), so it can never re-enter this path.
   const { sendEmail } = await import("@/lib/email");
+  const notice = buildMailboxSendingStopped(conn.email);
   await sendEmail({
     to,
-    subject: `Sending from your inbox has stopped working: ${conn.email}`,
-    text:
-      `We tried to send an email from your connected inbox ${conn.email}, but its mail server no longer accepts the app-password. ` +
-      "This usually means the password was removed or expired.\n\n" +
-      "Your emails still go out. Until this is fixed, we'll send them from our own address with replies going to you, so nothing on your files is held up.\n\n" +
-      "To send from your own address again, create a new app-password with your email provider, then reconnect the inbox from Account, under Connections.",
+    subject: notice.subject,
+    text: notice.text,
     emailType: "MAILBOX_SEND_DISABLED",
   });
 }
