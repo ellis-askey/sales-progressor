@@ -321,11 +321,14 @@ export async function runMailboxSync(opts: {
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);
       summary.unmatched.push({ ...info, candidates: candidateRefs });
-      // Privacy gate (Phase 2, §9): a SENT email with NO candidate file has no
-      // evidence of belonging to TSP — it's personal/unrelated mail. Drop it
-      // entirely: no pending row, no trace. Inbound keeps its historic behaviour
-      // (a received email to the connected mailbox is still worth surfacing).
-      if (msg.outbound && candidateRefs.length === 0) continue;
+      // Only surface an email in the "Needs filing" tray when it has at least one
+      // CANDIDATE file — i.e. a real party on it maps to a live file, we just
+      // couldn't pick which. An email with NO candidate has no evidence of
+      // belonging to any property (newsletters, billing, build alerts, a stranger
+      // emailing the mailbox) — drop it entirely, no tray row, no trace. Applies
+      // to inbound and outbound alike. (Before this, inbound dumped every
+      // unmatched inbox email into the tray — the noise this fixes.)
+      if (candidateRefs.length === 0) continue;
       // Persist to the agent-side "Needs filing" tray (Phase E2). Skip auto-replies
       // (noise), and only when we know whose mailbox it is. Unique (userId,
       // providerMessageId) via skipDuplicates → a filed/dismissed email won't

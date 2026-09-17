@@ -348,3 +348,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway).
 - **Author/date:** Claude, 2026-09-16.
 - **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.
+
+### cleanup-noise-pending-emails.ts
+- **Purpose:** one-shot data cleanup. Dismisses "Needs filing" tray rows (`PendingInboundEmail`) that have NO candidate file — newsletters, billing, build alerts, test mail, and other inbox noise the tray used to keep for every unmatched inbound email. The ingest fix (lib/integrations/mail/ingest.ts, 2026-09-17) now drops zero-candidate emails at source; this clears the ~574 already queued on prod. Dismisses (status='dismissed', reversible), never deletes; targets only OPEN rows with an empty candidates array. Dry-run by default; `--apply` writes; `--prod` targets prod.
+- **Lifetime:** one-shot (throwaway).
+- **Author/date:** Claude, 2026-09-17.
+- **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.
