@@ -51,6 +51,17 @@ async function logMessage(
   const address = tx?.propertyAddress ?? "";
   const outbound = msg.outbound === true;
 
+  // A Sent-folder message carrying OUR Message-ID is one the app itself sent
+  // through the agent's mailbox (mailbox-SMTP sends file a copy to Sent, and
+  // every one is stamped <sp-...@thesalesprogressor.co.uk> — see
+  // lib/integrations/smtp/client.ts). It was already recorded on the file at
+  // send time, so re-ingesting it would double-log; skip outright. The
+  // Message-ID dedup arm below can't be relied on for this: not every send
+  // path records its id on the OutboundMessage row.
+  if (outbound && msg.internetMessageId?.toLowerCase().endsWith("@thesalesprogressor.co.uk>")) {
+    return { status: "already", address };
+  }
+
   const received = new Date(msg.receivedDateTime);
   // Dedup on the provider id, the RFC Message-ID, AND the real message (same file
   // + sender + subject + received time to the minute). The same email filed in

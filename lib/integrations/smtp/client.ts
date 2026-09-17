@@ -10,6 +10,7 @@
 // Server-only; the app-password is passed in decrypted and never logged.
 
 import "server-only";
+import { randomUUID } from "crypto";
 import nodemailer from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
 import type Mail from "nodemailer/lib/mailer";
@@ -93,7 +94,12 @@ function toMailOptions(msg: SmtpMessage): Mail.Options {
     subject: msg.subject,
     text: msg.text,
     html: msg.html ?? msg.text.replace(/\n/g, "<br>"),
-    ...(msg.messageId ? { messageId: msg.messageId } : {}),
+    // ALWAYS one of ours, never nodemailer's random default. The Sent-folder
+    // copy this send files carries this id, and Sent-Items ingestion skips
+    // anything with an @thesalesprogressor.co.uk Message-ID as app-sent —
+    // that's what stops a mailbox send being logged on the file twice (once at
+    // send time, once when Sent capture scans it back in).
+    messageId: msg.messageId ?? `<sp-mbx-${randomUUID()}@thesalesprogressor.co.uk>`,
     ...(msg.attachments && msg.attachments.length
       ? {
           attachments: msg.attachments.map((a) => ({
