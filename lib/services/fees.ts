@@ -252,12 +252,24 @@ export function computeEffectiveStartDate(
   return earliest < createdAt ? earliest : createdAt;
 }
 
+// Exchange (and the 12-week target) never falls on a weekend — completion/
+// exchange are business-day events. Roll Saturday/Sunday forward to Monday so a
+// predicted or target date is always a working day. (Bank holidays not handled
+// yet — see note where this is used.)
+export function rollToBusinessDay(d: Date): Date {
+  const x = new Date(d);
+  const day = x.getDay(); // 0 = Sunday, 6 = Saturday (local, matching the arithmetic below)
+  if (day === 6) x.setDate(x.getDate() + 2);
+  else if (day === 0) x.setDate(x.getDate() + 1);
+  return x;
+}
+
 export function calculatePhaseAwarePrediction(
   input: PhaseAwareInput,
   createdAt: Date,
   overrideDate?: Date | null,
 ): Date {
-  if (overrideDate) return overrideDate;
+  if (overrideDate) return rollToBusinessDay(overrideDate);
 
   const now = new Date();
   // 12-week target floor anchors on the real sale start, not the claim date.
@@ -277,8 +289,8 @@ export function calculatePhaseAwarePrediction(
   const predicted = new Date(now);
   predicted.setDate(predicted.getDate() + Math.max(vendorDays, purchaserDays));
 
-  // Floor: never predict earlier than the 12-week target
-  return predicted > twelveWeekTarget ? predicted : twelveWeekTarget;
+  // Floor: never predict earlier than the 12-week target. Roll off any weekend.
+  return rollToBusinessDay(predicted > twelveWeekTarget ? predicted : twelveWeekTarget);
 }
 
 function calcSideRaw(milestones: MilestoneLite[]): number {
@@ -319,8 +331,9 @@ export function calculateProgress(
   // Elapsed-time + on-track calculations use the same anchor so claimed files
   // assess against the real timeline, not the moment the agent joined.
   const anchorDate = phaseAware?.effectiveStartDate ?? createdAt;
-  const twelveWeekTarget = new Date(anchorDate);
-  twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
+  const twelveWeekTargetRaw = new Date(anchorDate);
+  twelveWeekTargetRaw.setDate(twelveWeekTargetRaw.getDate() + 84);
+  const twelveWeekTarget = rollToBusinessDay(twelveWeekTargetRaw); // never a weekend
 
   // Active-only elapsed: subtract total on-hold ms so weeks-elapsed and the
   // velocity-based prediction freeze while paused. When no hold input is
@@ -356,6 +369,9 @@ export function calculateProgress(
   } else {
     predictedExchangeDate = twelveWeekTarget;
   }
+
+  // Exchange never lands on a weekend — roll every branch's result to a weekday.
+  if (predictedExchangeDate) predictedExchangeDate = rollToBusinessDay(predictedExchangeDate);
 
   const msToExchange  = predictedExchangeDate!.getTime() - now.getTime();
   const weeksRemaining = Math.ceil(msToExchange / (7 * 86400000));

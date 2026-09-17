@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
+import { rollToBusinessDay } from "@/lib/services/fees";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { toUKDateStr } from "@/lib/utils";
@@ -907,11 +908,13 @@ export async function createTransaction(input: CreateTransactionInput) {
   // Anchor the 12-week target to createdAt when supplied (admin migration),
   // otherwise to now (standard create). Same date drives expectedExchangeDate.
   const anchor = input.createdAt ?? new Date();
-  const twelveWeekTarget = new Date(anchor);
-  twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
+  const twelveWeekTargetRaw = new Date(anchor);
+  twelveWeekTargetRaw.setDate(twelveWeekTargetRaw.getDate() + 84);
+  const twelveWeekTarget = rollToBusinessDay(twelveWeekTargetRaw); // never a weekend
 
-  const autoExchangeDate = new Date(anchor);
-  autoExchangeDate.setDate(autoExchangeDate.getDate() + 84);
+  const autoExchangeRaw = new Date(anchor);
+  autoExchangeRaw.setDate(autoExchangeRaw.getDate() + 84);
+  const autoExchangeDate = rollToBusinessDay(autoExchangeRaw);
 
   // Self-managed files snapshot this agency's own chase timings; outsourced
   // files snapshot the platform default (matches the serviceType rule below).

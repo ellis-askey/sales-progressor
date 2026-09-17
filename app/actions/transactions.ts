@@ -19,6 +19,7 @@ import { logActivity } from "@/lib/services/activity";
 import { postExchangeDateUpdateToClients } from "@/lib/services/portal";
 import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
 import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
+import { rollToBusinessDay } from "@/lib/services/fees";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
 import { splitChainAtBoundary } from "@/lib/chain/split";
@@ -940,7 +941,8 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const newDate = overridePredictedDate ? new Date(overridePredictedDate) : null;
+  // Exchange never lands on a weekend — roll a weekend pick to the Monday.
+  const newDate = overridePredictedDate ? rollToBusinessDay(new Date(overridePredictedDate)) : null;
 
   // Update + capture-only prediction history (PR4), transactionally coupled so a
   // failed history insert rolls back the override write (irrecoverable data).
@@ -999,10 +1001,12 @@ export async function reviseOverdueExchangeDateAction(input: {
   if (!input.bothPartiesInformed) {
     throw new Error("Confirm both parties have been told before revising the date");
   }
-  const parsed = new Date(input.newDate);
-  if (Number.isNaN(parsed.getTime())) {
+  const parsedRaw = new Date(input.newDate);
+  if (Number.isNaN(parsedRaw.getTime())) {
     throw new Error("Enter a valid date");
   }
+  // Exchange never lands on a weekend — roll a weekend pick to the Monday.
+  const parsed = rollToBusinessDay(parsedRaw);
 
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
@@ -1055,15 +1059,23 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, overridePredictedDate: true, expectedExchangeDate: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
+  const priorExpected = tx.overridePredictedDate ?? tx.expectedExchangeDate;
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
     data: { overridePredictedDate: null, exchangeReminderSnoozedUntil: null },
   });
   const predicted = await refreshExpectedExchangeDate(transactionId).catch(() => null);
+
+  // Tell clients on the portal only when the date actually moves to a new day
+  // (mirrors saveOverrideDateAction). A no-move recalibrate stays silent.
+  if (predicted && priorExpected && !isSameCalendarDay(priorExpected, predicted)) {
+    await postExchangeDateUpdateToClients(transactionId, predicted, session.user.id).catch(() => {});
+  }
+
   const dateStr = predicted
     ? predicted.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;

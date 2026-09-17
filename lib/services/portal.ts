@@ -2871,8 +2871,8 @@ export async function postExchangeDateUpdateToClients(
       isAutomated: true,
       createdById: actorId,
       content:
-        `We've updated your estimated exchange date to ${dateStr}.\n\n` +
-        `This is our latest estimate and could still change as the sale moves forward.`,
+        `We've updated the estimated exchange date to ${dateStr}.\n\n` +
+        `This is our best estimate based on where things have got to so far. It can still shift as the sale moves forward, and we'll let you know if it does.`,
     },
   });
 }
