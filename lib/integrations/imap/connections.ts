@@ -10,6 +10,23 @@ import { verifyImapLogin } from "./client";
 import { verifySmtpLogin } from "@/lib/integrations/smtp/client";
 import { sendViaMailboxConnection } from "@/lib/integrations/smtp/send";
 
+// What the send control on a connection row should truthfully be. Sending only
+// ever applies to the mailbox matching the agent's SIGN-IN address (the sender
+// resolver keys on it), so the UI must never offer a toggle that would do
+// nothing (Law 13).
+export type ConnectionSendState =
+  | "sends" // sign-in mailbox, sending on → green chip + "Turn off sending"
+  | "offer" // sign-in mailbox, can send, currently off → "Turn on sending"
+  | "domain_covered" // sign-in mailbox but a DNS-verified domain already sends
+  | "not_sign_in" // a secondary inbox → reads only, with the explainer line
+  | "unavailable"; // provider with no known sending server → reads only
+
+// Where this agent's outgoing email actually comes from right now, computed
+// from the same hierarchy the send path uses (verified domain > sign-in
+// mailbox > our shared address). Surfaced verbatim in the card note so what
+// the agent reads and what happens can never drift apart.
+export type SendsFrom = { address: string; via: "domain" | "mailbox" | "platform" };
+
 // Safe-to-expose view of a connection (never the password).
 export type MyImapConnection = {
   id: string;
@@ -25,11 +42,36 @@ export type MyImapConnection = {
   sendEnabled: boolean;
   sendAvailable: boolean;
   smtpLastError: string | null;
+  sendState: ConnectionSendState;
 };
 
-export type MyImapStatus = { connections: MyImapConnection[] };
+export type MyImapStatus = {
+  connections: MyImapConnection[];
+  // The caller's sign-in address + whether its domain is SendGrid-verified —
+  // the two facts the client needs to render truthful send controls.
+  userEmail: string | null;
+  userDomainVerified: boolean;
+  sendsFrom: SendsFrom;
+};
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
+
+// The caller's sign-in address and whether its domain is DNS-verified for
+// their agency — the facts that decide whether a mailbox may send at all.
+async function senderContext(userId: string): Promise<{ email: string | null; domainVerified: boolean }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, agencyId: true },
+  });
+  const email = user?.email?.trim().toLowerCase() || null;
+  const domain = email?.split("@")[1] ?? null;
+  if (!email || !domain || !user?.agencyId) return { email, domainVerified: false };
+  const verified = await prisma.verifiedDomain.findFirst({
+    where: { agencyId: user.agencyId, domain, status: "verified" },
+    select: { id: true },
+  });
+  return { email, domainVerified: !!verified };
+}
 
 export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
   const rows = await prisma.imapConnection.findMany({
@@ -50,8 +92,25 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
       smtpLastError: true,
     },
   });
-  return {
-    connections: rows.map((r) => ({
+  const ctx = await senderContext(userId);
+
+  const connections = rows.map((r) => {
+    const sendAvailable = !!resolveSmtpSettings(r.email, {
+      host: r.smtpHost,
+      port: r.smtpHost ? r.smtpPort : null,
+      secure: r.smtpHost ? r.smtpSecure : null,
+    });
+    const isSignIn = !!ctx.email && r.email === ctx.email;
+    const sendState: ConnectionSendState = !isSignIn
+      ? "not_sign_in"
+      : ctx.domainVerified
+        ? "domain_covered"
+        : !sendAvailable
+          ? "unavailable"
+          : r.sendEnabled
+            ? "sends"
+            : "offer";
+    return {
       id: r.id,
       email: r.email,
       displayName: r.displayName,
@@ -60,14 +119,23 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
       lastSyncedAt: iso(r.lastSyncedAt),
       lastError: r.lastError,
       sendEnabled: r.sendEnabled,
-      sendAvailable: !!resolveSmtpSettings(r.email, {
-        host: r.smtpHost,
-        port: r.smtpHost ? r.smtpPort : null,
-        secure: r.smtpHost ? r.smtpSecure : null,
-      }),
+      sendAvailable,
       smtpLastError: r.smtpLastError,
-    })),
-  };
+      sendState,
+    };
+  });
+
+  // Same hierarchy the send path uses: verified domain > sign-in mailbox >
+  // our shared address.
+  const mailboxSends = connections.some((c) => c.sendState === "sends");
+  const sendsFrom: SendsFrom =
+    ctx.domainVerified && ctx.email
+      ? { address: ctx.email, via: "domain" }
+      : mailboxSends && ctx.email
+        ? { address: ctx.email, via: "mailbox" }
+        : { address: "updates@thesalesprogressor.co.uk", via: "platform" };
+
+  return { connections, userEmail: ctx.email, userDomainVerified: ctx.domainVerified, sendsFrom };
 }
 
 export type ConnectImapInput = {
@@ -166,6 +234,19 @@ export async function enableMailboxSending(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const conn = await prisma.imapConnection.findFirst({ where: { id, userId } });
   if (!conn) return { ok: false, error: "We couldn't find that connection." };
+
+  // Truth guards, mirrored in the UI (Law 13): sending only ever applies to
+  // the sign-in mailbox, and a DNS-verified domain already outranks it.
+  const ctx = await senderContext(userId);
+  if (!ctx.email || conn.email !== ctx.email) {
+    return {
+      ok: false,
+      error: `Your emails send from your sign-in address${ctx.email ? ` (${ctx.email})` : ""}. To send from this inbox instead, it needs to become your sign-in email. Contact us and we'll switch it.`,
+    };
+  }
+  if (ctx.domainVerified) {
+    return { ok: false, error: "Your emails already send from this address through your verified domain." };
+  }
 
   const settings = resolveSmtpSettings(conn.email, {
     host: conn.smtpHost,
