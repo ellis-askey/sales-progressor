@@ -661,18 +661,27 @@ function exchangeMeta(exchangeDate: Date | null): { text: string | null; tone: "
   return { text: `Exchange around ${fmtShortDate(exchangeDate)}`, tone: "muted" };
 }
 
-// On a "gone quiet" row the useful number is how long since the client last
-// engaged, not the exchange date (which has nothing to do with them going
-// quiet). Show when they last opened the portal; warn once it's been a while.
+// On a "gone quiet" row the useful context is WHEN the client last engaged, not
+// the exchange date (which has nothing to do with them going quiet). Each trigger
+// gets its own dated stamp; it turns warning-toned once it's been a while.
+function daysAgo(d: Date): number {
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+}
 function goneQuietMeta(i: {
   kind: string;
   lastPortalVisitAt: Date | null;
+  lastContactAt: Date | null;
+  portalSetupAt: Date | null;
 }): { text: string | null; tone: "muted" | "warning" } {
   if (i.kind === "portal_gone_quiet" && i.lastPortalVisitAt) {
-    const days = Math.floor((Date.now() - new Date(i.lastPortalVisitAt).getTime()) / 86400000);
-    return { text: `Last opened ${fmtShortDate(i.lastPortalVisitAt)}`, tone: days >= 21 ? "warning" : "muted" };
+    return { text: `Last opened ${fmtShortDate(i.lastPortalVisitAt)}`, tone: daysAgo(i.lastPortalVisitAt) >= 21 ? "warning" : "muted" };
   }
-  // no_portal_activity + long_silence already state their story in the subtext.
+  if (i.kind === "long_silence" && i.lastContactAt) {
+    return { text: `Last contact ${fmtShortDate(i.lastContactAt)}`, tone: daysAgo(i.lastContactAt) >= 21 ? "warning" : "muted" };
+  }
+  if (i.kind === "no_portal_activity" && i.portalSetupAt) {
+    return { text: `Set up ${fmtShortDate(i.portalSetupAt)}, never opened`, tone: daysAgo(i.portalSetupAt) >= 30 ? "warning" : "muted" };
+  }
   return { text: null, tone: "muted" };
 }
 

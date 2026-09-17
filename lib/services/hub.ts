@@ -551,10 +551,14 @@ export type GoneQuietItem = {
   lastContactDays: number | null;
   // Predicted exchange date (override ?? predicted) → the "how urgent" chip.
   exchangeDate: Date | null;
-  // The last day the quiet client opened the portal (portal_gone_quiet only).
-  // Drives the row's "Last opened …" line, which is the number that actually
-  // relates to a file going quiet. Null for the non-portal flags.
+  // Per-kind "when" stamps for the row's context line — the date that actually
+  // relates to why the file is flagged:
+  //   portal_gone_quiet → lastPortalVisitAt  ("Last opened …")
+  //   long_silence      → lastContactAt      ("Last contact …")
+  //   no_portal_activity→ portalSetupAt      ("Set up …, never opened")
   lastPortalVisitAt: Date | null;
+  lastContactAt: Date | null;
+  portalSetupAt: Date | null;
 };
 
 const GONE_QUIET_PILL: Record<string, string> = {
@@ -616,7 +620,8 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       transaction: {
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, lastActivityAt: true,
-          expectedExchangeDate: true, overridePredictedDate: true,
+          expectedExchangeDate: true, overridePredictedDate: true, createdAt: true,
+          activeBuyerRound: { select: { createdAt: true } },
           contacts: { select: { id: true, name: true, roleType: true } },
         },
       },
@@ -698,6 +703,8 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       lastContactDays: f.kind === "long_silence" ? lastContactDays : null,
       exchangeDate: tx.overridePredictedDate ?? tx.expectedExchangeDate ?? null,
       lastPortalVisitAt,
+      lastContactAt: tx.lastActivityAt ?? null,
+      portalSetupAt: tx.activeBuyerRound?.createdAt ?? tx.createdAt ?? null,
     });
   }
   return items;
