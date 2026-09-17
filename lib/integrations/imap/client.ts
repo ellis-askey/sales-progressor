@@ -175,6 +175,34 @@ function pickAutoReplyHeaders(headers: { get(key: string): unknown } | undefined
   return out;
 }
 
+// ─── Sent-folder append (mailbox sending) ────────────────────────────────────
+
+/**
+ * Append a just-sent message's raw MIME to the mailbox's Sent folder, so an
+ * email the app sent via SMTP shows up in the agent's own mail apps exactly
+ * like one they sent themselves. (SMTP submission alone doesn't file a Sent
+ * copy — mail apps do this same append.) Best-effort: returns false when the
+ * account has no recognisable Sent mailbox; callers must never fail the send
+ * over it. The one deliberate write on an otherwise read-only integration.
+ */
+export async function appendToSentMailbox(creds: ImapCreds, raw: Buffer): Promise<boolean> {
+  const client = makeClient(creds);
+  try {
+    await client.connect();
+    const boxes = await client.list();
+    const sentPath = findSentMailbox(boxes);
+    if (!sentPath) return false;
+    await client.append(sentPath, raw, ["\\Seen"]);
+    return true;
+  } finally {
+    try {
+      client.close();
+    } catch {
+      /* already down */
+    }
+  }
+}
+
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 // Which mailboxes to scan: INBOX plus any address-style folder (has a house
