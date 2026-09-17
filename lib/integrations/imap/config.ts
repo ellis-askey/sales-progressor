@@ -119,7 +119,7 @@ const PRESETS: Record<string, ImapProviderPreset> = {
     port: 993,
     secure: true,
     appPasswordUrl: "https://accounts.zoho.eu/home#security/security_password",
-    note: "Your eXp email runs on Zoho Mail. Needs an app-specific password from your Zoho account's security page (not your normal password) — no eXp sign-off needed.",
+    note: "Your eXp email runs on Zoho Mail. Needs an app-specific password from your Zoho account's security page (not your normal password). No eXp sign-off needed.",
   },
 };
 
