@@ -2689,6 +2689,14 @@ model OutlookConnection {
   // run. Only used when SENT_ITEMS_ENABLED. (Complete Email History.)
   lastSentSyncAt  DateTime?
 
+  // Health/observability (reconnect UX). lastSyncedAt = last successful sync;
+  // lastError = short reason for the most recent failure (null when healthy);
+  // needsReconnect = the sign-in is dead (refresh rejected) and the mailbox must
+  // be reconnected — drives the "Reconnect" prompt instead of a generic retry.
+  lastSyncedAt    DateTime?
+  lastError       String?
+  needsReconnect  Boolean  @default(false)
+
   // One row per (user, mailbox): reconnecting the same mailbox updates it,
   // a different mailbox adds a new row.
   @@unique([userId, microsoftUserId])

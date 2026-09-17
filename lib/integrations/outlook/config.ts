@@ -20,6 +20,17 @@ export const OUTLOOK_SCOPES = [
   "Mail.Send",
 ] as const;
 
+// Thrown when Microsoft rejects the refresh token (expired / revoked / consent
+// withdrawn). Signals the mailbox needs RECONNECTING — distinct from transient
+// (5xx / network) failures. The sync flow catches it to flag needsReconnect.
+export class OutlookAuthError extends Error {
+  readonly needsReconnect = true;
+  constructor(message: string) {
+    super(message);
+    this.name = "OutlookAuthError";
+  }
+}
+
 export const OUTLOOK_SCOPE_STRING = OUTLOOK_SCOPES.join(" ");
 
 type OutlookConfig = {
@@ -160,6 +171,14 @@ export async function refreshAccessToken(refreshToken: string): Promise<OutlookT
       if (data.error) code = data.error;
     } catch {
       /* ignore */
+    }
+    // A 4xx here means Microsoft rejected the refresh token itself (expired,
+    // revoked, consent withdrawn, "invalid_grant") — the sign-in is dead and the
+    // mailbox must be RECONNECTED. Distinguish it so the caller can flag reconnect
+    // rather than surfacing a generic "try again". 5xx / network errors are
+    // transient and stay a plain Error.
+    if (res.status >= 400 && res.status < 500) {
+      throw new OutlookAuthError(`[outlook] Token refresh rejected (${res.status}): ${code}`);
     }
     throw new Error(`[outlook] Token refresh failed (${res.status}): ${code}`);
   }

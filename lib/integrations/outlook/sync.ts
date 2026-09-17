@@ -25,6 +25,7 @@ import {
   listMailFolders,
   fetchFolderMessagesSince,
   fetchMessageById,
+  OutlookAuthError,
 } from "./config";
 
 // Re-export the shared types so existing importers of this module keep working.
@@ -79,6 +80,30 @@ async function getValidAccessToken(conn: ConnRow): Promise<string> {
 // ─── Public: full mailbox sync ────────────────────────────────────────────────
 
 export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promise<SyncSummary> {
+  try {
+    const summary = await runSync(conn, session);
+    // Healthy sync → record it and clear any prior failure/reconnect flag.
+    await prisma.outlookConnection
+      .update({ where: { id: conn.id }, data: { lastSyncedAt: new Date(), lastError: null, needsReconnect: false } })
+      .catch(() => { /* connection removed mid-sync — ignore */ });
+    return summary;
+  } catch (err) {
+    // A dead sign-in (refresh rejected) → flag for reconnect with a plain reason.
+    // Anything else is transient → record the reason but don't demand a reconnect.
+    const authDead = err instanceof OutlookAuthError;
+    await prisma.outlookConnection
+      .update({
+        where: { id: conn.id },
+        data: authDead
+          ? { needsReconnect: true, lastError: "Microsoft sign-in expired — reconnect this mailbox" }
+          : { lastError: (err as Error).message.slice(0, 300) },
+      })
+      .catch(() => {});
+    throw err;
+  }
+}
+
+async function runSync(conn: ConnRow, session: Session): Promise<SyncSummary> {
   const accessToken = await getValidAccessToken(conn);
   const scope = getAccessScope(session);
 

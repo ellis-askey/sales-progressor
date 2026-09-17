@@ -15,9 +15,29 @@ import { Mail, CheckCircle2, AlertTriangle, Loader2, Plus, RefreshCw } from "luc
 import type { SyncSummary } from "@/lib/integrations/outlook/sync";
 import { OutlookSyncResult } from "./OutlookSyncResult";
 
-type Connection = { id: string; email: string; displayName: string | null };
+type Connection = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  lastSyncedAt?: string | null;
+  lastError?: string | null;
+  needsReconnect?: boolean;
+};
 type RosterEntry = { label: string; email: string };
-type SyncState = { loading: boolean; summary?: SyncSummary; error?: boolean };
+type SyncState = { loading: boolean; summary?: SyncSummary; error?: boolean; reconnect?: boolean };
+
+// "synced 4m ago" / "synced 2h ago" / "synced 3d ago" — a quiet freshness line.
+function syncedAgo(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0) return "just now";
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
 type Status = {
   configured: boolean;
@@ -89,7 +109,11 @@ export function OutlookConnectionCard() {
         body: JSON.stringify({ connectionId }),
       });
       if (!res.ok) {
-        setSync((s) => ({ ...s, [connectionId]: { loading: false, error: true } }));
+        // 409 = dead sign-in → prompt reconnect, not a generic retry. Reload
+        // status so the row flips to its "reconnect" state too.
+        const reconnect = res.status === 409;
+        setSync((s) => ({ ...s, [connectionId]: { loading: false, error: true, reconnect } }));
+        if (reconnect) load();
         return;
       }
       const data = (await res.json()) as { summary: SyncSummary };
@@ -145,9 +169,56 @@ export function OutlookConnectionCard() {
     );
   };
 
+  const reconnectBtn = (email: string) => (
+    <a
+      href={connectHref(email)}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-colors hover:bg-amber-500"
+    >
+      <RefreshCw className="h-3.5 w-3.5" />
+      Reconnect
+    </a>
+  );
+
+  // The right-hand cluster for a connected mailbox: reconnect prompt when the
+  // sign-in is dead, otherwise Connected + freshness + Sync + Disconnect.
+  const connectedCluster = (conn: Connection) => {
+    const flagged = conn.needsReconnect || sync[conn.id]?.reconnect;
+    if (flagged) {
+      return (
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Reconnect needed
+          </span>
+          {reconnectBtn(conn.email)}
+          {disconnectBtn(conn.id)}
+        </div>
+      );
+    }
+    const ago = syncedAgo(conn.lastSyncedAt);
+    return (
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Connected
+        </span>
+        {ago && <span className="text-[11.5px] text-neutral-500">· synced {ago}</span>}
+        {syncBtn(conn.id)}
+        {disconnectBtn(conn.id)}
+      </div>
+    );
+  };
+
   const syncResultLine = (id: string) => {
     const st = sync[id];
     if (!st || st.loading) return null;
+    if (st.reconnect) {
+      return (
+        <p className="mt-2 text-[12px] text-amber-300">
+          Microsoft sign-in expired — reconnect this mailbox to resume syncing.
+        </p>
+      );
+    }
     if (st.error) {
       return (
         <p className="mt-2 text-[12px] text-red-300">
@@ -219,14 +290,7 @@ export function OutlookConnectionCard() {
                               <p className="truncate text-[12px] text-neutral-500">{entry.email}</p>
                             </div>
                             {conn ? (
-                              <div className="flex shrink-0 items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-400">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  Connected
-                                </span>
-                                {syncBtn(conn.id)}
-                                {disconnectBtn(conn.id)}
-                              </div>
+                              connectedCluster(conn)
                             ) : (
                               <a
                                 href={connectHref(entry.email)}
@@ -261,10 +325,7 @@ export function OutlookConnectionCard() {
                                 </p>
                               )}
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              {syncBtn(c.id)}
-                              {disconnectBtn(c.id)}
-                            </div>
+                            {connectedCluster(c)}
                           </div>
                           {syncResultLine(c.id)}
                         </li>

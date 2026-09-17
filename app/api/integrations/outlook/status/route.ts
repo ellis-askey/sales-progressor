@@ -15,7 +15,10 @@ export async function GET() {
   const [connections, roster] = await Promise.all([
     prisma.outlookConnection.findMany({
       where: { userId: session.user.id },
-      select: { id: true, email: true, displayName: true, createdAt: true },
+      select: {
+        id: true, email: true, displayName: true, createdAt: true,
+        lastSyncedAt: true, lastError: true, needsReconnect: true,
+      },
       orderBy: { createdAt: "asc" },
     }),
     getOutlookRoster({

@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { requireSession, forbidViewer } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { syncOutlookMailbox } from "@/lib/integrations/outlook/sync";
+import { OutlookAuthError } from "@/lib/integrations/outlook/config";
 
 export async function POST(req: Request) {
   const session = await requireSession();
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, summary });
   } catch (err) {
     console.error("[outlook] sync failed:", (err as Error).message);
+    // A dead sign-in is reported distinctly so the UI can prompt "Reconnect"
+    // instead of a generic "try again". syncOutlookMailbox has already flagged
+    // needsReconnect on the connection.
+    if (err instanceof OutlookAuthError) {
+      return NextResponse.json({ error: "reconnect_required", needsReconnect: true }, { status: 409 });
+    }
     return NextResponse.json({ error: "sync_failed" }, { status: 502 });
   }
 }
