@@ -1847,6 +1847,13 @@ export async function getHubAttentionItems(
         txLogFilter,
         {
           exchangedAt: null,
+          // Skip files whose exchange nag is snoozed into the future.
+          OR: [
+            { exchangeReminderSnoozedUntil: null },
+            { exchangeReminderSnoozedUntil: { lte: now } },
+          ],
+        },
+        {
           OR: [
             { overridePredictedDate: { lt: now } },
             { overridePredictedDate: null, expectedExchangeDate: { lt: now } },
@@ -1860,6 +1867,7 @@ export async function getHubAttentionItems(
       photoStoragePath: true,
       expectedExchangeDate: true,
       overridePredictedDate: true,
+      exchangeReminderSnoozedUntil: true,
       exchangedAt: true,
       milestoneCompletions: {
         where: { state: "complete", completedAt: { not: null } },
@@ -1875,6 +1883,7 @@ export async function getHubAttentionItems(
       expectedExchangeDate: tx.expectedExchangeDate,
       overridePredictedDate: tx.overridePredictedDate,
       lastMilestoneConfirmedAt: tx.milestoneCompletions[0]?.completedAt ?? null,
+      snoozedUntil: tx.exchangeReminderSnoozedUntil,
       now,
     });
     if (!stuck || !passedDate) continue;

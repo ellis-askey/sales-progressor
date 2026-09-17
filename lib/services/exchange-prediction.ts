@@ -155,10 +155,13 @@ export function isExchangeOverdueStuck(args: {
   expectedExchangeDate: Date | null;
   overridePredictedDate: Date | null;
   lastMilestoneConfirmedAt: Date | null;
+  // Agent snoozed the nag from the hub — suppress until it lapses.
+  snoozedUntil?: Date | null;
   now?: Date;
 }): { stuck: boolean; passedDate: Date | null } {
   const now = args.now ?? new Date();
   if (args.exchangedAt) return { stuck: false, passedDate: null };
+  if (args.snoozedUntil && args.snoozedUntil > now) return { stuck: false, passedDate: null };
 
   const effective = args.overridePredictedDate ?? args.expectedExchangeDate;
   if (!effective) return { stuck: false, passedDate: null };

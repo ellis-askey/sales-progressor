@@ -18,6 +18,7 @@ import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeG
 import { logActivity } from "@/lib/services/activity";
 import { postExchangeDateUpdateToClients } from "@/lib/services/portal";
 import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
+import { refreshExpectedExchangeDate } from "@/lib/services/exchange-prediction";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
 import { splitChainAtBoundary } from "@/lib/chain/split";
@@ -1043,6 +1044,59 @@ export async function reviseOverdueExchangeDateAction(input: {
 
   revalidateTx(input.transactionId);
   revalidatePath("/agent/hub", "page");
+}
+
+// Hub "Exchange date passed" quick-action: RECALIBRATE. Drop any manual override
+// and re-run the system estimate from today (which pushes the date forward off
+// the remaining critical path), so a file you're still working stops nagging with
+// a fresh, honest estimate rather than a fake set date.
+export async function recalibrateExchangeDateAction(transactionId: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { overridePredictedDate: null, exchangeReminderSnoozedUntil: null },
+  });
+  const predicted = await refreshExpectedExchangeDate(transactionId).catch(() => null);
+  const dateStr = predicted
+    ? predicted.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+  await logActivity(
+    transactionId,
+    dateStr
+      ? `${session.user.name} recalibrated the expected exchange date to ${dateStr}`
+      : `${session.user.name} recalibrated the expected exchange date`,
+    session.user.id,
+  );
+  revalidateTx(transactionId);
+  revalidatePath("/agent/hub", "page");
+  return { ok: true };
+}
+
+// Hub "Exchange date passed" quick-action: SNOOZE. Suppress the nag for a few
+// working days without setting a fake date — for "I'm on it, check back later".
+export async function snoozeExchangeReminderAction(transactionId: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const until = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000); // ~4 days
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { exchangeReminderSnoozedUntil: until },
+  });
+  revalidatePath("/agent/hub", "page");
+  return { ok: true };
 }
 
 export async function saveAgentFeeAction(input: {

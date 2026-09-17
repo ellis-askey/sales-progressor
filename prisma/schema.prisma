@@ -414,6 +414,10 @@ model PropertyTransaction {
   twelveWeekTarget            DateTime?
   predictedExchangeDate       DateTime?
   overridePredictedDate       DateTime?
+  // Snooze on the "Exchange date passed" hub reminder: while this is in the
+  // future the file drops off the overdue list without a fake date. Set from the
+  // hub action; cleared naturally when it lapses.
+  exchangeReminderSnoozedUntil DateTime?
   completionDate              DateTime?
   agentFeeAmount              Int?
   agentFeePercent             Decimal?

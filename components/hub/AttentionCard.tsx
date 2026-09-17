@@ -34,6 +34,7 @@ import Link from "next/link";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { ExchangeOverdueActions } from "@/components/hub/ExchangeOverdueActions";
 import {
   Warning,
   CaretDown,
@@ -794,6 +795,33 @@ function AttentionRow({
   );
 
   if (row.kind === "reminder") {
+    // The synthetic "Exchange date passed" item (id "xovr-…") is actionable: a
+    // ▾ dropdown to set a new date / recalibrate / snooze, and its address links
+    // to the file Overview (where the revise banner lives) — not the Reminders
+    // tab. Every OTHER reminder stays a pure link into the Reminders tab.
+    if (row.item.id.startsWith("xovr-")) {
+      return (
+        <div style={rowStyle} className="agent-hover-row">
+          <PropertyThumb photoUrl={row.item.photoUrl} />
+          <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <Link
+                href={`/agent/transactions/${txId}`}
+                className="hover:underline"
+                style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {address}
+              </Link>
+              <TypePill label={pill.label} tone={tone} title={pill.title} />
+            </div>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {secondary}
+            </p>
+          </div>
+          <ExchangeOverdueActions transactionId={txId} />
+        </div>
+      );
+    }
     return (
       <Link href={href} style={{ ...rowStyle, textDecoration: "none" }} className="agent-hover-row">
         {body}
