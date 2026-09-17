@@ -3,23 +3,27 @@
 // Hub card: provisional survey / lender-valuation bookings a client logged on
 // their portal that our side hasn't confirmed yet. Built to match HubListCard
 // (full-width flush rows, left accent bar + tint, real photo with house-glyph
-// fallback, slide open/close, auto-animated row removal). Unlike the gone-quiet
-// / mortgage cards it carries a Confirm flow, not a Dismiss: each row expands to
-// an access question (keys from us?) + a date the confirmer can correct, then
-// releases the held client emails via confirmProvisionalBookingAction.
+// fallback, slide open/close, auto-animated row removal).
 //
-// Empty list → renders nothing, matching the other lower hub cards.
-// See docs/active/booking-reminders/00-plan.md.
+// Each row is a SPLIT action (like the enquiries button): a primary "Confirm"
+// that opens the date/keys panel, plus a ▾ chevron that reveals the other honest
+// outcomes so a client's provisional log never forces a misleading email:
+//   - Confirm booking      → notify buyer + seller with the date (+ past-date warning)
+//   - Desktop valuation     → PM6 only: correct remote wording, no seller access line
+//   - Log it, don't email   → record it, no client comms
+//   - Not a real booking    → PM9 only: mark not required (+ cascade), one note, no emails
+//
+// Empty list → renders nothing. See docs/active/booking-reminders/00-plan.md.
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { CalendarCheck, CaretDown } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { confirmProvisionalBookingAction } from "@/app/actions/booking-confirmation";
+import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
 
 export type BookingConfirmRow = {
@@ -41,13 +45,15 @@ const ICON_BG = "rgba(var(--agent-coral-base-rgb),0.12)";
 const ICON_COLOR = "var(--agent-coral-deep)";
 
 const INITIAL_VISIBLE = 6;
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConfirmRow[] }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<BookingConfirmRow[]>(initialRows);
   const [collapsed, setCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);   // confirm panel open
+  const [menuId, setMenuId] = useState<string | null>(null);   // ▾ options open
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [listRef] = useAutoAnimate<HTMLDivElement>();
@@ -57,25 +63,30 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
   const shown = showAll ? rows : rows.slice(0, INITIAL_VISIBLE);
   const hiddenCount = rows.length - shown.length;
 
-  function confirm(row: BookingConfirmRow, keyCollectionRequired: boolean, eventDate: string | null) {
+  const TOASTS: Record<BookingOutcome, { title: string; description: string }> = {
+    confirm: { title: "Booking confirmed", description: "We've let the client and the seller know." },
+    desktop: { title: "Logged as a desktop valuation", description: "The buyer's been told it's remote; the seller wasn't notified." },
+    silent: { title: "Logged", description: "Recorded on the file. No emails sent to clients." },
+    not_required: { title: "Marked not required", description: "Cleared from the file. You can undo this any time." },
+  };
+
+  function resolve(row: BookingConfirmRow, outcome: BookingOutcome, opts?: { keys?: boolean; date?: string | null }) {
     setBusyId(row.transactionId);
+    setMenuId(null);
     startTransition(async () => {
       try {
         const res = await confirmProvisionalBookingAction({
           transactionId: row.transactionId,
           milestoneDefinitionId: row.milestoneDefinitionId,
-          keyCollectionRequired,
-          eventDate,
+          keyCollectionRequired: opts?.keys ?? false,
+          eventDate: opts?.date ?? null,
+          outcome,
         });
-        if (res.ok) {
-          setRows((prev) => prev.filter((r) => r.transactionId !== row.transactionId));
-          toast.success("Booking confirmed", { description: "We've let the client and the seller know." });
-        } else {
-          toast.error("This booking was already confirmed.");
-          setRows((prev) => prev.filter((r) => r.transactionId !== row.transactionId));
-        }
+        setRows((prev) => prev.filter((r) => r.transactionId !== row.transactionId));
+        if (res.ok) toast.success(TOASTS[outcome].title, { description: TOASTS[outcome].description });
+        else toast.error("This booking was already handled.");
       } catch {
-        toast.error("Couldn't confirm. Try again.");
+        toast.error("Couldn't do that. Try again.");
       } finally {
         setBusyId((cur) => (cur === row.transactionId ? null : cur));
       }
@@ -116,6 +127,8 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
           <div ref={listRef}>
             {shown.map((row, i) => {
               const isOpen = openId === row.transactionId;
+              const isMenu = menuId === row.transactionId;
+              const busy = busyId === row.transactionId;
               return (
                 <div
                   key={row.transactionId}
@@ -136,22 +149,56 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
                         {row.subtext}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(isOpen ? null : row.transactionId)}
-                      disabled={busyId === row.transactionId}
-                      className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: "auto" }}
-                    >
-                      {isOpen ? "Close" : "Confirm"}
-                    </button>
+
+                    {/* Split action: Confirm + ▾ */}
+                    <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => { setOpenId(isOpen ? null : row.transactionId); setMenuId(null); }}
+                        disabled={busy}
+                        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                      >
+                        {isOpen ? "Close" : "Confirm"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setMenuId(isMenu ? null : row.transactionId); setOpenId(null); }}
+                        disabled={busy}
+                        aria-label="More options"
+                        aria-expanded={isMenu}
+                        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 7px", borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }}
+                      >
+                        <CaretDown size={13} weight="bold" style={{ transition: "transform 180ms", transform: isMenu ? "rotate(180deg)" : "none" }} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* ▾ options (inline reveal so nothing gets clipped) */}
+                  {isMenu && (
+                    <div className="agent-reveal-in" style={{ display: "flex", flexDirection: "column", padding: "0 20px 12px 20px", gap: 2 }}>
+                      {row.kind === "valuation" && (
+                        <OutcomeItem icon={<DesktopTower size={15} weight="bold" />} title="Desktop valuation (no visit)"
+                          sub="Remote valuation. Buyer told it's desktop; seller not notified." disabled={busy}
+                          onClick={() => resolve(row, "desktop")} />
+                      )}
+                      <OutcomeItem icon={<EnvelopeSimpleOpen size={15} weight="bold" />} title="Log it, don't email"
+                        sub="Record it on the file. No emails go to clients." disabled={busy}
+                        onClick={() => resolve(row, "silent")} />
+                      {row.kind === "survey" && (
+                        <OutcomeItem icon={<Prohibit size={15} weight="bold" />} title="Not a real booking"
+                          sub="Mark the survey not required. Clears it (reversible). No emails." disabled={busy} danger
+                          onClick={() => resolve(row, "not_required")} />
+                      )}
+                    </div>
+                  )}
 
                   {isOpen && (
                     <ConfirmPanel
                       row={row}
-                      busy={busyId === row.transactionId}
-                      onConfirm={(keys, date) => confirm(row, keys, date)}
+                      busy={busy}
+                      onConfirm={(keys, date) => resolve(row, "confirm", { keys, date })}
                     />
                   )}
                 </div>
@@ -174,6 +221,30 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
   );
 }
 
+function OutcomeItem({
+  icon, title, sub, onClick, disabled, danger,
+}: { icon: React.ReactNode; title: string; sub: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="agent-hover-row"
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 9, width: "100%", textAlign: "left",
+        padding: "8px 10px", borderRadius: 8, border: "0.5px solid var(--agent-border-subtle)",
+        background: "var(--agent-surface-glass)", cursor: disabled ? "default" : "pointer",
+      }}
+    >
+      <span aria-hidden style={{ color: danger ? "#b91c1c" : "var(--agent-coral-deep)", marginTop: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: danger ? "#b91c1c" : "var(--agent-text-primary)" }}>{title}</span>
+        <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.35, marginTop: 1 }}>{sub}</span>
+      </span>
+    </button>
+  );
+}
+
 function ConfirmPanel({
   row,
   busy,
@@ -187,11 +258,10 @@ function ConfirmPanel({
   const [date, setDate] = useState<string>(row.eventDateISO ?? "");
 
   const noun = row.kind === "valuation" ? "valuer" : "surveyor";
+  const isPast = !!date && date < todayISO();
 
   return (
     <div className="agent-reveal-in" style={{ padding: "16px 20px 14px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Date + keys sit side by side when there's room (40px apart); the keys
-          row wraps underneath on narrow widths. */}
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", columnGap: 40, rowGap: 12 }}>
         <div>
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginBottom: 4 }}>
@@ -209,6 +279,15 @@ function ConfirmPanel({
           {`${noun.charAt(0).toUpperCase()}${noun.slice(1)} collecting keys from us`}
         </label>
       </div>
+
+      {/* Past-date guard: confirming still works, but warn so we don't announce a
+          "will attend / access arranged" visit for a date that's already gone. */}
+      {isPast && (
+        <p style={{ margin: 0, fontSize: 11.5, color: "#b45309", lineHeight: 1.4 }}>
+          This date has passed. If it was a remote/desktop valuation or already happened, use the ▾ menu (Desktop valuation / Log it, don&apos;t email) so we don&apos;t email clients about a visit that&apos;s in the past.
+        </p>
+      )}
+
       <div style={{ display: "flex", gap: 8 }}>
         <button
           type="button"

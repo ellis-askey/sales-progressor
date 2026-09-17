@@ -1185,7 +1185,17 @@ export async function releaseProvisionalBooking(input: {
   milestoneDefinitionId: string;
   keyCollectionRequired: boolean;
   eventDate?: string | null;
+  // What the confirmer chose:
+  //  - "confirm" (default): real booking → notify buyer + seller with the date.
+  //  - "desktop": a lender desktop valuation, no physical visit → the buyer gets
+  //    the desktop wording and the seller gets no "access arranged" line (PM6).
+  //  - "silent": log it for the record, send NO client emails (already happened,
+  //    or a low-key one the client shouldn't be re-notified about).
+  outcome?: "confirm" | "desktop" | "silent";
+  actingUserId?: string | null;
+  actingUserName?: string | null;
 }): Promise<{ ok: boolean }> {
+  const outcome = input.outcome ?? "confirm";
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
     select: { code: true, name: true },
@@ -1203,16 +1213,34 @@ export async function releaseProvisionalBooking(input: {
   // Already released (or never provisional) — nothing to do.
   if (!row) return { ok: false };
 
-  const effectiveEventDate = input.eventDate ? new Date(input.eventDate) : row.eventDate;
+  // A desktop valuation has no visit date — clearing it flips the copy to the
+  // desktop wording (buyer) and drops the seller "access arranged" line.
+  const desktop = outcome === "desktop";
+  const effectiveEventDate = desktop ? null : input.eventDate ? new Date(input.eventDate) : row.eventDate;
 
   await prisma.milestoneCompletion.update({
     where: { id: row.id },
     data: {
       awaitingBookingConfirmation: false,
-      keyCollectionRequired: input.keyCollectionRequired,
-      ...(input.eventDate ? { eventDate: new Date(input.eventDate) } : {}),
+      keyCollectionRequired: desktop ? false : input.keyCollectionRequired,
+      ...(desktop ? { eventDate: null } : input.eventDate ? { eventDate: new Date(input.eventDate) } : {}),
     },
   });
+
+  // "Log it, don't email": the step is now confirmed for the record, but no
+  // client comms go out. Leave a single internal note so the file shows why.
+  if (outcome === "silent") {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "internal_note",
+        contactIds: [],
+        content: `${input.actingUserName || "Someone"} logged the ${getMilestoneCopy(def.code).label.toLowerCase()} without notifying clients.`,
+        createdById: input.actingUserId ?? null,
+      },
+    }).catch(() => {});
+    return { ok: true };
+  }
 
   // Attribution for the released client emails — the client who logged it.
   let contactName = "your client";
