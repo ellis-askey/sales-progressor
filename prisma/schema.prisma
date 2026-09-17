@@ -2735,6 +2735,21 @@ model ImapConnection {
   // Sent-Items capture cursor (Phase 2). See OutlookConnection.lastSentSyncAt.
   lastSentSyncAt DateTime?
 
+  // ── Sending (SMTP). Same mailbox, same app-password, the provider's own
+  // submission server — so an agent whose domain can never be SendGrid-verified
+  // (e.g. eXp UK, where IT won't touch DNS) still sends as their real address.
+  // sendEnabled is only ever true after verifySmtpLogin has passed
+  // (smtpVerifiedAt stamps when). smtpLastError powers the reconnect nudge;
+  // smtpFailCount counts CONSECUTIVE send-time auth failures so the send path
+  // can auto-disable a revoked password rather than fail every email forever.
+  sendEnabled    Boolean   @default(false)
+  smtpHost       String?
+  smtpPort       Int       @default(465)
+  smtpSecure     Boolean   @default(true) // implicit TLS (465); false = STARTTLS (587)
+  smtpVerifiedAt DateTime?
+  smtpLastError  String?
+  smtpFailCount  Int       @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
