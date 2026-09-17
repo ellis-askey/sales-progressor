@@ -25,14 +25,19 @@ The agent app's CSS already defines 69+ canonical hover/focus/active rules acros
 
 [`agent-system.css:296–313`](../../app/agent/styles/agent-system.css). Apply to any solid-fill primary CTA.
 
-### 2. Row hover — tint wash
+### 2. Row hover — lift bubble (replaced the coral tint wash, 2026-09-17)
 
 ```css
-.agent-hover-row { transition: background-color 150ms ease; }
-.agent-hover-row:hover { background-color: var(--agent-hover-tint); }
+.agent-hover-row { transition: background-color 150ms ease, box-shadow 150ms ease; }
+.agent-hover-row:hover { background-color: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
 ```
 
-[`agent-system.css:1299–1300`](../../app/agent/styles/agent-system.css). Apply to list rows, table rows, hub action cards. For warning-coded rows: `.agent-hover-row-warning` ([L1316–1317](../../app/agent/styles/agent-system.css)).
+The row brightens to near-white (`--agent-hover-tint`, neutral in every theme)
+and rises on the `--agent-hover-lift` shadow. Apply to list rows, table rows,
+hub action cards, menu/popover items. **Small controls (icon buttons, chips,
+pills) take the tint only — no lift shadow on tiny elements.** For
+warning-coded rows: `.agent-hover-row-warning` (semantic amber, unchanged).
+Values + application rule: [DESIGN_TOKENS.md](DESIGN_TOKENS.md) § Hover / interactive tints.
 
 ### 3. Link — underline + colour shift
 
