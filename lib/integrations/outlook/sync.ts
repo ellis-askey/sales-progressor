@@ -95,7 +95,7 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
       .update({
         where: { id: conn.id },
         data: authDead
-          ? { needsReconnect: true, lastError: "Microsoft sign-in expired — reconnect this mailbox" }
+          ? { needsReconnect: true, lastError: "Microsoft sign-in expired. Reconnect this mailbox." }
           : { lastError: (err as Error).message.slice(0, 300) },
       })
       .catch(() => {});

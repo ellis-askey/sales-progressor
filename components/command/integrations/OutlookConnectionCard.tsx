@@ -215,7 +215,7 @@ export function OutlookConnectionCard() {
     if (st.reconnect) {
       return (
         <p className="mt-2 text-[12px] text-amber-300">
-          Microsoft sign-in expired — reconnect this mailbox to resume syncing.
+          Microsoft sign-in expired. Reconnect this mailbox to resume syncing.
         </p>
       );
     }
