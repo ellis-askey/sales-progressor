@@ -20,20 +20,9 @@ import { appendToSentMailbox } from "@/lib/integrations/imap/client";
 import { sendSmtpMessage, type SmtpMessage } from "./client";
 import type { ImapConnection } from "@prisma/client";
 
-/**
- * The send-enabled, SMTP-verified connection for a bare email address, or null.
- * This is the routing lookup: "does this From address have its own mailbox?"
- * Most recently verified wins if the same mailbox is somehow connected twice
- * (it's unique per user, but two users could in theory connect a shared inbox).
- */
-export async function findSendMailboxForAddress(address: string | null | undefined): Promise<ImapConnection | null> {
-  const email = address?.trim().toLowerCase();
-  if (!email || !email.includes("@")) return null;
-  return prisma.imapConnection.findFirst({
-    where: { email, sendEnabled: true, smtpVerifiedAt: { not: null } },
-    orderBy: { smtpVerifiedAt: "desc" },
-  });
-}
+// The routing lookup lives in ./mailbox-lookup (light import, no transport
+// chain); this module is the heavy half that actually sends.
+export { findSendMailboxForAddress } from "./mailbox-lookup";
 
 export type MailboxSendOutcome =
   | { ok: true }

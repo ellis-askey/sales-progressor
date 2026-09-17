@@ -121,6 +121,95 @@ export function isTransientSendError(err: unknown): boolean {
   return false;
 }
 
+// ─── Mailbox routing (agent-connected SMTP) ──────────────────────────────────
+//
+// When the resolved From address belongs to a send-enabled connected mailbox
+// (ImapConnection.sendEnabled — e.g. an eXp UK agent whose domain can never be
+// SendGrid-verified because their IT won't touch DNS), the email goes out
+// through that mailbox's own SMTP server instead of SendGrid: genuinely from
+// the agent's account, DKIM-signed by their real mail host, with a copy filed
+// to their Sent folder. On ANY mailbox failure we fall back to SendGrid from
+// our shared address (reply-to the agent's own) in the same call, so a client
+// email never dies on a mailbox hiccup — the bulletproof-sender promise.
+//
+// Deliberate trade-offs for mailbox sends: no SendGrid categories/customArgs
+// (no open/bounce analytics), no ASM unsubscribe group, no open tracking.
+// The transport chain is lazy-imported so scripts/tests that never hit a
+// mailbox route don't load nodemailer/imapflow.
+
+function bareEmailAddress(from: string): string {
+  const m = from.match(/<([^>]+)>/);
+  return (m ? m[1] : from).trim().toLowerCase();
+}
+
+function swapAddress(from: string, newAddress: string): string {
+  // Keep the display name, swap the address: "Danny at eXp <a@b>" → "<a@c>".
+  const m = from.match(/^(.*)<[^>]+>\s*$/);
+  return m && m[1].trim() ? `${m[1].trim()} <${newAddress}>` : newAddress;
+}
+
+type MailboxRouteAttempt =
+  | { routed: false }
+  | { routed: true; sent: true }
+  | { routed: true; sent: false; fallbackFrom: string; fallbackReplyTo: string };
+
+async function tryMailboxRoute(msg: {
+  to: string;
+  cc?: string[];
+  bcc?: string;
+  subject: string;
+  text: string;
+  html?: string;
+  from: string;
+  replyTo?: string;
+  messageId?: string;
+  attachments?: EmailAttachment[];
+}): Promise<MailboxRouteAttempt> {
+  const addr = bareEmailAddress(msg.from);
+  if (!addr.includes("@")) return { routed: false };
+
+  // Lookup failures (DB blip, module load) mean NO routing — the send proceeds
+  // exactly as today, with its original From. Only a failure after a mailbox
+  // was actually found may rewrite the sender for the fallback.
+  let mailbox: Awaited<ReturnType<typeof import("@/lib/integrations/smtp/mailbox-lookup").findSendMailboxForAddress>>;
+  try {
+    const { findSendMailboxForAddress } = await import("@/lib/integrations/smtp/mailbox-lookup");
+    mailbox = await findSendMailboxForAddress(addr);
+  } catch {
+    return { routed: false };
+  }
+  if (!mailbox) return { routed: false };
+
+  try {
+    const { sendViaMailboxConnection } = await import("@/lib/integrations/smtp/send");
+    const outcome = await sendViaMailboxConnection(mailbox, {
+      from: msg.from,
+      to: msg.to,
+      cc: msg.cc,
+      bcc: msg.bcc,
+      replyTo: msg.replyTo,
+      subject: msg.subject,
+      text: msg.text,
+      html: msg.html,
+      messageId: msg.messageId,
+      attachments: msg.attachments,
+    });
+    if (outcome.ok) return { routed: true, sent: true };
+    console.warn(`[email] mailbox send failed for ${addr} (${outcome.error}) — falling back to SendGrid`);
+  } catch (err) {
+    console.warn(`[email] mailbox route errored for ${addr} — falling back to SendGrid`, err);
+  }
+  // Fallback: our shared verified address keeps the display name; replies still
+  // reach the agent's own inbox. Mirrors the unverified-domain tier in
+  // lib/email/agency-sender.ts.
+  return {
+    routed: true,
+    sent: false,
+    fallbackFrom: swapAddress(msg.from, "updates@thesalesprogressor.co.uk"),
+    fallbackReplyTo: msg.replyTo ?? addr,
+  };
+}
+
 export async function sendEmail({
   to,
   cc,
@@ -165,7 +254,10 @@ export async function sendEmail({
   }
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
-  return sgMail.send(applyDevEmailRedirect({
+
+  // Dev-redirect first so a mailbox route can never reach a real recipient
+  // from localhost either; then try the agent's own mailbox before SendGrid.
+  const msg = applyDevEmailRedirect({
     to,
     cc: cc && cc.length ? cc : undefined,
     from: from ?? DEFAULT_FROM,
@@ -173,11 +265,21 @@ export async function sendEmail({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
+  });
+  const route = await tryMailboxRoute({ ...msg, messageId, attachments });
+  if (route.routed && route.sent) return;
+  const sendFrom = route.routed && !route.sent ? route.fallbackFrom : msg.from;
+  const sendReplyTo = route.routed && !route.sent ? route.fallbackReplyTo : msg.replyTo;
+
+  return sgMail.send({
+    ...msg,
+    from: sendFrom,
+    replyTo: sendReplyTo,
     ...(attachments && attachments.length ? { attachments } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
     ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
-  }));
+  });
 }
 
 // Platform-level chain notification emails (withdrawal, exchange, completion, celebration).
@@ -252,7 +354,10 @@ export async function sendChainEmail({
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
 
-  await sgMail.send(applyDevEmailRedirect({
+  // Dev-redirect first (as in sendEmail), then try the agent's own mailbox.
+  // Sandbox mode stays on the SendGrid path — validate-without-delivering is a
+  // SendGrid feature with no SMTP equivalent.
+  const msg = applyDevEmailRedirect({
     to,
     ...(cc && cc.length ? { cc } : {}),
     from: from ?? DEFAULT_FROM,
@@ -261,13 +366,29 @@ export async function sendChainEmail({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
+  });
+  let sendFrom = msg.from;
+  let sendReplyTo = msg.replyTo;
+  if (!isSandbox) {
+    const route = await tryMailboxRoute({ ...msg, messageId });
+    if (route.routed && route.sent) return;
+    if (route.routed && !route.sent) {
+      sendFrom = route.fallbackFrom;
+      sendReplyTo = route.fallbackReplyTo;
+    }
+  }
+
+  await sgMail.send({
+    ...msg,
+    from: sendFrom,
+    replyTo: sendReplyTo,
     ...(asmGroupId ? { asm: { groupId: asmGroupId } } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
     ...(trackOpens ? { trackingSettings: { openTracking: { enable: true } } } : {}),
     ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
-  }));
+  });
 }
 
 // Returns true if this user has globally unsubscribed from all platform emails.

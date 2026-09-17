@@ -13,6 +13,7 @@
 // that represents agency correspondence.
 
 import { prisma } from "@/lib/prisma";
+import { findSendMailboxForAddress } from "@/lib/integrations/smtp/mailbox-lookup";
 import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
@@ -217,6 +218,20 @@ export async function resolveAgencySenderForTransaction(
     if (authed) {
       const from = persona === "personal" ? actingEmail : `updates@${actingDomain}`;
       return { from: buildFrom(display, from), replyTo: actingEmail, canReply: true, ...logo };
+    }
+
+    // ── Mailbox tier: no SendGrid-verified domain, but the agent's own login
+    // address is a connected mailbox that can SEND (ImapConnection.sendEnabled —
+    // e.g. an eXp UK agent whose domain can never be DNS-verified). Their real
+    // address for BOTH personas: there is no updates@ mailbox on a domain we
+    // don't control, and mail that is genuinely theirs is the whole point.
+    // lib/email.ts routes the actual send through the mailbox's own SMTP server
+    // when From matches it, falling back to our shared address on any failure.
+    // Deliberately BELOW the verified-domain tier so agencies with SendGrid
+    // authentication keep today's behaviour unchanged.
+    const mailbox = await findSendMailboxForAddress(actingEmail);
+    if (mailbox) {
+      return { from: buildFrom(display, actingEmail), replyTo: actingEmail, canReply: true, ...logo };
     }
   }
 
