@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning } from "@phosphor-icons/react";
+import { OutlookLogo } from "./provider-logos";
 
 type Connection = { id: string; email: string; displayName: string | null };
 type Status = { configured: boolean; connections: Connection[] };
@@ -106,9 +107,7 @@ export function AccountConnectionsCard() {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
-          <EnvelopeSimple size={20} weight="bold" style={{ color: CORAL }} />
-        </div>
+        <OutlookLogo size={40} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
