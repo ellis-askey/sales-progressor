@@ -68,11 +68,62 @@ export async function sendViaMailboxConnection(conn: ImapConnection, msg: SmtpMe
     return { ok: true };
   }
 
-  await prisma.imapConnection
-    .update({
+  let failCount = conn.smtpFailCount + 1;
+  try {
+    const stamped = await prisma.imapConnection.update({
       where: { id: conn.id },
       data: { smtpFailCount: { increment: 1 }, smtpLastError: result.error },
-    })
-    .catch(() => {});
+    });
+    failCount = stamped.smtpFailCount;
+  } catch {
+    /* health stamping is best-effort */
+  }
+
+  // A revoked/removed app-password can't fix itself: after consecutive auth
+  // failures, stop trying (every send would fail + fall back anyway), tell the
+  // agent, and let the send path's SendGrid fallback carry their mail until
+  // they reconnect. Two strikes, not one, in case a provider mislabels a
+  // transient hiccup as an auth problem.
+  if (result.authFailure && failCount >= AUTH_FAILURES_BEFORE_DISABLE) {
+    await disableSendingAndNotify(conn).catch(() => {});
+  }
+
   return { ok: false, error: result.error, authFailure: result.authFailure, transient: result.transient };
+}
+
+const AUTH_FAILURES_BEFORE_DISABLE = 2;
+
+/**
+ * Switch sending off for a connection whose app-password stopped working, and
+ * email the owner so they know their mail now goes out from our shared address
+ * (replies still reaching them) until they reconnect. The guarded updateMany
+ * makes this idempotent: only the call that actually flips the switch sends
+ * the notification, so the agent is never nagged twice.
+ */
+async function disableSendingAndNotify(conn: ImapConnection): Promise<void> {
+  const flipped = await prisma.imapConnection.updateMany({
+    where: { id: conn.id, sendEnabled: true },
+    data: {
+      sendEnabled: false,
+      smtpLastError: "The app-password no longer works, so sending from this inbox is off. Reconnect it to switch sending back on.",
+    },
+  });
+  if (flipped.count === 0) return;
+
+  const user = await prisma.user.findUnique({ where: { id: conn.userId }, select: { email: true } });
+  const to = user?.email ?? conn.email;
+  // Lazy import: lib/email.ts dynamically imports this module, so a static
+  // import back would be a cycle. The notification goes out from our own
+  // verified address (no from override), so it can never re-enter this path.
+  const { sendEmail } = await import("@/lib/email");
+  await sendEmail({
+    to,
+    subject: `Sending from your inbox has stopped working: ${conn.email}`,
+    text:
+      `We tried to send an email from your connected inbox ${conn.email}, but its mail server no longer accepts the app-password. ` +
+      "This usually means the password was removed or expired.\n\n" +
+      "Your emails still go out. Until this is fixed, we'll send them from our own address with replies going to you, so nothing on your files is held up.\n\n" +
+      "To send from your own address again, create a new app-password with your email provider, then reconnect the inbox from Account, under Connections.",
+    emailType: "MAILBOX_SEND_DISABLED",
+  });
 }

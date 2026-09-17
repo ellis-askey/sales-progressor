@@ -255,10 +255,10 @@ export function ImapConnectionCard() {
                                 {c.lastSyncedAt ? `Last checked ${new Date(c.lastSyncedAt).toLocaleString("en-GB")}` : "Not checked yet"}
                               </p>
                             )}
-                            {c.sendEnabled && c.smtpLastError && (
+                            {c.smtpLastError && (
                               <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
                                 <Warning size={13} weight="fill" className="shrink-0" />
-                                Sending is stuck: {c.smtpLastError}
+                                {c.smtpLastError}
                               </p>
                             )}
                           </div>
