@@ -55,8 +55,11 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
             </p>
           </div>
         </div>
-        {items.length > 0 && (
-          <Link href="/agent/work-queue" className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+        {/* Only when more reminders exist than the 3 shown below; on mobile
+            the header copy hides and the footer row takes over (same rule as
+            AttentionCard). */}
+        {items.length > 3 && (
+          <Link href="/agent/work-queue" className="agent-link attn-link-header" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
             All reminders
             <LinkArrow />
           </Link>
@@ -138,6 +141,26 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
             </Link>
           );
         })
+      )}
+      {/* Mobile-only footer version of "All reminders" (see header note). */}
+      {items.length > 3 && (
+        <Link
+          href="/agent/work-queue"
+          className="agent-link attn-link-footer"
+          style={{
+            padding: "10px 20px",
+            fontSize: 12,
+            fontWeight: 600,
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            borderTop: "0.5px solid var(--agent-border-subtle)",
+            textDecoration: "none",
+          }}
+        >
+          All reminders
+          <LinkArrow />
+        </Link>
       )}
     </div>
   );

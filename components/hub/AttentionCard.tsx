@@ -471,10 +471,14 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             {showCleared ? "Nothing needs your attention right now." : summary}
           </span>
         </span>
-        {reminders.length > 0 && (
+        {/* Only when the card is NOT already showing every reminder — if all
+            of them are right here, the link has nothing more to show. On
+            mobile this header copy hides (.attn-link-header) and the footer
+            version inside the collapsible body takes over. */}
+        {reminders.length > visibleReminders.length && (
           <Link
             href="/agent/work-queue"
-            className="agent-link"
+            className="agent-link attn-link-header"
             style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -552,6 +556,30 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
                 >
                   Show all ({rows.length})
                 </button>
+              )}
+              {/* Mobile-only footer version of "All reminders" — a small
+                  tacked-on row at the bottom of the body, so the header stops
+                  bunching at phone widths. Lives inside the collapsible body,
+                  so it slides shut with the drawer. Same visibility rule as
+                  the header link (only when more reminders exist than shown). */}
+              {reminders.length > visibleReminders.length && (
+                <Link
+                  href="/agent/work-queue"
+                  className="agent-link attn-link-footer"
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                    borderTop: "0.5px solid var(--agent-border-subtle)",
+                    textDecoration: "none",
+                  }}
+                >
+                  All reminders
+                  <LinkArrow />
+                </Link>
               )}
             </div>
           )}

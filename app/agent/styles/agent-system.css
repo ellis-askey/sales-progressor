@@ -3541,6 +3541,17 @@ body[data-demo-file] [data-onboarding-checklist] {
 @media (max-width: 899px) { .resp-drawer-wide { width: 100vw !important; } }
 @media (max-width: 560px) { .resp-drawer { width: 100vw !important; } }
 
+/* Attention cards "All reminders" link: header position on desktop; on
+ * mobile it hides there (header bunching) and a small footer row at the
+ * bottom of the card body shows instead. The footer lives inside the
+ * collapsible body on AttentionCard, so it slides shut with the drawer.
+ * Both copies only render when more reminders exist than the card shows. */
+.attn-link-footer { display: none; }
+@media (max-width: 767px) {
+  .attn-link-header { display: none !important; }
+  .attn-link-footer { display: flex; }
+}
+
 /* Auto-emails toolbar: once the filter row has wrapped there is no "right
  * edge of the row" for Export to align to — drop the auto margin so it sits
  * inline with the other controls (audit D4). !important beats the inline
