@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
-import { solicitorConfirmationSentence } from "@/lib/updates-copy";
+import { solicitorConfirmationSentence, confirmationSentence } from "@/lib/updates-copy";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cascadeOnwardExchange } from "@/lib/services/onward";
@@ -953,7 +953,14 @@ export type Confirmer =
   // completion as confirmedBySolicitorFirmId/ContactId so the timeline reads
   // "confirmed by {firmName}". firmId/contactId may be null if the file has a
   // firm but no named contact. See docs/active/solicitor-confirm/scope.md.
-  | { kind: "solicitor"; firmId: string | null; contactId: string | null; firmName: string };
+  | { kind: "solicitor"; firmId: string | null; contactId: string | null; firmName: string }
+  // No named person acted: the mirrored half of a paired step (the contract-
+  // pack pair, the enquiries pair). Carries NO provenance — every renderer
+  // then shows a plain fact ("The seller's solicitor has issued the draft
+  // contract pack") and the twin-bucket subtext; the half someone actually
+  // confirmed keeps its named entry alongside. Internal use only (the
+  // reflections below); never from a UI path.
+  | { kind: "auto" };
 
 export type CompleteMilestoneInput = {
   transactionId: string;
@@ -1073,11 +1080,19 @@ export async function completeMilestone(
   // report its own action second-hand (founder report, 2026-08-19).
   // The firm name + the solicitor-facing step label states it plainly.
   const summaryText =
-    input.confirmer.kind === "solicitor"
-      ? solicitorConfirmationSentence(input.confirmer.firmName, def.code, def.name)
-      : def.summaryTemplate
-        ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
-        : null;
+    input.confirmer.kind === "auto"
+      ? confirmationSentence({
+          code: def.code,
+          side: def.side as "vendor" | "purchaser",
+          confirmer: null,
+          sideContacts: [],
+          milestoneName: def.name,
+        })
+      : input.confirmer.kind === "solicitor"
+        ? solicitorConfirmationSentence(input.confirmer.firmName, def.code, def.name)
+        : def.summaryTemplate
+          ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
+          : null;
 
   // Derive provenance from the confirmer.
   // - completedById: User.id when an agent confirms; null when a contact
@@ -1324,7 +1339,12 @@ export async function completeMilestone(
           {
             transactionId: input.transactionId,
             milestoneDefinitionId: vm21.id,
-            confirmer: input.confirmer,
+            // Twin close: no named person acted on the seller side, so the
+            // mirrored row carries no provenance and renders as a plain fact
+            // (bucket D). Previously this passed the buyer-side confirmer
+            // through, which mis-attributed the entry (e.g. a solicitor firm
+            // apparently confirming the other firm's step).
+            confirmer: { kind: "auto" },
             bypassPrereqs: true,
           },
           tx,
@@ -1360,7 +1380,10 @@ export async function completeMilestone(
           {
             transactionId: input.transactionId,
             milestoneDefinitionId: other.id,
-            confirmer: input.confirmer,
+            // Twin close: no provenance on the mirrored half — it renders as
+            // a plain fact everywhere, and the confirmed half next to it
+            // carries the name/firm. See the Confirmer "auto" kind.
+            confirmer: { kind: "auto" },
             eventDate: input.eventDate,
             completedAt: input.completedAt,
             bypassPrereqs: true,

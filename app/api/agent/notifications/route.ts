@@ -42,12 +42,15 @@ export async function GET(req: NextRequest) {
       .filter((c) => c.roleType === side)
       .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
     const resolved = resolveConfirmer(m, sideContacts);
-    const confirmer = resolved.confirmer ?? ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    // No provenance at all = a twin close (the mirrored half of a paired
+    // step): confirmer stays null and the sentence renders as a plain fact.
+    const confirmer = resolved.confirmer
+      ?? (m.completedBy ? ({ kind: "agent", name: m.completedBy.name ?? "A colleague" } as const) : null);
     const principals = resolved.principals;
     // For a portal/helper-confirmed step, show whoever confirmed (audit #16
     // phase 2): the exact contact if recorded, else the side's contact.
     const confirmingContact =
-      confirmer.kind === "client" || confirmer.kind === "helper"
+      confirmer?.kind === "client" || confirmer?.kind === "helper"
         ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
           ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
         : null;
@@ -57,8 +60,8 @@ export async function GET(req: NextRequest) {
     // (portal) confirmations are someone else's and always count.
     const mine =
       m.completedById === session.user.id &&
-      confirmer.kind !== "client" &&
-      confirmer.kind !== "helper";
+      confirmer?.kind !== "client" &&
+      confirmer?.kind !== "helper";
     return {
       at: new Date(m.completedAt ?? 0),
       countable: !mine,
@@ -67,15 +70,15 @@ export async function GET(req: NextRequest) {
         txId: m.transaction.id,
         address: m.transaction.propertyAddress,
         sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name, isDesktopValuation: m.milestoneDefinition.code === "PM6" && !m.eventDate }),
-        who: confirmer.kind,
+        who: confirmer?.kind ?? "agent",
         // The confirming side, so the bell can tint the branded fallback avatar
         // (seller blue / buyer green) when the client has no photo.
         side,
-        avatarImage: confirmer.kind === "agent" ? (m.completedBy?.image ?? null)
-          : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null)
+        avatarImage: confirmer?.kind === "agent" ? (m.completedBy?.image ?? null)
+          : confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.image ?? null)
           : null,
-        avatarName: confirmer.kind === "agent" ? (m.completedBy?.name ?? "")
-          : confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.name ?? "")
+        avatarName: confirmer?.kind === "agent" ? (m.completedBy?.name ?? "")
+          : confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? "")
           : "",
         at: (m.completedAt ?? new Date()).toISOString(),
         updateLabel: null as string | null,

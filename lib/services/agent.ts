@@ -464,13 +464,16 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
     const sideContacts = (m.transaction.contacts ?? []).filter((c) => c.roleType === side).map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
     const resolved = resolveConfirmer(m, sideContacts);
-    // Preserve the old behaviour of always attributing (system auto-confirms
-    // fall back to the completing user, or "A colleague").
-    const confirmer = resolved.confirmer ?? ({ kind: "agent", name: m.completedBy?.name ?? "A colleague" } as const);
+    // A row with a completing user but no richer provenance attributes to that
+    // user (or "A colleague" for a nameless legacy row). A row with NO
+    // provenance at all is a twin close (the mirrored half of a paired step) —
+    // confirmer stays null and the sentence renders as a plain fact.
+    const confirmer = resolved.confirmer
+      ?? (m.completedBy ? ({ kind: "agent", name: m.completedBy.name ?? "A colleague" } as const) : null);
     const principals = resolved.principals;
     // Avatar carries whoever actually confirmed — the helper if a helper did it,
     // the client if they did, else the completing user.
-    const confirmingContact = confirmer.kind === "client" || confirmer.kind === "helper"
+    const confirmingContact = confirmer?.kind === "client" || confirmer?.kind === "helper"
       ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
         ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
       : null;
@@ -479,14 +482,14 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       kind: "milestone",
       id: m.id,
       at: m.completedAt ?? m.createdAt,
-      who: confirmer.kind,
+      who: confirmer?.kind ?? "agent",
       side,
       transaction: txCore,
       code: m.milestoneDefinition.code,
       stageKey: stageMap.get(m.milestoneDefinition.code) ?? null,
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name, isDesktopValuation: m.milestoneDefinition.code === "PM6" && !m.eventDate }),
-      byName: confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.name ?? null) : (m.completedBy?.name ?? null),
-      byImage: confirmer.kind === "client" || confirmer.kind === "helper" ? (confirmingContact?.image ?? null) : (m.completedBy?.image ?? null),
+      byName: confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? null) : (m.completedBy?.name ?? null),
+      byImage: confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.image ?? null) : (m.completedBy?.image ?? null),
     });
   }
 

@@ -175,7 +175,9 @@ export default async function PortalUpdatesPage({
                               ? (entry.helperName ? { kind: "helper", name: entry.helperName } : { kind: "client" })
                               : entry.confirmedBySolicitorFirmName
                                 ? { kind: "solicitor", firm: entry.confirmedBySolicitorFirmName }
-                                : { kind: "agent", name: entry.completedByName ?? "Your team" },
+                                : entry.completedByName
+                                  ? { kind: "agent", name: entry.completedByName }
+                                  : null, // twin close — renders as a plain fact
                             milestoneName: entry.label,
                             coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                             isDesktopValuation: entry.code === "PM6" && !entry.eventDate,

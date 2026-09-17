@@ -46,6 +46,8 @@ const SUBTEXTS: Record<string, Partial<Record<ConfirmerBucket, string>>> = {
     A: "The draft pack is now with the buyer's solicitor for review.",
     B: "The draft pack is now with the buyer's solicitor for review.",
     C: "The draft pack is now with the buyer's solicitor for review.",
+    // D approved by Ellis 2026-09-17 (contract-pack twin close — same line).
+    D: "The draft pack is now with the buyer's solicitor for review.",
   },
   VM8: {
     A: "The request is now with the freeholder or managing agent, so we're waiting for the pack to come back.",
@@ -134,6 +136,8 @@ const SUBTEXTS: Record<string, Partial<Record<ConfirmerBucket, string>>> = {
     A: "The draft pack is now with the buyer's solicitor for review.",
     B: "The draft pack is now with the buyer's solicitor for review.",
     C: "The draft pack is now with the buyer's solicitor for review.",
+    // D approved by Ellis 2026-09-17 (contract-pack twin close — same line).
+    D: "The draft pack is now with the buyer's solicitor for review.",
   },
   PM8: {
     A: "The searches are underway, so we're now waiting for the results to come back.",

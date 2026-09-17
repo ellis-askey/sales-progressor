@@ -270,11 +270,18 @@ function clientPronoun(contacts: SideContact[]): "his" | "her" | "their" {
 
 /** Build the third-person confirmation sentence for the agent Updates surfaces.
  *  milestoneName is the plain step name, used as a safety fallback if a code
- *  ever has no written core. */
+ *  ever has no written core.
+ *
+ *  confirmer null = no named person acted (a twin close — the mirrored half of
+ *  a paired step, e.g. contract-pack issued/received, or the enquiries pair).
+ *  Renders as a plain statement of fact with no confirmer, the same voice the
+ *  portal uses for the other party's steps: "The seller's solicitor has issued
+ *  the draft contract pack." The half someone actually confirmed keeps its
+ *  named sentence alongside. */
 export function confirmationSentence(opts: {
   code: string;
   side: "vendor" | "purchaser";
-  confirmer: UpdateConfirmer;
+  confirmer: UpdateConfirmer | null;
   sideContacts: SideContact[];
   milestoneName: string;
   // PM6 only: true when the lender ran a desktop valuation (no eventDate), so
@@ -284,6 +291,12 @@ export function confirmationSentence(opts: {
   const { code, side, confirmer, sideContacts, milestoneName, isDesktopValuation } = opts;
   const general = GENERAL[code];
   const core = code === "PM6" && isDesktopValuation ? PM6_DESKTOP_CORE : CORES[code];
+
+  if (!confirmer) {
+    if (general) return capitalise(general);
+    if (!core) return milestoneName;
+    return capitalise(`the ${side === "vendor" ? "seller" : "buyer"}'s ${core}`);
+  }
 
   if (confirmer.kind === "client") {
     const name = allClientNames(sideContacts, side);
@@ -356,7 +369,10 @@ export function portalConfirmationSentence(opts: {
   code: string;
   side: "vendor" | "purchaser";
   viewerSide: "vendor" | "purchaser";
-  confirmer: UpdateConfirmer;
+  // null = no named person acted (the mirrored half of a paired step). Own-side
+  // view reads as a second-person fact ("Your solicitor has issued the draft
+  // contract pack"); the other-party view is already neutral below.
+  confirmer: UpdateConfirmer | null;
   milestoneName: string;
   // Command Centre override for the confirmation clause (client portal only).
   coreOverride?: string | null;
@@ -375,6 +391,14 @@ export function portalConfirmationSentence(opts: {
     if (!clause) return milestoneName;
     if (isGeneral) return capitalise(clause);
     return capitalise(`the ${party}'s ${clause}`);
+  }
+
+  // The viewer's own step, no named confirmer (twin close): plain fact,
+  // second person.
+  if (!confirmer) {
+    if (!clause) return milestoneName;
+    if (isGeneral) return capitalise(clause);
+    return `Your ${clause}`;
   }
 
   // The viewer's own step.
