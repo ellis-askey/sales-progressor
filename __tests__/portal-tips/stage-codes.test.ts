@@ -102,27 +102,27 @@ describe("portal-tips per-tip milestone filtering", () => {
 
   // ── Lender valuation (early, purchaser): requires PM5, hide PM6/PM11 ──
   it("shows the lender-valuation tip after PM5 but before PM6", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5"]))).toMatch(/lender will usually arrange a valuation/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5"]))).toMatch(/lender will usually value the property/i);
   });
   it("hides the lender-valuation tip before PM5 is submitted", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1"]))).not.toMatch(/lender will usually arrange a valuation/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1"]))).not.toMatch(/lender will usually value the property/i);
   });
   it("hides the lender-valuation tip once PM6 is booked", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5", "PM6"]))).not.toMatch(/lender will usually arrange a valuation/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5", "PM6"]))).not.toMatch(/lender will usually value the property/i);
   });
   it("hides the lender-valuation tip once PM11 offer is received (defensive)", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5", "PM11"]))).not.toMatch(/lender will usually arrange a valuation/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1", "PM5", "PM11"]))).not.toMatch(/lender will usually value the property/i);
   });
 
   // ── Searches (early, purchaser): requires PM8, hide PM13 ──
   it("shows the searches tip after PM8 but before PM13", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1", "PM8"]))).toMatch(/ordered searches with the relevant authorities/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1", "PM8"]))).toMatch(/ordered the searches for the property/i);
   });
   it("hides the searches tip before PM8 is ordered", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1"]))).not.toMatch(/ordered searches with the relevant authorities/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1"]))).not.toMatch(/ordered the searches for the property/i);
   });
   it("hides the searches tip once PM13 results are in", () => {
-    expect(allTexts("early", "purchaser", new Set(["PM1", "PM8", "PM13"]))).not.toMatch(/ordered searches with the relevant authorities/i);
+    expect(allTexts("early", "purchaser", new Set(["PM1", "PM8", "PM13"]))).not.toMatch(/ordered the searches for the property/i);
   });
 
   // ── Survey (early, purchaser): hide PM9 (booked OR opted out) ──
@@ -132,18 +132,18 @@ describe("portal-tips per-tip milestone filtering", () => {
 
   // ── Management pack (early, vendor): requires VM8, hide VM9 ──
   it("hides the management-pack tip before VM8 is requested", () => {
-    expect(allTexts("early", "vendor", new Set(["VM1"]))).not.toMatch(/requested the required management information/i);
+    expect(allTexts("early", "vendor", new Set(["VM1"]))).not.toMatch(/request a management pack/i);
   });
   it("shows the management-pack tip after VM8 but before VM9", () => {
-    expect(allTexts("early", "vendor", new Set(["VM1", "VM8"]))).toMatch(/requested the required management information/i);
+    expect(allTexts("early", "vendor", new Set(["VM1", "VM8"]))).toMatch(/request a management pack/i);
   });
 
   // ── Mortgage finalising (active, purchaser): requires PM6, hide PM11 ──
   it("hides the mortgage-finalising tip before PM6 valuation", () => {
-    expect(allTexts("active", "purchaser", new Set(["PM1", "PM14"]))).not.toMatch(/underwriting or other checks/i);
+    expect(allTexts("active", "purchaser", new Set(["PM1", "PM14"]))).not.toMatch(/final checks to complete before issuing your mortgage offer/i);
   });
   it("shows the mortgage-finalising tip after PM6 but before PM11", () => {
-    expect(allTexts("active", "purchaser", new Set(["PM1", "PM6", "PM14"]))).toMatch(/underwriting or other checks/i);
+    expect(allTexts("active", "purchaser", new Set(["PM1", "PM6", "PM14"]))).toMatch(/final checks to complete before issuing your mortgage offer/i);
   });
 
   // ── Sign contract (pre_exchange, vendor): requires VM16, hide VM17 ──
@@ -159,6 +159,6 @@ describe("portal-tips per-tip milestone filtering", () => {
     const done = new Set(["PM3", "PM5"]); // gates every conditional onboarding purchaser tip
     const tips = getStageTips("onboarding", "purchaser", token, done);
     expect(tips.length).toBeGreaterThan(0);
-    expect(tips.some((t) => /memorandum of sale records the agreed transaction/i.test(t.text))).toBe(true);
+    expect(tips.some((t) => /memorandum of sale confirms what's been agreed/i.test(t.text))).toBe(true);
   });
 });

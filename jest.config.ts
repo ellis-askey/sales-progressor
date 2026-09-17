@@ -17,6 +17,9 @@ const config: Config = {
   moduleNameMapper: {
     // Resolve @/ path alias to project root
     "^@/(.*)$": "<rootDir>/$1",
+    // The real server-only package is a poison pill that throws under jest
+    // (Next.js aliases it at build time; jest must too).
+    "^server-only$": "<rootDir>/test-utils/server-only-stub.js",
   },
   testMatch: ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
   testPathIgnorePatterns: ["/node_modules/", "/.claude/"],

@@ -68,6 +68,7 @@
     "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "replicate": "^1.4.0",
+    "server-only": "^0.0.1",
     "stripe": "^22.1.1",
     "web-push": "^3.6.7",
     "xss": "^1.0.15",

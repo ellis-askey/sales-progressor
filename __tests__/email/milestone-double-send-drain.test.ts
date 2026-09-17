@@ -20,6 +20,12 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/email", () => ({
   sendEmail: jest.fn().mockResolvedValue(undefined),
   isContactEmailSuppressed: jest.fn().mockResolvedValue(false),
+  // The P3 retry bound imports these from lib/email too. A partial mock left
+  // MAX_SEND_RETRY_MS undefined, which made the drain's age cutoff NaN and
+  // silently filtered every row out of the run — 0 sends, green-looking LOSE
+  // case, broken WIN case.
+  isTransientSendError: jest.fn().mockReturnValue(false),
+  MAX_SEND_RETRY_MS: 24 * 60 * 60 * 1000,
 }));
 jest.mock("@/lib/email/agency-sender", () => ({
   resolveAgencySenderForTransaction: jest.fn().mockResolvedValue({
@@ -41,6 +47,9 @@ const dueRow = {
   recipientContactId: "c1",
   recipientEmail: "client@x.com",
   sourceId: "t1:VM1",
+  // The P3 retry bound splits rows by age at drain time; a fixture without
+  // createdAt crashes the split. Fresh row → normal single-send path.
+  createdAt: new Date(),
   payload: { subject: "Step confirmed", text: "body", html: "<p>body</p>", milestoneCode: "VM1", recipientSide: "vendor", address: "1 High St", firstName: "Pat", portalUrl: "https://x/portal/u" },
 };
 
