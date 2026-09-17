@@ -25,6 +25,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
+import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -53,7 +54,6 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
   const [collapsed, setCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);   // confirm panel open
-  const [menuId, setMenuId] = useState<string | null>(null);   // ▾ options open
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [listRef] = useAutoAnimate<HTMLDivElement>();
@@ -72,7 +72,6 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
 
   function resolve(row: BookingConfirmRow, outcome: BookingOutcome, opts?: { keys?: boolean; date?: string | null }) {
     setBusyId(row.transactionId);
-    setMenuId(null);
     startTransition(async () => {
       try {
         const res = await confirmProvisionalBookingAction({
@@ -127,8 +126,35 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
           <div ref={listRef}>
             {shown.map((row, i) => {
               const isOpen = openId === row.transactionId;
-              const isMenu = menuId === row.transactionId;
               const busy = busyId === row.transactionId;
+              const menuItems: RowMenuItem[] = [
+                ...(row.kind === "valuation"
+                  ? [{
+                      key: "desktop",
+                      icon: <DesktopTower size={16} weight="bold" />,
+                      title: "Desktop valuation (no visit)",
+                      sub: "Remote valuation. Buyer told it's desktop; seller not notified.",
+                      onClick: () => resolve(row, "desktop"),
+                    }]
+                  : []),
+                {
+                  key: "silent",
+                  icon: <EnvelopeSimpleOpen size={16} weight="bold" />,
+                  title: "Log it, don't email",
+                  sub: "Record it on the file. No emails go to clients.",
+                  onClick: () => resolve(row, "silent"),
+                },
+                ...(row.kind === "survey"
+                  ? [{
+                      key: "notreal",
+                      icon: <Prohibit size={16} weight="bold" />,
+                      title: "Not a real booking",
+                      sub: "Mark the survey not required. Clears it (reversible). No emails.",
+                      danger: true,
+                      onClick: () => resolve(row, "not_required"),
+                    }]
+                  : []),
+              ];
               return (
                 <div
                   key={row.transactionId}
@@ -150,49 +176,20 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
                       </p>
                     </div>
 
-                    {/* Split action: Confirm + ▾ */}
+                    {/* Split action: Confirm + ▾ floating menu (shared) */}
                     <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
                       <button
                         type="button"
-                        onClick={() => { setOpenId(isOpen ? null : row.transactionId); setMenuId(null); }}
+                        onClick={() => setOpenId(isOpen ? null : row.transactionId)}
                         disabled={busy}
                         className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
                         style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
                       >
                         {isOpen ? "Close" : "Confirm"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setMenuId(isMenu ? null : row.transactionId); setOpenId(null); }}
-                        disabled={busy}
-                        aria-label="More options"
-                        aria-expanded={isMenu}
-                        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 7px", borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }}
-                      >
-                        <CaretDown size={13} weight="bold" style={{ transition: "transform 180ms", transform: isMenu ? "rotate(180deg)" : "none" }} />
-                      </button>
+                      <RowActionMenu joined disabled={busy} items={menuItems} />
                     </div>
                   </div>
-
-                  {/* ▾ options (inline reveal so nothing gets clipped) */}
-                  {isMenu && (
-                    <div className="agent-reveal-in" style={{ display: "flex", flexDirection: "column", padding: "0 20px 12px 20px", gap: 2 }}>
-                      {row.kind === "valuation" && (
-                        <OutcomeItem icon={<DesktopTower size={15} weight="bold" />} title="Desktop valuation (no visit)"
-                          sub="Remote valuation. Buyer told it's desktop; seller not notified." disabled={busy}
-                          onClick={() => resolve(row, "desktop")} />
-                      )}
-                      <OutcomeItem icon={<EnvelopeSimpleOpen size={15} weight="bold" />} title="Log it, don't email"
-                        sub="Record it on the file. No emails go to clients." disabled={busy}
-                        onClick={() => resolve(row, "silent")} />
-                      {row.kind === "survey" && (
-                        <OutcomeItem icon={<Prohibit size={15} weight="bold" />} title="Not a real booking"
-                          sub="Mark the survey not required. Clears it (reversible). No emails." disabled={busy} danger
-                          onClick={() => resolve(row, "not_required")} />
-                      )}
-                    </div>
-                  )}
 
                   {isOpen && (
                     <ConfirmPanel
@@ -218,30 +215,6 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
         </div>
       </div>
     </GlassCard>
-  );
-}
-
-function OutcomeItem({
-  icon, title, sub, onClick, disabled, danger,
-}: { icon: React.ReactNode; title: string; sub: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="agent-hover-row"
-      style={{
-        display: "flex", alignItems: "flex-start", gap: 9, width: "100%", textAlign: "left",
-        padding: "8px 10px", borderRadius: 8, border: "0.5px solid var(--agent-border-subtle)",
-        background: "var(--agent-surface-glass)", cursor: disabled ? "default" : "pointer",
-      }}
-    >
-      <span aria-hidden style={{ color: danger ? "#b91c1c" : "var(--agent-coral-deep)", marginTop: 1, flexShrink: 0 }}>{icon}</span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: danger ? "#b91c1c" : "var(--agent-text-primary)" }}>{title}</span>
-        <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.35, marginTop: 1 }}>{sub}</span>
-      </span>
-    </button>
   );
 }
 
