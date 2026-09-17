@@ -73,22 +73,26 @@ type Props = {
 
 type Tone = "danger" | "warning" | "coral";
 
+// De-washed (Ellis, 2026-09-17): rows no longer sit on a tone-tinted
+// background — the left accent bar, icon chip and pill carry the urgency.
+// bg: transparent also lets the .agent-hover-row lift hover land (an inline
+// tinted background used to beat the :hover rule).
 const TONE = {
   danger: {
     accent: "var(--agent-danger)",
-    bg: "rgba(var(--agent-danger-rgb),0.05)",
+    bg: "transparent",
     iconBg: "rgba(var(--agent-danger-rgb),0.10)",
     color: "var(--agent-danger)",
   },
   warning: {
     accent: "var(--agent-warning)",
-    bg: "rgba(var(--agent-warning-rgb),0.05)",
+    bg: "transparent",
     iconBg: "rgba(var(--agent-warning-rgb),0.10)",
     color: "var(--agent-warning)",
   },
   coral: {
     accent: "var(--agent-coral)",
-    bg: "var(--agent-coral-bg-tint)",
+    bg: "transparent",
     iconBg: "rgba(var(--agent-coral-base-rgb),0.12)",
     color: "var(--agent-coral-deep)",
   },

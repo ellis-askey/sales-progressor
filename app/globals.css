@@ -1295,7 +1295,7 @@ select {
   opacity: 0; cursor: pointer;
   transition: opacity 120ms ease, color 120ms ease, background 120ms ease; }
 .chain-connector-wrap:hover .chain-connector-insert { opacity: 1; }
-.chain-connector-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint); }
+.chain-connector-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-shade); }
 .chain-connector-insert:focus-visible { opacity: 1; outline: none;
   box-shadow: var(--agent-focus-ring-tight); }
 
@@ -1309,7 +1309,7 @@ select {
   opacity: 0; cursor: pointer;
   transition: opacity 120ms ease, color 120ms ease, background 120ms ease; }
 .chain-fork:hover .chain-fork-insert { opacity: 1; }
-.chain-fork-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint); }
+.chain-fork-insert:hover { color: var(--agent-text-primary); background: var(--agent-hover-shade); }
 .chain-fork-insert:focus-visible { opacity: 1; outline: none;
   box-shadow: var(--agent-focus-ring-tight); }
 
@@ -1553,7 +1553,7 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
   background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-strong);
   border-radius: 12px; padding: 9px; cursor: pointer;
   transition: background .15s var(--agent-ease), color .15s var(--agent-ease), border-color .15s var(--agent-ease); }
-.chain-addbtn:hover { color: var(--agent-text-primary); background: var(--agent-hover-tint);
+.chain-addbtn:hover { color: var(--agent-text-primary); background: var(--agent-hover-shade);
   border-color: var(--agent-coral-light); }
 .chain-addbtn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
 .chain-addbtn-above { margin-bottom: 12px; }

@@ -128,7 +128,9 @@ export function HubListCard({
                 <div
                   key={row.transactionId}
                   className="agent-hover-row"
-                  style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, background: t.bg, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                  // De-washed 2026-09-17: no tinted resting background — the
+                  // accent bar + pill carry the tone, and the lift hover lands.
+                  style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
                   <PropertyThumb photoUrl={row.photoUrl} />
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>

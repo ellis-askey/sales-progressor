@@ -41,7 +41,9 @@ export type BookingConfirmRow = {
 };
 
 const ACCENT = "var(--agent-coral)";
-const BG = "var(--agent-coral-bg-tint)";
+// De-washed (Ellis, 2026-09-17): rows sat on a full coral wash; the accent
+// bar + coral pill carry the identity now.
+const BG = "transparent";
 const ICON_COLOR = "var(--agent-coral-deep)";
 
 const INITIAL_VISIBLE = 6;

@@ -91,7 +91,8 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
                 justifyContent: "space-between",
                 padding: "13px 20px 13px 17px",
                 borderLeft: `3px solid ${s.border}`,
-                background: s.bg,
+                // De-washed 2026-09-17: accent bar + icon chip carry the
+                // urgency; no tinted resting bg (it also masked the hover).
                 borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                 textDecoration: "none", gap: 12,
               }}

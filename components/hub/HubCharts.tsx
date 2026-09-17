@@ -197,7 +197,7 @@ export function ExchangeForecastChart({ data }: { data: WeekBucket[] }) {
       <BarChart data={data} barSize={14} margin={{ top: 18, right: 4, left: 4, bottom: 0 }}>
         <Tooltip
           content={<ForecastTooltip />}
-          cursor={{ fill: "rgba(var(--agent-coral-base-rgb),0.07)", radius: 4 }}
+          cursor={{ fill: "var(--agent-hover-shade)", radius: 4 }}
         />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
           {data.map((entry, i) => (

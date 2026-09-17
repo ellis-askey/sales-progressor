@@ -125,6 +125,12 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 **Decision:** hovers brighten to near-white and rise on a soft shadow ("lift bubble", option C from the /test/hover-options comparison). `--agent-hover-tint` = white 0.72 (strong 0.92) in every light theme, faint white in dark; new `--agent-hover-lift` shadow on `:root`. Rows + menu items get background AND lift; small buttons/chips get background only. `-warning` stays semantic amber. Hardcoded coral hovers get swept to the token when touched.
 **Source:** Ellis pick 2026-09-17; values in DESIGN_TOKENS.md § Hover / interactive tints.
 
+## 2026-09-17 · visual · Hover is two-tier (lift / shade); tinted resting rows de-washed.
+
+**Why:** follow-up to the lift-bubble decision the same day — the white bubble exposed that (a) small controls look wrong lifting, (b) several hub rows set washed-coral resting backgrounds inline, which both read as the hated wash and beat the hover rule entirely.
+**Decision:** rows + menus lift (`.agent-hover-row`); small controls (icon buttons, chevron dropdown triggers, chips, pills, ghost buttons, chart cursors) take a neutral shade (`.agent-hover-ctl`, `--agent-hover-shade`). Tone-tinted resting row backgrounds removed (AttentionCard, HubListCard, AttentionListView, BookingsToConfirmCard) — the left accent bar, icon chip and pill carry urgency. Ghost buttons hover shade, keeping coral border/text. Data-viz coral (forecast bars, donut) stays — it's data, not a wash.
+**Source:** Ellis, 2026-09-17 ("lift hover on most rows and a little shaded where appropriate").
+
 ---
 
 *Append new entries at the bottom. Don't edit historical entries — supersede them with a follow-up.*

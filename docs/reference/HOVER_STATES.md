@@ -34,9 +34,12 @@ The agent app's CSS already defines 69+ canonical hover/focus/active rules acros
 
 The row brightens to near-white (`--agent-hover-tint`, neutral in every theme)
 and rises on the `--agent-hover-lift` shadow. Apply to list rows, table rows,
-hub action cards, menu/popover items. **Small controls (icon buttons, chips,
-pills) take the tint only — no lift shadow on tiny elements.** For
-warning-coded rows: `.agent-hover-row-warning` (semantic amber, unchanged).
+hub action cards, menu/popover items. **Small controls (icon buttons, chevron
+dropdown triggers, chips, pills, ghost buttons) take the SHADE tier instead:
+`background: var(--agent-hover-shade)` via `.agent-hover-ctl` — a quiet
+neutral darken, no lift.** For warning-coded rows: `.agent-hover-row-warning`
+(semantic amber, unchanged). Rows must not set tinted resting backgrounds
+inline (masks the hover — de-washed 2026-09-17).
 Values + application rule: [DESIGN_TOKENS.md](DESIGN_TOKENS.md) § Hover / interactive tints.
 
 ### 3. Link — underline + colour shift

@@ -156,7 +156,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
             padding: "4px 10px 4px 4px",
             cursor: "pointer",
           }}
-          className="agent-hover-row"
+          className="agent-hover-ctl"
           aria-label="User menu"
           aria-expanded={open}
         >
@@ -346,7 +346,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               padding: "4px 8px", borderRadius: 6, transition: "background 150ms",
               whiteSpace: "nowrap", flexShrink: 0,
             }}
-            className="agent-hover-row"
+            className="agent-hover-ctl"
           >
             <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}>
               <ArrowsClockwise size={13} />

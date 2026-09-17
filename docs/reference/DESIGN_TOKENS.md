@@ -279,12 +279,22 @@ From [themes.css](../../app/agent/styles/themes.css) (per-theme blocks) and
 | `--agent-hover-tint` | `rgba(255, 255, 255, 0.72)` | `rgba(255, 255, 255, 0.07)` | hover background — rows, menu items, buttons, chips |
 | `--agent-hover-tint-strong` | `rgba(255, 255, 255, 0.92)` | `rgba(255, 255, 255, 0.12)` | active/pressed background |
 | `--agent-hover-lift` | `0 2px 10px rgba(45,24,16,0.08), inset 0 0 0 0.5px rgba(45,24,16,0.05)` | `0 2px 10px rgba(0,0,0,0.40), inset 0 0 0 0.5px rgba(255,255,255,0.07)` | the lift shadow — rows + menu items ONLY |
+| `--agent-hover-shade` | `rgba(45, 24, 16, 0.05)` | `rgba(255, 255, 255, 0.06)` | small-control hover — icon buttons, chevron dropdowns, chips, pills, ghost buttons |
+| `--agent-hover-shade-strong` | `rgba(45, 24, 16, 0.09)` | `rgba(255, 255, 255, 0.10)` | small-control pressed |
 | `--agent-hover-tint-warning` | `rgba(254, 215, 170, 0.55)` | `rgba(251, 191, 36, 0.15)` | warning-coded row hover (semantic, unchanged) |
 
-**Application rule:** rows and menu/popover items apply `background` +
-`box-shadow: var(--agent-hover-lift)` (add `box-shadow` to the transition).
-Small controls — icon buttons, chips, pills, chevrons — apply the tint only;
-a drop shadow on a 22px circle reads as noise.
+**Application rule (two tiers):**
+- **Lift** — rows, menu/popover items, property rows: `background:
+  var(--agent-hover-tint)` + `box-shadow: var(--agent-hover-lift)` (add
+  `box-shadow` to the transition). Utility: `.agent-hover-row`.
+- **Shade** — small controls (icon buttons, chevron dropdown triggers, chips,
+  pills, ghost buttons, chart cursors): `background: var(--agent-hover-shade)`
+  only. Utility: `.agent-hover-ctl`. No shadow on tiny elements.
+
+**Resting surfaces:** rows must NOT set a tinted resting background inline —
+it reads as the old wash and beats the `:hover` rule. Urgency/tone is carried
+by the left accent bar, icon chip and pill (de-washed 2026-09-17:
+AttentionCard, HubListCard, AttentionListView, BookingsToConfirmCard).
 
 Full hover/focus/active patterns documented in [HOVER_STATES.md](HOVER_STATES.md).
 
