@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     port?: number;
     secure?: boolean;
     consent?: boolean;
+    enableSend?: boolean;
   };
 
   if (!body.consent) {
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
     host: body.host,
     port: typeof body.port === "number" ? body.port : undefined,
     secure: typeof body.secure === "boolean" ? body.secure : undefined,
+    enableSend: body.enableSend === true,
   });
 
   if (!result.ok) return NextResponse.json(result, { status: 400 });

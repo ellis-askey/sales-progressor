@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info } from "@phosphor-icons/react";
+import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneTilt } from "@phosphor-icons/react";
 import { presetForEmail } from "@/lib/integrations/imap/config";
 
 type Connection = {
@@ -26,6 +26,9 @@ type Connection = {
   host: string;
   lastSyncedAt: string | null;
   lastError: string | null;
+  sendEnabled: boolean;
+  sendAvailable: boolean;
+  smtpLastError: string | null;
 };
 type Status = { configured: boolean; connections: Connection[] };
 
@@ -47,11 +50,17 @@ export function ImapConnectionCard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
+  const [enableSend, setEnableSend] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [host, setHost] = useState("");
   const [port, setPort] = useState("993");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Per-connection send toggle
+  const [sendTogglingId, setSendTogglingId] = useState<string | null>(null);
+  const [sendMsg, setSendMsg] = useState<{ id: string; text: string; isError: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,9 +81,13 @@ export function ImapConnectionCard() {
   const unknownButTyped = email.includes("@") && !preset;
   // For an unrecognised provider we need manual server details.
   const needServerDetails = unknownButTyped || showAdvanced;
+  // Sending needs a known SMTP server, so the offer only appears for presets
+  // that carry one. Unknown providers connect receive-only.
+  const canOfferSend = !!preset?.smtpHost;
 
   async function connect() {
     setError(null);
+    setNotice(null);
     setConnecting(true);
     try {
       const res = await fetch("/api/integrations/imap/connect", {
@@ -87,9 +100,10 @@ export function ImapConnectionCard() {
           host: needServerDetails && host ? host : undefined,
           port: needServerDetails && port ? Number(port) : undefined,
           secure: needServerDetails ? Number(port) === 993 : undefined,
+          enableSend: canOfferSend && enableSend,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; sendError?: string };
       if (res.ok && data.ok) {
         setEmail("");
         setPassword("");
@@ -97,6 +111,9 @@ export function ImapConnectionCard() {
         setShowAdvanced(false);
         setHost("");
         setPort("993");
+        if (data.sendError) {
+          setNotice(`Your inbox is connected for receiving, but we couldn't switch on sending. ${data.sendError}`);
+        }
         await load();
       } else {
         setError(data.error ?? "We couldn't connect that mailbox. Please try again.");
@@ -132,6 +149,31 @@ export function ImapConnectionCard() {
     }
   }
 
+  async function toggleSend(id: string, enable: boolean) {
+    setSendTogglingId(id);
+    setSendMsg(null);
+    try {
+      const res = await fetch("/api/integrations/imap/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, enable }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        setSendMsg(
+          enable
+            ? { id, text: "Sending is on. We've emailed this inbox so you can see it working.", isError: false }
+            : { id, text: "Sending is off. We still read this inbox as before.", isError: false }
+        );
+      } else {
+        setSendMsg({ id, text: data.error ?? "We couldn't update sending for this inbox. Please try again.", isError: true });
+      }
+      await load();
+    } finally {
+      setSendTogglingId(null);
+    }
+  }
+
   async function disconnect(id: string) {
     setRemovingId(id);
     try {
@@ -162,7 +204,8 @@ export function ImapConnectionCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Gmail &amp; other email</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                On Gmail, Yahoo, iCloud or your own domain? Connect it here with an app-password.
+                On Gmail, Yahoo, iCloud, Zoho or your own domain? Connect it here with an app-password. For providers we
+                recognise, we can send your emails from this address too.
               </p>
             </div>
             {!loading && status && (
@@ -196,6 +239,11 @@ export function ImapConnectionCard() {
                               <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                                 {providerLabel(c.provider)}
                               </span>
+                              {c.sendEnabled && (
+                                <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                                  Sends
+                                </span>
+                              )}
                             </p>
                             {c.lastError ? (
                               <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
@@ -207,8 +255,24 @@ export function ImapConnectionCard() {
                                 {c.lastSyncedAt ? `Last checked ${new Date(c.lastSyncedAt).toLocaleString("en-GB")}` : "Not checked yet"}
                               </p>
                             )}
+                            {c.sendEnabled && c.smtpLastError && (
+                              <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
+                                <Warning size={13} weight="fill" className="shrink-0" />
+                                Sending is stuck: {c.smtpLastError}
+                              </p>
+                            )}
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
+                            {c.sendAvailable && (
+                              <button
+                                onClick={() => toggleSend(c.id, !c.sendEnabled)}
+                                disabled={sendTogglingId === c.id}
+                                className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                <PaperPlaneTilt size={14} weight="bold" className={sendTogglingId === c.id ? "pbtn-spin" : ""} />
+                                {sendTogglingId === c.id ? "Updating…" : c.sendEnabled ? "Turn off sending" : "Turn on sending"}
+                              </button>
+                            )}
                             <button
                               onClick={() => syncNow(c.id)}
                               disabled={syncingId === c.id}
@@ -227,6 +291,9 @@ export function ImapConnectionCard() {
                           </div>
                         </div>
                         {syncMsg?.id === c.id && <p className="mt-2 text-[12px] text-emerald-700">{syncMsg.text}</p>}
+                        {sendMsg?.id === c.id && (
+                          <p className={`mt-2 text-[12px] ${sendMsg.isError ? "text-red-600" : "text-emerald-700"}`}>{sendMsg.text}</p>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -311,6 +378,21 @@ export function ImapConnectionCard() {
                     </button>
                   )}
 
+                  {canOfferSend && (
+                    <label className="flex items-start gap-2.5 cursor-pointer pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={enableSend}
+                        onChange={(e) => setEnableSend(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--agent-coral,#FF6B4A)]"
+                      />
+                      <span className="text-[12.5px] leading-relaxed text-gray-600">
+                        Also send my emails from this address. Emails we send on your files go out through your own mailbox, sit in
+                        its Sent folder, and replies come straight back to you.
+                      </span>
+                    </label>
+                  )}
+
                   <label className="flex items-start gap-2.5 cursor-pointer pt-0.5">
                     <input
                       type="checkbox"
@@ -328,6 +410,13 @@ export function ImapConnectionCard() {
                     <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-800">
                       <Warning size={15} weight="fill" className="mt-0.5 shrink-0" />
                       {error}
+                    </p>
+                  )}
+
+                  {notice && (
+                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+                      <Info size={15} weight="fill" className="mt-0.5 shrink-0" />
+                      {notice}
                     </p>
                   )}
 
