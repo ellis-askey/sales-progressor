@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { callClaude } from "@/lib/anthropic";
 import { createManualTask } from "@/lib/services/manual-tasks";
 import { toUKDateStr } from "@/lib/utils";
+import { PROMISE_HINT } from "@/lib/services/whatsapp-promise-hint";
 
 // "Promises" — turn a WhatsApp message the operator SENT into a to-do, but ONLY
 // when they commit to doing something themselves AND give a timeframe.
@@ -19,14 +20,13 @@ import { toUKDateStr } from "@/lib/utils";
 
 const ACTIVE_STATUSES = ["draft", "active", "on_hold"] as const;
 
-// Cheap pre-filter: only spend an AI call on messages that plausibly contain a
-// first-person future commitment. Everything else is stamped and skipped for
-// free, so the model only ever reads the small slice that looks like a promise.
-// (We already only scan OUTBOUND messages, which on the linked account are the
-// operator's own sends — so other agents' group messages, which arrive as
-// inbound, are never picked up.)
-const PROMISE_HINT =
-  /\b(i'?ll|i will|i'?m going to|i am going to|let me|leave it with me|will (?:chase|call|email|follow|check|come back|do it|get|sort|look|speak|ring|update|send|note|nudge|report))\b/i;
+// Cheap pre-filter (in ./whatsapp-promise-hint, kept prisma-free so it's unit-
+// tested): only spend an AI call on messages that plausibly contain a first-person
+// future commitment. Everything else is stamped and skipped for free, so the
+// model only ever reads the small slice that looks like a promise. (We already
+// only scan OUTBOUND messages, which on the linked account are the operator's own
+// sends — so other agents' group messages, which arrive as inbound, are never
+// picked up.)
 
 const SYSTEM = `You help a UK estate-agency sales progressor never forget a promise.
 
