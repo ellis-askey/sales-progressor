@@ -783,11 +783,10 @@ async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; at
   const bookingTxIds = bookings.map((b) => b.transactionId);
   const mortgage = await getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
-  // Gone quiet is internal-staff only for now; also drop anything already shown
-  // in the cards above it.
-  const goneQuiet = vis.internalMode
-    ? await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds])
-    : [];
+  // Gone quiet shows for self-managed agencies and internal staff alike
+  // (getGoneQuietFiles scopes by agency vs assigned inside). Drop anything
+  // already shown in the cards above it.
+  const goneQuiet = await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds]);
   if (goneQuiet.length === 0 && mortgage.length === 0 && bookings.length === 0) return null;
 
   const photoMap = await getSignedUrlMap([
