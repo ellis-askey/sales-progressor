@@ -12,7 +12,7 @@ import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-them
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
-import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, buildGreeting, PM6_DESKTOP_PURCHASER, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import {
   getOverridesForCode,
   applyOverridesToEmailCopy,
@@ -1242,6 +1242,34 @@ export async function releaseProvisionalBooking(input: {
     return { ok: true };
   }
 
+  // Out-of-order guard (PM6): the mortgage-offer email sends immediately when the
+  // buyer confirms the offer, but a valuation is HELD until we confirm it. If the
+  // offer is already confirmed, a valuation email now would land AFTER the offer
+  // email and contradict it ("your offer should follow in 1 to 3 weeks"). So
+  // record the step but send nothing to clients — one internal note explains why.
+  // State-based, not time-based: correct for any gap between the two.
+  if (def.code === "PM6") {
+    const offerDef = await prisma.milestoneDefinition.findFirst({ where: { code: "PM11" }, select: { id: true } });
+    const offerDone = offerDef
+      ? await prisma.milestoneCompletion.findFirst({
+          where: { transactionId: input.transactionId, milestoneDefinitionId: offerDef.id, state: "complete" },
+          select: { id: true },
+        })
+      : null;
+    if (offerDone) {
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: input.transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: `${input.actingUserName || "Someone"} logged the lender valuation. The mortgage offer was already confirmed, so clients weren't emailed (a valuation email now would arrive out of order).`,
+          createdById: input.actingUserId ?? null,
+        },
+      }).catch(() => {});
+      return { ok: true };
+    }
+  }
+
   // Attribution for the released client emails — the client who logged it.
   let contactName = "your client";
   if (row.confirmedByContactId) {
@@ -1528,7 +1556,11 @@ export async function logPortalMilestoneConfirm(
     const valuationNote = (milestoneCode === "PM9" && tx.purchaseType === "mortgage")
       ? " This is your own survey and is separate from your lender's valuation. The lender's valuation is primarily for their benefit, whereas your survey gives you a much more detailed picture of the property's condition."
       : "";
-    const portalVars = { address, eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote };
+    // {attendClause} = " for <date>" on the PM6 buyer email (physical valuation).
+    // Empty for desktop (which swaps in different sentences below). This var was
+    // previously missing from this render path, leaving a literal "{attendClause}".
+    const portalAttendClause = formattedPortalEventDate ? ` for ${formattedPortalEventDate}` : "";
+    const portalVars = { address, eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, attendClause: portalAttendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote };
 
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
@@ -1551,13 +1583,18 @@ export async function logPortalMilestoneConfirm(
       // this skips just this contact when they're individually paused.
       if (c.stepConfirmPausedAt) continue;
       const recipientKey = c.roleType as "vendor" | "purchaser";
-      const copy = milestoneCode
+      const copy0 = milestoneCode
         ? resolveRecipientCopy(milestoneCode, recipientKey, richCopy, portalFileShape)
         : richCopy[recipientKey];
-      if (!copy) continue;
+      if (!copy0) continue;
+      // Desktop valuation → the buyer gets different sentences (opening + body),
+      // not just a cleared date. Swap them in for the PM6 purchaser copy.
+      const copy = milestoneCode === "PM6" && recipientKey === "purchaser" && isPortalDesktop
+        ? { ...copy0, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
+        : copy0;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, attendClause: portalAttendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       const sent = await trySendClientEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }, { transactionId, subject });
@@ -2239,11 +2276,11 @@ async function sendRichMilestoneEmails(
   const eventDateClause = formattedEventDate
     ? `booked for ${formattedEventDate}`
     : milestoneCode === "PM6" ? "a desktop valuation (no physical visit required)" : "";
-  // {attendClause} — customer-friendly appendage for the PM6 buyer email.
-  // Landed 2026-08-09 after Ellis flagged the missing space + clinical
-  // phrasing in the previous "propertybooked for..." rendering.
-  const attendClause = formattedEventDateOrdinal
-    ? ` and will attend on ${formattedEventDateOrdinal}`
+  // {attendClause} — " for <date>" on the PM6 buyer email (physical valuation);
+  // "" for desktop (which swaps in different sentences below).
+  void formattedEventDateOrdinal;
+  const attendClause = formattedEventDate
+    ? ` for ${formattedEventDate}`
     : "";
   // {surveyorClause} — " with <firm>" on the survey-booked email, else "".
   let surveyorClause = "";
@@ -2310,8 +2347,12 @@ async function sendRichMilestoneEmails(
     const recipientKey = c.roleType as "vendor" | "purchaser";
     // Skip the first-actor side on inverse-direction bilateral completions.
     if (suppressedRecipient && recipientKey === suppressedRecipient) continue;
-    const copy = resolveRecipientCopy(milestoneCode, recipientKey, effectiveEmailCopy, fileShape);
-    if (!copy) continue;
+    const copy0 = resolveRecipientCopy(milestoneCode, recipientKey, effectiveEmailCopy, fileShape);
+    if (!copy0) continue;
+    // Desktop valuation → the buyer gets different sentences (opening + body).
+    const copy = milestoneCode === "PM6" && recipientKey === "purchaser" && isDesktop
+      ? { ...copy0, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
+      : copy0;
 
     const greeting = buildGreeting(c.name);
     const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };

@@ -877,14 +877,12 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Mortgage valuation: {address}",
         heroLabel: "Lender valuation booked",
+        // PHYSICAL valuation. For a DESKTOP valuation the render swaps opening +
+        // whatHappened for PM6_DESKTOP_PURCHASER (below) — different sentences,
+        // not just a clause. {attendClause} = " for <date>" (physical) / "" .
         opening: "Your mortgage lender has arranged their valuation.",
-        // {attendClause} interpolates to " and will attend on Thursday 13th
-        // August 2026" when a date is set, or "" for desktop valuations
-        // (which leaves the sentence as "...a valuation of the property.").
-        // The desktop-specific caveat is covered by the RICS HomeBuyer note
-        // in whatNext, so we don't need to re-flag it here.
-        whatHappened: "Your lender has arranged a valuation of the property{attendClause}.{purchaserPhysicalNote}",
-        whatNext: "If you haven't already booked your own survey, now is a good time. A RICS HomeBuyer Report will identify issues the lender's valuation won't cover. Once the valuation is complete, your mortgage offer should follow within 1 to 3 weeks.",
+        whatHappened: "Your lender has arranged a valuation of the property{attendClause}.",
+        whatNext: "If you haven't already booked your own survey, now is a good time to consider it. A RICS HomeBuyer Report can give you a more detailed picture of the property's condition as you move forward. Once the valuation is complete, your mortgage offer should follow within 1 to 3 weeks.",
         action: "View your portal",
       },
       progressor: {
@@ -1758,6 +1756,16 @@ export function getMilestoneUpdateSubtextOther(code: string): string | null {
 export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }
+
+// A lender DESKTOP valuation (no visit) — the buyer's opening + body differ from
+// the physical version (whole sentences, not a clause), so the render swaps these
+// two fields in when the confirmer picks "Desktop valuation". whatNext is shared
+// with the physical copy above. No {placeholders} here (nothing to interpolate).
+export const PM6_DESKTOP_PURCHASER = {
+  opening: "Your mortgage lender is carrying out their valuation.",
+  whatHappened:
+    "Your lender is completing a desktop valuation of the property. This means they'll value it remotely, using information about the property and recent sales of similar properties in the area, so no visit is required.",
+};
 
 export function getEventDateLabel(code: string): string {
   if (code === "PM6") return "Valuation date";
