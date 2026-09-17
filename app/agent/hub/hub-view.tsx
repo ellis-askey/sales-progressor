@@ -696,7 +696,9 @@ function buildGoneQuietRows(
       href: `/agent/transactions/${i.transactionId}`,
       photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
       address: i.propertyAddress,
-      pillLabel: i.pillLabel,
+      // No pill: the card is already titled "Gone quiet" and the subtext says
+      // what happened — a per-row pill repeated the title on every line.
+      pillLabel: null,
       pillTone: "muted" as HubRowTone,
       subtext: i.subtext,
       meta: meta.text,

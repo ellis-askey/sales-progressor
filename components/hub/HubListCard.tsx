@@ -28,7 +28,10 @@ export type HubRowData = {
   href: string;
   photoUrl: string | null;
   address: string;
-  pillLabel: string;
+  // null = no pill. Gone-quiet rows pass null — the card title already says
+  // "Gone quiet" and the subtext carries the specifics, so a per-row pill
+  // was pure duplication. Mortgage rows keep theirs ("12 days left" etc.).
+  pillLabel: string | null;
   pillTone: HubRowTone;
   subtext: string;
   meta: string | null;
@@ -133,9 +136,11 @@ export function HubListCard({
                       <Link href={row.href} className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.address}
                       </Link>
-                      <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
-                        {row.pillLabel}
-                      </Pill>
+                      {row.pillLabel && (
+                        <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
+                          {row.pillLabel}
+                        </Pill>
+                      )}
                     </div>
                     <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {row.subtext}
