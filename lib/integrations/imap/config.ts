@@ -72,6 +72,55 @@ const PRESETS: Record<string, ImapProviderPreset> = {
   },
   "me.com": { provider: "icloud", label: "iCloud Mail", host: "imap.mail.me.com", port: 993, secure: true },
   "mac.com": { provider: "icloud", label: "iCloud Mail", host: "imap.mail.me.com", port: 993, secure: true },
+  "zoho.com": {
+    provider: "zoho",
+    label: "Zoho Mail",
+    host: "imap.zoho.com",
+    port: 993,
+    secure: true,
+    appPasswordUrl: "https://accounts.zoho.com/home#security/security_password",
+    note: "Needs an app-specific password from your Zoho account's security page (not your normal password).",
+  },
+  "zoho.eu": {
+    provider: "zoho",
+    label: "Zoho Mail",
+    host: "imap.zoho.eu",
+    port: 993,
+    secure: true,
+    appPasswordUrl: "https://accounts.zoho.eu/home#security/security_password",
+    note: "Needs an app-specific password from your Zoho account's security page (not your normal password).",
+  },
+  "zohomail.com": {
+    provider: "zoho",
+    label: "Zoho Mail",
+    host: "imap.zoho.com",
+    port: 993,
+    secure: true,
+    appPasswordUrl: "https://accounts.zoho.com/home#security/security_password",
+    note: "Needs an app-specific password from your Zoho account's security page (not your normal password).",
+  },
+  "zohomail.eu": {
+    provider: "zoho",
+    label: "Zoho Mail",
+    host: "imap.zoho.eu",
+    port: 993,
+    secure: true,
+    appPasswordUrl: "https://accounts.zoho.eu/home#security/security_password",
+    note: "Needs an app-specific password from your Zoho account's security page (not your normal password).",
+  },
+  // eXp UK agent mailboxes are hosted on Zoho Mail's EU org service (confirmed
+  // against a live account's settings, 2026-09-17). eXp's IT won't make DNS
+  // changes for agents, so the app-password route here is the ONLY way these
+  // mailboxes connect — keep this preset working.
+  "expuk.com": {
+    provider: "zoho",
+    label: "eXp UK email (Zoho Mail)",
+    host: "imappro.zoho.eu",
+    port: 993,
+    secure: true,
+    appPasswordUrl: "https://accounts.zoho.eu/home#security/security_password",
+    note: "Your eXp email runs on Zoho Mail. Needs an app-specific password from your Zoho account's security page (not your normal password) — no eXp sign-off needed.",
+  },
 };
 
 export function domainOf(email: string): string {

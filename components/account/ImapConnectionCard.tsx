@@ -32,7 +32,7 @@ type Status = { configured: boolean; connections: Connection[] };
 const CORAL = "var(--agent-coral, #FF6B4A)";
 
 function providerLabel(p: string): string {
-  const map: Record<string, string> = { gmail: "Gmail", outlook: "Outlook.com", yahoo: "Yahoo", icloud: "iCloud", aol: "AOL", imap: "Email" };
+  const map: Record<string, string> = { gmail: "Gmail", outlook: "Outlook.com", yahoo: "Yahoo", icloud: "iCloud", aol: "AOL", zoho: "Zoho Mail", imap: "Email" };
   return map[p] ?? "Email";
 }
 

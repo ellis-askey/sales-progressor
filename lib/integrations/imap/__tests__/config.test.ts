@@ -19,6 +19,15 @@ describe("presetForEmail", () => {
     expect(presetForEmail("a@yahoo.co.uk")?.provider).toBe("yahoo");
     expect(presetForEmail("a@icloud.com")?.host).toBe("imap.mail.me.com");
   });
+  it("knows Zoho-hosted mailboxes, including eXp UK", () => {
+    expect(presetForEmail("a@zoho.com")?.host).toBe("imap.zoho.com");
+    expect(presetForEmail("a@zoho.eu")?.host).toBe("imap.zoho.eu");
+    expect(presetForEmail("a@zohomail.eu")?.provider).toBe("zoho");
+    // eXp UK is a custom domain on Zoho EU — the whole point of the preset is
+    // that an eXp agent never needs manual server details (or eXp's IT).
+    expect(presetForEmail("Danny.Bailey@expuk.com")?.host).toBe("imappro.zoho.eu");
+    expect(presetForEmail("a@expuk.com")?.provider).toBe("zoho");
+  });
   it("returns null for an unknown domain", () => {
     expect(presetForEmail("a@some-random-agency.co.uk")).toBeNull();
   });
