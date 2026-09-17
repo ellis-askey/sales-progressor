@@ -276,8 +276,8 @@ From [themes.css](../../app/agent/styles/themes.css) (per-theme blocks) and
 
 | Token | Light value | Dark value | Use |
 |---|---|---|---|
-| `--agent-hover-tint` | `rgba(255, 255, 255, 0.72)` | `rgba(255, 255, 255, 0.07)` | hover background — rows, menu items, buttons, chips |
-| `--agent-hover-tint-strong` | `rgba(255, 255, 255, 0.92)` | `rgba(255, 255, 255, 0.12)` | active/pressed background |
+| `--agent-hover-tint` | `rgba(255, 255, 255, 0.94)` | `rgba(255, 255, 255, 0.07)` | hover background — rows, menu items, buttons, chips. Near-opaque on purpose: at 0.72 the aurora bled through and tinted the bubble pink/green (Ellis, 2026-09-17 — hover must carry NO colour) |
+| `--agent-hover-tint-strong` | `rgba(255, 255, 255, 1)` | `rgba(255, 255, 255, 0.12)` | active/pressed background |
 | `--agent-hover-lift` | `0 2px 10px rgba(45,24,16,0.08), inset 0 0 0 0.5px rgba(45,24,16,0.05)` | `0 2px 10px rgba(0,0,0,0.40), inset 0 0 0 0.5px rgba(255,255,255,0.07)` | the lift shadow — rows + menu items ONLY |
 | `--agent-hover-shade` | `rgba(45, 24, 16, 0.05)` | `rgba(255, 255, 255, 0.06)` | small-control hover — icon buttons, chevron dropdowns, chips, pills, ghost buttons |
 | `--agent-hover-shade-strong` | `rgba(45, 24, 16, 0.09)` | `rgba(255, 255, 255, 0.10)` | small-control pressed |

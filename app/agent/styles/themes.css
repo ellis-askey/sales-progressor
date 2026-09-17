@@ -263,8 +263,8 @@
      * hovers brighten to near-white and rise on --agent-hover-lift
      * (agent-system.css) instead of the old accent-tinted wash. The same
      * neutral pair is used by every light theme; dark overrides below. */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(254, 215, 170, 0.55);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -396,8 +396,8 @@
     --agent-bg-base-rgb:     251, 250, 248;
 
     /* Hover / avatar / aurora — overridden by the brand <style> */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(254, 215, 170, 0.55);
     --agent-avatar-user-start: #FAEEDA;
     --agent-avatar-user-end:   #FAC775;
@@ -567,8 +567,8 @@
     --agent-bg-base-rgb:     219, 234, 240;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(232, 200, 145, 0.45);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -742,8 +742,8 @@
     --agent-bg-base-rgb:     220, 231, 248;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(184, 154, 226, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -917,8 +917,8 @@
     --agent-bg-base-rgb:     229, 235, 239;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(145, 175, 200, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1092,8 +1092,8 @@
     --agent-bg-base-rgb:     219, 237, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(212, 184, 106, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1268,8 +1268,8 @@
     --agent-bg-base-rgb:     245, 222, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(232, 168, 181, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1346,8 +1346,8 @@
     --agent-bloom-gold-rgb: 184, 154, 226;
     --agent-bg-base-rgb:    220, 231, 248;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(184, 154, 226, 0.30);
 
     --agent-avatar-user-start: #DCE7F8;
@@ -1411,8 +1411,8 @@
     --agent-bloom-gold-rgb: 154, 204, 169;
     --agent-bg-base-rgb:    230, 240, 235;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(154, 204, 169, 0.30);
 
     --agent-avatar-user-start: #E6F0EB;
@@ -1476,8 +1476,8 @@
     --agent-bloom-gold-rgb: 195, 165, 230;
     --agent-bg-base-rgb:    237, 232, 245;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(195, 165, 230, 0.30);
 
     --agent-avatar-user-start: #EDE8F5;
@@ -1541,8 +1541,8 @@
     --agent-bloom-gold-rgb: 196, 184, 168;
     --agent-bg-base-rgb:    238, 234, 228;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(196, 184, 168, 0.30);
 
     --agent-avatar-user-start: #EEEAE4;
@@ -1606,8 +1606,8 @@
     --agent-bloom-gold-rgb: 174, 210, 234;
     --agent-bg-base-rgb:    232, 240, 247;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(174, 210, 234, 0.30);
 
     --agent-avatar-user-start: #E8F0F7;
@@ -1671,8 +1671,8 @@
     --agent-bloom-gold-rgb: 210, 170, 190;
     --agent-bg-base-rgb:    245, 236, 240;
 
-    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
-    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.94);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 1);
     --agent-hover-tint-warning: rgba(210, 170, 190, 0.30);
 
     --agent-avatar-user-start: #F5ECF0;
