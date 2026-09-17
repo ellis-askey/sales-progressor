@@ -42,25 +42,25 @@ neutral darken, no lift.** For warning-coded rows: `.agent-hover-row-warning`
 inline (masks the hover — de-washed 2026-09-17).
 Values + application rule: [DESIGN_TOKENS.md](DESIGN_TOKENS.md) § Hover / interactive tints.
 
-### 3. Link — underline + colour shift
+### 3. Link — spreading underline + colour darken
 
 ```css
 .agent-link {
   color: var(--agent-coral-deep);
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  transition: text-decoration-color 150ms ease, color 150ms ease;
+  transition: color var(--agent-transition-fast), ...;
 }
-.agent-link:hover:not(:disabled) {
-  text-decoration-color: currentColor;
-}
+.agent-link::after { /* centre-out spreading underline, scaleX(0) → 1 */ }
+.agent-link:hover:not(:disabled)::after { transform: scaleX(1); opacity: 1; }
+.agent-link:hover:not(:disabled) { color: var(--agent-coral-darker); } /* 2026-09-18 */
 .agent-link:focus-visible {
   outline: none;
-  box-shadow: var(--agent-focus-ring-tight);
+  box-shadow: var(--agent-focus-ring);
 }
 ```
 
-[`agent-system.css:524–561`](../../app/agent/styles/agent-system.css). Apply to inline text links. Variants: `.agent-link-muted`, `.agent-link-primary`.
+`agent-system.css` § Text link button. Apply to inline text links. On hover the string darkens to `--agent-coral-darker` (brand-derived, so it tracks custom themes) alongside the spreading underline. Variants: `.agent-link-muted` (darkens to text-secondary), `.agent-link-primary`. Links carrying `.agent-arrow-i` suppress the underline (arrow is the affordance) but still darken.
+
+`.agent-btn-ghost-bordered` (split-button primaries + the joined `RowActionMenu` chevron) also darkens its string/glyph and border to `--agent-coral-darker` on hover, on top of the neutral `--agent-hover-shade` fill.
 
 ### 4. Glass card — lifted shadow on hover
 

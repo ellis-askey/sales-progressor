@@ -169,9 +169,9 @@ export function ReviewsDueCard({ items: initialItems }: { items: Item[] }) {
               return (
                 <div
                   key={item.key}
-                  style={{ borderLeft: "3px solid var(--agent-info)", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                  style={{ borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
-                  <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
+                  <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px" }}>
                     <PropertyThumb photoUrl={item.photoUrl} />
                     <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>

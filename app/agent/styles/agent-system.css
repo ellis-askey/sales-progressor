@@ -730,6 +730,13 @@
     transform: scaleX(1);
     opacity: 1;
   }
+  /* The string itself darkens on hover alongside the spreading underline
+   * (Ellis, 2026-09-18 — "All reminders" / "All reviews on To-Do" felt inert).
+   * coral-darker is brand-derived (shiftL -10) so it tracks custom themes.
+   * .agent-link-muted defines its own hover colour below and still wins. */
+  .agent-link:hover:not(:disabled) {
+    color: var(--agent-coral-darker);
+  }
   /* Arrow links: when a link carries a nudging arrow icon (.agent-arrow-i),
    * the arrow IS the hover affordance — suppress the spreading underline so
    * they don't double up. Plain (arrow-less) links keep the underline.
@@ -768,9 +775,11 @@
   }
   .agent-btn-ghost-bordered:hover:not(:disabled) {
     /* De-washed (2026-09-17): neutral shade on hover; the coral border +
-     * text stay as the CTA identity. */
+     * text stay as the CTA identity. String + glyph darken (2026-09-18) so
+     * split-button primaries and the joined chevron read as live on hover. */
     background: var(--agent-hover-shade);
-    border-color: var(--agent-coral);
+    border-color: var(--agent-coral-darker);
+    color: var(--agent-coral-darker);
   }
   .agent-btn-ghost-bordered:focus-visible {
     box-shadow: var(--agent-focus-ring);
