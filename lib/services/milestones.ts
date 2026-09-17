@@ -277,6 +277,10 @@ export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
   // reverses the seller-side reflection VM21, mirroring the completion coupling
   // in completeMilestone. One-directional — VM21 is never undone on its own.
   PM20: "VM21",
+  // Contract-pack pair: issued (VM7) and received (PM7) complete together via
+  // the completeMilestone reflection, so they must undo together too — a pack
+  // that was never issued cannot have been received, and vice versa.
+  VM7: "PM7", PM7: "VM7",
 };
 
 // ── Enquiries tracker lifecycle (enquiries rework) ────────────────────────────
@@ -970,9 +974,9 @@ export type CompleteMilestoneInput = {
   awaitingBookingConfirmation?: boolean;
   completedAt?: Date;
   // Internal use only: skip the direct-prerequisite guard. Set solely by the
-  // PM20→VM21 reflection below, where VM21 (seller "all enquiries satisfied")
-  // is a pure mirror of the buyer's PM20 and must complete even if the
-  // seller-side VM10 ("received") was never ticked. Never set from a UI path.
+  // cross-side reflections below — PM20→VM21 (enquiries satisfied) and the
+  // VM7↔PM7 contract-pack pair — where the mirrored side must complete even if
+  // its own upstream chain was never ticked. Never set from a UI path.
   bypassPrereqs?: boolean;
 };
 
@@ -1045,7 +1049,8 @@ export async function completeMilestone(
   // state, so a crafted request could complete a LOCKED gate and skip required
   // legal steps. Enforce it here at the single chokepoint, for EVERY caller.
   // bypassPrereqs does not reach here for a gate code (it is only used for the
-  // internal PM20→VM21 reflection), so the gate can't be bypassed that way either.
+  // internal cross-side reflections: PM20→VM21 and the VM7↔PM7 contract-pack
+  // pair), so the gate can't be bypassed that way either.
   if (EXCHANGE_GATE_CODES.has(def.code)) {
     const gateRow = await db.milestoneCompletion.findFirst({
       where: {
@@ -1327,6 +1332,44 @@ export async function completeMilestone(
       }
     } catch (err) {
       console.error("[completeMilestone] PM20→VM21 reflection failed:", err);
+    }
+  }
+
+  // Contract-pack pair: the seller's "draft contract pack issued" (VM7) and
+  // the buyer's "draft contract pack received" (PM7) are ONE real-world
+  // handover seen from two desks — you can't receive a pack that was never
+  // issued, and an issued pack has landed with the buyer's solicitor.
+  // Confirming EITHER side completes both (founder decision, 2026-09-17; the
+  // money-on-account gate that used to sit on PM7 moved to PM8 in
+  // lib/milestone-prerequisites.ts). Same chokepoint reasoning as PM20→VM21
+  // above: every confirm path runs through here, so the sides can't desync.
+  // The mirrored call carries the same event date so expected-days data stays
+  // truthful. Recursion terminates on the counterpart's already-complete row
+  // (first-writer-wins early return above); bypassPrereqs covers the
+  // buyer-confirms-first case, where the seller-side chain (forms returned
+  // etc.) may legitimately be un-ticked — those show as out-of-order.
+  const dcpCounterpart = def.code === "VM7" ? "PM7" : def.code === "PM7" ? "VM7" : null;
+  if (dcpCounterpart) {
+    try {
+      const other = await db.milestoneDefinition.findFirst({
+        where: { code: dcpCounterpart },
+        select: { id: true },
+      });
+      if (other) {
+        await completeMilestone(
+          {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: other.id,
+            confirmer: input.confirmer,
+            eventDate: input.eventDate,
+            completedAt: input.completedAt,
+            bypassPrereqs: true,
+          },
+          tx,
+        );
+      }
+    } catch (err) {
+      console.error(`[completeMilestone] ${def.code}→${dcpCounterpart} contract-pack reflection failed:`, err);
     }
   }
 

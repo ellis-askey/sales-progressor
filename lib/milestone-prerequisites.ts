@@ -6,6 +6,15 @@
 // RETIRED_ENQUIRY_CODES below. PM20 "satisfied" now depends directly on PM14
 // "raised" (no phantom intermediate chain), and a new seller-side mirror VM21
 // "enquiries satisfied" depends on VM10 "received".
+//
+// Contract-pack pair (founder decision, 2026-09-17): the seller's "draft
+// contract pack issued" (VM7) and the buyer's "draft contract pack received"
+// (PM7) are one real-world handover, confirmed from either side — see the
+// reflection in lib/services/milestones.ts completeMilestone. PM7 therefore
+// carries NO prerequisites (a buyer who truly received the pack must never be
+// blocked from recording it), and the money-on-account gate that used to sit
+// on PM7 lives on PM8 "searches ordered", where it belongs: a solicitor
+// doesn't order searches until funds are on account.
 export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM3:  ["VM1"],
   VM4:  ["VM3"],
@@ -22,8 +31,7 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM3:  ["PM1"],
   PM4:  ["PM1"],
   PM6:  ["PM5"],
-  PM7:  ["PM4"],
-  PM8:  ["PM7"],
+  PM8:  ["PM7", "PM4"],
   PM10: ["PM9"],
   PM11: ["PM6"],
   PM12: ["VM9"],
