@@ -863,6 +863,58 @@ export async function getUninvitedNeighbourCount(transactionId: string): Promise
   });
 }
 
+// A property chain exchanges on one day for everyone in it ("same day or not at
+// all"). When the same agent/SP manages more than one file in a chain (via
+// self-link), those files' exchange dates must move together. This returns the
+// OTHER files in the same chain that the acting user is allowed to change and
+// that have not already exchanged — i.e. the files an exchange-date change should
+// fan out to.
+//
+// Scope-safe by design: it filters siblings through the caller's access scope, so
+// a neighbouring agency's own sale is never returned (their date to set, not
+// ours). Returns [] for a file that isn't in a chain, or whose only chain-mates
+// are unclaimed stubs / other agencies' files / already-exchanged files.
+export async function getManagedChainSiblingIds(
+  transactionId: string,
+  scope: AccessScope,
+): Promise<string[]> {
+  const self = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agencyId: true, chainLink: { select: { chainId: true } } },
+  });
+  const chainId = self?.chainLink?.chainId;
+  if (!chainId || !self) return [];
+
+  // Every claimed slot in the same chain (a real managed file, not a stub), minus
+  // this file. Dedupe in case a stale historical link still carries the same id.
+  const links = await prisma.chainLink.findMany({
+    where: { chainId, transactionId: { not: null } },
+    select: { transactionId: true },
+  });
+  const siblingIds = [
+    ...new Set(links.map((l) => l.transactionId!).filter((id) => id !== transactionId)),
+  ];
+  if (siblingIds.length === 0) return [];
+
+  // Keep only files that:
+  //  - belong to the SAME agency as the file being acted on — this is the hard
+  //    guard that a neighbouring agency's sale is never touched, even for an
+  //    admin/superadmin whose access scope is "all" (their date is theirs to set);
+  //  - the acting user may change (their access scope), so an SP only ever moves
+  //    their own assigned files, not other files in the same agency; and
+  //  - haven't exchanged (an exchanged file's date is real, not a forecast).
+  const inScope = await prisma.propertyTransaction.findMany({
+    where: {
+      id: { in: siblingIds },
+      agencyId: self.agencyId,
+      exchangedAt: null,
+      ...scopeTransactionWhere(scope),
+    },
+    select: { id: true },
+  });
+  return inScope.map((t) => t.id);
+}
+
 // ─── Chain activity feed (#14) ────────────────────────────────────────────────
 // Cross-chain "what's happened" feed for the wide drawer's opt-in activity card.
 // Aggregates the real, already-happened events across every link:

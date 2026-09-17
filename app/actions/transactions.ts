@@ -11,7 +11,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { checkAgentHandoverReadiness } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
-import { createChainV2 } from "@/lib/services/chains";
+import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
@@ -932,6 +932,73 @@ function isSameCalendarDay(a: Date, b: Date): boolean {
   );
 }
 
+// Apply a manual exchange-date to ONE file as an override: write it, capture
+// prediction history, tell that file's clients (only when the date genuinely
+// moved), and log activity. Used to fan a single chain-wide date out across
+// every managed file in the same chain, so a chain always exchanges on one day.
+// Never touches an exchanged file (its stored date is the real one). `synced`
+// tags the activity line on the auto-updated siblings so it's clear which file
+// the agent actually clicked. Best-effort per file: a failure on one sibling
+// does not roll back the others.
+async function applyExchangeDateOverride(opts: {
+  transactionId: string;
+  newDate: Date; // already rolled to a business day by the caller
+  actorId: string;
+  actorName: string;
+  verb: "set" | "revised" | "recalibrated";
+  synced: boolean;
+  // When the caller has already mutated this file's stored dates before calling
+  // (the recalibrate flow refreshes predictions first), pass the file's
+  // client-visible date from BEFORE that mutation so the change-only note fires
+  // against the real prior date. Omit to read the current stored date.
+  notifyBaseline?: Date | null;
+}): Promise<void> {
+  const before = await prisma.propertyTransaction.findUnique({
+    where: { id: opts.transactionId },
+    select: { overridePredictedDate: true, expectedExchangeDate: true, exchangedAt: true },
+  });
+  if (!before || before.exchangedAt) return; // never overwrite a real exchanged date
+  const priorEffective =
+    opts.notifyBaseline !== undefined
+      ? opts.notifyBaseline
+      : before.overridePredictedDate ?? before.expectedExchangeDate;
+
+  await prisma.$transaction(async (txc) => {
+    await txc.propertyTransaction.update({
+      where: { id: opts.transactionId },
+      data: { overridePredictedDate: opts.newDate, exchangeReminderSnoozedUntil: null },
+    });
+    await recordPredictionChangeIfMoved(txc, {
+      transactionId: opts.transactionId,
+      field: "overridePredictedDate",
+      previousDate: before.overridePredictedDate,
+      predictedDate: opts.newDate,
+      source: "manual_override",
+      isOverride: true,
+      changedByUserId: opts.actorId,
+    });
+  });
+
+  // Change-only client note (mirrors the primary path).
+  if (priorEffective && !isSameCalendarDay(priorEffective, opts.newDate)) {
+    await postExchangeDateUpdateToClients(opts.transactionId, opts.newDate, opts.actorId).catch(() => {});
+  }
+
+  const dateStr = opts.newDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const verbText =
+    opts.verb === "set"
+      ? `set expected exchange date to ${dateStr}`
+      : opts.verb === "revised"
+        ? `revised the expected exchange date to ${dateStr}`
+        : `recalibrated the expected exchange date to ${dateStr}`;
+  await logActivity(
+    opts.transactionId,
+    `${opts.actorName} ${verbText}${opts.synced ? " (synced across the chain)" : ""}`,
+    opts.actorId,
+  );
+  revalidateTx(opts.transactionId);
+}
+
 export async function saveOverrideDateAction(transactionId: string, overridePredictedDate: string | null) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -983,6 +1050,23 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
   );
 
   revalidateTx(transactionId);
+
+  // Chain sync: a chain exchanges on one day, so fan a real date-set out to every
+  // other file we manage in this chain (clearing stays local — nothing to sync).
+  if (newDate) {
+    const siblingIds = await getManagedChainSiblingIds(transactionId, scope);
+    for (const sid of siblingIds) {
+      await applyExchangeDateOverride({
+        transactionId: sid,
+        newDate,
+        actorId: session.user.id,
+        actorName: session.user.name ?? "Your team",
+        verb: "set",
+        synced: true,
+      });
+    }
+    if (siblingIds.length > 0) revalidatePath("/agent/hub", "page");
+  }
 }
 
 // Scenario D: revise the exchange date on a file that's gone quiet past its
@@ -1048,6 +1132,19 @@ export async function reviseOverdueExchangeDateAction(input: {
 
   revalidateTx(input.transactionId);
   revalidatePath("/agent/hub", "page");
+
+  // Chain sync: the whole chain moves to the revised date.
+  const siblingIds = await getManagedChainSiblingIds(input.transactionId, scope);
+  for (const sid of siblingIds) {
+    await applyExchangeDateOverride({
+      transactionId: sid,
+      newDate: parsed,
+      actorId: session.user.id,
+      actorName: session.user.name ?? "Your team",
+      verb: "revised",
+      synced: true,
+    });
+  }
 }
 
 // Hub "Exchange date passed" quick-action: RECALIBRATE. Drop any manual override
@@ -1063,6 +1160,54 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Chain sync: if we manage other files in this chain, recalibrate re-derives
+  // EVERY file from its own progress, then pins the whole chain to the LATEST of
+  // those dates — the bottleneck the chain has to wait for ("same day or not at
+  // all"). Only files we can access move; a neighbouring agency's sale is theirs
+  // to set. Single files (no managed chain-mates) keep the plain behaviour below.
+  const siblingIds = await getManagedChainSiblingIds(transactionId, scope);
+  if (siblingIds.length > 0) {
+    const allIds = [transactionId, ...siblingIds];
+
+    // Snapshot each file's client-visible date BEFORE we refresh, so the
+    // change-only client note fires against the true prior date.
+    const priors = await prisma.propertyTransaction.findMany({
+      where: { id: { in: allIds } },
+      select: { id: true, overridePredictedDate: true, expectedExchangeDate: true },
+    });
+    const baseline = new Map(
+      priors.map((p) => [p.id, p.overridePredictedDate ?? p.expectedExchangeDate]),
+    );
+
+    // Re-derive each file's own progress-based prediction (refresh ignores any
+    // override), collecting the fresh dates.
+    const predictions: Date[] = [];
+    for (const id of allIds) {
+      const p = await refreshExpectedExchangeDate(id).catch(() => null);
+      if (p) predictions.push(p);
+    }
+
+    if (predictions.length > 0) {
+      const chainDate = rollToBusinessDay(
+        new Date(Math.max(...predictions.map((d) => d.getTime()))),
+      );
+      for (const id of allIds) {
+        await applyExchangeDateOverride({
+          transactionId: id,
+          newDate: chainDate,
+          actorId: session.user.id,
+          actorName: session.user.name ?? "Your team",
+          verb: "recalibrated",
+          synced: id !== transactionId,
+          notifyBaseline: baseline.get(id) ?? null,
+        });
+      }
+    }
+    revalidatePath("/agent/hub", "page");
+    return { ok: true };
+  }
+
+  // ── Single file (no managed chain-mates): plain recalibrate ──
   const priorExpected = tx.overridePredictedDate ?? tx.expectedExchangeDate;
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
