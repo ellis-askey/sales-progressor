@@ -8,16 +8,9 @@ Last updated: 2026-09-16
 
 ---
 
-## Sent-Items capture (Complete Email History, Phase 2) — flag OFF; test on staging first (2026-09-16)
+## Sent-Items capture (Complete Email History, Phase 2) — LIVE (flag ON in prod, confirmed by Ellis 2026-09-17)
 
-Sent-Items ingestion is built but **dark behind `SENT_ITEMS_ENABLED`** (off everywhere). It captures emails you send **directly from Outlook/Gmail** onto the right property file. TSP's own SendGrid sends are untouched and never enter your Sent folder, so there's no dedup churn.
-
-**To trial it (staging only, first):**
-1. The migration `20260917000000_sent_items_capture` (adds `direction`/`toEmail`/`toName` to PendingInboundEmail + `lastSentSyncAt` on both connection tables) applies automatically on the **staging deploy** (`prisma migrate deploy` in the Vercel build). Confirm the staging deploy is GREEN.
-2. After deploy, run `npx prisma generate` locally (stop the `:3001` dev server first — it locks the engine DLL) to restore the full engine for local scripts. Types are already generated.
-3. Vercel → **staging/Preview** env → add `SENT_ITEMS_ENABLED=true`, redeploy staging.
-4. Send a real email from your connected Outlook to a solicitor on a live file, run a sync, and confirm it lands on the file as "you · Your team".
-5. Only once happy on staging: add the same env var to **Production** and redeploy.
+`SENT_ITEMS_ENABLED=true` is set in the Vercel env and Sent-Items ingestion is **live in production**. It captures emails you send **directly from Outlook/Gmail/IMAP mail apps** onto the right property file. TSP's own SendGrid sends never enter your Sent folder; mailbox-SMTP sends (2026-09-17) DO land there but are deduped by Message-ID, so nothing files twice.
 
 First Sent sync fetches the **last 30 days** (separate 200-message budget), then moves forward incrementally via `lastSentSyncAt`. Zero-candidate (personal/unrelated) sent mail is dropped entirely — never stored.
 
