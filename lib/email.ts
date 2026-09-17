@@ -525,6 +525,27 @@ export async function resolveSenderForTransaction(
     orderBy: { lastUsedAt: "desc" },
     select: { email: true },
   });
+
+  // Sign-in first. A verified email is only auto-picked when it IS the agent's
+  // sign-in address; otherwise a send-enabled connected mailbox matching the
+  // sign-in wins. Without this, an agent who moved their sign-in to a mailbox
+  // domain (e.g. eXp) would still have chases leak from their OLD verified
+  // address, contradicting the "everything sends from your sign-in" rule the
+  // Connections card states. A stale verified email that matches nothing still
+  // beats the SP fallback (legacy behaviour, unchanged).
+  const sessionEmail = sessionUser.email?.trim().toLowerCase() ?? null;
+  if (userEmail && sessionEmail && userEmail.email.toLowerCase() === sessionEmail) {
+    return { from: buildFrom(brandedDisplay, userEmail.email), replyTo: userEmail.email };
+  }
+  if (sessionEmail) {
+    try {
+      const { findSendMailboxForAddress } = await import("@/lib/integrations/smtp/mailbox-lookup");
+      const mailbox = await findSendMailboxForAddress(sessionEmail);
+      if (mailbox) return { from: buildFrom(brandedDisplay, sessionEmail), replyTo: sessionEmail };
+    } catch {
+      /* lookup failure → legacy behaviour below */
+    }
+  }
   if (!userEmail) return fallback();
 
   return { from: buildFrom(brandedDisplay, userEmail.email), replyTo: userEmail.email };
