@@ -1670,11 +1670,19 @@
     flex-direction: column;
     gap: 8px;
     min-height: 176px;
+    /* Depth (Ellis, 2026-09-17): soft resting shadow + inner top light so the
+     * tinted cards sit off the surface instead of reading flat. */
+    box-shadow:
+      0 1px 2px rgba(45, 24, 16, 0.04),
+      0 5px 14px rgba(45, 24, 16, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
     transition: box-shadow var(--agent-transition-fast), border-color var(--agent-transition-fast);
   }
   .pipe-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .pipe-card-label { font-size: 13px; font-weight: 700; color: var(--agent-text-primary); letter-spacing: -0.01em; }
-  .pipe-icon { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+  /* Bare glyph — the faded 26px chip behind the icon was dropped
+   * (Ellis, 2026-09-17); the icon renders directly in the stage accent. */
+  .pipe-icon { display: flex; align-items: center; flex-shrink: 0; }
   .pipe-count { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; }
   .pipe-sub { font-size: 11px; color: var(--agent-text-muted); margin-top: -2px; }
   .pipe-empty { font-size: 11.5px; color: var(--agent-text-muted); margin-top: auto; }
@@ -1695,9 +1703,87 @@
   .pipe-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--agent-text-muted); }
   .pipe-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
   .pipe-more { font-size: 11px; color: var(--agent-text-muted); font-weight: 500; padding-left: 2px; }
-  .pipe-more-link { text-decoration: none; }
-  .pipe-more-link:hover { color: var(--agent-coral-deep); }
-  .pipe-card-reached:hover { box-shadow: 0 4px 14px rgba(30, 45, 74, 0.07); }
+  /* Reached-stage glass face (Ellis, 2026-09-17): the flat 6% tints read
+   * washed-out. Each card now builds real glass from its stage accent
+   * (--pipe-rgb, set inline per card): a white sheen falling from the top,
+   * a tinted body gradient, an accent hairline border, and a backdrop blur
+   * that pulls the aurora through. The .pipe-card inset top light acts as
+   * the specular edge. */
+  .pipe-card-reached {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0) 52%),
+      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.20) 0%, rgba(var(--pipe-rgb), 0.05) 58%, rgba(var(--pipe-rgb), 0.12) 100%);
+    border-color: rgba(var(--pipe-rgb), 0.22);
+    -webkit-backdrop-filter: blur(14px) saturate(1.35);
+    backdrop-filter: blur(14px) saturate(1.35);
+  }
+  [data-theme="dark"] .pipe-card-reached {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 52%),
+      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.30) 0%, rgba(var(--pipe-rgb), 0.08) 58%, rgba(var(--pipe-rgb), 0.16) 100%);
+    border-color: rgba(var(--pipe-rgb), 0.35);
+  }
+  [data-theme="dark"] .pipe-card {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.25),
+      0 5px 14px rgba(0, 0, 0, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  /* "+N more" — now a button that opens the bubble below. Coral on hover so
+   * it reads as interactive. */
+  .pipe-more-wrap { position: relative; }
+  .pipe-more-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 3px 2px;
+    border-radius: 6px;
+    transition: color var(--agent-transition-fast);
+  }
+  .pipe-more-btn:hover { color: var(--agent-coral-deep); }
+  .pipe-more-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); color: var(--agent-coral-deep); }
+  /* The bubble — iOS-menu styling: elevated rounded panel above the trigger,
+   * hairline-separated rows, text-only (no property photos), hover tint. */
+  .pipe-more-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: -6px;
+    z-index: 30;
+    min-width: 190px;
+    max-width: 240px;
+    padding: 5px;
+    border-radius: 14px;
+    background: var(--agent-surface-elevated);
+    border: 0.5px solid var(--agent-border-default);
+    box-shadow: 0 12px 32px rgba(45, 24, 16, 0.16), 0 2px 8px rgba(45, 24, 16, 0.08);
+    animation: agent-dropdown-in 140ms ease both;
+  }
+  .pipe-more-item {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--agent-text-primary);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background var(--agent-transition-fast);
+  }
+  .pipe-more-item:hover { background: var(--agent-hover-tint); }
+  .pipe-more-item:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
+  .pipe-more-item + .pipe-more-item { border-top: 0.5px solid var(--agent-border-subtle); }
+  .pipe-more-item-rest { font-size: 11.5px; font-weight: 500; color: var(--agent-text-muted); }
+  .pipe-more-item-rest:hover { color: var(--agent-coral-deep); }
+  .pipe-card-reached:hover {
+    border-color: rgba(var(--pipe-rgb), 0.34);
+    box-shadow:
+      0 2px 4px rgba(45, 24, 16, 0.05),
+      0 10px 24px rgba(45, 24, 16, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
 
   /* Up next — the immediate next stage: a soft coral, dashed nudge. */
   .pipe-card-upnext {

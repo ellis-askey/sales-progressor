@@ -1241,6 +1241,13 @@ export type PipelineSample = {
   photoStoragePath: string | null;
 };
 
+// The "+N more" bubble on a stage card: up to 5 further files, address-only
+// (deliberately no photos — the bubble is a text menu).
+export type PipelineMoreItem = {
+  id: string;
+  propertyAddress: string;
+};
+
 export type StageStatsNew = {
   count: number;
   oldestDays: number | null;
@@ -1297,13 +1304,13 @@ export type StageStatsCompleted = {
 // Each stage carries a `sample` (a representative file) for the property
 // preview on the new stage cards, on top of its existing stats.
 export type HubPipelineStages = {
-  new: StageStatsNew & { sample: PipelineSample | null };
-  onboarding: StageStatsOnboarding & { sample: PipelineSample | null };
-  searches: StageStatsSearches & { sample: PipelineSample | null };
-  enquiries: StageStatsEnquiries & { sample: PipelineSample | null };
-  ready: StageStatsReady & { sample: PipelineSample | null };
-  exchanging: StageStatsExchanging & { sample: PipelineSample | null };
-  completed: StageStatsCompleted & { sample: PipelineSample | null };
+  new: StageStatsNew & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  onboarding: StageStatsOnboarding & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  searches: StageStatsSearches & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  enquiries: StageStatsEnquiries & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  ready: StageStatsReady & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  exchanging: StageStatsExchanging & { sample: PipelineSample | null; more: PipelineMoreItem[] };
+  completed: StageStatsCompleted & { sample: PipelineSample | null; more: PipelineMoreItem[] };
 };
 
 // Phase-entry milestone codes — a file is bucketed into the furthest phase
@@ -1337,13 +1344,13 @@ function sumPence(values: Array<number | null>): number | null {
 }
 
 const EMPTY_STAGES: HubPipelineStages = {
-  new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0, sample: null },
-  onboarding: { count: 0, awaitingDraftPack: 0, oldestDays: null, sample: null },
-  searches: { count: 0, awaitingResults: 0, oldestDays: null, sample: null },
-  enquiries: { count: 0, openLoops: 0, oldestDays: null, sample: null },
-  ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null, sample: null },
-  exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null, sample: null },
-  completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null, sample: null },
+  new: { count: 0, oldestDays: null, newThisWeek: 0, quietFiles: 0, sample: null, more: [] },
+  onboarding: { count: 0, awaitingDraftPack: 0, oldestDays: null, sample: null, more: [] },
+  searches: { count: 0, awaitingResults: 0, oldestDays: null, sample: null, more: [] },
+  enquiries: { count: 0, openLoops: 0, oldestDays: null, sample: null, more: [] },
+  ready: { count: 0, overdueToExchange: 0, medianDaysToExchange: null, totalValueLocked: null, sample: null, more: [] },
+  exchanging: { count: 0, completingThisWeek: 0, medianDaysSinceExchange: null, totalValueClosing: null, sample: null, more: [] },
+  completed: { count: 0, totalValueClosed: null, medianDaysToComplete: null, slaHitRate: null, sample: null, more: [] },
 };
 
 // Representative file for a bucket's preview: the oldest on the books, so the
@@ -1355,6 +1362,17 @@ function pickSample(
   if (files.length === 0) return null;
   const oldest = files.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
   return { id: oldest.id, propertyAddress: oldest.propertyAddress, photoStoragePath: oldest.photoStoragePath };
+}
+
+// The next files after the featured sample, oldest-first, for the card's
+// "+N more" bubble. Capped at 5 — beyond that the bubble links to Files.
+function pickMore(
+  files: Array<{ id: string; propertyAddress: string; photoStoragePath: string | null; createdAt: Date }>,
+): PipelineMoreItem[] {
+  return [...files]
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .slice(1, 6)
+    .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
 }
 
 export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPipelineStages> {
@@ -1597,24 +1615,28 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       newThisWeek,
       quietFiles,
       sample: pickSample(newFiles),
+      more: pickMore(newFiles),
     },
     onboarding: {
       count: onboardingFiles.length,
       awaitingDraftPack: onboardingAwaitingPack,
       oldestDays: oldestDays(onboardingFiles),
       sample: pickSample(onboardingFiles),
+      more: pickMore(onboardingFiles),
     },
     searches: {
       count: searchesFiles.length,
       awaitingResults: searchesAwaitingResults,
       oldestDays: oldestDays(searchesFiles),
       sample: pickSample(searchesFiles),
+      more: pickMore(searchesFiles),
     },
     enquiries: {
       count: enquiriesFiles.length,
       openLoops: enquiriesOpenLoops,
       oldestDays: oldestDays(enquiriesFiles),
       sample: pickSample(enquiriesFiles),
+      more: pickMore(enquiriesFiles),
     },
     ready: {
       count: readyFiles.length,
@@ -1622,6 +1644,7 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       medianDaysToExchange,
       totalValueLocked,
       sample: pickSample(readyFiles),
+      more: pickMore(readyFiles),
     },
     exchanging: {
       count: exchangingRows.length,
@@ -1629,6 +1652,7 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       medianDaysSinceExchange,
       totalValueClosing,
       sample: pickSample(exchangingRows),
+      more: pickMore(exchangingRows),
     },
     completed: {
       count: completedRows.length,
@@ -1636,6 +1660,7 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
       medianDaysToComplete,
       slaHitRate,
       sample: pickSample(completedRows),
+      more: pickMore(completedRows),
     },
   };
 }
