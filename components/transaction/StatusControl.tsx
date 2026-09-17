@@ -77,7 +77,9 @@ function tomorrow(): string {
 }
 
 export function StatusControl({ transactionId, currentStatus, inChain = false }: Props) {
-  const [isPending, startTransition] = useTransition();
+  // Phase 2 (2026-09-17): the trigger is gated on ack-scoped `saving` only —
+  // isPending would keep it disabled through the whole post-ack re-render.
+  const [, startTransition] = useTransition();
   const { toast } = useAgentToast();
   // Modals are portal'd to document.body — the agent CSS variables
   // (--agent-surface-elevated, --agent-text-primary, etc.) are scoped
@@ -248,7 +250,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
         <button
           ref={buttonRef}
           onClick={handleOpen}
-          disabled={saving || isPending}
+          disabled={saving}
           className="flex items-center gap-1.5 group"
           title="Change status"
         >

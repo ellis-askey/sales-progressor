@@ -6,7 +6,7 @@
 // an always-present composer makes jotting a note frictionless; note rows are
 // deletable inline. "View all" goes to the full Activity tab.
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTabContext } from "./TabContext";
 import {
@@ -87,50 +87,58 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
   const { toast } = useAgentToast();
   const [filter, setFilter] = useState<"all" | "notes">("all");
   const [draft, setDraft] = useState("");
-  const [isPending, startTransition] = useTransition();
+  // Phase 2 (2026-09-17): pending is ack-scoped and per-row. `saving` covers
+  // the composer only and clears when the server acknowledges the write, not
+  // when the follow-up refresh lands. `deletingIds` is a Set so one delete
+  // in flight no longer hides the delete affordance on every other note.
+  const [saving, setSaving] = useState(false);
   const [optimistic, setOptimistic] = useState<OptimisticNote[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // A fresh server render (after add/delete) resets the optimistic layer.
   useEffect(() => { setOptimistic([]); setRemovedIds(new Set()); }, [entries]);
 
   const noteCount = entries.filter((e) => isNote(e) && !removedIds.has(e.id)).length + optimistic.length;
 
-  function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     const content = draft.trim();
-    if (!content) return;
+    if (!content || saving) return;
+    setSaving(true);
     setDraft("");
     const tempId = `temp-${Date.now()}`;
-    startTransition(async () => {
-      setOptimistic((prev) => [{ id: tempId, content, createdByName: currentUserName, createdByImage: currentUserImage, at: new Date() }, ...prev]);
-      try {
-        await addNoteAction(transactionId, content);
-        toast.success("Note added");
-        router.refresh();
-      } catch {
-        toast.error("Couldn't save note. Try again");
-        setOptimistic((prev) => prev.filter((n) => n.id !== tempId));
-      }
-    });
+    setOptimistic((prev) => [{ id: tempId, content, createdByName: currentUserName, createdByImage: currentUserImage, at: new Date() }, ...prev]);
+    try {
+      await addNoteAction(transactionId, content);
+      toast.success("Note added");
+      // Reconcile with canonical state; not awaited, so the composer is
+      // usable again as soon as the write is acknowledged.
+      router.refresh();
+    } catch {
+      toast.error("Couldn't save note. Try again");
+      setOptimistic((prev) => prev.filter((n) => n.id !== tempId));
+      // Put the text back so the agent can retry without retyping.
+      setDraft((current) => (current.trim() ? current : content));
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
+    if (deletingIds.has(id)) return;
     setRemovedIds((prev) => new Set([...prev, id]));
-    setDeleting(id);
-    startTransition(async () => {
-      try {
-        await deleteCommAction(id, transactionId);
-        toast.success("Note removed");
-        router.refresh();
-      } catch {
-        toast.error("Couldn't remove note. Try again");
-        setRemovedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
-      } finally {
-        setDeleting(null);
-      }
-    });
+    setDeletingIds((prev) => new Set([...prev, id]));
+    try {
+      await deleteCommAction(id, transactionId);
+      toast.success("Note removed");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't remove note. Try again");
+      setRemovedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    } finally {
+      setDeletingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
   }
 
   return (
@@ -160,8 +168,8 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
           rows={1}
           style={{ flex: 1, minHeight: 38, resize: "vertical", fontSize: 13 }}
         />
-        <button type="submit" disabled={isPending || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          {isPending ? <SavingPulse label="Saving…" /> : <><Plus size={13} weight="bold" /> Add note</>}
+        <button type="submit" disabled={saving || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {saving ? <SavingPulse label="Saving…" /> : <><Plus size={13} weight="bold" /> Add note</>}
         </button>
       </form>
 
@@ -178,23 +186,23 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
           actorImage={e.actorImage}
           time={fmtTime(e)}
           tag="Setup note"
-          onDelete={deleting || isPending ? undefined : () => handleDelete(e.id)}
-          deleting={deleting === e.id}
+          onDelete={deletingIds.has(e.id) ? undefined : () => handleDelete(e.id)}
+          deleting={deletingIds.has(e.id)}
         />
       ))}
 
       {filter === "notes" ? (
-        <NotesView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
+        <NotesView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} />
       ) : (
-        <FeedView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deleting={deleting} isPending={isPending} onDelete={handleDelete} />
+        <FeedView optimistic={optimistic} entries={entries.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} />
       )}
     </GlassCard>
   );
 }
 
 // ── All: banded activity feed (real entries), with optimistic notes on top ──
-function FeedView({ optimistic, entries, removedIds, deleting, isPending, onDelete }: {
-  optimistic: OptimisticNote[]; entries: ActivityEntry[]; removedIds: Set<string>; deleting: string | null; isPending: boolean; onDelete: (id: string) => void;
+function FeedView({ optimistic, entries, removedIds, deletingIds, onDelete }: {
+  optimistic: OptimisticNote[]; entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void;
 }) {
   const visible = entries.filter((e) => !removedIds.has(e.id)).slice(0, FEED_PREVIEW);
   if (optimistic.length === 0 && visible.length === 0) {
@@ -218,7 +226,7 @@ function FeedView({ optimistic, entries, removedIds, deleting, isPending, onDele
           <BandLabel label={band.label} />
           {band.items.map((entry) =>
             isNote(entry)
-              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={fmtTime(entry)} onDelete={deleting || isPending ? undefined : () => onDelete(entry.id)} deleting={deleting === entry.id} />
+              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={fmtTime(entry)} onDelete={deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} />
               : <ActivityRow key={entry.id} entry={entry} />,
           )}
         </div>
@@ -228,8 +236,8 @@ function FeedView({ optimistic, entries, removedIds, deleting, isPending, onDele
 }
 
 // ── Notes: flat notes list (optimistic + real), paginated ──
-function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDelete }: {
-  optimistic: OptimisticNote[]; entries: ActivityEntry[]; removedIds: Set<string>; deleting: string | null; isPending: boolean; onDelete: (id: string) => void;
+function NotesView({ optimistic, entries, removedIds, deletingIds, onDelete }: {
+  optimistic: OptimisticNote[]; entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const realNotes = entries.filter((e) => isNote(e) && !removedIds.has(e.id));
@@ -246,7 +254,7 @@ function NotesView({ optimistic, entries, removedIds, deleting, isPending, onDel
     <div>
       {shown.map((r) => (
         <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} optimistic={r.optimistic}
-          onDelete={r.optimistic || deleting || isPending ? undefined : () => onDelete(r.id)} deleting={deleting === r.id} />
+          onDelete={r.optimistic || deletingIds.has(r.id) ? undefined : () => onDelete(r.id)} deleting={deletingIds.has(r.id)} />
       ))}
       {!expanded && hidden > 0 && (
         <button onClick={() => setExpanded(true)} className="agent-link-muted" style={{ fontSize: 11, padding: "8px 16px", display: "block" }}>

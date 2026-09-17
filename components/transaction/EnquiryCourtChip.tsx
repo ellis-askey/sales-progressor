@@ -10,7 +10,7 @@
 //  - Pre-raise (read-only): a static pill showing the ball with the buyer's
 //    solicitor while we chase them to raise enquiries.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Scales } from "@phosphor-icons/react/dist/ssr";
 import { logEnquiryMovementAction } from "@/app/actions/enquiries";
@@ -49,7 +49,11 @@ export function EnquiryCourtChip({
   data: EnquiryHeroState;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Phase 2 (2026-09-17): ack-scoped pending — clears when the server
+  // acknowledges the handover, not when the page refetch lands. The
+  // optimistic side sticks until the refreshed server state agrees
+  // (effect below), and rolls back if the write fails.
+  const [pending, setPending] = useState(false);
   const [optimistic, setOptimistic] = useState<Court | null>(null);
   const side: Court = optimistic ?? data.currentlyWith;
   // A handover restarts the chase clock, so mid-handover the ball is freshly
@@ -75,13 +79,18 @@ export function EnquiryCourtChip({
             ? `Nudge ${fmt(data.nextChaseAt)}`
             : "Chasing";
 
-  function slideTo(target: Court) {
+  async function slideTo(target: Court) {
     if (target === side || pending) return;
     setOptimistic(target);
-    start(async () => {
+    setPending(true);
+    try {
       await logEnquiryMovementAction({ transactionId, mode: "handover", flipsCourtTo: target });
       router.refresh();
-    });
+    } catch {
+      setOptimistic(null); // roll the slider back — the handover didn't save
+    } finally {
+      setPending(false);
+    }
   }
 
   // Read-only pre-raise leg: a single static pill.

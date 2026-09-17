@@ -6,7 +6,7 @@
 // ONCE, not duplicated across two cards. When there's no hero but reminders
 // exist (e.g. all snoozed) it falls back to a plain reminders card.
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NextActionCard } from "./NextActionCard";
 import { useTabContext } from "./TabContext";
@@ -89,7 +89,12 @@ function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder
 export function NextActionCardConsumer({ transactionId, pathname, reminder, fallbackMilestone, otherReminders, totalActive }: NextActionInput) {
   const { setActiveTab } = useTabContext();
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  // Phase 2 (2026-09-17): pending is ack-scoped. The old useTransition
+  // wrapped the action AND router.refresh, so "Marking..." (and the
+  // double-click window) lasted the whole page refetch. `pending` now
+  // clears when the server acknowledges the write; the refresh still
+  // fires but reconciles in the background.
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Exchange/completion date prompt — open when the top reminder targets a
   // VM19/PM26/VM20/PM27 step, so the real event date is captured first.
@@ -97,9 +102,11 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
 
   const goReminders = () => setActiveTab("reminders");
 
-  function runComplete(taskId: string, eventDate?: string) {
+  async function runComplete(taskId: string, eventDate?: string) {
+    if (pending) return; // double-submit guard
     setError(null);
-    startTransition(async () => {
+    setPending(true);
+    try {
       const result = await completeTaskAction(taskId, pathname, eventDate);
       if ("blocked" in result && result.blocked) {
         const names = result.missing.map((m) => m.name.replace(/\.$/, "")).join(", ");
@@ -107,7 +114,11 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       } else {
         router.refresh();
       }
-    });
+    } catch {
+      setError("Couldn't mark this complete. Try again.");
+    } finally {
+      setPending(false);
+    }
   }
   const list = otherReminders.length > 0
     ? <UpNext reminders={otherReminders} totalActive={totalActive} onViewAll={goReminders} />

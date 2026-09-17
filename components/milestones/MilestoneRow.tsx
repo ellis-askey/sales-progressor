@@ -112,7 +112,12 @@ function formatRelative(d: Date | null): string {
 
 export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType }: Props) {
   const { toast } = useAgentToast();
-  const [isPending, startTransition] = useTransition();
+  // Phase 2 (2026-09-17): the transition exists so useOptimistic persists
+  // until canonical server data lands, but the row's CONTROLS are gated on
+  // the ack-scoped `loading` flag below, not on isPending — isPending stays
+  // true through the whole post-ack RSC re-render, which is exactly the
+  // window the agent should already be free in.
+  const [, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
     { isComplete: def.isComplete, isNotRequired: def.isNotRequired },
     (_, action: "complete" | "not_required" | "reverse") => {
@@ -249,6 +254,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   }
 
   function doComplete() {
+    if (loading) return; // double-submit guard — ack-scoped
     setShowEventDate(false);
     setDesktopValuation(false);
     setError(null);
@@ -270,6 +276,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       return;
     }
 
+    setLoading(true);
     startTransition(async () => {
       addOptimistic("complete");
       try {
@@ -324,7 +331,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     outstandingDates: Record<string, string>,
     completionDate?: string
   ) {
+    if (loading) return;
     setShowReconciliationModal(false);
+    setLoading(true);
     startTransition(async () => {
       addOptimistic("complete");
       try {
@@ -371,9 +380,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   }
 
   function doUndo(mode: "target_only" | "cascade") {
-    if (!undoData) return;
+    if (!undoData || loading) return;
     setShowUndoModal(false);
     onUndoStart?.();
+    setLoading(true);
     startTransition(async () => {
       addOptimistic("reverse");
       try {
@@ -394,7 +404,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // change action (updates the date, tells the agent, self-corrects the
   // morning reminder); errors surface inline on the row.
   function doChangeDate(newDate: string) {
-    if (!def.completion) return;
+    if (!def.completion || changeDateSaving) return;
     setError(null);
     setChangeDateSaving(true);
     startTransition(async () => {
@@ -418,6 +428,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // surveyor was booked. Booking is best-effort — a failure there never blocks
   // the milestone (the surveyor is the backstop).
   function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean) {
+    if (surveyBookingSaving) return;
     setSurveyBookingSaving(true);
     startTransition(async () => {
       addOptimistic("complete");
@@ -463,6 +474,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     setNotRequiredReason("");
     setError(null);
     onNRStart?.();
+    setLoading(true);
     startTransition(async () => {
       addOptimistic("not_required");
       try {
@@ -595,7 +607,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   {(isPM6 || isPM9) && def.completion?.eventDate && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setError(null); setShowChangeDate(true); }}
-                      disabled={loading || isPending}
+                      disabled={loading}
                       className="agent-link agent-link-muted"
                       style={{ fontSize: 11 }}
                     >
@@ -604,7 +616,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   )}
                   <button
                     onClick={handleUndoClick}
-                    disabled={loading || isPending}
+                    disabled={loading}
                     className="agent-link agent-link-muted"
                     style={{ fontSize: 11 }}
                   >
@@ -762,7 +774,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
                 <button
                   onClick={handleNRClick}
-                  disabled={loading || isPending}
+                  disabled={loading}
                   className="agent-link agent-link-muted"
                   style={{ fontSize: 11 }}
                   title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
@@ -774,7 +786,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <Button
                   size="sm"
                   onClick={showEventDate ? () => doComplete() : handleConfirmClick}
-                  disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
+                  disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading}
                   className="ms-appear"
                   style={{ minWidth: 76 }}
                 >
@@ -848,7 +860,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           milestoneName={def.name}
           milestoneId={def.id}
           undoData={undoData}
-          isPending={isPending}
+          isPending={loading}
           onConfirm={(mode) => doUndo(mode)}
           onCancel={() => setShowUndoModal(false)}
         />

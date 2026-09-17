@@ -11,7 +11,7 @@
 //   - relabel: correct which side it's with without disturbing the chase timer
 // The hero slider is the one-tap handover; this panel is the full desk.
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   logEnquiryMovementAction,
@@ -48,7 +48,11 @@ export function EnquiryTrackerPanel({
   data: EnquiryTrackerPanelData;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Phase 2 (2026-09-17): ack-scoped pending — the buttons come back the
+  // moment the server acknowledges the write; the refresh reconciles in
+  // the background instead of extending the pending window.
+  const [pending, setPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [note, setNote] = useState("");
   const [outstanding, setOutstanding] = useState(data.outstandingNote ?? "");
@@ -61,11 +65,18 @@ export function EnquiryTrackerPanel({
   // exchange gate, so it confirms before committing (same as the enquiries page).
   const [armed, setArmed] = useState(false);
 
-  function run(fn: () => Promise<unknown>) {
-    start(async () => {
+  async function run(fn: () => Promise<unknown>) {
+    if (pending) return; // double-submit guard
+    setPending(true);
+    setActionError(null);
+    try {
       await fn();
       router.refresh();
-    });
+    } catch {
+      setActionError("That didn't save. Try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   function move(mode: Mode, flip: Court | null, kind?: EnquiryMovementKind) {
@@ -130,6 +141,9 @@ export function EnquiryTrackerPanel({
       {/* Status headline */}
       <div style={{ fontSize: 16, fontWeight: 750, letterSpacing: "-0.01em", color: headlineColor, lineHeight: 1.25 }}>{headline}</div>
       <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)" }}>{sub}</p>
+      {actionError && (
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-warning)" }}>{actionError}</p>
+      )}
 
       {data.status === "stalled" && (
         <div style={{ marginTop: 11, padding: "8px 11px", borderRadius: 9, fontSize: 11.5, color: "var(--agent-warning)", background: "rgba(245,165,36,0.1)", border: "0.5px solid rgba(245,165,36,0.3)" }}>

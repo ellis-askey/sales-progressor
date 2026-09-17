@@ -9,7 +9,7 @@
 // Visibility is enforced at the parent: this component is only rendered
 // when isInternalStaff === true.
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { toggleSuppressPortalConfirmEmailsAction } from "@/app/actions/transactions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -27,23 +27,27 @@ export function PortalConfirmEmailToggle({
   // Toggle convention: emailsOn === true means emails SEND (suppressed=false).
   // The DB column is the inverse, so flip at the boundary.
   const [emailsOn, setEmailsOn] = useState(!initialValue);
-  const [isPending, startTransition] = useTransition();
+  // Phase 2 (2026-09-17): ack-scoped pending — the switch is live again the
+  // moment the server acknowledges the write, instead of staying dimmed
+  // through the whole page re-render. Optimistic flip + rollback unchanged.
+  const [saving, setSaving] = useState(false);
   const { toast } = useAgentToast();
 
-  function handleClick() {
-    if (isPending) return;
+  async function handleClick() {
+    if (saving) return;
     const next = !emailsOn;
     const nextSuppressed = !next;
     setEmailsOn(next);
-    startTransition(async () => {
-      try {
-        await toggleSuppressPortalConfirmEmailsAction(transactionId, nextSuppressed, pathname);
-        toast.success(next ? "Portal emails on" : "Portal emails paused");
-      } catch (err) {
-        setEmailsOn(!next);
-        toast.error("Couldn't update. Try again");
-      }
-    });
+    setSaving(true);
+    try {
+      await toggleSuppressPortalConfirmEmailsAction(transactionId, nextSuppressed, pathname);
+      toast.success(next ? "Portal emails on" : "Portal emails paused");
+    } catch {
+      setEmailsOn(!next);
+      toast.error("Couldn't update. Try again");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -81,7 +85,7 @@ export function PortalConfirmEmailToggle({
         aria-checked={emailsOn}
         aria-label={emailsOn ? "Pause portal confirmation emails on this file" : "Resume portal confirmation emails on this file"}
         onClick={handleClick}
-        disabled={isPending}
+        disabled={saving}
         style={{
           position: "relative",
           height: 18,
@@ -90,8 +94,8 @@ export function PortalConfirmEmailToggle({
           border: "none",
           padding: 0,
           background: emailsOn ? "var(--agent-coral, #FF6B4A)" : "var(--agent-border-strong)",
-          cursor: isPending ? "default" : "pointer",
-          opacity: isPending ? 0.6 : 1,
+          cursor: saving ? "default" : "pointer",
+          opacity: saving ? 0.6 : 1,
           transition: "background 120ms ease",
           flexShrink: 0,
         }}
