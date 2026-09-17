@@ -56,7 +56,9 @@ import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import { countReviewsDue } from "@/lib/services/reviews";
+import { listReviews } from "@/lib/services/reviews";
+import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
+import { toUKDateStr } from "@/lib/utils";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TypedText } from "@/components/agent/TypedText";
@@ -628,33 +630,19 @@ async function AttentionSlot({
   );
 }
 
-// Compact pointer to the "Reviews due" section on /agent/to-do. Renders only
-// when at least one review is due (on-hold files past their return date +
-// hand-typed reviews due today/earlier), scoped to what this user can see.
+// "Files to review" — the pointer banner grown into a full row-group drawer
+// (Ellis, 2026-09-18). Due reviews only (today or earlier — the pointer's old
+// count); upcoming + done stay on /agent/to-do, linked from the card footer.
 async function ReviewsDuePointerSlot({ ctx }: { ctx: Ctx }) {
-  const count = await countReviewsDue(getAccessScope(ctx.session)).catch(() => 0);
-  if (count === 0) return null;
+  const { items } = await listReviews(getAccessScope(ctx.session)).catch(() => ({ items: [] as Awaited<ReturnType<typeof listReviews>>["items"] }));
+  const todayStr = toUKDateStr(new Date());
+  const due = items.filter((i) => i.reviewDate && toUKDateStr(i.reviewDate) <= todayStr);
+  if (due.length === 0) return null;
+  const photoUrlMap = await getSignedUrlMap(due.map((i) => i.photoStoragePath));
+  const withPhotos = due.map((i) => ({ ...i, photoUrl: i.photoStoragePath ? photoUrlMap.get(i.photoStoragePath) ?? null : null }));
   return (
     <SectionReveal order={1}>
-      <Link href="/agent/to-do#section-reviews" style={{ textDecoration: "none", display: "block" }}>
-        <div className="agent-glass agent-hover-row" style={{ borderRadius: "var(--agent-radius-xl)", padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-          <span aria-hidden style={{ width: 34, height: 34, borderRadius: 999, background: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <CalendarCheck size={17} weight="bold" />
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {count} {count === 1 ? "file" : "files"} to review
-            </p>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Return dates have arrived. Decide: wait on, resume, or move on.
-            </p>
-          </div>
-          <span className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            Reviews
-            <LinkArrow />
-          </span>
-        </div>
-      </Link>
+      <ReviewsDueCard items={withPhotos} />
     </SectionReveal>
   );
 }

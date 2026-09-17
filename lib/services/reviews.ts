@@ -36,6 +36,7 @@ export type ReviewItem =
       key: string;
       transactionId: string;
       address: string;
+      photoStoragePath: string | null;
       reviewDate: Date;
       reason: string | null;
       origin: ReviewOrigin;
@@ -48,6 +49,7 @@ export type ReviewItem =
       id: string;
       transactionId: string | null;
       address: string | null;
+      photoStoragePath: string | null;
       title: string;
       notes: string | null;
       reviewDate: Date | null;
@@ -102,7 +104,7 @@ export async function listReviews(scope: AccessScope): Promise<ReviewsResult> {
         startedAt: true,
         reason: true,
         startedBy: { select: { name: true } },
-        transaction: { select: { propertyAddress: true } },
+        transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       },
       orderBy: { plannedEndAt: "asc" },
     }),
@@ -115,7 +117,7 @@ export async function listReviews(scope: AccessScope): Promise<ReviewsResult> {
         notes: true,
         dueDate: true,
         status: true,
-        transaction: { select: { propertyAddress: true } },
+        transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
     }),
@@ -128,6 +130,7 @@ export async function listReviews(scope: AccessScope): Promise<ReviewsResult> {
       key: `hold-${r.transactionId}`,
       transactionId: r.transactionId,
       address: r.transaction.propertyAddress,
+      photoStoragePath: r.transaction.photoStoragePath,
       reviewDate: r.plannedEndAt as Date,
       reason: r.reason,
       origin: originFromReason(r.reason),
@@ -144,6 +147,7 @@ export async function listReviews(scope: AccessScope): Promise<ReviewsResult> {
       id: t.id,
       transactionId: t.transactionId,
       address: t.transaction?.propertyAddress ?? null,
+      photoStoragePath: t.transaction?.photoStoragePath ?? null,
       title: t.title,
       notes: t.notes,
       reviewDate: t.dueDate,
