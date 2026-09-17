@@ -175,6 +175,7 @@ const RETENTION_LABELS: Record<string, string> = {
   stuck_day_3: "Retention · day 3 stuck",
   first_exchange: "Retention · first exchange",
   quiet_30d: "Retention · 30-day quiet",
+  claim_quiet_14d: "Retention · 14-day claim check-in",
   send_to_us_drop_21d: "Retention · 21-day send-to-us",
   last_touch_60d: "Retention · 60-day last touch",
 };

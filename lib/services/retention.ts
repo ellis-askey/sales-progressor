@@ -250,7 +250,8 @@ async function chunkSend(
  * (highest-priority qualifying email only).
  *
  * Priority order (highest first):
- *   last_touch_60d → send_to_us_drop_21d → quiet_30d → stuck_day_3 → activation_day_1
+ *   last_touch_60d → send_to_us_drop_21d → quiet_30d → claim_quiet_14d
+ *   → stuck_day_3 → activation_day_1
  */
 export async function runRetentionEmailSweep(): Promise<SweepResult> {
   const base = process.env.NEXTAUTH_URL ?? "";
@@ -292,7 +293,8 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     const cutoff30d = days(30);
 
     // Candidates: most recent transaction created 60+ days ago AND user has received
-    // quiet_30d or send_to_us_drop_21d AND no new file since that earlier email
+    // an earlier winback (quiet_30d, claim_quiet_14d or send_to_us_drop_21d) AND
+    // no new file since that earlier email
     const eligible = await getEligibleBase(emailKey, false);
 
     const candidates: typeof eligible = [];
@@ -305,9 +307,9 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
       });
       if (!latestTx || latestTx.createdAt > cutoff60d) continue;
 
-      // Must have received quiet_30d or send_to_us_drop_21d
+      // Must have received an earlier winback in the series
       const priorEmail = await prisma.retentionEmailLog.findFirst({
-        where: { userId: user.id, emailKey: { in: ["quiet_30d", "send_to_us_drop_21d"] } },
+        where: { userId: user.id, emailKey: { in: ["quiet_30d", "claim_quiet_14d", "send_to_us_drop_21d"] } },
         orderBy: { sentAt: "desc" },
         select: { sentAt: true },
       });
@@ -415,7 +417,78 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     for (const u of candidates) assignedUserIds.add(u.id);
   }
 
-  // ── Priority 4: stuck_day_3 ─────────────────────────────────────────────────
+  // ── Priority 4: claim_quiet_14d ────────────────────────────────────────────
+  {
+    const emailKey: RetentionEmailKey = "claim_quiet_14d";
+    const cutoff14d = days(14);
+
+    // Candidates: came in through the chain claim flow (claimed a link 14+
+    // days ago) and haven't been back since — no new file and no milestone
+    // completion on their files in the last 14 days. The quiet_30d ladder
+    // needs 3+ files and send_to_us needs an outsourced one, so a claim-only
+    // account qualifies for neither; this is their winback. Claimers who
+    // reconciled history at claim are deliberately included: those completions
+    // are stamped at claim time, outside the 14-day activity window.
+    const eligible = await getEligibleBase(emailKey, false);
+
+    const candidates: typeof eligible = [];
+    const candidateAddresses: Map<string, string> = new Map();
+    const candidateTransactionIds: Map<string, string> = new Map();
+
+    for (const user of eligible) {
+      // Earliest claim, 14+ days old. A null claimedAt never matches lte.
+      const claimedLink = await prisma.chainLink.findFirst({
+        where: { claimedByUserId: user.id, claimedAt: { lte: cutoff14d } },
+        orderBy: { claimedAt: "asc" },
+        select: { transactionId: true },
+      });
+      if (!claimedLink?.transactionId) continue;
+
+      // A file created in the last 14 days means they're using the platform —
+      // the standard ladders take over from there.
+      const recentFile = await prisma.propertyTransaction.findFirst({
+        where: { agentUserId: user.id, createdAt: { gte: cutoff14d } },
+        select: { id: true },
+      });
+      if (recentFile) continue;
+
+      // A milestone completed on any of their files in the last 14 days means
+      // the sale is being progressed — no winback needed.
+      const recentCompletion = await prisma.milestoneCompletion.findFirst({
+        where: {
+          transaction: { agentUserId: user.id },
+          completedAt: { gte: cutoff14d },
+        },
+        select: { id: true },
+      });
+      if (recentCompletion) continue;
+
+      // The claimed file itself, for the address + CTA. Ownership check keeps
+      // the email pointing only at a file that is genuinely theirs.
+      const tx = await prisma.propertyTransaction.findFirst({
+        where: { id: claimedLink.transactionId, agentUserId: user.id },
+        select: { id: true, propertyAddress: true },
+      });
+      if (!tx) continue;
+
+      candidates.push(user);
+      candidateAddresses.set(user.id, tx.propertyAddress);
+      candidateTransactionIds.set(user.id, tx.id);
+    }
+
+    const { sent, errors } = await chunkSend(candidates, emailKey, (u) => ({
+      address: candidateAddresses.get(u.id),
+      ctaUrl: `${base}/agent/transactions/${candidateTransactionIds.get(u.id) ?? ""}`,
+      unsubscribeUrl: generateUnsubscribeUrl(u.id),
+    }));
+
+    totalSent += sent;
+    totalErrors += errors;
+    totalSkipped += candidates.length - sent - errors;
+    for (const u of candidates) assignedUserIds.add(u.id);
+  }
+
+  // ── Priority 5: stuck_day_3 ─────────────────────────────────────────────────
   {
     const emailKey: RetentionEmailKey = "stuck_day_3";
     const cutoff3d = days(3);
@@ -490,7 +563,7 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     for (const u of candidates) assignedUserIds.add(u.id);
   }
 
-  // ── Priority 5: activation_day_1 ───────────────────────────────────────────
+  // ── Priority 6: activation_day_1 ───────────────────────────────────────────
   {
     const emailKey: RetentionEmailKey = "activation_day_1";
     const cutoff1d = days(1);

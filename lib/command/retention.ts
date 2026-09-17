@@ -38,6 +38,7 @@ const WINBACK_EMAIL_LABEL: Record<string, string> = {
   stuck_day_3: "Sale waiting on you",
   first_exchange: "Exchange celebration",
   quiet_30d: "Account still active",
+  claim_quiet_14d: "Claimed sale check-in",
   send_to_us_drop_21d: "How are things going?",
   last_touch_60d: "Pausing updates",
 };

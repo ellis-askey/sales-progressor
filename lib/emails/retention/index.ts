@@ -639,22 +639,17 @@ export function buildQuiet30d(vars: TemplateVars): RetentionEmailResult {
   return { subject, html, text, fromDisplayName: "Sales Progressor" };
 }
 
-// ─── Email 5 — send_to_us_drop_21d ───────────────────────────────────────────
-// Sender: "Ellis, Sales Progressor" | No CTA button
+// ─── Personal-note shared pieces (send_to_us_drop_21d + claim_quiet_14d) ─────
+// The plain "note from Ellis" format: one body style, one signature block.
 
-export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
-  const { firstName, unsubscribeUrl = "" } = vars;
+const NOTE_BODY_STYLE = `margin:0 0 16px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#2b3441;`;
 
-  const subject = "How are things going?";
-
-  // Body + "Best regards," share one style — plain, no weight changes.
-  const bodyStyle = `margin:0 0 16px;font-family:${FONT_STACK};font-size:15px;line-height:1.6;color:#2b3441;`;
-
+function ellisSignatureHtml(): string {
   const sigRow = (icon: string, inner: string) =>
     `<tr><td valign="middle" style="padding:3px 0;"><img src="${EMAIL_ASSET}/${icon}" width="17" height="17" alt="" style="display:block;border:0;"></td>
       <td valign="middle" style="padding:3px 0 3px 9px;">${inner}</td></tr>`;
 
-  const signature = `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td>
+  return `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td>
     <div style="font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#1a1d29;">Ellis Askey</div>
     <div style="font-family:${FONT_STACK};font-size:13px;color:#6b7280;margin-top:3px;">Operations Director</div>
     <div style="font-family:${FONT_STACK};font-size:13px;color:#6b7280;margin-top:1px;"><span style="color:#FF6B4A;font-weight:700;">TSP</span> &middot; Sales Progressor</div>
@@ -665,6 +660,30 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
       ${sigRow("sig-linkedin.png", `<a href="https://www.linkedin.com/in/ellisaskey/" style="font-family:${FONT_STACK};font-size:13px;color:#FF6B4A;text-decoration:underline;">LinkedIn</a>`)}
     </table>
   </td></tr></table>`;
+}
+
+const ELLIS_SIGNATURE_TEXT = [
+  `Ellis Askey`,
+  `Operations Director`,
+  `TSP · Sales Progressor`,
+  `Progress made simpler.`,
+  ``,
+  `ellis@thesalesprogressor.co.uk`,
+  `+44 7508 862929`,
+  `https://www.linkedin.com/in/ellisaskey/`,
+];
+
+// ─── Email 5 — send_to_us_drop_21d ───────────────────────────────────────────
+// Sender: "Ellis, Sales Progressor" | No CTA button
+
+export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
+  const { firstName, unsubscribeUrl = "" } = vars;
+
+  const subject = "How are things going?";
+
+  // Body + "Best regards," share one style — plain, no weight changes.
+  const bodyStyle = NOTE_BODY_STYLE;
+  const signature = ellisSignatureHtml();
 
   const bodyHtml = [
     `<p style="${bodyStyle}">Hi ${firstName},</p>`,
@@ -688,14 +707,59 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
     `Hopefully it's one of the first two.`,
     ``,
     `Best regards,`,
-    `Ellis Askey`,
-    `Operations Director`,
-    `TSP · Sales Progressor`,
-    `Progress made simpler.`,
+    ...ELLIS_SIGNATURE_TEXT,
     ``,
-    `ellis@thesalesprogressor.co.uk`,
-    `+44 7508 862929`,
-    `https://www.linkedin.com/in/ellisaskey/`,
+    unsubscribeUrl ? unsubscribeFooterText(unsubscribeUrl) : "",
+  ].join("\n");
+
+  return {
+    subject,
+    html: buildHtmlWrapper(bodyHtml, unsubscribeUrl ? unsubscribeFooterHtml(unsubscribeUrl) : undefined),
+    text,
+    fromDisplayName: "Ellis at Sales Progressor",
+  };
+}
+
+// ─── Email 5b — claim_quiet_14d ───────────────────────────────────────────────
+// The winback for agents who arrived through a chain claim and went quiet.
+// The quiet_30d ladder needs 3+ files and send_to_us needs an outsourced one,
+// so a claim-only account qualifies for neither — this note is their check-in.
+// Same personal format as send_to_us_drop_21d, with a CTA back to their file.
+
+export function buildClaimQuiet14d(vars: TemplateVars): RetentionEmailResult {
+  const { firstName, address = "", ctaUrl = "", unsubscribeUrl = "" } = vars;
+
+  const subject = "Your sale is still connected";
+
+  const rawAddress = address.trim();
+  const saleRef = rawAddress
+    ? rawAddress.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    : "your sale";
+  const saleRefText = rawAddress || "your sale";
+
+  const bodyHtml = [
+    `<p style="${NOTE_BODY_STYLE}">Hi ${firstName},</p>`,
+    `<p style="${NOTE_BODY_STYLE}">A couple of weeks ago you connected ${saleRef} to its chain on Sales Progressor. It's been quiet on your file since, so I wanted to check in.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">The file is still live. Opening it shows you where each sale in the chain is up to, and ticking off your own progress takes a couple of minutes and keeps everyone around you in the picture.</p>`,
+    ctaButton("Open your sale", ctaUrl),
+    `<p style="${NOTE_BODY_STYLE}">If something got in the way, or you'd rather we ran the sale for you, just reply to this email. Self-progressing is free, and your first outsourced sale is on us.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">Best regards,</p>`,
+    ellisSignatureHtml(),
+  ].join("");
+
+  const text = [
+    `Hi ${firstName},`,
+    ``,
+    `A couple of weeks ago you connected ${saleRefText} to its chain on Sales Progressor. It's been quiet on your file since, so I wanted to check in.`,
+    ``,
+    `The file is still live. Opening it shows you where each sale in the chain is up to, and ticking off your own progress takes a couple of minutes and keeps everyone around you in the picture.`,
+    ``,
+    `Open your sale: ${ctaUrl}`,
+    ``,
+    `If something got in the way, or you'd rather we ran the sale for you, just reply to this email. Self-progressing is free, and your first outsourced sale is on us.`,
+    ``,
+    `Best regards,`,
+    ...ELLIS_SIGNATURE_TEXT,
     ``,
     unsubscribeUrl ? unsubscribeFooterText(unsubscribeUrl) : "",
   ].join("\n");
@@ -789,6 +853,7 @@ export type RetentionEmailKey =
   | "stuck_day_3"
   | "first_exchange"
   | "quiet_30d"
+  | "claim_quiet_14d"
   | "send_to_us_drop_21d"
   | "last_touch_60d";
 
@@ -798,6 +863,7 @@ export const RETENTION_EMAIL_KEYS: RetentionEmailKey[] = [
   "stuck_day_3",
   "first_exchange",
   "quiet_30d",
+  "claim_quiet_14d",
   "send_to_us_drop_21d",
   "last_touch_60d",
 ];
@@ -826,6 +892,7 @@ export function buildRetentionEmail(key: RetentionEmailKey, vars: TemplateVars):
       fromDisplayName: "Sales Progressor",
     };
     case "quiet_30d":           return buildQuiet30d(vars);
+    case "claim_quiet_14d":     return buildClaimQuiet14d(vars);
     case "send_to_us_drop_21d": return buildSendToUsDrop21d(vars);
     case "last_touch_60d":      return buildLastTouch60d(vars);
   }
