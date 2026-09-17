@@ -294,6 +294,12 @@ From [themes.css](../../app/agent/styles/themes.css) (per-theme blocks) and
   (sets its own transparent base — consumers must not set background inline,
   it masks the hover). Rows *inside* a group take the lift.
 
+**Brand engine rule:** [lib/agent/brand-theme.ts](../../lib/agent/brand-theme.ts)
+renders a `<style>` AFTER the stylesheets and silently overrides any token it
+emits. It must NEVER emit `--agent-hover-*` tokens — hover is neutral by
+decision, not brand-derived. (It did until 2026-09-18; a blue-primary test
+exposed it as the source of the "watered-down primary" hover wash.)
+
 **Resting surfaces:** rows must NOT set a tinted resting background inline —
 it reads as the old wash and beats the `:hover` rule. Urgency/tone is carried
 by the left accent bar, icon chip and pill (de-washed 2026-09-17:

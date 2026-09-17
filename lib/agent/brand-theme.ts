@@ -114,12 +114,16 @@ function deriveBrandVars(hex: string, dark: boolean): Record<string, string> {
     "--agent-coral-base-rgb": rgbTriple(shiftL(accentHsl, 8)),
     "--agent-text-on-coral": textOnAccent,
 
-    // Focus + hover, all from the accent
+    // Focus, from the accent. Hover is deliberately NOT emitted here any
+    // more: --agent-hover-tint/-strong stay the neutral lift-bubble values
+    // from themes.css (Ellis, 2026-09-18). This engine renders a <style>
+    // AFTER the stylesheets, so anything emitted here silently overrides
+    // them — a brand-derived hover was the "watered-down primary wash"
+    // that survived the whole hover redesign until the blue-primary test
+    // exposed it.
     "--agent-border-focus": `rgba(${rgb}, 0.45)`,
     "--agent-focus-ring": `0 0 0 1.5px rgba(${rgb}, 0.50), 0 0 12px 2px rgba(${rgb}, 0.18)`,
     "--agent-focus-ring-tight": `0 0 0 1px rgba(${rgb}, 0.60), 0 0 8px 1px rgba(${rgb}, 0.22)`,
-    "--agent-hover-tint": `rgba(${rgb}, 0.10)`,
-    "--agent-hover-tint-strong": `rgba(${rgb}, 0.18)`,
 
     // Team-avatar chip: a light tint of the brand with dark brand-toned text
     "--agent-avatar-user-start": withL({ ...base, s: clamp(base.s, 0, 55) }, 90),
