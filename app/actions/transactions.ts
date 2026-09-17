@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { randomUUID } from "crypto";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
@@ -816,7 +817,13 @@ export async function changeStatusAction(
   });
 
   if (status === "completed") {
-    sendCompletionSurveys(transactionId).catch(console.error);
+    // Phase 1 perceived-performance (2026-09-17): was a bare fire-and-forget
+    // with no guaranteed runway once the response ended; after() keeps the
+    // invocation alive until the surveys are handed off. Same call, same
+    // logging.
+    after(async () => {
+      await sendCompletionSurveys(transactionId).catch(console.error);
+    });
   }
 
   if (status === "withdrawn" && tx.chainLinkId) {
@@ -827,7 +834,11 @@ export async function changeStatusAction(
     // form requires a reason before Confirm is enabled.
     const reasonForCascade = withdrawalReason ?? "OTHER";
     const rule = CHAIN_CASCADE_RULES[reasonForCascade];
-    void (async () => {
+    // Phase 1 perceived-performance (2026-09-17): this cascade was a detached
+    // `void (async () => ...)` — chain-integrity work with no guaranteed
+    // runway on serverless. after() guarantees it completes; the body is
+    // unchanged.
+    after(async () => {
       try {
         if (rule.cascadeDirections.length > 0) {
           await cascadeChainWithdrawal(tx.chainLinkId!, rule.cascadeDirections);
@@ -873,7 +884,7 @@ export async function changeStatusAction(
       } catch (err) {
         console.error("[changeStatusAction] chain cascade/split failed", err);
       }
-    })();
+    });
   }
 
   revalidateTx(transactionId);

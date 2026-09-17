@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 function revalidateTx(id: string) {
   revalidatePath(`/transactions/${id}`, "page");
@@ -194,11 +195,28 @@ export async function confirmMilestoneAction(input: {
   const anchorCodesForEval = [def?.code, counterCode].filter(
     (c): c is string => typeof c === "string",
   );
+
+  // ── Perceived-performance Phase 1A (2026-09-17) ────────────────────────
+  // The milestone write above is committed. Everything the response must
+  // truthfully report stays awaited below (completion-date sync, status
+  // auto-flip, notification-status build). The engine + notification work
+  // moves into after() — same inputs, same guards, same logging, executed
+  // post-response within the same invocation. The 04:00 cron remains the
+  // durability backstop for reminder evaluation, unchanged.
+  //
+  // EXCEPTION — completion confirms (VM20/PM27) keep the reminder re-eval
+  // synchronous, in its pre-1A position: evaluateTransactionReminders
+  // early-returns on non-active files (reminders.ts status guard) and reads
+  // tx.completionDate, so it must run BEFORE the completionDate sync and
+  // the maybeAutoCompleteTransaction status flip below. Deferring it past
+  // the flip would turn the pass into a no-op and change reminder state.
+  const isCompletionConfirm = def?.code === "VM20" || def?.code === "PM27";
+
   // Demo files never run the reminder engine: it would write live
   // ReminderLog/ChaseTask rows that leak into the cross-file work queue
   // (work-queue.ts doesn't filter isDemo). The completion itself is already
   // written above, so the demo file still updates visually.
-  if (!tx.isDemo) {
+  if (!tx.isDemo && isCompletionConfirm) {
     await evaluateTransactionReminders(input.transactionId, {
       anchorCodes: anchorCodesForEval,
     }).catch((err) => {
@@ -206,27 +224,187 @@ export async function confirmMilestoneAction(input: {
     });
   }
 
-  // Refresh the stored expectedExchangeDate from the live phase-aware
-  // prediction so the hub/diary date self-adjusts as the file progresses.
-  // Best-effort: a failure here must not break the confirm. No-op once the
-  // file has exchanged (the VM19/PM26 sync above already wrote the real date).
-  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
-    console.error("[confirmMilestoneAction] expectedExchangeDate refresh failed", err);
+  after(async () => {
+    // Reminder re-eval for every non-completion confirm (same demo guard as
+    // above; completion confirms already ran it synchronously).
+    if (!tx.isDemo && !isCompletionConfirm) {
+      await evaluateTransactionReminders(input.transactionId, {
+        anchorCodes: anchorCodesForEval,
+      }).catch((err) => {
+        console.error("[confirmMilestoneAction] reminder re-eval failed", err);
+      });
+    }
+
+    // Refresh the stored expectedExchangeDate from the live phase-aware
+    // prediction so the hub/diary date self-adjusts as the file progresses.
+    // Best-effort: a failure here must not break the confirm. No-op once the
+    // file has exchanged (the VM19/PM26 sync above already wrote the real date).
+    await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+      console.error("[confirmMilestoneAction] expectedExchangeDate refresh failed", err);
+    });
+
+    // Demo confirms are not real product activity — no PostHog (unlike the
+    // internal event log + activation events, PostHog isn't isDemo-filtered).
+    if (!tx.isDemo) {
+      await trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
+        transactionId: input.transactionId,
+        milestoneId:   input.milestoneDefinitionId,
+        milestoneCode: def?.code ?? undefined,
+        agencyId:      session.user.agencyId || undefined,
+      }).catch((err) => {
+        console.error("[confirmMilestoneAction] analytics capture failed", err);
+      });
+    }
+
+    // Push to subscribed portal contacts + client/agent notification fan-out.
+    //
+    // Moved here from the request path (Phase 1A): recipients, conditions and
+    // ordering are unchanged. The helpers were fire-and-forget before; inside
+    // after() each is awaited (keeping its own .catch) so the invocation
+    // stays alive until every send has actually been handed off — previously
+    // they only survived because the awaited engine work gave them runway.
+    //
+    // Demo files emit NOTHING outbound: no push, no portal/counterpart/
+    // completion-pack/ready-to-exchange emails, no retention email, no SP bell.
+    // The reserved-@example.com backstop in lib/email.ts would drop the sends
+    // anyway, but skipping the whole block avoids the wasted work + keeps demo
+    // confirms side-effect-free. All the local DB writes (completion, status
+    // flip, date syncs) already ran above, so the file still updates.
+    if (def && !tx.isDemo) {
+      const code  = def.code;
+      const label = getMilestoneCopy(code).label;
+      const short = tx.propertyAddress.split(",")[0];
+
+      // Unified exchange / completion / ready-to-exchange strings — same copy
+      // fires regardless of which code path (agent confirm, claim wizard, or
+      // client self-confirm). See PUSH_NOTIF_STRINGS doc for the approved set.
+      let title = "One step closer";
+      let body  = `${label}, done at ${short}.`;
+
+      if (code === "VM19" || code === "PM26") {
+        title = "Contracts exchanged!";
+        body  = `${short}. The sale is now legally binding. Congratulations.`;
+      } else if (code === "VM20" || code === "PM27") {
+        title = "It's completed!";
+        body  = `${short} is yours. Congratulations on your move.`;
+      } else if (code === "VM18" || code === "PM25") {
+        title = "Ready to exchange";
+        body  = `Everything's in place at ${short}. Exchange is next.`;
+      } else if (input.eventDate) {
+        const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+        title = `Date confirmed: ${short}`;
+        body  = `${label} booked for ${fmtDate}`;
+      }
+
+      await pushToTransaction(input.transactionId, {
+        title,
+        body,
+        urlPath: "/progress",
+      }).catch(() => {});
+
+      // Ready-to-exchange email (audit #10): when this confirm was an exchange
+      // gate, check whether BOTH sides are now cleared and, if so, send the
+      // one-off "ready to exchange" email to clients. The helper re-checks
+      // both gates and dedups the send.
+      if (code === "VM18" || code === "PM25") {
+        await maybeSendReadyToExchangeEmail(input.transactionId).catch(() => {});
+      }
+
+      // Email all vendor/purchaser portal contacts with a translated progress update.
+      //
+      // ── Skeleton-mode wiring (added 2026-05-27) ───────────────────────
+      // Derive the confirmer's route (agent / sales_progressor) from
+      // session.user.role and compute the bilateral handoff direction from
+      // whether the paired milestone is already complete. Both pass through
+      // to the assembler so route-varied and direction-gated Section
+      // entries match correctly. Strictly no-op when the flag is off (the
+      // assembler doesn't construct a FileShape at all in that case).
+      const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
+      const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
+      const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
+
+      // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
+      // by internal staff, the portal confirm email is skipped. All other
+      // side effects of a confirm (chain notifications, celebrations, SP
+      // bell, reminder engine knock-on) still fire.
+      if (!tx.suppressPortalConfirmEmails) {
+        await sendAdminMilestoneNotificationToPortal(
+          input.transactionId,
+          code,
+          input.eventDate ?? null,
+          session.user.id,
+          confirmerRoute_self,
+          handoffDirection_self,
+        ).catch(() => {});
+
+        // Auto-counterpart fan-out for the four exchange/completion codes
+        // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
+        // completed inside the prisma.$transaction above; this fires its
+        // customer-facing email so the non-confirming side is notified.
+        // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
+        // to keep queue-bypass + staleness + suppression rules in one place.
+        // Non-counterpart codes are a no-op inside the helper.
+        await fireAutoCounterpartEmails(
+          input.transactionId,
+          code,
+          session.user.id,
+          confirmerRoute_self,
+        ).catch(() => {});
+
+        // Completion-pack scheduling for exchange confirmations only.
+        // Fires now (E2/E3), schedules for completionDate - 3 days (E1),
+        // or skips if completion is in the past.
+        if (code === "VM19" || code === "PM26") {
+          await scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+        }
+      }
+
+      // Retention email: fire first-exchange celebration for the agent who owns the file
+      if (code === "VM19" || code === "PM26") {
+        await maybeFireFirstExchangeEmail(session.user.id, input.transactionId).catch(() => {});
+      }
+
+      // SP bell notification: when an agency-side user (director/negotiator/viewer)
+      // confirms a milestone on an outsourced file, ping the assigned Sales Progressor.
+      // Skip when the confirmer IS the SP, or when there's no SP assigned.
+      const isAgencyRole =
+        session.user.role === "director" ||
+        session.user.role === "negotiator" ||
+        session.user.role === "viewer";
+      if (
+        tx.serviceType === "outsourced" &&
+        tx.assignedUserId &&
+        tx.assignedUserId !== session.user.id &&
+        isAgencyRole
+      ) {
+        await notifyOutsourcedMilestoneConfirmed({
+          spUserId: tx.assignedUserId,
+          transactionId: input.transactionId,
+          confirmerName: session.user.name ?? "An agent",
+          milestoneLabel: label,
+          milestoneCode: code,
+        }).catch(() => {});
+      }
+    }
+
+    // Booking-day "diary" email to the agency agent. The helper enforces
+    // every guard (outsourced only, keys from us, real date, opt-out).
+    // This is the direct-confirm path — a progressor confirming on an
+    // outsourced file; the buyer-provisional path fires the same email from
+    // releaseProvisionalBooking when we confirm it.
+    if (def && !tx.isDemo && (def.code === "PM6" || def.code === "PM9")) {
+      await maybeSendBookingDiaryEmail({
+        transactionId: input.transactionId,
+        code: def.code,
+        eventDate: input.eventDate ? new Date(input.eventDate) : null,
+        keyCollectionRequired: input.keyCollectionRequired ?? null,
+      }).catch(() => {});
+    }
   });
 
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
-  // Demo confirms are not real product activity — no PostHog (unlike the
-  // internal event log + activation events, PostHog isn't isDemo-filtered).
-  if (!tx.isDemo) {
-    void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
-      transactionId: input.transactionId,
-      milestoneId:   input.milestoneDefinitionId,
-      milestoneCode: def?.code ?? undefined,
-      agencyId:      session.user.agencyId || undefined,
-    });
-  }
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
@@ -277,130 +455,9 @@ export async function confirmMilestoneAction(input: {
     if (flipped) revalidateTx(input.transactionId);
   }
 
-  // Push to subscribed portal contacts (fire-and-forget)
-  //
-  // Demo files emit NOTHING outbound: no push, no portal/counterpart/
-  // completion-pack/ready-to-exchange emails, no retention email, no SP bell.
-  // The reserved-@example.com backstop in lib/email.ts would drop the sends
-  // anyway, but skipping the whole block avoids the wasted work + keeps demo
-  // confirms side-effect-free. All the local DB writes (completion, status
-  // flip, date syncs) already ran above, so the file still updates.
-  if (def && !tx.isDemo) {
-    const code  = def.code;
-    const label = getMilestoneCopy(code).label;
-    const short = tx.propertyAddress.split(",")[0];
-
-    // Unified exchange / completion / ready-to-exchange strings — same copy
-    // fires regardless of which code path (agent confirm, claim wizard, or
-    // client self-confirm). See PUSH_NOTIF_STRINGS doc for the approved set.
-    let title = "One step closer";
-    let body  = `${label}, done at ${short}.`;
-
-    if (code === "VM19" || code === "PM26") {
-      title = "Contracts exchanged!";
-      body  = `${short}. The sale is now legally binding. Congratulations.`;
-    } else if (code === "VM20" || code === "PM27") {
-      title = "It's completed!";
-      body  = `${short} is yours. Congratulations on your move.`;
-    } else if (code === "VM18" || code === "PM25") {
-      title = "Ready to exchange";
-      body  = `Everything's in place at ${short}. Exchange is next.`;
-    } else if (input.eventDate) {
-      const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-      title = `Date confirmed: ${short}`;
-      body  = `${label} booked for ${fmtDate}`;
-    }
-
-    pushToTransaction(input.transactionId, {
-      title,
-      body,
-      urlPath: "/progress",
-    }).catch(() => {});
-
-    // Ready-to-exchange email (audit #10): when this confirm was an exchange
-    // gate, check whether BOTH sides are now cleared and, if so, send the
-    // one-off "ready to exchange" email to clients. Fire-and-forget; the
-    // helper re-checks both gates and dedups the send.
-    if (code === "VM18" || code === "PM25") {
-      maybeSendReadyToExchangeEmail(input.transactionId).catch(() => {});
-    }
-
-    // Email all vendor/purchaser portal contacts with a translated progress update.
-    //
-    // ── Skeleton-mode wiring (added 2026-05-27) ───────────────────────
-    // Derive the confirmer's route (agent / sales_progressor) from
-    // session.user.role and compute the bilateral handoff direction from
-    // whether the paired milestone is already complete. Both pass through
-    // to the assembler so route-varied and direction-gated Section
-    // entries match correctly. Strictly no-op when the flag is off (the
-    // assembler doesn't construct a FileShape at all in that case).
-    const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
-    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
-    const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
-
-    // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
-    // by internal staff, the portal confirm email is skipped. All other
-    // side effects of a confirm (chain notifications, celebrations, SP
-    // bell, reminder engine knock-on) still fire.
-    if (!tx.suppressPortalConfirmEmails) {
-      sendAdminMilestoneNotificationToPortal(
-        input.transactionId,
-        code,
-        input.eventDate ?? null,
-        session.user.id,
-        confirmerRoute_self,
-        handoffDirection_self,
-      ).catch(() => {});
-
-      // Auto-counterpart fan-out for the four exchange/completion codes
-      // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
-      // completed inside the prisma.$transaction above; this fires its
-      // customer-facing email so the non-confirming side is notified.
-      // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
-      // to keep queue-bypass + staleness + suppression rules in one place.
-      // Non-counterpart codes are a no-op inside the helper.
-      fireAutoCounterpartEmails(
-        input.transactionId,
-        code,
-        session.user.id,
-        confirmerRoute_self,
-      ).catch(() => {});
-
-      // Completion-pack scheduling for exchange confirmations only.
-      // Fires now (E2/E3), schedules for completionDate - 3 days (E1),
-      // or skips if completion is in the past.
-      if (code === "VM19" || code === "PM26") {
-        scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
-      }
-    }
-
-    // Retention email: fire first-exchange celebration for the agent who owns the file
-    if (code === "VM19" || code === "PM26") {
-      maybeFireFirstExchangeEmail(session.user.id, input.transactionId).catch(() => {});
-    }
-
-    // SP bell notification: when an agency-side user (director/negotiator/viewer)
-    // confirms a milestone on an outsourced file, ping the assigned Sales Progressor.
-    // Skip when the confirmer IS the SP, or when there's no SP assigned.
-    const isAgencyRole =
-      session.user.role === "director" ||
-      session.user.role === "negotiator" ||
-      session.user.role === "viewer";
-    if (
-      tx.serviceType === "outsourced" &&
-      tx.assignedUserId &&
-      tx.assignedUserId !== session.user.id &&
-      isAgencyRole
-    ) {
-      notifyOutsourcedMilestoneConfirmed({
-        spUserId: tx.assignedUserId,
-        transactionId: input.transactionId,
-        confirmerName: session.user.name ?? "An agent",
-        milestoneLabel: label,
-        milestoneCode: code,
-      }).catch(() => {});
-    }
-  }
+  // Push + client/agent notification fan-out for this confirm now lives in
+  // the after() block above (Phase 1A) — same recipients, same conditions,
+  // executed post-response.
 
   // Build intent-based notification status (check email addresses without blocking on send).
   // Wrapped in try/catch so any Prisma issue here can't bring the whole
@@ -469,19 +526,8 @@ export async function confirmMilestoneAction(input: {
     }
   }
 
-  // Booking-day "diary" email to the agency agent. Fire-and-forget; the helper
-  // enforces every guard (outsourced only, keys from us, real date, opt-out).
-  // This is the direct-confirm path — a progressor confirming on an outsourced
-  // file; the buyer-provisional path fires the same email from
-  // releaseProvisionalBooking when we confirm it.
-  if (def && !tx.isDemo && (def.code === "PM6" || def.code === "PM9")) {
-    maybeSendBookingDiaryEmail({
-      transactionId: input.transactionId,
-      code: def.code,
-      eventDate: input.eventDate ? new Date(input.eventDate) : null,
-      keyCollectionRequired: input.keyCollectionRequired ?? null,
-    }).catch(() => {});
-  }
+  // Booking-day "diary" email (PM6/PM9) also moved into the after() block
+  // above (Phase 1A) — same guards, executed post-response.
 
   const isExchangeCode = def?.code === "VM19" || def?.code === "PM26";
   return {
@@ -549,14 +595,18 @@ export async function changeBookingDateAction(input: {
   });
 
   // Tell the agent it moved. The helper enforces every guard (outsourced only,
-  // keys from us, a real date, opt-out), so this is a safe fire-and-forget.
-  await maybeSendBookingDiaryEmail({
-    transactionId: input.transactionId,
-    code,
-    eventDate: newEventDate,
-    keyCollectionRequired: completion.keyCollectionRequired,
-    rescheduled: true,
-  }).catch(() => {});
+  // keys from us, a real date, opt-out). Phase 1 (2026-09-17): was awaited on
+  // the response path; now post-response via after() — same args, same
+  // swallow-on-error semantics, guaranteed execution.
+  after(async () => {
+    await maybeSendBookingDiaryEmail({
+      transactionId: input.transactionId,
+      code,
+      eventDate: newEventDate,
+      keyCollectionRequired: completion.keyCollectionRequired,
+      rescheduled: true,
+    }).catch(() => {});
+  });
 
   const noun = code === "PM6" ? "lender valuation" : "survey";
   const fmt = (d: Date | null) =>
@@ -658,28 +708,37 @@ export async function reverseMilestoneAction(input: {
     newPurchaseType: input.newPurchaseType,
   });
 
-  // Re-evaluate reminders so freshly-reinstated milestones (and any
-  // cascaded reinstatements) get their chase rules re-seeded immediately.
-  // Without this, the user has to wait for the next cron tick — but the
-  // click on "Reinstate" is an explicit request for the chase to resume.
-  // Demo files skip this (and the PostHog event below) for the same reasons
-  // as confirmMilestoneAction: no leaked reminder rows, no polluted metrics.
-  if (!tx.isDemo) {
-    await evaluateTransactionReminders(input.transactionId).catch((err) => {
-      console.error(`[reverseMilestoneAction] evaluate failed:`, err);
-    });
+  // Phase 1A (2026-09-17): the reversal write above is committed; the engine
+  // re-eval + prediction refresh move post-response via after(). Deliberately
+  // still the FULL rule pass (no anchorCodes): a reversal cascade can touch an
+  // arbitrary downstream set, and narrowed-set equivalence has not been proven
+  // for reversals. Same work, same order, same logging — off the click.
+  after(async () => {
+    // Re-evaluate reminders so freshly-reinstated milestones (and any
+    // cascaded reinstatements) get their chase rules re-seeded immediately.
+    // Without this, the user has to wait for the next cron tick — but the
+    // click on "Reinstate" is an explicit request for the chase to resume.
+    // Demo files skip this (and the PostHog event below) for the same reasons
+    // as confirmMilestoneAction: no leaked reminder rows, no polluted metrics.
+    if (!tx.isDemo) {
+      await evaluateTransactionReminders(input.transactionId).catch((err) => {
+        console.error(`[reverseMilestoneAction] evaluate failed:`, err);
+      });
 
-    void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
-      transactionId: input.transactionId,
-      milestoneId:   input.milestoneDefinitionId,
-      agencyId:      session.user.agencyId || undefined,
-    });
-  }
+      await trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
+        transactionId: input.transactionId,
+        milestoneId:   input.milestoneDefinitionId,
+        agencyId:      session.user.agencyId || undefined,
+      }).catch((err) => {
+        console.error("[reverseMilestoneAction] analytics capture failed", err);
+      });
+    }
 
-  // Reversing a milestone lengthens the remaining critical path — refresh the
-  // stored prediction so the hub date pushes back out. Best-effort.
-  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
-    console.error("[reverseMilestoneAction] expectedExchangeDate refresh failed", err);
+    // Reversing a milestone lengthens the remaining critical path — refresh the
+    // stored prediction so the hub date pushes back out. Best-effort.
+    await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+      console.error("[reverseMilestoneAction] expectedExchangeDate refresh failed", err);
+    });
   });
 
   revalidateTx(input.transactionId);
@@ -742,14 +801,19 @@ export async function reinstateAsMortgageBuyerAction(input: {
     });
   }
 
-  if (!tx.isDemo) {
-    await evaluateTransactionReminders(input.transactionId).catch((err) => {
-      console.error(`[reinstateAsMortgageBuyerAction] evaluate failed:`, err);
-    });
-  }
+  // Phase 1A (2026-09-17): all reinstate/back-fill writes above are committed;
+  // engine re-eval (still the full rule pass — see reverseMilestoneAction) +
+  // prediction refresh run post-response. Same guards, order and logging.
+  after(async () => {
+    if (!tx.isDemo) {
+      await evaluateTransactionReminders(input.transactionId).catch((err) => {
+        console.error(`[reinstateAsMortgageBuyerAction] evaluate failed:`, err);
+      });
+    }
 
-  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
-    console.error("[reinstateAsMortgageBuyerAction] expectedExchangeDate refresh failed", err);
+    await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+      console.error("[reinstateAsMortgageBuyerAction] expectedExchangeDate refresh failed", err);
+    });
   });
 
   revalidateTx(input.transactionId);
@@ -815,21 +879,27 @@ export async function executeUndoMilestoneAction(input: {
     }).catch(() => {});
   }
 
-  // 2026-07-13 fix (Chunk 2b): sync re-eval after an undo. executeUndoMilestone
-  // cancels any active logs whose target/anchor is one of the reversed
-  // milestones, but it does NOT create new logs for rules whose target is
-  // now uncompleted again (e.g., undoing an NR flips the target back to
-  // "available", which the engine reads as "not done yet" and would spin
-  // up a fresh chase for on the next 04:00 pass). We spin them up now so
-  // the timeline stays coherent with the user's action.
-  await evaluateTransactionReminders(input.transactionId).catch((err) => {
-    console.error("[executeUndoMilestoneAction] reminder re-eval failed", err);
-  });
+  // Phase 1A (2026-09-17): the undo writes (and the PM9 quote reopen above)
+  // are committed; the engine re-eval + prediction refresh run post-response.
+  // Still the FULL rule pass — an undo cascade can reopen an arbitrary
+  // downstream set, so no anchorCodes narrowing here. Same work, same logging.
+  after(async () => {
+    // 2026-07-13 fix (Chunk 2b): re-eval after an undo. executeUndoMilestone
+    // cancels any active logs whose target/anchor is one of the reversed
+    // milestones, but it does NOT create new logs for rules whose target is
+    // now uncompleted again (e.g., undoing an NR flips the target back to
+    // "available", which the engine reads as "not done yet" and would spin
+    // up a fresh chase for on the next 04:00 pass). We spin them up now so
+    // the timeline stays coherent with the user's action.
+    await evaluateTransactionReminders(input.transactionId).catch((err) => {
+      console.error("[executeUndoMilestoneAction] reminder re-eval failed", err);
+    });
 
-  // Undoing a milestone lengthens the remaining critical path — refresh the
-  // stored prediction so the hub date pushes back out. Best-effort.
-  await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
-    console.error("[executeUndoMilestoneAction] expectedExchangeDate refresh failed", err);
+    // Undoing a milestone lengthens the remaining critical path — refresh the
+    // stored prediction so the hub date pushes back out. Best-effort.
+    await refreshExpectedExchangeDate(input.transactionId).catch((err) => {
+      console.error("[executeUndoMilestoneAction] expectedExchangeDate refresh failed", err);
+    });
   });
 
   revalidateTx(input.transactionId);
@@ -1119,10 +1189,83 @@ export async function confirmExchangeReconciliationAction(input: {
     counterCode,
     ...outstandingDefs.map((d) => d.code),
   ].filter((c): c is string => typeof c === "string");
-  await evaluateTransactionReminders(input.transactionId, {
-    anchorCodes: anchorCodesForEval,
-  }).catch((err) => {
-    console.error("[confirmExchangeReconciliationAction] reminder re-eval failed", err);
+
+  // Phase 1A (2026-09-17): same split as confirmMilestoneAction. Completion
+  // reconciliations (VM20/PM27) keep the engine synchronous in its pre-1A
+  // position — evaluateTransactionReminders early-returns on non-active files
+  // and reads tx.completionDate, so it must run BEFORE the completionDate
+  // sync + maybeAutoCompleteTransaction status flip below. Exchange
+  // reconciliations (VM19/PM26) defer it to after().
+  const isCompletionConfirm = def.code === "VM20" || def.code === "PM27";
+  if (isCompletionConfirm) {
+    await evaluateTransactionReminders(input.transactionId, {
+      anchorCodes: anchorCodesForEval,
+    }).catch((err) => {
+      console.error("[confirmExchangeReconciliationAction] reminder re-eval failed", err);
+    });
+  }
+
+  after(async () => {
+    if (!isCompletionConfirm) {
+      await evaluateTransactionReminders(input.transactionId, {
+        anchorCodes: anchorCodesForEval,
+      }).catch((err) => {
+        console.error("[confirmExchangeReconciliationAction] reminder re-eval failed", err);
+      });
+    }
+
+    // Push notifications + client email fan-out, moved here from the request
+    // path (Phase 1A) — same recipients, conditions and relative order; each
+    // helper awaited (keeping its own .catch) so after() holds the invocation
+    // open until the sends are handed off.
+    const code  = def.code;
+    const label = getMilestoneCopy(code).label;
+    const short = tx.propertyAddress.split(",")[0];
+
+    // Unified exchange / completion strings — matches Site 8 + the portal
+    // confirm path; see PUSH_NOTIF_STRINGS for the approved set.
+    let title = "One step closer";
+    let body  = `${label}, done at ${short}.`;
+
+    if (code === "VM19" || code === "PM26") {
+      title = "Contracts exchanged!";
+      body  = `${short}. The sale is now legally binding. Congratulations.`;
+    } else if (code === "VM20" || code === "PM27") {
+      title = "It's completed!";
+      body  = `${short} is yours. Congratulations on your move.`;
+    }
+
+    await pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+
+    // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
+    // at the top callsite of sendAdminMilestoneNotificationToPortal above.
+    // isBilateralCounterpartComplete cannot be allowed to throw — defaults to
+    // false on error, which means the email assembler uses the pre-handoff
+    // Section set (safer than the post-handoff one if state is unclear).
+    const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
+    const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
+    const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
+
+    await sendAdminMilestoneNotificationToPortal(
+      input.transactionId,
+      code,
+      input.eventDate ?? null,
+      session.user.id,
+      confirmerRoute_re,
+      handoffDirection_re,
+    ).catch(() => {});
+
+    // Auto-counterpart fan-out + completion-pack scheduling on the
+    // reconciliation path too — same rules as the standard confirm path.
+    await fireAutoCounterpartEmails(
+      input.transactionId,
+      code,
+      session.user.id,
+      confirmerRoute_re,
+    ).catch(() => {});
+    if (code === "VM19" || code === "PM26") {
+      await scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+    }
   });
 
   revalidateTx(input.transactionId);
@@ -1183,56 +1326,8 @@ export async function confirmExchangeReconciliationAction(input: {
     }
   }
 
-  // Push notifications (fire-and-forget)
-  const code  = def.code;
-  const label = getMilestoneCopy(code).label;
-  const short = tx.propertyAddress.split(",")[0];
-
-  // Unified exchange / completion strings — matches Site 8 + the portal
-  // confirm path; see PUSH_NOTIF_STRINGS for the approved set.
-  let title = "One step closer";
-  let body  = `${label}, done at ${short}.`;
-
-  if (code === "VM19" || code === "PM26") {
-    title = "Contracts exchanged!";
-    body  = `${short}. The sale is now legally binding. Congratulations.`;
-  } else if (code === "VM20" || code === "PM27") {
-    title = "It's completed!";
-    body  = `${short} is yours. Congratulations on your move.`;
-  }
-
-  pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
-
-  // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
-  // at the top callsite of sendAdminMilestoneNotificationToPortal above.
-  // isBilateralCounterpartComplete is awaited so we cannot let it throw —
-  // a Prisma blip here would 500 the whole action. Defaults to false on
-  // error, which means the email assembler uses the pre-handoff Section
-  // set (safer than the post-handoff one if state is unclear).
-  const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
-  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
-  const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
-
-  sendAdminMilestoneNotificationToPortal(
-    input.transactionId,
-    code,
-    input.eventDate ?? null,
-    session.user.id,
-    confirmerRoute_re,
-    handoffDirection_re,
-  ).catch(() => {});
-
-  // Auto-counterpart fan-out + completion-pack scheduling on the
-  // reconciliation path too — same rules as the standard confirm path.
-  fireAutoCounterpartEmails(
-    input.transactionId,
-    code,
-    session.user.id,
-    confirmerRoute_re,
-  ).catch(() => {});
-  if (code === "VM19" || code === "PM26") {
-    scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
-  }
+  // Push + email fan-out for this reconciliation now lives in the after()
+  // block above (Phase 1A) — same recipients and conditions, post-response.
 
   const isExchangeCode = def.code === "VM19" || def.code === "PM26";
   return {
@@ -1394,13 +1489,17 @@ export async function reconcileClaimMilestonesAction(input: {
       });
   }
 
-  // 2026-07-13 fix (Chunk 2a): sync re-eval so any reminder rules that
-  // were dormant waiting on a reconciled milestone's eventDate wake up
-  // immediately. reconcile-on-claim writes eventDate on every applied code
-  // - without this call any follow-up chases anchored on those events
-  // would only start after the next 04:00 cron.
-  await evaluateTransactionReminders(input.transactionId).catch((err) => {
-    console.error("[reconcileClaimMilestonesAction] reminder re-eval failed", err);
+  // Phase 1A (2026-09-17): all reconciliation writes above are committed and
+  // `applied` is already known — the engine pass runs post-response.
+  after(async () => {
+    // 2026-07-13 fix (Chunk 2a): re-eval so any reminder rules that
+    // were dormant waiting on a reconciled milestone's eventDate wake up
+    // immediately. reconcile-on-claim writes eventDate on every applied code
+    // - without this call any follow-up chases anchored on those events
+    // would only start after the next 04:00 cron.
+    await evaluateTransactionReminders(input.transactionId).catch((err) => {
+      console.error("[reconcileClaimMilestonesAction] reminder re-eval failed", err);
+    });
   });
 
   revalidateTx(input.transactionId);

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
@@ -138,15 +139,21 @@ export async function completeTaskAction(
         // milestone, so the bilateral counterpart (e.g. PM27 when VM20 is
         // ticked) is NOT auto-emailed; its own reminder fires its email when
         // confirmed. Best-effort; never blocks the confirm.
-        await sendMilestoneConfirmationNotifications({
-          transactionId,
-          milestoneCode: targetMilestoneCode,
-          eventDate: eventDate ?? null,
-          confirmerUserId: session.user.id,
-          confirmerName: session.user.name ?? null,
-          confirmerRole: session.user.role,
-          includeCounterpartEmail: false,
-        }).catch((err) => console.error("[completeTaskAction] milestone notifications failed:", err));
+        //
+        // Phase 1 perceived-performance (2026-09-17): the fan-out was awaited
+        // on the response path; it now runs post-response via after() — same
+        // arguments, same logging, guaranteed execution.
+        after(async () => {
+          await sendMilestoneConfirmationNotifications({
+            transactionId,
+            milestoneCode: targetMilestoneCode,
+            eventDate: eventDate ?? null,
+            confirmerUserId: session.user.id,
+            confirmerName: session.user.name ?? null,
+            confirmerRole: session.user.role,
+            includeCounterpartEmail: false,
+          }).catch((err) => console.error("[completeTaskAction] milestone notifications failed:", err));
+        });
       } catch (err) {
         const e = err as Error & { missing?: { code: string; name: string }[] };
         if (e.message === "PREREQUISITES_NOT_COMPLETE") {
@@ -158,7 +165,11 @@ export async function completeTaskAction(
           // (lib/services/reminders.ts) will deactivate it on this same
           // eval pass since the prereqs are still unmet. Return
           // structured so the UI can toast the reason.
-          void evaluateTransactionReminders(transactionId).catch(console.error);
+          // Phase 1: was a bare `void` promise — now after(), so the pass is
+          // guaranteed to run instead of depending on leftover runway.
+          after(async () => {
+            await evaluateTransactionReminders(transactionId).catch(console.error);
+          });
           revalidatePath(pathname, "page");
           return {
             blocked: true,
@@ -178,8 +189,13 @@ export async function completeTaskAction(
     }
   }
 
-  // Activate any downstream reminders whose anchor milestone just completed
-  void evaluateTransactionReminders(transactionId).catch(console.error);
+  // Activate any downstream reminders whose anchor milestone just completed.
+  // Phase 1: was a bare `void` promise (its only runway was the awaited
+  // notification fan-out above, which has moved to after()); now scheduled
+  // via after() itself — same call, same logging, guaranteed execution.
+  after(async () => {
+    await evaluateTransactionReminders(transactionId).catch(console.error);
+  });
   revalidatePath(pathname, "page");
   return { ok: true };
 }
@@ -293,7 +309,9 @@ export async function chaseNowFromLogAction(
     return { taskId: task.id, transactionId: log.transactionId };
   });
 
-  touchLastActivity(result.transactionId).catch(() => {});
+  after(async () => {
+    await touchLastActivity(result.transactionId).catch(() => {});
+  });
   revalidatePath(pathname, "page");
   return { taskId: result.taskId };
 }
@@ -318,13 +336,15 @@ export async function advanceChaseTaskAction(taskId: string, pathname: string) {
     // steps (client + solicitor) can't be told apart here, so they're skipped.
     const cls = classifyChaseFromCode(code);
     if (cls) {
-      postChaseEcho({
-        transactionId: task.transactionId,
-        code,
-        recipientType: cls.recipientType,
-        chasedSide: cls.chasedSide,
-        actorUserId: session.user.id,
-      }).catch(() => {});
+      after(async () => {
+        await postChaseEcho({
+          transactionId: task.transactionId,
+          code,
+          recipientType: cls.recipientType,
+          chasedSide: cls.chasedSide,
+          actorUserId: session.user.id,
+        }).catch(() => {});
+      });
     }
   }
   revalidatePath(pathname, "page");
@@ -344,7 +364,11 @@ export async function markStepsChasedAction(
     milestoneCodes,
     getAccessScope(session),
   );
-  if (marked > 0) touchLastActivity(transactionId).catch(() => {});
+  if (marked > 0) {
+    after(async () => {
+      await touchLastActivity(transactionId).catch(() => {});
+    });
+  }
   revalidatePath(pathname, "page");
   return { marked };
 }
@@ -377,7 +401,9 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
       content: "Chased manually (recorded by agent)",
     },
   });
-  touchLastActivity(task.transactionId).catch(() => {});
+  after(async () => {
+    await touchLastActivity(task.transactionId).catch(() => {});
+  });
   revalidatePath(pathname, "page");
 }
 
@@ -415,23 +441,25 @@ export async function escalateTaskAction(taskId: string, pathname: string, reaso
   // double-notify if the user clicks Escalate twice on the same row.
   if (!wasEscalated) {
     const milestoneLabel = task.reminderLog?.reminderRule?.name?.replace(/^Chase:\s*/i, "") ?? null;
-    pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
+    after(async () => {
+      await pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
 
-    // 2026-07-13 (Chunk 6e): write to the activity feed so the file owner
-    // can see the escalation happened (with who + why) even if the chip
-    // gets chased-through and cleared. Fire-and-forget - a feed failure
-    // shouldn't roll back the escalation write above.
-    const label = milestoneLabel ?? "chase";
-    const suffix = trimmedReason ? ` — reason: ${trimmedReason}` : "";
-    prisma.outboundMessage.create({
-      data: {
-        transactionId: task.transactionId,
-        type: "internal_note",
-        contactIds: [],
-        content: `${session.user.name ?? "Someone"} escalated "${label}"${suffix}`,
-        createdById: session.user.id,
-      },
-    }).catch(() => {});
+      // 2026-07-13 (Chunk 6e): write to the activity feed so the file owner
+      // can see the escalation happened (with who + why) even if the chip
+      // gets chased-through and cleared. Fire-and-forget - a feed failure
+      // shouldn't roll back the escalation write above.
+      const label = milestoneLabel ?? "chase";
+      const suffix = trimmedReason ? ` — reason: ${trimmedReason}` : "";
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: task.transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: `${session.user.name ?? "Someone"} escalated "${label}"${suffix}`,
+          createdById: session.user.id,
+        },
+      }).catch(() => {});
+    });
   }
 
   revalidatePath(pathname, "page");
