@@ -258,7 +258,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
           <button
             onClick={toggleSidebar}
             aria-expanded={sidebarOpen}
-            className={`flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
+            className={`agent-hover-ctl flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 transition-colors`}
           >
             <span>File details</span>
             <ChevronDown

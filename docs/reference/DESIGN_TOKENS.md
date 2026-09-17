@@ -288,8 +288,11 @@ From [themes.css](../../app/agent/styles/themes.css) (per-theme blocks) and
   var(--agent-hover-tint)` + `box-shadow: var(--agent-hover-lift)` (add
   `box-shadow` to the transition). Utility: `.agent-hover-row`.
 - **Shade** — small controls (icon buttons, chevron dropdown triggers, chips,
-  pills, ghost buttons, chart cursors): `background: var(--agent-hover-shade)`
-  only. Utility: `.agent-hover-ctl`. No shadow on tiny elements.
+  pills, ghost buttons, chart cursors) AND **accordion/row-group header bars**
+  (`.agent-acc-hdr`, the hub cards' collapse headers, the File details bar):
+  `background: var(--agent-hover-shade)` only. Utility: `.agent-hover-ctl`
+  (sets its own transparent base — consumers must not set background inline,
+  it masks the hover). Rows *inside* a group take the lift.
 
 **Resting surfaces:** rows must NOT set a tinted resting background inline —
 it reads as the old wash and beats the `:hover` rule. Urgency/tone is carried

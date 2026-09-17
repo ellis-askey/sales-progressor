@@ -2217,9 +2217,11 @@
   .agent-hover-row:hover { background-color: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
 
   /* Small-control hover — quiet neutral shade, no lift. For chevron
-   * dropdown triggers, topbar controls and other compact interactive bits
-   * that shouldn't bubble. */
-  .agent-hover-ctl { transition: background-color 150ms ease; }
+   * dropdown triggers, topbar controls, accordion header bars and other
+   * compact interactive bits that shouldn't bubble. Sets its own
+   * transparent base so consumers must NOT set background inline (an
+   * inline background beats the :hover rule and masks it). */
+  .agent-hover-ctl { background-color: transparent; transition: background-color 150ms ease; }
   .agent-hover-ctl:hover { background-color: var(--agent-hover-shade); }
 
   /* Note item surface — replaces onMouseEnter/onMouseLeave in TransactionNotes.tsx */
@@ -2521,16 +2523,17 @@
     transition: background  var(--agent-transition-fast),
                 box-shadow  var(--agent-transition-fast);
   }
+  /* Accordion top bars take the SHADE tier (Ellis, 2026-09-17) — a group
+   * header opening/closing shouldn't bubble like a row. */
   .agent-acc-hdr:hover:not([aria-disabled="true"]) {
-    background: var(--agent-hover-tint);
-    box-shadow: var(--agent-hover-lift);
+    background: var(--agent-hover-shade);
   }
   .agent-acc-hdr:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 1.5px var(--agent-border-focus), inset 0 0 12px rgba(var(--agent-coral-rgb), 0.06);
   }
   .agent-acc-hdr:active:not([aria-disabled="true"]) {
-    background: var(--agent-hover-tint-strong);
+    background: var(--agent-hover-shade-strong);
   }
   /* Stacked accordions (the milestone checklist): the top-corner rounding above
    * is meant for a single header sitting at a card's top edge. When sections are

@@ -152,7 +152,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
           onClick={() => setOpen((v) => !v)}
           style={{
             display: "flex", alignItems: "center", gap: 7, width: "100%",
-            background: "none", border: "none",
+            border: "none",
             padding: "4px 10px 4px 4px",
             cursor: "pointer",
           }}
@@ -340,10 +340,11 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             disabled={refreshing}
             title="Refresh data"
             style={{
+              // No inline background — it would beat .agent-hover-ctl's hover.
               display: "inline-flex", alignItems: "center", gap: 5,
-              background: "none", border: "none", cursor: refreshing ? "default" : "pointer",
+              border: "none", cursor: refreshing ? "default" : "pointer",
               color: "var(--agent-text-muted)", fontSize: 11,
-              padding: "4px 8px", borderRadius: 6, transition: "background 150ms",
+              padding: "4px 8px", borderRadius: 6,
               whiteSpace: "nowrap", flexShrink: 0,
             }}
             className="agent-hover-ctl"

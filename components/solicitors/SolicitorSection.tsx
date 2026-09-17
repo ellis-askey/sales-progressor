@@ -306,7 +306,7 @@ function SolicitorTile({
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
-          <div className="people-row" style={{ padding: "10px 12px" }}>
+          <div className="people-row agent-hover-row" style={{ padding: "10px 12px" }}>
             <button
               type="button"
               onClick={() => setExpanded((x) => !x)}

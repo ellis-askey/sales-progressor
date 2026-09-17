@@ -43,7 +43,6 @@ export type BookingConfirmRow = {
 const ACCENT = "var(--agent-coral)";
 // De-washed (Ellis, 2026-09-17): rows sat on a full coral wash; the accent
 // bar + coral pill carry the identity now.
-const BG = "transparent";
 const ICON_COLOR = "var(--agent-coral-deep)";
 
 const INITIAL_VISIBLE = 6;
@@ -100,7 +99,8 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
         type="button"
         onClick={() => setCollapsed((c) => !c)}
         aria-expanded={!collapsed}
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
+        className="agent-hover-ctl"
+        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
         <span aria-hidden style={{ color: ICON_COLOR, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <CalendarCheck size={24} weight="bold" />
@@ -156,7 +156,7 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
               return (
                 <div
                   key={row.transactionId}
-                  style={{ borderLeft: `3px solid ${ACCENT}`, background: BG, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                  style={{ borderLeft: `3px solid ${ACCENT}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
                   <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
                     <PropertyThumb photoUrl={row.photoUrl} />

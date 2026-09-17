@@ -102,7 +102,8 @@ export function HubListCard({
         type="button"
         onClick={() => setCollapsed((c) => !c)}
         aria-expanded={!collapsed}
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
+        className="agent-hover-ctl"
+        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
         <span aria-hidden style={{ color: ht.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <HeaderIcon size={24} weight="bold" />

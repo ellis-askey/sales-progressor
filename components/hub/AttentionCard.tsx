@@ -75,24 +75,21 @@ type Tone = "danger" | "warning" | "coral";
 
 // De-washed (Ellis, 2026-09-17): rows no longer sit on a tone-tinted
 // background — the left accent bar, icon chip and pill carry the urgency.
-// bg: transparent also lets the .agent-hover-row lift hover land (an inline
-// tinted background used to beat the :hover rule).
+// No bg field at all: even an inline background: transparent would beat
+// the .agent-hover-row :hover rule and mask the lift.
 const TONE = {
   danger: {
     accent: "var(--agent-danger)",
-    bg: "transparent",
     iconBg: "rgba(var(--agent-danger-rgb),0.10)",
     color: "var(--agent-danger)",
   },
   warning: {
     accent: "var(--agent-warning)",
-    bg: "transparent",
     iconBg: "rgba(var(--agent-warning-rgb),0.10)",
     color: "var(--agent-warning)",
   },
   coral: {
     accent: "var(--agent-coral)",
-    bg: "transparent",
     iconBg: "rgba(var(--agent-coral-base-rgb),0.12)",
     color: "var(--agent-coral-deep)",
   },
@@ -409,13 +406,13 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         type="button"
         onClick={() => setCollapsed((c) => !c)}
         aria-expanded={!collapsed}
+        className="agent-hover-ctl"
         style={{
           width: "100%",
           padding: "14px 20px",
           display: "flex",
           alignItems: "center",
           gap: 12,
-          background: "transparent",
           border: "none",
           borderBottom: collapsed || allClear ? "none" : "0.5px solid var(--agent-border-subtle)",
           cursor: "pointer",
@@ -732,7 +729,6 @@ function AttentionRow({
     flexWrap: "wrap",
     padding: "12px 20px 12px 17px",
     borderLeft: `3px solid ${t.accent}`,
-    background: t.bg,
     borderTop: topBorder ? "0.5px solid var(--agent-border-subtle)" : undefined,
   };
 

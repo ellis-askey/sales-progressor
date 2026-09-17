@@ -244,7 +244,7 @@ function PriorityList({
             // the reminder title into a 90px column on phones (audit C4).
             <div
               key={log.id}
-              className="rem-row"
+              className="rem-row agent-hover-row"
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined }}
             >
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>

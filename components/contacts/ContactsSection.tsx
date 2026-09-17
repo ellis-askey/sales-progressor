@@ -979,7 +979,7 @@ export function ContactsSection({
                         Layout via .people-row (agent-system.css): one line on
                         desktop; on narrow cards the identity takes the full
                         first line and the chevron + buttons drop beneath. */}
-                    <div className="people-row" style={{ padding: "10px 2px" }}>
+                    <div className="people-row agent-hover-row" style={{ padding: "10px 2px" }}>
                       <button
                         type="button"
                         onClick={() => toggleExpand(contact.id)}
