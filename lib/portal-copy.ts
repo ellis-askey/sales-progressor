@@ -868,9 +868,11 @@ const copy: Record<string, PortalCopy> = {
     emailCopy: {
       vendor: {
         subject: "Buyer's lender valuation: {address}",
+        // PHYSICAL. For a DESKTOP valuation the render swaps heroLabel +
+        // whatHappened for PM6_DESKTOP_VENDOR. {attendClause} = " for <date>".
         heroLabel: "Lender valuation booked",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer's lender has booked the property valuation{eventDate}.{vendorVisitNote} Once the valuation is done, the buyer's mortgage offer typically follows within 1 to 3 weeks. We'll let you know when it's issued.",
+        whatHappened: "The buyer's lender has booked their valuation of the property{attendClause}. This is a standard part of the buyer's mortgage application, with a surveyor visiting on behalf of the lender to confirm the property's value. The appointment itself will usually take around 30 minutes and access has already been arranged, so there's nothing else you need to do. Once the valuation is complete, the buyer's mortgage offer will typically follow within 1 to 3 weeks. We'll let you know as soon as it's issued.",
         whatNext: null,
         action: "View your portal",
       },
@@ -1765,6 +1767,14 @@ export const PM6_DESKTOP_PURCHASER = {
   opening: "Your mortgage lender is carrying out their valuation.",
   whatHappened:
     "Your lender is completing a desktop valuation of the property. This means they'll value it remotely, using information about the property and recent sales of similar properties in the area, so no visit is required.",
+};
+
+// Seller's version of the desktop valuation — different banner ("underway", since
+// there's no future appointment) + body. Swapped in for the PM6 vendor copy.
+export const PM6_DESKTOP_VENDOR = {
+  heroLabel: "Lender valuation underway",
+  whatHappened:
+    "The buyer's lender is carrying out a desktop valuation of the property. This is a standard part of the buyer's mortgage application, but unlike an in-person valuation, no surveyor needs to visit. The lender will value the property remotely using information about the property and recent sales of similar properties in the area. There's nothing you need to do for this. Once the valuation is complete, the buyer's mortgage offer will typically follow within 1 to 3 weeks. We'll let you know as soon as it's issued.",
 };
 
 export function getEventDateLabel(code: string): string {

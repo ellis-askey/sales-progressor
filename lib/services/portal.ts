@@ -12,7 +12,7 @@ import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-them
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
-import { getMilestoneCopy, buildGreeting, PM6_DESKTOP_PURCHASER, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, buildGreeting, PM6_DESKTOP_PURCHASER, PM6_DESKTOP_VENDOR, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import {
   getOverridesForCode,
   applyOverridesToEmailCopy,
@@ -1180,6 +1180,35 @@ export async function portalCompleteMilestone(input: {
  * second confirmer got there first). Called by confirmProvisionalBookingAction.
  * See docs/active/booking-reminders/00-plan.md.
  */
+// A PM6 desktop valuation reads differently to both sides — swap the buyer's
+// opening + body, and the seller's banner + body. No-op unless PM6 + desktop.
+// Shared by both render paths (portal-confirm + agent-confirm) so they stay in
+// step. Caller decides isDesktop (PM6 with no event date).
+function applyPm6Desktop<T extends { opening?: string; whatHappened?: string; heroLabel?: string }>(
+  copy: T,
+  milestoneCode: string | undefined,
+  recipientKey: "vendor" | "purchaser",
+  isDesktop: boolean,
+): T {
+  if (milestoneCode !== "PM6" || !isDesktop) return copy;
+  return recipientKey === "purchaser"
+    ? { ...copy, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
+    : { ...copy, heroLabel: PM6_DESKTOP_VENDOR.heroLabel, whatHappened: PM6_DESKTOP_VENDOR.whatHappened };
+}
+
+// Is the mortgage offer (PM11) already confirmed on this file? Used to suppress a
+// valuation email that would otherwise land AFTER the offer email and contradict
+// it. State-based (not time-based), so it's correct however the two were clicked.
+async function isMortgageOfferConfirmed(transactionId: string): Promise<boolean> {
+  const offerDef = await prisma.milestoneDefinition.findFirst({ where: { code: "PM11" }, select: { id: true } });
+  if (!offerDef) return false;
+  const done = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: offerDef.id, state: "complete" },
+    select: { id: true },
+  });
+  return !!done;
+}
+
 export async function releaseProvisionalBooking(input: {
   transactionId: string;
   milestoneDefinitionId: string;
@@ -1249,13 +1278,7 @@ export async function releaseProvisionalBooking(input: {
   // record the step but send nothing to clients — one internal note explains why.
   // State-based, not time-based: correct for any gap between the two.
   if (def.code === "PM6") {
-    const offerDef = await prisma.milestoneDefinition.findFirst({ where: { code: "PM11" }, select: { id: true } });
-    const offerDone = offerDef
-      ? await prisma.milestoneCompletion.findFirst({
-          where: { transactionId: input.transactionId, milestoneDefinitionId: offerDef.id, state: "complete" },
-          select: { id: true },
-        })
-      : null;
+    const offerDone = await isMortgageOfferConfirmed(input.transactionId);
     if (offerDone) {
       await prisma.outboundMessage.create({
         data: {
@@ -1587,11 +1610,8 @@ export async function logPortalMilestoneConfirm(
         ? resolveRecipientCopy(milestoneCode, recipientKey, richCopy, portalFileShape)
         : richCopy[recipientKey];
       if (!copy0) continue;
-      // Desktop valuation → the buyer gets different sentences (opening + body),
-      // not just a cleared date. Swap them in for the PM6 purchaser copy.
-      const copy = milestoneCode === "PM6" && recipientKey === "purchaser" && isPortalDesktop
-        ? { ...copy0, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
-        : copy0;
+      // Desktop valuation reads differently to buyer + seller (see helper).
+      const copy = applyPm6Desktop(copy0, milestoneCode, recipientKey, isPortalDesktop);
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
       const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, attendClause: portalAttendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar, surveyorClause, valuationNote } });
@@ -2201,6 +2221,23 @@ async function sendRichMilestoneEmails(
   confirmerRoute?: ConfirmerRoute,
   handoffDirection?: HandoffDirection,
 ): Promise<boolean> {
+  // Out-of-order guard (agent-direct confirm path — mirrors releaseProvisionalBooking
+  // for the tray path): if the mortgage offer (PM11) is already confirmed, a lender
+  // valuation (PM6) email now would land AFTER the offer email and contradict it, so
+  // record the step (done by completeMilestone) but send NO client emails.
+  if (milestoneCode === "PM6" && (await isMortgageOfferConfirmed(transactionId))) {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId,
+        type: "internal_note",
+        contactIds: [],
+        content: "Lender valuation confirmed. The mortgage offer was already confirmed, so clients weren't emailed (a valuation email now would arrive out of order).",
+        createdById: confirmerId ?? null,
+      },
+    }).catch(() => {});
+    return false;
+  }
+
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -2349,10 +2386,8 @@ async function sendRichMilestoneEmails(
     if (suppressedRecipient && recipientKey === suppressedRecipient) continue;
     const copy0 = resolveRecipientCopy(milestoneCode, recipientKey, effectiveEmailCopy, fileShape);
     if (!copy0) continue;
-    // Desktop valuation → the buyer gets different sentences (opening + body).
-    const copy = milestoneCode === "PM6" && recipientKey === "purchaser" && isDesktop
-      ? { ...copy0, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
-      : copy0;
+    // Desktop valuation reads differently to buyer + seller (see helper).
+    const copy = applyPm6Desktop(copy0, milestoneCode, recipientKey, isDesktop);
 
     const greeting = buildGreeting(c.name);
     const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
