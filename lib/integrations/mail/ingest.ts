@@ -11,7 +11,7 @@ import type { AccessScope } from "@/lib/security/access-scope";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
-import { buildIndex, buildFolderHints, matchMessage } from "./match";
+import { buildIndex, buildFolderHints, buildAddressIndex, matchMessage } from "./match";
 import { detectAutoReply } from "./auto-reply";
 import { filterStorableAttachments } from "./attachments";
 import { extractSignaturePhone } from "./signature";
@@ -297,6 +297,9 @@ export async function runMailboxSync(opts: {
     }
   }
   const index = await buildIndex([...allEmails], scope);
+  // Address fallback index: every live file's address, so an email that NAMES a
+  // property (but is from someone not yet on the file) can still be matched.
+  const addressIndex = await buildAddressIndex(scope);
 
   const summaryFolders =
     opts.scannedFolderNames ?? [...new Set(messages.map((m) => m.folder).filter(Boolean))];
@@ -316,7 +319,7 @@ export async function runMailboxSync(opts: {
 
   for (const msg of messages) {
     const info = toInfo(msg);
-    const { txId, candidates } = matchMessage(msg, mailboxEmail, index, folderHints);
+    const { txId, candidates } = matchMessage(msg, mailboxEmail, index, folderHints, addressIndex);
 
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);

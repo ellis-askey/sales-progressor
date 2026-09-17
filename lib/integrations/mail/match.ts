@@ -131,6 +131,81 @@ export async function buildIndex(emails: string[], scope: AccessScope): Promise<
   return { emailToTx, txAddress };
 }
 
+// ─── Address index (match an email to a file by the property it NAMES) ─────────
+//
+// The people-index above only links emails between known parties. But plenty of
+// real emails name the property in the subject/body ("…re 26 The Copse, SG13 7TX")
+// from a sender who isn't a contact yet. This index lets us match those to a file
+// by ADDRESS, as a last resort — carefully (see matchByAddress).
+
+export type AddressEntry = { txId: string; firstLine: string; postcodes: Set<string> };
+
+// Every live file in scope, reduced to its first address line (house number +
+// street) and postcode(s) — the two things an email reliably repeats.
+export async function buildAddressIndex(scope: AccessScope): Promise<AddressEntry[]> {
+  const txScope = { AND: [scopeTransactionWhere(scope), { status: { not: "draft" as const } }] };
+  const rows = await prisma.propertyTransaction.findMany({
+    where: txScope,
+    select: { id: true, propertyAddress: true },
+  });
+  const out: AddressEntry[] = [];
+  for (const r of rows) {
+    const addr = (r.propertyAddress ?? "").trim();
+    if (!addr) continue;
+    const firstLine = addr.split(",")[0]!.trim().toLowerCase();
+    // Require a house number in the first line — a street-name-only file
+    // ("The Copse") is too loose to match on safely.
+    if (!firstLine || !/\d/.test(firstLine)) continue;
+    out.push({ txId: r.id, firstLine, postcodes: extractPostcodes(addr) });
+  }
+  return out;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Does the file's first line appear in the text at a word boundary? The boundary
+// is what stops "2 Evans Way" matching inside "12 Evans Way" (the digit-vs-digit
+// join is not a boundary), the same house-number-substring trap the folder
+// matcher guards against.
+export function firstLineAppears(lowerText: string, firstLine: string): boolean {
+  if (!firstLine) return false;
+  return new RegExp(`\\b${escapeRegExp(firstLine)}\\b`).test(lowerText);
+}
+
+// Match an email's text to files by the property it names. HIGH-CONFIDENCE only:
+//   - Strong match: a file's postcode AND its first line both appear → it's that
+//     property. Returns strong matches if any.
+//   - Otherwise: a first-line match with no postcode is trusted ONLY when exactly
+//     one file has that first line (so "7 East Flint" with no postcode still
+//     links, but never ambiguously).
+// Returns the matching txIds (caller decides: one → file it, many → review).
+export function matchByAddress(text: string, index: AddressEntry[]): string[] {
+  if (!text || index.length === 0) return [];
+  const lc = text.toLowerCase();
+  const postcodes = extractPostcodes(text);
+  const strong = new Set<string>();
+  const firstLineHits = new Set<string>();
+  for (const e of index) {
+    if (!firstLineAppears(lc, e.firstLine)) continue;
+    firstLineHits.add(e.txId);
+    if ([...e.postcodes].some((pc) => postcodes.has(pc))) strong.add(e.txId);
+  }
+  if (strong.size) return [...strong];
+  return firstLineHits.size === 1 ? [...firstLineHits] : [...firstLineHits];
+}
+
+// A sender that is really US, not an external party — our automated sender domain
+// or the mailbox owner themselves. We never address-match these: their emails are
+// already on the file (as outbound), so matching an inbox copy would duplicate.
+function isOwnSender(from: string, mailboxLc: string): boolean {
+  const f = (from ?? "").toLowerCase().trim();
+  if (!f) return true;
+  if (f === mailboxLc) return true;
+  return f.endsWith("@thesalesprogressor.co.uk");
+}
+
 // ─── Folder name → transaction (a property folder points at its file) ─────────
 
 export async function buildFolderHints(
@@ -176,7 +251,8 @@ export function matchMessage(
   msg: IngestMessage,
   mailbox: string,
   index: Index,
-  folderHints: Map<string, string>
+  folderHints: Map<string, string>,
+  addressIndex: AddressEntry[] = []
 ): { txId: string | null; candidates: string[] } {
   const mailboxLc = mailbox.toLowerCase();
   const participants = [msg.from, ...msg.to, ...msg.cc]
@@ -223,6 +299,16 @@ export function matchMessage(
       if (byPostcode.length === 1) return { txId: byPostcode[0], candidates };
     }
     return { txId: null, candidates }; // ambiguous — offer the candidates for review
+  }
+
+  // Nobody on the email matched a file. Last resort: does the email NAME a
+  // property we hold? Match by address (postcode + first line), skipping our own
+  // automated senders (their emails already exist on the file). One confident
+  // match → file it; several → offer them for review. (Address matching.)
+  if (!isOwnSender(msg.from, mailboxLc) && addressIndex.length) {
+    const hits = matchByAddress(`${msg.subject}\n${msg.body}`, addressIndex);
+    if (hits.length === 1) return { txId: hits[0], candidates: hits };
+    if (hits.length > 1) return { txId: null, candidates: hits };
   }
 
   return { txId: null, candidates: [] };
