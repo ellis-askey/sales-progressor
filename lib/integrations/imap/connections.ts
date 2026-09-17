@@ -252,6 +252,18 @@ export async function enableMailboxSending(
   if (ctx.domainVerified) {
     return { ok: false, error: "Your emails already send from this address through your verified domain." };
   }
+  // Outsourced sending is our operation and never routes via a mailbox
+  // (mirrors the exclusion in lib/integrations/smtp/mailbox-lookup.ts).
+  const approvedOutsourced = await prisma.agency.findFirst({
+    where: { quoteSenderEmail: { equals: ctx.email, mode: "insensitive" }, quoteSenderVerified: true },
+    select: { id: true },
+  });
+  if (approvedOutsourced) {
+    return {
+      ok: false,
+      error: "This is your agency's approved sending address, so we already send from it on your files. There's nothing to switch on.",
+    };
+  }
 
   const settings = resolveSmtpSettings(conn.email, {
     host: conn.smtpHost,
