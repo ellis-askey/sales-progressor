@@ -1485,8 +1485,8 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
 
 /* ⋯ card-menu item. Base transparent + hover tint as a class (not inline) so the
    hover actually paints — inline background would beat a :hover rule. */
-.chain-menu-item { background: transparent; transition: background-color .15s var(--agent-ease); }
-.chain-menu-item:hover { background: var(--agent-hover-tint); }
+.chain-menu-item { background: transparent; transition: background-color .15s var(--agent-ease), box-shadow .15s var(--agent-ease); }
+.chain-menu-item:hover { background: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
 
 /* Add-node drawer mode toggle (placeholder vs one of my sales). The drawer is a
    fixed light surface regardless of theme, so this uses the same light palette

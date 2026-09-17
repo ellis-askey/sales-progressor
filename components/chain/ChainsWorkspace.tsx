@@ -379,7 +379,7 @@ export function ChainsWorkspace({
         .chains-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
         .chains-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
         .chains-summary-cell:first-child { border-left: none; }
-        .chains-summary-cell-hot:hover { background: rgba(var(--agent-coral-base-rgb), 0.10) !important; }
+        .chains-summary-cell-hot:hover { background: var(--agent-hover-tint) !important; }
         .chains-card-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
         /* Container-driven 4 -> 2 tiles: the old 760px viewport query flipped
            to 2-col exactly when the sidebar disappears and room INCREASES —

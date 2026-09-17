@@ -266,15 +266,25 @@ Mobile floor: inputs sit at 16px on `< 768px` (iOS Safari zoom prevention — se
 
 ---
 
-## Hover / interactive tints
+## Hover / interactive tints — "lift bubble" (Ellis decision, 2026-09-17)
 
-From [themes.css](../../app/agent/styles/themes.css) lines 262–264.
+The old accent-tinted wash (10% coral, per-theme) is retired. Hovers now use a
+neutral **lift bubble**: the surface brightens to near-white and rises on a
+soft shadow. Same values in every light theme; dark theme has its own pair.
+From [themes.css](../../app/agent/styles/themes.css) (per-theme blocks) and
+[agent-system.css](../../app/agent/styles/agent-system.css) (`--agent-hover-lift` on `:root`).
 
-| Token | Value | Use |
-|---|---|---|
-| `--agent-hover-tint` | `rgba(255, 138, 101, 0.10)` | standard row / list hover wash |
-| `--agent-hover-tint-strong` | `rgba(255, 138, 101, 0.18)` | dense / selected row hover |
-| `--agent-hover-tint-warning` | `rgba(254, 215, 170, 0.55)` | warning-coded row hover |
+| Token | Light value | Dark value | Use |
+|---|---|---|---|
+| `--agent-hover-tint` | `rgba(255, 255, 255, 0.72)` | `rgba(255, 255, 255, 0.07)` | hover background — rows, menu items, buttons, chips |
+| `--agent-hover-tint-strong` | `rgba(255, 255, 255, 0.92)` | `rgba(255, 255, 255, 0.12)` | active/pressed background |
+| `--agent-hover-lift` | `0 2px 10px rgba(45,24,16,0.08), inset 0 0 0 0.5px rgba(45,24,16,0.05)` | `0 2px 10px rgba(0,0,0,0.40), inset 0 0 0 0.5px rgba(255,255,255,0.07)` | the lift shadow — rows + menu items ONLY |
+| `--agent-hover-tint-warning` | `rgba(254, 215, 170, 0.55)` | `rgba(251, 191, 36, 0.15)` | warning-coded row hover (semantic, unchanged) |
+
+**Application rule:** rows and menu/popover items apply `background` +
+`box-shadow: var(--agent-hover-lift)` (add `box-shadow` to the transition).
+Small controls — icon buttons, chips, pills, chevrons — apply the tint only;
+a drop shadow on a 22px circle reads as noise.
 
 Full hover/focus/active patterns documented in [HOVER_STATES.md](HOVER_STATES.md).
 

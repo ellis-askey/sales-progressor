@@ -128,7 +128,7 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
                     background: isFirst ? "rgba(255,138,101,0.04)" : "transparent",
                     transition: "background 0.12s",
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isFirst ? "rgba(255,138,101,0.08)" : "rgba(0,0,0,0.025)"; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--agent-hover-tint)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isFirst ? "rgba(255,138,101,0.04)" : "transparent"; }}
                 >
                   <td style={{ padding: "11px 14px", fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", whiteSpace: "nowrap" }}>

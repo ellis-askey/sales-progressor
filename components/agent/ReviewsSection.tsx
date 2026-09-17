@@ -522,7 +522,7 @@ function ResumeOptionCard({ title, description, onClick }: { title: string; desc
       type="button"
       onClick={onClick}
       style={{ textAlign: "left", padding: "12px 14px", background: "var(--agent-surface-glass)", border: "0.5px solid rgba(15,23,42,0.10)", borderRadius: 12, cursor: "pointer", transition: "background 150ms, border-color 150ms" }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint, rgba(255,107,74,0.06))"; e.currentTarget.style.borderColor = "rgba(255,107,74,0.30)"; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint)"; e.currentTarget.style.borderColor = "rgba(255,107,74,0.30)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "var(--agent-surface-glass)"; e.currentTarget.style.borderColor = "rgba(15,23,42,0.10)"; }}
     >
       <p style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>{title}</p>

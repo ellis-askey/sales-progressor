@@ -361,7 +361,7 @@ function RowKebab({
                 role="menuitem"
                 onClick={() => { setOpen(false); onIntroCall(); }}
                 style={menuItemStyle("var(--agent-coral-darker)")}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,107,74,0.08)")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-hover-tint)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <ClipboardText size={14} weight="regular" />

@@ -119,6 +119,12 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 **Decision:** (1) Shell tiers: <768 overlay nav, 768–1023 icon rail (agent) / drawer (Command Centre), 1024–1279 full nav no secondary columns, ≥1280 full composition. (2) Components nested in columns use container queries with content-derived thresholds — see DESIGN_TOKENS.md "Responsive breakpoints". (3) AccountShell keeps its own 260px/≤860 drawer breakpoint — it works, and aligning it to the main shell risks regressions for zero user-visible gain. (4) Legacy 639/640, 767/768, 1023/1024 off-by-one pairs are grandfathered; normalise only when editing the rule anyway.
 **Source:** responsive programme commits `495d7343`, `64d41698`, `0857051b` + Phase 4.
 
+## 2026-09-17 · visual · Hover wash retired app-wide — "lift bubble" is the hover treatment.
+
+**Why:** the universal hover was a watered-down accent tint (10% coral, re-tinted per theme) that Ellis had always disliked; it read as a stain rather than an interaction.
+**Decision:** hovers brighten to near-white and rise on a soft shadow ("lift bubble", option C from the /test/hover-options comparison). `--agent-hover-tint` = white 0.72 (strong 0.92) in every light theme, faint white in dark; new `--agent-hover-lift` shadow on `:root`. Rows + menu items get background AND lift; small buttons/chips get background only. `-warning` stays semantic amber. Hardcoded coral hovers get swept to the token when touched.
+**Source:** Ellis pick 2026-09-17; values in DESIGN_TOKENS.md § Hover / interactive tints.
+
 ---
 
 *Append new entries at the bottom. Don't edit historical entries — supersede them with a follow-up.*

@@ -199,6 +199,17 @@
   .agent-shell-root {
     --agent-surface-overlay: rgba(0, 0, 0, 0.05);
   }
+  /* Lift-bubble hover shadow (Ellis pick 2026-09-17, /test/hover-options
+   * option C): pairs with the near-white --agent-hover-tint from themes.css.
+   * Rows + menu items apply both; small buttons/chips take the tint only.
+   * On :root (not .agent-shell-root) so portalled menus rendered on
+   * document.body get it too. */
+  :root {
+    --agent-hover-lift: 0 2px 10px rgba(45, 24, 16, 0.08), inset 0 0 0 0.5px rgba(45, 24, 16, 0.05);
+  }
+  :root[data-theme="dark"] {
+    --agent-hover-lift: 0 2px 10px rgba(0, 0, 0, 0.40), inset 0 0 0 0.5px rgba(255, 255, 255, 0.07);
+  }
 
   /* ── Background ─────────────────────────────────────────────────────────── */
 
@@ -1412,6 +1423,7 @@
   }
   .agent-dropdown-item:hover {
     background: var(--agent-hover-tint);
+    box-shadow: var(--agent-hover-lift);
   }
   .agent-dropdown-item:active {
     background: var(--agent-hover-tint-strong);
@@ -1690,9 +1702,9 @@
   .pipe-prop {
     display: flex; align-items: center; gap: 9px;
     margin: auto -6px -6px; padding: 6px; border-radius: 10px;
-    text-decoration: none; transition: background var(--agent-transition-fast);
+    text-decoration: none; transition: background var(--agent-transition-fast), box-shadow var(--agent-transition-fast);
   }
-  .pipe-prop:hover { background: rgba(var(--agent-coral-rgb), 0.07); }
+  .pipe-prop:hover { background: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
   .pipe-thumb { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: block; }
   /* Narrow cards (3-col and below, container-driven): drop the thumbnail so
    * the address gets the full width. Was a 680px viewport query; now tied to
@@ -1772,7 +1784,7 @@
     text-overflow: ellipsis;
     transition: background var(--agent-transition-fast);
   }
-  .pipe-more-item:hover { background: var(--agent-hover-tint); }
+  .pipe-more-item:hover { background: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
   .pipe-more-item:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
   .pipe-more-item + .pipe-more-item { border-top: 0.5px solid var(--agent-border-subtle); }
   .pipe-more-item-rest { font-size: 11.5px; font-weight: 500; color: var(--agent-text-muted); }
@@ -2174,7 +2186,7 @@
   .partner-firm-link { transition: opacity 120ms, background 120ms; }
   .partner-firm-link:hover { opacity: 0.82; }
   .partner-file-row { transition: background 120ms; }
-  .partner-file-row:hover { background: var(--agent-hover-tint) !important; }
+  .partner-file-row:hover { background: var(--agent-hover-tint) !important; box-shadow: var(--agent-hover-lift); }
 
   /* ── Partners: staggered card entrance ──────────────────────────────────── */
   .partner-card-in { animation: agent-section-in 360ms cubic-bezier(.16,1,.3,1) both; }
@@ -2192,8 +2204,8 @@
 
   /* ── Theme-adaptive hover utility classes ────────────────────────────────── */
   /* Generic row/item hover — use instead of hover:bg-slate-50 / hover:bg-amber-50 */
-  .agent-hover-row { transition: background-color 150ms ease; }
-  .agent-hover-row:hover { background-color: var(--agent-hover-tint); }
+  .agent-hover-row { transition: background-color 150ms ease, box-shadow 150ms ease; }
+  .agent-hover-row:hover { background-color: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
 
   /* Note item surface — replaces onMouseEnter/onMouseLeave in TransactionNotes.tsx */
   .agent-note-item { background: var(--agent-surface-glass); transition: background 150ms; }
@@ -2496,6 +2508,7 @@
   }
   .agent-acc-hdr:hover:not([aria-disabled="true"]) {
     background: var(--agent-hover-tint);
+    box-shadow: var(--agent-hover-lift);
   }
   .agent-acc-hdr:focus-visible {
     outline: none;
@@ -3244,6 +3257,7 @@
 
 .comms-tx-link:hover {
   background: var(--agent-hover-tint);
+  box-shadow: var(--agent-hover-lift);
 }
 
 .comms-tx-link:focus-visible {

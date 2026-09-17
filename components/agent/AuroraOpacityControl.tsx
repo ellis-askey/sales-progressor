@@ -101,7 +101,7 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
           cursor: "pointer",
           transition: "background 120ms ease",
         }}
-        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(var(--agent-coral-rgb), 0.06)"; }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "var(--agent-hover-tint)"; }}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
         <Contrast size={15} />

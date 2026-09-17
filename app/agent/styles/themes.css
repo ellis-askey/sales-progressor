@@ -259,8 +259,12 @@
     --agent-bg-base-rgb:     255, 245, 236;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(255, 138, 101, 0.10);
-    --agent-hover-tint-strong:  rgba(255, 138, 101, 0.18);
+    /* Lift bubble (Ellis pick, 2026-09-17 — /test/hover-options option C):
+     * hovers brighten to near-white and rise on --agent-hover-lift
+     * (agent-system.css) instead of the old accent-tinted wash. The same
+     * neutral pair is used by every light theme; dark overrides below. */
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(254, 215, 170, 0.55);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -392,8 +396,8 @@
     --agent-bg-base-rgb:     251, 250, 248;
 
     /* Hover / avatar / aurora — overridden by the brand <style> */
-    --agent-hover-tint:         rgba(255, 107, 74, 0.10);
-    --agent-hover-tint-strong:  rgba(255, 107, 74, 0.18);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(254, 215, 170, 0.55);
     --agent-avatar-user-start: #FAEEDA;
     --agent-avatar-user-end:   #FAC775;
@@ -563,8 +567,8 @@
     --agent-bg-base-rgb:     219, 234, 240;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(45, 122, 143, 0.08);
-    --agent-hover-tint-strong:  rgba(45, 122, 143, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(232, 200, 145, 0.45);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -738,8 +742,8 @@
     --agent-bg-base-rgb:     220, 231, 248;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(74, 111, 181, 0.08);
-    --agent-hover-tint-strong:  rgba(74, 111, 181, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(184, 154, 226, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -913,8 +917,8 @@
     --agent-bg-base-rgb:     229, 235, 239;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(90, 107, 130, 0.08);
-    --agent-hover-tint-strong:  rgba(90, 107, 130, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(145, 175, 200, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1088,8 +1092,8 @@
     --agent-bg-base-rgb:     219, 237, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(45, 90, 61, 0.08);
-    --agent-hover-tint-strong:  rgba(45, 90, 61, 0.18);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(212, 184, 106, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1264,8 +1268,8 @@
     --agent-bg-base-rgb:     245, 222, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
-    --agent-hover-tint:         rgba(110, 31, 46, 0.08);
-    --agent-hover-tint-strong:  rgba(110, 31, 46, 0.18);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(232, 168, 181, 0.30);
 
     /* ── User avatar (team member initials chip) ─────────────────────────── */
@@ -1342,8 +1346,8 @@
     --agent-bloom-gold-rgb: 184, 154, 226;
     --agent-bg-base-rgb:    220, 231, 248;
 
-    --agent-hover-tint:         rgba(74, 111, 181, 0.08);
-    --agent-hover-tint-strong:  rgba(74, 111, 181, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(184, 154, 226, 0.30);
 
     --agent-avatar-user-start: #DCE7F8;
@@ -1407,8 +1411,8 @@
     --agent-bloom-gold-rgb: 154, 204, 169;
     --agent-bg-base-rgb:    230, 240, 235;
 
-    --agent-hover-tint:         rgba(42, 96, 66, 0.08);
-    --agent-hover-tint-strong:  rgba(42, 96, 66, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(154, 204, 169, 0.30);
 
     --agent-avatar-user-start: #E6F0EB;
@@ -1472,8 +1476,8 @@
     --agent-bloom-gold-rgb: 195, 165, 230;
     --agent-bg-base-rgb:    237, 232, 245;
 
-    --agent-hover-tint:         rgba(96, 69, 160, 0.08);
-    --agent-hover-tint-strong:  rgba(96, 69, 160, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(195, 165, 230, 0.30);
 
     --agent-avatar-user-start: #EDE8F5;
@@ -1537,8 +1541,8 @@
     --agent-bloom-gold-rgb: 196, 184, 168;
     --agent-bg-base-rgb:    238, 234, 228;
 
-    --agent-hover-tint:         rgba(94, 82, 72, 0.08);
-    --agent-hover-tint-strong:  rgba(94, 82, 72, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(196, 184, 168, 0.30);
 
     --agent-avatar-user-start: #EEEAE4;
@@ -1602,8 +1606,8 @@
     --agent-bloom-gold-rgb: 174, 210, 234;
     --agent-bg-base-rgb:    232, 240, 247;
 
-    --agent-hover-tint:         rgba(53, 101, 128, 0.08);
-    --agent-hover-tint-strong:  rgba(53, 101, 128, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(174, 210, 234, 0.30);
 
     --agent-avatar-user-start: #E8F0F7;
@@ -1667,8 +1671,8 @@
     --agent-bloom-gold-rgb: 210, 170, 190;
     --agent-bg-base-rgb:    245, 236, 240;
 
-    --agent-hover-tint:         rgba(138, 74, 98, 0.08);
-    --agent-hover-tint-strong:  rgba(138, 74, 98, 0.16);
+    --agent-hover-tint:         rgba(255, 255, 255, 0.72);
+    --agent-hover-tint-strong:  rgba(255, 255, 255, 0.92);
     --agent-hover-tint-warning: rgba(210, 170, 190, 0.30);
 
     --agent-avatar-user-start: #F5ECF0;
@@ -1766,8 +1770,9 @@
   --agent-focus-ring-tight: 0 0 0 1px   rgba(255, 107, 74, 0.65), 0 0  8px 1px rgba(255, 107, 74, 0.22);
 
   /* ── Hover tints ──────────────────────────────────────────────────────── */
-  --agent-hover-tint:         rgba(255, 107, 74, 0.10);
-  --agent-hover-tint-strong:  rgba(255, 107, 74, 0.18);
+  /* Dark lift bubble — a faint white rise instead of the near-white pop. */
+  --agent-hover-tint:         rgba(255, 255, 255, 0.07);
+  --agent-hover-tint-strong:  rgba(255, 255, 255, 0.12);
   --agent-hover-tint-warning: rgba(251, 191, 36, 0.15);
 
   /* ── RGB channels (for rgba() usage) ─────────────────────────────────── */

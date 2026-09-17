@@ -181,7 +181,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         {/* Draft for everyone — type one fact, get a client message + file note */}
         <button
           onClick={openDraftMode}
-          onMouseEnter={(e) => { if (!isDraftMode) { e.currentTarget.style.color = "var(--agent-coral)"; e.currentTarget.style.background = "rgba(255,107,74,0.08)"; } }}
+          onMouseEnter={(e) => { if (!isDraftMode) { e.currentTarget.style.color = "var(--agent-coral)"; e.currentTarget.style.background = "var(--agent-hover-tint)"; } }}
           onMouseLeave={(e) => { if (!isDraftMode) { e.currentTarget.style.color = "var(--agent-text-muted)"; e.currentTarget.style.background = "var(--agent-surface-glass)"; } }}
           style={{
             fontSize: 12, fontWeight: 600, padding: "4px 11px", borderRadius: 7,
