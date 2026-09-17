@@ -101,14 +101,18 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
       secure: r.smtpHost ? r.smtpSecure : null,
     });
     const isSignIn = !!ctx.email && r.email === ctx.email;
-    const sendState: ConnectionSendState = !isSignIn
-      ? "not_sign_in"
-      : ctx.domainVerified
-        ? "domain_covered"
-        : !sendAvailable
-          ? "unavailable"
-          : r.sendEnabled
-            ? "sends"
+    // An ENABLED row is always "sends" — even if the sign-in has since moved
+    // elsewhere — so the chip never claims "Reads only" while the row could
+    // still be picked by a send path, and "Turn off sending" is always
+    // reachable. The sign-in/domain rules only gate turning sending ON.
+    const sendState: ConnectionSendState = r.sendEnabled
+      ? "sends"
+      : !isSignIn
+        ? "not_sign_in"
+        : ctx.domainVerified
+          ? "domain_covered"
+          : !sendAvailable
+            ? "unavailable"
             : "offer";
     return {
       id: r.id,
@@ -126,8 +130,9 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
   });
 
   // Same hierarchy the send path uses: verified domain > sign-in mailbox >
-  // our shared address.
-  const mailboxSends = connections.some((c) => c.sendState === "sends");
+  // our shared address. Only a SIGN-IN mailbox counts here — a stale enabled
+  // row for a previous sign-in must not claim the current address sends.
+  const mailboxSends = connections.some((c) => c.sendState === "sends" && !!ctx.email && c.email === ctx.email);
   const sendsFrom: SendsFrom =
     ctx.domainVerified && ctx.email
       ? { address: ctx.email, via: "domain" }
