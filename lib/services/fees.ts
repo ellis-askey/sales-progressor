@@ -252,15 +252,50 @@ export function computeEffectiveStartDate(
   return earliest < createdAt ? earliest : createdAt;
 }
 
-// Exchange (and the 12-week target) never falls on a weekend — completion/
-// exchange are business-day events. Roll Saturday/Sunday forward to Monday so a
-// predicted or target date is always a working day. (Bank holidays not handled
-// yet — see note where this is used.)
+// England & Wales bank holidays. Exchange/completion cannot happen on these, so
+// a predicted or target date must roll off them just like a weekend.
+//
+// Static list (the source, https://www.gov.uk/bank-holidays.json, needs a live
+// network call we don't want inside a synchronous date helper). Predictions are
+// only ever weeks-to-months out, so a few years ahead is plenty. EXTEND THIS
+// before the last year listed runs out — otherwise late-in-range dates silently
+// stop being holiday-aware (they still roll off weekends). England & Wales only;
+// Scotland / NI differ, and conveyancing here is E&W-dominant.
+const UK_BANK_HOLIDAYS_ENG_WALES = new Set<string>([
+  // 2026
+  "2026-01-01", "2026-04-03", "2026-04-06", "2026-05-04", "2026-05-25",
+  "2026-08-31", "2026-12-25", "2026-12-28",
+  // 2027
+  "2027-01-01", "2027-03-26", "2027-03-29", "2027-05-03", "2027-05-31",
+  "2027-08-30", "2027-12-27", "2027-12-28",
+  // 2028
+  "2028-01-03", "2028-04-14", "2028-04-17", "2028-05-01", "2028-05-29",
+  "2028-08-28", "2028-12-25", "2028-12-26",
+]);
+
+function toLocalIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isBusinessDay(d: Date): boolean {
+  const day = d.getDay(); // 0 = Sunday, 6 = Saturday (local)
+  if (day === 0 || day === 6) return false;
+  return !UK_BANK_HOLIDAYS_ENG_WALES.has(toLocalIsoDate(d));
+}
+
+// Exchange (and the 12-week target) never falls on a weekend or an England &
+// Wales bank holiday — completion/exchange are working-day events. Roll forward
+// day by day until we land on a working day (e.g. a Saturday that's followed by
+// a bank-holiday Monday rolls all the way to the Tuesday). Bounded loop covers
+// the longest holiday cluster (Christmas/New Year) with room to spare.
 export function rollToBusinessDay(d: Date): Date {
   const x = new Date(d);
-  const day = x.getDay(); // 0 = Sunday, 6 = Saturday (local, matching the arithmetic below)
-  if (day === 6) x.setDate(x.getDate() + 2);
-  else if (day === 0) x.setDate(x.getDate() + 1);
+  for (let i = 0; i < 14 && !isBusinessDay(x); i++) {
+    x.setDate(x.getDate() + 1);
+  }
   return x;
 }
 
