@@ -661,12 +661,27 @@ function exchangeMeta(exchangeDate: Date | null): { text: string | null; tone: "
   return { text: `Exchange around ${fmtShortDate(exchangeDate)}`, tone: "muted" };
 }
 
+// On a "gone quiet" row the useful number is how long since the client last
+// engaged, not the exchange date (which has nothing to do with them going
+// quiet). Show when they last opened the portal; warn once it's been a while.
+function goneQuietMeta(i: {
+  kind: string;
+  lastPortalVisitAt: Date | null;
+}): { text: string | null; tone: "muted" | "warning" } {
+  if (i.kind === "portal_gone_quiet" && i.lastPortalVisitAt) {
+    const days = Math.floor((Date.now() - new Date(i.lastPortalVisitAt).getTime()) / 86400000);
+    return { text: `Last opened ${fmtShortDate(i.lastPortalVisitAt)}`, tone: days >= 21 ? "warning" : "muted" };
+  }
+  // no_portal_activity + long_silence already state their story in the subtext.
+  return { text: null, tone: "muted" };
+}
+
 function buildGoneQuietRows(
   items: Awaited<ReturnType<typeof getGoneQuietFiles>>,
   photoMap: Map<string, string>,
 ): HubRowData[] {
   return items.map((i) => {
-    const meta = exchangeMeta(i.exchangeDate);
+    const meta = goneQuietMeta(i);
     return {
       transactionId: i.transactionId,
       href: `/agent/transactions/${i.transactionId}`,

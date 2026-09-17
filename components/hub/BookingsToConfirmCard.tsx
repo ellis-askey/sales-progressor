@@ -42,7 +42,6 @@ export type BookingConfirmRow = {
 
 const ACCENT = "var(--agent-coral)";
 const BG = "var(--agent-coral-bg-tint)";
-const ICON_BG = "rgba(var(--agent-coral-base-rgb),0.12)";
 const ICON_COLOR = "var(--agent-coral-deep)";
 
 const INITIAL_VISIBLE = 6;
@@ -101,18 +100,15 @@ export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConf
         aria-expanded={!collapsed}
         style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
-        <span aria-hidden style={{ width: 34, height: 34, borderRadius: 999, background: ICON_BG, color: ICON_COLOR, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <CalendarCheck size={17} weight="bold" />
+        <span aria-hidden style={{ color: ICON_COLOR, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <CalendarCheck size={24} weight="bold" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Surveys &amp; valuations to confirm</span>
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(15,23,42,0.06)", color: "var(--agent-text-secondary)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {rows.length}
-            </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            A client logged these. Check the date and access, then confirm and we&apos;ll let everyone know.
+            {rows.length === 1 ? "1 logged by a client" : `${rows.length} logged by clients`}. Check the date and access, then confirm and we&apos;ll let everyone know.
           </span>
         </span>
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>

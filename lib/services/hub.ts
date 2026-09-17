@@ -551,6 +551,10 @@ export type GoneQuietItem = {
   lastContactDays: number | null;
   // Predicted exchange date (override ?? predicted) → the "how urgent" chip.
   exchangeDate: Date | null;
+  // The last day the quiet client opened the portal (portal_gone_quiet only).
+  // Drives the row's "Last opened …" line, which is the number that actually
+  // relates to a file going quiet. Null for the non-portal flags.
+  lastPortalVisitAt: Date | null;
 };
 
 const GONE_QUIET_PILL: Record<string, string> = {
@@ -638,8 +642,9 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       })
     : [];
   const visitByContact = new Map(visitAgg.map((v) => [v.contactId, { days: v._count.day, lastDay: v._max.day }]));
-  // The engaged-then-quiet contact on a file, most-engaged first, or null.
-  const quietClientName = (contacts: { id: string; name: string }[]): string | null => {
+  // The engaged-then-quiet contact on a file, most-engaged first, or null. Carries
+  // the last day they opened the portal so the row can show "Last opened …".
+  const quietClient = (contacts: { id: string; name: string }[]): { name: string; lastDay: string | null } | null => {
     const candidates = contacts
       .map((c) => ({ c, v: visitByContact.get(c.id) }))
       .filter((x): x is { c: { id: string; name: string }; v: { days: number; lastDay: string | null } } => {
@@ -648,7 +653,7 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
         return daysSince >= QUIET_DAYS;
       })
       .sort((a, b) => b.v.days - a.v.days);
-    return candidates[0] ? firstName(candidates[0].c.name) : null;
+    return candidates[0] ? { name: firstName(candidates[0].c.name), lastDay: candidates[0].v.lastDay } : null;
   };
 
   // One row per file — the earliest-detected (longest-standing) flag wins.
@@ -662,14 +667,20 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
     const buyers = tx.contacts.filter((c) => c.roleType === "purchaser");
     const who = buyers.length === 1 ? firstName(buyers[0].name) : null;
     let subtext: string;
+    let lastPortalVisitAt: Date | null = null;
     const lastContactDays = tx.lastActivityAt
       ? Math.floor((now.getTime() - new Date(tx.lastActivityAt).getTime()) / 86400000)
       : null;
     if (f.kind === "portal_gone_quiet") {
       // Prefer the specific person who went quiet; fall back to the sole buyer,
       // then a generic label.
-      const named = quietClientName(tx.contacts) ?? who;
+      const q = quietClient(tx.contacts);
+      const named = q?.name ?? who;
       subtext = `${named ?? "A client"} was checking the portal regularly, then stopped.`;
+      // The last day they opened the portal — from the quiet contact, else the
+      // sole buyer's own visit record.
+      const lastDay = q?.lastDay ?? (buyers.length === 1 ? visitByContact.get(buyers[0].id)?.lastDay ?? null : null);
+      lastPortalVisitAt = lastDay ? new Date(`${lastDay}T00:00:00Z`) : null;
     } else if (f.kind === "no_portal_activity") {
       subtext = who ? `${who} hasn't opened the portal since it was set up.` : "No client has opened the portal since it was set up.";
     } else {
@@ -686,6 +697,7 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       pillLabel: GONE_QUIET_PILL[f.kind] ?? "Quiet",
       lastContactDays: f.kind === "long_silence" ? lastContactDays : null,
       exchangeDate: tx.overridePredictedDate ?? tx.expectedExchangeDate ?? null,
+      lastPortalVisitAt,
     });
   }
   return items;

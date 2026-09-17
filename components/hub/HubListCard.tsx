@@ -101,15 +101,12 @@ export function HubListCard({
         aria-expanded={!collapsed}
         style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
-        <span aria-hidden style={{ width: 34, height: 34, borderRadius: 999, background: ht.iconBg, color: ht.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <HeaderIcon size={17} weight="bold" />
+        <span aria-hidden style={{ color: ht.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <HeaderIcon size={24} weight="bold" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="agent-card-title-emphasis" style={{ margin: 0 }}>{title}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(15,23,42,0.06)", color: "var(--agent-text-secondary)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {rows.length}
-            </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{subtitle}</span>
         </span>

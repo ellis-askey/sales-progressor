@@ -421,10 +421,6 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
         <span
           aria-hidden
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            background: allClear ? "var(--agent-success-bg)" : "rgba(var(--agent-danger-rgb),0.10)",
             color: allClear ? "var(--agent-success)" : "var(--agent-danger)",
             display: "flex",
             alignItems: "center",
@@ -432,7 +428,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             flexShrink: 0,
           }}
         >
-          {allClear ? <Check size={16} weight="bold" /> : <Warning size={17} weight="bold" />}
+          {allClear ? <Check size={24} weight="bold" /> : <Warning size={24} weight="bold" />}
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -444,25 +440,6 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             >
               {showCleared ? "You're all caught up" : "Needs your attention"}
             </span>
-            {rows.length > 0 && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 999,
-                  background: "rgba(var(--agent-danger-rgb),0.10)",
-                  color: "var(--agent-danger)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {rows.length}
-              </span>
-            )}
           </span>
           <span
             key={showCleared ? "sub-clear" : "sub-active"}
