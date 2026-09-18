@@ -7,6 +7,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import type { AutoAnimationPlugin } from "@formkit/auto-animate";
 import {
   Check, Checks, ArrowsLeftRight, ArrowsClockwise, ArrowRight, ChatCircleDots, CaretDown, MagnifyingGlass,
   Phone, EnvelopeSimple, CalendarBlank, ClockCountdown, WarningCircle, CheckCircle, PaperPlaneTilt,
@@ -67,6 +69,41 @@ function statusPill(r: OpenEnquiryRow): Pill {
 
 type SortKey = "attention" | "quietest" | "recent";
 
+// Custom auto-animate move for the list. When an action re-sorts a row, it lifts
+// (a subtle scale + shadow) as it glides to its new slot, so an actioned enquiry
+// visibly travels to its place while the rows between reflow to make room —
+// instead of vanishing and reappearing lower down. Rows leaving the list (e.g.
+// Mark satisfied closes the loop) fade + shrink out. Honours reduced-motion by
+// collapsing to an instant (0ms) effect.
+const enqMovePlugin: AutoAnimationPlugin = (el, action, oldCoords, newCoords) => {
+  const reduce = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const duration = reduce ? 0 : 340;
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  let keyframes: Keyframe[] = [];
+
+  if (action === "add") {
+    keyframes = [
+      { opacity: 0, transform: "translateY(8px)" },
+      { opacity: 1, transform: "translateY(0)" },
+    ];
+  } else if (action === "remove") {
+    keyframes = [
+      { opacity: 1, transform: "scale(1)" },
+      { opacity: 0, transform: "scale(0.97)" },
+    ];
+  } else {
+    // remain: FLIP from the old position back to zero, lifting through the middle.
+    const dx = (oldCoords?.left ?? 0) - (newCoords?.left ?? 0);
+    const dy = (oldCoords?.top ?? 0) - (newCoords?.top ?? 0);
+    keyframes = [
+      { transform: `translate(${dx}px, ${dy}px) scale(1)`, boxShadow: "0 0 0 0 rgba(30,45,74,0)" },
+      { transform: `translate(${dx * 0.35}px, ${dy * 0.35}px) scale(1.02)`, boxShadow: "0 12px 26px rgba(30,45,74,0.16)", offset: 0.5 },
+      { transform: "translate(0, 0) scale(1)", boxShadow: "0 0 0 0 rgba(30,45,74,0)" },
+    ];
+  }
+  return new KeyframeEffect(el, keyframes, { duration, easing });
+};
+
 export function EnquiriesTriageList({
   rows,
   signedPhotos,
@@ -87,6 +124,11 @@ export function EnquiriesTriageList({
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
   const [sort, setSort] = useState<SortKey>("attention");
+
+  // FLIP the list: actioned rows glide to their new sorted slot (with a lift)
+  // and the rows between reflow to fill the gap. Animation is paused while the
+  // search box is focused so per-keystroke filtering doesn't churn.
+  const [listRef, enableAnim] = useAutoAnimate<HTMLDivElement>(enqMovePlugin);
 
   // Tiles reflect the WHOLE set (not the filtered view). Mutually-exclusive
   // buckets so they read as a breakdown of the total.
@@ -178,7 +220,7 @@ export function EnquiriesTriageList({
       <div className="enq-toolbar">
         <div className="enq-search">
           <MagnifyingGlass size={15} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => enableAnim(false)} onBlur={() => enableAnim(true)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" />
         </div>
         <select className="enq-select" value={side} onChange={(e) => setSide(e.target.value as typeof side)} aria-label="Filter by side">
           <option value="all">All sides</option>
@@ -193,7 +235,7 @@ export function EnquiriesTriageList({
       </div>
 
       {/* Rows */}
-      <div className="enq-list">
+      <div className="enq-list" ref={listRef}>
         {shown.map((r) => {
           const signedPhoto = r.photoStoragePath ? signedPhotos[r.photoStoragePath] ?? null : null;
           const busy = busyId === r.transactionId;
