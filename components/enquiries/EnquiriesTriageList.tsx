@@ -234,10 +234,10 @@ export function EnquiriesTriageList({
     <div>
       {/* Tiles */}
       <div className="enq-tiles">
-        <Tile icon={<ChatCircleDots size={16} />} value={tiles.total} label="in enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
-        <Tile icon={<WarningCircle size={16} weight="fill" />} value={tiles.needChecking} label="need checking" sub="Overdue or due today" danger />
-        <Tile icon={<PaperPlaneTilt size={16} />} value={tiles.awaiting} label="awaiting replies" sub="With a solicitor" />
-        <Tile icon={<CalendarBlank size={16} />} value={tiles.expectedToday} label="expected today" sub="Based on latest updates" />
+        <Tile icon={<ChatCircleDots size={22} />} value={tiles.total} label="in enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
+        <Tile icon={<WarningCircle size={22} weight="fill" />} value={tiles.needChecking} label="need checking" sub="Overdue or due today" danger />
+        <Tile icon={<PaperPlaneTilt size={22} />} value={tiles.awaiting} label="awaiting replies" sub="With a solicitor" />
+        <Tile icon={<CalendarBlank size={22} />} value={tiles.expectedToday} label="expected today" sub="Based on latest updates" />
       </div>
 
       {/* Toolbar */}
@@ -540,7 +540,7 @@ function Tile({ icon, value, label, sub, danger }: { icon: React.ReactNode; valu
     <div className="enq-tile">
       <div className="enq-tile-top">
         <span className="enq-tile-value" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{value}</span>
-        <span className="enq-tile-icon" style={danger ? { color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb),0.10)" } : undefined}>{icon}</span>
+        <span className="enq-tile-icon" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{icon}</span>
       </div>
       <div className="enq-tile-label" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{label}</div>
       <div className="enq-tile-sub">{sub}</div>

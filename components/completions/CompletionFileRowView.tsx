@@ -250,6 +250,10 @@ export function CompletionFileRowView({
   onComplete?: () => void;
 }) {
   const s = GROUP_STYLES[groupKey];
+  // Split the address into line-1 (bold) + town/postcode (muted), the same
+  // treatment the enquiries rows use.
+  const [addrLine1, ...addrRest] = file.propertyAddress.split(",");
+  const addrTown = addrRest.join(",").trim();
   const hasNeitherSol = !file.vendorSolicitorName && !file.purchaserSolicitorName;
   const exchangeLine = timeSinceExchange(file.exchangedAtIso);
   const { label: daysLabel, color: daysColor } = computeDays(file.completionDateIso);
@@ -282,7 +286,10 @@ export function CompletionFileRowView({
             basis let the date block drop to its own line on narrow rows
             instead of truncating the address to a few words (audit D5). */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <p className="text-[15px] font-bold mb-0.5" style={{ color: "var(--agent-text-primary)", flex: "1 1 180px", minWidth: 0, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{file.propertyAddress}</p>
+          <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+            <p className="text-[15px] font-bold mb-0.5" style={{ color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{addrLine1.trim()}</p>
+            {addrTown && <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "-1px 0 0" }}>{addrTown}</p>}
+          </div>
           <DateBlock />
         </div>
 
