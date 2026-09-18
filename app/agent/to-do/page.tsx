@@ -3,8 +3,13 @@ import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssigne
 import { listReviews } from "@/lib/services/reviews";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
+import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { hasAdminPowers } from "@/lib/agent-session";
+import { getNoCommsFiles } from "@/lib/services/hub";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
+import { NoCommsCard } from "@/components/todos/NoCommsCard";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -35,6 +40,21 @@ export default async function AgentTodoPage() {
     (i) => i.reviewDate && toUKDateStr(i.reviewDate) <= toUKDateStr(new Date()),
   ).length;
   const hasReviews = reviews.items.length > 0 || reviews.done.length > 0;
+
+  // "No comms" (right column) — files we've gone quiet on, split per side.
+  // Needs AgentVisibility (buildTxWhere), resolved the same way the hub and
+  // work queue do. Photos signed once, keyed by transaction.
+  const vis = isInternal
+    ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session))
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const noCommsRaw = await getNoCommsFiles(vis);
+  const noCommsPhotos = await getSignedUrlMap(
+    noCommsRaw.map((i) => i.photoStoragePath).filter((p): p is string => !!p),
+  );
+  const noCommsItems = noCommsRaw.map((i) => ({
+    ...i,
+    photoUrl: i.photoStoragePath ? noCommsPhotos.get(i.photoStoragePath) ?? null : null,
+  }));
 
   // "Your progressor" wording + controls only make sense once the agency has a
   // file being progressed by our team. Self-managed-only agencies never see it.
@@ -77,17 +97,24 @@ export default async function AgentTodoPage() {
         ))}
       </PageHeader>
 
-      {tasks.length === 0 && !hasReviews && !isInternal ? (
+      {tasks.length === 0 && !hasReviews && !isInternal && noCommsItems.length === 0 ? (
         // Brand-new agency user: the onboarding empty state (full width, mock).
         <div className="px-4 md:px-8 py-2 md:py-4">
           <TodoEmptyState canUseProgressor={hasOutsourced} />
         </div>
       ) : (
-        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up space-y-8" style={{ maxWidth: 680 }}>
-          {hasReviews && (
-            <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
+        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up todo-cols">
+          <div className="todo-col-main space-y-8">
+            {hasReviews && (
+              <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
+            )}
+            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
+          </div>
+          {noCommsItems.length > 0 && (
+            <div className="todo-col-side">
+              <NoCommsCard items={noCommsItems} />
+            </div>
           )}
-          <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
         </div>
       )}
     </>

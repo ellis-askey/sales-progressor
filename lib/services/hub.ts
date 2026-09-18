@@ -882,6 +882,185 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
   return items;
 }
 
+// ── No-comms queue (To-Do) ────────────────────────────────────────────────────
+// Files we've gone quiet on, split per side. A side is "drifting" when we've
+// sent that client nothing for NO_COMMS_DAYS AND the file itself hasn't moved
+// for NO_STEP_DAYS. The step gate is file-level (a completed milestone usually
+// fires a client email, so real progress counts as contact); the comms gate is
+// per side. Enquiry ball-moving writes neither an OutboundMessage nor a
+// PortalMessage, so a file bouncing enquiries with nothing going out to the
+// client still surfaces — deliberately. Post-exchange files are excluded
+// (silence there is expected). A qualifying file shows BOTH sides for context,
+// so the agent sees the last time we touched base with each; only a drifting
+// side is flagged. Reaching out on a side, or completing a step, clears it on
+// the next load. A per-side snooze (HubCardDismissal cardKind "no_comms",
+// signature = side) hides one side for a chosen window.
+
+const NO_COMMS_DAYS = 14;
+const NO_STEP_DAYS = 30;
+
+export type NoCommsSide = {
+  side: "vendor" | "purchaser";
+  name: string;               // combined client display for the side
+  contactIds: string[];       // every client contact on this side (portal update targets all)
+  primaryContactId: string;   // first contact — the one email / WhatsApp / call address
+  email: string | null;       // first side contact with an email
+  phone: string | null;       // first side contact with a phone
+  lastContactAt: Date | null; // most recent comm to/from this side, any channel
+  daysSince: number | null;   // null = nothing ever logged
+  drifting: boolean;          // no contact within NO_COMMS_DAYS
+};
+
+export type NoCommsItem = {
+  transactionId: string;
+  propertyAddress: string;
+  addressLine: string;        // first line ("12 Elm Grove, Redland")
+  townPostcode: string;       // "Bristol · BS6 7DL" or ""
+  photoStoragePath: string | null;
+  sides: NoCommsSide[];
+  worstDays: number;          // longest silence across drifting sides (sort key)
+};
+
+// First line + town/postcode split — mirrors splitAddress in AgentRemindersList
+// (a UK address's last two comma parts are town + postcode).
+function splitAddressParts(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 2) return { line: parts[0] ?? address, location: parts.slice(1).join(" · ") };
+  return { line: parts.slice(0, -2).join(", "), location: parts.slice(-2).join(" · ") };
+}
+
+export async function getNoCommsFiles(vis: AgentVisibility): Promise<NoCommsItem[]> {
+  const now = new Date();
+  const commsCutoffMs = now.getTime() - NO_COMMS_DAYS * 86_400_000;
+  const stepCutoff = new Date(now.getTime() - NO_STEP_DAYS * 86_400_000);
+  const txWhere = buildTxWhere(vis);
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
+  const files = await prisma.propertyTransaction.findMany({
+    where: {
+      ...txWhere,
+      isDemo: false,
+      status: "active",
+      // Not exchanged on the active round — post-exchange silence is expected.
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            state: "complete",
+            OR: roundScopedOR(activeRoundIds),
+          },
+        },
+      },
+      // No step completed within NO_STEP_DAYS (round-scoped). A completion
+      // counts by its real date (eventDate) or, lacking one, when we marked it.
+      milestoneCompletions: {
+        none: {
+          state: "complete",
+          OR: roundScopedOR(activeRoundIds),
+          AND: [{ OR: [{ eventDate: { gte: stepCutoff } }, { eventDate: null, completedAt: { gte: stepCutoff } }] }],
+        },
+      },
+    },
+    select: {
+      id: true, propertyAddress: true, photoStoragePath: true,
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] } },
+        select: { id: true, name: true, email: true, phone: true, roleType: true },
+      },
+      hubCardDismissals: {
+        where: { cardKind: "no_comms", dismissedUntil: { gt: now } },
+        select: { signature: true },
+      },
+    },
+  });
+  if (files.length === 0) return [];
+
+  const fileIds = files.map((f) => f.id);
+  const careIds = new Set(files.flatMap((f) => f.contacts.map((c) => c.id)));
+  if (careIds.size === 0) return [];
+
+  // Latest comm per contact: newest OutboundMessage touching the contact (any
+  // real outbound OR inbound — automated counts here, unlike gone-quiet) plus
+  // newest PortalMessage for the contact (either direction).
+  const [obRows, pmRows] = await Promise.all([
+    prisma.outboundMessage.findMany({
+      where: {
+        transactionId: { in: fileIds },
+        contactIds: { hasSome: [...careIds] },
+        OR: [{ type: "outbound", method: { not: null } }, { type: "inbound" }],
+      },
+      select: { contactIds: true, sentAt: true, createdAt: true },
+    }),
+    prisma.portalMessage.findMany({
+      where: { transactionId: { in: fileIds }, contactId: { in: [...careIds] } },
+      select: { contactId: true, createdAt: true },
+    }),
+  ]);
+
+  const lastByContact = new Map<string, number>();
+  const bump = (id: string, t: Date | null) => {
+    if (!t) return;
+    const ms = t.getTime();
+    const prev = lastByContact.get(id);
+    if (prev === undefined || ms > prev) lastByContact.set(id, ms);
+  };
+  for (const m of obRows) { const t = m.sentAt ?? m.createdAt; for (const id of m.contactIds) if (careIds.has(id)) bump(id, t); }
+  for (const m of pmRows) bump(m.contactId, m.createdAt);
+
+  const combineNames = (names: string[]): string => {
+    if (names.length === 1) return names[0];
+    return names.map((n) => extractFirstName(n)).join(" & ");
+  };
+
+  const items: NoCommsItem[] = [];
+  for (const f of files) {
+    const dismissed = new Set(f.hubCardDismissals.map((d) => d.signature));
+    const sides: NoCommsSide[] = [];
+    let anyDrift = false;
+    let worst = 0;
+    for (const role of ["vendor", "purchaser"] as const) {
+      if (dismissed.has(role)) continue;
+      const roleContacts = f.contacts.filter((c) => c.roleType === role);
+      if (roleContacts.length === 0) continue;
+      let lastMs: number | null = null;
+      for (const c of roleContacts) {
+        const ms = lastByContact.get(c.id);
+        if (ms !== undefined && (lastMs === null || ms > lastMs)) lastMs = ms;
+      }
+      const daysSince = lastMs !== null ? Math.floor((now.getTime() - lastMs) / 86_400_000) : null;
+      const drifting = lastMs === null || lastMs < commsCutoffMs;
+      if (drifting) { anyDrift = true; worst = Math.max(worst, daysSince ?? 9_999); }
+      sides.push({
+        side: role,
+        name: combineNames(roleContacts.map((c) => c.name)),
+        contactIds: roleContacts.map((c) => c.id),
+        primaryContactId: roleContacts[0].id,
+        email: roleContacts.find((c) => c.email)?.email ?? null,
+        phone: roleContacts.find((c) => c.phone)?.phone ?? null,
+        lastContactAt: lastMs !== null ? new Date(lastMs) : null,
+        daysSince,
+        drifting,
+      });
+    }
+    // Only surface a file when at least one non-snoozed side is actually
+    // drifting — a file whose sole quiet side is snoozed drops off.
+    if (!anyDrift || sides.length === 0) continue;
+    const { line, location } = splitAddressParts(f.propertyAddress);
+    items.push({
+      transactionId: f.id,
+      propertyAddress: f.propertyAddress,
+      addressLine: line,
+      townPostcode: location,
+      photoStoragePath: f.photoStoragePath,
+      sides,
+      worstDays: worst,
+    });
+  }
+  // Longest-silent file first.
+  items.sort((a, b) => b.worstDays - a.worstDays);
+  return items;
+}
+
 // ── Momentum ──────────────────────────────────────────────────────────────────
 
 // ── Hold-expired files ────────────────────────────────────────────────────
