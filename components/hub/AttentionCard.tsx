@@ -35,6 +35,7 @@ import { usePathname } from "next/navigation";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { UploadablePropertyThumb } from "@/components/hub/UploadablePropertyThumb";
 import { RowActionMenu } from "@/components/hub/RowActionMenu";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import {
@@ -926,7 +927,13 @@ function AttentionRow({
 
   const body = (
     <>
-      <PropertyThumb photoUrl={row.item.photoUrl} />
+      {row.kind === "unassigned" ? (
+        // Needs-assigning rows: the thumb doubles as the photo uploader —
+        // hover blurs the picture and shows the camera (2026-09-18).
+        <UploadablePropertyThumb transactionId={row.item.id} photoUrl={row.item.photoUrl} />
+      ) : (
+        <PropertyThumb photoUrl={row.item.photoUrl} />
+      )}
       <div style={{ minWidth: 0, flex: "1 1 220px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           {/* Every row's address is a link — reminder rows stopped being

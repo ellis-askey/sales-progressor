@@ -2501,6 +2501,39 @@
   }
   .fsh-photo:hover .fsh-photo-cam-badge { transform: scale(1.08); }
 
+  /* Uploadable hub thumbnail (Needs-assigning row, 2026-09-18): hovering
+     blurs the picture (or fallback art) and reveals the camera — same idea
+     as the first-sale hero photo, sized for the 44px row thumb. */
+  .hub-thumb-up {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .hub-thumb-up[data-busy] { cursor: wait; }
+  .hub-thumb-up-media { transition: filter 160ms ease; }
+  .hub-thumb-up:hover .hub-thumb-up-media,
+  .hub-thumb-up:focus-visible .hub-thumb-up-media,
+  .hub-thumb-up[data-busy] .hub-thumb-up-media { filter: blur(2.5px) saturate(0.9); }
+  .hub-thumb-up-cam {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  .hub-thumb-up:hover .hub-thumb-up-cam,
+  .hub-thumb-up:focus-visible .hub-thumb-up-cam,
+  .hub-thumb-up[data-busy] .hub-thumb-up-cam { opacity: 1; }
+
   .agent-acc-in {
     overflow: hidden;
     min-height: 0;
