@@ -1107,6 +1107,13 @@ export type HubWins = {
   fastestExchangeAddress: string | null;
   stepsConfirmedThisWeek: number;
   newFilesThisMonth: number;
+  // Wins rotator (2026-09-18): the shout-about extras. Value/biggest come from
+  // the same exchange rows the fastest-exchange pick already fetches; files
+  // count is the distinct-transaction spread behind stepsConfirmedThisWeek.
+  valueExchangedPence: number;
+  biggestExchangePence: number | null;
+  biggestExchangeAddress: string | null;
+  stepsFilesThisWeek: number;
 };
 
 export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
@@ -1145,7 +1152,7 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
     completionsThisMonth,
     completionsLastMonth,
     fastestExchangeRows,
-    stepsConfirmedThisWeek,
+    stepRowsThisWeek,
     newFilesThisMonth,
   ] = await Promise.all([
     // 2026-07-03 correctness fix: distinct-file counts, not row counts.
@@ -1217,19 +1224,21 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
       select: {
         completedAt: true,
         transaction: {
-          select: { createdAt: true, propertyAddress: true },
+          select: { id: true, createdAt: true, propertyAddress: true, purchasePrice: true },
         },
       },
     }),
     // Any milestone confirmed in the last 7 days — this is the "steps
-    // confirmed" number used by tier 3 / secondary metric.
-    prisma.milestoneCompletion.count({
+    // confirmed" number used by tier 3 / secondary metric. transactionId
+    // (not a bare count) so the rotator can also say "across N files".
+    prisma.milestoneCompletion.findMany({
       where: {
         transaction: txWhere,
         completedAt: { gte: sevenDaysAgo },
         state: "complete",
         OR: roundScopedOR(activeRoundIds),
       },
+      select: { transactionId: true },
     }),
     // Files created this month — used by tier 3 secondary metric.
     prisma.propertyTransaction.count({
@@ -1256,6 +1265,25 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
     }
   }
 
+  // Value exchanged + biggest exchange this month. Each exchange writes two
+  // completion rows (VM19 vendor + PM26 purchaser), so dedupe by transaction
+  // before summing — same distinct-file rule as the counts above.
+  const seenExchangeTx = new Set<string>();
+  let valueExchangedPence = 0;
+  let biggestExchangePence: number | null = null;
+  let biggestExchangeAddress: string | null = null;
+  for (const row of fastestExchangeRows) {
+    const tx = row.transaction;
+    if (!tx || seenExchangeTx.has(tx.id)) continue;
+    seenExchangeTx.add(tx.id);
+    if (tx.purchasePrice == null) continue;
+    valueExchangedPence += tx.purchasePrice;
+    if (biggestExchangePence === null || tx.purchasePrice > biggestExchangePence) {
+      biggestExchangePence = tx.purchasePrice;
+      biggestExchangeAddress = tx.propertyAddress;
+    }
+  }
+
   return {
     exchangesThisMonth,
     exchangesLastMonth,
@@ -1263,8 +1291,12 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
     completionsLastMonth,
     fastestExchangeDays,
     fastestExchangeAddress,
-    stepsConfirmedThisWeek,
+    stepsConfirmedThisWeek: stepRowsThisWeek.length,
     newFilesThisMonth,
+    valueExchangedPence,
+    biggestExchangePence,
+    biggestExchangeAddress,
+    stepsFilesThisWeek: new Set(stepRowsThisWeek.map((r) => r.transactionId)).size,
   };
 }
 
@@ -1730,7 +1762,15 @@ export async function getHubPipelineStages(vis: AgentVisibility): Promise<HubPip
 
 // ── Weekly exchange forecast (5 weeks) ───────────────────────────────────────
 
-export type WeekBucket = { label: string; count: number; isCurrentWeek: boolean };
+export type WeekBucket = {
+  label: string;
+  count: number;
+  isCurrentWeek: boolean;
+  // Heat-band hover (2026-09-18): the count is printed on the chart now, so
+  // the popup shows what the chart can't — which properties and what value.
+  valuePence: number;
+  files: { address: string; pricePence: number | null }[];
+};
 
 export async function getHubWeeklyForecast(
   vis: AgentVisibility
@@ -1774,17 +1814,25 @@ export async function getHubWeeklyForecast(
         },
       },
     },
-    select: { overridePredictedDate: true, expectedExchangeDate: true },
+    select: { overridePredictedDate: true, expectedExchangeDate: true, propertyAddress: true, purchasePrice: true },
   });
 
-  return weeks.map(({ start, end, label, isCurrentWeek }) => ({
-    label,
-    isCurrentWeek,
-    count: transactions.filter((tx) => {
+  return weeks.map(({ start, end, label, isCurrentWeek }) => {
+    const inWeek = transactions.filter((tx) => {
       const d = tx.overridePredictedDate ?? tx.expectedExchangeDate;
       return d && d >= start && d <= end;
-    }).length,
-  }));
+    });
+    return {
+      label,
+      isCurrentWeek,
+      count: inWeek.length,
+      valuePence: inWeek.reduce((s, tx) => s + (tx.purchasePrice ?? 0), 0),
+      // Biggest first, so the popup's top three are the ones worth knowing.
+      files: inWeek
+        .map((tx) => ({ address: tx.propertyAddress, pricePence: tx.purchasePrice ?? null }))
+        .sort((a, b) => (b.pricePence ?? 0) - (a.pricePence ?? 0)),
+    };
+  });
 }
 
 // ── Service split ─────────────────────────────────────────────────────────────

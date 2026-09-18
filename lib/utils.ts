@@ -30,6 +30,16 @@ export function formatTimestamp(date: Date | string | null | undefined): string 
   return `${datePart}, ${time}`;
 }
 
+/** Short money from pence: £725,000 / £2.10m / £1.25bn. Promoted from
+ *  hub-view's private fmtCurrency (2026-09-18) so the wins rotator and the
+ *  forecast heat band format value identically. */
+export function fmtCurrencyPence(pence: number): string {
+  const p = pence / 100;
+  if (p >= 1_000_000_000) return `£${(p / 1_000_000_000).toFixed(2)}bn`;
+  if (p >= 1_000_000)     return `£${(p / 1_000_000).toFixed(2)}m`;
+  return `£${Math.round(p).toLocaleString("en-GB")}`;
+}
+
 /** Default exchange date: today + 12 months */
 export function defaultExchangeDate(): string {
   const d = new Date();

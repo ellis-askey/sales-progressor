@@ -7,7 +7,7 @@ import {
 } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import {
-  ExchangeForecastChart, ServiceSplitDonut,
+  ForecastHeatBand, ServiceSplitDonut,
   MomentumRing, RefreshButton,
 } from "@/components/hub/HubCharts";
 import Link from "next/link";
@@ -425,25 +425,7 @@ export default async function HubPreviewPage() {
                 No exchanges forecast in the next 30 days yet.
               </p>
             ) : (
-              <>
-                <ExchangeForecastChart data={weeklyForecast} />
-                <div style={{
-                  display: "flex", justifyContent: "space-around",
-                  marginTop: 6, marginBottom: 4,
-                }}>
-                  {weeklyForecast.map((w, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        fontSize: 10, color: "var(--agent-text-muted)",
-                        textAlign: "center", flex: 1,
-                      }}
-                    >
-                      {w.label}
-                    </span>
-                  ))}
-                </div>
-              </>
+              <ForecastHeatBand data={weeklyForecast} />
             )}
 
             <div style={{

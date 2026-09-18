@@ -34,7 +34,7 @@ import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
-  ExchangeForecastChart, ServiceSplitDonut,
+  ForecastHeatBand, ServiceSplitDonut,
 } from "@/components/hub/HubCharts";
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
@@ -58,7 +58,7 @@ import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, C
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
-import { toUKDateStr } from "@/lib/utils";
+import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TypedText } from "@/components/agent/TypedText";
@@ -129,12 +129,9 @@ async function getSubtitle(
   }
 }
 
-function fmtCurrency(pence: number): string {
-  const p = pence / 100;
-  if (p >= 1_000_000_000) return `£${(p / 1_000_000_000).toFixed(2)}bn`;
-  if (p >= 1_000_000)     return `£${(p / 1_000_000).toFixed(2)}m`;
-  return `£${Math.round(p).toLocaleString("en-GB")}`;
-}
+// Promoted to lib/utils (fmtCurrencyPence) so WinsCard + the forecast band
+// format money identically; alias keeps this file's call sites unchanged.
+const fmtCurrency = fmtCurrencyPence;
 
 function fmtCompact(pence: number): string {
   const p = pence / 100;
@@ -1069,6 +1066,13 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
   const weeklyForecast = await getHubWeeklyForecast(ctx.vis);
   const next7Days  = weeklyForecast[0]?.count ?? 0;
   const next30Days = weeklyForecast.reduce((s, w) => s + w.count, 0);
+  // Busiest-week insight under the band: the count is printed on the cells,
+  // so this adds the read ("where's the crunch, and how much is riding on it").
+  const busiest = weeklyForecast.reduce((a, b) => (b.count > a.count ? b : a), weeklyForecast[0]);
+  const busiestWeeksOut = busiest ? parseInt(busiest.label.replace(/\D/g, ""), 10) || 0 : 0;
+  const busiestWhen = busiest?.isCurrentWeek
+    ? "this week"
+    : busiestWeeksOut === 1 ? "next week" : `${busiestWeeksOut} weeks out`;
   const { isAdmin, isProgressor } = ctx;
   return (
     <SectionReveal order={5}>
@@ -1086,21 +1090,13 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
           </p>
         ) : (
           <>
-            <ExchangeForecastChart data={weeklyForecast} />
-            <div style={{ display: "flex", justifyContent: "space-around", marginTop: 6, marginBottom: 4 }}>
-              {weeklyForecast.map((w, i) => (
-                <span
-                  key={i}
-                  style={{
-                    fontSize: 10, color: w.isCurrentWeek ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
-                    fontWeight: w.isCurrentWeek ? 600 : 400,
-                    textAlign: "center", flex: 1,
-                  }}
-                >
-                  {w.label}
-                </span>
-              ))}
-            </div>
+            <ForecastHeatBand data={weeklyForecast} />
+            {busiest && busiest.count > 0 && (
+              <p style={{ margin: "10px 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                Your biggest week is {busiestWhen}: {busiest.count} {busiest.count === 1 ? "exchange" : "exchanges"}
+                {busiest.valuePence > 0 && `, ${fmtCurrency(busiest.valuePence)}`}.
+              </p>
+            )}
           </>
         )}
 

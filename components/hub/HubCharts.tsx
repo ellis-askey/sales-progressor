@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise } from "@phosphor-icons/react";
-import {
-  BarChart, Bar, Cell, Tooltip, ResponsiveContainer,
-  PieChart, Pie, LabelList,
-} from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 import type { WeekBucket } from "@/lib/services/hub";
+import { fmtCurrencyPence } from "@/lib/utils";
 import { useIsDarkTheme } from "./PipelineStageHover";
 
 // ── Refresh button ─────────────────────────────────────────────────────────────
@@ -93,139 +91,113 @@ export function MomentumRing({ percent }: { percent: number | null }) {
   );
 }
 
-// ── Exchange forecast bar chart ───────────────────────────────────────────────
+// ── Exchange forecast heat band ───────────────────────────────────────────────
+// F6 glass band (Ellis pick, 2026-09-18) — replaced the recharts bar chart +
+// house glyphs. Five glass cells, coral intensity scaled to the week's count,
+// count + week label printed IN the cell (so no hover needed for the number).
+// The hover popup keeps the frosty-glass recipe (same family as
+// PipelineStageHover) but now shows what the chart can't: the properties due
+// that week (biggest first) and their combined value.
 
-interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{ payload: WeekBucket }>;
-}
-
-function ForecastTooltip({ active, payload }: TooltipProps) {
-  // Same frosty-glass recipe as PipelineStageHover so every hub popup reads as
-  // one family (item 5). Explicit light/dark values rather than the solid
-  // --agent-surface-elevated it used before (which read as a dark-blue block).
+export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
   const isDark = useIsDarkTheme();
-  if (!active || !payload?.length) return null;
-  const { label, count } = payload[0].payload;
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const max = Math.max(...data.map((d) => d.count), 0);
+  const open = openIdx !== null ? data[openIdx] : null;
+
   return (
-    <div style={{
-      background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.85)",
-      border: isDark ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(15,23,42,0.08)",
-      backdropFilter: "blur(24px) saturate(1.8)",
-      WebkitBackdropFilter: "blur(24px) saturate(1.8)",
-      borderRadius: 10, padding: "6px 11px", fontSize: 12,
-      color: isDark ? "#EFF6FF" : "#1e293b",
-      boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.40)" : "0 12px 32px rgba(15,23,42,0.14)",
-    }}>
-      <strong>{count}</strong>{" "}
-      {count === 1 ? "exchange" : "exchanges"} · {label}
-    </div>
-  );
-}
+    <div style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: 6, height: 56, marginTop: 4 }}>
+        {data.map((w, i) => {
+          const t = max > 0 ? w.count / max : 0;
+          const zero = w.count === 0;
+          const solid = !zero && t === 1; // the busiest week gets the full glass gradient
+          const cellBg = zero
+            ? "var(--agent-hover-shade)"
+            : solid
+              ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))"
+              : `linear-gradient(180deg, rgba(var(--agent-coral-base-rgb), ${(0.12 + 0.3 * t).toFixed(2)}), rgba(var(--agent-coral-base-rgb), ${(0.2 + 0.38 * t).toFixed(2)}))`;
+          const numColor = zero ? "var(--agent-text-muted)" : solid ? "#fff" : "var(--agent-coral-deep)";
+          const labelColor = solid
+            ? "rgba(255,255,255,0.85)"
+            : w.isCurrentWeek
+              ? "var(--agent-coral-deep)"
+              : "var(--agent-text-muted)";
+          const highlight = isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.55)";
+          return (
+            <button
+              key={w.label}
+              type="button"
+              aria-label={`${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.valuePence > 0 ? `, ${fmtCurrencyPence(w.valuePence)}` : ""}`}
+              onMouseEnter={() => !zero && setOpenIdx(i)}
+              onMouseLeave={() => setOpenIdx((cur) => (cur === i ? null : cur))}
+              onFocus={() => !zero && setOpenIdx(i)}
+              onBlur={() => setOpenIdx((cur) => (cur === i ? null : cur))}
+              style={{
+                flex: 1, minWidth: 0, borderRadius: 10, padding: 0,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+                background: cellBg,
+                border: zero ? "0.5px solid transparent" : `0.5px solid ${highlight}`,
+                boxShadow: zero
+                  ? "none"
+                  : `inset 0 1px 0 ${highlight}, 0 5px 12px rgba(var(--agent-coral-base-rgb), ${(0.08 + 0.16 * t).toFixed(2)})`,
+                cursor: zero ? "default" : "pointer",
+                fontFamily: "inherit",
+                transition: "filter 150ms ease",
+                filter: openIdx === i ? "brightness(0.96)" : "none",
+              }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15, color: numColor, fontVariantNumeric: "tabular-nums" }}>
+                {w.count}
+              </span>
+              <span style={{ fontSize: 9.5, fontWeight: w.isCurrentWeek ? 700 : 600, textTransform: "uppercase", letterSpacing: "0.05em", color: labelColor }}>
+                {w.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-// PR 3 iconography (revised after user note): house glyph rides ON TOP of
-// each bar rather than a static row above. recharts hands us (x, y, width,
-// value) per bar via LabelList.content, and (x, y) already point at the
-// top-left corner of the label slot for the bar — so we anchor the 16x16
-// house there and centre-align. Empty bars still get a house (dimmed +
-// outline) so the roofline shape reads across the whole 5-week strip.
-type LabelProps = {
-  x?: number | string;
-  y?: number | string;
-  width?: number | string;
-  value?: number | string | Array<number | string> | null;
-  index?: number;
-};
-
-const toNum = (v: number | string | undefined): number =>
-  typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
-
-function ForecastHouseLabel(entries: WeekBucket[]) {
-  const HouseLabel = (props: LabelProps) => {
-    const x = toNum(props.x);
-    const y = toNum(props.y);
-    const width = toNum(props.width);
-    const index = props.index ?? 0;
-    const entry = entries[index];
-    if (!entry) return null;
-    const filled = entry.isCurrentWeek || entry.count > 0;
-    const color = entry.isCurrentWeek
-      ? "var(--agent-coral-deep)"
-      : entry.count > 0
-        ? "var(--agent-coral)"
-        : "var(--agent-text-muted)";
-    const opacity = entry.count === 0 ? 0.4 : 1;
-    const size = 14;
-    // Bar top: y (recharts provides the label slot y aligned with bar top).
-    // Nudge up by size + 2px so the house sits above rather than clipping the
-    // bar top. Centre horizontally in the bar column.
-    const cx = x + width / 2;
-    const cy = y - 2;
-    return (
-      <g transform={`translate(${cx - size / 2}, ${cy - size})`} opacity={opacity} style={{ color }}>
-        {/* Phosphor HouseSimple path — kept inline so the label can be a
-            single SVG element in the recharts tree. Fill vs outline keys
-            off the current-week / has-count state. */}
-        {filled ? (
-          <path
-            d="M12 20V13.5H10.5V20H4.5V10.7L11.4 4.5L18.5 10.7V20H12Z M2 11.6L11.4 3.3L21 11.6V21.5H10.5V15H12V20H19.5V11L11.4 4L3.5 11V20H10.5V15H12V13.5H4.5V21.5H2V11.6Z"
-            transform="scale(0.72)"
-            fill="currentColor"
-          />
-        ) : (
-          <path
-            d="M2 11.6L11.4 3.3L21 11.6V21.5H2V11.6ZM3.5 12L11.4 5L19.5 12V20H4.5V12H3.5Z"
-            transform="scale(0.72)"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          />
-        )}
-      </g>
-    );
-  };
-  HouseLabel.displayName = "ForecastHouseLabel";
-  return HouseLabel;
-}
-
-export function ExchangeForecastChart({ data }: { data: WeekBucket[] }) {
-  const HouseLabel = ForecastHouseLabel(data);
-  return (
-    // Height bumped from 60 -> 80 so the house has room to sit above the
-    // tallest bar without clipping the top of the chart.
-    <ResponsiveContainer width="100%" height={80}>
-      <BarChart data={data} barSize={14} margin={{ top: 18, right: 4, left: 4, bottom: 0 }}>
-        <Tooltip
-          content={<ForecastTooltip />}
-          cursor={{ fill: "var(--agent-hover-shade)", radius: 4 }}
-        />
-        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-          {data.map((entry, i) => (
-            <Cell
-              key={i}
-              fill="var(--agent-coral)"
-              fillOpacity={
-                entry.isCurrentWeek
-                  ? 1
-                  : Math.max(0.35, 0.75 - i * 0.08)
-              }
-            />
+      {open && openIdx !== null && (
+        <div
+          role="tooltip"
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            ...(openIdx === 0
+              ? { left: 0 }
+              : openIdx === data.length - 1
+                ? { right: 0 }
+                : { left: `${((openIdx + 0.5) * 100) / data.length}%`, transform: "translateX(-50%)" }),
+            zIndex: 20, width: "max-content", maxWidth: 250, pointerEvents: "none",
+            background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.85)",
+            border: isDark ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(15,23,42,0.08)",
+            backdropFilter: "blur(24px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+            borderRadius: 10, padding: "8px 12px",
+            color: isDark ? "#EFF6FF" : "#1e293b",
+            boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.40)" : "0 12px 32px rgba(15,23,42,0.14)",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
+            {open.valuePence > 0
+              ? `${fmtCurrencyPence(open.valuePence)} due ${open.isCurrentWeek ? "this week" : open.label}`
+              : `${open.count} ${open.count === 1 ? "exchange" : "exchanges"} ${open.isCurrentWeek ? "this week" : open.label}`}
+          </p>
+          {open.files.slice(0, 3).map((f) => (
+            <p key={f.address} style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {f.address}
+              {f.pricePence !== null && ` · ${fmtCurrencyPence(f.pricePence)}`}
+            </p>
           ))}
-          {/* LabelList with a custom content function: recharts calls it
-              per bar with the bar's rendered (x, y, width), so the house
-              always sits on the actual top of the bar, not a fixed row.
-              recharts' LabelContentType wants a function returning
-              ReactElement, so we wrap and swap null for a fragment. */}
-          <LabelList
-            dataKey="count"
-            content={(props) => {
-              const el = HouseLabel(props as LabelProps);
-              return el ?? <g />;
-            }}
-          />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+          {open.files.length > 3 && (
+            <p style={{ margin: "4px 0 0", fontSize: 11, opacity: 0.6 }}>
+              +{open.files.length - 3} more
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

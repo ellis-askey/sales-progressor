@@ -4,7 +4,7 @@ import type React from "react";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AlertCircle, ChevronRight } from "lucide-react";
-import { ServiceSplitDonut, ExchangeForecastChart } from "@/components/hub/HubCharts";
+import { ServiceSplitDonut, ForecastHeatBand } from "@/components/hub/HubCharts";
 import type { WeekBucket } from "@/lib/services/hub";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────── */
@@ -59,11 +59,11 @@ const DIARY_ITEMS = [
 ];
 
 const FORECAST: WeekBucket[] = [
-  { label: "This wk", count: 2, isCurrentWeek: true  },
-  { label: "Wk 2",    count: 5, isCurrentWeek: false },
-  { label: "Wk 3",    count: 3, isCurrentWeek: false },
-  { label: "Wk 4",    count: 1, isCurrentWeek: false },
-  { label: "+30",     count: 0, isCurrentWeek: false },
+  { label: "This wk", count: 2, isCurrentWeek: true,  valuePence: 0, files: [] },
+  { label: "Wk 2",    count: 5, isCurrentWeek: false, valuePence: 0, files: [] },
+  { label: "Wk 3",    count: 3, isCurrentWeek: false, valuePence: 0, files: [] },
+  { label: "Wk 4",    count: 1, isCurrentWeek: false, valuePence: 0, files: [] },
+  { label: "+30",     count: 0, isCurrentWeek: false, valuePence: 0, files: [] },
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -520,17 +520,7 @@ export default function HubPolishPage() {
                   No exchange dates in the next 30 days. Add expected exchange dates to your files to see them here.
                 </p>
               ) : (
-                <>
-                  {/* Production uses recharts ExchangeForecastChart — imported from HubCharts */}
-                  <ExchangeForecastChart data={FORECAST} />
-                  <div style={{ display: "flex", justifyContent: "space-around", marginTop: 6, marginBottom: 4 }}>
-                    {FORECAST.map((w, i) => (
-                      <span key={i} style={{ fontSize: 10, color: w.isCurrentWeek ? CORAL : TM, fontWeight: w.isCurrentWeek ? 600 : 400, textAlign: "center", flex: 1 }}>
-                        {w.label}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                <ForecastHeatBand data={FORECAST} />
               )}
 
               <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 12, marginTop: forecastEmpty ? 4 : 8 }}>

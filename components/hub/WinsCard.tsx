@@ -1,16 +1,28 @@
-// Hub polish PR 1 — "Wins this month" card.
-//
-// Always shows something, cascading through 4 tiers so brand-new accounts
-// still see a positive signal:
-//   Tier 1 — has exchanges this month → celebrate exchanges + completions +
-//            fastest-exchange address
-//   Tier 2 — has completions but no exchanges → completions + steps confirmed
-//   Tier 3 — no closings but activity → steps confirmed + new files
-//   Tier 4 — brand-new (no activity) → motivational fallback
-//
-// Data shape from lib/services/hub.ts getHubWins(). Pure presentation.
+"use client";
 
-import { Trophy, Flag, Sparkle, Rocket } from "@phosphor-icons/react/dist/ssr";
+// Hub "Wins this month" card — rotating linked pairs (Ellis, 2026-09-18).
+//
+// Each rotation is a story: the spotlight (kicker + big number) and the
+// footnote line under the divider change TOGETHER as headline + supporting
+// detail. One 6s timer, crossfade, clickable dots, pause on hover; reduced
+// motion gets the first slide static with the dots as manual tabs.
+//
+// The 4-tier cascade is unchanged — slides only exist when their number does,
+// so a quiet month simply rotates through fewer stories:
+//   Tier 1 (exchanges)   — exchanges (+£ exchanged), fastest, biggest,
+//                          momentum, completions
+//   Tier 2 (completions) — completions, momentum, new files
+//   Tier 3 (progress)    — momentum, new files
+//   Tier 4 (fresh)       — static motivational fallback (no rotation)
+//
+// The card deliberately does NOT repeat Pipeline Health facts (£ closing this
+// month, exchanging soon, +N files) — no same-screen duplication.
+//
+// Data shape from lib/services/hub.ts getHubWins(). Presentation only.
+
+import { useEffect, useRef, useState } from "react";
+import { Trophy, Flag, Sparkle, Rocket } from "@phosphor-icons/react";
+import { fmtCurrencyPence } from "@/lib/utils";
 import type { HubWins } from "@/lib/services/hub";
 
 type Tier = "exchanges" | "completions" | "progress" | "fresh";
@@ -22,13 +34,12 @@ function pickTier(wins: HubWins): Tier {
   return "fresh";
 }
 
-function trendCopy(current: number, prior: number, singular: string, plural: string): { text: string; tone: "up" | "flat" | "down" } {
-  if (prior === 0 && current > 0) return { text: `New this month`, tone: "up" };
-  if (prior === 0 && current === 0) return { text: `None yet`, tone: "flat" };
+function trendCopy(current: number, prior: number): { text: string; tone: "up" | "flat" | "down" } | null {
+  if (prior === 0 && current > 0) return { text: "New this month", tone: "up" };
   const delta = current - prior;
   if (delta > 0) return { text: `↑ ${delta} vs last month`, tone: "up" };
   if (delta < 0) return { text: `↓ ${Math.abs(delta)} vs last month`, tone: "down" };
-  return { text: `Same as last month`, tone: "flat" };
+  return { text: "Same as last month", tone: "flat" };
 }
 
 const toneColor: Record<"up" | "flat" | "down", string> = {
@@ -37,175 +48,243 @@ const toneColor: Record<"up" | "flat" | "down", string> = {
   down: "var(--agent-warning)",
 };
 
+// One rotation story: spotlight (kicker/big/label/trend) + linked footnote.
+type Slide = {
+  key: string;
+  kicker: string;
+  big: string;
+  bigColor?: string;
+  label: string;
+  trend?: { text: string; tone: "up" | "flat" | "down" } | null;
+  // Footnote pair: left text, optional bold right value. Right inherits the
+  // spotlight accent when footRight is money/days so the link reads.
+  footLeft: string;
+  footRight?: string;
+};
+
+function buildSlides(wins: HubWins, tier: Tier): Slide[] {
+  const slides: Slide[] = [];
+  const momentumSlide: Slide | null = wins.stepsConfirmedThisWeek > 0
+    ? {
+        key: "momentum",
+        kicker: "Momentum",
+        big: String(wins.stepsConfirmedThisWeek),
+        label: wins.stepsConfirmedThisWeek === 1 ? "step confirmed this week" : "steps confirmed this week",
+        footLeft: wins.stepsFilesThisWeek > 1 ? `Across ${wins.stepsFilesThisWeek} files` : "Keep them moving",
+      }
+    : null;
+  const newFilesSlide: Slide | null = wins.newFilesThisMonth > 0
+    ? {
+        key: "newfiles",
+        kicker: "New business",
+        big: String(wins.newFilesThisMonth),
+        label: wins.newFilesThisMonth === 1 ? "new file this month" : "new files this month",
+        footLeft: "Fresh instructions in the pipeline",
+      }
+    : null;
+
+  if (tier === "exchanges") {
+    slides.push({
+      key: "exchanges",
+      kicker: "Exchanges",
+      big: String(wins.exchangesThisMonth),
+      label: wins.exchangesThisMonth === 1 ? "exchange completed" : "exchanges completed",
+      trend: trendCopy(wins.exchangesThisMonth, wins.exchangesLastMonth),
+      footLeft: wins.valueExchangedPence > 0 ? "Agreed sales exchanged" : "Contracts exchanged this month",
+      footRight: wins.valueExchangedPence > 0 ? fmtCurrencyPence(wins.valueExchangedPence) : undefined,
+    });
+    if (wins.fastestExchangeDays !== null && wins.fastestExchangeAddress) {
+      slides.push({
+        key: "fastest",
+        kicker: "Fastest exchange",
+        big: `${wins.fastestExchangeDays}d`,
+        bigColor: "var(--agent-coral-deep)",
+        label: "offer to exchange",
+        footLeft: wins.fastestExchangeAddress,
+      });
+    }
+    // Biggest only earns a slide when there's more than one exchange —
+    // with one, it IS the exchanges slide's value.
+    if (wins.exchangesThisMonth > 1 && wins.biggestExchangePence !== null && wins.biggestExchangeAddress) {
+      slides.push({
+        key: "biggest",
+        kicker: "Biggest exchange",
+        big: fmtCurrencyPence(wins.biggestExchangePence),
+        label: "agreed sale exchanged",
+        footLeft: wins.biggestExchangeAddress,
+      });
+    }
+    if (momentumSlide) slides.push(momentumSlide);
+    if (wins.completionsThisMonth > 0) {
+      slides.push({
+        key: "completions",
+        kicker: "Completions",
+        big: String(wins.completionsThisMonth),
+        label: wins.completionsThisMonth === 1 ? "completion this month" : "completions this month",
+        footLeft: "Keys handed over",
+      });
+    }
+    return slides;
+  }
+
+  if (tier === "completions") {
+    slides.push({
+      key: "completions",
+      kicker: "Completions",
+      big: String(wins.completionsThisMonth),
+      label: wins.completionsThisMonth === 1 ? "completion" : "completions",
+      trend: trendCopy(wins.completionsThisMonth, wins.completionsLastMonth),
+      footLeft: "Keys handed over this month",
+    });
+    if (momentumSlide) slides.push(momentumSlide);
+    if (newFilesSlide) slides.push(newFilesSlide);
+    return slides;
+  }
+
+  // Tier 3 — progress only.
+  if (momentumSlide) slides.push(momentumSlide);
+  if (newFilesSlide) slides.push(newFilesSlide);
+  return slides;
+}
+
+const TIER_META: Record<Tier, { icon: React.ReactNode; subtitle: string }> = {
+  exchanges:   { icon: <Trophy size={24} weight="bold" />,  subtitle: "You're moving fast." },
+  completions: { icon: <Flag size={24} weight="bold" />,    subtitle: "Files across the line." },
+  progress:    { icon: <Sparkle size={24} weight="bold" />, subtitle: "Pipeline is moving." },
+  fresh:       { icon: <Rocket size={24} weight="bold" />,  subtitle: "Nothing to celebrate yet." },
+};
+
+const ROTATE_MS = 6000;
+
 export function WinsCard({ wins }: { wins: HubWins }) {
   const tier = pickTier(wins);
-  // 2026-08-09 hub Design-Lab pass: surface (agent-glass frost + padding)
-  // moved OUT to the GlassCard wrapper at the call site (glassId
-  // `hub-wins`), so the card is pickable. commonWrap now carries only the
-  // inner flex layout — the four tier branches stay untouched.
-  const commonWrap = {
-    style: {
-      display: "flex",
-      flexDirection: "column" as const,
-      gap: 14,
-      minHeight: 200,
-    },
-  };
+  const slides = buildSlides(wins, tier);
+  const [idx, setIdx] = useState(0);
+  const pausedRef = useRef(false);
+  const [reduced, setReduced] = useState(false);
 
-  // Header content (icon + eyebrow + subtitle) is uniform across tiers.
-  const headerBlock = (icon: React.ReactNode, subtitle: string) => (
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    if (mq.matches || slides.length < 2) return;
+    const t = setInterval(() => {
+      if (!pausedRef.current) setIdx((i) => (i + 1) % slides.length);
+    }, ROTATE_MS);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  const meta = TIER_META[tier];
+
+  const header = (
     <div className="agent-card-hdr-internal" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{
-        width: 32, height: 32, borderRadius: 8,
-        background: "var(--agent-coral-bg-tint)",
-        color: "var(--agent-coral-deep)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
-      }}>
-        {icon}
-      </div>
+      {/* Bare bold icon, no faded backer — matches the other hub card headers. */}
+      <span aria-hidden style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", flexShrink: 0 }}>
+        {meta.icon}
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Wins this month</p>
-        <p className="agent-card-subtitle" style={{ margin: 0 }}>{subtitle}</p>
+        <p className="agent-card-subtitle" style={{ margin: 0 }}>{meta.subtitle}</p>
       </div>
     </div>
   );
 
-  // Tier 1 — full exchanges celebration.
-  if (tier === "exchanges") {
-    const exchangeTrend = trendCopy(wins.exchangesThisMonth, wins.exchangesLastMonth, "exchange", "exchanges");
+  // Tier 4 — brand-new account, static.
+  if (tier === "fresh" || slides.length === 0) {
     return (
-      <div {...commonWrap}>
-        {headerBlock(<Trophy size={17} weight="fill" />, "You're moving fast.")}
-        <div>
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-            {wins.exchangesThisMonth}
-          </p>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
-            {wins.exchangesThisMonth === 1 ? "exchange" : "exchanges"} completed
-          </p>
-          <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[exchangeTrend.tone] }}>
-            {exchangeTrend.text}
-          </p>
-        </div>
-        <div style={{
-          borderTop: "0.5px solid var(--agent-border-subtle)",
-          paddingTop: 12,
-          display: "flex", flexDirection: "column", gap: 8,
-        }}>
-          {wins.completionsThisMonth > 0 && (
-            <StatRow label={wins.completionsThisMonth === 1 ? "completion" : "completions"} value={wins.completionsThisMonth} />
-          )}
-          {wins.fastestExchangeDays !== null && wins.fastestExchangeAddress && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  Fastest exchange
-                </p>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {wins.fastestExchangeAddress}
-                </p>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-coral-deep)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
-                {wins.fastestExchangeDays}d
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Tier 2 — completions only.
-  if (tier === "completions") {
-    const completionTrend = trendCopy(wins.completionsThisMonth, wins.completionsLastMonth, "completion", "completions");
-    return (
-      <div {...commonWrap}>
-        {headerBlock(<Flag size={17} weight="fill" />, "Files across the line.")}
-        <div>
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-            {wins.completionsThisMonth}
-          </p>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
-            {wins.completionsThisMonth === 1 ? "completion" : "completions"}
-          </p>
-          <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[completionTrend.tone] }}>
-            {completionTrend.text}
-          </p>
-        </div>
-        {(wins.stepsConfirmedThisWeek > 0 || wins.newFilesThisMonth > 0) && (
-          <div style={{
-            borderTop: "0.5px solid var(--agent-border-subtle)",
-            paddingTop: 12,
-            display: "flex", flexDirection: "column", gap: 8,
-          }}>
-            {wins.stepsConfirmedThisWeek > 0 && (
-              <StatRow label="steps confirmed this week" value={wins.stepsConfirmedThisWeek} />
-            )}
-            {wins.newFilesThisMonth > 0 && (
-              <StatRow label="new files this month" value={wins.newFilesThisMonth} />
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Tier 3 — progress-only.
-  if (tier === "progress") {
-    return (
-      <div {...commonWrap}>
-        {headerBlock(<Sparkle size={17} weight="fill" />, "Pipeline is moving.")}
-        {wins.stepsConfirmedThisWeek > 0 && (
-          <div>
-            <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-              {wins.stepsConfirmedThisWeek}
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
-              {wins.stepsConfirmedThisWeek === 1 ? "step" : "steps"} confirmed this week
-            </p>
-          </div>
-        )}
-        {wins.newFilesThisMonth > 0 && (
-          <div style={{
-            borderTop: "0.5px solid var(--agent-border-subtle)",
-            paddingTop: 12,
-            display: "flex", flexDirection: "column", gap: 8,
-          }}>
-            <StatRow
-              label={wins.newFilesThisMonth === 1 ? "new file this month" : "new files this month"}
-              value={wins.newFilesThisMonth}
-            />
-          </div>
-        )}
-        <p style={{ margin: "auto 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-          Exchanges and completions will land here as files close.
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 200 }}>
+        {header}
+        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
+          Add your first sale to start tracking wins. Exchanges, completions, and fastest-exchange records will show up here as files progress.
         </p>
       </div>
     );
   }
 
-  // Tier 4 — brand-new account.
   return (
-    <div {...commonWrap}>
-      {headerBlock(<Rocket size={17} weight="fill" />, "Nothing to celebrate yet.")}
-      <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-        Add your first sale to start tracking wins. Exchanges, completions, and fastest-exchange records will show up here as files progress.
-      </p>
-    </div>
-  );
-}
+    <div
+      style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 200 }}
+      onMouseEnter={() => { pausedRef.current = true; }}
+      onMouseLeave={() => { pausedRef.current = false; }}
+    >
+      {header}
 
-function StatRow({ label, value }: { label: string; value: number }) {
-  // Capitalise the first letter of the stat label (e.g. "completions" →
-  // "Completions", "steps confirmed this week" → "Steps confirmed this week").
-  const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)" }}>{displayLabel}</p>
-      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </p>
+      {/* Spotlight — slides stacked, crossfading. Fixed height so the card
+          never shifts as stories change. */}
+      <div style={{ position: "relative", minHeight: 88, flex: 1 }}>
+        {slides.map((s, i) => (
+          <div
+            key={s.key}
+            aria-hidden={i !== idx}
+            style={{
+              position: "absolute", inset: 0,
+              opacity: i === idx ? 1 : 0,
+              transition: reduced ? "none" : "opacity 500ms ease",
+              pointerEvents: i === idx ? "auto" : "none",
+            }}
+          >
+            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--agent-coral-deep)" }}>
+              {s.kicker}
+            </p>
+            <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: s.bigColor ?? "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+              {s.big}
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
+              {s.label}
+            </p>
+            {s.trend && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[s.trend.tone] }}>
+                {s.trend.text}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Linked footnote — changes with the spotlight. */}
+      <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 12 }}>
+        <div style={{ position: "relative", minHeight: 18 }}>
+          {slides.map((s, i) => (
+            <div
+              key={s.key}
+              aria-hidden={i !== idx}
+              style={{
+                position: "absolute", inset: 0,
+                display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12,
+                opacity: i === idx ? 1 : 0,
+                transition: reduced ? "none" : "opacity 500ms ease",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {s.footLeft}
+              </p>
+              {s.footRight && (
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-coral-deep)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                  {s.footRight}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {slides.length > 1 && (
+          <div style={{ display: "flex", gap: 6, marginTop: 12, alignItems: "center" }}>
+            {slides.map((s, i) => (
+              <button
+                key={s.key}
+                type="button"
+                aria-label={`Show ${s.kicker.toLowerCase()}`}
+                onClick={() => setIdx(i)}
+                style={{
+                  width: i === idx ? 18 : 6, height: 6, borderRadius: 999,
+                  background: i === idx ? "var(--agent-coral)" : "rgba(var(--agent-shadow-rgb), 0.16)",
+                  border: "none", padding: 0, cursor: "pointer",
+                  transition: reduced ? "none" : "width 250ms ease, background 250ms ease",
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
