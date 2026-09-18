@@ -39,6 +39,9 @@ type Props = {
   };
   transactionId: string;
   onConfirmStart?: () => void;
+  // Phase 5 (2026-09-18): fired on the structured prerequisite failure so the
+  // panel can re-lock the dependents it optimistically opened at confirm-start.
+  onConfirmFailed?: () => void;
   onNRStart?: () => void;
   onUndoStart?: () => void;
   optimisticallyAvailable?: boolean;
@@ -110,7 +113,7 @@ function formatRelative(d: Date | null): string {
   return `${weeks}w ago`;
 }
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType }: Props) {
   const { toast } = useAgentToast();
   // Phase 2 (2026-09-17): the transition exists so useOptimistic persists
   // until canonical server data lands, but the row's CONTROLS are gated on
@@ -298,6 +301,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               ? `Confirm "${first.name}" first.`
               : "An earlier step needs to be confirmed first.";
             addOptimistic("reverse");
+            onConfirmFailed?.(); // re-lock optimistically-opened dependents
             setError(msg);
             return;
           }
@@ -442,6 +446,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         if (result.ok === false && result.kind === "prereqs_missing") {
           const first = result.missing[0];
           addOptimistic("reverse");
+          onConfirmFailed?.(); // re-lock optimistically-opened dependents
           setError(first ? `Confirm "${first.name}" first.` : "An earlier step needs to be confirmed first.");
           return;
         }

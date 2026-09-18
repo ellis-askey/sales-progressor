@@ -213,6 +213,24 @@ export function MilestonePanel({
     unlockDependents(confirmedId, confirmedCode);
   }
 
+  // Phase 5 (2026-09-18): when a confirm comes back with the structured
+  // prerequisite failure, the row reverts its own tick — this re-locks the
+  // dependents handleConfirmStart optimistically opened for it, so the list
+  // returns to a state consistent with canonical data instead of implying
+  // downstream steps are available. Pure set subtraction against the same
+  // client-side DIRECT_PREREQUISITES mirror; the server gate stays the
+  // authority either way.
+  function handleConfirmFailed(_failedId: string, failedCode: string) {
+    setOptimisticallyUnlockedIds((prev) => {
+      const next = new Set(prev);
+      for (const m of milestones) {
+        const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
+        if (prereqs.includes(failedCode)) next.delete(m.id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }
+
   function handleNRStart(nrId: string, nrCode: string) {
     unlockDependents(nrId, nrCode);
     // Cascade-NR any downstream milestones flagged in NR_CASCADE (e.g.
@@ -391,6 +409,7 @@ export function MilestonePanel({
                             def={def}
                             transactionId={transactionId}
                             onConfirmStart={() => handleConfirmStart(def.id, def.code)}
+                            onConfirmFailed={() => handleConfirmFailed(def.id, def.code)}
                             optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
                             optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
                             onNRStart={() => handleNRStart(def.id, def.code)}

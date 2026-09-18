@@ -6,7 +6,7 @@
 // an always-present composer makes jotting a note frictionless; note rows are
 // deletable inline. "View all" goes to the full Activity tab.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTabContext } from "./TabContext";
 import {
   CheckCircle, MinusCircle, NoteBlank, EnvelopeSimple, Phone, ChatCircleText, Circle, Plus,
@@ -93,9 +93,30 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
   const [optimistic, setOptimistic] = useState<OptimisticNote[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  // Temp ids of adds whose server write hasn't acknowledged yet. A ref, not
+  // state — only the reconcile effect reads it, at effect time.
+  const pendingAddIds = useRef<Set<string>>(new Set());
 
-  // A fresh server render (after add/delete) resets the optimistic layer.
-  useEffect(() => { setOptimistic([]); setRemovedIds(new Set()); }, [entries]);
+  // Phase 5 (2026-09-18): reconcile the optimistic layer against fresh
+  // canonical entries instead of resetting it wholesale. The wholesale reset
+  // meant a payload from action A landing while delete/add B was still in
+  // flight would briefly resurrect B's deleted note (or hide B's pending
+  // one) until B's own payload arrived.
+  //   - optimistic adds: keep rows whose write is still pending; drop rows
+  //     whose write acknowledged (their canonical twin is in this payload
+  //     or the next — the pending set is cleared at ack, in `finally`).
+  //   - removedIds: keep hiding ids the payload still contains (the delete
+  //     is in flight or its payload hasn't landed); drop ids the server no
+  //     longer sends (canonically gone). A FAILED delete is unaffected —
+  //     its catch removes the id explicitly, restoring the row.
+  useEffect(() => {
+    setOptimistic((prev) => prev.filter((n) => pendingAddIds.current.has(n.id)));
+    setRemovedIds((prev) => {
+      const stillPresent = new Set(entries.map((e) => e.id));
+      const next = new Set([...prev].filter((id) => stillPresent.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [entries]);
 
   const noteCount = entries.filter((e) => isNote(e) && !removedIds.has(e.id)).length + optimistic.length;
 
@@ -106,6 +127,7 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
     setSaving(true);
     setDraft("");
     const tempId = `temp-${Date.now()}`;
+    pendingAddIds.current.add(tempId);
     setOptimistic((prev) => [{ id: tempId, content, createdByName: currentUserName, createdByImage: currentUserImage, at: new Date() }, ...prev]);
     try {
       await addNoteAction(transactionId, content);
@@ -119,6 +141,7 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
       // Put the text back so the agent can retry without retyping.
       setDraft((current) => (current.trim() ? current : content));
     } finally {
+      pendingAddIds.current.delete(tempId);
       setSaving(false);
     }
   }
