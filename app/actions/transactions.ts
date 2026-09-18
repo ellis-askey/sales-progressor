@@ -10,7 +10,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
-import { checkAgentHandoverReadiness } from "@/lib/services/handover-readiness";
+import { solicitorPairViolation, solicitorHandlerRequiredMessage } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
@@ -183,15 +183,34 @@ export async function createTransactionAction(input: {
     throw new Error("Forbidden: migration overrides require admin role");
   }
 
-  // Outsourced handover gate (Resilience audit II.4). A file the SP team will
-  // progress must meet the minimum information standard at creation. Migration
-  // imports (admin, historical) are exempt — they backfill historical records
-  // that legitimately may be sparse. Self-progress files are never gated.
+  // Universal solicitor invariant (founder decision 2026-09-18): a firm may
+  // never be attached without a named case handler, on ANY service type.
+  // Migration imports stay exempt (historical records may be sparse).
+  if (!hasMigrationOverride) {
+    if (solicitorPairViolation(input.vendorSolicitorFirmId, input.vendorSolicitorContactId)) {
+      throw new Error(solicitorHandlerRequiredMessage("seller"));
+    }
+    if (solicitorPairViolation(input.purchaserSolicitorFirmId, input.purchaserSolicitorContactId)) {
+      throw new Error(solicitorHandlerRequiredMessage("buyer"));
+    }
+  }
+
+  // Outsourced handover gate (Resilience audit II.4; solicitor rules added by
+  // founder decision 2026-09-18). A file the SP team will progress must meet
+  // the full information standard at creation — including BOTH solicitors
+  // (firm + named case handler). Migration imports (admin, historical) are
+  // exempt — they backfill historical records that legitimately may be
+  // sparse. Self-progress files are never gated (they may start with no
+  // solicitors at all; the pair invariant above still applies).
   if (resolvedProgressedBy === "progressor" && !hasMigrationOverride) {
     const readiness = checkOutsourcedHandoverReadiness({
       tenure: input.tenure,
       purchaseType: input.purchaseType,
       contacts: input.contacts,
+      vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,
+      vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,
+      purchaserSolicitorFirmId: input.purchaserSolicitorFirmId ?? null,
+      purchaserSolicitorContactId: input.purchaserSolicitorContactId ?? null,
     });
     if (!readiness.ready) {
       throw new Error(handoverReadinessMessage(readiness.missing));
@@ -1452,33 +1471,25 @@ export async function switchServiceTypeAction(
     return { ok: true };
   }
 
-  // Outsourced handover gate (Resilience audit II.4). Closes the founder's
-  // suspected loophole: creating a thin self-progress file and later switching
-  // it to outsourced bypassed the creation-time standard. Validate the
-  // PERSISTED data before accepting the file for progression.
+  // Outsourced handover gate (Resilience audit II.4; solicitor rules added by
+  // founder decision 2026-09-18). Closes the founder's suspected loophole:
+  // creating a thin self-progress file and later switching it to outsourced
+  // bypassed the creation-time standard. Validate the PERSISTED data before
+  // accepting the file for progression. One standard for every caller now:
+  // the old agent-handover variant's "a memo of sale on file OR solicitors"
+  // shortcut let a memo stand in for solicitor setup — which is exactly how
+  // 28 Granville Road arrived with a firm and no case handler. The memo no
+  // longer substitutes for anything: both solicitors, firm + named handler.
   if (target === "outsourced") {
-    let readiness;
-    if (isAgentHandover) {
-      // Agency hand-over: base standard + a memo of sale on file OR a solicitor
-      // on both sides, so our team can progress it without chasing the agency.
-      const mosCount = await prisma.transactionDocument.count({
-        where: { transactionId, docType: "mos" },
-      });
-      readiness = checkAgentHandoverReadiness({
-        tenure: tx.tenure,
-        purchaseType: tx.purchaseType,
-        contacts: tx.contacts,
-        hasMemoOfSale: mosCount > 0,
-        vendorHasSolicitor: !!(tx.vendorSolicitorContactId || tx.vendorSolicitorFirmId),
-        purchaserHasSolicitor: !!(tx.purchaserSolicitorContactId || tx.purchaserSolicitorFirmId),
-      });
-    } else {
-      readiness = checkOutsourcedHandoverReadiness({
-        tenure: tx.tenure,
-        purchaseType: tx.purchaseType,
-        contacts: tx.contacts,
-      });
-    }
+    const readiness = checkOutsourcedHandoverReadiness({
+      tenure: tx.tenure,
+      purchaseType: tx.purchaseType,
+      contacts: tx.contacts,
+      vendorSolicitorFirmId: tx.vendorSolicitorFirmId,
+      vendorSolicitorContactId: tx.vendorSolicitorContactId,
+      purchaserSolicitorFirmId: tx.purchaserSolicitorFirmId,
+      purchaserSolicitorContactId: tx.purchaserSolicitorContactId,
+    });
     if (!readiness.ready) {
       return { ok: false, error: handoverReadinessMessage(readiness.missing) };
     }
@@ -1541,9 +1552,32 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
     data.referralFee = referralFee ?? null;
   }
 
-  // Single query for auth + update — updateMany with scope-where collapses
-  // the prior findFirst + update into one round-trip. count===0 means the
-  // row doesn't exist OR is out of scope; we treat both the same.
+  // Universal solicitor invariant (founder decision 2026-09-18): the RESULT
+  // of applying this patch may never leave a firm attached without a named
+  // case handler on either side. Merge the patch over the current row before
+  // checking — a patch that only touches one column still has to land in a
+  // valid pair. Costs one scoped read; correctness over the saved round-trip.
+  const current = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: {
+      vendorSolicitorFirmId: true, vendorSolicitorContactId: true,
+      purchaserSolicitorFirmId: true, purchaserSolicitorContactId: true,
+    },
+  });
+  if (!current) throw new Error("Transaction not found");
+  const merged = (key: keyof typeof current) =>
+    key in solicitorPatch ? (solicitorPatch as Record<string, string | null | undefined>)[key] ?? null : current[key];
+  if (solicitorPairViolation(merged("vendorSolicitorFirmId"), merged("vendorSolicitorContactId"))) {
+    throw new Error(solicitorHandlerRequiredMessage("seller"));
+  }
+  if (solicitorPairViolation(merged("purchaserSolicitorFirmId"), merged("purchaserSolicitorContactId"))) {
+    throw new Error(solicitorHandlerRequiredMessage("buyer"));
+  }
+  // Clearing a firm clears its handler too — never leave a contact dangling
+  // without a firm.
+  if (merged("vendorSolicitorFirmId") == null) data.vendorSolicitorContactId = null;
+  if (merged("purchaserSolicitorFirmId") == null) data.purchaserSolicitorContactId = null;
+
   const result = await prisma.propertyTransaction.updateMany({
     where: scopeOwnershipWhere(scope, transactionId),
     data,
@@ -2024,7 +2058,13 @@ export async function promoteDraftAction(
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
     // notes feeds the sale-setup note write-through below; serviceType resolves
     // the free label when the promotion doesn't itself change progressedBy.
-    select: { id: true, activeBuyerRoundId: true, notes: true, agencyId: true, serviceType: true },
+    // Solicitor columns feed the handover gate (they live on the draft row,
+    // persisted by saveDraftAction — not in this action's input).
+    select: {
+      id: true, activeBuyerRoundId: true, notes: true, agencyId: true, serviceType: true,
+      vendorSolicitorFirmId: true, vendorSolicitorContactId: true,
+      purchaserSolicitorFirmId: true, purchaserSolicitorContactId: true,
+    },
   });
   if (!draft) throw new Error("Draft not found");
 
@@ -2037,15 +2077,28 @@ export async function promoteDraftAction(
     : draft.serviceType;
   const promotedFreeReason = finalServiceType === "self_managed" ? "permanent_free_self" : null;
 
-  // Outsourced handover gate (Resilience audit II.4). Promoting a draft to a
-  // live outsourced file is an accept-the-file point too. tenure + purchaseType
-  // are required by this action's signature (always present), so in practice
-  // this catches a promote with no reachable buyer/seller.
+  // Universal solicitor invariant (founder decision 2026-09-18): a draft may
+  // hold a firm-only selection mid-edit, but it can't go LIVE that way on
+  // any service type.
+  if (solicitorPairViolation(draft.vendorSolicitorFirmId, draft.vendorSolicitorContactId)) {
+    throw new Error(solicitorHandlerRequiredMessage("seller"));
+  }
+  if (solicitorPairViolation(draft.purchaserSolicitorFirmId, draft.purchaserSolicitorContactId)) {
+    throw new Error(solicitorHandlerRequiredMessage("buyer"));
+  }
+
+  // Outsourced handover gate (Resilience audit II.4; solicitor rules added by
+  // founder decision 2026-09-18). Promoting a draft to a live outsourced file
+  // is an accept-the-file point too.
   if (finalServiceType === "outsourced") {
     const readiness = checkOutsourcedHandoverReadiness({
       tenure: data.tenure,
       purchaseType: data.purchaseType,
       contacts: data.contacts,
+      vendorSolicitorFirmId: draft.vendorSolicitorFirmId,
+      vendorSolicitorContactId: draft.vendorSolicitorContactId,
+      purchaserSolicitorFirmId: draft.purchaserSolicitorFirmId,
+      purchaserSolicitorContactId: draft.purchaserSolicitorContactId,
     });
     if (!readiness.ready) {
       throw new Error(handoverReadinessMessage(readiness.missing));

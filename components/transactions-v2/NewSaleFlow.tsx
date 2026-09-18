@@ -856,6 +856,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         setOutsourcedError({ field: "purchasers", message: "Add at least one buyer with a name and a phone number or email" });
         return;
       }
+      // Founder decision 2026-09-18: outsourced files must carry BOTH
+      // solicitors fully set up (firm + named case handler). The submit
+      // button is disabled until then; this is the server-mirroring guard.
+      const vendorSolOk = !!formFields.vendorSolicitor?.firmId && !!formFields.vendorSolicitor?.contactId;
+      const purchaserSolOk = !!formFields.purchaserSolicitor?.firmId && !!formFields.purchaserSolicitor?.contactId;
+      if (!vendorSolOk || !purchaserSolOk) return;
+    }
+    // Any file: a firm without its named case handler is never savable.
+    if (
+      (!!formFields.vendorSolicitor?.firmId && !formFields.vendorSolicitor?.contactId) ||
+      (!!formFields.purchaserSolicitor?.firmId && !formFields.purchaserSolicitor?.contactId)
+    ) {
+      return;
     }
 
     setIsSubmitting(true);
@@ -961,17 +974,38 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const purchaserHasName = formFields.purchasers.some((p) => p.name.trim());
   const hasValidPurchaser = formFields.purchasers.some((p) => p.name.trim() && (p.phone.trim() || p.email.trim()));
   const tenurePurchaseReady = !!formFields.tenure && !!formFields.purchaseType;
-  const outsourcedReady = !isOutsourced || (hasValidVendor && hasValidPurchaser);
+  // Solicitor rules (founder decision 2026-09-18):
+  //   - outsourced: BOTH solicitors fully set up (firm + named case handler)
+  //     before the file can be sent to the progressor team;
+  //   - any file: a firm can never be saved without its case handler
+  //     (no-solicitor-yet stays fine on self-managed).
+  const solPairViolation = (sel: { firmId: string | null; contactId: string | null } | null) =>
+    !!sel?.firmId && !sel?.contactId;
+  const vendorSolComplete = !!formFields.vendorSolicitor?.firmId && !!formFields.vendorSolicitor?.contactId;
+  const purchaserSolComplete = !!formFields.purchaserSolicitor?.firmId && !!formFields.purchaserSolicitor?.contactId;
+  const solicitorRulesReady = isOutsourced
+    ? vendorSolComplete && purchaserSolComplete
+    : !solPairViolation(formFields.vendorSolicitor) && !solPairViolation(formFields.purchaserSolicitor);
+  const outsourcedReady = !isOutsourced || (hasValidVendor && hasValidPurchaser && vendorSolComplete && purchaserSolComplete);
 
   const submitButtonText = (() => {
     if (!formFields.tenure && !formFields.purchaseType) return "Select tenure and purchase type";
     if (!formFields.tenure) return "Select tenure to continue";
     if (!formFields.purchaseType) return "Select purchase type to continue";
-    if (!isOutsourced || outsourcedReady) return "Create file";
-    if (!vendorHasName) return "Add a seller to continue";
-    if (!hasValidVendor) return "Add a phone number or email for the seller";
-    if (!purchaserHasName) return "Add a buyer to continue";
-    return "Add a phone number or email for the buyer";
+    if (isOutsourced) {
+      if (!vendorHasName) return "Add a seller to continue";
+      if (!hasValidVendor) return "Add a phone number or email for the seller";
+      if (!purchaserHasName) return "Add a buyer to continue";
+      if (!hasValidPurchaser) return "Add a phone number or email for the buyer";
+      if (!formFields.vendorSolicitor?.firmId) return "Add the seller's solicitor to continue";
+      if (!formFields.vendorSolicitor?.contactId) return "Add the seller's case handler to continue";
+      if (!formFields.purchaserSolicitor?.firmId) return "Add the buyer's solicitor to continue";
+      if (!formFields.purchaserSolicitor?.contactId) return "Add the buyer's case handler to continue";
+    } else {
+      if (solPairViolation(formFields.vendorSolicitor)) return "Add the seller's case handler to continue";
+      if (solPairViolation(formFields.purchaserSolicitor)) return "Add the buyer's case handler to continue";
+    }
+    return "Create file";
   })();
 
   // Per-card phone/email-uniqueness conflicts across the contacts on the
@@ -1008,7 +1042,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     };
   })();
 
-  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || hasContactConflict;
+  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict;
 
   // ── Render ────────────────────────────────────────────────────────────────
 

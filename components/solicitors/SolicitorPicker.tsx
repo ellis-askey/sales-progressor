@@ -159,13 +159,19 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
     onChange({ ...value, contactId: h.id, contactName: h.name, phone: h.phone, email: h.email, secondaryEmail: h.secondaryEmail ?? null, ccEditable: h.ccEditable ?? true, pendingHandler: null });
   }
 
-  // A solicitor the memo turned up without a full phone/email. Held pending so
-  // nothing incomplete is written; completed inline here, then created for real.
+  // A solicitor the memo turned up without a full name/phone/email. Held
+  // pending so nothing incomplete is written; completed inline here, then
+  // created for real. The name may be EMPTY (a memo "Client Care" block gives
+  // the firm and generic contact details but no individual) — the handler
+  // must be a named person (founder decision 2026-09-18), so the prompt
+  // collects the name too when it's missing.
+  const [pendName, setPendName] = useState("");
   const [pendPhone, setPendPhone] = useState("");
   const [pendEmail, setPendEmail] = useState("");
   const [pendError, setPendError] = useState<string | null>(null);
   const [pendSaving, setPendSaving] = useState(false);
   useEffect(() => {
+    setPendName(value?.pendingHandler?.name ?? "");
     setPendPhone(value?.pendingHandler?.phone ?? "");
     setPendEmail(value?.pendingHandler?.email ?? "");
     setPendError(null);
@@ -173,6 +179,8 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
 
   async function addPendingHandler() {
     if (!value?.firmId || !value.pendingHandler) return;
+    const name = pendName.trim();
+    if (!name) { setPendError("Add the case handler's name."); return; }
     const phone = pendPhone.trim() ? normalizePhone(pendPhone) : "";
     const email = pendEmail.trim().toLowerCase();
     const invalid = validateHandlerContact(phone, email);
@@ -183,7 +191,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       const res = await fetch(`/api/solicitor-firms/${value.firmId}/handlers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: value.pendingHandler.name, phone, email }),
+        body: JSON.stringify({ name: pendName.trim(), phone, email }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => null);
@@ -422,8 +430,19 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
             {!value?.contactId && value?.pendingHandler && (
               <div className="space-y-2">
                 <p className="agent-helper-warning">
-                  Found on the memo. Add a direct line and email to save this solicitor.
+                  {value.pendingHandler.name
+                    ? "Found on the memo. Add a direct line and email to save this solicitor."
+                    : "The memo names the firm but not the person. Add the case handler dealing with this file."}
                 </p>
+                {!value.pendingHandler.name && (
+                  <input
+                    type="text"
+                    value={pendName}
+                    onChange={(e) => { setPendName(e.target.value); setPendError(null); }}
+                    placeholder="Case handler's name"
+                    className="glass-input agent-focus px-3 py-2 text-sm w-full"
+                  />
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="tel"

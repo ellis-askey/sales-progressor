@@ -38,8 +38,13 @@ export async function autoFillSolicitor(
     if (exact) {
       const base: SolicitorSelection = { firmId: exact.id, firmName: exact.name, contactId: null, contactName: null, phone: null, email: null };
       if (!hasHandler) {
-        setSolicitor(base);
-        return "existing";
+        // Founder decision 2026-09-18 (28 Granville Road): never settle
+        // silently for firm-only. Memos often give a "Client Care" block with
+        // no individual — surface the required-handler prompt, pre-filled
+        // with whatever generic phone/email the memo DID give, so the agent
+        // names the actual case handler instead of us chasing to find out.
+        setSolicitor({ ...base, pendingHandler: draft() });
+        return "pending";
       }
       // Firm exists and the memo named a handler — reuse an existing handler if
       // one matches (never edit shared data), otherwise create it when complete.
