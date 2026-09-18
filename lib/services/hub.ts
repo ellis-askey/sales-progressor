@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, ClientType } from "@prisma/client";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
@@ -10,7 +10,7 @@ import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-a
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
-import { calculateFileFeesPence } from "@/lib/services/fees";
+import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -177,6 +177,35 @@ export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSu
 
 // ── Pipeline stats ────────────────────────────────────────────────────────────
 
+// ── Shared fee-input plumbing ────────────────────────────────────────────────
+// The per-file inputs calculateFileFeesPence / calculateProgressionFeePence need.
+// One select fragment + one mapper, shared by the pipeline + service-split totals
+// so they can't drift from each other or from the property-file Fees card.
+const FEE_INPUT_SELECT = {
+  purchasePrice: true, agentFeeAmount: true, agentFeePercent: true,
+  referralFee: true, brokerReferralFee: true, onwardBrokerReferralFee: true,
+  serviceType: true, freeOnExchange: true, firstOutsourcedFree: true,
+  assignedUser: { select: { clientType: true, legacyFee: true } },
+  agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
+} as const;
+
+type FeeInputRow = {
+  purchasePrice: number | null; agentFeeAmount: number | null; agentFeePercent: Prisma.Decimal | null;
+  referralFee: number | null; brokerReferralFee: number | null; onwardBrokerReferralFee: number | null;
+  serviceType: "self_managed" | "outsourced"; freeOnExchange: boolean; firstOutsourcedFree: boolean;
+  assignedUser: { clientType: ClientType; legacyFee: number | null } | null;
+  agency: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
+};
+
+function toFeeInput(tx: FeeInputRow): FileFeesInput {
+  return {
+    purchasePrice: tx.purchasePrice, agentFeeAmount: tx.agentFeeAmount, agentFeePercent: tx.agentFeePercent,
+    referralFee: tx.referralFee, brokerReferralFee: tx.brokerReferralFee, onwardBrokerReferralFee: tx.onwardBrokerReferralFee,
+    serviceType: tx.serviceType, freeOnExchange: tx.freeOnExchange, firstOutsourcedFree: tx.firstOutsourcedFree,
+    assignedUser: tx.assignedUser, agencyOverride: tx.agency,
+  };
+}
+
 export async function getHubPipelineStats(vis: AgentVisibility) {
   const now = new Date();
   const in7Days = new Date(now.getTime() + 7 * 86400000);
@@ -207,15 +236,17 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       where: {
         ...txWhere,
         status: "active",
+        // Effective exchange date (override wins, matching every display surface)
+        // in the next 30 days. Kept identical to the weekly/monthly buckets below.
         OR: [
-          { expectedExchangeDate: { gte: now, lte: in30Days } },
           { overridePredictedDate: { gte: now, lte: in30Days } },
+          { overridePredictedDate: null, expectedExchangeDate: { gte: now, lte: in30Days } },
         ],
       },
     }),
     prisma.propertyTransaction.findMany({
       where: { ...txWhere, status: "active" },
-      select: { purchasePrice: true },
+      select: { ...FEE_INPUT_SELECT },
     }),
     prisma.propertyTransaction.count({
       where: { ...txWhere, createdAt: { gte: startOfMonth }, status: { not: "draft" } },
@@ -226,7 +257,11 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       where: {
         ...txWhere,
         status: "active",
-        expectedExchangeDate: { gte: now, lte: in7Days },
+        // Effective exchange date (override wins) in the next 7 days.
+        OR: [
+          { overridePredictedDate: { gte: now, lte: in7Days } },
+          { overridePredictedDate: null, expectedExchangeDate: { gte: now, lte: in7Days } },
+        ],
         NOT: {
           // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
@@ -238,7 +273,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
           },
         },
       },
-      select: { id: true },
+      select: { id: true, ...FEE_INPUT_SELECT },
     }),
 
     // ── Coming up: completing this week ───────────────────────────────────────
@@ -266,7 +301,11 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       where: {
         ...txWhere,
         status: "active",
-        expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
+        // Effective exchange date (override wins) inside this calendar month.
+        OR: [
+          { overridePredictedDate: { gte: startOfMonth, lte: endOfMonth } },
+          { overridePredictedDate: null, expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth } },
+        ],
         NOT: {
           // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
@@ -341,16 +380,28 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     (sum, tx) => sum + (tx.purchasePrice ?? 0), 0
   );
 
+  // Our (Sales Progressor's) forecast revenue — the progression fees we'd earn
+  // across the live pipeline, and specifically from files exchanging this week.
+  // Self-managed contributes £0 (self-progression is free). Internal-only in the UI.
+  const pipelineFeesPence = pipelineFiles.reduce(
+    (sum, tx) => sum + calculateProgressionFeePence(toFeeInput(tx)), 0
+  );
+  const feesThisWeekPence = exchangingThisWeekTxs.reduce(
+    (sum, tx) => sum + calculateProgressionFeePence(toFeeInput(tx)), 0
+  );
+
   return {
     // Existing
     activeFiles: pipelineFiles.length,
     exchangingSoon,
     pipelineValuePence,
+    pipelineFeesPence,
     newThisMonth,
     // Coming up
     comingUp: {
       exchangingThisWeek: exchangingThisWeekTxs.length,
       completingThisWeek: completingThisWeekTxs.length,
+      feesThisWeekPence,
       closingThisMonth: {
         total: closingThisMonthTotal, // in pence, same unit as pipelineValuePence
       },
@@ -361,6 +412,64 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       transactionIds: stalledTxs.map((t) => t.id).slice(0, 50),
     },
   };
+}
+
+// Health strip for the Pipeline Health card: how fast files reach exchange, how
+// many hit the 12-week target, and this month's exchanges vs last. Derived from
+// the exchangedAt stamp (set on VM19/PM26 for every file) + twelveWeekTarget +
+// createdAt, scoped by the viewer — so an agency sees its own performance, not
+// the platform's. One bounded query (last ~90 days covers both the median sample
+// and the month buckets).
+export async function getHubPipelineHealth(vis: AgentVisibility): Promise<{
+  medianDaysToExchange: number | null;
+  within12WeekPct: number | null;
+  // Rolling 30-day windows, NOT calendar months — a month-to-date vs last-full-
+  // month comparison reads as a false drop early in the month. Rolling windows
+  // are always like-for-like.
+  exchangesLast30: number;
+  exchangesPrev30: number;
+}> {
+  const now = new Date();
+  const d30 = new Date(now.getTime() - 30 * 86400000);
+  const d60 = new Date(now.getTime() - 60 * 86400000);
+  const d90 = new Date(now.getTime() - 90 * 86400000);
+  const txWhere = buildTxWhere(vis);
+
+  const exchanged = await prisma.propertyTransaction.findMany({
+    where: { ...txWhere, exchangedAt: { gte: d90 } },
+    select: { exchangedAt: true, createdAt: true, twelveWeekTarget: true },
+  });
+
+  let exchangesLast30 = 0;
+  let exchangesPrev30 = 0;
+  const recentDays: number[] = []; // days-to-exchange over the full 90-day sample
+  let slaEligible = 0;
+  let slaHit = 0;
+
+  for (const tx of exchanged) {
+    const ex = tx.exchangedAt;
+    if (!ex) continue;
+    if (ex >= d30) exchangesLast30++;
+    else if (ex >= d60) exchangesPrev30++;
+
+    recentDays.push(Math.max(0, Math.round((ex.getTime() - tx.createdAt.getTime()) / 86400000)));
+    if (tx.twelveWeekTarget) {
+      slaEligible++;
+      if (ex <= tx.twelveWeekTarget) slaHit++;
+    }
+  }
+
+  const medianDaysToExchange = recentDays.length
+    ? (() => {
+        const s = [...recentDays].sort((a, b) => a - b);
+        const mid = Math.floor(s.length / 2);
+        return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+      })()
+    : null;
+
+  const within12WeekPct = slaEligible > 0 ? Math.round((slaHit / slaEligible) * 100) : null;
+
+  return { medianDaysToExchange, within12WeekPct, exchangesLast30, exchangesPrev30 };
 }
 
 // ── Hub filter helpers (used by /agent/transactions?filter=...) ──────────────
@@ -1862,17 +1971,52 @@ export async function getHubWeeklyForecast(
 
 // ── Service split ─────────────────────────────────────────────────────────────
 
-export async function getHubServiceSplit(vis: AgentVisibility) {
+export async function getHubServiceSplit(vis: AgentVisibility): Promise<{
+  selfManaged: number;
+  outsourced: number;
+  // Internal (platform) extras — undefined for agency-scoped viewers, who never
+  // see our fee income or a cross-agency breakdown.
+  feeSelfPence?: number;
+  feeOutsourcedPence?: number;
+  topAgencies?: { name: string; count: number }[];
+  agencyCount?: number;
+}> {
   const txWhere = buildTxWhere(vis);
-  const [selfManaged, outsourced] = await Promise.all([
-    prisma.propertyTransaction.count({
-      where: { ...txWhere, status: "active", serviceType: "self_managed" },
-    }),
-    prisma.propertyTransaction.count({
-      where: { ...txWhere, status: "active", serviceType: "outsourced" },
-    }),
-  ]);
-  return { selfManaged, outsourced };
+
+  // Agency-scoped viewer: just the two counts (the card shows their own book +
+  // a time-saved line). No fees, no cross-agency data.
+  if (!vis.internalMode) {
+    const [selfManaged, outsourced] = await Promise.all([
+      prisma.propertyTransaction.count({ where: { ...txWhere, status: "active", serviceType: "self_managed" } }),
+      prisma.propertyTransaction.count({ where: { ...txWhere, status: "active", serviceType: "outsourced" } }),
+    ]);
+    return { selfManaged, outsourced };
+  }
+
+  // Internal (platform) view: one pass over active files → counts, our fee income
+  // by service type, and the agencies making up the pipeline.
+  const files = await prisma.propertyTransaction.findMany({
+    where: { ...txWhere, status: "active" },
+    select: {
+      ...FEE_INPUT_SELECT,
+      agencyId: true,
+      agency: { select: { name: true, feeTier: true, legacyOutsourcedFeePence: true } },
+    },
+  });
+
+  let selfManaged = 0, outsourced = 0, feeSelfPence = 0, feeOutsourcedPence = 0;
+  const byAgency = new Map<string, { name: string; count: number }>();
+  for (const tx of files) {
+    const fee = calculateProgressionFeePence(toFeeInput(tx));
+    if (tx.serviceType === "self_managed") { selfManaged++; feeSelfPence += fee; }
+    else { outsourced++; feeOutsourcedPence += fee; }
+    const cur = byAgency.get(tx.agencyId) ?? { name: tx.agency?.name ?? "Unknown agency", count: 0 };
+    cur.count++;
+    byAgency.set(tx.agencyId, cur);
+  }
+  const topAgencies = [...byAgency.values()].sort((a, b) => b.count - a.count).slice(0, 3);
+
+  return { selfManaged, outsourced, feeSelfPence, feeOutsourcedPence, topAgencies, agencyCount: byAgency.size };
 }
 
 // ── Attention items (active/overdue reminders) ────────────────────────────────

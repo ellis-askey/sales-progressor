@@ -84,14 +84,13 @@ export type FileFeesInput = {
   agencyOverride: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
 };
 
-export function calculateFileFeesPence(t: FileFeesInput): number {
-  const agentFeeCalcPence: number | null =
-    t.agentFeeAmount != null
-      ? t.agentFeeAmount
-      : t.agentFeePercent != null && t.purchasePrice != null
-        ? Math.round(t.purchasePrice * Number(t.agentFeePercent) / 100)
-        : null;
-
+// Our (Sales Progressor's) progression fee for a file — the revenue WE earn from
+// it, in pence. Zero for self-managed (self-progression is free), files marked
+// free-on-exchange / first-outsourced-free, and free-tier agencies. This is the
+// exact figure calculateFileFeesPence subtracts from the agency's net, extracted
+// (2026-09-18) so the hub can total our own pipeline revenue without re-deriving
+// the logic (and risking drift).
+export function calculateProgressionFeePence(t: FileFeesInput): number {
   const ourFee = t.serviceType === "self_managed"
     ? 0
     : t.assignedUser
@@ -101,8 +100,18 @@ export function calculateFileFeesPence(t: FileFeesInput): number {
         : 0;
 
   const agencyIsFree = t.agencyOverride?.feeTier === "free";
-  const progressorFeePence =
-    !t.freeOnExchange && !t.firstOutsourcedFree && !agencyIsFree ? ourFee : 0;
+  return !t.freeOnExchange && !t.firstOutsourcedFree && !agencyIsFree ? ourFee : 0;
+}
+
+export function calculateFileFeesPence(t: FileFeesInput): number {
+  const agentFeeCalcPence: number | null =
+    t.agentFeeAmount != null
+      ? t.agentFeeAmount
+      : t.agentFeePercent != null && t.purchasePrice != null
+        ? Math.round(t.purchasePrice * Number(t.agentFeePercent) / 100)
+        : null;
+
+  const progressorFeePence = calculateProgressionFeePence(t);
 
   return (
     (agentFeeCalcPence ?? 0)

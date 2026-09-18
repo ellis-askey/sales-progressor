@@ -21,7 +21,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import type { AgentVisibility } from "@/lib/services/agent";
 import {
-  getHubPipelineStats, getHubAttentionItems, getHubWins,
+  getHubPipelineStats, getHubPipelineHealth, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm,
@@ -852,9 +852,28 @@ async function PipelineHealthCard({
 }) {
   const pipelineStats = initialPipelineStats;
   const attentionItems = initialAttentionItems;
+  const health = await getHubPipelineHealth(ctx.vis);
   const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
   const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
   const { isAdmin, isProgressor } = ctx;
+
+  // Momentum: last 30 days vs the previous 30 (fair like-for-like, unlike a
+  // month-to-date comparison). Only shown with a real base (avoids "↑100%" off
+  // one exchange from zero).
+  const mom = health.exchangesPrev30 > 0
+    ? Math.round(((health.exchangesLast30 - health.exchangesPrev30) / health.exchangesPrev30) * 100)
+    : null;
+  const momText = mom == null ? null : `${mom >= 0 ? "↑" : "↓"}${Math.abs(mom)}%`;
+  // SLA colour by how good it actually is — never dress a low hit-rate as green.
+  const slaColor = health.within12WeekPct == null
+    ? "var(--agent-text-primary)"
+    : health.within12WeekPct >= 70
+      ? "var(--agent-success)"
+      : health.within12WeekPct >= 40
+        ? "var(--agent-warning)"
+        : "var(--agent-text-secondary)";
+  const showHealthStrip =
+    health.medianDaysToExchange != null || health.within12WeekPct != null || health.exchangesLast30 > 0;
 
   return (
     <SectionReveal order={3}>
@@ -905,12 +924,16 @@ async function PipelineHealthCard({
                 color: "var(--agent-text-primary)",
                 href: null,
                 delta: pipelineStats.comingUp.closingThisMonth.total > 0
-                  ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} this month`
+                  ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} closing this month`
                   : null,
                 deltaTone: "up" as const,
+                // Our own forecast revenue from this pipeline — internal only.
+                sub: isAdmin && pipelineStats.pipelineFeesPence > 0
+                  ? `≈ ${fmtCurrency(pipelineStats.pipelineFeesPence)} our fees`
+                  : null,
               },
-            ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat" }[]
-          ).map(({ value, label, color, href, delta, deltaTone }, i) => {
+            ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat"; sub?: string | null }[]
+          ).map(({ value, label, color, href, delta, deltaTone, sub }, i) => {
             const inner = (
               <>
                 <span style={{
@@ -939,6 +962,14 @@ async function PipelineHealthCard({
                     {delta}
                   </span>
                 )}
+                {sub && (
+                  <span style={{
+                    fontSize: 10, color: "var(--agent-coral-deep)",
+                    fontWeight: 600, textAlign: "center",
+                  }}>
+                    {sub}
+                  </span>
+                )}
               </>
             );
             const cellStyle: React.CSSProperties = {
@@ -962,6 +993,44 @@ async function PipelineHealthCard({
             );
           })}
         </div>
+
+        {/* Health strip — speed, SLA, momentum. Both roles (an agency sees its
+            own performance). Hidden until there's at least one exchange to read. */}
+        {showHealthStrip && (
+          <div style={{
+            borderTop: "1px solid var(--agent-border-subtle)",
+            marginTop: 14, paddingTop: 12,
+            display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
+          }}>
+            {health.medianDaysToExchange != null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
+                  {health.medianDaysToExchange}d
+                </span>
+                <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>median to exchange</span>
+              </div>
+            )}
+            {health.within12WeekPct != null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: slaColor, letterSpacing: "-0.01em" }}>
+                  {health.within12WeekPct}%
+                </span>
+                <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>within 12 wks</span>
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
+                {health.exchangesLast30}
+                {momText && (
+                  <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>
+                    {momText}
+                  </span>
+                )}
+              </span>
+              <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>exchanges (30 days)</span>
+            </div>
+          </div>
+        )}
 
         {/* Coming up strip */}
         <div style={{
@@ -1002,6 +1071,14 @@ async function PipelineHealthCard({
           >
             {pipelineStats.comingUp.completingThisWeek} completing this week
           </Link>
+          {isAdmin && pipelineStats.comingUp.feesThisWeekPence > 0 && (
+            <>
+              <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)", whiteSpace: "nowrap" }}>
+                {fmtCurrency(pipelineStats.comingUp.feesThisWeekPence)} fees this week
+              </span>
+            </>
+          )}
           <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
           <Link
             href="/agent/transactions?filter=closing-this-month"
@@ -1183,6 +1260,41 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
           </div>
         </div>
 
+        {/* Internal-only: where the fee income sits + who's on the platform.
+            Agencies never see our pricing or a cross-agency breakdown. */}
+        {isAdmin && (serviceSplit.feeSelfPence ?? 0) + (serviceSplit.feeOutsourcedPence ?? 0) > 0 && (
+          <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", marginTop: 12, paddingTop: 12 }}>
+            <p style={{ margin: "0 0 5px", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600 }}>
+              By our fee income
+            </p>
+            {(() => {
+              const self = serviceSplit.feeSelfPence ?? 0;
+              const out = serviceSplit.feeOutsourcedPence ?? 0;
+              const total = self + out;
+              const selfPct = total > 0 ? (self / total) * 100 : 0;
+              return (
+                <>
+                  <div style={{ height: 11, borderRadius: 999, overflow: "hidden", display: "flex", background: "var(--agent-border-subtle)" }}>
+                    <div style={{ width: `${selfPct}%`, background: "var(--agent-coral)" }} />
+                    <div style={{ width: `${100 - selfPct}%`, background: "var(--agent-warning)" }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 5, color: "var(--agent-text-secondary)" }}>
+                    <span>Self-managed {fmtCurrency(self)}</span>
+                    <span>Outsourced {fmtCurrency(out)}</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {isAdmin && serviceSplit.topAgencies && serviceSplit.topAgencies.length > 0 && (
+          <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+            Top: {serviceSplit.topAgencies.map((a) => `${a.name} (${a.count})`).join(" · ")}
+            {serviceSplit.agencyCount ? ` · across ${serviceSplit.agencyCount} ${serviceSplit.agencyCount === 1 ? "agency" : "agencies"}` : ""}
+          </p>
+        )}
+
         <div style={{
           borderTop: "0.5px solid var(--agent-border-subtle)",
           paddingTop: 12, marginTop: 12,
@@ -1234,7 +1346,9 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
             </div>
           ) : (
             <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
-              {isAdmin ? "All files are self-managed by their agencies." : "All files are self-managed."}
+              {isAdmin
+                ? "All files are self-managed by their agencies."
+                : `You're managing all ${serviceSplit.selfManaged} ${serviceSplit.selfManaged === 1 ? "file" : "files"} yourself. Hand any over to our team any time.`}
             </p>
           )}
         </div>
