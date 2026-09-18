@@ -1094,7 +1094,7 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
             {busiest && busiest.count > 0 && (
               <p style={{ margin: "10px 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>
                 Your biggest week is {busiestWhen}: {busiest.count} {busiest.count === 1 ? "exchange" : "exchanges"}
-                {busiest.valuePence > 0 && `, ${fmtCurrency(busiest.valuePence)}`}.
+                {busiest.feesPence > 0 && `, ${fmtCurrency(busiest.feesPence)} in fees`}.
               </p>
             )}
           </>

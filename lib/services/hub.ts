@@ -10,6 +10,7 @@ import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-a
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
+import { calculateFileFeesPence } from "@/lib/services/fees";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -1767,9 +1768,13 @@ export type WeekBucket = {
   count: number;
   isCurrentWeek: boolean;
   // Heat-band hover (2026-09-18): the count is printed on the chart now, so
-  // the popup shows what the chart can't — which properties and what value.
-  valuePence: number;
-  files: { address: string; pricePence: number | null }[];
+  // the popup shows what the chart can't — which properties and what they're
+  // worth to the agency. feesPence is the property-file Fees card's number
+  // (commission + referrals − our fee), NOT the sale price (Ellis,
+  // 2026-09-18) — the forecast is "what you'll earn", not "what's changing
+  // hands".
+  feesPence: number;
+  files: { address: string; feePence: number }[];
 };
 
 export async function getHubWeeklyForecast(
@@ -1814,7 +1819,16 @@ export async function getHubWeeklyForecast(
         },
       },
     },
-    select: { overridePredictedDate: true, expectedExchangeDate: true, propertyAddress: true, purchasePrice: true },
+    select: {
+      overridePredictedDate: true, expectedExchangeDate: true, propertyAddress: true,
+      // Per-file fee inputs — same sum as the property-file Fees card
+      // (calculateFileFeesPence). Commission + referrals − our fee.
+      purchasePrice: true, agentFeeAmount: true, agentFeePercent: true,
+      referralFee: true, brokerReferralFee: true, onwardBrokerReferralFee: true,
+      serviceType: true, freeOnExchange: true, firstOutsourcedFree: true,
+      assignedUser: { select: { clientType: true, legacyFee: true } },
+      agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
+    },
   });
 
   return weeks.map(({ start, end, label, isCurrentWeek }) => {
@@ -1822,15 +1836,31 @@ export async function getHubWeeklyForecast(
       const d = tx.overridePredictedDate ?? tx.expectedExchangeDate;
       return d && d >= start && d <= end;
     });
+    const files = inWeek
+      .map((tx) => ({
+        address: tx.propertyAddress,
+        feePence: calculateFileFeesPence({
+          purchasePrice: tx.purchasePrice,
+          agentFeeAmount: tx.agentFeeAmount,
+          agentFeePercent: tx.agentFeePercent,
+          referralFee: tx.referralFee,
+          brokerReferralFee: tx.brokerReferralFee,
+          onwardBrokerReferralFee: tx.onwardBrokerReferralFee,
+          serviceType: tx.serviceType,
+          freeOnExchange: tx.freeOnExchange,
+          firstOutsourcedFree: tx.firstOutsourcedFree,
+          assignedUser: tx.assignedUser,
+          agencyOverride: tx.agency,
+        }),
+      }))
+      // Biggest earner first, so the popup's top three are the ones worth knowing.
+      .sort((a, b) => b.feePence - a.feePence);
     return {
       label,
       isCurrentWeek,
       count: inWeek.length,
-      valuePence: inWeek.reduce((s, tx) => s + (tx.purchasePrice ?? 0), 0),
-      // Biggest first, so the popup's top three are the ones worth knowing.
-      files: inWeek
-        .map((tx) => ({ address: tx.propertyAddress, pricePence: tx.purchasePrice ?? null }))
-        .sort((a, b) => (b.pricePence ?? 0) - (a.pricePence ?? 0)),
+      feesPence: files.reduce((s, f) => s + f.feePence, 0),
+      files,
     };
   });
 }

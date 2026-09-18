@@ -59,11 +59,11 @@ const DIARY_ITEMS = [
 ];
 
 const FORECAST: WeekBucket[] = [
-  { label: "This wk", count: 2, isCurrentWeek: true,  valuePence: 0, files: [] },
-  { label: "Wk 2",    count: 5, isCurrentWeek: false, valuePence: 0, files: [] },
-  { label: "Wk 3",    count: 3, isCurrentWeek: false, valuePence: 0, files: [] },
-  { label: "Wk 4",    count: 1, isCurrentWeek: false, valuePence: 0, files: [] },
-  { label: "+30",     count: 0, isCurrentWeek: false, valuePence: 0, files: [] },
+  { label: "This wk", count: 2, isCurrentWeek: true,  feesPence: 0, files: [] },
+  { label: "Wk 2",    count: 5, isCurrentWeek: false, feesPence: 0, files: [] },
+  { label: "Wk 3",    count: 3, isCurrentWeek: false, feesPence: 0, files: [] },
+  { label: "Wk 4",    count: 1, isCurrentWeek: false, feesPence: 0, files: [] },
+  { label: "+30",     count: 0, isCurrentWeek: false, feesPence: 0, files: [] },
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */

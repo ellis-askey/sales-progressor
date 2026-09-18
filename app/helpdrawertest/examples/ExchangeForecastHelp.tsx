@@ -2,14 +2,14 @@
 
 import { ForecastHeatBand } from "@/components/hub/HubCharts";
 
-// Prices in pence: £345,000 → 34_500_000.
+// Fees in pence (commission + referrals − our fee): £4,140 → 414_000.
 const p = (pounds: number) => pounds * 100;
 const FORECAST = [
-  { label: "This wk", count: 2, isCurrentWeek: true,  valuePence: p(610_000),   files: [{ address: "14 Maple Drive, Bristol", pricePence: p(345_000) }, { address: "7 Orchard Road, Bath", pricePence: p(265_000) }] },
-  { label: "+1w",     count: 4, isCurrentWeek: false, valuePence: p(1_240_000), files: [{ address: "22 Clifton Park, Bristol", pricePence: p(420_000) }, { address: "33 Park Street, Bristol", pricePence: p(380_000) }, { address: "8 Victoria Road, Bath", pricePence: p(240_000) }, { address: "5 Harbour Way, Bristol", pricePence: p(200_000) }] },
-  { label: "+2w",     count: 1, isCurrentWeek: false, valuePence: p(295_000),   files: [{ address: "41 Redland Grove, Bristol", pricePence: p(295_000) }] },
-  { label: "+3w",     count: 3, isCurrentWeek: false, valuePence: p(880_000),   files: [{ address: "12 Sydney Place, Bath", pricePence: p(360_000) }, { address: "3 Cotham Hill, Bristol", pricePence: p(280_000) }, { address: "19 Wells Road, Bath", pricePence: p(240_000) }] },
-  { label: "+4w",     count: 1, isCurrentWeek: false, valuePence: p(310_000),   files: [{ address: "27 Gloucester Road, Bristol", pricePence: p(310_000) }] },
+  { label: "This wk", count: 2, isCurrentWeek: true,  feesPence: p(7_320),  files: [{ address: "14 Maple Drive, Bristol", feePence: p(4_140) }, { address: "7 Orchard Road, Bath", feePence: p(3_180) }] },
+  { label: "+1w",     count: 4, isCurrentWeek: false, feesPence: p(14_880), files: [{ address: "22 Clifton Park, Bristol", feePence: p(5_040) }, { address: "33 Park Street, Bristol", feePence: p(4_560) }, { address: "8 Victoria Road, Bath", feePence: p(2_880) }, { address: "5 Harbour Way, Bristol", feePence: p(2_400) }] },
+  { label: "+2w",     count: 1, isCurrentWeek: false, feesPence: p(3_540),  files: [{ address: "41 Redland Grove, Bristol", feePence: p(3_540) }] },
+  { label: "+3w",     count: 3, isCurrentWeek: false, feesPence: p(10_560), files: [{ address: "12 Sydney Place, Bath", feePence: p(4_320) }, { address: "3 Cotham Hill, Bristol", feePence: p(3_360) }, { address: "19 Wells Road, Bath", feePence: p(2_880) }] },
+  { label: "+4w",     count: 1, isCurrentWeek: false, feesPence: p(3_720),  files: [{ address: "27 Gloucester Road, Bristol", feePence: p(3_720) }] },
 ];
 
 export function ExchangeForecastHelpExample(_props: Record<string, string>) {

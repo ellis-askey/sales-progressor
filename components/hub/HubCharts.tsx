@@ -99,6 +99,14 @@ export function MomentumRing({ percent }: { percent: number | null }) {
 // PipelineStageHover) but now shows what the chart can't: the properties due
 // that week (biggest first) and their combined value.
 
+// Popup week phrase: "this week", "+1 week", "+4 weeks" (never the cell's
+// terse "+4w" — Ellis, 2026-09-18).
+function weekPhrase(w: WeekBucket): string {
+  if (w.isCurrentWeek) return "this week";
+  const n = parseInt(w.label.replace(/\D/g, ""), 10) || 0;
+  return n === 1 ? "+1 week" : `+${n} weeks`;
+}
+
 export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
   const isDark = useIsDarkTheme();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -128,7 +136,7 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
             <button
               key={w.label}
               type="button"
-              aria-label={`${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.valuePence > 0 ? `, ${fmtCurrencyPence(w.valuePence)}` : ""}`}
+              aria-label={`${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.feesPence > 0 ? `, ${fmtCurrencyPence(w.feesPence)} in fees` : ""}`}
               onMouseEnter={() => !zero && setOpenIdx(i)}
               onMouseLeave={() => setOpenIdx((cur) => (cur === i ? null : cur))}
               onFocus={() => !zero && setOpenIdx(i)}
@@ -180,14 +188,14 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
           }}
         >
           <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
-            {open.valuePence > 0
-              ? `${fmtCurrencyPence(open.valuePence)} due ${open.isCurrentWeek ? "this week" : open.label}`
-              : `${open.count} ${open.count === 1 ? "exchange" : "exchanges"} ${open.isCurrentWeek ? "this week" : open.label}`}
+            {open.feesPence > 0
+              ? `${fmtCurrencyPence(open.feesPence)} in fees due ${weekPhrase(open)}`
+              : `${open.count} ${open.count === 1 ? "exchange" : "exchanges"} ${weekPhrase(open)}`}
           </p>
           {open.files.slice(0, 3).map((f) => (
             <p key={f.address} style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {f.address}
-              {f.pricePence !== null && ` · ${fmtCurrencyPence(f.pricePence)}`}
+              {f.feePence > 0 && ` · ${fmtCurrencyPence(f.feePence)}`}
             </p>
           ))}
           {open.files.length > 3 && (

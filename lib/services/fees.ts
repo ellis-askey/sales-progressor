@@ -61,6 +61,58 @@ export function calculateOurFee(
   return { fee: totalPence, label: formatFee(totalPence) };
 }
 
+// ─── Per-file net fees (what this file is worth to the agency) ───────────────
+// The property-file Fees card's headline sum, extracted (2026-09-18) so the
+// hub's exchange forecast can total the same number per week. Mirrors
+// AgentFileSidebar exactly: agent commission (fixed amount, or percent of the
+// sale price, as entered) + solicitor referral + buyer's broker referral +
+// seller's onward-broker referral, minus our progression fee — which is zero
+// for self-managed files, files marked free-on-exchange / first-outsourced-
+// free, and free-plan agencies.
+
+export type FileFeesInput = {
+  purchasePrice: number | null;      // pence
+  agentFeeAmount: number | null;     // pence
+  agentFeePercent: unknown;          // Prisma Decimal | number | null
+  referralFee: number | null;
+  brokerReferralFee: number | null;
+  onwardBrokerReferralFee: number | null;
+  serviceType: "self_managed" | "outsourced";
+  freeOnExchange: boolean;
+  firstOutsourcedFree: boolean;
+  assignedUser: { clientType: ClientType; legacyFee: number | null } | null;
+  agencyOverride: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
+};
+
+export function calculateFileFeesPence(t: FileFeesInput): number {
+  const agentFeeCalcPence: number | null =
+    t.agentFeeAmount != null
+      ? t.agentFeeAmount
+      : t.agentFeePercent != null && t.purchasePrice != null
+        ? Math.round(t.purchasePrice * Number(t.agentFeePercent) / 100)
+        : null;
+
+  const ourFee = t.serviceType === "self_managed"
+    ? 0
+    : t.assignedUser
+      ? calculateOurFee(t.assignedUser.clientType, t.assignedUser.legacyFee, t.purchasePrice, t.agencyOverride).fee ?? 0
+      : t.agencyOverride?.feeTier === "legacy" && t.agencyOverride.legacyOutsourcedFeePence != null
+        ? t.agencyOverride.legacyOutsourcedFeePence
+        : 0;
+
+  const agencyIsFree = t.agencyOverride?.feeTier === "free";
+  const progressorFeePence =
+    !t.freeOnExchange && !t.firstOutsourcedFree && !agencyIsFree ? ourFee : 0;
+
+  return (
+    (agentFeeCalcPence ?? 0)
+    + (t.referralFee ?? 0)
+    + (t.brokerReferralFee ?? 0)
+    + (t.onwardBrokerReferralFee ?? 0)
+    - progressorFeePence
+  );
+}
+
 /**
  * Format pence as pounds sterling string.
  */
