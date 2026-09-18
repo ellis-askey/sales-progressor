@@ -60,18 +60,8 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
           <NotePencil size={24} weight="bold" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Exchange dates passed</span>
-            <span
-              style={{
-                fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px",
-                borderRadius: 999, background: "rgba(var(--agent-warning-rgb),0.12)",
-                color: "var(--agent-warning)", display: "inline-flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              {items.length}
-            </span>
-          </span>
+          {/* No count badge: the subtitle already opens with the number. */}
+          <span className="agent-card-title-emphasis" style={{ display: "block", margin: 0 }}>Exchange dates passed</span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
             {items.length === 1 ? "1 file is past its expected exchange date" : `${items.length} files are past their expected exchange dates`}. Set a new date, recalibrate the estimate, or snooze while you chase.
           </span>
