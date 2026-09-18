@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { buildClientUpdateEmail } from "@/lib/emails/client-update-email";
+import { buildGreeting } from "@/lib/portal-copy";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -177,10 +179,10 @@ export async function sendProgressorPortalReply(
   content: string,
   progressorId: string,
   progressorName: string,
-  // email defaults to true (existing callers unchanged). The "Draft for
-  // everyone" flow passes false to post to the portal without emailing, unless
-  // the user flips the "Also email" toggle.
-  options?: { email?: boolean },
+  // The AI draft this update started as, when it began as a generated client
+  // update. Stored on the PortalMessage so the update voice-learning loop can
+  // compare draft vs sent. Omitted for two-way replies (nothing to learn from).
+  generatedText?: string | null,
 ): Promise<void> {
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, propertyTransactionId: transactionId },
@@ -190,7 +192,7 @@ export async function sendProgressorPortalReply(
       email: true,
       roleType: true,
       portalToken: true,
-      transaction: { select: { propertyAddress: true, activeBuyerRoundId: true } },
+      transaction: { select: { propertyAddress: true, activeBuyerRoundId: true, agency: { select: { name: true } } } },
     },
   });
   if (!contact) throw new Error("Contact not found");
@@ -202,6 +204,7 @@ export async function sendProgressorPortalReply(
       content,
       fromClient: false,
       sentById:   progressorId,
+      generatedText: generatedText ?? null,
       // Phase 1 commit 4d — same rule as the from-client path above.
       buyerRoundId: contact.roleType === "purchaser" ? contact.transaction.activeBuyerRoundId : null,
     },
@@ -211,42 +214,48 @@ export async function sendProgressorPortalReply(
     transactionId,
   });
 
-  const base    = process.env.NEXTAUTH_URL ?? "";
-  const address = contact.transaction.propertyAddress;
+  const base      = process.env.NEXTAUTH_URL ?? "";
+  const address   = contact.transaction.propertyAddress;
+  const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
 
+  // The portal feed entry above is the record; every client always gets it.
+  // On top, exactly ONE alert: a phone notification if it actually lands on
+  // one of their devices, otherwise an email. Never both. A subscription that
+  // has gone stale (uninstalled / permission revoked) delivers nothing, so we
+  // fall back to email — this is "working notifications right now", not
+  // "installed once".
+  let alerted = false;
   if (contact.portalToken) {
-    pushToContact(contactId, {
+    const { delivered } = await pushToContact(contactId, {
       title: `Message from ${progressorName}`,
       body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
-      url:   `${base}/portal/${contact.portalToken}/updates`,
-    }).catch(() => {});
+      url:   portalUrl,
+    });
+    alerted = delivered > 0;
   }
 
-  if (options?.email !== false && contact.email && contact.portalToken) {
-    const portalUrl = `${base}/portal/${contact.portalToken}/updates`;
+  if (!alerted && contact.email && contact.portalToken) {
     const sender = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+    const theme = sender.theme ?? resolveEmailTheme(null);
+    const saleWord = contact.roleType === "vendor" ? "sale" : "purchase";
+    // Same branded template as the comms-panel update, so every written client
+    // update looks the same and carries the agency's colours.
+    const email = buildClientUpdateEmail({
+      agencyName: contact.transaction.agency?.name ?? "",
+      address,
+      saleWord,
+      greeting: buildGreeting(contact.name),
+      content,
+      portalUrl,
+      theme,
+    });
     sendEmail({
       from:    sender.from,
       replyTo: sender.replyTo,
       to:      contact.email,
-      subject: `Message from ${progressorName}: ${address}`,
-      text: [
-        `Hi ${contact.name},`,
-        "",
-        `${progressorName} sent you a message about ${address}:`,
-        "",
-        `"${content}"`,
-        "",
-        `View your portal: ${portalUrl}`,
-      ].join("\n"),
-      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader(`There's a reply waiting for you about ${address}.`)}
-<p style="margin:0 0 16px;font-size:15px">Hi ${contact.name},</p>
-<div style="margin:0 0 20px;padding:16px 20px;background:#F8F9FB;border-radius:12px;border-left:4px solid #3B82F6">
-  <p style="margin:0 0 4px;font-size:12px;color:#8b91a3">${address} · ${progressorName}</p>
-  <p style="margin:0;font-size:15px;color:#1a1d29;line-height:1.5">${content}</p>
-</div>
-<p><a href="${portalUrl}" style="display:inline-block;background:#3B82F6;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
-</body></html>`,
+      subject: email.subject,
+      text:    email.text,
+      html:    email.html,
     }).catch(() => {});
   }
 }

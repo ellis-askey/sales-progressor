@@ -20,16 +20,27 @@ export type PushPayload = {
   url: string;
 };
 
-export async function pushToContact(contactId: string, payload: PushPayload): Promise<void> {
+// Returns how many of the contact's devices the notification actually reached.
+// Callers that need "did this client get alerted?" (e.g. the feed-always,
+// one-alert delivery rule in portal-messages.ts) read `delivered`: 0 means
+// notifications aren't live for them right now — no subscription, VAPID not
+// configured, or every subscription was stale — so the caller can fall back
+// to email. Stale subscriptions (404/410) are pruned as before.
+export async function pushToContact(
+  contactId: string,
+  payload: PushPayload
+): Promise<{ delivered: number }> {
   const wp = getWebPush();
-  if (!wp) return;
+  if (!wp) return { delivered: 0 };
 
   const subs = await prisma.portalPushSubscription.findMany({
     where: { contactId },
     select: { id: true, endpoint: true, p256dh: true, auth: true },
   });
+  if (subs.length === 0) return { delivered: 0 };
 
   const stale: string[] = [];
+  let delivered = 0;
 
   await Promise.allSettled(
     subs.map(async (sub) => {
@@ -38,6 +49,7 @@ export async function pushToContact(contactId: string, payload: PushPayload): Pr
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload)
         );
+        delivered += 1;
       } catch (err: unknown) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) stale.push(sub.id);
@@ -48,6 +60,8 @@ export async function pushToContact(contactId: string, payload: PushPayload): Pr
   if (stale.length > 0) {
     await prisma.portalPushSubscription.deleteMany({ where: { id: { in: stale } } });
   }
+
+  return { delivered };
 }
 
 export async function pushToUser(userId: string, payload: PushPayload): Promise<void> {

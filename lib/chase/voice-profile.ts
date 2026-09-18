@@ -24,7 +24,7 @@ const CANDIDATE_FETCH = 40;
 
 const MODEL = "claude-haiku-4-5-20251001";
 
-type Pair = { draft: string; final: string; transactionId: string | null };
+export type Pair = { draft: string; final: string; transactionId: string | null };
 
 // Recent AI-drafted chases this user actually EDITED before sending. Prisma can't
 // compare two columns in a where, so we fetch recent AI candidates and filter.
@@ -47,7 +47,7 @@ function escapeRegExp(s: string): string {
 // Strip the property address, client/solicitor names and firm names out of the
 // pairs before they go anywhere near the model. Imperfect but removes the obvious
 // PII; the distil prompt also forbids reproducing anything redacted.
-async function redactPairs(pairs: Pair[]): Promise<Array<{ draft: string; final: string }>> {
+export async function redactPairs(pairs: Pair[]): Promise<Array<{ draft: string; final: string }>> {
   const txIds = [...new Set(pairs.map((p) => p.transactionId).filter((x): x is string => !!x))];
   const txs = txIds.length
     ? await prisma.propertyTransaction.findMany({

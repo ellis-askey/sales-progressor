@@ -35,7 +35,9 @@ export async function sendDraftClientUpdateAction(input: {
   transactionId: string;
   contactIds: string[];
   content: string;
-  alsoEmail: boolean;
+  // The AI draft this update started as, so edits feed the update voice profile.
+  // Omit when the content wasn't AI-generated.
+  generatedText?: string;
 }): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -62,7 +64,7 @@ export async function sendDraftClientUpdateAction(input: {
   let count = 0;
   for (const c of contacts) {
     try {
-      await sendProgressorPortalReply(input.transactionId, c.id, text, session.user.id, progressorName, { email: input.alsoEmail });
+      await sendProgressorPortalReply(input.transactionId, c.id, text, session.user.id, progressorName, input.generatedText ?? null);
       count++;
     } catch {
       // Skip a single failed recipient; the rest still go.

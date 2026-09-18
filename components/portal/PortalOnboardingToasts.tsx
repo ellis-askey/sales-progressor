@@ -51,23 +51,29 @@ function isStandalone(): boolean {
   );
 }
 
-type InstallVariant = "A1" | "A2" | "A3";
+// A_UPD is the "you just got news, want to hear it first next time?" ask, shown
+// when there's a fresh update this visit. Notifications-forward wording (A), and
+// the value moment clients feel most. A1-A3 are the original install nudges.
+type InstallVariant = "A_UPD" | "A1" | "A2" | "A3";
 type PushVariant = "B1" | "B2";
 
 function decideInstall(
   asks: AskState,
-  o: { installed: boolean; hasConfirmedStep: boolean; isReturningVisit: boolean; isNearExchange: boolean },
+  o: { installed: boolean; hasConfirmedStep: boolean; isReturningVisit: boolean; isNearExchange: boolean; hasFreshUpdate: boolean },
 ): InstallVariant | null {
   if (o.installed || asks.n >= 3) return null;
   if (asks.n > 0) {
     const gap = asks.n === 1 ? 14 * DAY : 3 * DAY;
     if (Date.now() - asks.at < gap) return null;
   }
-  // First ask needs a real reason: a value moment or a near-exchange nudge.
-  if (asks.n === 0 && !(o.hasConfirmedStep || o.isReturningVisit || o.isNearExchange)) return null;
+  // First ask needs a real reason: a value moment, a fresh update to read, or a
+  // near-exchange nudge.
+  if (asks.n === 0 && !(o.hasConfirmedStep || o.isReturningVisit || o.isNearExchange || o.hasFreshUpdate)) return null;
   // The third ask is reserved for the near-exchange moment.
   if (asks.n === 2 && !o.isNearExchange) return null;
-  return o.isNearExchange ? "A3" : asks.n === 0 ? "A1" : "A2";
+  // A fresh update is the strongest moment to ask (they just felt the value), so
+  // it wins the wording unless we're right on top of exchange.
+  return o.isNearExchange ? "A3" : o.hasFreshUpdate ? "A_UPD" : asks.n === 0 ? "A1" : "A2";
 }
 
 function decidePush(
@@ -81,7 +87,9 @@ function decidePush(
   return o.isNearExchange && asks.n > 0 ? "B2" : "B1";
 }
 
-function installCopy(v: InstallVariant, saleWord: string): { h: string; b: string } {
+function installCopy(v: InstallVariant, saleWord: string, addressShort: string): { h: string; b: string } {
+  // Wording A (approved): notifications-forward, fired right after a fresh update.
+  if (v === "A_UPD") return { h: "Want a heads-up the moment there's news?", b: `Add ${addressShort} to your home screen and we'll message you when something moves. No checking in, no missed updates.` };
   if (v === "A2") return { h: "Keep your move a tap away", b: `You've been checking in on your ${saleWord}. Save it to your home screen so it's always there, and we can flag anything new.` };
   if (v === "A3") return { h: "Exchange is getting close", b: "Save this to your home screen so you'll know the moment contracts exchange, without hunting for the link." };
   return { h: "Keep your move one tap away", b: "Save this to your home screen so it's always here when you want to check, and we can let you know the moment something changes." };
@@ -95,16 +103,22 @@ export function PortalOnboardingToasts({
   token,
   vapidPublicKey,
   saleWord,
+  addressShort,
   hasConfirmedStep,
   isReturningVisit,
   isNearExchange,
+  hasFreshUpdate,
 }: {
   token: string;
   vapidPublicKey: string;
   saleWord: string;
+  addressShort: string;
   hasConfirmedStep: boolean;
   isReturningVisit: boolean;
   isNearExchange: boolean;
+  // A fresh update is waiting this visit (unread items). Drives the "want a
+  // heads-up the moment there's news?" ask (variant A_UPD).
+  hasFreshUpdate: boolean;
 }) {
   const [isIOS, setIsIOS] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -138,7 +152,7 @@ export function PortalOnboardingToasts({
 
     // Install is the gate — try it first.
     if (isIOS || deferredPrompt) {
-      const v = decideInstall(readAsks(INSTALL_ASKS_KEY), { installed, hasConfirmedStep, isReturningVisit, isNearExchange });
+      const v = decideInstall(readAsks(INSTALL_ASKS_KEY), { installed, hasConfirmedStep, isReturningVisit, isNearExchange, hasFreshUpdate });
       if (v) { showPrompt("install", v); return; }
     }
     // Notifications only once installed.
@@ -148,7 +162,7 @@ export function PortalOnboardingToasts({
     const pv = decidePush(readAsks(PUSH_ASKS_KEY), { installed, subscribed, supported, denied, isNearExchange });
     if (pv) showPrompt("push", pv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, active, isIOS, deferredPrompt, hasConfirmedStep, isReturningVisit, isNearExchange]);
+  }, [ready, active, isIOS, deferredPrompt, hasConfirmedStep, isReturningVisit, isNearExchange, hasFreshUpdate]);
 
   // Fade up when something becomes active.
   useEffect(() => {
@@ -228,8 +242,11 @@ export function PortalOnboardingToasts({
 
   if (!active) return null;
   const copy = active.kind === "install"
-    ? installCopy(active.variant as InstallVariant, saleWord)
+    ? installCopy(active.variant as InstallVariant, saleWord, addressShort)
     : pushCopy(active.variant as PushVariant, saleWord);
+  // The fresh-update ask is framed around notifications, so it leads with the
+  // bell and a "keep me posted" action even though installing is the first step.
+  const isUpdateAsk = active.kind === "install" && active.variant === "A_UPD";
 
   return (
     <>
@@ -237,10 +254,10 @@ export function PortalOnboardingToasts({
         {active.kind === "install" ? (
           <PromptCard
             accent={P.primary}
-            icon={<InstallIcon />}
+            icon={isUpdateAsk ? <BellIcon /> : <InstallIcon />}
             heading={copy.h}
             body={copy.b}
-            primaryLabel={isIOS ? "Show me how" : "Install"}
+            primaryLabel={isUpdateAsk ? "Keep me posted" : isIOS ? "Show me how" : "Install"}
             onPrimary={handleInstallPrimary}
             onDismiss={dismissActive}
           />

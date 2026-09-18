@@ -43,6 +43,7 @@ import { buildEnquiryChaseEmail } from "@/lib/enquiries/chase-email";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "@/lib/enquiries/raise-chase-email";
 import { buildExchangeDayClientMorningEmail, buildExchangeDayClientAuthorityEmail } from "@/lib/exchange-day/emails";
 import { buildPortalMessage } from "@/lib/emails/portal-message";
+import { buildClientUpdateEmail } from "@/lib/emails/client-update-email";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { buildChaseSignatureHtml, buildChaseSignatureText } from "@/lib/email/chase-signature";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
@@ -931,28 +932,24 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
     id: "comms-update",
     category: "client",
     name: "Update on your sale (comms)",
-    description: "A free-text update an agent posts to a client's timeline.",
-    trigger: "An agent sends a visible update from the file's comms panel.",
+    description: "A free-text update a person posts to a client: the comms panel, Draft for everyone, and the after-chase keep-posted updates all use this one branded template.",
+    trigger: "An agent or progressor sends a written update to a client (comms panel, Draft for everyone, keep-the-other-side-posted, or a portal reply).",
     axes: ["side", "theme"],
     senderKind: "client_personal",
     signatureBehaviour: "none",
     render: (s) => {
-      // Mirrors the inline body in lib/services/comms.ts.
-      const theme = catalogueTheme(s.theme);
-      const agency = FIXTURE_AGENCY.name;
-      const address = FIXTURE_PROPERTY.address;
-      const content = "Quick note to say the searches are back and everything looks clear. Your solicitor is reviewing them now and we'll be in touch as things progress.";
-      const portalUrl = `${PORTAL}/updates`;
-      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${theme.buttonBg}">${agency}</p>
-<p style="margin:0 0 20px;font-size:14px;color:#4a5162">${address}</p>
-<p style="margin:0 0 16px;font-size:15px">${greeting(s.side)}</p>
-<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#8b91a3;text-transform:uppercase;letter-spacing:0.06em">New update</p>
-<div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px;font-size:14px;line-height:1.6;color:#1a1d29;white-space:pre-wrap">${content}</div>
-<p><a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">You're receiving this because you have a ${saleWord(s.side)} in progress with ${agency}.</p>
-</body></html>`;
-      return { subject: `Update on your ${saleWord(s.side)}: ${address}`, html };
+      // Renders through the real shared builder, so the catalogue can't drift
+      // from what actually sends (lib/emails/client-update-email.ts).
+      const email = buildClientUpdateEmail({
+        agencyName: FIXTURE_AGENCY.name,
+        address: FIXTURE_PROPERTY.address,
+        saleWord: saleWord(s.side),
+        greeting: greeting(s.side),
+        content: "Quick note to say the searches are back and everything looks clear. Your solicitor is reviewing them now and we'll be in touch as things progress.",
+        portalUrl: `${PORTAL}/updates`,
+        theme: catalogueTheme(s.theme),
+      });
+      return { subject: email.subject, html: email.html };
     },
   },
   {

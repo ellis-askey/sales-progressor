@@ -272,6 +272,14 @@ model User {
   chaseVoiceProfileBuiltAt DateTime?
   chaseVoiceProfileSamples Int       @default(0)
 
+  // Client-UPDATE voice learning. Kept SEPARATE from the chase profile above so
+  // the warm client-update voice, the chase voice and the blunt internal note
+  // voice never cross-contaminate. Learned from (draft -> sent) edits on client
+  // updates (see lib/chase/update-voice-profile.ts); null until enough edits.
+  updateVoiceProfile        String?
+  updateVoiceProfileBuiltAt DateTime?
+  updateVoiceProfileSamples Int       @default(0)
+
   emailVerified          DateTime?
   image                  String?
   // Focal point (percent) for cropping `image` into circular avatars, so a
@@ -1021,6 +1029,12 @@ model PortalMessage {
   fromClient    Boolean  @default(true)
   sentById      String?
   createdAt     DateTime @default(now())
+
+  // The AI draft this message started as, when it began as a generated client
+  // update the progressor may have edited before sending. Null for client-sent
+  // messages and two-way replies. Read only by the update voice-learning loop
+  // (lib/chase/update-voice-profile.ts) to compare draft vs sent; never shown.
+  generatedText String?
 
   // Phase 0 shadow attribution. Not read anywhere yet.
   buyerRoundId String?

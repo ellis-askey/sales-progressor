@@ -285,9 +285,11 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
             token={token}
             vapidPublicKey={vapidPublicKey}
             saleWord={saleWord}
+            addressShort={propertyAddress.split(",")[0] ?? propertyAddress}
             hasConfirmedStep={hasConfirmedStep}
             isReturningVisit={isReturningVisit}
             isNearExchange={isNearExchange}
+            hasFreshUpdate={unreadCount > 0}
           />
         </div>
       )}

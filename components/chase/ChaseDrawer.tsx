@@ -8,6 +8,7 @@ import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, Care
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
+import { ChaseSentOffers, type SentOffersCtx } from "@/components/chase/ChaseSentOffers";
 import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
@@ -311,6 +312,9 @@ export function ChaseDrawer({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useAgentToast();
   const [generatedContext, setGeneratedContext] = useState<{ primaryContact: { name: string; role: string } | null } | null>(null);
+  // Once a chase is sent, the drawer settles into the "Sent ✓" offers state
+  // instead of closing (see enterSentState + ChaseSentOffers).
+  const [sentCtx, setSentCtx] = useState<SentOffersCtx | null>(null);
 
   // Collapsible "which steps" list for a Chase all (animates open/closed).
   const [stepsOpen, setStepsOpen] = useState(false);
@@ -532,8 +536,7 @@ export function ChaseDrawer({
       const query = params.toString().replace(/\+/g, "%20");
       window.location.href = `mailto:${selectedRecipient.email}?${query}`;
       toast.success("Opened in your email");
-      onSent();
-      onClose();
+      enterSentState();
     } catch {
       setError("Couldn't open your email. Try again.");
     } finally {
@@ -595,6 +598,32 @@ export function ChaseDrawer({
     } finally {
       if (generationIdRef.current === genId) setIsGenerating(false);
     }
+  }
+
+  // After a successful send, drop into the "Sent ✓" state and offer the
+  // keep-others-in-the-loop updates instead of closing straight away. Context is
+  // captured from what actually went out (recipient, side, whether the same-side
+  // client was CC'd, the sent text) so the follow-ups are true to the chase.
+  // See docs/active/keep-other-side-posted/00-spec.md.
+  function enterSentState() {
+    const chasedRole = recipientIsSolicitor ? "solicitor" : (selectedRecipient?.roleType ?? "vendor");
+    const chasedSide: "vendor" | "purchaser" = recipientIsSolicitor
+      ? ((selectedRecipient?.side ?? "vendor") as "vendor" | "purchaser")
+      : selectedRecipient?.roleType === "purchaser" || selectedRecipient?.roleType === "broker"
+        ? "purchaser"
+        : "vendor";
+    const sameSideCcd = !!(recipientIsSolicitor && showCcToggle && ccOn && clientCcContacts.length > 0);
+    const taskIds = isMulti ? milestones!.map((m) => m.chaseTaskId) : [chaseTaskId];
+    setSentCtx({
+      transactionId,
+      chaseTaskIds: taskIds,
+      sentText: htmlToText(message),
+      chasedRole,
+      chasedSide,
+      recipientContactId: recipientIsSolicitor ? null : (selectedRecipient?.id ?? null),
+      sameSideCcd,
+      recipientName: selectedRecipient?.name ?? "",
+    });
   }
 
   async function handleSend(): Promise<void> {
@@ -688,10 +717,9 @@ export function ChaseDrawer({
         }
       }
 
-      // Toast first so it lands in the same beat as the drawer close.
+      // Chase is away. Settle into the "Sent ✓" offers state rather than closing.
       toast.success("Chase sent");
-      onSent();
-      onClose();
+      enterSentState();
     } catch {
       setError("Couldn't send. Try again.");
       toast.error("Couldn't send chase. Try again or check the recipient");
@@ -711,7 +739,7 @@ export function ChaseDrawer({
       <div
         className="absolute inset-0"
         style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)", animation: "agent-backdrop-in 200ms ease both" }}
-        onClick={doClose}
+        onClick={() => (sentCtx ? onSent() : doClose())}
       />
 
       {/* Panel */}
@@ -730,10 +758,10 @@ export function ChaseDrawer({
         {/* ── Header — coral band ─────────────────────────────────── */}
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <SheetBandHeader title="Send chase" />
+            <SheetBandHeader title={sentCtx ? "Chase sent" : "Send chase"} />
           </div>
           <button
-            onClick={doClose}
+            onClick={() => (sentCtx ? onSent() : doClose())}
             aria-label="Close"
             className="agent-icon-btn agent-icon-btn-sm"
             style={{ color: "rgba(255,255,255,0.85)", background: "transparent" }}
@@ -744,6 +772,10 @@ export function ChaseDrawer({
           </button>
         </div>
 
+        {sentCtx ? (
+          <ChaseSentOffers ctx={sentCtx} onFinish={onSent} />
+        ) : (
+        <>
         {/* ── Scrollable config + message area ───────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
@@ -1328,6 +1360,8 @@ export function ChaseDrawer({
                 })()}
           </p>
         </div>
+        </>
+        )}
       </div>
     </div>,
     document.body

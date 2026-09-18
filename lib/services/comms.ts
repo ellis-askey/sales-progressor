@@ -10,6 +10,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { buildClientUpdateEmail } from "@/lib/emails/client-update-email";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -1288,7 +1289,7 @@ export async function importWhatsAppChat(
     return { inserted: 0, skipped: 0, importBatchId: "" };
   }
   if (messages.length > 500) {
-    throw new Error("Too many messages — maximum per import is 500");
+    throw new Error("Too many messages, maximum per import is 500");
   }
 
   // Verify transaction is in scope + load contacts to validate mapping IDs.
@@ -1492,34 +1493,17 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
     const greeting = buildGreeting(c.name);
     const portalUrl = `${base}/portal/${c.portalToken}/updates`;
 
+    const email = buildClientUpdateEmail({ agencyName: agency, address, saleWord, greeting, content, portalUrl, theme });
     await sendEmail({
       from: sender.from,
       replyTo: sender.replyTo,
       to: c.email,
-      subject: `Update on your ${saleWord} — ${address}`,
-      text: [
-        greeting,
-        "",
-        `There's a new update on your ${saleWord} at ${address}:`,
-        "",
-        content,
-        "",
-        `View your portal: ${portalUrl}`,
-        "",
-        agency,
-      ].join("\n"),
-      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${theme.buttonBg}">${agency}</p>
-<p style="margin:0 0 20px;font-size:14px;color:#4a5162">${address}</p>
-<p style="margin:0 0 16px;font-size:15px">${greeting}</p>
-<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#8b91a3;text-transform:uppercase;letter-spacing:0.06em">New update</p>
-<div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px;font-size:14px;line-height:1.6;color:#1a1d29;white-space:pre-wrap">${content}</div>
-<p><a href="${portalUrl}" style="display:inline-block;background:${theme.buttonBg};color:${theme.buttonText};padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
-<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">You're receiving this because you have a ${saleWord} in progress with ${agency}.</p>
-</body></html>`,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
       // P1-5: surface a failed send instead of swallowing it silently. This path
       // doesn't write a "sent" comms row (the visible update itself is recorded by
-      // the caller), so there's nothing to falsely mark sent — but a send failure
+      // the caller), so there's nothing to falsely mark sent, but a send failure
       // must still be observable in the logs rather than disappearing.
     }).catch((err) => console.error(`[comms] visible-update client email failed tx=${transactionId} to=${c.email}`, err));
   }

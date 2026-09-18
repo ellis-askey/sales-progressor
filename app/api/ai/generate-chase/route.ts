@@ -14,6 +14,7 @@ import { deriveChaseAsk, partyLabel } from "@/lib/chase/derive-chase-ask";
 import type { Party } from "@/lib/chase/action-holders";
 import { timeGreeting } from "@/lib/emails/greeting";
 import { TONE_KEY_MAP, CHANNEL_GUIDANCE, TONE_GUIDANCE, RECIPIENT_GUIDANCE } from "@/lib/chase/guidance";
+import { exchangeTalkAllowed } from "@/lib/chase/exchange-stage";
 
 function getRecipientContext(
   side: string,
@@ -634,6 +635,16 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
       `# Other parties on this transaction (role context only, no names sent)`
     );
     userMessageParts.push(otherContacts);
+  }
+
+  // Exchange is premature on early steps (forms, ID, searches, enquiries).
+  // Only let the chase invoke it once the file is at the enquiries-satisfied
+  // stage or later. See lib/chase/exchange-stage.ts.
+  if (!exchangeTalkAllowed(targetCodes)) {
+    userMessageParts.push(``);
+    userMessageParts.push(
+      `This is an early step. Do not mention exchange, completion, or moving toward exchange. Keep to the milestone(s) above.`,
+    );
   }
 
   userMessageParts.push(``);
