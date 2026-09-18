@@ -1,19 +1,18 @@
 "use client";
 
-// Whole-page fade-in wrapper. Sits inside a layout's <main> so the first
-// page under that layout fades in on initial load.
+// Whole-page fade-in wrapper. Sits inside a layout's <main> so every page
+// under that layout gets a short entrance as it arrives.
 //
-// Phase 3 perceived-performance (2026-09-18, PERF-15): the fade fires on
-// FIRST MOUNT ONLY. It used to re-fire on every route change (keyed on
-// pathname), which added a flat ~280-360ms of pure animation to every
-// client-side navigation on top of the server render — the single biggest
-// fixed tax on moving around the app. Client navigations now swap content
-// in immediately; the entrance animation remains for hard loads, where it
-// masks the initial paint.
+// History: the original 280-360ms fade re-fired on every navigation and
+// stacked ON TOP of seconds of server render — Phase 3 (PERF-15) cut it to
+// first-mount-only. The instant-shell slice (2026-09-18, founder direction)
+// brings the per-navigation entrance BACK, but shorter (180ms/6px) and in a
+// changed world: navigation now commits instantly (full-prefetched rail,
+// route skeletons), so this reads as "the page arriving", not added wait.
+// It never blocks input — pointer events stay live throughout.
 //
-// Match to the hub SectionReveal treatment:
-//   opacity 0 → 1 over 280ms ease-out
-//   translateY(8px) → 0 over 320ms ease-out
+//   opacity 0 → 1 over 180ms ease-out
+//   translateY(6px) → 0 over 200ms ease-out
 //   prefers-reduced-motion → snap to visible, no transform
 //
 // CRITICAL (2026-08-10): once the fade settles we DROP transform +
@@ -31,28 +30,30 @@
 // main content region is wrapped.
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export function PageFadeIn({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [shown, setShown] = useState(false);
   const [settled, setSettled] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
-    // First mount only — client-side route changes must NOT replay the fade
-    // (see docstring). The wrapper stays mounted across navigations because
-    // it lives in the persistent layout, so this effect naturally runs once
-    // per hard load.
+    // Reset then arm — runs on first mount and on every route change, so
+    // each arriving page plays the short entrance (see docstring).
+    setShown(false);
+    setSettled(false);
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
     const raf = window.requestAnimationFrame(() => setShown(true));
     // After the fade completes, release the backdrop root (see docstring).
-    // 360ms clears the longest (320ms transform) transition + a frame.
-    const t = window.setTimeout(() => setSettled(true), 360);
+    // 240ms clears the longest (200ms transform) transition + a frame.
+    const t = window.setTimeout(() => setSettled(true), 240);
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(t);
     };
-  }, []);
+  }, [pathname]);
 
   if (prefersReducedMotion) {
     return <>{children}</>;
@@ -68,8 +69,8 @@ export function PageFadeIn({ children }: { children: React.ReactNode }) {
           ? undefined
           : {
               opacity: shown ? 1 : 0,
-              transform: shown ? "translateY(0)" : "translateY(8px)",
-              transition: "opacity 280ms ease-out, transform 320ms ease-out",
+              transform: shown ? "translateY(0)" : "translateY(6px)",
+              transition: "opacity 180ms ease-out, transform 200ms ease-out",
               willChange: "opacity, transform",
             }
       }

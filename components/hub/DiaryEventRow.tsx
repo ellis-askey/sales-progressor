@@ -101,7 +101,7 @@ export function DiaryEventRow({
 
   return (
     <div style={rowStyle}>
-      <Link href={`${basePath}/${item.transactionId}`} className="agent-hover-row" style={{ textDecoration: "none", flex: 1, minWidth: 0, borderRadius: 6 }}>
+      <Link href={`${basePath}/${item.transactionId}`} unstable_dynamicOnHover className="agent-hover-row" style={{ textDecoration: "none", flex: 1, minWidth: 0, borderRadius: 6 }}>
         <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.address}
         </p>

@@ -422,6 +422,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             return (
               <Link
                 href="/agent/transactions/new"
+                // Instant-clicks slice (2026-09-18): full prefetch so the
+                // new-sale form is already loaded when clicked.
+                prefetch={true}
                 onClick={() => setMobileOpen(false)}
                 className={`agent-newsale-cta${isNewSale ? " is-active" : ""}`}
                 title="New sale"
@@ -458,6 +461,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
                   <Link
                     key={entry.id}
                     href={`/agent/transactions/${entry.id}`}
+                    // Instant-clicks slice (2026-09-18): hovering a recent
+                    // file fully prefetches it, so the click lands loaded.
+                    unstable_dynamicOnHover
                     onClick={() => setMobileOpen(false)}
                     className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}
                   >

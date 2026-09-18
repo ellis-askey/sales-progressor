@@ -20,7 +20,7 @@
 // they keep their own treatments).
 
 import { useLayoutEffect, useRef, useState } from "react";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -32,16 +32,11 @@ export type NavRailItem = {
 };
 
 // Trailing slot of a rail item: badge (when a count exists) or hover
-// chevron — replaced by a small spinner while THIS link's navigation is
-// rendering on the server. Phase 3 (2026-09-18) removed the blank
-// route-level loaders, so the previous page now stays on screen during
-// navigation; this spinner is the click acknowledgement in that window.
-// Must be rendered INSIDE the Link — useLinkStatus reads the enclosing
-// Link's pending state. The CSS delays its appearance by 150ms so
-// router-cache-instant navigations never flash it.
+// chevron. The brief-lived pending spinner (Phase 3) was retired by the
+// instant-shell slice (2026-09-18): rail destinations are fully prefetched
+// and every route has an instant skeleton shell, so a click commits to the
+// destination immediately — there is no wait left to acknowledge.
 function RailTrailing({ badge }: { badge?: number }) {
-  const { pending } = useLinkStatus();
-  if (pending) return <span className="agent-rail-pending" aria-hidden />;
   if (badge && badge > 0) return <span className="agent-rail-badge">{badge}</span>;
   return (
     <span className="agent-rail-chevron" aria-hidden>
@@ -112,6 +107,11 @@ export function AgentNavRail({
           <Link
             key={item.href}
             href={item.href}
+            // Instant-clicks slice (2026-09-18): the rail has ~a dozen fixed
+            // destinations, so prefetch the FULL route + data whenever the
+            // rail is on screen — a rail click then lands already loaded.
+            // Mutations still purge this via their revalidatePath calls.
+            prefetch={true}
             ref={(node) => { itemRefs.current[i] = node; }}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}

@@ -47,8 +47,6 @@ import { NeedsFilingCard } from "@/components/hub/NeedsFilingCard";
 import { getPendingInboundEmails } from "@/lib/services/pending-inbound";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
-import { SectionLoading } from "@/components/hub/SectionLoading";
-import { LoadingCard } from "@/components/loading/LoadingCard";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
@@ -61,6 +59,7 @@ import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SectionSkeleton } from "@/components/loading/PageSkeletons";
 import { TypedText } from "@/components/agent/TypedText";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -186,10 +185,10 @@ type Ctx = {
   claimedFirstSale: Awaited<ReturnType<typeof getClaimedFirstSale>>;
 };
 
-// ── Inline loading card — v05 glass container with a small "Loading X…" line.
-// Kept text-based (not LoadingDots) because the label gives the user useful
-// context on which section is slow. Used for section-level Suspense
-// fallbacks; the top-level BodyGate fallback uses <LoadingCard> (dots).
+// ── Inline section fallback — instant-shell slice (2026-09-18). Sections
+// now show their SILHOUETTE (SectionSkeleton) instead of a "Loading X…"
+// line/dots, so a cold hub reads as the page filling in rather than the
+// app thinking. The label is kept for screen readers.
 function InlineLoadingCard({
   label,
   minHeight,
@@ -197,20 +196,8 @@ function InlineLoadingCard({
   label: string;
   minHeight: number;
 }) {
-  return (
-    <div
-      className="glass-v05"
-      style={{
-        borderRadius: "var(--agent-radius-xl)",
-        padding: "20px 24px",
-        minHeight,
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
-      <SectionLoading label={label} bare />
-    </div>
-  );
+  const rows = minHeight >= 220 ? 4 : minHeight >= 140 ? 3 : 2;
+  return <SectionSkeleton minHeight={minHeight} rows={rows} label={label} />;
 }
 
 // ── Page — shell renders instantly, body gated behind pipelineStats+attention ─
@@ -310,7 +297,7 @@ async function BodyGate({ ctx }: { ctx: Ctx }) {
   const hasFiles = await hubHasFiles(ctx.vis);
   if (!hasFiles) return <EmptyStateBody ctx={ctx} />;
   return (
-    <Suspense fallback={<LoadingCard label="Loading your hub" minHeight={140} />}>
+    <Suspense fallback={<SectionSkeleton minHeight={140} rows={2} label="Loading your hub" />}>
       <FullBodyGate ctx={ctx} />
     </Suspense>
   );

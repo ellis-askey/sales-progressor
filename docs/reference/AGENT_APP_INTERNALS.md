@@ -152,3 +152,26 @@ mechanics introduced by the programme:
   `margin-left: auto` inside a `flex-wrap` row (`.rem-row`,
   `.people-row-actions` with `flex-basis: 100%`) so buttons drop to their
   own line instead of crushing the label.
+
+## Navigation: prefetch + instant shells (2026-09-18)
+
+The agent app's navigation model after the instant-clicks/instant-shell slice:
+
+- **Rail links** (`AgentNavRail`) carry `prefetch={true}` — the full route +
+  data is prefetched whenever the rail is on screen, so a rail click lands
+  already loaded. **Property-row links** (file lists, hub rows, recently
+  viewed) carry `unstable_dynamicOnHover` instead — full prefetch starts on
+  pointer intent, so long lists never flood the server. Use one of these two
+  props on any new agent-surface link whose destination an agent will
+  plausibly click; never hand-roll a prefetch effect for links.
+- **Every rail destination has a `loading.tsx`** built on
+  `components/loading/PageSkeletons.tsx` (`RailPageSkeleton` /
+  `SectionSkeleton`): navigation commits instantly to a page-shaped
+  silhouette. No dots, no spinners, no `LoadingCard` on agent surfaces —
+  new sections use `SectionSkeleton` as their Suspense fallback.
+- **Reuse window:** agent pages export `unstable_dynamicStaleTime = 300`
+  (per-page, NEVER a global `staleTimes` — the buyer/seller portal must keep
+  default always-fresh navigation). Mutations purge it via `revalidatePath`.
+- **Arrival motion:** `PageFadeIn` plays a 180ms fade/6px rise per
+  navigation. It never blocks input; do not add additional per-page
+  entrance wrappers on top of it.

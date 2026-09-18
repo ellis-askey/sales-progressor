@@ -141,7 +141,7 @@ export function HubListCard({
                   <PropertyThumb photoUrl={row.photoUrl} />
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Link href={row.href} className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <Link href={row.href} unstable_dynamicOnHover className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.address}
                       </Link>
                       {row.pillLabel && (

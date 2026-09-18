@@ -557,6 +557,7 @@ export function TransactionRowView({
           (container-driven via .files-table / .files-switch-N, not viewport) */}
       <Link
         href={`${basePath}/${tx.id}`}
+        unstable_dynamicOnHover
         className="files-row-card agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
       >
@@ -605,6 +606,7 @@ export function TransactionRowView({
        */}
       <Link
         href={`${basePath}/${tx.id}`}
+        unstable_dynamicOnHover
         className="files-row-grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
