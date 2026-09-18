@@ -3,6 +3,15 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "prisma"],
+  // Phase 3 perceived-performance (2026-09-18, PERF-05): router-cache reuse
+  // for just-visited pages is deliberately NOT set globally here. A global
+  // experimental.staleTimes.dynamic would also let buyer/seller PORTAL
+  // navigations serve a cached payload for up to that window — a genuine
+  // behaviour change outside the performance programme's boundary. Instead,
+  // each agent-app page opts in individually via
+  //   export const unstable_dynamicStaleTime = 30
+  // (per-page segment config; pages only, portal pages never export it, so
+  // they keep the default 0 = always server-rendered on navigation).
   async redirects() {
     return [
       {

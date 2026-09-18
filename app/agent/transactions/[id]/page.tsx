@@ -310,7 +310,23 @@ export default async function AgentTransactionDetailPage({
 
   // File setup completeness — how much of the file's own detail is filled in
   // (distinct from sale progress). Badge shows how many items are still to do.
-  const fileSetup = await getFileSetup(transaction.id).catch(() => null);
+  //
+  // Phase 3 perceived-performance (2026-09-18, PERF-06): file setup, the
+  // exchange-day state, and the demo-tour flag are mutually independent but
+  // used to be awaited one after another at their points of use, adding
+  // their latencies back-to-back to the pre-paint critical path (the window
+  // the route-level loading fallback is on screen). One parallel fan-out,
+  // same per-lookup fallbacks; only getExchangeDayAuthority stays sequential
+  // below because it depends on the exchange-day state.
+  const [fileSetup, exchangeDay, demoTourUser] = await Promise.all([
+    getFileSetup(transaction.id).catch(() => null),
+    getExchangeDayState(transaction.id).catch(() => null),
+    transaction.isDemo
+      ? prisma.user
+          .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   // Tab strip — badges (counts on Reminders + To-Do) update via
   // TabBadgeReporter once the relevant panels stream in.
@@ -415,9 +431,9 @@ export default async function AgentTransactionDetailPage({
   );
 
   // Exchange-day control — lives under the "View timeline" button in the
-  // milestone strip. Fetched once here so the strip knows whether to hide
-  // "View timeline" (it does while exchange day is active).
-  const exchangeDay = await getExchangeDayState(transaction.id).catch(() => null);
+  // milestone strip. Fetched once (in the parallel fan-out above) so the
+  // strip knows whether to hide "View timeline" (it does while exchange day
+  // is active).
   const exchangeDayActive = !!exchangeDay && exchangeDay.active && !exchangeDay.exchanged;
   const exchangeAuthority = exchangeDayActive
     ? await getExchangeDayAuthority(transaction.id).catch(() => ({ seller: null, buyer: null }))
@@ -437,15 +453,11 @@ export default async function AgentTransactionDetailPage({
   ) : null;
 
   // Demo guided-walkthrough: auto-start once per teammate on their first visit
-  // to the demo file. One extra query, only for demos. Finished/skipped state
-  // lives on User (set by markDemoTourSeenAction).
-  let demoTourAutoStart = false;
-  if (transaction.isDemo) {
-    const tourUser = await prisma.user
-      .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
-      .catch(() => null);
-    demoTourAutoStart = !tourUser?.demoTourCompletedAt && !tourUser?.demoTourSkippedAt;
-  }
+  // to the demo file. One extra query, only for demos (resolved in the
+  // parallel fan-out above). Finished/skipped state lives on User (set by
+  // markDemoTourSeenAction).
+  const demoTourAutoStart =
+    transaction.isDemo && !demoTourUser?.demoTourCompletedAt && !demoTourUser?.demoTourSkippedAt;
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
@@ -717,3 +729,10 @@ export default async function AgentTransactionDetailPage({
     </div>
   );
 }
+
+// Phase 3 perceived-performance (2026-09-18, PERF-05): let the client
+// router reuse this page for 30s after a visit (Back/Forward + quick
+// hop-backs skip the server round-trip). Per-page opt-in rather than a
+// global staleTimes so buyer/seller portal navigation keeps its default
+// always-fresh behaviour. Mutations still purge this via revalidatePath.
+export const unstable_dynamicStaleTime = 30;

@@ -43,6 +43,38 @@ export function SidebarPanelSkeleton() {
   );
 }
 
+// Route-level silhouette for the whole file page (Phase 3 perceived-
+// performance, 2026-09-18, PERF-06). Replaces the old full-viewport
+// LoadingCard bubble in app/agent/transactions/[id]/loading.tsx: opening a
+// file now paints the file's shape — hero, tab strip, content cards —
+// instead of replacing the app with a spinner card. This is deliberately
+// the ONLY route-level fallback kept in the agent app; the blank loaders
+// elsewhere were removed so the previous page stays visible during
+// navigation. Keeping this one means property → property navigation swaps
+// through the skeleton, so the URL and the on-screen file are never out of
+// step (no "showing property A under property B's URL").
+export function FilePageSkeleton() {
+  return (
+    <div className="glass-page agent-page pt-4 px-4 md:px-8" style={{ minHeight: "100vh" }}>
+      {/* Hero: address line, meta line, progress strip */}
+      <Card padding="none" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <Bar width="45%" height={20} />
+        <Bar width="30%" height={12} />
+        <Bar width="100%" height={8} mt={10} />
+      </Card>
+      {/* Tab strip */}
+      <div style={{ display: "flex", gap: 8, margin: "14px 0", overflow: "hidden" }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton key={i} variant="block" width={78} height={28} style={{ borderRadius: 999, flexShrink: 0 }} />
+        ))}
+      </div>
+      {/* Content cards — single column so it never overflows on mobile;
+          the real page's own panel skeletons take over once it streams. */}
+      <TabPanelSkeleton rows={3} withHero />
+    </div>
+  );
+}
+
 export function TabPanelSkeleton({ rows = 5, withHero = false }: { rows?: number; withHero?: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

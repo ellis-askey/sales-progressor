@@ -102,6 +102,21 @@ export function GlobalSearch() {
     router.push(href);
   }
 
+  // Phase 3 perceived-performance (2026-09-18, PERF-16): mirror of the
+  // AgentGlobalSearch prefetch — warm the top few distinct destinations so
+  // Enter/click paints the destination shell instantly. Capped at three.
+  useEffect(() => {
+    const seen = new Set<string>();
+    for (const { href } of flat) {
+      if (!seen.has(href)) {
+        seen.add(href);
+        router.prefetch(href);
+      }
+      if (seen.size >= 3) break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, query]);
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (!flat.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, flat.length - 1)); }

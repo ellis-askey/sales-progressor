@@ -2067,6 +2067,27 @@
     transform: translateX(0);
   }
 
+  /* Per-link navigation pending signal (Phase 3, 2026-09-18). Takes over the
+     chevron/badge slot while THIS link's destination renders on the server.
+     The 150ms appear delay means instant navigations (router-cache hits)
+     never flash it — it only becomes visible on navs that genuinely take
+     time, which is exactly when the click needs acknowledging. */
+  .agent-rail-pending {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--agent-coral-deep);
+    border-right-color: transparent;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0;
+    animation:
+      agent-spin 700ms linear infinite,
+      agent-rail-pending-appear 120ms ease-out 150ms forwards;
+  }
+  @keyframes agent-rail-pending-appear {
+    to { opacity: 1; }
+  }
+
   /* Badge — replaces the chevron when an item carries a count. */
   .agent-rail-badge {
     display: inline-flex;

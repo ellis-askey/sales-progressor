@@ -1,9 +1,15 @@
 "use client";
 
-// Whole-page fade-in wrapper. Sits inside a layout's <main> so every
-// page under that layout fades in on mount. Re-fires on route change
-// via the pathname key so client-side navigation gets the same subtle
-// entrance the initial load does.
+// Whole-page fade-in wrapper. Sits inside a layout's <main> so the first
+// page under that layout fades in on initial load.
+//
+// Phase 3 perceived-performance (2026-09-18, PERF-15): the fade fires on
+// FIRST MOUNT ONLY. It used to re-fire on every route change (keyed on
+// pathname), which added a flat ~280-360ms of pure animation to every
+// client-side navigation on top of the server render — the single biggest
+// fixed tax on moving around the app. Client navigations now swap content
+// in immediately; the entrance animation remains for hard loads, where it
+// masks the initial paint.
 //
 // Match to the hub SectionReveal treatment:
 //   opacity 0 → 1 over 280ms ease-out
@@ -25,18 +31,17 @@
 // main content region is wrapped.
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 
 export function PageFadeIn({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const [shown, setShown] = useState(false);
   const [settled, setSettled] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
-    // Reset then arm — this handles both first mount and pathname change.
-    setShown(false);
-    setSettled(false);
+    // First mount only — client-side route changes must NOT replay the fade
+    // (see docstring). The wrapper stays mounted across navigations because
+    // it lives in the persistent layout, so this effect naturally runs once
+    // per hard load.
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
     const raf = window.requestAnimationFrame(() => setShown(true));
@@ -47,7 +52,7 @@ export function PageFadeIn({ children }: { children: React.ReactNode }) {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(t);
     };
-  }, [pathname]);
+  }, []);
 
   if (prefersReducedMotion) {
     return <>{children}</>;

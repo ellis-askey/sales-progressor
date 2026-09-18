@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTransition, useState, useRef, useEffect, Suspense } from "react";
 import { signOut } from "next-auth/react";
@@ -16,6 +16,23 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 interface Agency { id: string; name: string; modeProfile: string; }
+
+// Phase 3 perceived-performance (2026-09-18, PERF-19): the Command Centre
+// deliberately has no route-level loading files — the previous page stays
+// on screen while the next renders. This spinner, visible only while THIS
+// link's destination is rendering, is the navigation acknowledgement in
+// that window. Must render inside the Link (useLinkStatus reads the
+// enclosing Link's state). Command visual system: blue accent, no glass.
+function CommandLinkPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden
+      className="w-3 h-3 flex-shrink-0 rounded-full border-2 border-[#2563eb] border-r-transparent animate-spin"
+    />
+  );
+}
 
 interface NavItem {
   href: string;
@@ -377,6 +394,7 @@ export function CommandSidebar({
                   )}
                   <Icon className="w-[15px] h-[15px] flex-shrink-0" strokeWidth={1.75} />
                   <span className="flex-1 text-[13px] font-medium">{label}</span>
+                  <CommandLinkPending />
                   {soon && (
                     <span className="text-[9px] font-semibold text-[#3a3a3a] bg-[#1a1a1a] px-1.5 py-0.5 rounded uppercase tracking-wide">
                       soon

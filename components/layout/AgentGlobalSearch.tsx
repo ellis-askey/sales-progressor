@@ -95,6 +95,27 @@ export function AgentGlobalSearch() {
 
   function navigate(href: string) { setOpen(false); router.push(href); }
 
+  // Phase 3 perceived-performance (2026-09-18, PERF-16): programmatic
+  // router.push gets no automatic prefetch (unlike <Link>), so warm the top
+  // few distinct destinations once a result set settles — Enter/click then
+  // paints the destination's shell/fallback instantly. Capped at three so
+  // per-keystroke result churn never floods the server; dynamic routes only
+  // prefetch their static shell + loading boundary, not transaction data,
+  // so this exposes nothing the user couldn't already open.
+  useEffect(() => {
+    const seen = new Set<string>();
+    for (const { href } of flat) {
+      if (!seen.has(href)) {
+        seen.add(href);
+        router.prefetch(href);
+      }
+      if (seen.size >= 3) break;
+    }
+    // flat is derived from results/query each render; keying on those is
+    // equivalent and avoids re-running on unrelated state (selection).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, query]);
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (!flat.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, flat.length - 1)); }

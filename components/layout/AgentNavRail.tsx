@@ -20,7 +20,7 @@
 // they keep their own treatments).
 
 import { useLayoutEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { CaretRight } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -30,6 +30,25 @@ export type NavRailItem = {
   Icon: Icon;
   badge?: number;
 };
+
+// Trailing slot of a rail item: badge (when a count exists) or hover
+// chevron — replaced by a small spinner while THIS link's navigation is
+// rendering on the server. Phase 3 (2026-09-18) removed the blank
+// route-level loaders, so the previous page now stays on screen during
+// navigation; this spinner is the click acknowledgement in that window.
+// Must be rendered INSIDE the Link — useLinkStatus reads the enclosing
+// Link's pending state. The CSS delays its appearance by 150ms so
+// router-cache-instant navigations never flash it.
+function RailTrailing({ badge }: { badge?: number }) {
+  const { pending } = useLinkStatus();
+  if (pending) return <span className="agent-rail-pending" aria-hidden />;
+  if (badge && badge > 0) return <span className="agent-rail-badge">{badge}</span>;
+  return (
+    <span className="agent-rail-chevron" aria-hidden>
+      <CaretRight size={12} weight="bold" />
+    </span>
+  );
+}
 
 function isItemActive(pathname: string, href: string): boolean {
   // /agent/transactions matches exactly only — otherwise "My Files"
@@ -103,13 +122,7 @@ export function AgentNavRail({
           >
             <Icon weight={active ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
             <span className="agent-rail-item-label">{item.label}</span>
-            {item.badge && item.badge > 0 ? (
-              <span className="agent-rail-badge">{item.badge}</span>
-            ) : (
-              <span className="agent-rail-chevron" aria-hidden>
-                <CaretRight size={12} weight="bold" />
-              </span>
-            )}
+            <RailTrailing badge={item.badge} />
           </Link>
         );
       })}
