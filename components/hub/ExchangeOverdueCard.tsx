@@ -93,8 +93,6 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
                 <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
                   <PropertyThumb photoUrl={item.photoUrl} />
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                    {/* Address links to the file Overview, where the revise-date
-                        banner (with its spoken-to-both-parties gate) lives. */}
                     <Link
                       href={`/agent/transactions/${item.transaction.id}`}
                       className="hover:underline"
@@ -109,6 +107,7 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
                   <div style={{ marginLeft: "auto", flexShrink: 0 }}>
                     <ExchangeOverdueActions
                       transactionId={item.transaction.id}
+                      address={item.transaction.propertyAddress}
                       onDone={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
                     />
                   </div>

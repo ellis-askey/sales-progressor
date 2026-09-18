@@ -9,6 +9,7 @@ import { classifyReminder } from "@/lib/reminders/classify";
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
+import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -1763,6 +1764,13 @@ export type HubAttentionItem = {
   // Both null on the synthetic exchange-overdue ("xovr-") items.
   taskId: string | null;
   targetMilestoneCode: string | null;
+  // Inline chase drawer on the hub (2026-09-18): everything the ChaseDrawer
+  // needs so Chase opens right there instead of navigating to the file.
+  // Empty/null on the synthetic exchange-overdue items (no Chase button).
+  chaseCount: number;
+  contacts: ChaseContact[];
+  vendorSolicitor: SolicitorRef | null;
+  purchaserSolicitor: SolicitorRef | null;
 };
 
 export async function getHubAttentionItems(
@@ -1812,9 +1820,14 @@ export async function getHubAttentionItems(
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true,
           agencyId: true, clientEmailsPaused: true, vendorSolicitorEmailsPaused: true, purchaserSolicitorEmailsPaused: true,
-          contacts: { select: { roleType: true, email: true, portalToken: true, unsubscribedAt: true } },
-          vendorSolicitorContact: { select: { email: true } },
-          purchaserSolicitorContact: { select: { email: true } },
+          // Full contact + solicitor shapes (mirroring getAgentReminderLogs) so
+          // the hub's inline chase drawer gets real recipients, not just the
+          // email fields resolveAutopilot needs.
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true } },
+          vendorSolicitorFirm: { select: { name: true } },
+          vendorSolicitorContact: { select: { id: true, name: true, email: true, phone: true, secondaryEmail: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
+          purchaserSolicitorContact: { select: { id: true, name: true, email: true, phone: true, secondaryEmail: true } },
         },
       },
       // status + snoozedUntil + chase fields all needed by classifyReminder.
@@ -1879,6 +1892,18 @@ export async function getHubAttentionItems(
         // indexed access, but is undefined at runtime when no task is open.
         taskId: (task?.id ?? null) as string | null,
         targetMilestoneCode: (log.reminderRule.targetMilestoneCode ?? null) as string | null,
+        chaseCount: task?.chaseCount ?? 0,
+        // Project down to the client-safe ChaseContact shape (drops
+        // portalToken/unsubscribedAt, which only resolveAutopilot needs).
+        contacts: log.transaction.contacts.map((c): ChaseContact => ({
+          id: c.id, name: c.name, roleType: c.roleType, email: c.email, phone: c.phone,
+        })),
+        vendorSolicitor: (log.transaction.vendorSolicitorContact
+          ? { ...log.transaction.vendorSolicitorContact, firm: log.transaction.vendorSolicitorFirm ?? null }
+          : null) as SolicitorRef | null,
+        purchaserSolicitor: (log.transaction.purchaserSolicitorContact
+          ? { ...log.transaction.purchaserSolicitorContact, firm: log.transaction.purchaserSolicitorFirm ?? null }
+          : null) as SolicitorRef | null,
       };
     })
     .filter((x): x is HubAttentionItem => x !== null);
@@ -1958,6 +1983,10 @@ export async function getHubAttentionItems(
       escalatedByName: null,
       taskId: null,
       targetMilestoneCode: null,
+      chaseCount: 0,
+      contacts: [],
+      vendorSolicitor: null,
+      purchaserSolicitor: null,
     });
   }
 

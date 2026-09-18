@@ -50,6 +50,8 @@ import {
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction } from "@/app/actions/transactions";
 import { advanceChaseTaskAction, completeTaskAction, snoozeTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
+import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
+import { withSolicitorRecipients } from "@/lib/services/chase-recipients";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { assignWaitBadge } from "@/lib/hub/assign-wait";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -137,11 +139,12 @@ function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: s
 }
 
 // ── Chase split-button (reminder rows, Ellis 2026-09-18) ───────────────
-// [Chase | ⌄] on every reminder row. Chase opens the file's Reminders tab,
-// where the full chase composer lives. The chevron covers everything you'd
-// otherwise need the chase drawer for, done in place: mark as chased,
+// [Chase | ⌄] on every reminder row. Chase opens the real chase drawer
+// right here on the hub (same composer as the file page / work queue) —
+// the whole point of the card is acting without opening every file. The
+// chevron covers the non-send resolutions in place: mark as chased,
 // confirm the step done (with the date prompt where the milestone needs
-// one), or snooze. In-place actions clear the row from the card.
+// one), or snooze. Every resolution clears the row from the card.
 function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
   item: WithPhoto<HubAttentionItem>;
   onResolved: () => void;
@@ -151,7 +154,23 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
   const pathname = usePathname();
   const [busy, setBusy] = useState(false);
   const [dateModalOpen, setDateModalOpen] = useState(false);
+  // Chase drawer open with a guaranteed task id (created on demand below).
+  const [chaseTaskId, setChaseTaskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Side-scoped recipients, mirroring the work queue's contactsForSide: PM*
+  // reminders chase the buyer's side, VM* the seller's, with the file's real
+  // solicitor injected for that side. Falls back to every contact when the
+  // side filter leaves nobody (thin early files).
+  const isBuyer = !!item.targetMilestoneCode?.startsWith("PM");
+  const sideContacts = item.contacts.filter((c) =>
+    isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
+  );
+  const recipients = withSolicitorRecipients(sideContacts.length > 0 ? sideContacts : item.contacts, {
+    vendorSolicitor: item.vendorSolicitor,
+    purchaserSolicitor: item.purchaserSolicitor,
+    side: isBuyer ? "purchaser" : "vendor",
+  });
 
   // Most actions act on the pending chase task; the engine may not have
   // opened one yet, so create-or-fetch on demand (same pattern as the work
@@ -185,16 +204,33 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
       `${item.reminderName} marked done on the file.`,
     );
 
+  // The drawer needs a real chase task at open time; create-or-fetch first.
+  function openChase() {
+    setBusy(true);
+    startTransition(async () => {
+      try {
+        const taskId = await ensureTaskId();
+        setChaseTaskId(taskId);
+      } catch {
+        toastError("Couldn't open the chase. Try again.");
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
+
   return (
     <>
       <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
-        <Link
-          href={`/agent/transactions/${item.transaction.id}?tab=reminders`}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={openChase}
           className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-          style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0, textDecoration: "none" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
         >
           Chase
-        </Link>
+        </button>
         <RowActionMenu
           joined
           disabled={busy}
@@ -241,6 +277,35 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
           loading={busy}
           onConfirm={(eventDate) => { setDateModalOpen(false); confirmDone(eventDate); }}
           onClose={() => setDateModalOpen(false)}
+        />
+      )}
+      {chaseTaskId && (
+        <ChaseDrawer
+          chaseTaskId={chaseTaskId}
+          transactionId={item.transaction.id}
+          propertyAddress={item.transaction.propertyAddress}
+          propertyPhotoUrl={item.photoUrl}
+          milestoneName={item.reminderName}
+          chaseCount={item.chaseCount}
+          contacts={recipients}
+          defaultAddRole={isBuyer ? "purchaser" : "vendor"}
+          onClose={() => setChaseTaskId(null)}
+          onSent={() => {
+            // Mirror the work queue's post-send step: advance the next chase
+            // date on the task, then clear the row in place.
+            const sentTaskId = chaseTaskId;
+            setChaseTaskId(null);
+            startTransition(async () => {
+              try {
+                await advanceChaseTaskAction(sentTaskId, pathname);
+              } catch {
+                // The send itself succeeded; the engine will advance on its
+                // next pass, so stay quiet rather than false-alarm.
+              }
+            });
+            toastSuccess("Chase sent", `${item.reminderName} chased. Next chase date advanced.`);
+            onResolved();
+          }}
         />
       )}
     </>
