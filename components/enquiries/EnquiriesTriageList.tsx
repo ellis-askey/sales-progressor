@@ -77,8 +77,11 @@ type SortKey = "attention" | "quietest" | "recent";
 // collapsing to an instant (0ms) effect.
 const enqMovePlugin: AutoAnimationPlugin = (el, action, oldCoords, newCoords) => {
   const reduce = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const duration = reduce ? 0 : 340;
-  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  // A deliberate journey, not a snap: they action one, watch it travel to its new
+  // home, then move on. Slower move; enter/leave stay brisk.
+  const moveMs = reduce ? 0 : 750;
+  const fadeMs = reduce ? 0 : 300;
+  const easing = "cubic-bezier(0.45, 0, 0.25, 1)";
   let keyframes: Keyframe[] = [];
 
   if (action === "add") {
@@ -86,11 +89,13 @@ const enqMovePlugin: AutoAnimationPlugin = (el, action, oldCoords, newCoords) =>
       { opacity: 0, transform: "translateY(8px)" },
       { opacity: 1, transform: "translateY(0)" },
     ];
+    return new KeyframeEffect(el, keyframes, { duration: fadeMs, easing });
   } else if (action === "remove") {
     keyframes = [
       { opacity: 1, transform: "scale(1)" },
       { opacity: 0, transform: "scale(0.97)" },
     ];
+    return new KeyframeEffect(el, keyframes, { duration: fadeMs, easing });
   } else {
     // remain: FLIP from the old position back to zero, lifting through the middle.
     const dx = (oldCoords?.left ?? 0) - (newCoords?.left ?? 0);
@@ -101,7 +106,7 @@ const enqMovePlugin: AutoAnimationPlugin = (el, action, oldCoords, newCoords) =>
       { transform: "translate(0, 0) scale(1)", boxShadow: "0 0 0 0 rgba(30,45,74,0)" },
     ];
   }
-  return new KeyframeEffect(el, keyframes, { duration, easing });
+  return new KeyframeEffect(el, keyframes, { duration: moveMs, easing });
 };
 
 export function EnquiriesTriageList({
@@ -129,6 +134,10 @@ export function EnquiriesTriageList({
   // and the rows between reflow to fill the gap. Animation is paused while the
   // search box is focused so per-keystroke filtering doesn't churn.
   const [listRef, enableAnim] = useAutoAnimate<HTMLDivElement>(enqMovePlugin);
+  // Follow the actioned row to where it lands: set on an action, consumed once
+  // the reordered list commits (below). Timestamped so a failed action that
+  // never reorders can't trigger a stale scroll on a later change.
+  const scrollTargetRef = useRef<{ id: string; at: number } | null>(null);
 
   // Tiles reflect the WHOLE set (not the filtered view). Mutually-exclusive
   // buckets so they read as a breakdown of the total.
@@ -165,8 +174,23 @@ export function EnquiriesTriageList({
     return list;
   }, [rows, q, side, sort]);
 
+  // After the reordered list commits, pan the actioned row into view so the user
+  // travels with it and sees where it settles (often lower down). Only fires for
+  // action-driven reorders (scrollTargetRef is set in run()), not search/sort.
+  useEffect(() => {
+    const t = scrollTargetRef.current;
+    if (!t) return;
+    if (Date.now() - t.at > 4000) { scrollTargetRef.current = null; return; }
+    const node = document.querySelector(`[data-tx="${t.id}"]`) as HTMLElement | null;
+    if (!node) return; // not yet in the reordered DOM, or the row left the list
+    const reduce = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+    scrollTargetRef.current = null;
+  }, [shown]);
+
   function run(id: string, fn: () => Promise<{ ok: boolean; reason?: string }>, msg: string) {
     if (busyId) return;
+    scrollTargetRef.current = { id, at: Date.now() };
     setBusyId(id);
     startTransition(async () => {
       try {
@@ -247,6 +271,7 @@ export function EnquiriesTriageList({
           return (
             <div
               key={r.transactionId}
+              data-tx={r.transactionId}
               className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}${backdateRowId === r.transactionId ? " enq-card--backdate" : ""}`}
               data-busy={busy ? "" : undefined}
             >
