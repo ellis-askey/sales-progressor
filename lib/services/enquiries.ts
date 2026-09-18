@@ -30,6 +30,10 @@ export type OpenEnquiryRow = {
   outstandingNote: string | null;
   expectedDate: Date | null; // the "expect replies by" date (reuses snoozedUntil)
   nextChaseAt: Date | null; // when the auto-chase is next due
+  // 0..1 across the current 7-working-day chase window (0 = just reset, 1 = due/
+  // overdue). Null while snoozed / holding to an expected date. Drives the track
+  // fill on the triage row.
+  chaseProgress: number | null;
   openedAt: Date; // when the loop was raised
   partial: boolean; // some (not all) replies are in; ball still with the seller's solicitor
   lastMovement: { note: string; kind: EnquiryMovementKind; occurredAt: Date; byName: string | null } | null;
@@ -113,11 +117,19 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const quietSince = t.lastMovementAt ?? t.openedAt;
     const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
     const status: EnquiryTrackerStatus = snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
+    const chaseAnchor = t.lastChasedAt ?? quietSince;
     const nextChaseAt = snoozed
       ? null
       : t.lastChasedAt
         ? addWorkingDays(t.lastChasedAt, CHASE_WORKING_DAYS)
         : addWorkingDays(quietSince, CHASE_WORKING_DAYS);
+    // Fraction of the way through the current chase window (anchor → nextChaseAt).
+    const chaseProgress = nextChaseAt
+      ? (() => {
+          const span = nextChaseAt.getTime() - chaseAnchor.getTime();
+          return span > 0 ? Math.max(0, Math.min(1, (now.getTime() - chaseAnchor.getTime()) / span)) : 1;
+        })()
+      : null;
     const mv = t.movements[0] ?? null;
     const tx = t.transaction;
     return {
@@ -134,6 +146,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       outstandingNote: t.outstandingNote,
       expectedDate: t.snoozedUntil ?? null,
       nextChaseAt,
+      chaseProgress,
       openedAt: t.openedAt,
       partial: t.partialRepliesAt != null,
       lastMovement: mv

@@ -295,6 +295,17 @@ export function EnquiriesTriageList({
                 {/* Court slider */}
                 <div className="enq-slider">
                   <div className="enq-track">
+                    {r.chaseProgress != null && r.chaseProgress > 0 && (
+                      <span
+                        className="enq-fill"
+                        style={{
+                          left: isSeller ? 0 : undefined,
+                          right: isSeller ? undefined : 0,
+                          width: `${Math.round(r.chaseProgress * 100)}%`,
+                          opacity: 0.3 + 0.6 * r.chaseProgress,
+                        }}
+                      />
+                    )}
                     <span className="enq-handle" style={{ left: isSeller ? "0" : "calc(100% - 14px)" }} />
                   </div>
                   <div className="enq-ends">
