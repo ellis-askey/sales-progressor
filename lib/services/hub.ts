@@ -648,6 +648,66 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       })
     : [];
   const visitByContact = new Map(visitAgg.map((v) => [v.contactId, { days: v._count.day, lastDay: v._max.day }]));
+
+  // Broken silence clears the card (Ellis, 2026-09-18). The row is a to-do —
+  // "this client's gone quiet, give them a human touch" — so it hides once
+  // EITHER side has broken the silence in the last OUTREACH_QUIET_DAYS:
+  //   - We reached out: activity-tab compose, a chase sent from the drawer, a
+  //     logged call / text, an outbound WhatsApp (bridge or import), or a
+  //     portal chat message from the team.
+  //   - They got in touch: any inbound message from a client on the file —
+  //     including inbound WhatsApps, which the portal-visit-based detector
+  //     can't see. (A portal visit already clears the underlying flag via the
+  //     nightly detector.)
+  // The window matches a manual dismiss, so if the client still hasn't
+  // re-engaged 14 days after the last touch, the row resurfaces.
+  //
+  // Automated sends (engine chases, milestone emails, weekly updates —
+  // isAutomated: true) deliberately do NOT count: they fire on active files
+  // regardless, and they aren't the human touch the card is asking for.
+  // method: null outbound rows are excluded too — those are the passive
+  // in_app chase echoes mirrored onto the portal, not a direct communication.
+  // WhatsApp imports backdate sentAt to the real message time, so the window
+  // checks sentAt when present and falls back to createdAt.
+  const OUTREACH_QUIET_DAYS = 14;
+  const outreachSince = new Date(now.getTime() - OUTREACH_QUIET_DAYS * 86400000);
+  const candidateTxIds = [...new Set(flags.map((f) => f.transaction.id))];
+  const [touchRows, portalChat] = candidateTxIds.length
+    ? await Promise.all([
+        prisma.outboundMessage.findMany({
+          where: {
+            transactionId: { in: candidateTxIds },
+            OR: [{ sentAt: { gte: outreachSince } }, { sentAt: null, createdAt: { gte: outreachSince } }],
+            AND: [{
+              OR: [
+                { type: "outbound", isAutomated: false, method: { not: null } },
+                { type: "inbound" },
+              ],
+            }],
+          },
+          select: { transactionId: true, contactIds: true },
+        }),
+        prisma.portalMessage.findMany({
+          where: { transactionId: { in: candidateTxIds }, fromClient: false, createdAt: { gte: outreachSince } },
+          select: { transactionId: true },
+        }),
+      ])
+    : [[], []];
+  const touchesByTx = new Map<string, string[][]>();
+  for (const m of touchRows) {
+    if (!m.transactionId) continue;
+    const arr = touchesByTx.get(m.transactionId) ?? [];
+    arr.push(m.contactIds);
+    touchesByTx.set(m.transactionId, arr);
+  }
+  const portalChatTxIds = new Set(portalChat.map((p) => p.transactionId));
+  // The touch must involve a CLIENT contact on the file — a solicitor-only
+  // chase (empty / solicitor contactIds) isn't contact with the quiet client.
+  const silenceBroken = (txId: string, contacts: { id: string; roleType: string }[]): boolean => {
+    if (portalChatTxIds.has(txId)) return true;
+    const clientIds = new Set(contacts.filter((c) => c.roleType === "vendor" || c.roleType === "purchaser").map((c) => c.id));
+    return (touchesByTx.get(txId) ?? []).some((ids) => ids.some((id) => clientIds.has(id)));
+  };
   // The engaged-then-quiet contact on a file, most-engaged first, or null. Carries
   // the last day they opened the portal so the row can show "Last opened …".
   const quietClient = (contacts: { id: string; name: string }[]): { name: string; lastDay: string | null } | null => {
@@ -669,6 +729,8 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
     const tx = f.transaction;
     if (seen.has(tx.id)) continue;
     seen.add(tx.id);
+    // Someone broke the silence since they went quiet → cleared for now.
+    if (silenceBroken(tx.id, tx.contacts)) continue;
     // Name the client only when there's a single buyer (unambiguous).
     const buyers = tx.contacts.filter((c) => c.roleType === "purchaser");
     const who = buyers.length === 1 ? firstName(buyers[0].name) : null;

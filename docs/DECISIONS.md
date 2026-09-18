@@ -131,6 +131,12 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 **Decision:** rows + menus lift (`.agent-hover-row`); small controls (icon buttons, chevron dropdown triggers, chips, pills, ghost buttons, chart cursors) take a neutral shade (`.agent-hover-ctl`, `--agent-hover-shade`). Tone-tinted resting row backgrounds removed (AttentionCard, HubListCard, AttentionListView, BookingsToConfirmCard) — the left accent bar, icon chip and pill carry urgency. Ghost buttons hover shade, keeping coral border/text. Data-viz coral (forecast bars, donut) stays — it's data, not a wash.
 **Source:** Ellis, 2026-09-17 ("lift hover on most rows and a little shaded where appropriate").
 
+## 2026-09-18 · hub · Gone quiet clears when either side breaks the silence; agent-initiated only.
+
+**Why:** the card is a "give them a human touch" to-do, but rows only cleared when the client re-engaged — us contacting them changed nothing, so a handled file kept nagging.
+**Decision:** a row hides for 14 days (the manual-dismiss window) when, within the last 14 days, (a) the team contacted a client on the file — compose, drawer chase, logged call/text, outbound WhatsApp, portal chat — or (b) a client sent anything inbound, including WhatsApps the portal-visit detector can't see. Automated sends (`isAutomated: true`: engine chases, milestone emails, weekly updates) and passive in_app chase echoes do NOT count. Solicitor-only touches don't count — the touch must involve a vendor/purchaser contact. If the client still hasn't re-engaged after the window, the row resurfaces. Implemented as a query-time filter in `getGoneQuietFiles` (the nightly detector's flag semantics are untouched).
+**Source:** Ellis, 2026-09-18 ("agree with A"; "includes inbound whatsapps from them and also outbound from us").
+
 ---
 
 *Append new entries at the bottom. Don't edit historical entries — supersede them with a follow-up.*
