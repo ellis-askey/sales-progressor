@@ -11,9 +11,28 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getExchangeReconciliationList, confirmExchangeReconciliationAction } from "@/app/actions/milestones";
 
 export type CompleteFileResult = { ok: true } | { ok: false; error: string };
+
+// Completion-day: mark (or un-mark) the keys released to the buyer. Scope-checked.
+export async function setKeysReleasedAction(transactionId: string, released: boolean): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { keysReleasedAt: released ? new Date() : null },
+  });
+  revalidatePath("/agent/completions");
+  return { ok: true };
+}
 
 export async function completeFileAction(transactionId: string, dateStr: string): Promise<CompleteFileResult> {
   if (!dateStr) return { ok: false, error: "Pick a completion date first." };

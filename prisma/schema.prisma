@@ -588,6 +588,11 @@ model PropertyTransaction {
   // "Did this file exchange?" — answer.
   exchangedAt DateTime?
 
+  // Completion-day: the agent marks the keys released to the buyer, from the
+  // completing-today card on /agent/completions. Statement-sent deliberately not
+  // tracked (not our concern).
+  keysReleasedAt DateTime?
+
   // Exchange-day overlay — the agent flags "we're aiming to exchange TODAY".
   // Single-day and self-clearing: "active" is DERIVED, not stored — the UK
   // date of exchangeDayStartedAt must equal today, the file must not have

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { CalendarCheck, CheckCircle, Circle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { completeFileAction } from "@/app/actions/completions";
+import { completeFileAction, setKeysReleasedAction } from "@/app/actions/completions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 export type TodayFile = {
@@ -24,6 +24,7 @@ export type TodayFile = {
   chainSize: number;
   solsOk: boolean;
   fundsOk: boolean | null; // null => not shown (agency viewer)
+  keysReleased: boolean;
 };
 
 function fmt(pence: number | null): string | null {
@@ -46,8 +47,19 @@ export function CompletingTodayCard({ files }: { files: TodayFile[] }) {
   const router = useRouter();
   const { toast } = useAgentToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [keysBusyId, setKeysBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   if (files.length === 0) return null;
+
+  function toggleKeys(id: string, next: boolean) {
+    if (keysBusyId) return;
+    setKeysBusyId(id);
+    startTransition(async () => {
+      try { await setKeysReleasedAction(id, next); router.refresh(); }
+      catch { toast.error("Couldn't update that. Try again."); }
+      finally { setKeysBusyId(null); }
+    });
+  }
 
   const today = new Date().toISOString().split("T")[0];
   const totalValue = files.reduce((s, f) => s + (f.purchasePrice ?? 0), 0);
@@ -90,6 +102,18 @@ export function CompletingTodayCard({ files }: { files: TodayFile[] }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 18px", marginTop: 9 }}>
                 <Check ok={f.solsOk}>{f.solsOk ? "Solicitors on file" : "Solicitors missing"}</Check>
                 {f.fundsOk !== null && <Check ok={f.fundsOk}>{f.fundsOk ? "Funds with solicitor" : "Funds not confirmed"}</Check>}
+                <button
+                  type="button"
+                  disabled={keysBusyId === f.id}
+                  onClick={() => toggleKeys(f.id, !f.keysReleased)}
+                  style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, background: "none", border: "none", padding: 0, cursor: "pointer", color: f.keysReleased ? "var(--agent-text-primary)" : "var(--agent-text-secondary)" }}
+                  title={f.keysReleased ? "Mark keys not yet released" : "Mark keys released to buyer"}
+                >
+                  {f.keysReleased
+                    ? <CheckCircle size={15} weight="fill" style={{ color: "var(--agent-success)", flexShrink: 0 }} />
+                    : <Circle size={15} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />}
+                  Keys released to buyer
+                </button>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>

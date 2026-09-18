@@ -129,6 +129,7 @@ export default async function AgentCompletionsPage() {
       chainSize: f.chainSize ?? 1,
       solsOk: !!f.vendorSolicitorName && !!f.purchaserSolicitorName,
       fundsOk: isInternalStaff ? f.completionFundsSent === true || f.fundsInPlace === "yes" : null,
+      keysReleased: f.keysReleased,
     }));
 
   // Brand-new agency user (no pending, no completed history): show the onboarding

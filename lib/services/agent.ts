@@ -221,6 +221,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       chainLink: { select: { chainId: true } },
+      keysReleasedAt: true,
       // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
       milestoneCompletions: {
         where: {
@@ -266,6 +267,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         mortgagePence:       tx.clientMortgageGBP,
         otherFundsPence:     tx.clientOtherFundsSentGBP,
         completionFundsSent: tx.clientCompletionFundsSent,
+        keysReleased:        !!tx.keysReleasedAt,
         chainId:             tx.chainLink?.chainId ?? null,
       };
     });
