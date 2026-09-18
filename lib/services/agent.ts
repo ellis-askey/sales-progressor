@@ -220,6 +220,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       contacts: { select: { name: true, roleType: true } },
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
+      chainLink: { select: { chainId: true } },
       // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
       milestoneCompletions: {
         where: {
@@ -232,7 +233,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     },
   });
 
-  return candidates
+  const mapped = candidates
     .filter((tx) => !tx.milestoneCompletions.some((c) => completionDefIds.includes(c.milestoneDefinitionId)))
     .map((tx) => {
       const exchangeCompletion = tx.milestoneCompletions.find((c) => exchangeDefIds.includes(c.milestoneDefinitionId));
@@ -265,8 +266,24 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         mortgagePence:       tx.clientMortgageGBP,
         otherFundsPence:     tx.clientOtherFundsSentGBP,
         completionFundsSent: tx.clientCompletionFundsSent,
+        chainId:             tx.chainLink?.chainId ?? null,
       };
-    })
+    });
+
+  // Chain size per file: how many managed files sit in the same chain (drives the
+  // "part of a chain of N" line + the timeline's chain-day flag). One grouped read.
+  const chainIds = [...new Set(mapped.map((r) => r.chainId).filter((x): x is string => !!x))];
+  const chainCounts = chainIds.length
+    ? await prisma.chainLink.groupBy({
+        by: ["chainId"],
+        where: { chainId: { in: chainIds }, transactionId: { not: null } },
+        _count: { _all: true },
+      })
+    : [];
+  const sizeByChain = new Map(chainCounts.map((c) => [c.chainId, c._count._all]));
+
+  return mapped
+    .map((r) => ({ ...r, chainSize: r.chainId ? sizeByChain.get(r.chainId) ?? 1 : 1 }))
     .sort((a, b) => {
       if (!a.completionDate) return 1;
       if (!b.completionDate) return -1;
@@ -324,6 +341,7 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
       id: true,
       propertyAddress: true,
       completionDate: true,
+      exchangedAt: true,
       purchasePrice: true,
       agentFeeAmount: true,
       brokerReferralFee: true,
@@ -340,6 +358,7 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     id: tx.id,
     propertyAddress: tx.propertyAddress,
     completionDate: tx.completionDate,
+    exchangedAt: tx.exchangedAt,
     purchasePrice: tx.purchasePrice,
     agentFeeAmount: tx.agentFeeAmount,
     brokerFeeTotal: (tx.brokerReferralFee ?? 0) + (tx.onwardBrokerReferralFee ?? 0),

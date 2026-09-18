@@ -11,11 +11,16 @@ function fmtDate(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
+function daysBetween(a: string | null | undefined, b: string | null | undefined): number | null {
+  if (!a || !b) return null;
+  return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000));
+}
 
 export type CompletedFileRow = {
   id: string;
   propertyAddress: string;
   completionDateIso: string | null;
+  exchangedAtIso?: string | null;
   purchasePrice: number | null;
   agentFeeAmount: number | null;
   purchasers: string[];
@@ -30,7 +35,8 @@ const PREVIEW_COUNT = 3;
 // opened, with "show all" for the rest — so a busy agency never gets an endless
 // page.
 export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
-  const [open, setOpen] = useState(false);
+  // Promoted (open by default): completions are the payoff, not a buried archive.
+  const [open, setOpen] = useState(true);
   const [showAll, setShowAll] = useState(false);
   if (files.length === 0) return null;
 
@@ -74,9 +80,16 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
                     <div className="min-w-0 flex-1">
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                         <p className="text-[15px] font-bold truncate" style={{ color: "var(--agent-text-primary)" }}>{f.propertyAddress}</p>
-                        <span className="text-xs font-semibold" style={{ color: "var(--agent-success)", flexShrink: 0 }}>
-                          Completed{f.completionDateIso ? ` ${fmtDate(f.completionDateIso)}` : ""}
-                        </span>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <span className="text-xs font-semibold" style={{ color: "var(--agent-success)" }}>
+                            Completed{f.completionDateIso ? ` ${fmtDate(f.completionDateIso)}` : ""}
+                          </span>
+                          {daysBetween(f.exchangedAtIso, f.completionDateIso) != null && (
+                            <div style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 1 }}>
+                              exchange to keys in {daysBetween(f.exchangedAtIso, f.completionDateIso)} days
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 2 }}>
                         {f.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(f.purchasePrice / 100)}</span>}

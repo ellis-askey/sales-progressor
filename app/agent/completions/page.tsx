@@ -10,20 +10,15 @@ import {
   type CompletionGroup,
   type CompletionFileRow,
 } from "@/components/completions/CompletionsGroupList";
-import { CompletionStats } from "@/components/completions/CompletionStats";
 import { CompletionsMomentum } from "@/components/completions/CompletionsMomentum";
+import { CompletionsTimeline, type TimelineDay } from "@/components/completions/CompletionsTimeline";
+import { CompletingTodayCard, type TodayFile } from "@/components/completions/CompletingTodayCard";
 import { CompletedSection } from "@/components/completions/CompletedSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { toUKDateStr } from "@/lib/utils";
-
-function fmtCompact(pence: number) {
-  const pounds = pence / 100;
-  if (pounds >= 1_000_000) return "£" + (pounds / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
-  return "£" + pounds.toLocaleString("en-GB");
-}
 
 const GROUP_STYLES_STAT = {
   overdue:   { statColor: "#dc2626", pillColor: "danger"  as PillColor },
@@ -95,10 +90,46 @@ export default async function AgentCompletionsPage() {
     .filter((k) => counts[k] > 0)
     .map((k) => ({ key: k, label: `${counts[k]} ${STAT_LABELS[k]}`, pillColor: GROUP_STYLES_STAT[k].pillColor, anchor: `#section-${k}` }));
 
-  const totalValue    = files.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
-  const filesWithPrice = files.filter((f) => f.purchasePrice).length;
-  const totalFees     = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0) + f.brokerFeeTotal, 0);
-  const filesWithFee  = files.filter((f) => f.agentFeeAmount).length;
+  const totalValue = files.reduce((sum, f) => sum + (f.purchasePrice ?? 0), 0);
+
+  // Week-ahead timeline: days (today..+14) that have completions, chain-flagged.
+  const timelineDays: TimelineDay[] = (() => {
+    const byDay = new Map<string, { dateObj: Date; count: number; chainCount: number }>();
+    for (const f of files) {
+      if (!f.completionDate) continue;
+      const d = new Date(f.completionDate);
+      const dStr = toUKDateStr(d);
+      if (dStr < todayStr || dStr > in14Str) continue;
+      const cur = byDay.get(dStr) ?? { dateObj: d, count: 0, chainCount: 0 };
+      cur.count++;
+      if ((f.chainSize ?? 1) > 1) cur.chainCount++;
+      byDay.set(dStr, cur);
+    }
+    return [...byDay.entries()]
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .slice(0, 7)
+      .map(([key, v]) => ({
+        key,
+        dow: v.dateObj.toLocaleDateString("en-GB", { weekday: "short" }),
+        dayNum: v.dateObj.getDate(),
+        count: v.count,
+        chainCount: v.chainCount,
+        isToday: key === todayStr,
+      }));
+  })();
+
+  // Files completing today → the command card.
+  const todayFiles: TodayFile[] = files
+    .filter((f) => f.completionDate && toUKDateStr(new Date(f.completionDate)) === todayStr)
+    .map((f) => ({
+      id: f.id,
+      propertyAddress: f.propertyAddress,
+      purchasers: f.purchasers,
+      purchasePrice: f.purchasePrice ?? null,
+      chainSize: f.chainSize ?? 1,
+      solsOk: !!f.vendorSolicitorName && !!f.purchaserSolicitorName,
+      fundsOk: isInternalStaff ? f.completionFundsSent === true || f.fundsInPlace === "yes" : null,
+    }));
 
   // Brand-new agency user (no pending, no completed history): show the onboarding
   // empty state (hero + "getting set up" cards). Internal staff never see it.
@@ -130,6 +161,7 @@ export default async function AgentCompletionsPage() {
         photoUrl:              signed(f.photoStoragePath),
         // Completions hub: journey + buyer-entered context (funds gated to internal)
         internal:              isInternalStaff,
+        chainSize:             f.chainSize,
         instructedAtIso:       f.instructedAt ? new Date(f.instructedAt).toISOString() : null,
         firstTimeBuyer:        f.firstTimeBuyer,
         sellingRelated:        f.sellingRelated,
@@ -284,17 +316,11 @@ export default async function AgentCompletionsPage() {
           />
         )}
 
-        {/* Headed summary tiles */}
-        {files.length > 0 && (
-          <CompletionStats
-            tiles={[
-              { label: files.length !== 1 ? "Files" : "File", value: String(files.length) },
-              ...(filesWithPrice > 0 ? [{ label: "Sale value", value: fmtCompact(totalValue) }] : []),
-              ...(filesWithFee > 0 ? [{ label: "Your fees", value: fmtCompact(totalFees), accent: true }] : []),
-              { label: "This week", value: String(counts.this_week) },
-            ]}
-          />
-        )}
+        {/* Completing today — command card (only on days there are completions) */}
+        {todayFiles.length > 0 && <CompletingTodayCard files={todayFiles} />}
+
+        {/* Week-ahead timeline */}
+        {timelineDays.length > 0 && <CompletionsTimeline days={timelineDays} />}
 
         {/* ── Groups (collapsible, all start collapsed) ───────────────────── */}
         {completionGroups.length > 0 && (
@@ -307,6 +333,7 @@ export default async function AgentCompletionsPage() {
             id: f.id,
             propertyAddress: f.propertyAddress,
             completionDateIso: f.completionDate ? new Date(f.completionDate).toISOString() : null,
+            exchangedAtIso: f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,
             purchasePrice: f.purchasePrice ?? null,
             agentFeeAmount: f.agentFeeAmount ?? null,
             purchasers: f.purchasers,

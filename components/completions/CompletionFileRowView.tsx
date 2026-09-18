@@ -60,6 +60,8 @@ export type CompletionFileRow = {
   internal?: boolean;
   // Journey: instructed (file created) -> exchanged -> completing.
   instructedAtIso?: string | null;
+  // How many managed files sit in this file's chain (>1 => "part of a chain of N").
+  chainSize?: number | null;
   // Buyer-entered portal context (non-financial — shown to everyone).
   firstTimeBuyer?: boolean | null;
   sellingRelated?: boolean | null;
@@ -107,12 +109,20 @@ function fmtMoney(pence?: number | null): string | null {
   return "£" + Math.round(pence / 100).toLocaleString("en-GB");
 }
 
-function JStep({ label, date, strong }: { label: string; date: string; strong?: boolean }) {
+function JNode({ label, date, strong }: { label: string; date: string; strong?: boolean }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.8 }}>{label}</span>
-      <span style={{ fontSize: 11, fontWeight: strong ? 700 : 600, color: "var(--agent-text-secondary)" }}>{date}</span>
-    </span>
+    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: strong ? 800 : 700, color: "var(--agent-text-primary)" }}>{date}</span>
+    </div>
+  );
+}
+function JSeg({ gap, fill }: { gap: string | null; fill?: boolean }) {
+  return (
+    <div style={{ flex: 1, minWidth: 24, position: "relative", height: 26, display: "flex", alignItems: "center", margin: "0 10px" }}>
+      {gap && <span style={{ position: "absolute", top: 0, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{gap}</span>}
+      <div style={{ height: 2, width: "100%", borderRadius: 2, marginTop: 9, background: fill ? "var(--agent-success)" : "var(--agent-border-subtle)" }} />
+    </div>
   );
 }
 
@@ -142,6 +152,8 @@ function FundItem({ label, value, tone }: { label: string; value: string; tone?:
 
 function RowExtras({ file }: { file: CompletionFileRow }) {
   const g1 = daysBetweenIso(file.instructedAtIso, file.exchangedAtIso);
+  const g2 = daysBetweenIso(file.exchangedAtIso, file.completionDateIso);
+  const chainSize = file.chainSize ?? 1;
 
   // Readiness: mortgage-offer validity + solicitors (+ funds, internal only).
   const completionMs = file.completionDateIso ? new Date(file.completionDateIso).setHours(0, 0, 0, 0) : null;
@@ -171,14 +183,22 @@ function RowExtras({ file }: { file: CompletionFileRow }) {
 
   return (
     <div style={{ marginTop: 10 }}>
-      {/* Journey */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", color: "var(--agent-text-muted)" }}>
-        <JStep label="Instructed" date={fmtShort(file.instructedAtIso)} />
-        <span style={{ opacity: 0.5 }}>→</span>
-        <JStep label="Exchanged" date={fmtShort(file.exchangedAtIso)} strong />
-        {g1 != null && <span style={{ fontSize: 10 }}>({g1}d)</span>}
-        <span style={{ opacity: 0.5 }}>→</span>
-        <JStep label="Completing" date={fmtShort(file.completionDateIso)} />
+      {/* Chain line */}
+      {chainSize > 1 && (
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-secondary)", background: "rgba(91,107,120,0.10)", padding: "3px 9px", borderRadius: 999 }}>
+            Part of a chain of {chainSize}
+          </span>
+        </div>
+      )}
+
+      {/* Journey — instructed -> exchanged -> completing */}
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <JNode label="Instructed" date={fmtShort(file.instructedAtIso)} />
+        <JSeg gap={g1 != null ? `${g1} days` : null} fill />
+        <JNode label="Exchanged" date={fmtShort(file.exchangedAtIso)} strong />
+        <JSeg gap={g2 != null ? `${g2} days` : null} />
+        <JNode label="Completing" date={fmtShort(file.completionDateIso)} />
       </div>
 
       {/* Readiness */}
@@ -241,6 +261,11 @@ export function CompletionFileRowView({
         {fmtDate(file.completionDateIso)}
       </p>
       {daysLabel && <p className="text-xs font-semibold" style={{ color: daysColor }}>{daysLabel}</p>}
+      {groupKey === "overdue" && (
+        <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 5, lineHeight: 1.3, maxWidth: 150, marginLeft: "auto" }}>
+          likely a stale date, not a stalled sale
+        </p>
+      )}
     </div>
   );
 
