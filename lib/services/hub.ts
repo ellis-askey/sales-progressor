@@ -2238,8 +2238,14 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
   const exchangeIdsTodayByPlaceholder: string[] = [];
   const exchangeFireQueue: typeof exchanges = [];
   for (const tx of exchanges) {
-    if (isToday(tx.overridePredictedDate)) {
-      exchangeFireQueue.push(tx);
+    // A manual override is the source of truth when set — it wins on every other
+    // surface (override ?? expected). So when one exists, judge "today" on the
+    // override ALONE and never fall back to the raw system prediction. Without
+    // this, a file whose forecast was pushed out via override (e.g. recalibrated
+    // or chain-synced to a later date) but whose own expectedExchangeDate still
+    // happens to land today would wrongly surface in the diary.
+    if (tx.overridePredictedDate != null) {
+      if (isToday(tx.overridePredictedDate)) exchangeFireQueue.push(tx);
       continue;
     }
     if (!isToday(tx.expectedExchangeDate)) continue;
