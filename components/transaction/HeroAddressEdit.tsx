@@ -8,7 +8,6 @@
 
 import { useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { getAddressConsequencesAction, saveAddressAction } from "@/app/actions/transactions";
 
@@ -30,7 +29,6 @@ const H1_STYLE: CSSProperties = {
 const LINE2_STYLE: CSSProperties = { margin: "6px 0 0", fontSize: 15, color: "var(--agent-text-muted)", lineHeight: 1.35 };
 
 export function HeroAddressEdit({ transactionId, address }: { transactionId: string; address: string }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +73,10 @@ export function HeroAddressEdit({ transactionId, address }: { transactionId: str
       await saveAddressAction(transactionId, joined);
       setConfirm(null);
       setEditing(false);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh — saveAddressAction
+      // revalidates the file page, so its response already carries the
+      // re-render. The old router.refresh() fetched the same page a second
+      // time.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the address");
       setSaving(false);

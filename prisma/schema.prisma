@@ -689,6 +689,13 @@ model PropertyTransaction {
   agentRuns AgentRun[]
 
   @@index([serviceType, createdAt])
+  // Phase 4 perceived-performance (2026-09-18, PERF-11). Every list, hub
+  // count, work-queue scan and access-scope query filters on one of the
+  // three owner columns combined with status; until now the only index was
+  // [serviceType, createdAt], so all of those were full-table scans.
+  @@index([agencyId, status])
+  @@index([assignedUserId, status])
+  @@index([agentUserId, status])
 }
 
 // Phase 0 of the relist feature — shadow foundation only. One BuyerRound
@@ -1679,6 +1686,11 @@ model ChaseTask {
   @@index([status, dueDate])
   @@index([priority, status])
   @@index([buyerRoundId])
+  // Phase 4 perceived-performance (2026-09-18, PERF-11). The reminder engine
+  // and the exchange-reconciliation sweep look tasks up by reminderLogId
+  // (+ status / chaseCount filters) once per rule per confirm; the FK column
+  // had no index.
+  @@index([reminderLogId, status])
 }
 
 enum ChaseTaskStatus {

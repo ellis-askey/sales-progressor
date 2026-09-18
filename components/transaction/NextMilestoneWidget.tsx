@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
 import { DateField } from "@/components/ui/DateField";
@@ -36,7 +35,6 @@ function MilestoneSideRow({
   transactionId: string;
 }) {
   const { toast } = useAgentToast();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [flashed, setFlashed] = useState(false);
   // "completed" UI state — runs between the server confirm landing and
@@ -139,7 +137,8 @@ function MilestoneSideRow({
       setFlashed(true);
       setTimeout(() => setFlashed(false), 700);
       toast.success(milestone.name);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - the confirm
+      // action revalidates the file page (handleClick above never had one).
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to confirm step";
       toast.error("Couldn't confirm step", { description: message });

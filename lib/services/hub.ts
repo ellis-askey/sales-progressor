@@ -189,7 +189,6 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
   const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const [
-    activeCount,
     exchangingSoon,
     pipelineFiles,
     newThisMonth,
@@ -201,9 +200,9 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     stalledTxs,
   ] = await Promise.all([
     // ── Existing hero numbers ──────────────────────────────────────────────────
-    prisma.propertyTransaction.count({
-      where: { ...txWhere, status: "active" },
-    }),
+    // Phase 4 (2026-09-18, PERF-13): the separate activeCount count query was
+    // byte-identical in scope to the pipelineFiles findMany below — the count
+    // is now derived as pipelineFiles.length (same where, same semantics).
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -344,7 +343,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
 
   return {
     // Existing
-    activeFiles: activeCount,
+    activeFiles: pipelineFiles.length,
     exchangingSoon,
     pipelineValuePence,
     newThisMonth,
@@ -1148,7 +1147,6 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
   const completionDefIds = completionDefs.map((d) => d.id);
 
   const [
-    exchangesThisMonth,
     exchangesLastMonth,
     completionsThisMonth,
     completionsLastMonth,
@@ -1160,19 +1158,10 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
     // Each exchange writes two rows (VM19 vendor + PM26 purchaser) and
     // each completion writes two (VM20 + PM27). Counting rows doubled
     // every wins-card number. Same pattern as getHubPipelineStages.
-    prisma.propertyTransaction.count({
-      where: {
-        ...txWhere,
-        milestoneCompletions: {
-          some: {
-            milestoneDefinitionId: { in: exchangeDefIds },
-            completedAt: { gte: startOfThisMonth },
-            state: "complete",
-            OR: roundScopedOR(activeRoundIds),
-          },
-        },
-      },
-    }),
+    //
+    // Phase 4 (2026-09-18, PERF-13): the this-month exchange count is now
+    // derived from fastestExchangeRows below (same filters, distinct
+    // transaction ids) instead of a separate count query.
     prisma.propertyTransaction.count({
       where: {
         ...txWhere,
@@ -1284,6 +1273,12 @@ export async function getHubWins(vis: AgentVisibility): Promise<HubWins> {
       biggestExchangeAddress = tx.propertyAddress;
     }
   }
+
+  // Phase 4 (PERF-13): distinct-file exchange count derived from the rows
+  // already fetched above. seenExchangeTx adds every distinct transaction id
+  // BEFORE the purchase-price guard, so its size equals what the dropped
+  // propertyTransaction.count (some-matching-completion) returned.
+  const exchangesThisMonth = seenExchangeTx.size;
 
   return {
     exchangesThisMonth,

@@ -58,7 +58,6 @@ export function ExchangeDayControl({
   locked?: boolean;
 }) {
   const { toast } = useAgentToast();
-  const router = useRouter();
   const pathname = usePathname();
   const [startOpen, setStartOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -78,7 +77,8 @@ export function ExchangeDayControl({
     if (!r.ok) { setError(r.error); return; }
     setStartOpen(false);
     toast.success("Exchange day started");
-    router.refresh();
+    // Phase 4 (2026-09-18, PERF-03): no client refresh - the action
+    // revalidates this pathname.
   }
 
   async function doCancel() {
@@ -86,7 +86,8 @@ export function ExchangeDayControl({
     const r = await cancelExchangeDayAction({ transactionId, pathname });
     setLoading(false);
     setCancelOpen(false);
-    if (r.ok) { toast.success("Exchange day ended"); router.refresh(); }
+    // Phase 4: no client refresh - the action revalidates this pathname.
+    if (r.ok) { toast.success("Exchange day ended"); }
   }
 
   return (

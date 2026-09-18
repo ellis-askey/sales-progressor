@@ -11,7 +11,6 @@
 //    solicitor while we chase them to raise enquiries.
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Scales } from "@phosphor-icons/react/dist/ssr";
 import { logEnquiryMovementAction } from "@/app/actions/enquiries";
 import type { EnquiryHeroState } from "@/lib/enquiries/tracker";
@@ -48,7 +47,6 @@ export function EnquiryCourtChip({
   transactionId: string;
   data: EnquiryHeroState;
 }) {
-  const router = useRouter();
   // Phase 2 (2026-09-17): ack-scoped pending — clears when the server
   // acknowledges the handover, not when the page refetch lands. The
   // optimistic side sticks until the refreshed server state agrees
@@ -85,7 +83,9 @@ export function EnquiryCourtChip({
     setPending(true);
     try {
       await logEnquiryMovementAction({ transactionId, mode: "handover", flipsCourtTo: target });
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - the action
+      // revalidates the file page; the optimistic side reconciles from
+      // that payload (effect above).
     } catch {
       setOptimistic(null); // roll the slider back — the handover didn't save
     } finally {

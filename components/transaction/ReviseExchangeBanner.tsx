@@ -12,7 +12,6 @@
 // See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { WarningCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
@@ -30,7 +29,6 @@ export function ReviseExchangeBanner({
   address: string;
   passedDateIso: string;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   return (
@@ -69,7 +67,8 @@ export function ReviseExchangeBanner({
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false);
-            router.refresh();
+            // Phase 4 (2026-09-18, PERF-03): no client refresh - the action
+            // revalidates the file page AND /agent/hub.
           }}
         />
       )}

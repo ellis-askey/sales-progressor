@@ -5,7 +5,6 @@
 // edit it in place; saves via saveCompletionDateAction (logged server-side).
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PencilSimple } from "@phosphor-icons/react";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
 import { DateField } from "@/components/ui/DateField";
@@ -23,7 +22,6 @@ export function CompletionDateInline({
   completionDate: Date | null;
   exchangeConfirmed: boolean;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(completionDate ? new Date(completionDate).toISOString().split("T")[0] : "");
@@ -33,7 +31,8 @@ export function CompletionDateInline({
     try {
       await saveCompletionDateAction(transactionId, value || null);
       setEditing(false);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh — the action
+      // revalidates the file page; its response carries the re-render.
     } catch {
       setSaving(false);
     }

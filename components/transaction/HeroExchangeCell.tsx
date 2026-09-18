@@ -6,7 +6,6 @@
 // other hero stat cells exactly.
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
 import { CalendarBlank, PencilSimple } from "@phosphor-icons/react";
 import { saveOverrideDateAction } from "@/app/actions/transactions";
 import { DateField } from "@/components/ui/DateField";
@@ -38,7 +37,6 @@ export function HeroExchangeCell({
   predictedDate: Date | null;
   overrideDate: Date | null;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(overrideDate ? new Date(overrideDate).toISOString().split("T")[0] : "");
@@ -53,7 +51,8 @@ export function HeroExchangeCell({
     try {
       await saveOverrideDateAction(transactionId, value || null);
       setEditing(false);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh — the action
+      // revalidates the file page; its response carries the re-render.
     } catch {
       setSaving(false);
     }

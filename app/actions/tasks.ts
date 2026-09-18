@@ -79,9 +79,11 @@ export async function completeTaskAction(
   );
 
   if (targetMilestoneCode) {
+    // Full hint shape (Phase 4, PERF-12): same single query, and
+    // completeMilestone below skips its own definition re-read.
     const def = await prisma.milestoneDefinition.findUnique({
       where: { code: targetMilestoneCode },
-      select: { id: true },
+      select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
     });
     if (def) {
       try {
@@ -90,7 +92,7 @@ export async function completeTaskAction(
           milestoneDefinitionId: def.id,
           confirmer: { kind: "user", id: session.user.id, name: session.user.name ?? "" },
           eventDate: eventDate ? new Date(eventDate) : null,
-        });
+        }, undefined, { def });
         // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
 
         // Record the real exchange/completion date on the file when captured, so

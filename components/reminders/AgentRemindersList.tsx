@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretDown, CheckCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -484,7 +483,6 @@ function SplitFileCard({
 }
 
 export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean }) {
-  const router = useRouter();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -514,7 +512,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
 
   useEffect(() => {
     runReminderEngineAction("/agent/work-queue")
-      .then(() => startTransition(() => router.refresh()))
+      // Phase 4 (2026-09-18, PERF-03): the action revalidates this page;
+      // its response already re-renders the list - no second refresh.
       .catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

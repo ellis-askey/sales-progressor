@@ -7,7 +7,6 @@
 // card stay read-only — they derive from the chosen partner + Partners config.
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PencilSimple } from "@phosphor-icons/react";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { formatFee } from "@/lib/services/fees";
@@ -41,7 +40,6 @@ export function AgentFeeInline({
   agentFeeIsVatInclusive: boolean | null;
   purchasePrice: number | null;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +77,8 @@ export function AgentFeeInline({
         agentFeeIsVatInclusive: vat === "inclusive",
       });
       setEditing(false);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh — the action
+      // revalidates the file page; its response carries the re-render.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the fee");
     } finally {

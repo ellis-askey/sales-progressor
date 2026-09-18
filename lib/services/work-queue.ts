@@ -81,6 +81,14 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
   const purchaserSolicitorDefIds = new Set(solicitorDefs.filter((d) => PURCHASER_SOLICITOR_CODES.has(d.code)).map((d) => d.id));
   const allSolicitorDefIds = solicitorDefs.map((d) => d.id);
 
+  // Phase 4 (2026-09-18, PERF-12): computed once — this scan used to run
+  // twice per request with byte-identical arguments (here and in the
+  // available-solicitor-steps query below).
+  const activeRoundIds = await loadActiveRoundIds({
+    ...txWhereWorkQueue(vis),
+    status: "active" as TransactionStatus,
+  });
+
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhereWorkQueue(vis),
@@ -106,7 +114,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       // hasExchanged read true; the OR clause restricts MC visibility
       // to file-level (vendor) + active-round rows.
       milestoneCompletions: {
-        where: { state: "complete", OR: roundScopedOR(await loadActiveRoundIds({ ...txWhereWorkQueue(vis), status: "active" as TransactionStatus })) },
+        where: { state: "complete", OR: roundScopedOR(activeRoundIds) },
         select: {
           milestoneDefinitionId: true,
           completedAt: true,
@@ -128,7 +136,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
           transactionId: { in: txIds },
           milestoneDefinitionId: { in: allSolicitorDefIds },
           state: "available",
-          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhereWorkQueue(vis), status: "active" as TransactionStatus })),
+          OR: roundScopedOR(activeRoundIds),
         },
         select: { transactionId: true, milestoneDefinitionId: true },
       })

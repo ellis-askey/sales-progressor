@@ -12,7 +12,6 @@
 // The hero slider is the one-tap handover; this panel is the full desk.
 
 import { useState, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
 import {
   logEnquiryMovementAction,
   setEnquiryOutstandingAction,
@@ -47,7 +46,6 @@ export function EnquiryTrackerPanel({
   transactionId: string;
   data: EnquiryTrackerPanelData;
 }) {
-  const router = useRouter();
   // Phase 2 (2026-09-17): ack-scoped pending — the buttons come back the
   // moment the server acknowledges the write; the refresh reconciles in
   // the background instead of extending the pending window.
@@ -71,7 +69,8 @@ export function EnquiryTrackerPanel({
     setActionError(null);
     try {
       await fn();
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - every action
+      // routed through here revalidates the file page.
     } catch {
       setActionError("That didn't save. Try again.");
     } finally {

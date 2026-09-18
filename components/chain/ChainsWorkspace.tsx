@@ -8,7 +8,6 @@
 // sale from the queue so it can reach zero. Scoped upstream by the page.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   MagnifyingGlass,
   FunnelSimple,
@@ -274,12 +273,12 @@ export function ChainsWorkspace({
   currentUserId: string;
   currentUserRole?: string | null;
 }) {
-  const router = useRouter();
   const { toast } = useAgentToast();
 
   // Optimistic local copy of the no-chain sales so confirm/undo can move a card
   // between tabs (and retint the counts) instantly, then reconcile when the
-  // server data lands via router.refresh(). Reverts on a failed save.
+  // server data lands (the actions revalidate /agent/chains, so their
+  // responses carry the fresh props). Reverts on a failed save.
   const [noChainLocal, setNoChainLocal] = useState(noChain);
   useEffect(() => { setNoChainLocal(noChain); }, [noChain]);
   const [pendingNoChainId, setPendingNoChainId] = useState<string | null>(null);
@@ -305,7 +304,7 @@ export function ChainsWorkspace({
     // Optimistically move the sale into the "No chain" set.
     setNoChainLocal((list) => list.map((s) => s.transactionId === id ? { ...s, noChainConfirmedAt: new Date().toISOString(), resurfaced: false } : s));
     confirmNoChainAction(id)
-      .then(() => { toast.success("Marked as no chain"); router.refresh(); })
+      .then(() => { toast.success("Marked as no chain"); /* Phase 4: action revalidates /agent/chains */ })
       .catch(() => { setNoChainLocal(prev); toast.error("Couldn't update that sale"); })
       .finally(() => setPendingNoChainId(null));
   }
@@ -315,7 +314,7 @@ export function ChainsWorkspace({
     // Optimistically drop it back into the setup queue.
     setNoChainLocal((list) => list.map((s) => s.transactionId === id ? { ...s, noChainConfirmedAt: null } : s));
     undoNoChainAction(id)
-      .then(() => { toast.success("Back in the setup queue"); router.refresh(); })
+      .then(() => { toast.success("Back in the setup queue"); /* Phase 4: action revalidates /agent/chains */ })
       .catch(() => { setNoChainLocal(prev); toast.error("Couldn't update that sale"); })
       .finally(() => setPendingNoChainId(null));
   }

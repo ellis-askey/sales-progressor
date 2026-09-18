@@ -6,7 +6,6 @@
 // Internal only for now. Spec: docs/active/enquiries-triage/00-spec.md.
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Check, Checks, ArrowsLeftRight, ArrowsClockwise, ArrowRight, ChatCircleDots, CaretDown, MagnifyingGlass,
@@ -75,7 +74,6 @@ export function EnquiriesTriageList({
   rows: OpenEnquiryRow[];
   signedPhotos: Record<string, string>;
 }) {
-  const router = useRouter();
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -131,7 +129,7 @@ export function EnquiriesTriageList({
     startTransition(async () => {
       try {
         const res = await fn();
-        if (res?.ok) { toast.success(msg); router.refresh(); }
+        if (res?.ok) { toast.success(msg); /* Phase 4: action revalidates /agent/enquiries */ }
         // Give the real reason where we have one. "prereqs_missing" means an
         // earlier step on the file isn't confirmed yet, so the loop can't close.
         // Tell the agent that rather than the generic "try again".

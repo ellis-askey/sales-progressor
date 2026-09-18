@@ -176,6 +176,10 @@ export async function getAgentCompletions(vis: AgentVisibility) {
 
   const allPostExchangeDefIds = [...exchangeDefIds, ...completionDefIds];
 
+  // Phase 4 (2026-09-18, PERF-12): computed once — this scan used to run
+  // twice in this query with byte-identical arguments.
+  const activeRoundIds = await loadActiveRoundIds({ ...txWhere(vis), status: "active" as TransactionStatus });
+
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhere(vis),
@@ -185,7 +189,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         some: {
           state: "complete",
           milestoneDefinitionId: { in: exchangeDefIds },
-          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere(vis), status: "active" as TransactionStatus })),
+          OR: roundScopedOR(activeRoundIds),
         },
       },
     },
@@ -208,7 +212,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         where: {
           state: "complete",
           milestoneDefinitionId: { in: allPostExchangeDefIds },
-          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere(vis), status: "active" as TransactionStatus })),
+          OR: roundScopedOR(activeRoundIds),
         },
         select: { milestoneDefinitionId: true, completedAt: true },
       },

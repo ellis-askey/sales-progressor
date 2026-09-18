@@ -7,7 +7,6 @@
 // exist (e.g. all snoozed) it falls back to a plain reminders card.
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { NextActionCard } from "./NextActionCard";
 import { useTabContext } from "./TabContext";
 import { completeTaskAction } from "@/app/actions/tasks";
@@ -88,12 +87,8 @@ function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder
 
 export function NextActionCardConsumer({ transactionId, pathname, reminder, fallbackMilestone, otherReminders, totalActive }: NextActionInput) {
   const { setActiveTab } = useTabContext();
-  const router = useRouter();
-  // Phase 2 (2026-09-17): pending is ack-scoped. The old useTransition
-  // wrapped the action AND router.refresh, so "Marking..." (and the
-  // double-click window) lasted the whole page refetch. `pending` now
-  // clears when the server acknowledges the write; the refresh still
-  // fires but reconciles in the background.
+  // Phase 2 (2026-09-17): pending is ack-scoped - it clears when the
+  // server acknowledges the write, not when the page refetch lands.
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Exchange/completion date prompt — open when the top reminder targets a
@@ -111,9 +106,9 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       if ("blocked" in result && result.blocked) {
         const names = result.missing.map((m) => m.name.replace(/\.$/, "")).join(", ");
         setError(`Confirm ${names} first.`);
-      } else {
-        router.refresh();
       }
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - completeTaskAction
+      // revalidates the pathname it is given (this page).
     } catch {
       setError("Couldn't mark this complete. Try again.");
     } finally {

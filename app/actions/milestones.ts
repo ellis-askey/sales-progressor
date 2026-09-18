@@ -72,18 +72,24 @@ export async function confirmMilestoneAction(input: {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
-  const tx = await prisma.propertyTransaction.findFirst({
-    where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true, suppressPortalConfirmEmails: true, isDemo: true },
-  });
+  // Phase 4 perceived-performance (2026-09-18, PERF-12): the ownership guard
+  // and the definition read are independent — run them concurrently. The def
+  // select carries the full hint shape so completeMilestone below skips its
+  // own definition re-read (definitions are immutable seed data).
+  const [tx, def] = await Promise.all([
+    prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, input.transactionId),
+      select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true, suppressPortalConfirmEmails: true, isDemo: true },
+    }),
+    prisma.milestoneDefinition.findUnique({
+      where: { id: input.milestoneDefinitionId },
+      select: { code: true, name: true, summaryTemplate: true, side: true },
+    }),
+  ]);
   if (!tx) throw new Error("Transaction not found");
 
-  const def = await prisma.milestoneDefinition.findUnique({
-    where: { id: input.milestoneDefinitionId },
-    select: { code: true },
-  });
-
-  // Resolve counterpart definition id before the transaction (read-only lookup)
+  // Resolve counterpart definition before the transaction (read-only lookup;
+  // full hint shape for the same reason as above)
   const BILATERAL_PAIRS: Record<string, string> = {
     VM19: "PM26", PM26: "VM19",
     VM20: "PM27", PM27: "VM20",
@@ -93,14 +99,17 @@ export async function confirmMilestoneAction(input: {
     // event-date + reconciliation handling.
   };
   const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
-  let counterDefId: string | undefined;
+  let counterDef = null as Awaited<ReturnType<typeof prisma.milestoneDefinition.findFirst<{
+    where: { code: string };
+    select: { id: true; code: true; name: true; summaryTemplate: true; side: true };
+  }>>>;
   if (counterCode) {
-    const counterDef = await prisma.milestoneDefinition.findFirst({
+    counterDef = await prisma.milestoneDefinition.findFirst({
       where: { code: counterCode },
-      select: { id: true },
+      select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
     });
-    counterDefId = counterDef?.id;
   }
+  const counterDefId = counterDef?.id;
 
   // Primary + bilateral counterpart writes in a single atomic transaction.
   //
@@ -118,20 +127,26 @@ export async function confirmMilestoneAction(input: {
   let result;
   try {
     result = await prisma.$transaction(async (ptx) => {
+    // Phase 4 (PERF-12): one round read for the whole transaction. The
+    // primary completeMilestone, the bilateral already-done check and the
+    // counterpart completeMilestone each used to issue their own copy of
+    // this exact query inside the same ptx.
+    const txRowForScope = await ptx.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+
     const primary = await completeMilestone({
       transactionId: input.transactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
       confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
       keyCollectionRequired: input.keyCollectionRequired,
-    }, ptx);
+    }, ptx, { def: def ?? undefined, activeBuyerRoundId });
 
     if (counterDefId) {
-      const txRowForScope = await ptx.propertyTransaction.findUnique({
-        where: { id: input.transactionId },
-        select: { activeBuyerRoundId: true },
-      });
-      const scope = forRound(txRowForScope?.activeBuyerRoundId ?? null, input.transactionId);
+      const scope = forRound(activeBuyerRoundId, input.transactionId);
       const alreadyDone = await ptx.milestoneCompletion.findFirst({
         where: {
           transactionId: input.transactionId,
@@ -146,7 +161,7 @@ export async function confirmMilestoneAction(input: {
           milestoneDefinitionId: counterDefId,
           confirmer,
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
-        }, ptx);
+        }, ptx, { def: counterDef ?? undefined, activeBuyerRoundId });
       }
     }
 
@@ -1000,27 +1015,34 @@ export async function confirmExchangeReconciliationAction(input: {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
-  const tx = await prisma.propertyTransaction.findFirst({
-    where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, propertyAddress: true },
-  });
+  // Phase 4 (PERF-12): ownership guard + def read run concurrently; both
+  // definition selects carry the full hint shape so the completeMilestone
+  // calls below skip their own definition re-reads.
+  const [tx, def] = await Promise.all([
+    prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, input.transactionId),
+      select: { id: true, propertyAddress: true },
+    }),
+    prisma.milestoneDefinition.findUnique({
+      where: { id: input.milestoneDefinitionId },
+      select: { code: true, name: true, summaryTemplate: true, side: true },
+    }),
+  ]);
   if (!tx) throw new Error("Transaction not found");
-
-  const def = await prisma.milestoneDefinition.findUnique({
-    where: { id: input.milestoneDefinitionId },
-    select: { code: true },
-  });
   if (!def) throw new Error("Milestone definition not found");
 
   const counterCode = BILATERAL_PAIRS[def.code];
-  let counterDefId: string | undefined;
+  let counterDef = null as Awaited<ReturnType<typeof prisma.milestoneDefinition.findFirst<{
+    where: { code: string };
+    select: { id: true; code: true; name: true; summaryTemplate: true; side: true };
+  }>>>;
   if (counterCode) {
-    const counterDef = await prisma.milestoneDefinition.findFirst({
+    counterDef = await prisma.milestoneDefinition.findFirst({
       where: { code: counterCode },
-      select: { id: true },
+      select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
     });
-    counterDefId = counterDef?.id;
   }
+  const counterDefId = counterDef?.id;
 
   const outstandingDefs = input.outstandingIds.length > 0
     ? await prisma.milestoneDefinition.findMany({
@@ -1032,6 +1054,15 @@ export async function confirmExchangeReconciliationAction(input: {
   const now = new Date();
 
   await prisma.$transaction(async (ptx) => {
+    // Phase 4 (PERF-12): one round read for the whole transaction — the
+    // sweep, the bilateral check and both completeMilestone calls each used
+    // to issue their own copy of this query inside the same ptx.
+    const txRowForRound = await ptx.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const activeBuyerRoundId = txRowForRound?.activeBuyerRoundId ?? null;
+
     // 1. Sweep outstanding milestones FIRST so prerequisite chains are satisfied
     //    before completeMilestone runs its prereq guard for the counterpart
     //    (e.g. PM25 must be complete before completeMilestone(PM26) checks it).
@@ -1040,11 +1071,7 @@ export async function confirmExchangeReconciliationAction(input: {
       // create-if-missing branch inside the existing $transaction ptx.
       // Phase 1 commit 4e: round-scope the find + def-side-aware stamp
       // on the create branch.
-      const txRowSweep = await ptx.propertyTransaction.findUnique({
-        where: { id: input.transactionId },
-        select: { activeBuyerRoundId: true },
-      });
-      const activeBuyerRoundIdSweep = txRowSweep?.activeBuyerRoundId ?? null;
+      const activeBuyerRoundIdSweep = activeBuyerRoundId;
       const sweepScope = forRound(activeBuyerRoundIdSweep, input.transactionId);
       const sweepDefs = await ptx.milestoneDefinition.findMany({
         where: { id: { in: input.outstandingIds } },
@@ -1128,15 +1155,11 @@ export async function confirmExchangeReconciliationAction(input: {
       milestoneDefinitionId: input.milestoneDefinitionId,
       confirmer: sweepConfirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
-    }, ptx);
+    }, ptx, { def, activeBuyerRoundId });
 
     // 3. Bilateral counterpart — prereqs now satisfied by the sweep above
     if (counterDefId) {
-      const bilateralTxRow = await ptx.propertyTransaction.findUnique({
-        where: { id: input.transactionId },
-        select: { activeBuyerRoundId: true },
-      });
-      const bilateralScope = forRound(bilateralTxRow?.activeBuyerRoundId ?? null, input.transactionId);
+      const bilateralScope = forRound(activeBuyerRoundId, input.transactionId);
       const alreadyDone = await ptx.milestoneCompletion.findFirst({
         where: {
           transactionId: input.transactionId,
@@ -1151,7 +1174,7 @@ export async function confirmExchangeReconciliationAction(input: {
           milestoneDefinitionId: counterDefId,
           confirmer: sweepConfirmer,
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
-        }, ptx);
+        }, ptx, { def: counterDef ?? undefined, activeBuyerRoundId });
       }
     }
 

@@ -19,7 +19,6 @@
 
 import { useState, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phosphor-icons/react";
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -228,7 +227,6 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
   isShareOfFreehold: boolean;
   exchanged: boolean;
 }) {
-  const router = useRouter();
   const { toast } = useAgentToast();
 
   // ── Price inline edit ──
@@ -260,7 +258,8 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       await savePriceAction(transactionId, priceDraft);
       setEditingPrice(false);
       toast.success(`Purchase price updated to ${formatPrice(priceDraft)}`);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - savePriceAction
+      // revalidates the file page; its response carries the re-render.
     } catch (err) {
       priceEditLive.current = true; // allow a retry
       toast.error(err instanceof Error ? err.message : "Couldn't update the price");
@@ -322,7 +321,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
           await recoverSaleSetupAction(transactionId, { tenure: newTenure, isShareOfFreehold: newShare });
         }
         toast.success("Sale details updated");
-        router.refresh();
+        // Phase 4: no client refresh - action revalidates the file page.
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Couldn't save the change");
       }
@@ -347,7 +346,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
         try {
           await saveIsShareOfFreeholdAction(transactionId, newShare);
           toast.success(newShare ? "Marked share of freehold" : "Tenure updated");
-          router.refresh();
+          // Phase 4: no client refresh - action revalidates the file page.
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Couldn't save the change");
         }
@@ -382,7 +381,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       const label = pending.newTenure !== tenure ? "Tenure" : "Purchase type";
       closeModal();
       toast.success(`${label} updated`);
-      router.refresh();
+      // Phase 4: no client refresh - action revalidates the file page.
     } catch (err) {
       setModalError(err instanceof Error ? err.message : "Couldn't save the change");
     } finally {

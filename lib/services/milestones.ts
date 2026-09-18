@@ -987,6 +987,22 @@ export type CompleteMilestoneInput = {
   bypassPrereqs?: boolean;
 };
 
+// Phase 4 perceived-performance (2026-09-18, PERF-07/-12): optional
+// caller-prefetched rows so the hot confirm path stops re-reading data the
+// caller already holds. Both hints are strictly optional — omitted, the
+// function reads exactly what it always read.
+//   - `def` is the milestone definition row (immutable seed reference data,
+//     so a caller-supplied row is always equivalent to the re-read it
+//     replaces). Must belong to input.milestoneDefinitionId.
+//   - `activeBuyerRoundId` must have been read within the SAME database
+//     context (the caller's ptx, for transactional callers) so the value is
+//     the one this call would have read itself. The bilateral confirm paths
+//     used to read this row up to four times inside one $transaction.
+export type CompleteMilestoneHints = {
+  def?: { code: string; name: string; summaryTemplate: string | null; side: MilestoneSide };
+  activeBuyerRoundId?: string | null;
+};
+
 export async function completeMilestone(
   input: CompleteMilestoneInput,
   // 2026-07-07: widened from Prisma.TransactionClient to also accept a
@@ -994,14 +1010,17 @@ export async function completeMilestone(
   // client (STAGING_DATABASE_URL) here so milestone writes land in the
   // same DB as the parent PropertyTransaction row.
   tx?: Prisma.TransactionClient | PrismaClient,
+  hints?: CompleteMilestoneHints,
 ) {
   const db = tx ?? prisma;
 
-  const def = await db.milestoneDefinition.findUnique({
-    where: { id: input.milestoneDefinitionId },
-    // name feeds the solicitor-confirm summary fallback below.
-    select: { code: true, name: true, summaryTemplate: true, side: true },
-  });
+  const def =
+    hints?.def ??
+    (await db.milestoneDefinition.findUnique({
+      where: { id: input.milestoneDefinitionId },
+      // name feeds the solicitor-confirm summary fallback below.
+      select: { code: true, name: true, summaryTemplate: true, side: true },
+    }));
   if (!def) throw new Error("Milestone definition not found");
 
   // Round-scoped: PM12-⊃-VM9 cross-side prereq handled by the OR in
@@ -1009,11 +1028,16 @@ export async function completeMilestone(
   // out-of-order rows read + the allCurrentCompletions read.
   // Round id retained explicitly so the create-branch can stamp
   // buyerRoundId on purchaser-side new rows.
-  const txRowForScope = await db.propertyTransaction.findUnique({
-    where: { id: input.transactionId },
-    select: { activeBuyerRoundId: true },
-  });
-  const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+  let activeBuyerRoundId: string | null;
+  if (hints && "activeBuyerRoundId" in hints && hints.activeBuyerRoundId !== undefined) {
+    activeBuyerRoundId = hints.activeBuyerRoundId;
+  } else {
+    const txRowForScope = await db.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+  }
   const scope = forRound(activeBuyerRoundId, input.transactionId);
 
   // Prerequisite guard. When prereqs aren't met we throw a structured
@@ -1332,7 +1356,9 @@ export async function completeMilestone(
     try {
       const vm21 = await db.milestoneDefinition.findFirst({
         where: { code: "VM21" },
-        select: { id: true },
+        // Full hint shape (Phase 4): same single query, and the recursive
+        // call below no longer re-reads the definition or the round id.
+        select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
       });
       if (vm21) {
         await completeMilestone(
@@ -1348,6 +1374,7 @@ export async function completeMilestone(
             bypassPrereqs: true,
           },
           tx,
+          { def: vm21, activeBuyerRoundId },
         );
       }
     } catch (err) {
@@ -1373,7 +1400,9 @@ export async function completeMilestone(
     try {
       const other = await db.milestoneDefinition.findFirst({
         where: { code: dcpCounterpart },
-        select: { id: true },
+        // Full hint shape (Phase 4): same single query, and the recursive
+        // call below no longer re-reads the definition or the round id.
+        select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
       });
       if (other) {
         await completeMilestone(
@@ -1389,6 +1418,7 @@ export async function completeMilestone(
             bypassPrereqs: true,
           },
           tx,
+          { def: other, activeBuyerRoundId },
         );
       }
     } catch (err) {

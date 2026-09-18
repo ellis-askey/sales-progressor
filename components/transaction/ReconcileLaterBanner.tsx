@@ -9,7 +9,6 @@
 // (Kept the ReconcileLaterBanner name so the async wrapper wiring is unchanged.)
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Clock, X, ArrowRight, ArrowLeft, Check } from "@phosphor-icons/react";
 import {
@@ -68,7 +67,6 @@ export function ReconcileLaterBanner({
   // definition id. Anonymised upstream — what + date only, never who.
   seed?: ReconciliationState;
 }) {
-  const router = useRouter();
   const prefilled = !!seed && Object.keys(seed).length > 0;
   const [dismissed, setDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -153,7 +151,8 @@ export function ReconcileLaterBanner({
       if (elapsed < minMs) await new Promise((r) => setTimeout(r, minMs - elapsed));
       clearInterval(ticker);
       setModalOpen(false);
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - the action
+      // revalidates the file page.
     } catch (err) {
       clearInterval(ticker);
       console.error("[reconcile] failed:", err);

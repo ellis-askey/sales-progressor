@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@phosphor-icons/react";
 import { createManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
@@ -28,15 +27,13 @@ type AddInput = {
 // agency has an outsourced file (there's a progressor to send to).
 export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean }) {
   const [adding, setAdding] = useState(false);
-  const router = useRouter();
 
   async function handleAdd(input: AddInput) {
     try {
       await createManualTaskAction(input);
       // The action revalidates the /agent layout, which re-renders this page
-      // with the real list. router.refresh() keeps the empty -> list swap
-      // immediate, matching the previous behaviour.
-      router.refresh();
+      // with the real list in the same response - the extra router.refresh()
+      // was a second fetch of the same payload (Phase 4, PERF-03).
     } catch {
       // Stay on the empty state on failure — matches the previous res.ok gate.
     }

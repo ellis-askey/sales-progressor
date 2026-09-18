@@ -7,7 +7,6 @@
 // deletable inline. "View all" goes to the full Activity tab.
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useTabContext } from "./TabContext";
 import {
   CheckCircle, MinusCircle, NoteBlank, EnvelopeSimple, Phone, ChatCircleText, Circle, Plus,
@@ -83,7 +82,6 @@ function isSetupNote(e: ActivityEntry): boolean {
 
 export function ActivityNotesCard({ transactionId, entries, currentUserName, currentUserImage = null }: Props) {
   const { setActiveTab } = useTabContext();
-  const router = useRouter();
   const { toast } = useAgentToast();
   const [filter, setFilter] = useState<"all" | "notes">("all");
   const [draft, setDraft] = useState("");
@@ -112,9 +110,9 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
     try {
       await addNoteAction(transactionId, content);
       toast.success("Note added");
-      // Reconcile with canonical state; not awaited, so the composer is
-      // usable again as soon as the write is acknowledged.
-      router.refresh();
+      // Phase 4 (2026-09-18, PERF-03): no client refresh - addNoteAction
+      // revalidates the file page, so its response already carries the
+      // canonical note; the optimistic row reconciles from that.
     } catch {
       toast.error("Couldn't save note. Try again");
       setOptimistic((prev) => prev.filter((n) => n.id !== tempId));
@@ -132,7 +130,7 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
     try {
       await deleteCommAction(id, transactionId);
       toast.success("Note removed");
-      router.refresh();
+      // Phase 4: no client refresh - deleteCommAction revalidates the file page.
     } catch {
       toast.error("Couldn't remove note. Try again");
       setRemovedIds((prev) => { const s = new Set(prev); s.delete(id); return s; });

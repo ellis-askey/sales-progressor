@@ -562,10 +562,53 @@ export async function evaluateTransactionReminders(
   today.setUTCHours(0, 0, 0, 0);
   const todayUKStr = toUKDateStr(today);
 
+  // ── Phase 4 perceived-performance (2026-09-18, PERF-08) ──────────────────
+  // Per-rule read batching. The loop below used to issue up to three
+  // findFirst reads per rule across two key families — "this rule's active
+  // log" (three call sites, incl. inside deactivateLog) and "that log's
+  // chase tasks" (chased-before check + open-pending check). At 3-5 serial
+  // queries × up to ~40 rules that was the bulk of the engine's cost. One
+  // snapshot per family, taken up front, served from Maps.
+  //
+  // Behaviour-preserving because every write inside the loop is partitioned
+  // by the CURRENT rule's own log (deactivations, snooze-wakes, due-date
+  // moves and task creates all key on reminderRuleId/reminderLogId belonging
+  // to the iterating rule), so a pre-loop snapshot for rule X is still exact
+  // when X's iteration runs. Two reads deliberately stay live:
+  //   - the post-write `log` re-read inside the loop (it must observe the
+  //     SAME iteration's create/update, and under a concurrent evaluation
+  //     it must be able to see an external deactivation);
+  //   - nothing else — the pending-task snapshot is safe even though the
+  //     same iteration may move a task's dueDate first, because the
+  //     escalation branch only reads manualChaseCount / lastChasedAt /
+  //     priority, never dueDate.
+  const activeLogsSnapshot = await prisma.reminderLog.findMany({
+    where: { transactionId, status: "active" },
+    include: { reminderRule: { select: { name: true } } },
+  });
+  const activeLogByRuleId = new Map(activeLogsSnapshot.map((l) => [l.reminderRuleId, l]));
+  const activeLogIds = activeLogsSnapshot.map((l) => l.id);
+  const chasedRows = activeLogIds.length > 0
+    ? await prisma.chaseTask.findMany({
+        where: { reminderLogId: { in: activeLogIds }, chaseCount: { gt: 0 } },
+        select: { reminderLogId: true },
+      })
+    : [];
+  const pendingTasksSnapshot = activeLogIds.length > 0
+    ? await prisma.chaseTask.findMany({
+        where: { reminderLogId: { in: activeLogIds }, status: "pending" },
+      })
+    : [];
+  const hasChasesLogIds = new Set(chasedRows.map((r) => r.reminderLogId));
+  const pendingTaskByLogId = new Map<string, (typeof pendingTasksSnapshot)[number]>();
+  for (const t of pendingTasksSnapshot) {
+    if (!pendingTaskByLogId.has(t.reminderLogId)) pendingTaskByLogId.set(t.reminderLogId, t);
+  }
+
   for (const rule of rules) {
     // Exchange-gated: skip if not ready
     if (rule.requiresExchangeReady && !exchangeReady) {
-      await deactivateLog(transactionId, rule.id, "Exchange not yet ready", assignedUserId);
+      await deactivateLog(transactionId, rule.id, "Exchange not yet ready", assignedUserId, activeLogByRuleId.get(rule.id) ?? null);
       continue;
     }
 
@@ -591,7 +634,7 @@ export async function evaluateTransactionReminders(
       const vm18Ready = vm18 && (vm18.state === "complete" || vm18.state === "not_required");
       const pm25Ready = pm25 && (pm25.state === "complete" || pm25.state === "not_required");
       if (!vm18Ready || !pm25Ready) {
-        await deactivateLog(transactionId, rule.id, "Awaiting both exchange-ready gates (VM18 + PM25)", assignedUserId);
+        await deactivateLog(transactionId, rule.id, "Awaiting both exchange-ready gates (VM18 + PM25)", assignedUserId, activeLogByRuleId.get(rule.id) ?? null);
         continue;
       }
       const vm18At = vm18!.eventDate ?? vm18!.completedAt ?? null;
@@ -603,7 +646,7 @@ export async function evaluateTransactionReminders(
     if (rule.targetMilestoneCode) {
       const targetCompletion = completionByCode.get(rule.targetMilestoneCode);
       if (targetCompletion && (targetCompletion.state === "complete" || targetCompletion.state === "not_required")) {
-        await deactivateLog(transactionId, rule.id, "Target milestone confirmed", assignedUserId);
+        await deactivateLog(transactionId, rule.id, "Target milestone confirmed", assignedUserId, activeLogByRuleId.get(rule.id) ?? null);
         continue;
       }
 
@@ -628,6 +671,7 @@ export async function evaluateTransactionReminders(
             rule.id,
             `Awaiting prerequisite milestone${unmet.length === 1 ? "" : "s"}: ${unmet.join(", ")}`,
             assignedUserId,
+        activeLogByRuleId.get(rule.id) ?? null,
           );
           continue;
         }
@@ -646,7 +690,7 @@ export async function evaluateTransactionReminders(
       // anchorDate resolution below; the NR row's completedAt (or
       // transaction.createdAt) supplies a usable schedule origin.
       if (!anchorCompletion || (anchorCompletion.state !== "complete" && anchorCompletion.state !== "not_required")) {
-        await deactivateLog(transactionId, rule.id, "Anchor milestone not yet confirmed", assignedUserId);
+        await deactivateLog(transactionId, rule.id, "Anchor milestone not yet confirmed", assignedUserId, activeLogByRuleId.get(rule.id) ?? null);
         continue;
       }
       if (anchorCompletion.reconciledAtClaim) {
@@ -660,6 +704,7 @@ export async function evaluateTransactionReminders(
             rule.id,
             "Waiting on a real date for the earlier step before we can chase this one",
             assignedUserId,
+        activeLogByRuleId.get(rule.id) ?? null,
           );
           continue;
         }
@@ -696,6 +741,7 @@ export async function evaluateTransactionReminders(
           rule.id,
           "Waiting for exchange to record the completion date",
           assignedUserId,
+        activeLogByRuleId.get(rule.id) ?? null,
         );
         continue;
       }
@@ -728,10 +774,9 @@ export async function evaluateTransactionReminders(
     // starts, not at the random hour the anchor milestone was confirmed).
     let firstDueDate = setUkChaseTime(addDays(anchorDate, rule.graceDays));
 
-    // Find existing active log
-    const existingLog = await prisma.reminderLog.findFirst({
-      where: { transactionId, reminderRuleId: rule.id, status: "active" },
-    });
+    // Find existing active log (Phase 4: served from the pre-loop snapshot;
+    // see the batching comment above the loop for the safety argument).
+    const existingLog = activeLogByRuleId.get(rule.id) ?? null;
 
     // Safety net: a reminder must never be scheduled before it exists. If the
     // anchor maths lands earlier than the reminder's own creation moment (a
@@ -772,10 +817,9 @@ export async function evaluateTransactionReminders(
       // The engine no longer touches nextDueDate. It still owns the
       // INITIAL value (created from anchor+grace) on chaseCount=0 logs
       // — that's the only place this branch fires now.
-      const hasChases = await prisma.chaseTask.findFirst({
-        where: { reminderLogId: existingLog.id, chaseCount: { gt: 0 } },
-        select: { id: true },
-      });
+      // Phase 4: served from the pre-loop snapshot (nothing in this loop
+      // ever creates a chaseCount>0 task, so the set cannot go stale).
+      const hasChases = hasChasesLogIds.has(existingLog.id);
       if (!hasChases) {
         // Update if due date shifted significantly (e.g. event_date changed,
         // or — as of the useCompletionDate rule — the anchor moved from
@@ -839,10 +883,12 @@ export async function evaluateTransactionReminders(
 
     if (!log) continue;
 
-    // Find existing open chase task for this log
-    const openTask = await prisma.chaseTask.findFirst({
-      where: { reminderLogId: log.id, status: "pending" },
-    });
+    // Find existing open chase task for this log (Phase 4: served from the
+    // pre-loop snapshot — a log created THIS iteration has no tasks, so the
+    // map miss is exactly what a live read would return; and the escalation
+    // branch below never reads dueDate, the only field this iteration may
+    // have just changed).
+    const openTask = pendingTaskByLogId.get(log.id) ?? null;
 
     if (openTask) {
       // Escalation gate (2026-06 timing rule):
@@ -1046,12 +1092,21 @@ async function deactivateLog(
   transactionId: string,
   reminderRuleId: string,
   reason: string,
-  assignedUserId: string
+  assignedUserId: string,
+  // Phase 4 (PERF-08): caller-prefetched active log for this rule.
+  // `null` means the caller KNOWS there is no active log (snapshot miss);
+  // `undefined` (omitted) preserves the original live read for any other
+  // caller. The engine's writes are partitioned per rule, so its snapshot
+  // entry is always exact at call time.
+  prefetched?: { id: string; reminderRule: { name: string } } | null,
 ) {
-  const existing = await prisma.reminderLog.findFirst({
-    where: { transactionId, reminderRuleId, status: "active" },
-    include: { reminderRule: { select: { name: true } } },
-  });
+  const existing =
+    prefetched !== undefined
+      ? prefetched
+      : await prisma.reminderLog.findFirst({
+          where: { transactionId, reminderRuleId, status: "active" },
+          include: { reminderRule: { select: { name: true } } },
+        });
   if (!existing) return;
 
   await prisma.reminderLog.update({
