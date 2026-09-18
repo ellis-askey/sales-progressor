@@ -458,6 +458,57 @@ export function OnwardPurchaseCard({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase 5 follow-up (2026-09-18, perceived performance): optimistic
+  // availability overlay. Confirming a step used to leave its dependents
+  // locked until the action's response resolved - and that response also
+  // carries the revalidated file page, so on these trackers "the next step
+  // takes ages to open" even though the row itself flips instantly. The
+  // overlay mirrors the server's availability rule (see
+  // computeOnwardStepAvailability in lib/services/onward.ts): a non-gate
+  // step is available once every DIRECT_PREREQUISITES code is satisfied,
+  // where satisfied = not tracked in this view (other side / auto-NR) or
+  // complete. The exchange gate is deliberately NOT unlocked optimistically
+  // (its rule needs blocksExchange data the view doesn't carry) - it opens
+  // on canonical reconcile exactly as before. setView(next) stays the
+  // source of truth: the overlay only ever OPENS steps early, is pruned
+  // against every canonical view, and is reverted per-code on failure.
+  const [optCompletedCodes, setOptCompletedCodes] = useState<Set<string>>(new Set());
+  const [optUnlockedCodes, setOptUnlockedCodes] = useState<Set<string>>(new Set());
+
+  function dependentsUnlockedBy(code: string, v: OnwardTrackerView): string[] {
+    const byCode = new Map(v.steps.map((s) => [s.code, s]));
+    const completed = (c: string) =>
+      c === code || optCompletedCodes.has(c) || (byCode.get(c)?.isComplete ?? false);
+    const satisfied = (c: string) => !byCode.has(c) || completed(c);
+    const out: string[] = [];
+    for (const st of v.steps) {
+      if (st.isComplete || st.isAvailable || st.code === gateCode) continue;
+      const prereqs = DIRECT_PREREQUISITES[st.code] ?? [];
+      if (prereqs.includes(code) && prereqs.every(satisfied)) out.push(st.code);
+    }
+    return out;
+  }
+
+  // Drop overlay entries the canonical view now agrees with (it carries
+  // them itself); keep entries canonical still disputes - those belong to
+  // other in-flight confirms and reconcile when THEIR view arrives.
+  function pruneOverlay(next: OnwardTrackerView) {
+    setOptCompletedCodes((prev) => {
+      const n = new Set([...prev].filter((c) => {
+        const st = next.steps.find((x) => x.code === c);
+        return st ? !st.isComplete : false;
+      }));
+      return n.size === prev.size ? prev : n;
+    });
+    setOptUnlockedCodes((prev) => {
+      const n = new Set([...prev].filter((c) => {
+        const st = next.steps.find((x) => x.code === c);
+        return st ? !(st.isAvailable || st.isComplete) : false;
+      }));
+      return n.size === prev.size ? prev : n;
+    });
+  }
+
   // Type-facts form state (used when not yet set / editing). Far sides pre-fill
   // tenure from the near sibling (same property) when they have none of their own.
   const [editingFacts, setEditingFacts] = useState(false);
@@ -500,9 +551,19 @@ export function OnwardPurchaseCard({
   // sync. errors surface at the card level.
   async function confirmStepRow(code: string, payload: StepRowPayload): Promise<boolean> {
     setError(null);
+    // Optimistic: count the step and open its deterministic dependents NOW -
+    // the canonical view reconciles (or reverts) when the action resolves.
+    const unlocked = dependentsUnlockedBy(code, view);
+    setOptCompletedCodes((p) => new Set(p).add(code));
+    if (unlocked.length > 0) setOptUnlockedCodes((p) => new Set([...p, ...unlocked]));
+    const revert = () => {
+      setOptCompletedCodes((p) => { const n = new Set(p); n.delete(code); return n; });
+      if (unlocked.length > 0) setOptUnlockedCodes((p) => { const n = new Set(p); for (const c of unlocked) n.delete(c); return n; });
+    };
     try {
       const { result, view: next } = await actions.confirm({ transactionId, milestoneCode: code, ...payload });
       if (result.ok === false) {
+        revert();
         setError(
           result.reason === "locked" ? "Confirm the earlier step first."
           : result.reason === "awaiting_our_completion" ? "The onward can't complete until this sale completes."
@@ -511,8 +572,10 @@ export function OnwardPurchaseCard({
         return false;
       }
       setView(next);
+      pruneOverlay(next);
       return true;
     } catch {
+      revert();
       setError("Something went wrong. Try again.");
       return false;
     }
@@ -526,6 +589,7 @@ export function OnwardPurchaseCard({
         return false;
       }
       setView(next);
+      pruneOverlay(next);
       return true;
     } catch {
       setError("Something went wrong. Try again.");
@@ -675,6 +739,14 @@ export function OnwardPurchaseCard({
     </button>
   );
 
+  // Reported-count display includes in-flight optimistic completes so the
+  // summary chip moves with the click (the canonical view replaces it at ack).
+  const optExtraCompletes = [...optCompletedCodes].filter((c) => {
+    const st = view.steps.find((x) => x.code === c);
+    return st ? !st.isComplete : false;
+  }).length;
+  const shownCompleteCount = view.completeCount + optExtraCompletes;
+
   // Group the steps into the SAME named sections as the main-sale Steps tab, in
   // the same curated order (milestone-sections.ts) — so an onward/related tracker
   // reads identically (Finances before Conveyancing, PM11 before the survey,
@@ -695,7 +767,13 @@ export function OnwardPurchaseCard({
   function renderRows(steps: OnwardStepView[]) {
     return (
       <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 6px" }}>
-        {steps.map((step) => (
+        {steps.map((rawStep) => {
+          // Overlay: a step whose prerequisites were just optimistically
+          // completed renders as available immediately.
+          const step = !rawStep.isAvailable && optUnlockedCodes.has(rawStep.code)
+            ? { ...rawStep, isAvailable: true }
+            : rawStep;
+          return (
           <OnwardStepRow
             key={step.code}
             step={step}
@@ -706,7 +784,8 @@ export function OnwardPurchaseCard({
             onUndo={undoStepRow}
             onChase={(code, name) => setChaseStep({ code, name })}
           />
-        ))}
+          );
+        })}
       </ul>
     );
   }
@@ -753,12 +832,12 @@ export function OnwardPurchaseCard({
   // Embedded: a compact "Reported X/Y" summary with a slim progress bar; the
   // step list expands on demand so the spine stays tight.
   if (embedded) {
-    const pct = view.applicableCount > 0 ? Math.round((view.completeCount / view.applicableCount) * 100) : 0;
+    const pct = view.applicableCount > 0 ? Math.round((shownCompleteCount / view.applicableCount) * 100) : 0;
     return (
       <div style={{ padding: "0 4px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: SECONDARY, fontVariantNumeric: "tabular-nums" }}>
-            Reported {view.completeCount}/{view.applicableCount}
+            Reported {shownCompleteCount}/{view.applicableCount}
           </span>
           <span style={{ width: 96, height: 6, borderRadius: 99, background: "var(--agent-border, rgba(0,0,0,0.10))", overflow: "hidden" }}>
             <span style={{ display: "block", height: "100%", borderRadius: 99, width: `${pct}%`, background: "var(--agent-coral, #FF6B4A)" }} />
@@ -792,7 +871,7 @@ export function OnwardPurchaseCard({
       <div style={cardHeaderStyle}>
         <h3 style={titleStyle}>{txt.title}</h3>
         <span style={{ fontSize: 11, color: MUTED }}>
-          Reported · {view.completeCount}/{view.applicableCount}
+          Reported · {shownCompleteCount}/{view.applicableCount}
         </span>
       </div>
 
