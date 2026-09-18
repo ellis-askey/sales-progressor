@@ -48,10 +48,15 @@ const ICON_COLOR = "var(--agent-coral-deep)";
 const INITIAL_VISIBLE = 6;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export function BookingsToConfirmCard({ rows: initialRows }: { rows: BookingConfirmRow[] }) {
+export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = false }: {
+  rows: BookingConfirmRow[];
+  // Hub clutter rule (Ellis, 2026-09-18): triage cards below the top two
+  // start collapsed when more than one is on show.
+  defaultCollapsed?: boolean;
+}) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<BookingConfirmRow[]>(initialRows);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);   // confirm panel open
   const [busyId, setBusyId] = useState<string | null>(null);

@@ -58,6 +58,7 @@ export function HubListCard({
   title,
   subtitle,
   rows: initialRows,
+  defaultCollapsed = false,
 }: {
   cardKind: "gone_quiet" | "mortgage_expiry";
   iconName: keyof typeof ICONS;
@@ -65,10 +66,14 @@ export function HubListCard({
   title: string;
   subtitle: string;
   rows: HubRowData[];
+  // Hub clutter rule (Ellis, 2026-09-18): triage cards below the top two
+  // start collapsed when more than one is on show. Header + count stay
+  // visible either way.
+  defaultCollapsed?: boolean;
 }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<HubRowData[]>(initialRows);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();

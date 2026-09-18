@@ -70,10 +70,15 @@ function todayInputStr(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-export function ReviewsDueCard({ items: initialItems }: { items: Item[] }) {
+export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }: {
+  items: Item[];
+  // Hub clutter rule (Ellis, 2026-09-18): triage cards below the top two
+  // start collapsed when more than one is on show.
+  defaultCollapsed?: boolean;
+}) {
   const { toast } = useAgentToast();
   const [items, setItems] = useState<Item[]>(initialItems);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [resumeFor, setResumeFor] = useState<{ id: string; address: string } | null>(null);

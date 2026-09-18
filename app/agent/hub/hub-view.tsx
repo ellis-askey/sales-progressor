@@ -482,22 +482,11 @@ function FullHubBody({
         <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
       </Suspense>
 
-      {/* Needs filing — inbound emails the sync couldn't match to a file (Phase E2). */}
+      {/* Triage cards — Bookings to confirm → Mortgage offers expiring →
+          Needs filing → Files to review → Gone quiet. Order + the
+          collapsed-by-default clutter rule live inside the slot. */}
       <Suspense fallback={null}>
-        <NeedsFilingSlot />
-      </Suspense>
-
-      {/* Reviews due — compact pointer to the "Reviews due" section on /agent/to-do.
-          Files on hold past their return date (incl. chain-collapse waits) live
-          there now, not in Needs-you. Hidden when nothing is due. */}
-      <Suspense fallback={null}>
-        <ReviewsDuePointerSlot ctx={ctx} />
-      </Suspense>
-
-      {/* Gone quiet + mortgage expiries — deduped against Needs-attention AND
-          each other so a property never stacks across cards. Hidden when none. */}
-      <Suspense fallback={null}>
-        <LowerHubCards vis={ctx.vis} attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)} />
+        <TriageCardsSlot ctx={ctx} attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)} />
       </Suspense>
 
       {/* Pipeline at a glance — 5 stage tiles */}
@@ -630,19 +619,7 @@ async function AttentionSlot({
 // "Files to review" — the pointer banner grown into a full row-group drawer
 // (Ellis, 2026-09-18). Due reviews only (today or earlier — the pointer's old
 // count); upcoming + done stay on /agent/to-do, linked from the card footer.
-async function ReviewsDuePointerSlot({ ctx }: { ctx: Ctx }) {
-  const { items } = await listReviews(getAccessScope(ctx.session)).catch(() => ({ items: [] as Awaited<ReturnType<typeof listReviews>>["items"] }));
-  const todayStr = toUKDateStr(new Date());
-  const due = items.filter((i) => i.reviewDate && toUKDateStr(i.reviewDate) <= todayStr);
-  if (due.length === 0) return null;
-  const photoUrlMap = await getSignedUrlMap(due.map((i) => i.photoStoragePath));
-  const withPhotos = due.map((i) => ({ ...i, photoUrl: i.photoStoragePath ? photoUrlMap.get(i.photoStoragePath) ?? null : null }));
-  return (
-    <SectionReveal order={1}>
-      <ReviewsDueCard items={withPhotos} />
-    </SectionReveal>
-  );
-}
+// Rendered by TriageCardsSlot below.
 
 // ── Hub-card row formatting (shared by the two lightweight list cards) ───────
 
@@ -759,67 +736,104 @@ function buildBookingRows(
   });
 }
 
-// Inbound emails the sync couldn't confidently file, from the agent's own
-// connected mailbox (scoped inside the service). Hidden when the tray is empty.
-async function NeedsFilingSlot() {
-  const rows = await getPendingInboundEmails();
-  if (rows.length === 0) return null;
-  return (
-    <SectionReveal order={1}>
-      <NeedsFilingCard rows={rows} />
-    </SectionReveal>
-  );
-}
-
-// Fetches the lower cards together. Mortgage + gone-quiet are deduped against
-// Needs-attention (and each other) so a passive nag never stacks. Bookings to
-// confirm are the exception: confirming a client's booking is a distinct action
-// from an overdue chase, so a file legitimately appears in both — bookings are
-// NOT deduped against attention (only mortgage/gone-quiet dedupe against them).
-async function LowerHubCards({ vis, attentionTxIds }: { vis: AgentVisibility; attentionTxIds: string[] }) {
+// The triage group below Needs-attention + Exchange-dates-passed. Order +
+// default-open rules (Ellis, 2026-09-18), ranked by "costs you money or
+// credibility today" down to "signal":
+//   1. Surveys & valuations to confirm — a client is waiting, real date attached
+//   2. Mortgage offers expiring        — dated, real consequence
+//   3. Needs filing                    — emails sitting unmatched
+//   4. Files to review                 — parked files whose date arrived
+//   5. Gone quiet                      — signal only, dismissible
+// Clutter rule: when MORE THAN ONE of these is on show, they all start
+// collapsed (header, icon + count stay visible — one click to open). A lone
+// card opens itself. Needs filing is exempt (small always-open tray, no
+// drawer anatomy) but still counts toward "more than one".
+//
+// Dedup unchanged from the old LowerHubCards: mortgage excludes
+// attention+bookings; gone-quiet excludes all three. Bookings are deliberately
+// NOT deduped against attention — confirming a client's booking is a distinct
+// action from an overdue chase, so a file legitimately appears in both.
+async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxIds: string[] }) {
+  const vis = ctx.vis;
   // Provisional buyer bookings awaiting our confirmation — agency (self-managed)
   // and internal (outsourced) both see their own, scoped inside the service.
-  // Deliberately not excluded by attentionTxIds (see above).
   const bookings = await getBookingsToConfirm(vis);
   const bookingTxIds = bookings.map((b) => b.transactionId);
-  const mortgage = await getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]);
+  const [mortgage, needsFiling, reviewsResult] = await Promise.all([
+    getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]),
+    getPendingInboundEmails(),
+    listReviews(getAccessScope(ctx.session)).catch(() => ({ items: [] as Awaited<ReturnType<typeof listReviews>>["items"] })),
+  ]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
   // Gone quiet shows for self-managed agencies and internal staff alike
-  // (getGoneQuietFiles scopes by agency vs assigned inside). Drop anything
-  // already shown in the cards above it.
+  // (getGoneQuietFiles scopes by agency vs assigned inside).
   const goneQuiet = await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds]);
-  if (goneQuiet.length === 0 && mortgage.length === 0 && bookings.length === 0) return null;
+
+  const todayStr = toUKDateStr(new Date());
+  const reviewsDue = reviewsResult.items.filter((i) => i.reviewDate && toUKDateStr(i.reviewDate) <= todayStr);
+
+  const presentCount =
+    (bookings.length > 0 ? 1 : 0) +
+    (mortgage.length > 0 ? 1 : 0) +
+    (needsFiling.length > 0 ? 1 : 0) +
+    (reviewsDue.length > 0 ? 1 : 0) +
+    (goneQuiet.length > 0 ? 1 : 0);
+  if (presentCount === 0) return null;
+  const startCollapsed = presentCount > 1;
 
   const photoMap = await getSignedUrlMap([
     ...bookings.map((i) => i.photoStoragePath),
-    ...goneQuiet.map((i) => i.photoStoragePath),
     ...mortgage.map((i) => i.photoStoragePath),
+    ...reviewsDue.map((i) => i.photoStoragePath),
+    ...goneQuiet.map((i) => i.photoStoragePath),
   ]);
+  const reviewsWithPhotos = reviewsDue.map((i) => ({
+    ...i,
+    photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+  }));
 
   return (
     <>
       {bookings.length > 0 && (
-        <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} />
-      )}
-      {goneQuiet.length > 0 && (
-        <HubListCard
-          cardKind="gone_quiet"
-          iconName="clock"
-          headerTone="muted"
-          title="Gone quiet"
-          subtitle={goneQuiet.length === 1 ? "1 file has gone quiet and may need a personal nudge." : `${goneQuiet.length} files have gone quiet and may need a personal nudge.`}
-          rows={buildGoneQuietRows(goneQuiet, photoMap)}
-        />
+        <SectionReveal order={1}>
+          <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} defaultCollapsed={startCollapsed} />
+        </SectionReveal>
       )}
       {mortgage.length > 0 && (
-        <HubListCard
-          cardKind="mortgage_expiry"
-          iconName="bank"
-          headerTone="warning"
-          title="Mortgage offers expiring"
-          subtitle={mortgage.length === 1 ? "1 client mortgage offer is nearing its expiry." : `${mortgage.length} client mortgage offers are nearing their expiry.`}
-          rows={buildMortgageRows(mortgage, photoMap)}
-        />
+        <SectionReveal order={1}>
+          <HubListCard
+            cardKind="mortgage_expiry"
+            iconName="bank"
+            headerTone="warning"
+            title="Mortgage offers expiring"
+            subtitle={mortgage.length === 1 ? "1 client mortgage offer is nearing its expiry." : `${mortgage.length} client mortgage offers are nearing their expiry.`}
+            rows={buildMortgageRows(mortgage, photoMap)}
+            defaultCollapsed={startCollapsed}
+          />
+        </SectionReveal>
+      )}
+      {needsFiling.length > 0 && (
+        <SectionReveal order={1}>
+          <NeedsFilingCard rows={needsFiling} />
+        </SectionReveal>
+      )}
+      {reviewsDue.length > 0 && (
+        <SectionReveal order={1}>
+          <ReviewsDueCard items={reviewsWithPhotos} defaultCollapsed={startCollapsed} />
+        </SectionReveal>
+      )}
+      {goneQuiet.length > 0 && (
+        <SectionReveal order={1}>
+          <HubListCard
+            cardKind="gone_quiet"
+            iconName="clock"
+            headerTone="muted"
+            title="Gone quiet"
+            subtitle={goneQuiet.length === 1 ? "1 file has gone quiet and may need a personal nudge." : `${goneQuiet.length} files have gone quiet and may need a personal nudge.`}
+            rows={buildGoneQuietRows(goneQuiet, photoMap)}
+            defaultCollapsed={startCollapsed}
+          />
+        </SectionReveal>
       )}
     </>
   );
