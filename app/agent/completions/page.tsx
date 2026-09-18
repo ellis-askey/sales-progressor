@@ -4,13 +4,14 @@ import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getAgentCompletions, getAgentCompletedFiles, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { getAgentCompletions, getAgentCompletedFiles, getCompletionsMomentum, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   CompletionsGroupList,
   type CompletionGroup,
   type CompletionFileRow,
 } from "@/components/completions/CompletionsGroupList";
 import { CompletionStats } from "@/components/completions/CompletionStats";
+import { CompletionsMomentum } from "@/components/completions/CompletionsMomentum";
 import { CompletedSection } from "@/components/completions/CompletedSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -60,9 +61,10 @@ export default async function AgentCompletionsPage() {
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const [files, completedFiles] = await Promise.all([
+  const [files, completedFiles, momentum] = await Promise.all([
     getAgentCompletions(vis),
     getAgentCompletedFiles(vis),
+    getCompletionsMomentum(vis),
   ]);
 
   // Sign every property photo (pending + completed) in one round trip.
@@ -126,6 +128,19 @@ export default async function AgentCompletionsPage() {
         purchaserSolicitorName: f.purchaserSolicitorName ?? null,
         agencyName:            isInternalStaff ? (f.agencyName ?? null) : undefined,
         photoUrl:              signed(f.photoStoragePath),
+        // Completions hub: journey + buyer-entered context (funds gated to internal)
+        internal:              isInternalStaff,
+        instructedAtIso:       f.instructedAt ? new Date(f.instructedAt).toISOString() : null,
+        firstTimeBuyer:        f.firstTimeBuyer,
+        sellingRelated:        f.sellingRelated,
+        mortgageOfferExpiryIso: f.mortgageOfferExpiry ? new Date(f.mortgageOfferExpiry).toISOString() : null,
+        ...(isInternalStaff ? {
+          fundsInPlace:        f.fundsInPlace,
+          depositPence:        f.depositPence,
+          mortgagePence:       f.mortgagePence,
+          otherFundsPence:     f.otherFundsPence,
+          completionFundsSent: f.completionFundsSent,
+        } : {}),
       }));
 
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
@@ -255,6 +270,18 @@ export default async function AgentCompletionsPage() {
                 : "Files appear here once they exchange."}
             </p>
           </div>
+        )}
+
+        {/* Finish-line band — the payoff (completed, turnaround, on-time, in flight) */}
+        {files.length > 0 && (
+          <CompletionsMomentum
+            completed30dCount={momentum.completed30dCount}
+            completed30dValuePence={momentum.completed30dValuePence}
+            avgExchangeToCompletionDays={momentum.avgExchangeToCompletionDays}
+            onTimePct={momentum.onTimePct}
+            inFlightCount={files.length}
+            inFlightValuePence={totalValue}
+          />
         )}
 
         {/* Headed summary tiles */}

@@ -202,6 +202,19 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       brokerReferralFee: true,
       onwardBrokerReferralFee: true,
       photoStoragePath: true,
+      // Journey anchors: instructed (file created) -> exchanged -> completing,
+      // plus the 12-week target for the "on time" read.
+      createdAt: true,
+      twelveWeekTarget: true,
+      // Buyer-entered portal context. Funds (in pence, despite the GBP name) are
+      // gated to internal staff in the page; the non-financial signals are shown
+      // to agencies too.
+      clientFirstTimeBuyer: true,
+      clientDepositGBP: true,
+      clientMortgageGBP: true,
+      clientOtherFundsSentGBP: true,
+      clientCompletionFundsSent: true,
+      clientMoveInfos: { where: { side: "purchaser" }, select: { mortgageOfferExpiry: true, sellingRelated: true, fundsInPlace: true } },
       agency:       { select: { name: true } },
       assignedUser: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
@@ -223,6 +236,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     .filter((tx) => !tx.milestoneCompletions.some((c) => completionDefIds.includes(c.milestoneDefinitionId)))
     .map((tx) => {
       const exchangeCompletion = tx.milestoneCompletions.find((c) => exchangeDefIds.includes(c.milestoneDefinitionId));
+      const move = tx.clientMoveInfos[0];
       return {
         id: tx.id,
         propertyAddress: tx.propertyAddress,
@@ -238,6 +252,19 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         exchangedAt:           exchangeCompletion?.completedAt ?? null,
         vendorSolicitorName:    tx.vendorSolicitorFirm?.name ?? null,
         purchaserSolicitorName: tx.purchaserSolicitorFirm?.name ?? null,
+        // Journey
+        instructedAt:    tx.createdAt,
+        twelveWeekTarget: tx.twelveWeekTarget,
+        // Buyer-entered portal context
+        firstTimeBuyer:      tx.clientFirstTimeBuyer,
+        sellingRelated:      move?.sellingRelated ?? null,
+        mortgageOfferExpiry: move?.mortgageOfferExpiry ?? null,
+        fundsInPlace:        move?.fundsInPlace ?? null,
+        // Funds (pence) — page only forwards these to internal staff
+        depositPence:        tx.clientDepositGBP,
+        mortgagePence:       tx.clientMortgageGBP,
+        otherFundsPence:     tx.clientOtherFundsSentGBP,
+        completionFundsSent: tx.clientCompletionFundsSent,
       };
     })
     .sort((a, b) => {
@@ -245,6 +272,45 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       if (!b.completionDate) return -1;
       return new Date(a.completionDate).getTime() - new Date(b.completionDate).getTime();
     });
+}
+
+// The "finish line" momentum band for the completions page: deals landed in the
+// last 30 days (count + value), the typical exchange -> completion turnaround,
+// and how many completed on/before their 12-week target. Scoped by the viewer,
+// so an agency sees its own numbers. Uses the exchangedAt stamp + completionDate.
+export async function getCompletionsMomentum(vis: AgentVisibility): Promise<{
+  completed30dCount: number;
+  completed30dValuePence: number;
+  avgExchangeToCompletionDays: number | null;
+  onTimePct: number | null;
+}> {
+  const now = new Date();
+  const d30 = new Date(now.getTime() - 30 * 86400000);
+  const d180 = new Date(now.getTime() - 180 * 86400000);
+  const rows = await prisma.propertyTransaction.findMany({
+    where: { ...txWhere(vis), status: "completed", completionDate: { gte: d180 } },
+    select: { completionDate: true, exchangedAt: true, purchasePrice: true, twelveWeekTarget: true },
+  });
+
+  let completed30dCount = 0;
+  let completed30dValuePence = 0;
+  const durations: number[] = [];
+  let slaEligible = 0;
+  let slaHit = 0;
+
+  for (const r of rows) {
+    if (!r.completionDate) continue;
+    if (r.completionDate >= d30) { completed30dCount++; completed30dValuePence += r.purchasePrice ?? 0; }
+    if (r.exchangedAt) durations.push(Math.max(0, Math.round((r.completionDate.getTime() - r.exchangedAt.getTime()) / 86400000)));
+    if (r.twelveWeekTarget) { slaEligible++; if (r.completionDate <= r.twelveWeekTarget) slaHit++; }
+  }
+
+  const avgExchangeToCompletionDays = durations.length
+    ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+    : null;
+  const onTimePct = slaEligible > 0 ? Math.round((slaHit / slaEligible) * 100) : null;
+
+  return { completed30dCount, completed30dValuePence, avgExchangeToCompletionDays, onTimePct };
 }
 
 // Recently COMPLETED files (status flipped to "completed" when both VM20 + PM27

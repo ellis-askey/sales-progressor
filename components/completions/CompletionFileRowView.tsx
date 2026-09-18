@@ -54,6 +54,22 @@ export type CompletionFileRow = {
   purchaserSolicitorName: string | null;
   agencyName?: string | null;
   photoUrl?: string | null;
+  // ── Completions hub (2026-09-18) ─────────────────────────────────────────
+  // True for admin / SP (internal). Gates the buyer's funds figures — agencies
+  // see only the non-financial context.
+  internal?: boolean;
+  // Journey: instructed (file created) -> exchanged -> completing.
+  instructedAtIso?: string | null;
+  // Buyer-entered portal context (non-financial — shown to everyone).
+  firstTimeBuyer?: boolean | null;
+  sellingRelated?: boolean | null;
+  mortgageOfferExpiryIso?: string | null;
+  // Buyer-entered funds (pence) — only forwarded to internal staff.
+  fundsInPlace?: string | null; // "yes" | "not_yet" | "not_sure"
+  depositPence?: number | null;
+  mortgagePence?: number | null;
+  otherFundsPence?: number | null;
+  completionFundsSent?: boolean | null;
 };
 
 // Action buttons live inside the row's <Link>, so every click must stop the
@@ -70,6 +86,135 @@ function ActionButton({ onClick, primary, children }: { onClick: () => void; pri
     >
       {children}
     </button>
+  );
+}
+
+// ── Completions hub extras ────────────────────────────────────────────────
+// Journey (instructed → exchanged → completing), a readiness read, and the
+// buyer's portal-entered context. Funds are internal-only; the non-financial
+// signals (first-time buyer, related sale, mortgage-offer expiry) show to all.
+
+function fmtShort(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function daysBetweenIso(a?: string | null, b?: string | null): number | null {
+  if (!a || !b) return null;
+  return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000));
+}
+function fmtMoney(pence?: number | null): string | null {
+  if (pence == null) return null;
+  return "£" + Math.round(pence / 100).toLocaleString("en-GB");
+}
+
+function JStep({ label, date, strong }: { label: string; date: string; strong?: boolean }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.8 }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: strong ? 700 : 600, color: "var(--agent-text-secondary)" }}>{date}</span>
+    </span>
+  );
+}
+
+function Pip({ tone, children }: { tone: "ok" | "warn" | "bad"; children: React.ReactNode }) {
+  const map = {
+    ok:   { bg: "var(--agent-success-bg)", fg: "var(--agent-success)" },
+    warn: { bg: "rgba(var(--agent-warning-rgb),0.14)", fg: "var(--agent-warning)" },
+    bad:  { bg: "rgba(var(--agent-danger-rgb),0.12)", fg: "var(--agent-danger)" },
+  }[tone];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 600, padding: "3px 9px", borderRadius: 999, background: map.bg, color: map.fg }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: map.fg, flexShrink: 0 }} />
+      {children}
+    </span>
+  );
+}
+
+function FundItem({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" }) {
+  const c = tone === "ok" ? "var(--agent-success)" : tone === "warn" ? "var(--agent-warning)" : "var(--agent-text-primary)";
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column" }}>
+      <span style={{ fontSize: 9.5, color: "var(--agent-text-muted)" }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: c }}>{value}</span>
+    </span>
+  );
+}
+
+function RowExtras({ file }: { file: CompletionFileRow }) {
+  const g1 = daysBetweenIso(file.instructedAtIso, file.exchangedAtIso);
+
+  // Readiness: mortgage-offer validity + solicitors (+ funds, internal only).
+  const completionMs = file.completionDateIso ? new Date(file.completionDateIso).setHours(0, 0, 0, 0) : null;
+  const offerMs = file.mortgageOfferExpiryIso ? new Date(file.mortgageOfferExpiryIso).setHours(0, 0, 0, 0) : null;
+  const offerValid = offerMs == null ? null : completionMs == null ? true : offerMs >= completionMs;
+  const solsOk = !!file.vendorSolicitorName && !!file.purchaserSolicitorName;
+  const fundsOk = file.internal ? file.completionFundsSent === true || file.fundsInPlace === "yes" : null;
+
+  const pips: { tone: "ok" | "warn" | "bad"; label: string }[] = [];
+  if (file.internal) pips.push(fundsOk ? { tone: "ok", label: "Funds confirmed" } : { tone: "bad", label: "Funds not confirmed" });
+  if (offerValid !== null) pips.push(offerValid ? { tone: "ok", label: "Mortgage offer valid" } : { tone: "bad", label: "Offer expires before completion" });
+  pips.push(solsOk ? { tone: "ok", label: "Solicitors on file" } : { tone: "warn", label: "Solicitors missing" });
+  const notOk = pips.filter((p) => p.tone !== "ok").length;
+
+  // Non-financial context (shown to everyone).
+  const tags: string[] = [];
+  if (file.firstTimeBuyer === true) tags.push("First-time buyer");
+  if (file.sellingRelated === true) tags.push("Selling a related property");
+  else if (file.sellingRelated === false) tags.push("No related sale");
+  if (file.mortgageOfferExpiryIso) tags.push(`Mortgage offer to ${fmtShort(file.mortgageOfferExpiryIso)}`);
+
+  // Funds figures (internal only).
+  const deposit = file.internal ? fmtMoney(file.depositPence) : null;
+  const mortgage = file.internal ? fmtMoney(file.mortgagePence) : null;
+  const other = file.internal ? fmtMoney(file.otherFundsPence) : null;
+  const hasFundsData = !!file.internal && (!!deposit || !!mortgage || !!other || file.completionFundsSent != null);
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      {/* Journey */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", color: "var(--agent-text-muted)" }}>
+        <JStep label="Instructed" date={fmtShort(file.instructedAtIso)} />
+        <span style={{ opacity: 0.5 }}>→</span>
+        <JStep label="Exchanged" date={fmtShort(file.exchangedAtIso)} strong />
+        {g1 != null && <span style={{ fontSize: 10 }}>({g1}d)</span>}
+        <span style={{ opacity: 0.5 }}>→</span>
+        <JStep label="Completing" date={fmtShort(file.completionDateIso)} />
+      </div>
+
+      {/* Readiness */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 9 }}>
+        {pips.map((p, i) => <Pip key={i} tone={p.tone}>{p.label}</Pip>)}
+        <span
+          style={{
+            marginLeft: "auto", fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 8,
+            background: notOk === 0 ? "var(--agent-success-bg)" : "rgba(var(--agent-warning-rgb),0.14)",
+            color: notOk === 0 ? "var(--agent-success)" : "var(--agent-warning)",
+          }}
+        >
+          {notOk === 0 ? "Ready to complete" : `Needs ${notOk}`}
+        </span>
+      </div>
+
+      {/* What the buyer's told us */}
+      {(hasFundsData || tags.length > 0) && (
+        <div style={{ marginTop: 10, border: "1px dashed var(--agent-border-subtle)", borderRadius: 10, background: "var(--agent-surface-glass)", padding: "9px 12px" }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: 6 }}>What the buyer&apos;s told us</div>
+          {hasFundsData && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 18px", marginBottom: tags.length > 0 ? 8 : 0 }}>
+              {deposit && <FundItem label="Deposit" value={deposit} />}
+              {mortgage && <FundItem label="Mortgage" value={mortgage} />}
+              {other && <FundItem label="Other funds sent" value={other} />}
+              {file.completionFundsSent != null && <FundItem label="Funds" value={file.completionFundsSent ? "Confirmed sent" : "Not yet confirmed"} tone={file.completionFundsSent ? "ok" : "warn"} />}
+            </div>
+          )}
+          {tags.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {tags.map((t, i) => <span key={i} style={{ fontSize: 10, fontWeight: 600, background: "rgba(15,23,42,0.05)", color: "var(--agent-text-secondary)", padding: "3px 8px", borderRadius: 999 }}>{t}</span>)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -133,6 +278,9 @@ export function CompletionFileRowView({
           {file.agencyName && <> · {file.agencyName}</>}
         </p>
         <p className="text-xs truncate" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>{solLine}</p>
+
+        {/* Completions hub: journey + readiness + what the buyer's told us */}
+        <RowExtras file={file} />
 
         {/* Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
