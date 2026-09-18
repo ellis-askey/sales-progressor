@@ -20,13 +20,13 @@ export function PropertyThumb({
         src={photoUrl}
         alt=""
         aria-hidden
+        className="property-thumb"
         style={{
           width: size,
           height: size,
           borderRadius: radius,
           objectFit: "cover",
           flexShrink: 0,
-          border: "0.5px solid rgba(15,23,42,0.08)",
         }}
       />
     );
@@ -34,14 +34,13 @@ export function PropertyThumb({
   return (
     <span
       aria-hidden
-      className="property-photo-fallback"
+      className="property-photo-fallback property-thumb"
       style={{
         width: size,
         height: size,
         borderRadius: radius,
         display: "inline-block",
         flexShrink: 0,
-        border: "0.5px solid rgba(15,23,42,0.08)",
       }}
     />
   );

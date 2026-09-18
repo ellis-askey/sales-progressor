@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -12,7 +13,10 @@ import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/component
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
+import { AddFirmModal } from "@/components/solicitors/AddFirmModal";
+import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Button } from "@/components/ui/Button";
+import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UrgencyPill, SidePill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
@@ -94,14 +98,30 @@ function groupByFile(logs: AgentReminderLog[]): { txId: string; address: string;
   return Array.from(map.values());
 }
 
-// Group border colours matching ReminderCard left-border colours
-const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
-  escalated: "var(--agent-danger)",
-  overdue:   "#ea580c",
-  due_today: "var(--agent-warning)",
-  upcoming:  "var(--agent-border-subtle)",
-  snoozed:   "rgba(168,85,247,0.5)",
-};
+// Urgency bucket + label for a reminder. Shared by the header pill (shown on a
+// single-reminder file) and the per-row rendering, so the two always agree.
+function computeUrgency(
+  log: AgentReminderLog,
+  task: { chaseCount: number; priority: string },
+): { bucket: UrgencyBucket; label: string; hasBeenChased: boolean } {
+  const todayStr = toUKDateStr(new Date());
+  const dueStr = toUKDateStr(log.nextDueDate);
+  const isOverdue = dueStr < todayStr;
+  const isDueToday = dueStr === todayStr;
+  const daysOverdue = isOverdue ? Math.floor((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000) : 0;
+  const hasBeenChased = (task.chaseCount ?? 0) >= 1;
+  const bucket: UrgencyBucket = task.priority === "escalated" ? "escalated"
+    : isOverdue ? "overdue"
+    : isDueToday ? "due_today"
+    : "upcoming";
+  const label = task.priority === "escalated" ? "Escalated"
+    : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
+    : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
+    : isOverdue ? `${daysOverdue}d overdue`
+    : isDueToday ? "Due today"
+    : `Next ${formatDate(log.nextDueDate)}`;
+  return { bucket, label, hasBeenChased };
+}
 
 // Friendly label for a comm method on the chase-history line.
 function methodLabel(m: string | null): string | null {
@@ -154,8 +174,12 @@ function SplitFileCard({
   handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
 }) {
-  const leftBorder = GROUP_LEFT_BORDER[groupKey];
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Collapse the file's reminders by clicking its header (drawer-style).
+  const [collapsed, setCollapsed] = useState(false);
+  // Add-solicitor modal, opened from a "No solicitor on file yet" row.
+  const [addSolFor, setAddSolFor] = useState<"vendor" | "purchaser" | null>(null);
   const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[] } | null>(null);
   // "View" preview of a pending auto-chase email (autopilot rows).
   const [previewRow, setPreviewRow] = useState<{ logId: string; pipeline: "client" | "solicitor"; sendLabel: string } | null>(null);
@@ -204,6 +228,10 @@ function SplitFileCard({
   // Single open task on this file+group → side-scope the footer chase like the file tab.
   const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
   const soleIsBuyer = soleOpen ? isBuyerLog(soleOpen.log) : false;
+  // A file with exactly one reminder gets the full treatment: side + urgency
+  // pills in the header, and the full supporting copy. Two or more collapse to
+  // compact rows (a single meta line, no supporting box).
+  const isSingle = logs.length === 1;
 
   return (
     // Design Lab: `reminders-file-card`. Default v05 per Ellis's pick, 2026-08-09.
@@ -211,67 +239,92 @@ function SplitFileCard({
       glassId="reminders-file-card"
       label="Reminders · File card"
       defaultVariant="v05"
-      style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
+      style={{ borderRadius: 20 }}
     >
-      {/* Property header — photo + address (first line bold, town/postcode under),
-          and the whole-file actions on the right. */}
-      <div className="agent-card-hdr" style={{
-        background: "var(--agent-card-header-veil)",
-        padding: "10px 16px",
-        borderRadius: "16px 20px 0 0",
-        display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-      }}>
-        <PropertyThumb photoUrl={photoUrl} size={40} />
-        <div style={{ minWidth: 0, flex: 1 }}>
-          {/* Only line 1 is the link (inline-flex); the town/postcode sits below it. */}
-          <Link href={`/agent/transactions/${txId}`} className="agent-link" style={{ textDecoration: "none", maxWidth: "100%" }}>
-            {/* 2-line clamp (audit A8) — the address is the card's identity. */}
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
-              {line}
+      {/* Property header — click it to collapse/expand the file's reminders
+          (drawer-style). The address link + the action cluster stop propagation
+          so they still do their own thing. */}
+      <div
+        className="agent-card-hdr"
+        role="button"
+        aria-expanded={!collapsed}
+        tabIndex={0}
+        onClick={() => setCollapsed((v) => !v)}
+        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setCollapsed((v) => !v); } }}
+        style={{
+          background: "var(--agent-card-header-veil)",
+          padding: "10px 16px",
+          borderRadius: collapsed ? 20 : "16px 20px 0 0",
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          cursor: "pointer",
+        }}
+      >
+        {/* The whole identity — photo, first line, town/postcode — links to the
+            file. Hovering anywhere in it lights the first line coral (.rem-addr);
+            the town/postcode stays muted. Stops propagation so it navigates
+            rather than toggling the collapse. */}
+        <Link
+          href={`/agent/transactions/${txId}`}
+          className="agent-link"
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, textDecoration: "none" }}
+        >
+          <PropertyThumb photoUrl={photoUrl} size={48} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
+              {/* 2-line clamp (audit A8) — the address is the card's identity. */}
+              <span className="rem-addr" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
+                {line}
+              </span>
+              <LinkArrow />
             </span>
-            <LinkArrow />
-          </Link>
-          {location && (
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>
-          )}
-        </div>
-        {/* Whole-file actions + count. Chase all / Snooze all live here (top) rather
-            than a footer under the rows. A single reminder is covered by its own row,
-            so the file-level actions only appear when there are 2+ to act on at once. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
+            {location && (
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>
+            )}
+          </div>
+        </Link>
+        {/* Whole-file actions (2+) + the single-file pills. Stops propagation so a
+            click on Chase all / Snooze all doesn't also toggle the collapse. */}
+        <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
           {!hideChase && openTasks.length >= 2 && (
             <>
-              <Button size="sm" onClick={() => setDrawerOpen(true)}>Chase all ({milestones.length})</Button>
               <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
+              <ChaseSplitButton solo label={`Chase all (${milestones.length})`} onChase={() => setDrawerOpen(true)} />
             </>
           )}
-          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
-            {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
-          </span>
+          {isSingle && (
+            (() => {
+              const s = openTasks[0];
+              const sLog = s?.log ?? scheduledLogs[0];
+              if (!sLog) return null;
+              const sBuyer = isBuyerLog(sLog);
+              const u = s ? computeUrgency(s.log, s.task) : null;
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <SidePill isBuyer={sBuyer} />
+                  {u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} />}
+                </div>
+              );
+            })()
+          )}
         </div>
+        {/* Collapse chevron — rotates down when the file is folded. */}
+        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, transition: "transform 220ms cubic-bezier(0.25,0,0,1)", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }}>
+          <CaretDown size={15} weight="bold" />
+        </span>
       </div>
 
-      {/* Flat rows — worst-first, side as a per-row pill. */}
+      {/* Reminders — collapse (grid 1fr → 0fr) when the header is toggled. */}
+      <div style={{ display: "grid", gridTemplateRows: collapsed ? "0fr" : "1fr", transition: "grid-template-rows 280ms cubic-bezier(0.25,0,0,1)", overflow: "hidden" }}>
+        <div style={{ minHeight: 0 }}>
       <div style={{ padding: "6px 0" }}>
         {openTasks.map(({ log, task }, i) => {
           const name = reminderDisplayName(log, milestoneInfo);
           const isBuyer = isBuyerLog(log);
-          const rowTodayStr = toUKDateStr(new Date());
-          const dueStr = toUKDateStr(log.nextDueDate);
-          const isOverdue = dueStr < rowTodayStr;
-          const isDueToday = dueStr === rowTodayStr;
-          const daysOverdue = isOverdue ? Math.floor((new Date(rowTodayStr).getTime() - new Date(dueStr).getTime()) / 86400000) : 0;
-          const hasBeenChased = (task.chaseCount ?? 0) >= 1;
-          const bucket: UrgencyBucket = task.priority === "escalated" ? "escalated"
-            : isOverdue ? "overdue"
-            : isDueToday ? "due_today"
-            : "upcoming";
-          const urgencyLabel = task.priority === "escalated" ? "Escalated"
-            : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
-            : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
-            : isOverdue ? `${daysOverdue}d overdue`
-            : isDueToday ? "Due today"
-            : `Next ${formatDate(log.nextDueDate)}`;
+          const { bucket, label: urgencyLabel } = computeUrgency(log, task);
+          const urgencyColor = (bucket === "overdue" || bucket === "escalated")
+            ? "var(--agent-coral-deep)"
+            : bucket === "due_today" ? "var(--agent-warning)" : "var(--agent-text-muted)";
           const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
           const autoChases = Math.max(0, task.chaseCount - task.manualChaseCount);
           const escalationLine = task.priority === "escalated"
@@ -326,68 +379,94 @@ function SplitFileCard({
               style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                  <UrgencyPill label={urgencyLabel} bucket={bucket} chased={hasBeenChased} />
-                  <SidePill isBuyer={isBuyer} />
-                </div>
-                {/* Desktop: fuller sentence-style step name (variables filled).
-                    Mobile: the terse milestone name. Both in the DOM; CSS toggles. */}
+                {/* Title first; the side + urgency pills live in the header on a
+                    single-reminder file. Desktop: fuller sentence step name;
+                    mobile: the terse milestone name (CSS toggles). */}
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
                   <span className="rem-step-desktop">{copy?.step ?? name}</span>
                   <span className="rem-step-mobile">{name}</span>
                 </p>
-                {who && (
-                  // Mobile-only: on desktop the step name + supporting sentence already
-                  // name the party, so this quick who-scan is redundant there.
-                  <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                    Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
+                {isSingle ? (
+                  <>
+                    {who && (
+                      <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                        Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
+                      </p>
+                    )}
+                    {(copy?.line ?? info?.outstanding) && (
+                      <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                        {copy?.line ?? info?.outstanding}
+                      </p>
+                    )}
+                    <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
+                  </>
+                ) : (
+                  // Multiple reminders on one file: one compact meta line, no box.
+                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {task.chaseCount === 0 ? "not chased yet" : `chased ${task.chaseCount}×`}
                   </p>
                 )}
-                {(copy?.line ?? info?.outstanding) && (
-                  <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                    {copy?.line ?? info?.outstanding}
-                  </p>
-                )}
-                <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
                 {escalationLine && (
                   <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
                 )}
                 {(() => {
                   const st = autopilot?.get(log.id);
                   if (st?.kind === "auto") return <AutoChaseCountdown iso={st.nextSend} onView={() => setPreviewRow({ logId: log.id, pipeline: st.pipeline, sendLabel: sendMoment(st.nextSend) })} />;
-                  if (st?.kind === "manual" && st.reason) return <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{st.reason}</p>;
+                  if (st?.kind === "manual" && st.reason) {
+                    // When the blocker is "no solicitor on this side", the reason
+                    // becomes a click target that opens the add-solicitor modal.
+                    const sideSol = isBuyer ? purchaserSolicitor : vendorSolicitor;
+                    if (!sideSol) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
+                          className="agent-link"
+                          style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                        >
+                          {st.reason} <LinkArrow />
+                        </button>
+                      );
+                    }
+                    return <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{st.reason}</p>;
+                  }
                   return null;
                 })()}
               </div>
-              {!hideChase && (
-                <Button
-                  size="sm"
-                  onClick={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
-                  style={{ flexShrink: 0 }}
-                >
-                  Chase
-                </Button>
-              )}
-              <button
-                onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
-                disabled={isExiting}
-                title="Mark as chased. Advances the next chase date without sending an email"
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                ↻ Chased
-              </button>
-              <Button
-                onClick={() => handleComplete(task.id)}
-                disabled={loading === task.id || isExiting}
-                title="Mark step done"
-                variant="secondary"
-                size="sm"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                <CheckCircle size={12} weight="fill" /> Done
-              </Button>
               <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(task.id, choice)} />
+              {hideChase ? (
+                // No sending here, but keep Mark chased + Done available inline.
+                <>
+                  <button
+                    onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
+                    disabled={isExiting}
+                    title="Mark as chased. Advances the next chase date without sending an email"
+                    className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                    style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                  >
+                    ↻ Chased
+                  </button>
+                  <Button
+                    onClick={() => handleComplete(task.id)}
+                    disabled={loading === task.id || isExiting}
+                    title="Mark step done"
+                    variant="secondary"
+                    size="sm"
+                    style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                  >
+                    <CheckCircle size={12} weight="fill" /> Done
+                  </Button>
+                </>
+              ) : (
+                // Deck primary: Chase is the split-CTA; its chevron holds Mark
+                // chased + Mark done. Same actions, reorganised. Snooze is its own.
+                <ChaseSplitButton
+                  onChase={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
+                  onMarkChased={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
+                  onMarkDone={() => handleComplete(task.id)}
+                  disabled={isExiting}
+                />
+              )}
             </div>
           );
         })}
@@ -413,21 +492,52 @@ function SplitFileCard({
               style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <SidePill isBuyer={isBuyer} />
-                </div>
                 <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
-                {supporting && (
-                  <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                    {supporting}
+                {isSingle ? (
+                  <>
+                    {supporting && (
+                      <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                        {supporting}
+                      </p>
+                    )}
+                    <p style={{ margin: "6px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
+                  </>
+                ) : (
+                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                    {isBuyer ? "Buyer" : "Seller"} · Due {dueDateLabel}
                   </p>
                 )}
-                <p style={{ margin: "3px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
               </div>
             </div>
           );
         })}
       </div>
+        </div>
+      </div>
+
+      {/* Add-solicitor modal, opened from a "No solicitor on file yet" row. On
+          save it creates the firm + handler and attaches it to this side of the
+          file (partial patch, other side untouched), then refreshes. */}
+      {addSolFor && (
+        <AddFirmModal
+          prefillName=""
+          onClose={() => setAddSolFor(null)}
+          onCreated={async (firm, handler) => {
+            if (handler) {
+              try {
+                await saveSolicitorsAction(
+                  txId,
+                  addSolFor === "vendor"
+                    ? { vendorSolicitorFirmId: firm.id, vendorSolicitorContactId: handler.id }
+                    : { purchaserSolicitorFirmId: firm.id, purchaserSolicitorContactId: handler.id },
+                );
+              } catch { /* leave it; the file just keeps the "add solicitor" nudge */ }
+            }
+            setAddSolFor(null);
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Chase-all drawer */}
       {drawerOpen && (
@@ -797,7 +907,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
             </div>
           );
         }
-        return groups.map((grp) => {
+        const renderGroup = (grp: (typeof groups)[number]) => {
           if (grp.logs.length === 0) return null;
           const isCollapsed = collapsed[grp.key];
           const fileGroups = groupByFile(grp.logs);
@@ -846,7 +956,22 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
               </div>
             </div>
           );
-        });
+        };
+        // Your work (Needs you + Coming up) stacks in the main column; On
+        // autopilot moves into a second column at ≥1280px so the two reading
+        // modes — "act on these" vs "the system's got these" — sit side by side
+        // instead of pushing the pipeline far down the page. Below that it all
+        // stacks in one column, worst-first, as before.
+        const youNodes = groups.filter((g) => g.you).map(renderGroup).filter(Boolean);
+        const autoNodes = groups.filter((g) => !g.you).map(renderGroup).filter(Boolean);
+        return (
+          <div className={`wq-groupcols${autoNodes.length ? " has-auto" : ""}`}>
+            <div className="wq-groupcol space-y-5">{youNodes}</div>
+            {autoNodes.length > 0 && (
+              <div className="wq-groupcol wq-groupcol--auto space-y-5">{autoNodes}</div>
+            )}
+          </div>
+        );
       })()}
 
       {/* Snoozed section — sorted by nextDueDate asc (= snooze end date asc, set by snoozeReminderLog) */}

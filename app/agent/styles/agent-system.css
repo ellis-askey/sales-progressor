@@ -363,6 +363,23 @@
     background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 48%, transparent 72%);
   }
 
+  /* Work-queue columns. Default (and every small/medium screen): one column,
+     everything stacked worst-first. At ≥1280px, when there's an autopilot
+     group to show, split into two: your work on the left (wider), the
+     autopilot pipeline on the right (narrower). align-items:start so the two
+     columns are independent — collapsing one doesn't stretch the other. */
+  .wq-groupcols { display: flex; flex-direction: column; gap: 20px; }
+  .wq-groupcol { min-width: 0; }
+  @media (min-width: 1280px) {
+    .wq-groupcols.has-auto {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .wq-groupcols.has-auto .wq-groupcol--auto { position: sticky; top: 84px; }
+  }
+
   /* ── Solid surface primitives ────────────────────────────────────────────── */
 
   .agent-surface {
@@ -464,6 +481,59 @@
     box-shadow: none;
     filter: none;
   }
+
+  /* ── Reminders "Deck" primary: the Chase split-button (Chase + attached
+     chevron). A tactile coral with a top sheen; the chevron opens the Mark
+     chased / Mark done menu. Visual only. See components/reminders/ChaseSplitButton. */
+  .rem-chase {
+    display: inline-flex; align-items: stretch; border-radius: 11px; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(var(--agent-coral-rgb), 0.28);
+    transition: box-shadow 160ms ease, transform 160ms ease;
+  }
+  .rem-chase:hover { box-shadow: 0 6px 18px rgba(var(--agent-coral-rgb), 0.36); transform: translateY(-1px); }
+  .rem-chase:active { transform: scale(0.985); }
+  .rem-chase.is-disabled { box-shadow: none; transform: none; opacity: 0.5; }
+  .rem-chase-go, .rem-chase-caret {
+    background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
+    color: var(--agent-text-on-coral, #fff); border: none; cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+  .rem-chase.is-disabled .rem-chase-go, .rem-chase.is-disabled .rem-chase-caret { cursor: not-allowed; }
+  .rem-chase-go {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
+    font-size: 13px; font-weight: 600; letter-spacing: -0.005em; border-radius: 11px 0 0 11px;
+  }
+  .rem-chase-caret {
+    display: grid; place-items: center; width: 30px;
+    border-left: 1px solid rgba(255, 255, 255, 0.30); border-radius: 0 11px 11px 0;
+  }
+  .rem-chase-caret svg { transition: transform 180ms ease; }
+  .rem-chase-caret.open svg { transform: rotate(180deg); }
+  .rem-chase.solo .rem-chase-go { border-radius: 11px; }
+  .rem-chase-go:focus-visible, .rem-chase-caret:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
+
+  /* ── Reminders snooze quick chips: outline, no fill. Hover turns them coral;
+     selected goes a deeper coral with a 0.5px thicker border, still no fill. ── */
+  .rem-snz-chip {
+    flex: 1 1 auto; min-width: 46px; padding: 6px 8px; font-size: 12px; font-weight: 600;
+    border-radius: 9px; cursor: pointer; background: transparent;
+    color: var(--agent-text-secondary); border: 0.5px solid var(--agent-border-subtle);
+    transition: color 130ms ease, border-color 130ms ease;
+  }
+  .rem-snz-chip:hover:not(.on) { color: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
+  .rem-snz-chip.on { color: #E0512F; border: 1px solid #E0512F; font-weight: 700; }
+  :root[data-theme="dark"] .rem-snz-chip.on { color: #FF9E80; border-color: #FF9E80; }
+
+  /* Reminders: the property first-line address turns coral on hover (the arrow
+     still nudges via .agent-arrow-i). */
+  .rem-addr { color: var(--agent-text-primary); transition: color 140ms ease; }
+  .agent-link:hover .rem-addr { color: var(--agent-coral-deep); }
+
+  /* Reminders: the snooze clock hand ticks round while its button is hovered. */
+  @keyframes rem-tick { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .rem-clock-hand { transform-box: view-box; transform-origin: 12px 12px; }
+  .rem-clock-btn:hover .rem-clock-hand { animation: rem-tick 2s steps(12) infinite; }
+  @media (prefers-reduced-motion: reduce) { .rem-clock-btn:hover .rem-clock-hand { animation: none; } }
 
   /* Secondary */
   .agent-btn-secondary {

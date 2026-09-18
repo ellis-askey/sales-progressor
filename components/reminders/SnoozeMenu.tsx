@@ -12,7 +12,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Clock } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { DateField } from "@/components/ui/DateField";
@@ -110,9 +109,15 @@ export function SnoozeMenu({
         title="Snooze"
         variant={variant === "all" ? "ghost" : "secondary"}
         size="sm"
+        className="rem-clock-btn"
         style={{ flexShrink: 0, whiteSpace: "nowrap" }}
       >
-        <Clock size={12} weight="regular" />{variant === "all" ? ` ${label}${count ? ` (${count})` : ""}` : null}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="8.5" />
+          <line x1="12" y1="12" x2="15" y2="12" />
+          <g className="rem-clock-hand"><line x1="12" y1="12" x2="12" y2="6.5" /></g>
+        </svg>
+        {variant === "all" ? ` ${label}${count ? ` (${count})` : ""}` : null}
       </Button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
@@ -128,8 +133,8 @@ export function SnoozeMenu({
             className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
             onAnimationEnd={() => { if (closing) setClosing(false); }}
             style={{
-              background: "rgba(255,255,255,0.98)", borderRadius: 14, overflow: "hidden",
-              boxShadow: "0 10px 28px rgba(0,0,0,0.14)", border: "1px solid rgba(0,0,0,0.08)",
+              background: "var(--agent-menu-surface, #ffffff)", borderRadius: 14, overflow: "hidden",
+              boxShadow: "0 12px 32px rgba(15,23,42,0.16)", border: "0.5px solid var(--agent-border-default)",
               width: 232, padding: 12,
             }}
           >
@@ -145,13 +150,7 @@ export function SnoozeMenu({
                   <button
                     key={opt.hours}
                     onClick={() => { setHours(opt.hours); setDateVal(""); }}
-                    style={{
-                      flex: "1 1 auto", minWidth: 46, padding: "6px 8px", fontSize: 12, fontWeight: 600,
-                      borderRadius: 9, cursor: "pointer",
-                      color: on ? "#fff" : "var(--agent-text-secondary)",
-                      background: on ? "var(--agent-coral)" : "var(--agent-surface-glass)",
-                      border: `0.5px solid ${on ? "var(--agent-coral)" : "var(--agent-border-subtle)"}`,
-                    }}
+                    className={`rem-snz-chip${on ? " on" : ""}`}
                   >
                     {opt.label}
                   </button>
@@ -175,8 +174,8 @@ export function SnoozeMenu({
               onChange={(e) => setReason(e.target.value)}
               placeholder="Why? (optional)"
               rows={2}
-              className="agent-input agent-input-sm"
-              style={{ width: "100%", fontSize: 12, resize: "none", marginBottom: 10, lineHeight: 1.4 }}
+              className="agent-textarea"
+              style={{ width: "100%", fontSize: 12, resize: "none", marginBottom: 10, lineHeight: 1.4, minHeight: 52, padding: "8px 10px" }}
             />
 
             <Button onClick={confirm} disabled={!canConfirm} size="sm" style={{ width: "100%" }}>

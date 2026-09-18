@@ -3,10 +3,9 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { getWorkQueueItems, txWhereWorkQueue } from "@/lib/services/work-queue";
+import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
-import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milestone-glossary";
@@ -80,8 +79,7 @@ export default async function WorkQueuePage() {
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session))
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const [items, reminderLogs, activeFileCount] = await Promise.all([
-    getWorkQueueItems(vis),
+  const [reminderLogs, activeFileCount] = await Promise.all([
     getAgentReminderLogs(vis),
     prisma.propertyTransaction.count({ where: { ...txWhereWorkQueue(vis), status: { in: ["active", "on_hold"] } } }),
   ]);
@@ -175,7 +173,6 @@ export default async function WorkQueuePage() {
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
-        {items.length > 0 && <FileAlertsStrip items={items} />}
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
           <>
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
