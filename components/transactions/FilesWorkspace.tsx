@@ -72,6 +72,9 @@ export function FilesWorkspace({
 }) {
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Set<FilterKey>>(new Set());
+  // The List reports its active status tab up (see onStatusChange) so the
+  // Filter menu can count each lens against the slice on screen.
+  const [listStatus, setListStatus] = useState<string>(initialStatus ?? "active");
 
   // Decorate each row with its board stage so the List rows can draw the
   // journey bar (active files only — stageByTx omits the rest).
@@ -158,13 +161,29 @@ export function FilesWorkspace({
   // status tabs step aside — the lens is the scope).
   const hasProblemSelected = PROBLEM_FILTERS.some((k) => selected.has(k));
 
-  // Per-filter counts — how many active files each row surfaces on its own.
+  // The slice the counts should reflect: when the status tabs are live, it's the
+  // visible tab (so "Outsourced 3" matches what ticking it reveals on that tab);
+  // when they're hidden (narrowed view, or a problem lens is on), it's the
+  // active book.
+  const tabsVisible = showStatusTabs && !hasProblemSelected;
+  const statusRows = useMemo(() => {
+    if (!tabsVisible) return active;
+    if (listStatus === "all") return rows;
+    return rows.filter((r) => r.status === listStatus);
+  }, [rows, active, listStatus, tabsVisible]);
+
+  // Per-filter counts. Problem lenses only apply to the active book, so they
+  // count there; ownership/service apply within the visible tab, so they count
+  // against that slice — keeping each badge honest to what a tick would show.
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const section of sections) for (const it of section.items) c[it.key] = active.filter((r) => hits(r, it.key)).length;
+    for (const section of sections) for (const it of section.items) {
+      const set = PROBLEM_FILTERS.includes(it.key) ? active : statusRows;
+      c[it.key] = set.filter((r) => hits(r, it.key)).length;
+    }
     return c;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sections, active, quietSet, noSolSet, stalledSet, currentUserId]);
+  }, [sections, active, statusRows, quietSet, noSolSet, stalledSet, currentUserId]);
 
   // No filters → hand the list every row so its status tabs still span
   // active/on_hold/completed/withdrawn. Any filter → the matching subset.
@@ -190,6 +209,7 @@ export function FilesWorkspace({
       showStatusTabs={showStatusTabs && !hasProblemSelected}
       showAgencyColumn={showAgencyColumn}
       showAssignedToColumn={showAssignedToColumn}
+      onStatusChange={setListStatus}
     />
   );
 

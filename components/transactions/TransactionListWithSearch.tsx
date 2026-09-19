@@ -6,7 +6,7 @@
 // problem lenses — lives in the one Filter menu on the workspace bar
 // (FilesWorkspace + FilterMenu), so there is a single filter system, not two.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
@@ -22,6 +22,7 @@ export function TransactionListWithSearch({
   showStatusTabs = true,
   showAgencyColumn = false,
   showAssignedToColumn = true,
+  onStatusChange,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
@@ -29,12 +30,18 @@ export function TransactionListWithSearch({
   showStatusTabs?: boolean;
   showAgencyColumn?: boolean;
   showAssignedToColumn?: boolean;
+  // Reports the active status tab up so the workspace Filter menu can count
+  // each lens against the slice you're actually looking at.
+  onStatusChange?: (status: StatusValue) => void;
 }) {
   // Status tab is client state — switching filters the already-loaded set
   // instantly, with no server round-trip. The URL is kept in sync via
   // history.replaceState so a refresh / bookmark lands on the same tab.
   const [status, setStatus] = useState<StatusValue>(initialStatus ?? "active");
   const [query, setQuery] = useState("");
+
+  // Keep the workspace in step with the visible tab (for filter-menu counts).
+  useEffect(() => { onStatusChange?.(status); }, [status, onStatusChange]);
 
   // Counts for the tab badges — derived from the full set the client holds, so
   // they're always in sync with what a tab would show.
