@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { CaretDown, Tag, ChatCircle, Paperclip, Bell } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -263,27 +264,84 @@ const SIDE_OPTIONS: { key: "vendor" | "purchaser"; label: string }[] = [
 ];
 const STAGE_OPTIONS: { key: DisplayStageKey; label: string }[] = DISPLAY_STAGES.map((s) => ({ key: s.key, label: s.name }));
 
-function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+// Filter chrome: a left rail (collapsible sections + animated checks) on wide
+// screens, grouped dropdowns on small. Reuses the app's agent-acc accordion for
+// the rail sections; the checkbox strokes its tick in; menu rows use the lift
+// hover; the dropdown buttons match the inputs elsewhere (hairline border,
+// coral on hover, deeper coral when open, colour-only — the count badge is the
+// only "selected" signal). See /agent/comms.
+const CF_STYLES = `
+  .cf-layout { display:grid; grid-template-columns:1fr; gap:16px; }
+  @media (min-width:900px){ .cf-layout { grid-template-columns:236px minmax(0,1fr); align-items:start; } .cf-side { position:sticky; top:16px; } .cf-drops-wrap { display:none; } }
+  @media (max-width:899px){ .cf-rail-wrap { display:none; } }
+  .cf-rail { background:var(--agent-surface-glass); border:1px solid var(--agent-border-subtle); border-radius:14px; padding:5px; }
+  .cf-sec { border-bottom:1px solid var(--agent-border-subtle); }
+  .cf-sec:last-child { border-bottom:none; }
+  .cf-sec-hdr { display:flex; align-items:center; justify-content:space-between; padding:11px 10px; cursor:pointer; font-size:12px; font-weight:700; color:var(--agent-text-primary); border-radius:8px; transition:background-color .14s ease; user-select:none; }
+  .cf-sec-hdr:hover { background-color:var(--agent-hover-tint); }
+  .cf-sec .cf-caret { color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
+  .cf-sec.open .cf-caret { transform:rotate(180deg); }
+  .cf-badge { font-size:10px; font-weight:700; color:#fff; background:var(--agent-coral); border-radius:999px; min-width:16px; height:16px; padding:0 5px; display:inline-flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
+  .cf-row { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:7px 9px; border:none; background:none; border-radius:8px; font-family:inherit; font-size:13px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
+  .cf-row:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
+  .cf-chk { width:17px; height:17px; border-radius:5px; border:1.5px solid var(--agent-border-strong); flex-shrink:0; position:relative; transition:background-color .18s ease, border-color .18s ease, transform .18s cubic-bezier(.34,1.56,.64,1); }
+  .cf-chk svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .cf-chk svg path { fill:none; stroke:#fff; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:18; stroke-dashoffset:18; transition:stroke-dashoffset .24s ease .04s; }
+  .cf-row[data-on="true"] .cf-chk { background:var(--agent-coral); border-color:var(--agent-coral); transform:scale(1.06); }
+  .cf-row[data-on="true"] .cf-chk svg path { stroke-dashoffset:0; }
+  .cf-drops { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .cf-dd { position:relative; }
+  .cf-dd-btn { display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:10px; padding:8px 12px; cursor:pointer; transition:border-color .14s ease; }
+  .cf-dd-btn:hover { border-color:var(--agent-coral); }
+  .cf-dd-btn[data-open="true"] { border-color:var(--agent-coral-deep); }
+  .cf-dd-btn .cf-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
+  .cf-dd-btn[data-open="true"] .cf-caret { transform:rotate(180deg); }
+  .cf-menu { position:absolute; top:calc(100% + 7px); left:0; z-index:40; min-width:196px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:13px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-6px) scale(.98); transform-origin:top left; transition:opacity .16s ease, transform .18s cubic-bezier(.22,1,.36,1), visibility 0s .18s; }
+  .cf-menu[data-open="true"] { opacity:1; visibility:visible; pointer-events:auto; transform:none; transition:opacity .16s ease, transform .2s cubic-bezier(.22,1,.36,1); }
+  .cf-side-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px; }
+  .cf-count { font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
+`;
+
+function CheckRows({ options, selected, onToggle }: { options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      style={{ cursor: "pointer" }}
-      className={`agent-segment-pill agent-segment-pill-sm${on ? " on" : ""}`}
-    >
-      {label}
-    </button>
+    <>
+      {options.map((o) => (
+        <button key={o.key} type="button" role="menuitemcheckbox" aria-checked={selected.has(o.key)} className="cf-row" data-on={selected.has(o.key)} onClick={() => onToggle(o.key)}>
+          <span className="cf-chk" aria-hidden><svg viewBox="0 0 18 18"><path d="M4.5 9.2l2.7 2.7L13.7 5.6" /></svg></span>
+          {o.label}
+        </button>
+      ))}
+    </>
   );
 }
 
-function FilterGroup<T extends string>({
-  heading, options, selected, toggle,
-}: { heading: string; options: { key: T; label: string }[]; selected: Set<T>; toggle: (k: T) => void }) {
+function RailSection({ heading, options, selected, onToggle, open, onToggleOpen }: { heading: string; options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void; open: boolean; onToggleOpen: () => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>{heading}</span>
-      {options.map((o) => <Chip key={o.key} label={o.label} on={selected.has(o.key)} onClick={() => toggle(o.key)} />)}
+    <div className={`cf-sec${open ? " open" : ""}`}>
+      <div className="cf-sec-hdr" role="button" tabIndex={0} aria-expanded={open} onClick={onToggleOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleOpen(); } }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{heading}{selected.size > 0 && <span className="cf-badge">{selected.size}</span>}</span>
+        <CaretDown className="cf-caret" style={{ width: 13, height: 13 }} />
+      </div>
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          <div style={{ padding: "2px 4px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
+            <CheckRows options={options} selected={selected} onToggle={onToggle} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterDropdown({ heading, options, selected, onToggle, open, onOpenChange }: { heading: string; options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void; open: boolean; onOpenChange: (next: boolean) => void }) {
+  return (
+    <div className="cf-dd">
+      <button type="button" className="cf-dd-btn" data-open={open} aria-haspopup="menu" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+        {heading}{selected.size > 0 && <span className="cf-badge">{selected.size}</span>}<span className="cf-caret">▼</span>
+      </button>
+      <div className="cf-menu" data-open={open} role="menu">
+        <CheckRows options={options} selected={selected} onToggle={onToggle} />
+      </div>
     </div>
   );
 }
@@ -302,6 +360,15 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   const [sides, setSides] = useState<Set<"vendor" | "purchaser">>(new Set());
   const [stages, setStages] = useState<Set<DisplayStageKey>>(new Set());
 
+  const router = useRouter();
+  const pathname = usePathname();
+  // Rail sections: Type open by default, the rest collapsed. Dropdowns: one open
+  // at a time (mobile). hydrated gates the URL sync until we've read the URL.
+  const [openSec, setOpenSec] = useState<Record<string, boolean>>({ type: true });
+  const [openDd, setOpenDd] = useState<string | null>(null);
+  const dropsRef = useRef<HTMLDivElement>(null);
+  const hydrated = useRef(false);
+
   function toggleIn<T>(setter: Dispatch<SetStateAction<Set<T>>>) {
     return (k: T) => setter((prev) => {
       const next = new Set(prev);
@@ -311,6 +378,46 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   }
   function clearAll() { setTypes(new Set()); setWhos(new Set()); setSides(new Set()); setStages(new Set()); }
   const filterActive = types.size > 0 || whos.size > 0 || sides.size > 0 || stages.size > 0;
+
+  // Hydrate filters from the URL once on mount (?type=&who=&side=&stage=), then
+  // keep the URL in sync so a filtered view is shareable and survives refresh.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const rd = (name: string, valid: readonly string[]) =>
+      new Set((sp.get(name)?.split(",") ?? []).filter((v) => valid.includes(v)));
+    setTypes(rd("type", TYPE_OPTIONS.map((o) => o.key)) as Set<UpdateKind>);
+    setWhos(rd("who", WHO_OPTIONS.map((o) => o.key)) as Set<UpdateWho>);
+    setSides(rd("side", SIDE_OPTIONS.map((o) => o.key)) as Set<"vendor" | "purchaser">);
+    setStages(rd("stage", STAGE_OPTIONS.map((o) => o.key)) as Set<DisplayStageKey>);
+    hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!hydrated.current) return; // don't clobber the URL before we've read it
+    const p = new URLSearchParams();
+    if (types.size) p.set("type", [...types].join(","));
+    if (whos.size) p.set("who", [...whos].join(","));
+    if (sides.size) p.set("side", [...sides].join(","));
+    if (stages.size) p.set("stage", [...stages].join(","));
+    const qs = p.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [types, whos, sides, stages]);
+  useEffect(() => {
+    if (!openDd) return;
+    const h = (e: MouseEvent) => { if (dropsRef.current && !dropsRef.current.contains(e.target as Node)) setOpenDd(null); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [openDd]);
+
+  // One shape drives both the rail and the dropdowns. Sets/keys are cast to
+  // strings — the components only ever pass back keys from `options`.
+  const groups: { key: string; heading: string; options: { key: string; label: string }[]; sel: Set<string>; toggle: (k: string) => void }[] = [
+    { key: "type",  heading: "Type",  options: TYPE_OPTIONS as { key: string; label: string }[],  sel: types as Set<string>,  toggle: (k) => toggleIn(setTypes)(k as UpdateKind) },
+    { key: "who",   heading: "Who",   options: WHO_OPTIONS as { key: string; label: string }[],   sel: whos as Set<string>,   toggle: (k) => toggleIn(setWhos)(k as UpdateWho) },
+    { key: "side",  heading: "Side",  options: SIDE_OPTIONS as { key: string; label: string }[],  sel: sides as Set<string>,  toggle: (k) => toggleIn(setSides)(k as "vendor" | "purchaser") },
+    { key: "stage", heading: "Stage", options: STAGE_OPTIONS as { key: string; label: string }[], sel: stages as Set<string>, toggle: (k) => toggleIn(setStages)(k as DisplayStageKey) },
+  ];
 
   function passes(u: UpdateRow): boolean {
     if (types.size && !types.has(u.kind)) return false;
@@ -344,24 +451,53 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter bar */}
-      <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-lg, 14px)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px" }}>
-          <FilterGroup heading="Type" options={TYPE_OPTIONS} selected={types} toggle={toggleIn(setTypes)} />
-          <FilterGroup heading="Who" options={WHO_OPTIONS} selected={whos} toggle={toggleIn(setWhos)} />
-          <FilterGroup heading="Side" options={SIDE_OPTIONS} selected={sides} toggle={toggleIn(setSides)} />
-          <FilterGroup heading="Stage" options={STAGE_OPTIONS} selected={stages} toggle={toggleIn(setStages)} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 18 }}>
-          <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>
-            {filterActive ? `Showing ${visibleCount} of ${totalCount}` : `${totalCount} update${totalCount !== 1 ? "s" : ""}`}
-          </span>
-          {filterActive && (
-            <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear</button>
-          )}
-        </div>
-      </div>
+    <>
+      <style>{CF_STYLES}</style>
+      <div className="cf-layout">
+        <aside className="cf-side">
+          {/* Wide screens: a left rail with collapsible sections. */}
+          <div className="cf-rail-wrap">
+            <div className="cf-rail">
+              {groups.map((g) => (
+                <RailSection
+                  key={g.key}
+                  heading={g.heading}
+                  options={g.options}
+                  selected={g.sel}
+                  onToggle={g.toggle}
+                  open={!!openSec[g.key]}
+                  onToggleOpen={() => setOpenSec((p) => ({ ...p, [g.key]: !p[g.key] }))}
+                />
+              ))}
+            </div>
+          </div>
+          {/* Small screens: grouped dropdowns. */}
+          <div className="cf-drops-wrap">
+            <div className="cf-drops" ref={dropsRef}>
+              {groups.map((g) => (
+                <FilterDropdown
+                  key={g.key}
+                  heading={g.heading}
+                  options={g.options}
+                  selected={g.sel}
+                  onToggle={g.toggle}
+                  open={openDd === g.key}
+                  onOpenChange={(next) => setOpenDd(next ? g.key : null)}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="cf-side-foot">
+            <span className="cf-count">
+              {filterActive ? `Showing ${visibleCount} of ${totalCount}` : `${totalCount} update${totalCount !== 1 ? "s" : ""}`}
+            </span>
+            {filterActive && (
+              <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear</button>
+            )}
+          </div>
+        </aside>
+
+        <div className="cf-feed space-y-4">
 
       {filterActive && visibleDays.length === 0 && (
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 24px", textAlign: "center" }}>
@@ -405,6 +541,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
           </div>
         );
       })}
-    </div>
+        </div>
+      </div>
+    </>
   );
 }
