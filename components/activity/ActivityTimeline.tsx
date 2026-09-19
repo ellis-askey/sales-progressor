@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { EnvelopeSimple, DotsThree } from "@phosphor-icons/react";
+import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@phosphor-icons/react";
 import { formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
@@ -348,6 +348,15 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [search, setSearch]         = useState("");
   const [showPortalVisits, setShowPortalVisits] = useState(false);
   const [entriesKey, setEntriesKey] = useState(0);
+  // Scope dropdown (the view filter, now a menu inside the search bar).
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const scopeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!scopeOpen) return;
+    const h = (e: MouseEvent) => { if (scopeRef.current && !scopeRef.current.contains(e.target as Node)) setScopeOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [scopeOpen]);
 
   // Per-entry "show more" (long bodies) and "show original" (synced inbound
   // emails: reveal the full untrimmed original vs the cleaned body).
@@ -848,33 +857,76 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
 
   return (
     <div>
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => handleFilter(f.value)}
-            className={`agent-segment-pill agent-segment-pill-sm${filter === f.value ? " on" : ""}`}
-          >
-            {f.label}
+      {/* Filter bar — one full-width search that also holds the view scope
+          (left) and the portal-visits toggle (right). */}
+      <style>{`
+        /* z-index must beat the compose card below it (activity-comms-entry sits
+           at z-index:30 as a later sibling), or the open scope menu renders
+           behind it. */
+        .act-filterbar { display:flex; align-items:center; gap:10px; margin-bottom:12px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:50; }
+        .act-filterbar:focus-within { border-color:var(--agent-coral-deep); }
+        .act-scope { position:relative; flex-shrink:0; }
+        .act-scope-btn { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:none; border:none; border-right:1px solid var(--agent-border-default); padding:2px 12px 2px 2px; cursor:pointer; }
+        .act-scope-btn svg { color:var(--agent-text-muted); flex-shrink:0; }
+        .act-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
+        .act-scope-btn[data-open="true"] .act-caret { transform:rotate(180deg); }
+        .act-search-ico { color:var(--agent-text-muted); flex-shrink:0; }
+        .act-search-input { flex:1; min-width:60px; border:none; background:none; outline:none; font-family:inherit; font-size:14px; color:var(--agent-text-primary); }
+        .act-search-input::placeholder { color:var(--agent-text-muted); }
+        .act-eye { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; font-family:inherit; font-size:12px; font-weight:600; color:var(--agent-text-muted); background:none; border:1px solid var(--agent-border-default); border-radius:999px; padding:5px 11px; cursor:pointer; transition:border-color .14s ease, color .14s ease; }
+        .act-eye:hover { border-color:var(--agent-coral); color:var(--agent-text-primary); }
+        .act-eye[data-on="true"] { border-color:var(--agent-coral-deep); color:var(--agent-coral-deep); }
+        .act-scope-menu { position:absolute; top:calc(100% + 8px); left:0; z-index:60; min-width:196px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; }
+        .act-mi { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:8px 9px; border-radius:9px; border:none; background:none; font-family:inherit; font-size:13.5px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
+        .act-mi:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
+        .act-radio { width:15px; height:15px; border-radius:50%; border:1.5px solid var(--agent-border-strong); flex-shrink:0; position:relative; transition:border-color .15s ease; }
+        .act-mi[data-on="true"] .act-radio { border-color:var(--agent-coral); }
+        .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
+      `}</style>
+      <div className="act-filterbar">
+        <div className="act-scope" ref={scopeRef}>
+          <button className="act-scope-btn" data-open={scopeOpen} onClick={() => setScopeOpen((v) => !v)} aria-haspopup="menu" aria-expanded={scopeOpen}>
+            <FunnelSimple size={14} weight="regular" />
+            {FILTERS.find((f) => f.value === filter)?.label ?? "All"}
+            <span className="act-caret">▼</span>
           </button>
-        ))}
-        {portalViewCount > 0 && (
-          <button
-            onClick={() => { setShowPortalVisits((v) => !v); setShowAll(false); setEntriesKey((k) => k + 1); }}
-            className={`agent-segment-pill agent-segment-pill-sm${showPortalVisits ? " on" : ""}`}
-          >
-            Portal visits {showPortalVisits ? "" : `(${portalViewCount} hidden)`}
-          </button>
-        )}
+          {scopeOpen && (
+            <div className="act-scope-menu agent-dropdown-in" role="menu">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  role="menuitemradio"
+                  aria-checked={filter === f.value}
+                  className="act-mi"
+                  data-on={filter === f.value}
+                  onClick={() => { handleFilter(f.value); setScopeOpen(false); }}
+                >
+                  <span className="act-radio" />{f.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <MagnifyingGlass size={15} weight="regular" className="act-search-ico" />
         <input
           type="text"
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search…"
-          className="glass-input agent-focus ml-auto px-3 py-1.5 rounded-lg text-slate-900/70 flex-1 min-w-[140px]"
-          style={{ fontSize: 12 }}
+          placeholder="Search this file's activity…"
+          className="act-search-input"
+          aria-label="Search activity"
         />
+        {portalViewCount > 0 && (
+          <button
+            className="act-eye"
+            data-on={showPortalVisits}
+            onClick={() => { setShowPortalVisits((v) => !v); setShowAll(false); setEntriesKey((k) => k + 1); }}
+            aria-pressed={showPortalVisits}
+          >
+            {showPortalVisits ? <Eye size={14} weight="regular" /> : <EyeSlash size={14} weight="regular" />}
+            Portal visits{showPortalVisits ? "" : ` · ${portalViewCount}`}
+          </button>
+        )}
       </div>
 
       {beforeEntries && <div className="mb-3">{beforeEntries}</div>}

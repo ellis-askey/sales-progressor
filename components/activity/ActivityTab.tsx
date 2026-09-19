@@ -26,6 +26,9 @@ type Props = {
   contacts: { id: string; name: string; roleType: string; phone?: string | null }[];
   solicitors?: { id: string; name: string; role: string; phone?: string | null }[];
   canPasteChat?: boolean;
+  // True when the agent's mailbox is connected — hides the manual "Log an
+  // email" option (sent mail is ingested automatically).
+  emailConnected?: boolean;
   // For building optimistic entries — these aren't on session client-side,
   // so the parent page passes them in from the server session.
   currentUserName: string;
@@ -117,6 +120,7 @@ export function ActivityTab(props: Props) {
           contacts={props.contacts}
           solicitors={props.solicitors}
           canPasteChat={props.canPasteChat}
+          emailConnected={props.emailConnected}
           onOptimisticAdd={handleOptimisticAdd}
         />
       }

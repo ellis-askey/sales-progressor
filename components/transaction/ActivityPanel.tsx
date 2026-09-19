@@ -55,7 +55,7 @@ export async function ActivityPanel({
 }: Props) {
   // MOS doc + signed URL chain. Same shape as the page used to do,
   // just relocated into the panel that consumes it.
-  const [activityEntries, mosDocBundle, me] = await Promise.all([
+  const [activityEntries, mosDocBundle, me, emailConn] = await Promise.all([
     getActivityTimelineCached(transactionId, agencyId).catch(() => []),
     (async () => {
       const doc = await prisma.transactionDocument.findFirst({
@@ -71,6 +71,9 @@ export async function ActivityPanel({
     // Current user's avatar — session doesn't carry it, so the optimistic
     // note render can show the real picture instead of the fallback SVG.
     prisma.user.findUnique({ where: { id: currentUserId }, select: { image: true } }).catch(() => null),
+    // Mailbox connected? Then sent email is ingested automatically, so the
+    // manual "Log an email" option is hidden in the composer.
+    prisma.imapConnection.findFirst({ where: { userId: currentUserId }, select: { id: true } }).catch(() => null),
   ]);
 
   return (
@@ -86,6 +89,7 @@ export async function ActivityPanel({
           ...(purchaserSolicitor ? [{ id: purchaserSolicitor.id, name: purchaserSolicitor.name, role: "Purchaser solicitor", phone: purchaserSolicitor.phone ?? null }] : []),
         ]}
         canPasteChat={isProgressor || isAdminRole}
+        emailConnected={!!emailConn}
         currentUserName={currentUserName}
         currentUserImage={me?.image ?? null}
         currentUserRole={currentUserRole}
