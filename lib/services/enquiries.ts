@@ -13,7 +13,7 @@ import type { Prisma } from "@prisma/client";
 import type { AccessScope } from "@/lib/security/access-scope";
 import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { addWorkingDays } from "@/lib/emails/working-hours";
-import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS } from "@/lib/enquiries/cadence";
+import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
 import type { EnquiryCourt, EnquiryTrackerStatus, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 
 export type OpenEnquiryRow = {
@@ -30,10 +30,12 @@ export type OpenEnquiryRow = {
   outstandingNote: string | null;
   expectedDate: Date | null; // the "expect replies by" date (reuses snoozedUntil)
   nextChaseAt: Date | null; // when the auto-chase is next due
-  // 0..1 across the current 7-working-day chase window (0 = just reset, 1 = due/
-  // overdue). Null while snoozed / holding to an expected date. Drives the track
-  // fill on the triage row.
-  chaseProgress: number | null;
+  // Two-stage silence countdown for the track fill (progress 0..1 within stage):
+  //   chase     — coral, 0 → 7 working days since last movement (full = chase)
+  //   escalate  — red,   7 → 13 working days (full = escalated)
+  //   escalated — red, held full
+  //   hold      — blue, counting toward an expected date (paused chase)
+  chaseBar: { stage: "chase" | "escalate" | "escalated" | "hold"; progress: number };
   openedAt: Date; // when the loop was raised
   partial: boolean; // some (not all) replies are in; ball still with the seller's solicitor
   lastMovement: { note: string; kind: EnquiryMovementKind; occurredAt: Date; byName: string | null } | null;
@@ -117,19 +119,32 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const quietSince = t.lastMovementAt ?? t.openedAt;
     const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
     const status: EnquiryTrackerStatus = snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
-    const chaseAnchor = t.lastChasedAt ?? quietSince;
     const nextChaseAt = snoozed
       ? null
       : t.lastChasedAt
         ? addWorkingDays(t.lastChasedAt, CHASE_WORKING_DAYS)
         : addWorkingDays(quietSince, CHASE_WORKING_DAYS);
-    // Fraction of the way through the current chase window (anchor → nextChaseAt).
-    const chaseProgress = nextChaseAt
-      ? (() => {
-          const span = nextChaseAt.getTime() - chaseAnchor.getTime();
-          return span > 0 ? Math.max(0, Math.min(1, (now.getTime() - chaseAnchor.getTime()) / span)) : 1;
-        })()
-      : null;
+
+    // Two-stage silence countdown, anchored on the last movement (the silence
+    // clock the chase engine uses). Coral fills 0 → 7 working days (chase), then
+    // red fills 7 → 13 (escalate). An expected date shows a blue "hold" fill
+    // toward that date instead. See enquiryChaseDecision.
+    const barFrac = (from: Date, to: Date): number => {
+      const span = to.getTime() - from.getTime();
+      return span > 0 ? Math.max(0, Math.min(1, (now.getTime() - from.getTime()) / span)) : 1;
+    };
+    const chaseDueAt = addWorkingDays(quietSince, CHASE_WORKING_DAYS);
+    const escalateAt = addWorkingDays(quietSince, ESCALATE_WORKING_DAYS);
+    const chaseBar: OpenEnquiryRow["chaseBar"] =
+      t.escalatedAt
+        ? { stage: "escalated", progress: 1 }
+        : snoozed && t.snoozedUntil
+          ? { stage: "hold", progress: barFrac(quietSince, t.snoozedUntil) }
+          : now < chaseDueAt
+            ? { stage: "chase", progress: barFrac(quietSince, chaseDueAt) }
+            : now < escalateAt
+              ? { stage: "escalate", progress: barFrac(chaseDueAt, escalateAt) }
+              : { stage: "escalated", progress: 1 };
     const mv = t.movements[0] ?? null;
     const tx = t.transaction;
     return {
@@ -146,7 +161,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       outstandingNote: t.outstandingNote,
       expectedDate: t.snoozedUntil ?? null,
       nextChaseAt,
-      chaseProgress,
+      chaseBar,
       openedAt: t.openedAt,
       partial: t.partialRepliesAt != null,
       lastMovement: mv

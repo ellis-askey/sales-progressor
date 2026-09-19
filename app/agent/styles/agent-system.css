@@ -2000,8 +2000,8 @@
   /* Chase countdown: a coral fill grows from the side the ball is with toward the
      other side as the 7-working-day auto-chase nears due (full ≈ chasing now).
      The handle doesn't move — this is purely the "how close to a nudge" read. */
-  .enq-fill { position: absolute; top: 0; height: 100%; border-radius: 2px; background: var(--agent-coral); transition: width 300ms ease, opacity 300ms ease; }
-  .enq-handle { position: absolute; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--agent-coral); border: 2px solid var(--agent-surface-elevated); box-shadow: 0 1px 3px rgba(0,0,0,0.22); transition: left 200ms ease; z-index: 1; }
+  .enq-fill { position: absolute; top: 0; height: 100%; border-radius: 2px; background: var(--agent-coral); transition: width 400ms ease, opacity 300ms ease, background 250ms ease; }
+  .enq-handle { position: absolute; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--agent-coral); border: 2px solid var(--agent-surface-elevated); box-shadow: 0 1px 3px rgba(0,0,0,0.22); transition: left 200ms ease, background 250ms ease; z-index: 1; }
   .enq-ends { display: flex; justify-content: space-between; font-size: 10.5px; }
   .enq-forwd { font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
 

@@ -266,6 +266,11 @@ export function EnquiriesTriageList({
           const pill = statusPill(r);
           const isSeller = r.currentlyWith === "seller_solicitor";
           const withBuyer = !isSeller;
+          // Two-stage chase bar: coral (→ chase at 7wd), red (→ escalate at 13wd),
+          // blue while holding to an expected date. Fill grows from the ball's side.
+          const barColor = r.chaseBar.stage === "hold" ? "var(--agent-info)" : r.chaseBar.stage === "chase" ? "var(--agent-coral)" : "var(--agent-danger)";
+          const barPct = Math.round(r.chaseBar.progress * 100);
+          const barOpacity = 0.4 + 0.5 * r.chaseBar.progress;
           const [line1, ...rest] = r.address.split(",");
           const expanded = expandedId === r.transactionId;
           return (
@@ -295,18 +300,19 @@ export function EnquiriesTriageList({
                 {/* Court slider */}
                 <div className="enq-slider">
                   <div className="enq-track">
-                    {r.chaseProgress != null && r.chaseProgress > 0 && (
+                    {barPct > 0 && (
                       <span
                         className="enq-fill"
                         style={{
                           left: isSeller ? 0 : undefined,
                           right: isSeller ? undefined : 0,
-                          width: `${Math.round(r.chaseProgress * 100)}%`,
-                          opacity: 0.3 + 0.6 * r.chaseProgress,
+                          width: `${barPct}%`,
+                          background: barColor,
+                          opacity: barOpacity,
                         }}
                       />
                     )}
-                    <span className="enq-handle" style={{ left: isSeller ? "0" : "calc(100% - 14px)" }} />
+                    <span className="enq-handle" style={{ left: isSeller ? "0" : "calc(100% - 14px)", background: barColor }} />
                   </div>
                   <div className="enq-ends">
                     <span style={{ color: isSeller ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", fontWeight: isSeller ? 700 : 500 }}>Seller&apos;s solicitor</span>
