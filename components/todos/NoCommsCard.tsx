@@ -14,6 +14,9 @@ import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu
 import { ReachOutModal, type ReachChannel } from "@/components/todos/ReachOutModal";
 import { snoozeNoCommsSideAction } from "@/app/actions/no-comms";
 import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt, ChatSlash, ArrowRight, CaretDown } from "@phosphor-icons/react";
+import { ContactAvatar } from "@/components/ui/Avatar";
+import { Pill } from "@/components/ui/Pill";
+import { roleLabel } from "@/components/ui/RoleIcon";
 import type { NoCommsItem, NoCommsSide } from "@/lib/services/hub";
 
 type Item = NoCommsItem & { photoUrl: string | null };
@@ -25,16 +28,6 @@ function recency(side: NoCommsSide): { cls: string; label: string } {
   if (side.drifting) return { cls: "hot", label };
   if (d > 7) return { cls: "warm", label };
   return { cls: "calm", label };
-}
-
-// Initials for the fallback avatar — skips a leading title so "Mr Michael
-// Vaughan" reads "MV", and handles joint names ("Robert & Anna Hale" → "RH").
-const TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "mx", "sir", "prof"]);
-function initials(name: string): string {
-  const words = name.replace(/&/g, " ").split(/\s+/).filter((w) => w && !TITLES.has(w.replace(/\./g, "").toLowerCase()));
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
 const CHANNELS: { key: ReachChannel; label: string; Icon: typeof Phone; cls: string }[] = [
@@ -126,9 +119,9 @@ export function NoCommsCard({ items }: { items: Item[] }) {
                     return (
                       <div className={`nocomms-side${side.drifting ? " warn" : ""}`} key={side.side}>
                         <div className="nocomms-side-top">
-                          <span className={`nocomms-avatar ${seller ? "seller" : "buyer"}`} aria-hidden>{initials(side.name)}</span>
+                          <ContactAvatar contact={{ name: side.name, roleType: side.side }} size={40} />
                           <span className="nocomms-who">{side.name}</span>
-                          <span className={`nocomms-role ${seller ? "seller" : "buyer"}`}>{seller ? "Seller" : "Buyer"}</span>
+                          <Pill glass tone={seller ? "info" : "success"} size="sm">{roleLabel(side.side)}</Pill>
                           <span className={`nocomms-chip ${r.cls}`}><span className="nocomms-dot" />{r.label}</span>
                         </div>
                         <div className="nocomms-acts">

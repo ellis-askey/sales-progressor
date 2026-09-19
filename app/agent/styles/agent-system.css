@@ -414,10 +414,11 @@
   .nocomms-ico { flex-shrink: 0; display: grid; place-items: center; color: var(--agent-coral-deep); }
   .nocomms-title { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
   .nocomms-sub { margin: 1px 0 0; font-size: 11.5px; color: var(--agent-text-muted); }
-  .nocomms-count { margin-left: auto; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
-    color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.12); border: 0.5px solid rgba(255,255,255,0.4);
-    -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(var(--agent-shadow-rgb), 0.06); }
+  .nocomms-count { margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+    color: var(--agent-coral-deep);
+    background: linear-gradient(160deg, rgba(var(--agent-coral-rgb), 0.20), rgba(var(--agent-coral-rgb), 0.07));
+    border: 0.5px solid rgba(var(--agent-coral-rgb), 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 3px rgba(var(--agent-coral-rgb), 0.14); }
 
   .nocomms-file { padding: 13px 14px 15px; border-top: 0.5px solid var(--agent-border-subtle); }
   .nocomms-file:first-of-type { border-top: none; }
