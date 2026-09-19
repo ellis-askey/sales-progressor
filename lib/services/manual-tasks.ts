@@ -16,7 +16,7 @@ export type ManualTaskWithRelations = {
   isInternalSelfAssigned: boolean;
   isReview: boolean;
   transactionId: string | null;
-  transaction: { propertyAddress: string } | null;
+  transaction: { propertyAddress: string; photoStoragePath: string | null } | null;
   assignedTo: { id: string; name: string } | null;
   createdBy: { id: string; name: string };
 };
@@ -26,7 +26,7 @@ export async function listManualTasks(agencyId: string, status?: "open" | "done"
     where: { agencyId, ...(status ? { status } : {}) },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -52,7 +52,7 @@ export async function listManualTasksForTransaction(transactionId: string, agenc
     include: {
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
     },
   }) as Promise<ManualTaskWithRelations[]>;
 }
@@ -88,7 +88,7 @@ export async function createManualTask(data: {
       sourceMessageId: data.sourceMessageId ?? null,
     },
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -105,7 +105,7 @@ export async function listInternalSelfAssignedTasks(): Promise<ManualTaskWithRel
     where: { isInternalSelfAssigned: true },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -117,7 +117,7 @@ export async function listInternalSelfAssignedTasksForTransaction(transactionId:
     where: { isInternalSelfAssigned: true, transactionId },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -146,7 +146,7 @@ export async function updateInternalManualTask(
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
     },
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -185,7 +185,7 @@ export async function updateManualTask(
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
     },
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -209,7 +209,7 @@ export async function listAgentRequests(userId: string, agencyId: string) {
     where: { agencyId, isAgentRequest: true, createdById: userId },
     orderBy: [{ createdAt: "desc" }],
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -221,7 +221,7 @@ export async function listAllTasksForAgent(userId: string, agencyId: string) {
   return prisma.manualTask.findMany({
     where: { agencyId, createdById: userId },
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -238,7 +238,7 @@ export async function listProgressorInboxTasks(progressorId: string) {
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },
@@ -271,7 +271,7 @@ export async function updateManualTaskAsProgressor(
       ...(data.dueDate   !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
     },
     include: {
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
     },

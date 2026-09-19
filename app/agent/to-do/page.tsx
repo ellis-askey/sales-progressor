@@ -6,6 +6,7 @@ import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getNoCommsFiles } from "@/lib/services/hub";
+import { listAttachableFiles } from "@/lib/services/work-queue";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
@@ -41,6 +42,18 @@ export default async function AgentTodoPage() {
   ).length;
   const hasReviews = reviews.items.length > 0 || reviews.done.length > 0;
 
+  // Sign the property photos for the task groups (keyed by transaction), so each
+  // to-do file group shows its property photo like every other list.
+  const taskPhotos = await getSignedUrlMap(
+    tasks.map((t) => t.transaction?.photoStoragePath).filter((p): p is string => !!p),
+  );
+  const taskPhotoByTx = new Map<string, string | null>();
+  for (const t of tasks) {
+    if (t.transactionId && t.transaction?.photoStoragePath) {
+      taskPhotoByTx.set(t.transactionId, taskPhotos.get(t.transaction.photoStoragePath) ?? null);
+    }
+  }
+
   // "No comms" (right column) — files we've gone quiet on, split per side.
   // Needs AgentVisibility (buildTxWhere), resolved the same way the hub and
   // work queue do. Photos signed once, keyed by transaction.
@@ -55,6 +68,9 @@ export default async function AgentTodoPage() {
     ...i,
     photoUrl: i.photoStoragePath ? noCommsPhotos.get(i.photoStoragePath) ?? null : null,
   }));
+
+  // Files this user can attach a new to-do to (id + address) — for the picker.
+  const attachableFiles = await listAttachableFiles(vis);
 
   // "Your progressor" wording + controls only make sense once the agency has a
   // file being progressed by our team. Self-managed-only agencies never see it.
@@ -108,7 +124,7 @@ export default async function AgentTodoPage() {
             {hasReviews && (
               <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
             )}
-            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} />
+            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} photoByTx={taskPhotoByTx} attachableFiles={attachableFiles} />
           </div>
           {noCommsItems.length > 0 && (
             <div className="todo-col-side">

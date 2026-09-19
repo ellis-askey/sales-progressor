@@ -88,8 +88,15 @@ export function NoCommsCard({ items }: { items: Item[] }) {
         const isOpen = open.has(it.transactionId);
         return (
           <div className="nocomms-file" key={it.transactionId}>
-            <div className="nocomms-fhead">
-              <Link href={`/agent/transactions/${it.transactionId}`} className="nocomms-id">
+            <div
+              className="nocomms-fhead"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              onClick={() => toggle(it.transactionId)}
+              onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); toggle(it.transactionId); } }}
+            >
+              <Link href={`/agent/transactions/${it.transactionId}`} className="nocomms-id" onClick={(e) => e.stopPropagation()}>
                 <PropertyThumb photoUrl={it.photoUrl} size={42} />
                 <span className="nocomms-idtext">
                   <span className="nocomms-addr">
@@ -99,15 +106,9 @@ export function NoCommsCard({ items }: { items: Item[] }) {
                   {it.townPostcode && <span className="nocomms-town">{it.townPostcode}</span>}
                 </span>
               </Link>
-              <button
-                type="button"
-                className="nocomms-chev"
-                aria-expanded={isOpen}
-                aria-label={isOpen ? "Collapse" : "Expand"}
-                onClick={() => toggle(it.transactionId)}
-              >
+              <span className="nocomms-chev" aria-hidden>
                 <CaretDown size={15} weight="bold" style={{ transition: "transform 200ms ease", transform: isOpen ? "rotate(180deg)" : "none" }} />
-              </button>
+              </span>
             </div>
 
             <div className={`agent-acc${isOpen ? " open" : ""}`}>

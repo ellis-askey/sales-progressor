@@ -9,6 +9,7 @@ import { DateField } from "@/components/ui/DateField";
 export function AddManualTaskForm({
   transactionId,
   transactionAddress,
+  attachableFiles,
   showOwnership = false,
   internalMode = false,
   allowReview = false,
@@ -16,6 +17,9 @@ export function AddManualTaskForm({
 }: {
   transactionId?: string;
   transactionAddress?: string;
+  // Files this user can attach a to-do to (id + address). Enables the property
+  // picker on the To-Do page, where the to-do isn't already tied to a file.
+  attachableFiles?: { id: string; propertyAddress: string }[];
   showOwnership?: boolean;
   // Internal-staff variant — hides the ownership toggle, relabels the
   // primary button, and the caller is responsible for setting
@@ -41,6 +45,13 @@ export function AddManualTaskForm({
   const [isReview, setIsReview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateError, setDateError] = useState("");
+  // Property attachment (To-Do page only — pre-set transactionId skips this).
+  const [pickedTx, setPickedTx] = useState<{ id: string; propertyAddress: string } | null>(null);
+  const [propSearch, setPropSearch] = useState("");
+  const showPicker = !transactionId && !!attachableFiles && attachableFiles.length > 0;
+  const propMatches = showPicker && propSearch.trim()
+    ? attachableFiles!.filter((f) => f.propertyAddress.toLowerCase().includes(propSearch.trim().toLowerCase())).slice(0, 8)
+    : [];
   // A review only makes sense on a linked file with a date to come back on.
   const canReview = allowReview && !!transactionId;
   // Design Lab: `todo-add-form`. The composer is a <form> (can't be a
@@ -79,6 +90,8 @@ export function AddManualTaskForm({
     setOwner("mine");
     setIsReview(false);
     setDateError("");
+    setPickedTx(null);
+    setPropSearch("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -102,11 +115,11 @@ export function AddManualTaskForm({
       title: title.trim(),
       notes: notes.trim() || undefined,
       dueDate: dueDate || undefined,
-      transactionId,
+      transactionId: transactionId ?? pickedTx?.id,
       isAgentRequest: showOwnership && owner === "progressor",
       isReview: canReview && isReview,
     });
-    setTitle(""); setNotes(""); setDueDate(""); setOwner("mine"); setIsReview(false);
+    setTitle(""); setNotes(""); setDueDate(""); setOwner("mine"); setIsReview(false); setPickedTx(null); setPropSearch("");
     setSaving(false);
     setOpen(false);
   }
@@ -149,6 +162,46 @@ export function AddManualTaskForm({
         rows={2}
         className="w-full text-base text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none"
       />
+      {/* Attach to a property (To-Do page). A pre-set transactionId hides this. */}
+      {showPicker && (
+        <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 10 }}>
+          {pickedTx ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flexWrap: "wrap" }}>
+              <span style={{ color: "var(--agent-text-muted)" }}>Attached to</span>
+              <span style={{ fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{pickedTx.propertyAddress}</span>
+              <button type="button" onClick={() => { setPickedTx(null); setPropSearch(""); }} className="agent-link" style={{ fontSize: 11 }}>Change</button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Attach to a property (optional)"
+                value={propSearch}
+                onChange={(e) => setPropSearch(e.target.value)}
+                className="w-full text-sm text-slate-900/70 placeholder:text-slate-900/30 border-0 outline-none bg-transparent"
+              />
+              {propMatches.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 4, maxHeight: 168, overflowY: "auto" }}>
+                  {propMatches.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="agent-hover-row"
+                      style={{ textAlign: "left", padding: "7px 10px", borderRadius: 8, fontSize: 12.5, color: "var(--agent-text-primary)", background: "none", border: "none", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      onClick={() => { setPickedTx(f); setPropSearch(""); }}
+                    >
+                      {f.propertyAddress}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {propSearch.trim() && propMatches.length === 0 && (
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>No matching files.</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {showOwnership && (
         <div>
           <p className="text-xs text-slate-900/40 mb-1.5">Who&apos;s responsible?</p>

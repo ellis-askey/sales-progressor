@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { CaretDown, Check, CalendarPlus } from "@phosphor-icons/react";
+import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { updateManualTaskAction } from "@/app/actions/manual-tasks";
@@ -218,11 +219,13 @@ export function ReviewsSection({
 
   return (
     <div id="section-reviews" className="space-y-3">
-      {/* Section header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px" }}>
-        <CalendarPlus size={15} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} aria-hidden />
-        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>Reviews due</h2>
-      </div>
+      {/* Section header — matches the top of the No-comms card */}
+      <SectionHeader
+        icon={<CalendarPlus size={22} weight="regular" />}
+        title="Reviews due"
+        subtitle="Files to come back to."
+        count={openCount}
+      />
 
       {openCount === 0 && done.length === 0 ? (
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "24px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>

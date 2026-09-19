@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, type ReactNode } from "react";
 import Link from "next/link";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown, ListChecks, UsersThree } from "@phosphor-icons/react";
+import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { createManualTaskAction, updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
@@ -10,6 +11,15 @@ import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+
+// First line + town/postcode split (last two comma parts) — matches the address
+// treatment on the reminders / enquiries / completions cards.
+function splitTodoAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 2) return { line: parts[0] ?? address, location: parts.slice(1).join(" · ") };
+  return { line: parts.slice(0, -2).join(", "), location: parts.slice(-2).join(" · ") };
+}
 
 // Bespoke composer per Skeleton.tsx's contract — encodes the to-do
 // ghost layout. Inner pulses wrap the canonical Skeleton primitive.
@@ -100,8 +110,11 @@ function groupByTransaction(tasks: Task[]): Group[] {
 // Lets any TaskRow change its own due date without prop-drilling through
 // Section → TaskGroup → TaskRow. Null = editing disabled.
 const DueDateContext = createContext<((id: string, dueDate: string | null) => void) | null>(null);
+// Property photos keyed by transaction id (signed on the page) — consumed by
+// TaskGroup for its file-group header thumbnail.
+const PhotoContext = createContext<Map<string, string | null> | null>(null);
 
-export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean }) {
+export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photoByTx, attachableFiles }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean; photoByTx?: Map<string, string | null>; attachableFiles?: { id: string; propertyAddress: string }[] }) {
   const isProgressor = role === "sales_progressor";
   // Only offer the "assign to your progressor" flow (and its wording) when the
   // agency actually has a file with our team. Self-managed-only agencies just
@@ -186,9 +199,9 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
     return (
       <div className="space-y-8">
         {isInternal ? (
-          <AddManualTaskForm internalMode onAdd={handleAddInternal} />
+          <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
         ) : (
-          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} />
+          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
         )}
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
@@ -232,15 +245,16 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
   }
 
   return (
+    <PhotoContext.Provider value={photoByTx ?? null}>
     <DueDateContext.Provider value={handleDueDate}>
     <div className="space-y-8">
       {/* Agency users get the regular Add form; internal staff see an
           internal-self-assigned Add form (no ownership toggle — the kind
           is fixed). Both call /api/manual-tasks but with different flags. */}
       {isInternal ? (
-        <AddManualTaskForm internalMode onAdd={handleAddInternal} />
+        <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
       ) : (
-        <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} />
+        <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
       )}
 
       {/* ── My to-dos / My notes (agency users only) ── */}
@@ -248,6 +262,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
         <Section
           id="section-mine"
           title="My to-dos"
+          subtitle="Your notes and reminders."
           overdueGroups={groupByTransaction(ownOverdue)}
           openGroups={groupByTransaction(ownUpcoming)}
           doneGroups={groupByTransaction(ownDone)}
@@ -264,6 +279,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
         <Section
           id="section-internal"
           title="Internal to-dos"
+          subtitle="Your team's notes and follow-ups."
           overdueGroups={groupByTransaction(internalOverdue)}
           openGroups={groupByTransaction(internalUpcoming)}
           doneGroups={groupByTransaction(internalDone)}
@@ -277,10 +293,12 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
       )}
 
       {/* ── With your progressor / From agents ── */}
-      {progTasks.length > 0 && (
+      {(progTasks.length > 0 || canUseProgressor || isProgressor) && (
         <Section
           id="section-progressor"
           title={isProgressor ? "From agents" : "With your progressor"}
+          subtitle={isProgressor ? "Requests from your agents." : "Requests you've sent our team."}
+          icon={<UsersThree size={22} weight="regular" />}
           overdueGroups={groupByTransaction(progOverdue)}
           openGroups={groupByTransaction(progUpcoming)}
           doneGroups={groupByTransaction(progDone)}
@@ -295,15 +313,18 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false }: { i
       )}
     </div>
     </DueDateContext.Provider>
+    </PhotoContext.Provider>
   );
 }
 
 function Section({
-  id, title, overdueGroups, openGroups, doneGroups, doneCount, showDone,
+  id, title, subtitle, icon, overdueGroups, openGroups, doneGroups, doneCount, showDone,
   onToggleShowDone, onToggle, progressor = false, isProgressorView = false, emptyText,
 }: {
   id: string;
   title: string;
+  subtitle?: string;
+  icon?: ReactNode;
   overdueGroups: Group[];
   openGroups: Group[];
   doneGroups: Group[];
@@ -322,27 +343,13 @@ function Section({
 
   return (
     <div id={id} className="space-y-3">
-      {/* Section header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px" }}>
-        {progressor && (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--agent-warning)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        )}
-        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          {title}
-        </h2>
-        {openCount > 0 && (
-          <span style={{
-            fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 20,
-            background: progressor ? "rgba(var(--agent-warning-rgb), 0.15)" : "rgba(var(--agent-info-rgb), 0.15)",
-            color: progressor ? "var(--agent-warning)" : "var(--agent-info)",
-            border: `1.5px solid ${progressor ? "rgba(var(--agent-warning-rgb), 0.35)" : "rgba(var(--agent-info-rgb), 0.35)"}`,
-          }}>
-            {openCount}
-          </span>
-        )}
-      </div>
+      {/* Section header — matches the top of the No-comms card */}
+      <SectionHeader
+        icon={icon ?? <ListChecks size={22} weight="regular" />}
+        title={title}
+        subtitle={subtitle ?? ""}
+        count={openCount}
+      />
 
       {/* Overdue sub-group */}
       {overdueGroups.length > 0 && (
@@ -431,16 +438,25 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
   overdue?: boolean;
   isProgressorView?: boolean;
 }) {
+  const photoByTx = useContext(PhotoContext);
+  const { line, location } = group.address ? splitTodoAddress(group.address) : { line: "Unknown address", location: "" };
+  void overdue; // accent removed (Ellis, 2026-09-19) — urgency reads on the row
   return (
-    <Card glassId="todo-page-group" glassLabel="To-Do · Task group" glassDefault="v05" padding="none" style={{ opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
+    <Card glassId="todo-page-group" glassLabel="To-Do · Task group" glassDefault="v03" padding="none" style={{ opacity: dimmed ? 0.7 : 1 }}>
       <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         {group.transactionId ? (
+          // Identity link — photo + first line + town/postcode. Hovering anywhere
+          // lights the first line coral; clicking goes to the file (like enquiries).
           <Link
             href={`/agent/transactions/${group.transactionId}`}
-            className="agent-link"
-            style={{ fontSize: 13, fontWeight: 600 }}
+            className="todo-id"
+            style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, textDecoration: "none" }}
           >
-            {group.address ?? "Unknown address"}
+            <PropertyThumb photoUrl={photoByTx?.get(group.transactionId) ?? null} size={38} />
+            <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+              <span className="todo-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line}</span>
+              {location && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{location}</span>}
+            </span>
           </Link>
         ) : (
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)" }}>Quick note</span>

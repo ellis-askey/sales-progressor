@@ -58,6 +58,17 @@ export function txWhereWorkQueue(vis: AgentVisibility) {
   return { agentUserId: vis.userId, serviceType: "self_managed" as const, isDemo: false };
 }
 
+// Lightweight {id, address} list of the files this user can attach a to-do to
+// (their active / on-hold files). Feeds the property picker on the To-Do add form.
+export async function listAttachableFiles(vis: AgentVisibility): Promise<{ id: string; propertyAddress: string }[]> {
+  return prisma.propertyTransaction.findMany({
+    where: { ...txWhereWorkQueue(vis), status: { in: ["active", "on_hold"] } },
+    select: { id: true, propertyAddress: true },
+    orderBy: { propertyAddress: "asc" },
+    take: 300,
+  });
+}
+
 export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueueItem[]> {
   const now = new Date();
   const staleThreshold = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
