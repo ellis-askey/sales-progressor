@@ -122,10 +122,9 @@ export function EnquiriesTriageList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, EnquiryHistoryEntry[] | "loading">>({});
-  // Which row currently has an open menu (elevate its card so the dropdown sits
-  // above every sibling) or an open backdate strip (collapse its slider + status).
+  // Which row currently has an open menu or backdate popover — elevate its card
+  // so the dropdown sits above every sibling.
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
-  const [backdateRowId, setBackdateRowId] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
@@ -273,7 +272,7 @@ export function EnquiriesTriageList({
             <div
               key={r.transactionId}
               data-tx={r.transactionId}
-              className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}${backdateRowId === r.transactionId ? " enq-card--backdate" : ""}`}
+              className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}`}
               data-busy={busy ? "" : undefined}
             >
               <div className="enq-row2">
@@ -321,7 +320,6 @@ export function EnquiriesTriageList({
                   expanded={expanded}
                   onToggleExpand={() => toggleExpand(r.transactionId)}
                   onMenuOpenChange={(open) => setMenuRowId(open ? r.transactionId : (id) => (id === r.transactionId ? null : id))}
-                  onBackdateChange={(open) => setBackdateRowId(open ? r.transactionId : (id) => (id === r.transactionId ? null : id))}
                   move={(opts, msg) => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, ...opts }), msg)}
                   onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
                 />
@@ -362,13 +360,8 @@ function dateToISO(d: Date): string {
 function todayISO(): string {
   return dateToISO(new Date());
 }
-function fmtChipDate(iso: string): string {
-  if (!iso || iso === todayISO()) return "Today";
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
 function RowActions({
-  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, onBackdateChange, move, onSatisfy,
+  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy,
 }: {
   row: OpenEnquiryRow;
   busy: boolean;
@@ -376,51 +369,43 @@ function RowActions({
   expanded: boolean;
   onToggleExpand: () => void;
   onMenuOpenChange: (open: boolean) => void;
-  onBackdateChange: (open: boolean) => void;
   move: (opts: MoveOpts, msg: string) => void;
   onSatisfy: () => void;
 }) {
   const other = otherCourt(row.currentlyWith);
   const [menuOpen, setMenuOpen] = useState(false);
   const [satisfyArmed, setSatisfyArmed] = useState(false);
-  // Backdate strip enter/exit: bdMounted keeps it in the DOM; bdClosing swaps to
-  // the reverse (despawn) animation for ~260ms before it unmounts, so opening
-  // AND reverting both animate. The parent collapses / re-expands the slider +
-  // status via the card class, driven off onBackdateChange.
-  const [bdMounted, setBdMounted] = useState(false);
-  const [bdClosing, setBdClosing] = useState(false);
-  const [bdISO, setBdISO] = useState(todayISO());
+  // Backdate popover: a little menu with the date picker on top and the
+  // clock-resetting actions stacked below, each disabled until a date is chosen.
+  // Elevates the card (via the menu class) so it can overflow; no row collapse.
+  const [bdOpen, setBdOpen] = useState(false);
+  const [bdISO, setBdISO] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLInputElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep the parent (card elevation for the dropdown) in sync with the menu.
   const changeMenu = (open: boolean) => { setMenuOpen(open); onMenuOpenChange(open); };
 
   function openBackdate() {
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-    changeMenu(false);
-    setBdClosing(false);
-    setBdMounted(true);
-    onBackdateChange(true);
+    setMenuOpen(false);
+    setBdISO("");
+    setBdOpen(true);
+    onMenuOpenChange(true); // elevate the card so the popover isn't clipped
   }
   function closeBackdate() {
-    // Reverse: the left content re-expands now (card class off), the strip plays
-    // its despawn, then it unmounts once the animation is done.
-    onBackdateChange(false);
-    setBdClosing(true);
-    setBdISO(todayISO());
-    closeTimer.current = setTimeout(() => { setBdMounted(false); setBdClosing(false); }, 260);
+    setBdOpen(false);
+    setBdISO("");
+    onMenuOpenChange(false);
   }
-  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const h = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) changeMenu(false); };
+    if (!menuOpen && !bdOpen) return;
+    const h = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { changeMenu(false); setBdOpen(false); }
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuOpen]);
+  }, [menuOpen, bdOpen]);
 
   // Concrete movements. Backdatable ones take an optional ISO date.
   const doRepliesSent = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent", occurredAt }, `Replies sent, moved to the ${courtShort(other)}`);
@@ -428,12 +413,6 @@ function RowActions({
   const doStill = (occurredAt?: string) => move({ mode: "touch", kind: "update", occurredAt }, "Confirmed, still with them");
   const doRaise = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised", occurredAt }, "Further enquiries raised, moved to the seller's side");
   const doWrong = () => move({ mode: "relabel", flipsCourtTo: other, kind: "correction" }, `Corrected: now with the ${courtShort(other)}`);
-
-  function openDatePicker() {
-    const el = dateRef.current;
-    if (!el) return;
-    try { el.showPicker(); } catch { el.focus(); }
-  }
 
   // ── Armed: Mark satisfied (two-tap — it opens exchange) ──
   if (satisfyArmed) {
@@ -446,34 +425,17 @@ function RowActions({
     );
   }
 
-  // ── Backdate strip: pick a day, then choose the action ──
-  if (bdMounted) {
-    const acts = isSeller
-      ? [
-          { k: "rs", label: "Replies sent", icon: <PaperPlaneTilt size={14} weight="fill" />, run: doRepliesSent, solid: true },
-          { k: "sp", label: "Some replies", icon: <Checks size={14} />, run: doPartial },
-          { k: "st", label: "Still with them", icon: <ArrowsClockwise size={14} />, run: doStill },
-        ]
-      : [
-          { k: "rf", label: "Raise further", icon: <ArrowRight size={14} />, run: doRaise, solid: true },
-          { k: "st", label: "Still with them", icon: <ArrowsClockwise size={14} />, run: doStill },
-        ];
-    return (
-      <div className={`enq-actions2 enq-actions-backdate${bdClosing ? " is-closing" : ""}`} ref={wrapRef}>
-        <span className="enq-backdate enq-bd-item">
-          <CalendarBlank size={14} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
-          <button type="button" className="enq-bd-date" onClick={openDatePicker}>{fmtChipDate(bdISO)} <CaretDown size={11} weight="bold" /></button>
-          <input ref={dateRef} type="date" className="enq-bd-input" min={dateToISO(row.openedAt)} max={todayISO()} value={bdISO} onChange={(e) => { if (e.target.value) setBdISO(e.target.value); }} aria-label="When did this happen" />
-        </span>
-        <span className="enq-bd-acts">
-          {acts.map((a) => (
-            <button key={a.k} type="button" disabled={busy} className={`enq-btn enq-bd-item ${a.solid ? "enq-btn-primary2" : "enq-btn-flip"}`} onClick={() => { a.run(bdISO); closeBackdate(); }}>{a.icon} {a.label}</button>
-          ))}
-        </span>
-        <button type="button" disabled={busy} className="enq-btn enq-btn-cancel enq-bd-item" onClick={closeBackdate}>Cancel</button>
-      </div>
-    );
-  }
+  // Backdatable actions for the popover (the clock-resetting ones).
+  const bdActs = isSeller
+    ? [
+        { k: "rs", label: "Replies sent", desc: "Full replies across → buyer's side", icon: <PaperPlaneTilt size={16} />, run: doRepliesSent },
+        { k: "sp", label: "Some replies in", desc: "Partial, stays their court", icon: <Checks size={16} />, run: doPartial },
+        { k: "st", label: "Still with them", desc: "In touch, no move", icon: <ArrowsClockwise size={16} />, run: doStill },
+      ]
+    : [
+        { k: "rf", label: "Raise further", desc: "Fresh round → seller's side", icon: <ArrowRight size={16} />, run: doRaise },
+        { k: "st", label: "Still with them", desc: "In touch, no move", icon: <ArrowsClockwise size={16} />, run: doStill },
+      ];
 
   // ── Normal: split (desktop) / menu (tablet+mobile) ──
   const primaryGreen = !isSeller; // buyer-side primary is "Mark satisfied" (green)
@@ -500,7 +462,7 @@ function RowActions({
   return (
     <div className="enq-actions2" ref={wrapRef}>
       {/* Desktop: calendar + split button */}
-      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" onClick={openBackdate}>
+      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" aria-expanded={bdOpen} onClick={() => (bdOpen ? closeBackdate() : openBackdate())}>
         <CalendarBlank size={15} />
       </button>
       <span className="enq-split enq-a-desktop">
@@ -524,6 +486,36 @@ function RowActions({
             <span className="enq-mi-ico"><CalendarBlank size={16} /></span>
             <span className="enq-mi-txt">Happened earlier…<small>Backdate so the timer&apos;s right</small></span>
           </button>
+        </div>
+      )}
+
+      {bdOpen && (
+        <div className="enq-menu enq-bd-menu" role="menu">
+          <div className="enq-bd-when">When did this happen?</div>
+          <input
+            type="date"
+            className="enq-bd-field"
+            min={dateToISO(row.openedAt)}
+            max={todayISO()}
+            value={bdISO}
+            onChange={(e) => setBdISO(e.target.value)}
+            aria-label="When did this happen"
+            autoFocus
+          />
+          <div className="enq-mi-div" />
+          {bdActs.map((a) => (
+            <button
+              key={a.k}
+              type="button"
+              role="menuitem"
+              className="enq-mi"
+              disabled={busy || !bdISO}
+              onClick={() => { a.run(bdISO); closeBackdate(); }}
+            >
+              <span className="enq-mi-ico">{a.icon}</span>
+              <span className="enq-mi-txt">{a.label}<small>{a.desc}</small></span>
+            </button>
+          ))}
         </div>
       )}
 
