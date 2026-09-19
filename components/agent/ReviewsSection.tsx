@@ -222,15 +222,6 @@ export function ReviewsSection({
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px" }}>
         <CalendarPlus size={15} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} aria-hidden />
         <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>Reviews due</h2>
-        {openCount > 0 && (
-          <span style={{
-            fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 20,
-            background: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-deep)",
-            border: "1.5px solid rgba(var(--agent-coral-base-rgb), 0.35)",
-          }}>
-            {openCount}
-          </span>
-        )}
       </div>
 
       {openCount === 0 && done.length === 0 ? (
