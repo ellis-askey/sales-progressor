@@ -93,6 +93,47 @@ export async function fetchPricePaid(postcode: string, paon?: string | null): Pr
   }));
 }
 
+// Count of registered sales in a postcode district (outcode) over the last N
+// months — the "market size" for the Map view's share metric. Land Registry
+// Price Paid is REGISTERED/completed sales only (not agreed/SSTC), so the share
+// derived from this is honestly "share of registered sales", not a Rightmove-
+// style agreed-share. STRSTARTS on the outcode + a trailing space scopes to the
+// district precisely (so "BS6 " never catches "BS60 ..."). Cached 24h at the
+// fetch layer, exactly like fetchPricePaid. Returns null on any failure so the
+// caller can degrade to "no market data" rather than a wrong number.
+export async function fetchAreaSales(outcode: string, months = 12): Promise<number | null> {
+  const oc = outcode.trim().toUpperCase();
+  if (!/^[A-Z]{1,2}[0-9][0-9A-Z]?$/.test(oc)) return null;
+  const since = new Date(Date.now() - months * 30.44 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const sparql = `
+    PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
+    PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    SELECT (COUNT(?tx) AS ?n) WHERE {
+      ?addr lrcommon:postcode ?pc .
+      ?tx lrppi:propertyAddress ?addr ;
+          lrppi:transactionDate ?date .
+      FILTER(STRSTARTS(?pc, "${oc} "))
+      FILTER(?date >= "${since}"^^xsd:date)
+    }
+  `.trim();
+
+  const url = `https://landregistry.data.gov.uk/landregistry/query?query=${encodeURIComponent(sparql)}&output=json`;
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: "application/sparql-results+json" },
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const n = json?.results?.bindings?.[0]?.n?.value;
+    return n != null ? parseInt(n, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
 export type EpcData = {
   rating: string;
   score: number | null;

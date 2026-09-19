@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-16
+Last updated: 2026-09-19
+
+---
+
+## Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY for Street View on the All Files → Map tab (2026-09-19) — optional; Map works without it
+
+The new **Map** tab (All Files → Map) plots your sales, heat-shades postcode districts, and shows market share from Land Registry — all with **no key** (map tiles via Carto's free GL styles, geocoding via postcodes.io, market data via HM Land Registry). Only **Street View** (click a sale pin → see the property) needs Google. It's feature-flagged: with no key, the pin modal just shows "Open file" and a note; nothing breaks.
+
+**To turn Street View on:**
+1. Google Cloud Console → create/enable **Maps Embed API** (Street View mode) on a billing-enabled project.
+2. Create an API key, and **restrict it**: HTTP referrers = `portal.thesalesprogressor.co.uk/*` (+ localhost for dev), API = Maps Embed API only.
+3. Vercel → Sales Progressor → Settings → Environment Variables → add `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` = the key, scope **Production** (and add to local `.env` for dev). It's a `NEXT_PUBLIC_` var (embedded client-side, which is expected for the Maps Embed API — the referrer restriction is what secures it).
+4. **Redeploy** (env change needs a new deployment). The "Street View" panel then appears on the pin modal.
+
+Notes: Maps Embed API is free for Street View at low volume but **requires a billing account on file**. DPA — Google Maps Platform data processing terms apply; the only data sent to Google is the property's approximate lat/lng (postcode centroid), no client PII. A tile-provider upgrade (MapTiler/Carto with a key) is **not** required — the free Carto basemap is production-fine with attribution (already shown on the map).
 
 ---
 

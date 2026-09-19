@@ -50,6 +50,7 @@
     "imapflow": "^2.0.5",
     "lucide-react": "^1.8.0",
     "mailparser": "^3.9.28",
+    "maplibre-gl": "^4.7.1",
     "next": "^16.2.4",
     "next-auth": "^4.24.10",
     "next-mdx-remote": "^6.0.0",
