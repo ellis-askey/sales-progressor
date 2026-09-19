@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { saveCompletionDateAction } from "@/app/actions/transactions";
 import { completeFileAction } from "@/app/actions/completions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { CaretDown } from "@phosphor-icons/react";
@@ -32,10 +30,10 @@ export type CompletionGroup = {
 export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) {
   /* OLD: const [collapsed, setCollapsed] = useState(Object.fromEntries(groups.map(g => [g.key, true]))) */
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [openDatePickerId, setOpenDatePickerId] = useState<string | null>(null);
-  const [dateValue, setDateValue] = useState("");
   const [openCompleteId, setOpenCompleteId] = useState<string | null>(null);
   const [completeDate, setCompleteDate] = useState("");
+  // File cards open by default; a set of the ones the agent has collapsed.
+  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useAgentToast();
@@ -44,10 +42,17 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   function toggle(key: string) {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   }
+  function toggleCard(id: string) {
+    setCollapsedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-4">
-      {groups.map(({ key, label, files, groupValue, groupFeeTotal, missingFeeCount }) => {
+      {groups.map(({ key, label, files, groupFeeTotal, missingFeeCount }) => {
         const s = GROUP_STYLES[key];
         const isOpen = !!openGroups[key];
 
@@ -72,21 +77,18 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
               onClick={() => toggle(key)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(key); } }}
             >
-              {/* Left: dot + urgency label */}
+              {/* Left: urgency label — its colour carries the status (no dot). */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0, background: s.dotColor }} />
-                <span className={`text-xs font-bold uppercase tracking-[0.07em] truncate ${s.label}`}>
+                <span className={`text-[13px] font-semibold tracking-[0.01em] truncate ${s.label}`}>
                   {label} ({files.length})
                 </span>
               </div>
-              {/* Right: fee or value total + caret */}
+              {/* Right: fees for the band (never a sale total) + caret. */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 {groupFeeTotal > 0 ? (
-                  /* OLD: <p className="text-xs font-semibold tabular-nums" style={{ color: "rgba(15,23,42,0.6)" }}>{fmt(groupFeeTotal / 100)} fees</p> */
                   <span className="agent-acc-summary">{fmt(groupFeeTotal / 100)} fees</span>
-                ) : groupValue > 0 ? (
-                  /* OLD: <p className="text-xs text-slate-900/40 font-medium tabular-nums">{fmt(groupValue / 100)}</p> */
-                  <span className="agent-acc-summary">{fmt(groupValue / 100)}</span>
+                ) : files.length > 0 ? (
+                  <span className="agent-acc-summary" style={{ opacity: 0.55 }}>Fees TBC</span>
                 ) : null}
                 <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
               </div>
@@ -106,39 +108,16 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                   <div className="space-y-2">
                     {files.map((f) => (
                       <div key={f.id}>
-                        <Link
-                          href={`/agent/transactions/${f.id}`}
-                          className={`glass-card agent-hover-row block px-5 py-4 border ${s.border}`}
-                          style={{ textDecoration: "none" }}
-                        >
+                        <div className={`glass-card block px-5 py-4 border ${s.border}`}>
                           <CompletionFileRowView
                             file={f}
                             groupKey={key}
-                            onSetDate={() => { setOpenCompleteId(null); setOpenDatePickerId(f.id); setDateValue(f.completionDateIso ? f.completionDateIso.split("T")[0] : ""); }}
-                            onComplete={() => { setOpenDatePickerId(null); setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}
+                            href={`/agent/transactions/${f.id}`}
+                            isOpen={!collapsedCards.has(f.id)}
+                            onToggle={() => toggleCard(f.id)}
+                            onComplete={() => { setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}
                           />
-                        </Link>
-
-                        {/* Change / set completion date */}
-                        {openDatePickerId === f.id && (
-                          <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <DateField className="agent-input agent-input-sm" style={{ width: "auto", fontSize: 13 }} wrapperStyle={{ display: "inline-block" }} min={today} value={dateValue} onChange={(e) => setDateValue(e.target.value)} autoFocus />
-                            <Button
-                              size="sm"
-                              disabled={!dateValue || isPending}
-                              onClick={() => {
-                                startTransition(async () => {
-                                  await saveCompletionDateAction(f.id, dateValue);
-                                  setOpenDatePickerId(null);
-                                  router.refresh();
-                                });
-                              }}
-                            >
-                              {isPending ? "Saving…" : "Save date"}
-                            </Button>
-                            <button className="agent-link agent-link-muted" style={{ fontSize: 11 }} onClick={() => setOpenDatePickerId(null)}>Cancel</button>
-                          </div>
-                        )}
+                        </div>
 
                         {/* Quick-confirm completion */}
                         {openCompleteId === f.id && (

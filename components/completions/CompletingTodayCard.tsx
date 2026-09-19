@@ -83,7 +83,7 @@ export function CompletingTodayCard({ files }: { files: TodayFile[] }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 18px", background: "var(--agent-coral-bg-tint)", borderBottom: "1px solid var(--agent-border-subtle)" }}>
         <CalendarCheck size={17} weight="fill" style={{ color: "var(--agent-coral-deep)" }} />
-        <span className="text-xs font-bold uppercase tracking-[0.07em]" style={{ color: "var(--agent-coral-deep)" }}>Completing today</span>
+        <span className="text-[13px] font-semibold tracking-[0.01em]" style={{ color: "var(--agent-coral-deep)" }}>Completing today</span>
         <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 600, marginLeft: "auto" }}>
           {files.length} {files.length === 1 ? "file" : "files"}{totalValue > 0 ? ` · ${fmt(totalValue)}` : ""}
         </span>
@@ -93,7 +93,7 @@ export function CompletingTodayCard({ files }: { files: TodayFile[] }) {
         {files.map((f, i) => (
           <div key={f.id} style={{ display: "flex", gap: 14, padding: "13px 2px", borderTop: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-              <Link href={`/agent/transactions/${f.id}`} className="hover:underline" style={{ fontSize: 14.5, fontWeight: 700, color: "var(--agent-text-primary)", textDecoration: "none" }}>
+              <Link href={`/agent/transactions/${f.id}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none" }}>
                 {f.propertyAddress}
               </Link>
               <div style={{ fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>

@@ -152,6 +152,8 @@ export default async function AgentCompletionsPage() {
         propertyAddress:       f.propertyAddress,
         purchasePrice:         f.purchasePrice ?? null,
         agentFeeAmount:        f.agentFeeAmount ?? null,
+        agentFeePercent:       f.agentFeePercent ?? null,
+        agentFeeIsVatInclusive: f.agentFeeIsVatInclusive ?? null,
         purchasers:            f.purchasers,
         assignedUserName:      f.assignedUserName ?? null,
         exchangedAtIso:        f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,

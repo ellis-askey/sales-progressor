@@ -33,14 +33,20 @@ export function AgentFeeInline({
   agentFeePercent,
   agentFeeIsVatInclusive,
   purchasePrice,
+  defaultEditing = false,
+  onDone,
 }: {
   transactionId: string;
   agentFeeAmount: number | null;
   agentFeePercent: number | null;
   agentFeeIsVatInclusive: boolean | null;
   purchasePrice: number | null;
+  // Start open (skip the display row) and call onDone on save/cancel — used when
+  // the editor is hosted in a popup (e.g. the Completions "Add fee" modal).
+  defaultEditing?: boolean;
+  onDone?: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(defaultEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +83,7 @@ export function AgentFeeInline({
         agentFeeIsVatInclusive: vat === "inclusive",
       });
       setEditing(false);
+      onDone?.();
       // Phase 4 (2026-09-18, PERF-03): no client refresh — the action
       // revalidates the file page; its response carries the re-render.
     } catch (err) {
@@ -134,7 +141,7 @@ export function AgentFeeInline({
         <button onClick={save} disabled={saving} className="flex-1 py-2 rounded-xl agent-btn-color-primary text-xs font-semibold transition-colors disabled:opacity-40">
           {saving ? "Saving…" : "Save"}
         </button>
-        <button onClick={() => setEditing(false)} disabled={saving} className="flex-1 py-2 rounded-xl text-xs text-slate-900/60 glass-subtle transition-colors disabled:opacity-40" style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
+        <button onClick={() => { setEditing(false); onDone?.(); }} disabled={saving} className="flex-1 py-2 rounded-xl text-xs text-slate-900/60 glass-subtle transition-colors disabled:opacity-40" style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
           Cancel
         </button>
       </div>

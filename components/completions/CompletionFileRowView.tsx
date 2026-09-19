@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { CaretDown } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { DateMenu, FeeMenu } from "@/components/completions/CompletionCardMenus";
 
 function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
 
@@ -46,6 +49,8 @@ export type CompletionFileRow = {
   propertyAddress: string;
   purchasePrice: number | null;
   agentFeeAmount: number | null;
+  agentFeePercent: number | null;
+  agentFeeIsVatInclusive: boolean | null;
   purchasers: string[];
   assignedUserName: string | null;
   exchangedAtIso: string | null;
@@ -113,7 +118,7 @@ function JNode({ label, date, strong }: { label: string; date: string; strong?: 
   return (
     <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
       <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: strong ? 800 : 700, color: "var(--agent-text-primary)" }}>{date}</span>
+      <span style={{ fontSize: 12, fontWeight: strong ? 600 : 500, color: "var(--agent-text-primary)" }}>{date}</span>
     </div>
   );
 }
@@ -145,7 +150,7 @@ function FundItem({ label, value, tone }: { label: string; value: string; tone?:
   return (
     <span style={{ display: "inline-flex", flexDirection: "column" }}>
       <span style={{ fontSize: 9.5, color: "var(--agent-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: c }}>{value}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: c }}>{value}</span>
     </span>
   );
 }
@@ -159,14 +164,14 @@ function RowExtras({ file }: { file: CompletionFileRow }) {
   const completionMs = file.completionDateIso ? new Date(file.completionDateIso).setHours(0, 0, 0, 0) : null;
   const offerMs = file.mortgageOfferExpiryIso ? new Date(file.mortgageOfferExpiryIso).setHours(0, 0, 0, 0) : null;
   const offerValid = offerMs == null ? null : completionMs == null ? true : offerMs >= completionMs;
-  const solsOk = !!file.vendorSolicitorName && !!file.purchaserSolicitorName;
   const fundsOk = file.internal ? file.completionFundsSent === true || file.fundsInPlace === "yes" : null;
 
+  // Only the real, per-item readiness pips (funds / mortgage offer). Solicitors
+  // are covered by the "No solicitors on file" line, and there's no "Ready to
+  // complete" / "Needs N" summary — the pips say what's outstanding.
   const pips: { tone: "ok" | "warn" | "bad"; label: string }[] = [];
   if (file.internal) pips.push(fundsOk ? { tone: "ok", label: "Funds confirmed" } : { tone: "bad", label: "Funds not confirmed" });
   if (offerValid !== null) pips.push(offerValid ? { tone: "ok", label: "Mortgage offer valid" } : { tone: "bad", label: "Offer expires before completion" });
-  pips.push(solsOk ? { tone: "ok", label: "Solicitors on file" } : { tone: "warn", label: "Solicitors missing" });
-  const notOk = pips.filter((p) => p.tone !== "ok").length;
 
   // Non-financial context (shown to everyone).
   const tags: string[] = [];
@@ -201,24 +206,17 @@ function RowExtras({ file }: { file: CompletionFileRow }) {
         <JNode label="Completing" date={fmtShort(file.completionDateIso)} />
       </div>
 
-      {/* Readiness */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 9 }}>
-        {pips.map((p, i) => <Pip key={i} tone={p.tone}>{p.label}</Pip>)}
-        <span
-          style={{
-            marginLeft: "auto", fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 8,
-            background: notOk === 0 ? "var(--agent-success-bg)" : "rgba(var(--agent-warning-rgb),0.14)",
-            color: notOk === 0 ? "var(--agent-success)" : "var(--agent-warning)",
-          }}
-        >
-          {notOk === 0 ? "Ready to complete" : `Needs ${notOk}`}
-        </span>
-      </div>
+      {/* Readiness pips (funds / mortgage offer) — shown only when there are any. */}
+      {pips.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+          {pips.map((p, i) => <Pip key={i} tone={p.tone}>{p.label}</Pip>)}
+        </div>
+      )}
 
       {/* What the buyer's told us */}
       {(hasFundsData || tags.length > 0) && (
         <div style={{ marginTop: 10, border: "1px dashed var(--agent-border-subtle)", borderRadius: 10, background: "var(--agent-surface-glass)", padding: "9px 12px" }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: 6 }}>What the buyer&apos;s told us</div>
+          <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: 6 }}>What the buyer&apos;s told us</div>
           {hasFundsData && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 18px", marginBottom: tags.length > 0 ? 8 : 0 }}>
               {deposit && <FundItem label="Deposit" value={deposit} />}
@@ -241,12 +239,16 @@ function RowExtras({ file }: { file: CompletionFileRow }) {
 export function CompletionFileRowView({
   file,
   groupKey,
-  onSetDate,
+  href = "#",
+  isOpen = true,
+  onToggle,
   onComplete,
 }: {
   file: CompletionFileRow;
   groupKey: keyof typeof GROUP_STYLES;
-  onSetDate?: () => void;
+  href?: string;
+  isOpen?: boolean;
+  onToggle?: () => void;
   onComplete?: () => void;
 }) {
   const s = GROUP_STYLES[groupKey];
@@ -261,15 +263,10 @@ export function CompletionFileRowView({
   // Right-hand date + countdown block.
   const DateBlock = () => (
     <div className="text-right" style={{ flexShrink: 0 }}>
-      <p className={`text-sm font-bold mb-0.5 ${file.completionDateIso ? s.label : "text-slate-900/40"}`}>
+      <p className={`text-sm font-semibold mb-0.5 ${file.completionDateIso ? s.label : "text-slate-900/40"}`}>
         {fmtDate(file.completionDateIso)}
       </p>
       {daysLabel && <p className="text-xs font-semibold" style={{ color: daysColor }}>{daysLabel}</p>}
-      {groupKey === "overdue" && (
-        <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 5, lineHeight: 1.3, maxWidth: 150, marginLeft: "auto" }}>
-          likely a stale date, not a stalled sale
-        </p>
-      )}
     </div>
   );
 
@@ -278,46 +275,64 @@ export function CompletionFileRowView({
     : <>{file.vendorSolicitorName ?? "not set"}{"  ↔  "}{file.purchaserSolicitorName ?? "not set"}</>;
 
   return (
-    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-      <PropertyThumb photoUrl={file.photoUrl} size={48} />
+    <div>
+      {/* The whole top bar is the collapse/expand toggle — one clickable
+          container, nothing nested that steals the click. The file link lives on
+          "Open file" in the body below. Date + countdown stay visible collapsed. */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        onClick={onToggle}
+        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onToggle?.(); } }}
+        style={{ display: "flex", gap: 14, alignItems: "flex-start", cursor: onToggle ? "pointer" : "default" }}
+      >
+        <PropertyThumb photoUrl={file.photoUrl} size={48} />
+        <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+          <p className="text-[14px] font-semibold mb-0.5" style={{ color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{addrLine1.trim()}</p>
+          {addrTown && <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "-1px 0 0" }}>{addrTown}</p>}
+        </div>
+        <DateBlock />
+        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, alignSelf: "center", transition: "transform 220ms cubic-bezier(0.25,0,0,1)", transform: isOpen ? "rotate(180deg)" : "none" }}>
+          <CaretDown size={15} weight="bold" />
+        </span>
+      </div>
 
-      <div className="min-w-0 flex-1">
-        {/* Line 1: address + date/countdown. flexWrap + the address's flex
-            basis let the date block drop to its own line on narrow rows
-            instead of truncating the address to a few words (audit D5). */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 180px", minWidth: 0 }}>
-            <p className="text-[15px] font-bold mb-0.5" style={{ color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{addrLine1.trim()}</p>
-            {addrTown && <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "-1px 0 0" }}>{addrTown}</p>}
+      {/* Collapsible detail — money, context, journey, readiness, actions. */}
+      <div className={`agent-acc${isOpen ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          <div style={{ paddingLeft: 62, paddingTop: 8 }}>
+            {/* Money — sale muted, fee emphasised */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
+              {file.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(file.purchasePrice / 100)}</span>}
+              {file.agentFeeAmount != null && (
+                <span className="text-sm" style={{ color: "var(--agent-coral, #c2410c)", fontWeight: 600 }}>Fee {fmt(file.agentFeeAmount / 100)}</span>
+              )}
+            </div>
+
+            {/* buyers · exchange · solicitors · agency */}
+            <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>
+              {file.purchasers.length > 0 && <>{file.purchasers.join(", ")}</>}
+              {file.purchasers.length > 0 && exchangeLine && " · "}
+              {exchangeLine}
+              {file.assignedUserName && <> · {file.assignedUserName}</>}
+              {file.agencyName && <> · {file.agencyName}</>}
+            </p>
+            <p className="text-xs truncate" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>{solLine}</p>
+
+            {/* Journey + readiness + what the buyer's told us */}
+            <RowExtras file={file} />
+
+            {/* Actions — plus the last-chance "Add fee" (bottom right) when the
+                agency fee hasn't been captured yet. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
+              {onComplete && <ActionButton onClick={onComplete} primary>Mark completed</ActionButton>}
+              <DateMenu txId={file.id} currentIso={file.completionDateIso} hasDate={!!file.completionDateIso} />
+              <span style={{ flex: 1 }} />
+              <FeeMenu txId={file.id} agentFeeAmount={file.agentFeeAmount} agentFeePercent={file.agentFeePercent} agentFeeIsVatInclusive={file.agentFeeIsVatInclusive} purchasePrice={file.purchasePrice} />
+              <Link href={href} className="agent-link comp-open" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", textDecoration: "none" }}>Open file</Link>
+            </div>
           </div>
-          <DateBlock />
-        </div>
-
-        {/* Line 2: the money — sale muted, fee emphasised */}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
-          {file.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(file.purchasePrice / 100)}</span>}
-          {file.agentFeeAmount != null && (
-            <span className="text-sm" style={{ color: "var(--agent-coral, #c2410c)", fontWeight: 700 }}>Fee {fmt(file.agentFeeAmount / 100)}</span>
-          )}
-        </div>
-
-        {/* Line 3 (quiet): buyers · exchange · solicitors · agency */}
-        <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>
-          {file.purchasers.length > 0 && <>{file.purchasers.join(", ")}</>}
-          {file.purchasers.length > 0 && exchangeLine && " · "}
-          {exchangeLine}
-          {file.assignedUserName && <> · {file.assignedUserName}</>}
-          {file.agencyName && <> · {file.agencyName}</>}
-        </p>
-        <p className="text-xs truncate" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>{solLine}</p>
-
-        {/* Completions hub: journey + readiness + what the buyer's told us */}
-        <RowExtras file={file} />
-
-        {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
-          {onComplete && <ActionButton onClick={onComplete} primary>Mark completed</ActionButton>}
-          {onSetDate && <ActionButton onClick={onSetDate}>{file.completionDateIso ? "Change date" : "Set date"}</ActionButton>}
         </div>
       </div>
     </div>

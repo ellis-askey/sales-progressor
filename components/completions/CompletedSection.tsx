@@ -40,7 +40,7 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
   const [showAll, setShowAll] = useState(false);
   if (files.length === 0) return null;
 
-  const totalValue = files.reduce((s, f) => s + (f.purchasePrice ?? 0), 0);
+  const totalFee = files.reduce((s, f) => s + (f.agentFeeAmount ?? 0), 0);
   const shown = showAll ? files : files.slice(0, PREVIEW_COUNT);
 
   return (
@@ -54,12 +54,12 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
           <CheckCircle size={16} weight="fill" style={{ color: "var(--agent-success)", flexShrink: 0 }} />
-          <span className="text-xs font-bold uppercase tracking-[0.07em]" style={{ color: "var(--agent-text-secondary)" }}>
+          <span className="text-[13px] font-semibold tracking-[0.01em]" style={{ color: "var(--agent-text-secondary)" }}>
             Completed ({files.length})
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {totalValue > 0 && <span className="agent-acc-summary">{fmt(totalValue / 100)}</span>}
+          {totalFee > 0 ? <span className="agent-acc-summary">{fmt(totalFee / 100)} fees</span> : <span className="agent-acc-summary" style={{ opacity: 0.55 }}>Fees TBC</span>}
           <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
         </div>
       </div>
@@ -79,21 +79,21 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
                     <PropertyThumb photoUrl={f.photoUrl} size={44} />
                     <div className="min-w-0 flex-1">
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                        <p className="text-[15px] font-bold truncate" style={{ color: "var(--agent-text-primary)" }}>{f.propertyAddress}</p>
+                        <p className="text-[14px] font-semibold truncate" style={{ color: "var(--agent-text-primary)" }}>{f.propertyAddress}</p>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
                           <span className="text-xs font-semibold" style={{ color: "var(--agent-success)" }}>
                             Completed{f.completionDateIso ? ` ${fmtDate(f.completionDateIso)}` : ""}
                           </span>
                           {daysBetween(f.exchangedAtIso, f.completionDateIso) != null && (
                             <div style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                              exchange to keys in {daysBetween(f.exchangedAtIso, f.completionDateIso)} days
+                              Exchange to keys in {daysBetween(f.exchangedAtIso, f.completionDateIso)} days
                             </div>
                           )}
                         </div>
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 2 }}>
                         {f.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(f.purchasePrice / 100)}</span>}
-                        {f.agentFeeAmount != null && <span className="text-sm" style={{ color: "var(--agent-coral, #c2410c)", fontWeight: 700 }}>Fee {fmt(f.agentFeeAmount / 100)}</span>}
+                        {f.agentFeeAmount != null && <span className="text-sm" style={{ color: "var(--agent-coral, #c2410c)", fontWeight: 600 }}>Fee {fmt(f.agentFeeAmount / 100)}</span>}
                       </div>
                       {(f.purchasers.length > 0 || f.assignedUserName || f.agencyName) && (
                         <p className="text-xs" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>

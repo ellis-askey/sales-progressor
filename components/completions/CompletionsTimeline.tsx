@@ -28,16 +28,26 @@ export function CompletionsTimeline({ days }: { days: TimelineDay[] }) {
             }}
           >
             <div style={{ fontSize: 9.5, fontFamily: "var(--agent-font-mono, ui-monospace)", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>{d.dow}</div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.01em", marginTop: 1 }}>{d.dayNum}</div>
-            <span
-              style={{
-                display: "inline-block", marginTop: 6, fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 6,
-                background: d.chainCount > 0 ? "rgba(91,107,120,0.12)" : "var(--agent-coral-bg-tint)",
-                color: d.chainCount > 0 ? "var(--agent-text-secondary)" : "var(--agent-coral-deep)",
-              }}
-            >
-              {d.chainCount > 0 ? `chain ×${d.chainCount}` : d.isToday ? `${d.count} today` : `${d.count} due`}
-            </span>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", marginTop: 1 }}>{d.dayNum}</div>
+            {(() => {
+              // Glassed pill: a tinted gradient with a lit top edge + soft
+              // shadow (the polished-button treatment), keeping the coral / slate
+              // hue rather than washing it out with a white frost.
+              const rgb = d.chainCount > 0 ? "100, 116, 139" : "var(--agent-coral-rgb)";
+              return (
+                <span
+                  style={{
+                    display: "inline-block", marginTop: 6, fontSize: 9, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                    background: `linear-gradient(160deg, rgba(${rgb}, 0.18), rgba(${rgb}, 0.06))`,
+                    border: `0.5px solid rgba(${rgb}, 0.22)`,
+                    boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 3px rgba(${rgb}, 0.14)`,
+                    color: d.chainCount > 0 ? "var(--agent-text-secondary)" : "var(--agent-coral-deep)",
+                  }}
+                >
+                  {d.chainCount > 0 ? `chain ×${d.chainCount}` : d.isToday ? `${d.count} today` : `${d.count} due`}
+                </span>
+              );
+            })()}
           </div>
         ))}
       </div>

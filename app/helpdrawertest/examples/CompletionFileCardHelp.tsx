@@ -14,6 +14,8 @@ const MOCK_FILE: CompletionFileRow = {
   propertyAddress: "12 Birchwood Lane, Guildford, Surrey",
   purchasePrice: 34200000,   // £342,000 in pence
   agentFeeAmount: 195000,    // £1,950 in pence
+  agentFeePercent: null,
+  agentFeeIsVatInclusive: null,
   purchasers: ["Sarah Mitchell"],
   assignedUserName: null,
   exchangedAtIso: EIGHT_DAYS_AGO,

@@ -595,6 +595,124 @@
   .rem-snz-chip:hover:not(.on) { color: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
   .rem-snz-chip.on { color: #E0512F; border: 1px solid #E0512F; font-weight: 700; }
   :root[data-theme="dark"] .rem-snz-chip.on { color: #FF9E80; border-color: #FF9E80; }
+  /* Snoozed-file header chip (single-reminder file) — a quiet status marker
+     beside the side pill, matching the family's pill weight. */
+  .rem-snooze-pill {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+    color: var(--agent-text-secondary); background: rgba(var(--agent-shadow-rgb), 0.10);
+  }
+  /* Solicitor firm link on a reminder row (solicitor-owed steps) — underline on
+     hover as the affordance; the LinkArrow nudges alongside it. */
+  .rem-sol-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* Stat-tile icon circle — shared by the chain summary hero and the completions
+     finish-line hero so the two read as one component in different states. A
+     polished per-tone gradient (not glass, not a flat tint): a lit top edge over
+     a soft hue gradient, with a faint coloured shadow. The icon sits slightly
+     larger inside a fixed 40px circle. */
+  .stat-circle {
+    width: 40px; height: 40px; border-radius: 999px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--sc-icon);
+    background: linear-gradient(145deg, rgba(var(--sc-rgb), 0.22), rgba(var(--sc-rgb), 0.06));
+    border: 0.5px solid rgba(var(--sc-rgb), 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 7px rgba(var(--sc-rgb), 0.20);
+  }
+  :root[data-theme="dark"] .stat-circle {
+    background: linear-gradient(145deg, rgba(var(--sc-rgb), 0.30), rgba(var(--sc-rgb), 0.10));
+    border-color: rgba(var(--sc-rgb), 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  .stat-circle--coral   { --sc-rgb: var(--agent-coral-base-rgb); --sc-icon: var(--agent-coral-deep); }
+  .stat-circle--info    { --sc-rgb: 13, 148, 136;                --sc-icon: #0d9488; }
+  .stat-circle--warning { --sc-rgb: var(--agent-warning-rgb);    --sc-icon: var(--agent-warning); }
+  .stat-circle--success { --sc-rgb: var(--agent-success-rgb);    --sc-icon: var(--agent-success); }
+  .stat-circle--neutral { --sc-rgb: 100, 116, 139;              --sc-icon: var(--agent-text-secondary); }
+
+  /* Completions card body links (Add fee / Open file) — underline on hover. */
+  .comp-addfee:hover, .comp-open:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* Completions card popup menus (Change date / Add fee) */
+  .comp-menu-trigger {
+    font-size: 12px; font-weight: 600; color: var(--agent-coral-deep);
+    background: none; border: none; padding: 0; cursor: pointer;
+  }
+  .comp-menu-trigger:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .comp-pop {
+    width: 220px; padding: 12px; border-radius: 14px;
+    background: var(--agent-menu-surface, #ffffff);
+    border: 0.5px solid var(--agent-border-default);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  }
+  .comp-pop-label {
+    margin: 0 0 8px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--agent-text-muted);
+  }
+  /* Segmented toggles — unselected hovers into a light version of the selected
+     coral; selected gets the coral tint + a thin coral border. */
+  .comp-seg { display: flex; gap: 6px; }
+  .comp-seg-btn {
+    flex: 1; padding: 8px 10px; border-radius: 11px; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; transition: border-color 150ms, color 150ms, transform 90ms ease;
+    border: 2px solid var(--agent-border-default);
+    background: var(--agent-surface-overlay, rgba(255, 255, 255, 0.5));
+    color: var(--agent-text-primary);
+  }
+  /* Hover: border + text light up coral, background unchanged. */
+  .comp-seg-btn:hover:not(.on):not(:disabled) {
+    border-color: var(--agent-coral);
+    color: var(--agent-coral-deep);
+  }
+  /* Selected: coral-deep border + coral text, no fill. */
+  .comp-seg-btn.on {
+    border-color: var(--agent-coral-deep);
+    color: var(--agent-coral-deep);
+  }
+  .comp-seg-btn:active:not(:disabled) { transform: scale(0.97); }
+  .comp-seg-btn:disabled { opacity: 0.5; cursor: default; }
+  /* Date field + fee input — our normal thin border, primary-tinted, that
+     deepens to full coral on hover/focus. No black outline or focus ring. */
+  .comp-date-field {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px;
+    cursor: pointer; transition: border-color 150ms ease;
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.35);
+    background: var(--agent-surface-overlay, rgba(255, 255, 255, 0.5));
+  }
+  .comp-date-field:hover { border-color: rgba(var(--agent-coral-rgb), 0.55); }
+  .comp-date-field:focus-within { border-color: var(--agent-coral-deep); }
+  .comp-date-input {
+    flex: 1; border: none; background: none; font: inherit; font-size: 13px;
+    color: var(--agent-text-primary); outline: none;
+  }
+  .comp-fee-input {
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.35) !important; border-radius: 9px !important;
+    background: var(--agent-surface-overlay, rgba(255, 255, 255, 0.5)) !important;
+    outline: none !important; box-shadow: none !important;
+    transition: border-color 150ms ease;
+  }
+  .comp-fee-input:hover { border-color: rgba(var(--agent-coral-rgb), 0.55) !important; }
+  .comp-fee-input:focus, .comp-fee-input:focus-visible {
+    border-color: var(--agent-coral-deep) !important; outline: none !important; box-shadow: none !important;
+  }
+  .comp-pct { display: flex; align-items: center; gap: 8px; }
+  .comp-pct-input { flex: 1; padding: 7px 10px; font-size: 13px; color: var(--agent-text-primary); }
+  .comp-pct-sign { font-size: 11.5px; color: var(--agent-text-muted); white-space: nowrap; }
+  /* Save CTA — the enquiries "new primary" fill (coral → coral-deep vertical
+     gradient with a lit top edge, brightening on hover). */
+  .comp-pop-cta {
+    width: 100%; padding: 9px; border-radius: 9px; border: 1px solid transparent; cursor: pointer;
+    color: var(--agent-text-on-coral, #fff); font-size: 13px; font-weight: 600;
+    background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    transition: filter 150ms ease, transform 90ms ease;
+  }
+  .comp-pop-cta:hover:not(:disabled) { filter: brightness(1.04); }
+  .comp-pop-cta:active:not(:disabled) { transform: scale(0.97); }
+  .comp-pop-cta:disabled { opacity: 0.5; cursor: default; }
+  /* Glanceable fee figure under the Save button — Net (bold) + inc-VAT. */
+  .comp-fee-net { margin: 10px 2px 0; text-align: center; font-size: 12px; color: var(--agent-text-muted); }
+  .comp-fee-net b { color: var(--agent-text-primary); font-weight: 700; }
 
   /* Reminders: the property first-line address turns coral on hover (the arrow
      still nudges via .agent-arrow-i). */
