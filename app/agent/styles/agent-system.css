@@ -1976,7 +1976,9 @@
   .enq-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .enq-search { flex: 1 1 260px; min-width: 200px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-radius: 10px; background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-subtle); color: var(--agent-text-muted); transition: border-color var(--agent-transition-fast), box-shadow var(--agent-transition-fast); }
   .enq-search:hover { border-color: var(--agent-coral); }
-  .enq-search:focus-within { border-color: var(--agent-coral-deep); box-shadow: var(--agent-focus-ring); }
+  /* Match .agent-input (the new-sale postcode finder): a thin coral-deep border
+     on selection, no glow ring. */
+  .enq-search:focus-within { border-color: var(--agent-coral-deep); box-shadow: none; }
   .enq-search input { flex: 1; border: none; background: none; outline: none; font-family: inherit; font-size: 13.5px; color: var(--agent-text-primary); }
   .enq-select { height: 38px; padding: 0 10px; border-radius: 10px; background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-subtle); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--agent-text-secondary); cursor: pointer; }
 
