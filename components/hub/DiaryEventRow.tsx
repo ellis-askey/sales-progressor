@@ -1,45 +1,43 @@
 "use client";
 
-// Today's-diary row. Status-aware (2026-08-10): a file that's already
-// exchanged/completed reads as done; one that's due today but not gate-ready
-// reads as informational; only a ready file gets an action pill that opens a
-// confirm modal and fires the *canonical* exchange/completion via
-// confirmDiaryEventAction — so all downstream (billing, party notifications,
-// bilateral fan-out, status flip) runs exactly as it would on the file.
+// Today's-diary row. Status-aware: a file that's already exchanged/completed
+// reads as done; a "ready" file gets a split button (Confirm + chevron menu);
+// one due today but not gate-ready reads as informational, with the same
+// chevron menu so it can still be acted on. The menu ties into the existing
+// systems — set a new date (ReviseExchangeDateModal / saveCompletionDateAction),
+// recalculate (recalibrateExchangeDateAction), snooze for today (a view-only
+// per-day dismiss handled by the parent card), and confirm (the canonical
+// confirmDiaryEventAction, which gate-checks). Menus portal to the body so they
+// never clip or fall behind the card.
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check } from "@phosphor-icons/react";
+import { Check, CalendarPlus, ArrowsClockwise, Clock } from "@phosphor-icons/react";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmDiaryEventAction } from "@/app/actions/milestones";
+import { recalibrateExchangeDateAction, saveCompletionDateAction } from "@/app/actions/transactions";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
+import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
+import { DateField } from "@/components/ui/DateField";
+import { toUKDateStr } from "@/lib/utils";
 import type { DiaryItem } from "@/lib/services/hub";
+
+type Item = DiaryItem & { photoUrl: string | null };
 
 const COPY = {
   exchange: {
-    verb: "exchange",
-    doneLabel: "Exchanged",
-    title: "Confirm exchange",
-    // Voice-passed: no em dash, no exclamation, "we'll" via "lets … know".
-    body: (address: string) =>
-      `This marks ${address} as exchanged and lets the buyer and seller know. Ready to confirm?`,
-    cta: "Confirm exchange",
-    toast: "Exchange confirmed",
-    accent: "var(--agent-coral-deep)",
-    accentBorder: "rgba(var(--agent-coral-rgb), 0.45)",
+    verb: "exchange", doneLabel: "Exchanged", title: "Confirm exchange",
+    body: (address: string) => `This marks ${address} as exchanged and lets the buyer and seller know. Ready to confirm?`,
+    cta: "Confirm exchange", toast: "Exchange confirmed", accent: "var(--agent-coral-deep)",
   },
   completion: {
-    verb: "completion",
-    doneLabel: "Completed",
-    title: "Confirm completion",
-    body: (address: string) =>
-      `This marks ${address} as completed and lets the buyer and seller know. Ready to confirm?`,
-    cta: "Confirm completion",
-    toast: "Completion confirmed",
-    accent: "var(--agent-success)",
-    accentBorder: "rgba(var(--agent-success-rgb), 0.45)",
+    verb: "completion", doneLabel: "Completed", title: "Confirm completion",
+    body: (address: string) => `This marks ${address} as completed and lets the buyer and seller know. Ready to confirm?`,
+    cta: "Confirm completion", toast: "Completion confirmed", accent: "var(--agent-success)",
   },
 } as const;
 
@@ -47,20 +45,28 @@ export function DiaryEventRow({
   item,
   basePath = "/agent/transactions",
   isFirst = false,
+  onSnooze,
 }: {
-  item: DiaryItem;
+  item: Item;
   basePath?: string;
   isFirst?: boolean;
+  onSnooze: (transactionId: string) => void;
 }) {
   const c = COPY[item.type];
   const router = useRouter();
   const { toast } = useAgentToast();
-  const [open, setOpen] = useState(false);
-  const [pressed, setPressed] = useState(false);
+  const [open, setOpen] = useState(false);          // confirm modal
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [compDateOpen, setCompDateOpen] = useState(false);
+  const [compDate, setCompDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   const shortAddress = item.address.split(",")[0];
+  const [line1, ...rest] = item.address.split(",");
+  const town = rest.join(",").trim();
+  const todayStr = toUKDateStr(new Date());
 
   async function confirm() {
     if (busy) return;
@@ -70,11 +76,7 @@ export function DiaryEventRow({
       const res = await confirmDiaryEventAction({ transactionId: item.transactionId, kind: item.type });
       if (res && "ok" in res && res.ok === false) {
         const missing = (res.missing ?? []).map((m) => m.name).filter(Boolean).join(", ");
-        setGateMsg(
-          missing
-            ? `Not ready yet. Confirm ${missing} first, then this can ${c.verb}.`
-            : `This file isn't ready to ${c.verb} yet.`,
-        );
+        setGateMsg(missing ? `Not ready yet. Confirm ${missing} first, then this can ${c.verb}.` : `This file isn't ready to ${c.verb} yet.`);
         setBusy(false);
         return;
       }
@@ -88,11 +90,48 @@ export function DiaryEventRow({
     }
   }
 
+  function recalc() {
+    setBusy(true);
+    startTransition(async () => {
+      try {
+        const r = await recalibrateExchangeDateAction(item.transactionId);
+        if (r.ok) { toast.success("Estimate recalculated", { description: "New expected date set from today." }); router.refresh(); }
+        else toast.error("Couldn't recalculate.");
+      } catch { toast.error("Couldn't recalculate."); }
+      finally { setBusy(false); }
+    });
+  }
+
+  function saveCompDate() {
+    if (!compDate) return;
+    setBusy(true);
+    startTransition(async () => {
+      try {
+        await saveCompletionDateAction(item.transactionId, compDate);
+        toast.success("Completion date updated", { description: shortAddress });
+        setCompDateOpen(false);
+        router.refresh();
+      } catch { toast.error("Couldn't update. Try again."); }
+      finally { setBusy(false); }
+    });
+  }
+
+  // Chevron-menu items, tuned to type + status.
+  const menuItems: RowMenuItem[] = [];
+  if (item.type === "exchange") {
+    menuItems.push({ key: "setdate", icon: <CalendarPlus size={16} weight="bold" />, title: "Set a new date", sub: "Once you've spoken to both parties.", onClick: () => setReviseOpen(true) });
+    menuItems.push({ key: "recalc", icon: <ArrowsClockwise size={16} weight="bold" />, title: "Recalculate the date", sub: "Re-estimate from today.", onClick: recalc, disabled: busy });
+  } else {
+    menuItems.push({ key: "setdate", icon: <CalendarPlus size={16} weight="bold" />, title: "Set a new date", sub: "Change the completion day.", onClick: () => setCompDateOpen(true) });
+  }
+  menuItems.push({ key: "snooze", icon: <Clock size={16} weight="bold" />, title: "Snooze for today", sub: "Hide it from today's diary.", onClick: () => onSnooze(item.transactionId) });
+  if (item.status === "not_ready") {
+    menuItems.push({ key: "confirm", icon: <Check size={16} weight="bold" />, title: `Confirm ${c.verb}`, sub: "If it's actually done.", onClick: () => { setGateMsg(null); setOpen(true); } });
+  }
+
   const rowStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "13px 20px 13px 17px",
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    padding: "10px 16px 10px 13px",
     borderLeft: `3px solid ${item.type === "completion" ? "var(--agent-success)" : "var(--agent-coral)"}`,
     background: item.type === "completion" ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
     borderTop: !isFirst ? "0.5px solid var(--agent-border-subtle)" : undefined,
@@ -101,65 +140,76 @@ export function DiaryEventRow({
 
   return (
     <div style={rowStyle}>
-      <Link href={`${basePath}/${item.transactionId}`} unstable_dynamicOnHover className="agent-hover-row" style={{ textDecoration: "none", flex: 1, minWidth: 0, borderRadius: 6 }}>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {item.address}
-        </p>
+      <Link href={`${basePath}/${item.transactionId}`} className="agent-hover-row diary-idlink" style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, borderRadius: 8, padding: "3px 5px" }}>
+        <PropertyThumb photoUrl={item.photoUrl} size={38} />
+        <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <span className="diary-addr-l1">{line1.trim()}</span>
+          {town && <span className="diary-addr-town">{town}</span>}
+        </span>
       </Link>
 
-      {item.status === "done" ? (
-        <span style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "var(--agent-success)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <Check size={13} weight="bold" /> {c.doneLabel}
-        </span>
-      ) : item.status === "ready" ? (
-        <button
-          type="button"
-          onClick={() => { setGateMsg(null); setOpen(true); }}
-          onPointerDown={() => setPressed(true)}
-          onPointerUp={() => setPressed(false)}
-          onPointerLeave={() => setPressed(false)}
-          style={{
-            flexShrink: 0,
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "5px 13px",
-            borderRadius: 999,
-            color: c.accent,
-            background: "var(--agent-surface-elevated)",
-            border: `1px solid ${c.accentBorder}`,
-            transform: pressed ? "scale(0.93)" : "scale(1)",
-            transition: "transform 110ms cubic-bezier(0.16,1,0.3,1), box-shadow 140ms",
-            boxShadow: pressed ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
-          }}
-        >
-          Confirm {c.verb}
-        </button>
-      ) : (
-        <span style={{ fontSize: 11, fontWeight: 500, flexShrink: 0, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
-          Due today · not ready
-        </span>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        {item.status === "done" ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-success)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Check size={13} weight="bold" /> {c.doneLabel}
+          </span>
+        ) : item.status === "ready" ? (
+          <span style={{ display: "inline-flex", alignItems: "stretch" }}>
+            <button
+              type="button"
+              onClick={() => { setGateMsg(null); setOpen(true); }}
+              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+              style={{ color: c.accent, fontWeight: 700, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+            >
+              Confirm {c.verb}
+            </button>
+            <RowActionMenu joined items={menuItems} disabled={busy} />
+          </span>
+        ) : (
+          <>
+            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Due today · not ready</span>
+            <RowActionMenu label="Options" items={menuItems} disabled={busy} />
+          </>
+        )}
+      </div>
 
+      {/* Confirm modal */}
       <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} ariaLabel={c.title} size="sm" closeTone="onDark">
         <ModalHeader style={SHEET_BAND_STYLE}>
           <SheetBandHeader kicker={item.type === "completion" ? "Completion" : "Exchange"} title={c.title} />
         </ModalHeader>
         <ModalBody>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-            {c.body(shortAddress)}
-          </p>
-          {gateMsg && (
-            <p style={{ margin: "12px 0 0", fontSize: 13, fontWeight: 500, color: "var(--agent-warning)" }}>{gateMsg}</p>
-          )}
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>{c.body(shortAddress)}</p>
+          {gateMsg && <p style={{ margin: "12px 0 0", fontSize: 13, fontWeight: 500, color: "var(--agent-warning)" }}>{gateMsg}</p>}
         </ModalBody>
         <ModalFooter>
-          <button type="button" onClick={() => { if (!busy) setOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">
-            Cancel
-          </button>
-          <button type="button" onClick={confirm} disabled={busy} className="agent-btn agent-btn-sm agent-btn-primary">
-            {busy ? "Confirming…" : c.cta}
-          </button>
+          <button type="button" onClick={() => { if (!busy) setOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
+          <button type="button" onClick={confirm} disabled={busy} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Confirming…" : c.cta}</button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Exchange: set a new date (with the "spoken to both parties" gate) */}
+      {reviseOpen && (
+        <ReviseExchangeDateModal
+          transactionId={item.transactionId}
+          address={shortAddress}
+          onClose={() => setReviseOpen(false)}
+          onSaved={() => { setReviseOpen(false); toast.success("New date set", { description: shortAddress }); router.refresh(); }}
+        />
+      )}
+
+      {/* Completion: set a new completion date */}
+      <Modal open={compDateOpen} onClose={() => { if (!busy) setCompDateOpen(false); }} ariaLabel="Set completion date" size="sm" closeTone="onDark">
+        <ModalHeader style={SHEET_BAND_STYLE}>
+          <SheetBandHeader kicker="Completion" title="Set completion date" />
+        </ModalHeader>
+        <ModalBody>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>Pick the new completion day for {shortAddress}.</p>
+          <DateField value={compDate} min={todayStr} onChange={(e) => setCompDate(e.target.value)} className="agent-input" style={{ marginTop: 12, padding: "8px 10px", fontSize: 14 }} wrapperStyle={{ display: "block" }} autoFocus />
+        </ModalBody>
+        <ModalFooter>
+          <button type="button" onClick={() => { if (!busy) setCompDateOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
+          <button type="button" onClick={saveCompDate} disabled={busy || !compDate} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Saving…" : "Save date"}</button>
         </ModalFooter>
       </Modal>
     </div>

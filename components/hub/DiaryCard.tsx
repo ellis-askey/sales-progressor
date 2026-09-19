@@ -1,0 +1,83 @@
+"use client";
+
+// Client wrapper for Today's diary. Holds the "snooze for today" dismissals — a
+// view-only, per-day flag in localStorage (keyed to today's date, pruned on
+// load) so a snoozed row stays hidden through refreshes today and naturally
+// clears tomorrow. It touches nothing server-side: a slipped exchange still
+// surfaces on the "Exchange date passed" card once its date is in the past. The
+// count pill reflects what's visible, so it drops as you snooze.
+
+import { useState, useEffect } from "react";
+import { GlassCard } from "@/components/glass/GlassCard";
+import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
+import type { DiaryItem } from "@/lib/services/hub";
+
+type Item = DiaryItem & { photoUrl: string | null };
+
+const STORE = "hubDiaryDismissed";
+function todayKey(): string {
+  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
+}
+
+const DIARY_STYLES = `
+  .diary-idlink { text-decoration: none; }
+  .diary-addr-l1 { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .14s ease; }
+  .diary-addr-town { font-size: 11px; color: var(--agent-text-secondary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .14s ease; }
+  .diary-idlink:hover .diary-addr-l1, .diary-idlink:hover .diary-addr-town { color: var(--agent-coral-deep); }
+`;
+
+export function DiaryCard({ items }: { items: Item[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Hydrate today's dismissals on mount, pruning any older days so the store
+  // never grows. (Read here, not in useState, to avoid an SSR/CSR mismatch.)
+  useEffect(() => {
+    const key = todayKey();
+    let map: Record<string, string[]> = {};
+    try { map = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch { map = {}; }
+    const todays = Array.isArray(map[key]) ? map[key] : [];
+    try { localStorage.setItem(STORE, JSON.stringify({ [key]: todays })); } catch { /* ignore */ }
+    if (todays.length) setDismissed(new Set(todays));
+  }, []);
+
+  function snooze(transactionId: string) {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(transactionId);
+      try { localStorage.setItem(STORE, JSON.stringify({ [todayKey()]: [...next] })); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  const visible = items.filter((i) => !dismissed.has(i.transactionId));
+  if (visible.length === 0) return null;
+
+  // Pill colour keyed to the day's mix: coral if any exchange, else green.
+  const hasExchange = visible.some((i) => i.type === "exchange");
+  const rgb = hasExchange ? "var(--agent-coral-rgb)" : "var(--agent-success-rgb)";
+  const deep = hasExchange ? "var(--agent-coral-deep)" : "var(--agent-success)";
+
+  return (
+    <GlassCard glassId="hub-diary" label="Hub · Today's diary" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      <style>{DIARY_STYLES}</style>
+      <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <p className="agent-card-title-emphasis">Today&apos;s diary</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>Exchanges and completions scheduled for today</p>
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", flexShrink: 0, whiteSpace: "nowrap",
+          color: deep, padding: "3px 11px", borderRadius: 999,
+          background: `linear-gradient(160deg, rgba(${rgb}, 0.20), rgba(${rgb}, 0.07))`,
+          border: `0.5px solid rgba(${rgb}, 0.22)`,
+          boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 3px rgba(${rgb}, 0.14)`,
+        }}>
+          {visible.length} {visible.length === 1 ? "event" : "events"} today
+        </span>
+      </div>
+      {visible.map((item, i) => (
+        <DiaryEventRow key={item.transactionId} item={item} isFirst={i === 0} onSnooze={snooze} />
+      ))}
+    </GlassCard>
+  );
+}

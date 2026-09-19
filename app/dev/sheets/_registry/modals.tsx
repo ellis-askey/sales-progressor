@@ -126,6 +126,7 @@ const DIARY_EXCHANGE: DiaryItem = {
   type: "exchange",
   transactionId: DEMO_TX_ID,
   address: ADDRESS,
+  photoStoragePath: null,
   status: "ready",
 };
 
@@ -133,6 +134,7 @@ const DIARY_COMPLETION: DiaryItem = {
   type: "completion",
   transactionId: DEMO_TX_ID,
   address: LONG_ADDRESS,
+  photoStoragePath: null,
   status: "ready",
 };
 
@@ -542,7 +544,7 @@ export const MODAL_ENTRIES: SheetEntry[] = [
     ],
     render: ({ stateId }) => (
       <div style={{ maxWidth: 520, margin: "120px auto 0", borderRadius: 12, overflow: "hidden", border: "0.5px solid var(--agent-border-subtle)" }}>
-        <DiaryEventRow item={stateId === "completion" ? DIARY_COMPLETION : DIARY_EXCHANGE} isFirst />
+        <DiaryEventRow item={{ ...(stateId === "completion" ? DIARY_COMPLETION : DIARY_EXCHANGE), photoUrl: null }} isFirst onSnooze={() => {}} />
       </div>
     ),
   },

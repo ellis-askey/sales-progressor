@@ -27,8 +27,8 @@ import {
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
 } from "@/lib/services/hub";
-import type { DiaryItem, HubSubtitleSignals } from "@/lib/services/hub";
-import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
+import type { HubSubtitleSignals } from "@/lib/services/hub";
+import { DiaryCard } from "@/components/hub/DiaryCard";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
@@ -523,30 +523,14 @@ function FullHubBody({
 async function DiarySlot({ vis }: { vis: AgentVisibility }) {
   const diaryItems = await getHubDiary(vis);
   if (diaryItems.length === 0) return null;
+  const photoUrlMap = await getSignedUrlMap(diaryItems.map((i) => i.photoStoragePath));
+  const withPhotos = diaryItems.map((i) => ({
+    ...i,
+    photoUrl: i.photoStoragePath ? photoUrlMap.get(i.photoStoragePath) ?? null : null,
+  }));
   return (
     <SectionReveal order={0}>
-      <GlassCard glassId="hub-diary" label="Hub · Today's diary" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-        <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <p className="agent-card-title-emphasis">Today&apos;s diary</p>
-            <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Exchanges and completions scheduled for today
-            </p>
-          </div>
-          <span style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
-            color: "var(--agent-success)", background: "var(--agent-success-bg)",
-            border: "1px solid var(--agent-success-border)",
-            padding: "3px 10px", borderRadius: 99,
-            flexShrink: 0, whiteSpace: "nowrap",
-          }}>
-            {diaryItems.length} {diaryItems.length === 1 ? "event" : "events"} today
-          </span>
-        </div>
-        {diaryItems.map((item: DiaryItem, i: number) => (
-          <DiaryEventRow key={item.transactionId} item={item} isFirst={i === 0} />
-        ))}
-      </GlassCard>
+      <DiaryCard items={withPhotos} />
     </SectionReveal>
   );
 }

@@ -2492,6 +2492,7 @@ export type DiaryItem = {
   type: "exchange" | "completion";
   transactionId: string;
   address: string;
+  photoStoragePath: string | null;
   // done      = already exchanged / completed (info, no action)
   // ready     = both gates confirmed, not yet done (actionable pill)
   // not_ready = due today but the gates aren't both confirmed (info)
@@ -2517,7 +2518,7 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
         ],
       },
       select: {
-        id: true, propertyAddress: true,
+        id: true, propertyAddress: true, photoStoragePath: true,
         expectedExchangeDate: true, overridePredictedDate: true,
         // Needed for the placeholder check + status below.
         twelveWeekTarget: true, activeBuyerRoundId: true, exchangedAt: true,
@@ -2529,7 +2530,7 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
         status: { in: ["active", "completed"] },
         completionDate: { gte: windowStart, lte: windowEnd },
       },
-      select: { id: true, propertyAddress: true, completionDate: true, exchangedAt: true, status: true },
+      select: { id: true, propertyAddress: true, photoStoragePath: true, completionDate: true, exchangedAt: true, status: true },
     }),
   ]);
 
@@ -2546,7 +2547,7 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
     // still awaiting exchange (can't complete before contracts exchange).
     const status: DiaryItem["status"] =
       tx.status === "completed" ? "done" : tx.exchangedAt ? "ready" : "not_ready";
-    items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress, status });
+    items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress, photoStoragePath: tx.photoStoragePath, status });
   }
 
   // ── Exchange "today" guard ────────────────────────────────────────
@@ -2676,7 +2677,7 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
       : gates.has("VM18") && gates.has("PM25")
         ? "ready"
         : "not_ready";
-    items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress, status });
+    items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress, photoStoragePath: tx.photoStoragePath, status });
   }
   return items;
 }
