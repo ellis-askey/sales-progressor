@@ -377,7 +377,25 @@
       gap: 24px;
       align-items: start;
     }
-    .wq-groupcols.has-auto .wq-groupcol--auto { position: sticky; top: 84px; }
+    /* Each column scrolls independently so the (short) autopilot pipeline never
+       "runs out" while the much longer Needs-you column is still scrolling. Both
+       pin below the sticky filter bar and scroll inside their own box. top +
+       max-height are the tuning knobs if the pin sits a touch high or low.
+
+       overflow-y:auto makes a scroll box, which clips overflow on BOTH axes —
+       so without room the soft card shadows get cut at the column edges, leaving
+       hard lines. Pad the box on every side to give the shadows room, then pull
+       it back with an equal negative margin so the content stays put (the box
+       extends 14px into the 24px gap + 32px gutters, so no page-level scroll). */
+    .wq-groupcols.has-auto .wq-groupcol {
+      position: sticky;
+      top: 104px;
+      max-height: calc(100dvh - 124px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 6px 14px 20px;
+      margin: -6px -14px -14px;
+    }
   }
 
   /* ── To-Do columns + "No comms" card ─────────────────────────────────────── */

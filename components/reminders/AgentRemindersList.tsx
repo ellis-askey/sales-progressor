@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle } from "@phosphor-icons/react";
@@ -10,7 +10,6 @@ import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
-import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { AddFirmModal } from "@/components/solicitors/AddFirmModal";
@@ -143,6 +142,195 @@ function splitAddress(address: string): { line: string; location: string } {
 // One card per property: photo + address header, then a single flat worst-first
 // list of that property's reminders (side shown as a per-row pill, not a column).
 // Matches the property-file Reminders tab (RemindersSection / PriorityList).
+// Shared file-card shell for the reminders family (active + snoozed): the glass
+// card, the click-to-collapse property header (photo + address + town linking to
+// the file), an actions slot, and the collapsing body. SplitFileCard and
+// SnoozedFileCard both render through this, so the two views are one family.
+function FileCardShell({
+  txId,
+  address,
+  photoUrl,
+  actions,
+  children,
+}: {
+  txId: string;
+  address: string;
+  photoUrl?: string | null;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  // Collapse the file's reminders by clicking its header (drawer-style).
+  const [collapsed, setCollapsed] = useState(false);
+  const { line, location } = splitAddress(address);
+  return (
+    // Design Lab: `reminders-file-card`. Default v05 per Ellis's pick, 2026-08-09.
+    <GlassCard
+      glassId="reminders-file-card"
+      label="Reminders · File card"
+      defaultVariant="v05"
+      style={{ borderRadius: 20 }}
+    >
+      {/* Property header — click it to collapse/expand the file's reminders
+          (drawer-style). The address link + the action cluster stop propagation
+          so they still do their own thing. */}
+      <div
+        className="agent-card-hdr"
+        role="button"
+        aria-expanded={!collapsed}
+        tabIndex={0}
+        onClick={() => setCollapsed((v) => !v)}
+        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setCollapsed((v) => !v); } }}
+        style={{
+          background: "var(--agent-card-header-veil)",
+          padding: "10px 16px",
+          borderRadius: collapsed ? 20 : "16px 20px 0 0",
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          cursor: "pointer",
+        }}
+      >
+        {/* The whole identity — photo, first line, town/postcode — links to the
+            file. Hovering anywhere in it lights the first line coral (.rem-addr);
+            the town/postcode stays muted. Stops propagation so it navigates
+            rather than toggling the collapse. */}
+        <Link
+          href={`/agent/transactions/${txId}`}
+          className="agent-link"
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, textDecoration: "none" }}
+        >
+          <PropertyThumb photoUrl={photoUrl} size={48} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
+              {/* 2-line clamp (audit A8) — the address is the card's identity. */}
+              <span className="rem-addr" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
+                {line}
+              </span>
+              <LinkArrow />
+            </span>
+            {location && (
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>
+            )}
+          </div>
+        </Link>
+        {actions && (
+          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
+            {actions}
+          </div>
+        )}
+        {/* Collapse chevron — rotates down when the file is folded. */}
+        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, transition: "transform 220ms cubic-bezier(0.25,0,0,1)", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }}>
+          <CaretDown size={15} weight="bold" />
+        </span>
+      </div>
+
+      {/* Reminders — collapse (grid 1fr → 0fr) when the header is toggled. */}
+      <div style={{ display: "grid", gridTemplateRows: collapsed ? "0fr" : "1fr", transition: "grid-template-rows 280ms cubic-bezier(0.25,0,0,1)", overflow: "hidden" }}>
+        <div style={{ minHeight: 0 }}>
+          <div style={{ padding: "6px 0" }}>{children}</div>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+// Snoozed view, brought level with the active family (2026-09-19). Same shell,
+// one row per snoozed reminder: what it is, when it wakes, and the two actions
+// that matter here — extend the snooze, or wake it now. "Wake all" on the header
+// for a file with several. Waking returns it to the active list (Chase/Done live
+// there); every actionable control carries a hover.
+function SnoozedFileCard({
+  txId,
+  address,
+  photoUrl,
+  logs,
+  milestoneInfo,
+  loading,
+  exitingIds,
+  onWakeup,
+  handleSnooze,
+}: {
+  txId: string;
+  address: string;
+  photoUrl?: string | null;
+  logs: AgentReminderLog[];
+  milestoneInfo?: MilestoneInfo;
+  loading: string | null;
+  exitingIds: Set<string>;
+  onWakeup: (logId: string) => void;
+  handleSnooze: (taskId: string, choice: SnoozeChoice) => void;
+}) {
+  const isBuyerLog = (l: AgentReminderLog) => !!l.reminderRule.targetMilestoneCode?.startsWith("PM");
+  // Soonest to wake first (snoozedUntil == the wake instant).
+  const sorted = logs.slice().sort((a, b) =>
+    new Date(a.snoozedUntil ?? a.nextDueDate).getTime() - new Date(b.snoozedUntil ?? b.nextDueDate).getTime());
+  const tx = logs[0]?.transaction;
+
+  const headerActions = sorted.length >= 2 ? (
+    <button
+      type="button"
+      onClick={() => sorted.forEach((l) => onWakeup(l.id))}
+      title="Wake every snoozed reminder on this file"
+      className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+      style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+    >
+      ↻ Wake all ({sorted.length})
+    </button>
+  ) : (
+    // No side pill on snooze (Ellis, 2026-09-19) — just the snoozed marker.
+    <span className="rem-snooze-pill">Snoozed</span>
+  );
+
+  return (
+    <FileCardShell txId={txId} address={address} photoUrl={photoUrl} actions={headerActions}>
+      {sorted.map((log, i) => {
+        const name = reminderDisplayName(log, milestoneInfo);
+        const isBuyer = isBuyerLog(log);
+        const taskId = log.chaseTasks.find((t) => t.status === "pending")?.id;
+        const wakeLabel = log.snoozedUntil ? formatDate(log.snoozedUntil) : "soon";
+        // When the step is the solicitor's to do, surface the firm and link into
+        // its partner page (the firm is stored per side on the file).
+        const code = log.reminderRule.targetMilestoneCode;
+        const solFirm = code && milestoneInfo?.[code]?.responsible === "solicitor"
+          ? (isBuyer ? tx?.purchaserSolicitorFirm : tx?.vendorSolicitorFirm)
+          : null;
+        return (
+          <div
+            key={log.id}
+            className={exitingIds.has(log.id) ? "agent-row-exit" : undefined}
+            style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+              <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>Wakes {wakeLabel}</span>
+              </p>
+              {solFirm && (
+                <Link
+                  href={`/agent/partners/solicitor/${solFirm.id}`}
+                  className="agent-link rem-sol-link"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 2, marginTop: 5, fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                >
+                  {solFirm.name} <LinkArrow />
+                </Link>
+              )}
+            </div>
+            {taskId && <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(taskId, choice)} />}
+            <Button
+              onClick={() => onWakeup(log.id)}
+              disabled={exitingIds.has(log.id)}
+              title="Wake this reminder now. It returns to your active list"
+              size="sm"
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              ↻ Wake now
+            </Button>
+          </div>
+        );
+      })}
+    </FileCardShell>
+  );
+}
+
 function SplitFileCard({
   txId,
   address,
@@ -336,6 +524,11 @@ function SplitFileCard({
           // Enrichment (free tier) — who owes it, what it means, chase history.
           const code = log.reminderRule.targetMilestoneCode;
           const info = code ? milestoneInfo?.[code] : undefined;
+          // Solicitor-owed step → surface the firm and link to its partner page
+          // (the firm is stored per side on the file).
+          const solFirm = info?.responsible === "solicitor"
+            ? (isBuyer ? tx0?.purchaserSolicitorFirm : tx0?.vendorSolicitorFirm)
+            : null;
           const who = whoToChase({
             side: isBuyer ? "purchaser" : "vendor",
             responsible: info?.responsible ?? null,
@@ -372,67 +565,75 @@ function SplitFileCard({
           })();
 
           const isExiting = exitingIds.has(log.id);
-          return (
-            <div
-              key={log.id}
-              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
-              style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Title first; the side + urgency pills live in the header on a
-                    single-reminder file. Desktop: fuller sentence step name;
-                    mobile: the terse milestone name (CSS toggles). */}
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-                  <span className="rem-step-desktop">{copy?.step ?? name}</span>
-                  <span className="rem-step-mobile">{name}</span>
+          const autoState = autopilot?.get(log.id);
+          const isAuto = autoState?.kind === "auto";
+
+          // Shared row pieces so the autopilot layout (strings + green countdown
+          // both full-width, actions on their own line below) and the normal
+          // layout (content flexes, actions inline) render the same content.
+          const stringsEl = (
+            <>
+              {/* Title first; the side + urgency pills live in the header on a
+                  single-reminder file. Desktop: fuller sentence step name;
+                  mobile: the terse milestone name (CSS toggles). */}
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+                <span className="rem-step-desktop">{copy?.step ?? name}</span>
+                <span className="rem-step-mobile">{name}</span>
+              </p>
+              {isSingle ? (
+                <>
+                  {who && (
+                    <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                      Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
+                    </p>
+                  )}
+                  {(copy?.line ?? info?.outstanding) && (
+                    <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                      {copy?.line ?? info?.outstanding}
+                    </p>
+                  )}
+                  <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
+                </>
+              ) : (
+                // Multiple reminders on one file: one compact meta line, no box.
+                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {task.chaseCount === 0 ? "not chased yet" : `chased ${task.chaseCount}×`}
                 </p>
-                {isSingle ? (
-                  <>
-                    {who && (
-                      <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                        Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
-                      </p>
-                    )}
-                    {(copy?.line ?? info?.outstanding) && (
-                      <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                        {copy?.line ?? info?.outstanding}
-                      </p>
-                    )}
-                    <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
-                  </>
+              )}
+              {solFirm && (
+                <Link
+                  href={`/agent/partners/solicitor/${solFirm.id}`}
+                  className="agent-link rem-sol-link"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 2, marginTop: 6, fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                >
+                  {solFirm.name} <LinkArrow />
+                </Link>
+              )}
+              {escalationLine && (
+                <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
+              )}
+              {/* Manual-block reason stays inline; the green auto countdown is
+                  rendered full-width outside this block (autopilot rows). When the
+                  blocker is "no solicitor this side", the reason opens the modal. */}
+              {autoState?.kind === "manual" && autoState.reason && (
+                !sideSol ? (
+                  <button
+                    type="button"
+                    onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
+                    className="agent-link"
+                    style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                  >
+                    {autoState.reason} <LinkArrow />
+                  </button>
                 ) : (
-                  // Multiple reminders on one file: one compact meta line, no box.
-                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {task.chaseCount === 0 ? "not chased yet" : `chased ${task.chaseCount}×`}
-                  </p>
-                )}
-                {escalationLine && (
-                  <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
-                )}
-                {(() => {
-                  const st = autopilot?.get(log.id);
-                  if (st?.kind === "auto") return <AutoChaseCountdown iso={st.nextSend} onView={() => setPreviewRow({ logId: log.id, pipeline: st.pipeline, sendLabel: sendMoment(st.nextSend) })} />;
-                  if (st?.kind === "manual" && st.reason) {
-                    // When the blocker is "no solicitor on this side", the reason
-                    // becomes a click target that opens the add-solicitor modal.
-                    const sideSol = isBuyer ? purchaserSolicitor : vendorSolicitor;
-                    if (!sideSol) {
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
-                          className="agent-link"
-                          style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
-                        >
-                          {st.reason} <LinkArrow />
-                        </button>
-                      );
-                    }
-                    return <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{st.reason}</p>;
-                  }
-                  return null;
-                })()}
-              </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{autoState.reason}</p>
+                )
+              )}
+            </>
+          );
+
+          const actionsEl = (
+            <>
               <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(task.id, choice)} />
               {hideChase ? (
                 // No sending here, but keep Mark chased + Done available inline.
@@ -466,6 +667,32 @@ function SplitFileCard({
                   onMarkDone={() => handleComplete(task.id)}
                   disabled={isExiting}
                 />
+              )}
+            </>
+          );
+
+          return (
+            <div
+              key={log.id}
+              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
+              style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: isAuto ? "column" : "row", alignItems: isAuto ? "stretch" : "flex-start", gap: 8 }}
+            >
+              {isAuto ? (
+                // Autopilot: the strings and the green auto-chase countdown each
+                // span the full card width; the row's actions sit on their own
+                // right-aligned line below. Nothing else about the row changes.
+                <>
+                  <div style={{ minWidth: 0 }}>{stringsEl}</div>
+                  {autoState?.kind === "auto" && (
+                    <AutoChaseCountdown iso={autoState.nextSend} onView={() => setPreviewRow({ logId: log.id, pipeline: autoState.pipeline, sendLabel: sendMoment(autoState.nextSend) })} />
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>{actionsEl}</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ flex: 1, minWidth: 0 }}>{stringsEl}</div>
+                  {actionsEl}
+                </>
               )}
             </div>
           );
@@ -990,27 +1217,20 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredSnoozed.map((log) => (
-              // Wake-now exit: wrap so agent-row-exit collapses height + opacity in 150ms
-              // before handleWakeup removes the card via hiddenIds. Matches the four-path
-              // exit pattern (Done / row snooze / side snooze / Wake now).
-              <div key={log.id} className={exitingIds.has(log.id) ? "agent-row-exit" : ""}>
-                <ReminderCard
-                  log={log}
-                  transactionId={log.transaction.id}
-                  contacts={log.transaction.contacts}
-                  propertyAddress={log.transaction.propertyAddress}
-                  showAddressLink
-                  mode="snoozed"
-                  isLoading={loading}
-                  onComplete={handleComplete}
-                  onSnooze={(taskId, hours) => handleSnooze(taskId, { hours, reason: null })}
-                  onEscalate={handleEscalate}
-                  onWakeup={handleWakeup}
-                  onManualChase={handleManualChase}
-                />
-              </div>
+          <div className="space-y-3">
+            {groupByFile(filteredSnoozed).map(({ txId, address, logs: fileLogs }) => (
+              <SnoozedFileCard
+                key={txId}
+                txId={txId}
+                address={address}
+                photoUrl={photoByTx?.get(txId) ?? null}
+                logs={fileLogs}
+                milestoneInfo={milestoneInfo}
+                loading={loading}
+                exitingIds={exitingIds}
+                onWakeup={handleWakeup}
+                handleSnooze={handleSnooze}
+              />
             ))}
           </div>
         )
