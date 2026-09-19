@@ -226,7 +226,7 @@ async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null): Promi
 async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, mediaUrl?: string | null) {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
-    select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true },
+    select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true, contacts: { select: { id: true, roleType: true } } },
   });
 
   const sender = await resolveSender(m, txId, tx?.assignedUserId ?? tx?.agentUserId ?? null);
@@ -252,6 +252,14 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
   // left just because a second linked account captured it as a participant.
   const isOurs = m.fromMe || sender.createdById != null;
 
+  // Attribute the message to the client on THIS side of the chat. Inbound
+  // messages resolve to the specific client sender; outbound (ours) messages have
+  // no client sender, so we attribute them to this side's client contact(s) —
+  // otherwise the No-comms / Gone-quiet detectors (which key off contactIds)
+  // never register our own WhatsApps as contact with the client.
+  const sideRole = side === "BUYER" ? "purchaser" : side === "SELLER" ? "vendor" : null;
+  const sideContactIds = sideRole ? (tx?.contacts ?? []).filter((c) => c.roleType === sideRole).map((c) => c.id) : [];
+
   const webhookData: Prisma.InputJsonValue = {
     source: "whatsapp",
     waChatId: m.waChatId,
@@ -274,7 +282,7 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
       channel: "other", // no WhatsApp value in OutboundChannel yet — timeline keys off `method`
       purpose: "other",
       status: isOurs ? "sent" : "delivered",
-      contactIds: sender.contactId ? [sender.contactId] : [],
+      contactIds: isOurs ? sideContactIds : (sender.contactId ? [sender.contactId] : sideContactIds),
       content,
       mediaUrl: mediaUrl ?? null,
       senderLabel: sender.label,
