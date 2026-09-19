@@ -22,6 +22,7 @@ import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiri
 import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { DateField } from "@/components/ui/DateField";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
+import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
 import { GlassCard } from "@/components/glass/GlassCard";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -586,6 +587,7 @@ function ExpandedDetail({
   busy: boolean;
 }) {
   const [dateOpen, setDateOpen] = useState(false);
+  const [previewMsgId, setPreviewMsgId] = useState<string | null>(null);
   return (
     <div className="enq-detail">
       <div className="enq-detail-col">
@@ -627,13 +629,23 @@ function ExpandedDetail({
             {history.slice(0, 8).map((h) => (
               <li key={h.id}>
                 <span className={`enq-dot enq-dot-${h.tone}`} />
-                <span className="enq-tl-date">{fmtDay(h.at)}</span>
-                <span className="enq-tl-label">{h.label}{h.by ? ` · ${h.by}` : ""}</span>
+                {h.messageId ? (
+                  <button type="button" className="enq-tl-open" onClick={() => setPreviewMsgId(h.messageId)} title="View this email exactly as it was sent">
+                    <span className="enq-tl-date">{fmtDay(h.at)}</span>
+                    <span className="enq-tl-label">{h.label}{h.by ? ` · ${h.by}` : ""}</span>
+                  </button>
+                ) : (
+                  <>
+                    <span className="enq-tl-date">{fmtDay(h.at)}</span>
+                    <span className="enq-tl-label">{h.label}{h.by ? ` · ${h.by}` : ""}</span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
         )}
       </div>
+      <EnquiryEmailPreview messageId={previewMsgId} onClose={() => setPreviewMsgId(null)} />
     </div>
   );
 }

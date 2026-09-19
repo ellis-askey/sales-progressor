@@ -52,6 +52,10 @@ export type EnquiryHistoryEntry = {
   detail: string | null;
   by: string | null;
   tone: "raised" | "reply" | "chase" | "update";
+  // Set on chase-email rows only → the outboundMessage id, so the timeline can
+  // open a true-to-inbox preview of exactly what was sent. Null on phone chases
+  // and movement rows (nothing to preview).
+  messageId: string | null;
 };
 
 function enquiryTxWhere(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
@@ -241,20 +245,24 @@ export async function getEnquiryHistory(scope: AccessScope, transactionId: strin
       detail: m.note,
       by: m.createdByUserId ? nameById.get(m.createdByUserId) ?? null : null,
       tone: kindTone(k),
+      messageId: null,
     });
   }
   for (const c of chaseComms) {
+    const isEmail = c.method !== "phone";
     entries.push({
       id: `cm-${c.id}`,
       at: c.sentAt ?? c.createdAt,
-      label: c.method === "phone" ? "Chased by phone" : "Chase email sent",
+      label: isEmail ? "Chase email sent" : "Chased by phone",
       detail: c.recipientName ? `To ${c.recipientName}` : null,
       by: null,
       tone: "chase",
+      // Only email chases have a rendered message to open.
+      messageId: isEmail ? c.id : null,
     });
   }
   // The raise event as the anchor at the bottom.
-  entries.push({ id: "raised", at: tracker.openedAt, label: "Initial enquiries raised", detail: null, by: null, tone: "raised" });
+  entries.push({ id: "raised", at: tracker.openedAt, label: "Initial enquiries raised", detail: null, by: null, tone: "raised", messageId: null });
 
   entries.sort((a, b) => b.at.getTime() - a.at.getTime());
   return entries;
