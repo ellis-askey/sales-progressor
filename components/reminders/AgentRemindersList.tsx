@@ -8,7 +8,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
-import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -991,18 +991,6 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
       act(taskIds[0] ?? "", () => snoozeManyAction(taskIds, choice, "/agent/work-queue"));
     }, 150);
   }
-  function handleEscalate(taskId: string) {
-    // 2026-07-13 (Chunk 6d/e): capture a reason on the manual escalation
-    // so the escalated chip can show WHY on hover (Chunk 8) and the file's
-    // activity feed records who did it and why. Empty/cancel is fine - the
-    // action still escalates, just without a reason. window.prompt is
-    // consistent with the other lightweight confirms in this codebase and
-    // avoids adding a new modal in this pass.
-    const reason = typeof window !== "undefined"
-      ? window.prompt("Why are you escalating this chase?") ?? undefined
-      : undefined;
-    act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue", reason));
-  }
   function handleWakeup(logId: string) {
     setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
     setTimeout(() => {
@@ -1010,7 +998,6 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
       act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
     }, 150);
   }
-  function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
   function handleChased(taskId: string, logId?: string) {
     // Optimistic hide — chased row vanishes from the work queue
     // immediately. Server updates nextDueDate so it'll resurface in the
