@@ -8,12 +8,13 @@ import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { RoleIcon } from "@/components/ui/RoleIcon";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { UserAvatar } from "@/components/ui/Avatar";
+import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
 import type { TransactionStatus, UserRole } from "@prisma/client";
-import type { DisplayStageKey } from "@/lib/milestones/display-stages";
+import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 // ── Tab-aware columns ────────────────────────────────────────────────────────
 // The visible columns adapt to the active status tab, because several columns
@@ -33,7 +34,8 @@ export function filesColumns(tab: FilesTab, showAssigned: boolean, showAgency: b
   if (tab === "all") cols.push("status");
   if (showAssigned) cols.push("assigned");
   if (showAgency) cols.push("agency");
-  if (tab !== "completed" && tab !== "withdrawn") cols.push("risk");
+  // Risk is no longer its own column — the pill now sits beside the address
+  // (2026-09-19 list level-up). Kept in the union for back-compat, never pushed.
   return cols;
 }
 
@@ -41,9 +43,10 @@ const COL_WIDTH: Record<FilesColumn, string> = {
   activity: "220px", target: "160px", withdrawn: "180px", status: "110px", assigned: "160px", agency: "140px", risk: "120px",
 };
 
-// Grid = 4px risk stripe + flexible property column + one track per visible column.
+// Grid = flexible property column + one track per visible column. (The old 4px
+// risk stripe was dropped in the list level-up — no accent.)
 export function filesGridTemplate(cols: FilesColumn[]): string {
-  return `4px minmax(0,1fr) ${cols.map((c) => COL_WIDTH[c]).join(" ")}`;
+  return `minmax(0,1fr) ${cols.map((c) => COL_WIDTH[c]).join(" ")}`;
 }
 
 // Minimum list width (px) before the grid beats the mobile card: the fixed
@@ -53,7 +56,7 @@ export function filesGridTemplate(cols: FilesColumn[]): string {
 // on tablets, collapsing the address to nothing (responsive audit finding D1).
 export const FILES_PROPERTY_MIN = 240;
 export function filesGridMinWidth(cols: FilesColumn[]): number {
-  return 4 + cols.reduce((s, c) => s + parseInt(COL_WIDTH[c], 10), 0) + FILES_PROPERTY_MIN;
+  return cols.reduce((s, c) => s + parseInt(COL_WIDTH[c], 10), 0) + FILES_PROPERTY_MIN;
 }
 
 export type HealthRaw = {
@@ -72,6 +75,8 @@ export type HealthRaw = {
   nextMilestoneLabel: string | null;
   daysStuckOnMilestone: number | null;
   onTrack?: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
+  // Most recent contact per channel, for the "Recent" column (list view).
+  channelLast?: { email: Date | null; whatsapp: Date | null; call: Date | null };
 };
 
 // The single definition of a row's risk level — the exact mapping the List's
@@ -107,10 +112,10 @@ export type TransactionRow = {
   fallThroughReason?: string | null;
   withdrawalReason?: string | null;
   createdAt: Date;
-  assignedUser: { id: string; name: string } | null;
+  assignedUser: { id: string; name: string; image?: string | null } | null;
   health?: HealthRaw;
   serviceType?: "self_managed" | "outsourced" | null;
-  agentUser?: { id: string; name: string; role?: UserRole } | null;
+  agentUser?: { id: string; name: string; role?: UserRole; image?: string | null } | null;
   contacts?: { id: string; name: string; roleType: string }[];
   // Agency name shown for internal staff (admin / sales_progressor). Optional —
   // only present when listTransactions is called with a scope param.
@@ -127,19 +132,6 @@ function splitAddress(address: string): { line: string; location: string } {
   const location = parts.slice(-2).join(", ");
   return { line, location };
 }
-
-// Law 21: no titles in rendered names. Drop a leading honorific so the
-// popover shows "James Harman", not "Mr James Harman".
-function stripTitle(name: string): string {
-  return name.replace(/^\s*(mr|mrs|ms|miss|dr|prof|sir|mx)\.?\s+/i, "").trim() || name;
-}
-
-const ROLE_LABEL: Partial<Record<UserRole, string>> = {
-  director: "Director",
-  negotiator: "Negotiator",
-  sales_progressor: "Progressor",
-  admin: "Admin",
-};
 
 /* Activity state — drives the verb-chip colour. Moving / Stalled / Stale
  * thresholds match the Variant B preview and the Activity filter chip.
@@ -164,166 +156,109 @@ function relTime(date: Date): string {
   return `${Math.round(days / 30)}mo ago`;
 }
 
-const ACTIVITY_TONE: Record<ActivityState, { bg: string; fg: string; dot: string }> = {
-  moving:  { bg: "rgba(var(--agent-success-rgb), 0.10)", fg: "var(--agent-success)",  dot: "var(--agent-success)"  },
-  stalled: { bg: "rgba(var(--agent-warning-rgb), 0.12)", fg: "var(--agent-warning)",  dot: "var(--agent-warning)"  },
-  stale:   { bg: "rgba(var(--agent-danger-rgb),  0.10)", fg: "var(--agent-danger)",   dot: "var(--agent-danger)"   },
+// A short "14 May" for the Recent column.
+function shortDate(date: Date): string {
+  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// The last activity's channel → an icon. Covers the derived lastActivityType
+// values from listTransactions (email / whatsapp / sms / call / note / chase /
+// inbound / milestone / comm); anything else falls back to a clock.
+const ACTIVITY_ICON: Record<string, typeof EnvelopeSimple> = {
+  email: EnvelopeSimple,
+  whatsapp: WhatsappLogo,
+  sms: ChatText,
+  call: Phone,
+  note: NotePencil,
+  milestone: SealCheck,
+  chase: PaperPlaneTilt,
+  inbound: ArrowBendUpLeft,
+  comm: ChatCircleDots,
 };
 
-/* ActivityVerbChip — Variant B headline cell. Verb + relative time + colour
- * tied to activityStateFor(). Hover/focus shows a 3-entry log preview via
- * portal'd .agent-dropdown-in / .agent-dropdown-out. Falls back to generic
- * "Active Nd ago" when no derived verb (no signal). */
-function ActivityVerbChip({ tx, mobile = false, dimmed = false }: { tx: TransactionRow; mobile?: boolean; dimmed?: boolean }) {
-  const lastAt = tx.health?.lastActivityAt ?? null;
-  const verb = tx.health?.lastActivityLabel ?? null;
-  // Completed / withdrawn files are finished, not stalled — never colour their
-  // activity red for being "quiet". Force the neutral tone.
-  const state = dimmed ? null : activityStateFor(lastAt);
-  const { theme } = usePortalTheme();
+/* Recent — the last contact on each channel (call / email / WhatsApp) as a bare
+ * icon + date. Falls back to the single most-recent activity (a note, a
+ * milestone confirmation…) when no channel comms are on file. */
+function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?: boolean }) {
+  const cl = tx.health?.channelLast;
+  const lines: { Icon: typeof EnvelopeSimple; at: Date; label: string }[] = [];
+  if (cl?.call) lines.push({ Icon: Phone, at: new Date(cl.call), label: "Last call" });
+  if (cl?.email) lines.push({ Icon: EnvelopeSimple, at: new Date(cl.email), label: "Last email" });
+  if (cl?.whatsapp) lines.push({ Icon: WhatsappLogo, at: new Date(cl.whatsapp), label: "Last WhatsApp" });
+  const sz = mobile ? 15 : 14;
 
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  if (!lastAt) {
+  if (lines.length > 0) {
     return (
-      <span style={{
-        fontSize: 11, color: "var(--agent-text-muted)",
-        display: "inline-flex", alignItems: "center", gap: 6,
-      }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(0,0,0,0.18)" }} />
-        Just added
+      <span className="recent-lines">
+        {lines.map((l, i) => {
+          const LI = l.Icon;
+          return (
+            <span key={i} className="recent-line" title={`${l.label} · ${shortDate(l.at)}`}>
+              <LI size={sz} weight="regular" />
+              <span>{shortDate(l.at)}</span>
+            </span>
+          );
+        })}
       </span>
     );
   }
 
-  const NEUTRAL_TONE = { bg: "rgba(15,23,42,0.05)", fg: "var(--agent-text-muted)", dot: "rgba(15,23,42,0.30)" };
-  const tone = dimmed ? NEUTRAL_TONE : state ? ACTIVITY_TONE[state] : ACTIVITY_TONE.moving;
-  const labelText = verb ? `${verb} · ${relTime(lastAt)}` : `Active ${relTime(lastAt)}`;
-
-  function show() {
-    if (ref.current) {
-      const r0 = ref.current.getBoundingClientRect();
-      setPos({ top: r0.bottom + 4, left: r0.left });
-    }
-    setClosing(false);
-    setOpen(true);
-  }
-  function hide() {
-    setOpen((wasOpen) => { if (wasOpen) setClosing(true); return false; });
-  }
-
+  const lastAt = tx.health?.lastActivityAt ? new Date(tx.health.lastActivityAt) : null;
+  if (!lastAt) return <span className="recent-none">Just added</span>;
+  const verb = tx.health?.lastActivityLabel ?? null;
+  const Icon = (tx.health?.lastActivityType && ACTIVITY_ICON[tx.health.lastActivityType]) || ClockCounterClockwise;
   return (
-    <>
-      <span
-        ref={ref}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        tabIndex={0}
-        style={{
-          background: tone.bg, color: tone.fg,
-          fontSize: mobile ? 12 : 11, fontWeight: 600,
-          padding: mobile ? "3px 10px" : "3px 9px",
-          borderRadius: 99,
-          display: "inline-flex", alignItems: "center", gap: 6,
-          cursor: "default", whiteSpace: "nowrap",
-          maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis",
-        }}
-      >
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: tone.dot, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{labelText}</span>
-      </span>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        <div
-          data-theme={theme}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
-          style={{
-            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-            background: "rgba(255,255,255,0.97)", borderRadius: 10,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-            padding: "10px 14px", minWidth: 240, maxWidth: 320,
-            pointerEvents: "none",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>
-            Recent activity
-          </p>
-          <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-            <li style={{ fontSize: 12, color: "var(--agent-text-primary)" }}>
-              {verb ?? "Active"}
-              <span style={{ color: "var(--agent-text-muted)" }}> · {relTime(lastAt)}</span>
-            </li>
-            {tx.health?.nextActionLabel && (
-              <li style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
-                Next: {tx.health.nextActionLabel}
-              </li>
-            )}
-            {tx.health?.daysStuckOnMilestone !== null && tx.health?.daysStuckOnMilestone !== undefined && (
-              <li style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
-                {tx.health.daysStuckOnMilestone}d since last milestone
-              </li>
-            )}
-          </ul>
-        </div>,
-        document.body
-      )}
-    </>
+    <span className="recent-line" title={verb ? `${verb} · ${relTime(lastAt)}` : `Active ${relTime(lastAt)}`}>
+      <Icon size={sz} weight="regular" />
+      <span>{shortDate(lastAt)}</span>
+    </span>
   );
 }
 
-/* PartyGroup — one side of the deal inside the popover: role icon + label,
- * then every party's full name (all joint parties, titles stripped). Text
- * colours are passed in so they stay legible in both light and dark glass. */
-function PartyGroup({
-  role, label, people, nameColor, labelColor,
-}: {
-  role: "vendor" | "purchaser";
-  label: string;
-  people: { name: string }[];
-  nameColor: string;
-  labelColor: string;
-}) {
+/* JourneyStages — the six conveyancing stages inside the journey popover.
+ * Done stages tick green, the current stage is coral, upcoming are muted.
+ * Colours are set explicitly (stamping data-theme on a portal re-declares the
+ * light tokens), so it stays legible on dark glass. */
+function JourneyStages({ stage }: { stage: DisplayStageKey }) {
+  const idx = DISPLAY_STAGES.findIndex((s) => s.key === stage);
+  const { isNight } = usePortalTheme();
+  const nameColor  = isNight ? "#f1f5f9" : "var(--agent-text-primary)";
+  const mutedColor = isNight ? "rgba(226,232,240,0.55)" : "var(--agent-text-muted)";
+  const upcomingDot = isNight ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.08)";
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-        <RoleIcon role={role} size={12} />
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: labelColor }}>
-          {label}
-        </span>
-      </div>
-      {people.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 12, fontStyle: "italic", color: labelColor, paddingLeft: 18 }}>Not yet added</p>
-      ) : (
-        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
-          {people.map((p, i) => (
-            <li key={i} style={{ fontSize: 13, color: nameColor, paddingLeft: 18, lineHeight: 1.35 }}>{stripTitle(p.name)}</li>
-          ))}
-        </ul>
-      )}
+      <p style={{ margin: "0 0 11px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: mutedColor }}>
+        The journey · {idx + 1} of {DISPLAY_STAGES.length}
+      </p>
+      <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
+        {DISPLAY_STAGES.map((s, i) => {
+          const done = i < idx, cur = i === idx;
+          return (
+            <li key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{
+                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                background: done ? "var(--agent-success)" : cur ? "var(--agent-coral, #FF8A65)" : upcomingDot,
+              }}>
+                {done
+                  ? <Check size={11} weight="bold" color="#fff" />
+                  : <span style={{ width: 5, height: 5, borderRadius: "50%", background: cur ? "#fff" : mutedColor }} />}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: cur ? 600 : 400, color: cur || done ? nameColor : mutedColor }}>
+                {s.name}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
 
-/* PropertyPeopleHover — wraps the row's address block. Buyer/seller no longer
- * clutters the row itself; hovering (or focusing) the address reveals a glass
- * popover listing every joint seller/buyer's full name. Glass + text colours
- * adapt to night mode; pointer-events:none so it never blocks the row link.
- * Mirrors the ActivityVerbChip hover pattern in this file. */
-function PropertyPeopleHover({
-  contacts, className, children,
-}: {
-  contacts?: { name: string; roleType: string }[];
-  className?: string;
-  children: ReactNode;
-}) {
-  const sellers = contacts?.filter((c) => c.roleType === "vendor") ?? [];
-  const buyers  = contacts?.filter((c) => c.roleType === "purchaser") ?? [];
-
+/* JourneyHover — wraps the row's journey bar. Hovering (or focusing) reveals a
+ * glass popover of all six stages, current one marked. Glass + text colours
+ * adapt to night mode; pointer-events:none so it never blocks the row link. */
+function JourneyHover({ stage, children }: { stage: DisplayStageKey; children: ReactNode }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -333,9 +268,7 @@ function PropertyPeopleHover({
   function show() {
     if (ref.current) {
       const r = ref.current.getBoundingClientRect();
-      const POPOVER_W = 280;
-      const EST_H = 160;
-      const SAFE = 12;
+      const POPOVER_W = 240, EST_H = 260, SAFE = 12;
       const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
       const vh = typeof window !== "undefined" ? window.innerHeight : 768;
       let left = r.left;
@@ -346,32 +279,15 @@ function PropertyPeopleHover({
     setClosing(false);
     setOpen(true);
   }
-  function hide() {
-    setOpen((wasOpen) => { if (wasOpen) setClosing(true); return false; });
-  }
+  function hide() { setOpen((w) => { if (w) setClosing(true); return false; }); }
 
-  // Explicit colours per mode: stamping data-theme on the portal re-declares
-  // the light token values, so relying on var(--agent-text-*) renders dark
-  // text on the dark glass. Set them directly instead.
-  const glassBg     = isNight ? "rgba(24,28,38,0.88)" : "rgba(255,255,255,0.80)";
+  const glassBg     = isNight ? "rgba(24,28,38,0.90)" : "rgba(255,255,255,0.82)";
   const glassBorder = isNight ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(255,255,255,0.65)";
   const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.55)"       : "0 12px 48px rgba(0,0,0,0.16)";
-  const nameColor   = isNight ? "#f1f5f9" : "var(--agent-text-primary)";
-  const labelColor  = isNight ? "rgba(226,232,240,0.60)" : "var(--agent-text-muted)";
 
   return (
-    <div
-      ref={ref}
-      className={className}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      tabIndex={0}
-      style={{ outline: "none" }}
-    >
+    <div ref={ref} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} tabIndex={0} style={{ outline: "none", display: "inline-block", maxWidth: "100%", verticalAlign: "top" }}>
       {children}
-
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
           data-theme={theme}
@@ -381,16 +297,14 @@ function PropertyPeopleHover({
           style={{
             position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
             transform: pos.above ? "translateY(-100%)" : "none",
-            width: 280, maxWidth: "calc(100vw - 24px)",
+            width: 240, maxWidth: "calc(100vw - 24px)",
             background: glassBg,
             backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
             borderRadius: 14, border: glassBorder, boxShadow: glassShadow,
             padding: 14, pointerEvents: "none",
           }}
         >
-          <PartyGroup role="vendor" label="Sellers" people={sellers} nameColor={nameColor} labelColor={labelColor} />
-          <div style={{ height: 14 }} />
-          <PartyGroup role="purchaser" label="Buyers" people={buyers} nameColor={nameColor} labelColor={labelColor} />
+          <JourneyStages stage={stage} />
         </div>,
         document.body
       )}
@@ -462,6 +376,42 @@ function WithdrawnCell({ tx }: { tx: TransactionRow }) {
   );
 }
 
+/* Person — one avatar + name (+ optional role caption) inside "Handled by". */
+function Person({ user, role }: { user: { name: string; image?: string | null }; role?: string }) {
+  return (
+    <div className="handled-person">
+      <UserAvatar user={{ name: user.name, image: user.image ?? null }} size={24} />
+      <span className="handled-txt">
+        <span className="handled-name">{user.name}</span>
+        {role && <span className="handled-role">{role}</span>}
+      </span>
+    </div>
+  );
+}
+
+/* HandledBy — who is actually looking after the file right now.
+ *  • self-managed: the current handler — whoever it's assigned to now, else the
+ *    person who added it. Reassignments win (we show the new owner, not who
+ *    added it).
+ *  • outsourced: the agency contact who added it, plus the Sales Progressor
+ *    progressor handling it (or "Awaiting assignment" until one is set). */
+function HandledBy({ tx }: { tx: TransactionRow }) {
+  if (tx.serviceType === "outsourced") {
+    return (
+      <div className="handled">
+        {tx.agentUser && <Person user={tx.agentUser} role="Agency" />}
+        {tx.assignedUser
+          ? <Person user={tx.assignedUser} role="Progressor" />
+          : <span className="handled-awaiting">Awaiting assignment</span>}
+      </div>
+    );
+  }
+  const handler = tx.assignedUser ?? tx.agentUser;
+  return handler
+    ? <Person user={handler} />
+    : <span className="handled-none">Unassigned</span>;
+}
+
 export function TransactionRowView({
   tx,
   basePath = "/agent/transactions",
@@ -488,29 +438,10 @@ export function TransactionRowView({
   const isPaused = tx.status === "on_hold";
 
   const { line, location } = splitAddress(tx.propertyAddress);
-  const initials = tx.assignedUser?.name
-    .split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const health = tx.health ?? null;
-
-  // Left stripe: green for a finished sale, neutral for a withdrawn one, amber
-  // while paused, otherwise the live risk colour.
-  const riskStripeColor = isDone ? "var(--agent-success)"
-    : isDead ? "rgba(15,23,42,0.18)"
-    : isPaused ? "var(--agent-warning)"
-    : tx.health
-    ? (() => {
-        const r = calculateRiskScore({
-          onTrack: tx.health.onTrack ?? "unknown",
-          escalatedTaskCount: tx.health.escalatedTasks,
-          overdueTaskCount: tx.health.pendingOverdueTasks,
-          daysSinceLastActivity: tx.health.lastActivityAt
-            ? Math.floor((Date.now() - new Date(tx.health.lastActivityAt).getTime()) / 86400000)
-            : null,
-          daysStuckOnMilestone: tx.health.daysStuckOnMilestone,
-        });
-        return r.level === "high" ? "var(--agent-danger)" : r.level === "medium" ? "var(--agent-warning)" : "var(--agent-success)";
-      })()
-    : "var(--agent-success)";
+  // "Waiting on" line — the next chase target, with a leading "Chase:" dropped
+  // so it doesn't read "Waiting on: Chase: ...".
+  const waitingLabel = health?.nextActionLabel ? health.nextActionLabel.replace(/^chase:\s*/i, "") : null;
 
   // Per-status cell content, shared by the mobile card and the desktop grid.
   const targetContent = isDone ? (
@@ -545,32 +476,7 @@ export function TransactionRowView({
     <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
   );
 
-  // SP: showAgencyColumn=true, showAssignedToColumn=false → hide tag (all rows are outsourced, tag is noise)
-  // Admin: showAgencyColumn=true, showAssignedToColumn=true → neutral platform labels
-  // Agent: showAgencyColumn=false → original agent-centric labels
-  const serviceTag = (() => {
-    if (!tx.serviceType) return null;
-    if (showAgencyColumn && !showAssignedToColumn) return null;
-    const label = (showAgencyColumn && showAssignedToColumn)
-      ? (tx.serviceType === "outsourced" ? "Outsourced" : "Self-managed")
-      : (tx.serviceType === "outsourced" ? "Our team" : "You");
-    return (
-      <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-        tx.serviceType === "outsourced"
-          ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
-          : "bg-slate-100/60 text-slate-400 border-slate-200/40"
-      }`}>
-        {label}
-      </span>
-    );
-  })();
-
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
-
-  const assignedText = tx.assignedUser?.name
-    ?? (tx.serviceType === "outsourced" ? "Awaiting assignment"
-      : tx.agentUser?.name ?? "Unassigned");
-  const assignedMuted = !tx.assignedUser && tx.serviceType === "outsourced";
 
   return (
     <div>
@@ -582,40 +488,35 @@ export function TransactionRowView({
         className="files-row-card agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
       >
-        <div style={{ width: 4, alignSelf: "stretch", flexShrink: 0, background: riskStripeColor }} />
         <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
-          <div className="flex items-center gap-3">
-            <PropertyThumb photoUrl={tx.photoUrl} size={44} />
-            <PropertyPeopleHover contacts={tx.contacts} className="min-w-0 flex-1">
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
-              {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
-              {showAgencyColumn && tx.agency?.name && (
-                <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
+          <div className="files-id flex items-start gap-3">
+            <PropertyThumb photoUrl={tx.photoUrl} size={46} />
+            <div className="min-w-0 flex-1">
+              <div className="files-line1">
+                <span className="files-addr">{line}</span>
+                {!isDone && !isDead && <span className="files-pill">{riskContent}</span>}
+              </div>
+              {location && <span className="files-town">{location}</span>}
+              {showAgencyColumn && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
+              {tx.boardStage && !isDone && !isDead && (
+                <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>
               )}
-              {tx.boardStage && !isDone && !isDead && <JourneyBar stage={tx.boardStage} />}
-            </PropertyPeopleHover>
+              {!isDone && !isDead && waitingLabel && (
+                <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
+              )}
+            </div>
           </div>
 
-          {/* Verb chip — top of the badges row on mobile (Variant B mobile design) */}
+          {/* Verb chip + status on mobile */}
           <div className="flex items-center gap-2 flex-wrap">
-            <ActivityVerbChip tx={tx} mobile dimmed={isDone || isDead} />
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
+            <ActivityVerbChip tx={tx} mobile />
             <StatusBadge status={tx.status} />
-            {!isDone && !isDead && riskContent}
           </div>
 
           <div>{isDead ? <WithdrawnCell tx={tx} /> : targetContent}</div>
           <div>
-            <p style={{
-              margin: 0, fontSize: 11,
-              fontWeight: assignedMuted ? 500 : 400,
-              color: assignedMuted ? "var(--agent-warning)" : "var(--agent-text-secondary)",
-            }}>
-              Assigned: {assignedText}
-            </p>
-            {serviceTag && <div className="mt-1">{serviceTag}</div>}
+            <p className="handled-card-label">Handled by</p>
+            <HandledBy tx={tx} />
           </div>
         </div>
       </Link>
@@ -632,30 +533,28 @@ export function TransactionRowView({
         className="files-row-grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
-        <div style={{ alignSelf: "stretch", background: riskStripeColor }} />
-
-        {/* Property */}
-        <div className="px-4 py-3.5 min-w-0 flex items-center gap-3">
-          <PropertyThumb photoUrl={tx.photoUrl} size={44} />
-          <PropertyPeopleHover contacts={tx.contacts} className="min-w-0 flex-1">
-            {/* 2-line clamp instead of single-line ellipsis (audit A8): the
-                address is the row's identity and should wrap before it hides. */}
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }} className="agent-group-link transition-colors">
-              {line}
-            </p>
-            {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
-            {health?.nextActionLabel && (
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                → {health.nextActionLabel}
-              </p>
+        {/* Property — identity (photo + address); risk pill inline, then the
+            labelled journey bar and what the file is waiting on. */}
+        <div className="files-id px-4 py-3.5 min-w-0 flex items-start gap-3">
+          <PropertyThumb photoUrl={tx.photoUrl} size={46} />
+          <div className="min-w-0 flex-1">
+            <div className="files-line1">
+              <span className="files-addr">{line}</span>
+              {!isDone && !isDead && <span className="files-pill">{riskContent}</span>}
+            </div>
+            {location && <span className="files-town">{location}</span>}
+            {tx.boardStage && !isDone && !isDead && (
+              <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>
             )}
-            {tx.boardStage && !isDone && !isDead && <JourneyBar stage={tx.boardStage} />}
-          </PropertyPeopleHover>
+            {!isDone && !isDead && waitingLabel && (
+              <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
+            )}
+          </div>
         </div>
 
-        {/* Last activity — verb chip */}
+        {/* Recent — last contact per channel */}
         <div className="px-4 py-3.5">
-          <ActivityVerbChip tx={tx} dimmed={isDone || isDead} />
+          <ActivityVerbChip tx={tx} />
         </div>
 
         {/* Exchange target / completion date — omitted on the Withdrawn tab */}
@@ -675,24 +574,11 @@ export function TransactionRowView({
           </div>
         )}
 
-        {/* Assigned-to — hidden for roles that only see their own files (negotiator, sales_progressor) */}
+        {/* Handled by — who's looking after the file now (see HandledBy).
+            Hidden for roles that only see their own files (negotiator, sales_progressor). */}
         {cols.includes("assigned") && (
           <div className="px-4 py-3.5">
-            {tx.assignedUser ? (
-              <div className="flex items-center gap-2">
-                <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "white" }}>{initials}</span>
-                </div>
-                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.assignedUser.name}</span>
-              </div>
-            ) : tx.serviceType === "outsourced" ? (
-              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>Awaiting assignment</span>
-            ) : tx.agentUser ? (
-              <span style={{ fontSize: 13, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
-            ) : (
-              <span style={{ fontSize: 13, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Unassigned</span>
-            )}
-            {serviceTag && <div className="mt-1">{serviceTag}</div>}
+            <HandledBy tx={tx} />
           </div>
         )}
 
@@ -703,11 +589,6 @@ export function TransactionRowView({
               {tx.agency?.name ?? "—"}
             </span>
           </div>
-        )}
-
-        {/* Risk — only where the outcome is still open (all / active / on-hold) */}
-        {cols.includes("risk") && (
-          <div className="px-4 py-3.5">{riskContent}</div>
         )}
       </Link>
     </div>

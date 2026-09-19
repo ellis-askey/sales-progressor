@@ -4260,13 +4260,53 @@ body[data-demo-file] [data-onboarding-checklist] {
   .fstat-cell:nth-child(n+3) { border-top: 1px solid var(--agent-border-subtle); }
 }
 
-/* ── All Files · journey bar (list rows) ─────────────────────────────────────
-   Six-segment progress along the conveyancing stages, under the address.
-   Fed by the file's board stage. See JourneyBar.tsx. */
-.jbar { display: inline-flex; gap: 3px; margin-top: 6px; width: 100%; max-width: 176px; }
-.jbar-seg { height: 4px; border-radius: 2px; flex: 1; background: var(--agent-border-default); }
-.jbar-seg.done { background: var(--agent-success); }
-.jbar-seg.cur { background: var(--agent-coral-deep); }
+/* ── All Files · list row identity + labelled journey bar ────────────────────
+   The identity group (photo + address) lights the first line coral on hover
+   (the whole row links to the file); the risk pill sits beside the first line;
+   the journey bar carries its stage name. See TransactionRowView / JourneyBar. */
+.files-id { min-width: 0; }
+.files-line1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.files-addr { min-width: 0; flex-shrink: 1; font-size: 14px; font-weight: 600; line-height: 1.35;
+  color: var(--agent-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 140ms ease; }
+.files-id:hover .files-addr { color: var(--agent-coral-deep); }
+.files-pill { flex-shrink: 0; display: inline-flex; }
+.files-town { display: block; margin-top: 2px; font-size: 11px; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files-agency { display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: var(--agent-text-muted); }
+.files-waiting { display: block; margin-top: 6px; font-size: 11px; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files-waiting b { color: var(--agent-coral-deep); font-weight: 650; }
+
+.jrn { display: block; margin-top: 7px; width: 210px; max-width: 100%; }
+.jrn-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.jrn-stage { font-size: 11px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-coral-deep); }
+.jrn-count { font-size: 10px; font-weight: 600; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; }
+.jrn-bar { display: flex; gap: 3px; cursor: default; }
+.jrn-seg { height: 5px; border-radius: 3px; flex: 1; background: var(--agent-border-default); }
+.jrn-seg.done { background: var(--agent-success); }
+.jrn-seg.cur { background: var(--agent-coral-deep); }
+
+/* ── All Files · Recent column ───────────────────────────────────────────────
+   Last contact per channel (call / email / WhatsApp), a bare icon + date on its
+   own line. See ActivityVerbChip in TransactionRowView.tsx. */
+.recent-lines { display: flex; flex-direction: column; gap: 3px; }
+.recent-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); cursor: default; }
+.recent-line svg { flex-shrink: 0; color: var(--agent-text-muted); }
+.recent-none { font-size: 11px; color: var(--agent-text-muted); }
+
+/* ── All Files · Handled by ──────────────────────────────────────────────────
+   Who's looking after the file now: one person (self-managed) or the agency
+   contact + progressor (outsourced). See HandledBy in TransactionRowView.tsx. */
+.handled { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.handled-person { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.handled-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.handled-name { font-size: 12.5px; color: var(--agent-text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.handled-role { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--agent-text-muted); margin-top: 1px; }
+.handled-awaiting { font-size: 11px; font-weight: 600; color: var(--agent-warning); }
+.handled-none { font-size: 13px; font-style: italic; color: var(--agent-text-muted); }
+.handled-card-label { margin: 0 0 5px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--agent-text-muted); }
 
 /* ── All Files · Forecast view ───────────────────────────────────────────────
    The active book bucketed by predicted exchange month, on proportional fee

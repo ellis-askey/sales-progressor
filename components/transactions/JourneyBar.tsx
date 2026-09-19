@@ -1,19 +1,26 @@
-// A file's position along the six conveyancing stages, as a thin six-segment
-// bar. Stages before the current one read done (green), the current one reads
-// live (coral), the rest pending. Fed by the same board stage the Pipeline
-// view places the file at, so the bar and the board never disagree. See
-// lib/milestones/display-stages.ts.
+// A file's position along the six conveyancing stages, labelled so it's
+// readable at a glance: the current stage name + "N of 6" above a six-segment
+// bar (done = green, current = coral). Hovering the bar reveals the full
+// journey (see JourneyHover in TransactionRowView). Fed by the file's board
+// stage (the same engine as the Pipeline view). See display-stages.ts.
 
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 export function JourneyBar({ stage }: { stage: DisplayStageKey }) {
   const idx = DISPLAY_STAGES.findIndex((s) => s.key === stage);
   const name = DISPLAY_STAGES[idx]?.name ?? "";
+  const total = DISPLAY_STAGES.length;
   return (
-    <span className="jbar" title={`Stage: ${name}`} aria-label={`Stage: ${name}`}>
-      {DISPLAY_STAGES.map((s, i) => (
-        <span key={s.key} className={`jbar-seg${i < idx ? " done" : i === idx ? " cur" : ""}`} aria-hidden />
-      ))}
+    <span className="jrn">
+      <span className="jrn-top">
+        <span className="jrn-stage">{name}</span>
+        <span className="jrn-count tabnum">{idx + 1} of {total}</span>
+      </span>
+      <span className="jrn-bar">
+        {DISPLAY_STAGES.map((s, i) => (
+          <span key={s.key} className={`jrn-seg${i < idx ? " done" : i === idx ? " cur" : ""}`} aria-hidden />
+        ))}
+      </span>
     </span>
   );
 }

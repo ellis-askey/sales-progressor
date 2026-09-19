@@ -61,7 +61,7 @@ export async function listTransactions(
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true } },
-      agentUser: { select: { id: true, name: true, role: true } },
+      agentUser: { select: { id: true, name: true, role: true, image: true } },
       // Phase-3: scope Contact list reads to the active round + file-level.
       // Pre-Phase-3 the cross-tx include returned every contact regardless
       // of which buyer round attached them — relisted files showed both
@@ -122,6 +122,31 @@ export async function listTransactions(
       activeBuyerRound: { select: { createdAt: true } },
     },
   });
+
+  // Last contact per channel (phone / email / whatsapp) for the list's "Recent"
+  // column — the most recent of each, round-scoped like the rest of the row.
+  const commTxIds = transactions.map((t) => t.id);
+  const commAgg = commTxIds.length
+    ? await prisma.outboundMessage.groupBy({
+        by: ["transactionId", "method"],
+        where: {
+          transactionId: { in: commTxIds },
+          method: { in: ["email", "whatsapp", "phone", "voicemail"] },
+          OR: roundScopedOR(activeRoundIds),
+        },
+        _max: { createdAt: true },
+      })
+    : [];
+  const channelLastByTx = new Map<string, { email: Date | null; whatsapp: Date | null; call: Date | null }>();
+  for (const g of commAgg) {
+    const at = g._max.createdAt;
+    if (!at || !g.transactionId) continue;
+    const e = channelLastByTx.get(g.transactionId) ?? { email: null, whatsapp: null, call: null };
+    if (g.method === "email") { if (!e.email || at > e.email) e.email = at; }
+    else if (g.method === "whatsapp") { if (!e.whatsapp || at > e.whatsapp) e.whatsapp = at; }
+    else if (g.method === "phone" || g.method === "voicemail") { if (!e.call || at > e.call) e.call = at; }
+    channelLastByTx.set(g.transactionId, e);
+  }
 
   return transactions.map((tx) => {
     const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
@@ -214,6 +239,7 @@ export async function listTransactions(
         lastActivityAt: tx.lastActivityAt,
         lastActivityType,
         lastActivityLabel,
+        channelLast: channelLastByTx.get(tx.id) ?? { email: null, whatsapp: null, call: null },
         nextActionLabel,
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,
@@ -364,7 +390,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true, image: true } },
-      agentUser: { select: { id: true, name: true, role: true } },
+      agentUser: { select: { id: true, name: true, role: true, image: true } },
       contacts: {
         where: { OR: contactRoundScopedOR(activeRoundIds) },
         select: { id: true, name: true, roleType: true },
@@ -396,6 +422,30 @@ export async function listTransactionsByScope(scope: AccessScope) {
       activeBuyerRound: { select: { createdAt: true } },
     },
   });
+
+  // Last contact per channel for the list's "Recent" column (see listTransactions).
+  const commTxIds = transactions.map((t) => t.id);
+  const commAgg = commTxIds.length
+    ? await prisma.outboundMessage.groupBy({
+        by: ["transactionId", "method"],
+        where: {
+          transactionId: { in: commTxIds },
+          method: { in: ["email", "whatsapp", "phone", "voicemail"] },
+          OR: roundScopedOR(activeRoundIds),
+        },
+        _max: { createdAt: true },
+      })
+    : [];
+  const channelLastByTx = new Map<string, { email: Date | null; whatsapp: Date | null; call: Date | null }>();
+  for (const g of commAgg) {
+    const at = g._max.createdAt;
+    if (!at || !g.transactionId) continue;
+    const e = channelLastByTx.get(g.transactionId) ?? { email: null, whatsapp: null, call: null };
+    if (g.method === "email") { if (!e.email || at > e.email) e.email = at; }
+    else if (g.method === "whatsapp") { if (!e.whatsapp || at > e.whatsapp) e.whatsapp = at; }
+    else if (g.method === "phone" || g.method === "voicemail") { if (!e.call || at > e.call) e.call = at; }
+    channelLastByTx.set(g.transactionId, e);
+  }
 
   return transactions.map((tx) => {
     const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
@@ -448,6 +498,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,
         onTrack,
+        channelLast: channelLastByTx.get(tx.id) ?? { email: null, whatsapp: null, call: null },
       },
     };
   });

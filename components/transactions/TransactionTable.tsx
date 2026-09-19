@@ -120,11 +120,11 @@ export function TransactionTable({
   // Header meta per column. The exchange/completion header re-labels on the
   // Completed tab, where the date shown is the completion date.
   const COL_HEADER: Record<FilesColumn, { label: string; key: SortKey | null }> = {
-    activity:  { label: "Last activity", key: "lastActive" },
+    activity:  { label: "Recent", key: "lastActive" },
     target:    { label: statusFilter === "completed" ? "Completion date" : "Exchange target", key: "exchange" },
     withdrawn: { label: "Withdrawn", key: null },
     status:    { label: "Status", key: "status" },
-    assigned:  { label: "Assigned to", key: null },
+    assigned:  { label: "Handled by", key: null },
     agency:    { label: "Agency", key: null },
     risk:      { label: "Risk", key: "risk" },
   };
@@ -149,7 +149,6 @@ export function TransactionTable({
           borderBottom: "0.5px solid var(--agent-border-subtle)",
         }}
       >
-        <div />
         {(
           [
             { label: "Property", key: "property" as SortKey | null },

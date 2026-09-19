@@ -92,7 +92,9 @@ export function ExchangeTargetCell({
       {isPast ? (
         <p className="text-xs mt-0.5" style={{ color: "rgba(239,68,68,0.60)" }}>Predicted date passed</p>
       ) : (
-        <p className="text-xs text-slate-900/35 mt-0.5">~{weeksAway}w away</p>
+        <p className="text-xs text-slate-900/35 mt-0.5">
+          {weeksAway <= 0 ? "Within a week" : `Approx ${weeksAway} ${weeksAway === 1 ? "week" : "weeks"}`}
+        </p>
       )}
     </div>
   );
