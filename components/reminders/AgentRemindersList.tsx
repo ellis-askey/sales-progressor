@@ -838,7 +838,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   useEffect(() => {
     function handleHash() {
       const key = window.location.hash.replace("#section-", "");
-      if (key === "escalated" || key === "overdue" || key === "due_today" || key === "upcoming") {
+      // Section keys after the deck rebuild — the pills link to these ids.
+      if (key === "needs-you" || key === "coming-up" || key === "autopilot") {
         setCollapsed((prev) => ({ ...prev, [key]: false }));
       }
     }
