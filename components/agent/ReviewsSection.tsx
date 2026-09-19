@@ -5,22 +5,22 @@
 // remarketing pauses, which the app already models as holds) plus hand-typed
 // reviews. Read-model lives in lib/services/reviews.ts.
 //
-// Hold rows carry the real actions (Take off hold → resume chooser, Extend →
-// inline date) reusing the same server actions the hub used, so behaviour is
-// unchanged — the surface just moved here so the hub's needs-you is cleanly
-// steps-to-chase. Manual reviews check off like any to-do.
+// Hold rows: a split button — Take off hold (resumes the file to whatever its
+// settings already were) with a chevron menu to Extend or clear the return
+// date. Manual reviews: a tick to complete, plus a chevron menu to reschedule,
+// edit or remove. Both menus portal to the body so they never clip or fall
+// behind the accordion/card.
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
-import { CaretDown, Check, CalendarPlus } from "@phosphor-icons/react";
+import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
-import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
-import { updateManualTaskAction } from "@/app/actions/manual-tasks";
+import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
+import { updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
 
@@ -32,7 +32,7 @@ function tomorrowStr(): string {
   d.setDate(d.getDate() + 1);
   return toUKDateStr(d);
 }
-function todayStr(): string {
+function todayStrFn(): string {
   return toUKDateStr(new Date());
 }
 
@@ -60,7 +60,39 @@ function dueLabel(reviewDate: Date | null): { label: string; color: string; due:
   return { label: `Due back ${diff} days ago`, color: "var(--agent-danger)", due: true };
 }
 
-type ResumeTarget = { id: string; address: string };
+const RV_STYLES = `
+  .rv-split { display: inline-flex; align-items: stretch; box-shadow: 0 1px 4px rgba(224,78,44,0.26); border-radius: 9px; }
+  .rv-main { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-right: 1px solid rgba(255,255,255,0.28); border-radius: 9px 0 0 9px; padding: 7px 12px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
+  .rv-caret { display: inline-flex; align-items: center; justify-content: center; width: 32px; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-radius: 0 9px 9px 0; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
+  .rv-main:hover:not(:disabled), .rv-caret:hover:not(:disabled) { filter: brightness(1.05); }
+  .rv-split button:disabled { opacity: 0.55; cursor: default; }
+  .rv-cv { transition: transform .2s cubic-bezier(.4,0,.2,1); }
+  .rv-caret[data-open="true"] .rv-cv { transform: rotate(180deg); }
+  .rv-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 7px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-elevated); color: var(--agent-text-muted); cursor: pointer; transition: border-color .14s ease, color .14s ease; }
+  .rv-menu-btn:hover { border-color: var(--agent-coral); color: var(--agent-coral-deep); }
+  .rv-menu-btn[data-open="true"] { border-color: var(--agent-coral-deep); color: var(--agent-coral-deep); }
+  .rv-menu { background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-default); border-radius: 13px; box-shadow: 0 14px 36px rgba(30,45,74,0.20), 0 2px 8px rgba(30,45,74,0.10); padding: 7px; animation: rv-pop .13s ease; }
+  @keyframes rv-pop { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+  .rv-mi { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; padding: 8px 9px; border: none; background: none; border-radius: 9px; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--agent-text-primary); cursor: pointer; transition: background-color .14s ease, box-shadow .14s ease; }
+  .rv-mi:hover { background-color: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
+  .rv-mi.danger { color: var(--agent-danger); }
+  .rv-ico { width: 19px; display: grid; place-items: center; color: var(--agent-text-muted); flex-shrink: 0; transition: color .14s ease; }
+  .rv-mi:hover .rv-ico { color: var(--agent-coral-deep); }
+  .rv-mi.danger .rv-ico, .rv-mi.danger:hover .rv-ico { color: var(--agent-danger); }
+  .rv-mi small { display: block; font-weight: 400; font-size: 11px; color: var(--agent-text-muted); margin-top: 1px; }
+  .rv-datebox { padding: 4px 6px 6px; display: flex; flex-direction: column; gap: 8px; min-width: 210px; }
+  .rv-when { font-size: 11px; font-weight: 700; color: var(--agent-text-muted); padding: 2px 2px 0; }
+  .rv-date { width: 100%; font-family: inherit; font-size: 13px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); color: var(--agent-text-primary); transition: border-color .14s ease, box-shadow .14s ease; }
+  .rv-date:hover { border-color: var(--agent-coral); }
+  .rv-date:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
+  .rv-primary { width: 100%; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-radius: 9px; padding: 8px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
+  .rv-primary:hover:not(:disabled) { filter: brightness(1.05); }
+  .rv-primary:disabled { opacity: 0.5; cursor: default; }
+  .rv-addr { text-decoration: none; }
+  .rv-addr-l1 { color: var(--agent-text-primary); font-weight: 600; transition: color .14s ease; }
+  .rv-addr-town { color: var(--agent-text-secondary); transition: color .14s ease; }
+  .rv-addr:hover .rv-addr-l1, .rv-addr:hover .rv-addr-town { color: var(--agent-coral-deep); }
+`;
 
 export function ReviewsSection({
   initialItems,
@@ -70,7 +102,6 @@ export function ReviewsSection({
   initialDone: ReviewItem[];
 }) {
   const { toast } = useAgentToast();
-  const { theme, isNight } = usePortalTheme();
   const [items, setItems] = useState(initialItems);
   const [done, setDone] = useState(initialDone);
   const [showDone, setShowDone] = useState(false);
@@ -82,10 +113,6 @@ export function ReviewsSection({
   const [dueRef] = useAutoAnimate<HTMLDivElement>();
   const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
 
-  // Hold action state
-  const [resumeFor, setResumeFor] = useState<ResumeTarget | null>(null);
-  const [extenderFor, setExtenderFor] = useState<string | null>(null);
-  const [extenderDate, setExtenderDate] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const todayStr = toUKDateStr(new Date());
@@ -102,14 +129,15 @@ export function ReviewsSection({
     setItems((prev) => prev.filter((i) => !(i.kind === "hold" && i.transactionId === transactionId)));
   }
 
-  function doResume(transactionId: string, keepEmailsPaused: boolean) {
-    setResumeFor(null);
+  // Take off hold: reactivate the file. Automation/emails simply resume to
+  // whatever the file's settings already were (anything toggled off in settings
+  // stays off) — no forced change, no chooser.
+  function doResume(transactionId: string) {
     setBusyId(transactionId);
     startTransition(async () => {
       const result = await reactivateFile(transactionId);
       if (result.ok) {
-        if (keepEmailsPaused) pauseClientEmails(transactionId).catch(() => {});
-        toast.success(keepEmailsPaused ? "Off hold: emails stay paused" : "Off hold: automation resumed");
+        toast.success("Off hold, resumed to its settings");
         removeHold(transactionId);
       } else {
         toast.error(result.error ?? "Couldn't reactivate. Try again.");
@@ -123,9 +151,7 @@ export function ReviewsSection({
     startTransition(async () => {
       const result = await extendHoldAction(transactionId, date);
       if (result.ok) {
-        toast.success("Review date updated");
-        setExtenderFor(null);
-        setExtenderDate("");
+        toast.success(date === null ? "Return date removed" : "Return date updated");
         // Reflect the new date in place (or drop if pushed to indefinite).
         setItems((prev) =>
           date === null
@@ -153,6 +179,35 @@ export function ReviewsSection({
         );
       } catch {
         toast.error("Couldn't update the date. Try again.");
+      }
+      setBusyId(null);
+    });
+  }
+
+  function handleEditSave(id: string, title: string, notes: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      try {
+        const updated = await updateManualTaskAction(id, { title: title.trim(), notes: notes.trim() || null });
+        setItems((prev) => prev.map((i) => (i.kind === "manual" && i.id === id ? { ...i, title: updated.title, notes: updated.notes } : i)));
+        toast.success("Review updated");
+      } catch {
+        toast.error("Couldn't save. Try again.");
+      }
+      setBusyId(null);
+    });
+  }
+
+  function handleDelete(id: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      try {
+        await deleteManualTaskAction(id);
+        setItems((prev) => prev.filter((i) => !(i.kind === "manual" && i.id === id)));
+        setDone((prev) => prev.filter((i) => !(i.kind === "manual" && i.id === id)));
+        toast.success("Review removed");
+      } catch {
+        toast.error("Couldn't remove. Try again.");
       }
       setBusyId(null);
     });
@@ -217,8 +272,20 @@ export function ReviewsSection({
   const openCount = items.length;
   if (openCount === 0 && done.length === 0) return null;
 
+  const rowProps = {
+    busyId,
+    onTakeOffHold: doResume,
+    onExtend: handleExtend,
+    onComplete: completeManual,
+    onReopen: reopenManual,
+    onSetManualDate: handleManualDate,
+    onEditSave: handleEditSave,
+    onDelete: handleDelete,
+  };
+
   return (
     <div id="section-reviews" className="space-y-3">
+      <style>{RV_STYLES}</style>
       {/* Section header — matches the top of the No-comms card */}
       <SectionHeader
         icon={<CalendarPlus size={22} weight="regular" />}
@@ -238,22 +305,7 @@ export function ReviewsSection({
             <ReviewDrawer title="Due now" count={dueItems.length} open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
               <div ref={dueRef}>
                 {dueItems.map((item, i) => (
-                  <ReviewRow
-                    key={item.key}
-                    item={item}
-                    topBorder={i > 0}
-                    busyId={busyId}
-                    extenderFor={extenderFor}
-                    extenderDate={extenderDate}
-                    setExtenderDate={setExtenderDate}
-                    onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
-                    onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
-                    onExtend={handleExtend}
-                    onOpenResume={(id, address) => setResumeFor({ id, address })}
-                    onComplete={completeManual}
-                    onReopen={reopenManual}
-                    onSetManualDate={handleManualDate}
-                  />
+                  <ReviewRow key={item.key} item={item} topBorder={i > 0} {...rowProps} />
                 ))}
               </div>
             </ReviewDrawer>
@@ -264,22 +316,7 @@ export function ReviewsSection({
             <ReviewDrawer title="Upcoming" count={upcomingItems.length} open={upcomingOpen} onToggle={() => setUpcomingOpen((v) => !v)}>
               <div ref={upcomingRef}>
                 {upcomingItems.map((item, i) => (
-                  <ReviewRow
-                    key={item.key}
-                    item={item}
-                    topBorder={i > 0}
-                    busyId={busyId}
-                    extenderFor={extenderFor}
-                    extenderDate={extenderDate}
-                    setExtenderDate={setExtenderDate}
-                    onOpenExtender={(id) => { setExtenderFor(id); setExtenderDate(""); }}
-                    onCloseExtender={() => { setExtenderFor(null); setExtenderDate(""); }}
-                    onExtend={handleExtend}
-                    onOpenResume={(id, address) => setResumeFor({ id, address })}
-                    onComplete={completeManual}
-                    onReopen={reopenManual}
-                    onSetManualDate={handleManualDate}
-                  />
+                  <ReviewRow key={item.key} item={item} topBorder={i > 0} {...rowProps} />
                 ))}
               </div>
             </ReviewDrawer>
@@ -290,58 +327,19 @@ export function ReviewsSection({
             <ReviewDrawer title="Completed" count={done.length} open={showDone} onToggle={() => setShowDone((v) => !v)} muted>
               <div>
                 {done.map((item, i) => (
-                  <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed busyId={busyId}
-                    extenderFor={null} extenderDate="" setExtenderDate={() => {}}
-                    onOpenExtender={() => {}} onCloseExtender={() => {}} onExtend={() => {}}
-                    onOpenResume={() => {}} onComplete={() => {}} onReopen={reopenManual} onSetManualDate={() => {}} />
+                  <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed {...rowProps} />
                 ))}
               </div>
             </ReviewDrawer>
           )}
         </div>
       )}
-
-      {/* Take-off-hold resume chooser (ported from the hub's AttentionCard) */}
-      {resumeFor && createPortal(
-        <div
-          data-theme={theme}
-          data-night={isNight ? "" : undefined}
-          className="nv2-night"
-          style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-        >
-          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setResumeFor(null)} style={{ zIndex: 0 }} />
-          <div
-            className="rounded-2xl w-full max-w-md"
-            style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(0,0,0,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Take off hold</h2>
-              <button type="button" onClick={() => setResumeFor(null)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
-            </div>
-            <div className="px-6 py-5 space-y-3">
-              <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
-                <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{resumeFor.address}</strong>{", pick one. You can always change later."}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <ResumeOptionCard title="Resume automation" description="Client chase emails, reminders + escalations restart from where they left off." onClick={() => doResume(resumeFor.id, false)} />
-                <ResumeOptionCard title="Reactivate, keep emails paused" description="File is active again but no client emails fire. Manual chasing only. Flip back on any time." onClick={() => doResume(resumeFor.id, true)} />
-              </div>
-            </div>
-            <div style={{ padding: "0 20px 16px", display: "flex", justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setResumeFor(null)} className="agent-link" style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
 
 // Collapsible group drawer — clickable header, rotating chevron, and the
-// standard agent-acc grid-rows slide open/closed. Matches the To-Do page's
-// "Completed" disclosure so every collapsible strip on the page feels the same.
+// standard agent-acc grid-rows slide open/closed.
 function ReviewDrawer({
   title, count, open, onToggle, children, accent, muted = false,
 }: {
@@ -378,27 +376,84 @@ function ReviewDrawer({
   );
 }
 
+// Address as a link: first line in the primary text colour, town/postcode a
+// touch lighter, both turning coral on hover. Replaces the old coral link.
+function AddressLink({ href, address }: { href: string; address: string }) {
+  const [line1, ...rest] = address.split(",");
+  const town = rest.join(",").trim();
+  return (
+    <Link href={href} className="rv-addr" style={{ fontSize: 13, lineHeight: 1.35 }}>
+      <span className="rv-addr-l1">{line1.trim()}</span>
+      {town && <span className="rv-addr-town">{`, ${town}`}</span>}
+    </Link>
+  );
+}
+
+// Portal menu: fixed-positioned under its anchor, above everything, closing on
+// outside-click / scroll / resize. Guarantees it never clips or falls behind
+// the accordion or card it lives in.
+function PortalMenu({
+  anchorRef, open, onClose, children, width = 236,
+}: {
+  anchorRef: React.RefObject<HTMLElement>;
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  width?: number;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) { setPos(null); return; }
+    const a = anchorRef.current;
+    if (!a) return;
+    const r = a.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8));
+    setPos({ top: r.bottom + 6, left });
+
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t)) return;
+      if (anchorRef.current?.contains(t)) return; // let the trigger handle its own toggle
+      onClose();
+    };
+    const close = () => onClose();
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open, anchorRef, onClose, width]);
+
+  if (!open || !pos) return null;
+  return createPortal(
+    <div ref={menuRef} className="rv-menu" role="menu" style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: width, zIndex: 1300 }}>
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 function ReviewRow({
   item, topBorder, dimmed = false, busyId,
-  extenderFor, extenderDate, setExtenderDate,
-  onOpenExtender, onCloseExtender, onExtend, onOpenResume, onComplete, onReopen, onSetManualDate,
+  onTakeOffHold, onExtend, onComplete, onReopen, onSetManualDate, onEditSave, onDelete,
 }: {
   item: ReviewItem;
   topBorder: boolean;
   dimmed?: boolean;
   busyId: string | null;
-  extenderFor: string | null;
-  extenderDate: string;
-  setExtenderDate: (v: string) => void;
-  onOpenExtender: (id: string) => void;
-  onCloseExtender: () => void;
+  onTakeOffHold: (id: string) => void;
   onExtend: (id: string, date: Date | null) => void;
-  onOpenResume: (id: string, address: string) => void;
   onComplete: (id: string) => void;
   onReopen: (id: string) => void;
   onSetManualDate: (id: string, dateStr: string) => void;
+  onEditSave: (id: string, title: string, notes: string) => void;
+  onDelete: (id: string) => void;
 }) {
-  const [editingDate, setEditingDate] = useState(false);
   const due = dueLabel(item.reviewDate);
   const rowStyle: React.CSSProperties = {
     display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap",
@@ -408,52 +463,128 @@ function ReviewRow({
   };
 
   if (item.kind === "hold") {
-    const meta = ORIGIN_META[item.origin];
-    const busy = busyId === item.transactionId;
-    return (
-      <div style={{ ...rowStyle, borderLeft: `3px solid ${meta.color}` }}>
-        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Link href={`/agent/transactions/${item.transactionId}`} className="agent-link" style={{ fontSize: 13, fontWeight: 600 }}>
-              {item.address}
-            </Link>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`, flexShrink: 0 }}>
-              {meta.label}
-            </span>
-          </div>
-          <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-            {item.reason ?? "On hold. No reason recorded."}
-          </p>
-        </div>
+    return <HoldReviewRow item={item} rowStyle={rowStyle} dimmed={dimmed} due={due} busy={busyId === item.transactionId}
+      onTakeOffHold={onTakeOffHold} onExtend={onExtend} />;
+  }
+  return <ManualReviewRow item={item} rowStyle={rowStyle} dimmed={dimmed} due={due} busy={busyId === item.id}
+    onComplete={onComplete} onReopen={onReopen} onSetManualDate={onSetManualDate} onEditSave={onEditSave} onDelete={onDelete} />;
+}
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, marginLeft: "auto" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap" }}>{due.label}</span>
-          {!dimmed && (
-            extenderFor === item.transactionId ? (
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <DateField value={extenderDate} min={tomorrowStr()} autoFocus onChange={(e) => setExtenderDate(e.target.value)} className="agent-input" style={{ padding: "4px 8px", fontSize: 12 }} wrapperStyle={{ display: "inline-block" }} />
-                <button onClick={() => { if (extenderDate && extenderDate >= tomorrowStr()) onExtend(item.transactionId, new Date(extenderDate)); }} disabled={!extenderDate || extenderDate < tomorrowStr()} className="agent-btn agent-btn-xs agent-btn-primary">Set date</button>
-                <button onClick={onCloseExtender} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <button onClick={() => onOpenResume(item.transactionId, item.address)} disabled={busy} className="agent-btn agent-btn-sm agent-btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Check size={13} weight="bold" /> Take off hold
-                </button>
-                <button onClick={() => onOpenExtender(item.transactionId)} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <CalendarPlus size={13} weight="bold" /> Extend
-                </button>
-              </div>
-            )
-          )}
+// ── Hold row: split button + Extend / Remove-date menu ─────────────────────
+function HoldReviewRow({
+  item, rowStyle, dimmed, due, busy, onTakeOffHold, onExtend,
+}: {
+  item: Extract<ReviewItem, { kind: "hold" }>;
+  rowStyle: React.CSSProperties;
+  dimmed: boolean;
+  due: { label: string; color: string };
+  busy: boolean;
+  onTakeOffHold: (id: string) => void;
+  onExtend: (id: string, date: Date | null) => void;
+}) {
+  const meta = ORIGIN_META[item.origin];
+  const caretRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [view, setView] = useState<"items" | "date">("items");
+  const [dateVal, setDateVal] = useState("");
+
+  return (
+    <div style={{ ...rowStyle, borderLeft: `3px solid ${meta.color}` }}>
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <AddressLink href={`/agent/transactions/${item.transactionId}`} address={item.address} />
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`, flexShrink: 0 }}>
+            {meta.label}
+          </span>
         </div>
+        <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+          {item.reason ?? "On hold. No reason recorded."}
+        </p>
       </div>
-    );
+
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, marginLeft: "auto" }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap" }}>{due.label}</span>
+        {!dimmed && (
+          <div className="rv-split">
+            <button className="rv-main" disabled={busy} onClick={() => onTakeOffHold(item.transactionId)}>
+              <Check size={13} weight="bold" /> Take off hold
+            </button>
+            <button
+              ref={caretRef}
+              className="rv-caret"
+              data-open={menuOpen}
+              disabled={busy}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="More options"
+              onClick={() => { setView("items"); setDateVal(""); setMenuOpen((o) => !o); }}
+            >
+              <CaretDown className="rv-cv" size={13} weight="bold" />
+            </button>
+          </div>
+        )}
+        <PortalMenu anchorRef={caretRef} open={menuOpen} onClose={() => setMenuOpen(false)}>
+          {view === "items" ? (
+            <>
+              <button className="rv-mi" onClick={() => { setView("date"); setDateVal(""); }}>
+                <span className="rv-ico"><CalendarPlus size={16} /></span>
+                <span>Extend the date<small>Push the return date back</small></span>
+              </button>
+              <button className="rv-mi" onClick={() => { onExtend(item.transactionId, null); setMenuOpen(false); }}>
+                <span className="rv-ico"><XCircle size={16} /></span>
+                <span>Remove the return date<small>Stay on hold, no date set</small></span>
+              </button>
+            </>
+          ) : (
+            <div className="rv-datebox">
+              <span className="rv-when">New return date</span>
+              <DateField value={dateVal} min={tomorrowStr()} autoFocus onChange={(e) => setDateVal(e.target.value)} className="rv-date" wrapperStyle={{ display: "block" }} />
+              <button
+                className="rv-primary"
+                disabled={!dateVal || dateVal < tomorrowStr()}
+                onClick={() => { onExtend(item.transactionId, new Date(dateVal)); setMenuOpen(false); }}
+              >
+                Extend
+              </button>
+            </div>
+          )}
+        </PortalMenu>
+      </div>
+    </div>
+  );
+}
+
+function ManualReviewRow({
+  item, rowStyle, dimmed, due, busy,
+  onComplete, onReopen, onSetManualDate, onEditSave, onDelete,
+}: {
+  item: Extract<ReviewItem, { kind: "manual" }>;
+  rowStyle: React.CSSProperties;
+  dimmed: boolean;
+  due: { label: string; color: string };
+  busy: boolean;
+  onComplete: (id: string) => void;
+  onReopen: (id: string) => void;
+  onSetManualDate: (id: string, dateStr: string) => void;
+  onEditSave: (id: string, title: string, notes: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const isDone = item.status === "done";
+  const caretRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [view, setView] = useState<"items" | "date" | "confirm">("items");
+  const [dateVal, setDateVal] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(item.title);
+  const [editNotes, setEditNotes] = useState(item.notes ?? "");
+
+  function startEdit() {
+    setEditTitle(item.title);
+    setEditNotes(item.notes ?? "");
+    setEditing(true);
+    setMenuOpen(false);
   }
 
-  // Manual review row
-  const isDone = item.status === "done";
-  const busy = busyId === item.id;
   return (
     <div style={rowStyle}>
       <button
@@ -474,55 +605,87 @@ function ReviewRow({
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
         )}
       </button>
+
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: isDone ? 400 : 500, color: isDone ? "var(--agent-text-muted)" : "var(--agent-text-primary)", textDecoration: isDone ? "line-through" : "none", lineHeight: 1.4 }}>
-          {item.title}
-        </p>
-        {item.notes && <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>{item.notes}</p>}
-        {item.transactionId && item.address && (
-          <Link href={`/agent/transactions/${item.transactionId}`} className="agent-link" style={{ fontSize: 11, display: "inline-block", marginTop: 3 }}>{item.address}</Link>
+        {editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input className="agent-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Review title" autoFocus style={{ fontSize: 13, padding: "6px 9px" }} />
+            <textarea className="agent-input" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Notes (optional)" rows={2} style={{ fontSize: 12, padding: "6px 9px", resize: "none" }} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button className="rv-primary" style={{ width: "auto", padding: "6px 14px" }} disabled={busy || !editTitle.trim()} onClick={() => { onEditSave(item.id, editTitle, editNotes); setEditing(false); }}>Save</button>
+              <button className="agent-link agent-link-muted" style={{ fontSize: 12 }} onClick={() => setEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: isDone ? 400 : 500, color: isDone ? "var(--agent-text-muted)" : "var(--agent-text-primary)", textDecoration: isDone ? "line-through" : "none", lineHeight: 1.4 }}>
+              {item.title}
+            </p>
+            {item.notes && <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>{item.notes}</p>}
+            {item.transactionId && item.address && (
+              <div style={{ marginTop: 3 }}>
+                <AddressLink href={`/agent/transactions/${item.transactionId}`} address={item.address} />
+              </div>
+            )}
+          </>
         )}
       </div>
-      {/* Due label — click to reschedule the review (open rows only) */}
-      {dimmed || isDone ? (
-        <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", marginLeft: "auto", marginTop: 1 }}>{due.label}</span>
-      ) : editingDate ? (
-        <DateField
-          autoFocus
-          defaultValue={item.reviewDate ? toUKDateStr(item.reviewDate) : ""}
-          min={todayStr()}
-          onChange={(e) => { if (e.target.value && e.target.value >= todayStr()) onSetManualDate(item.id, e.target.value); setEditingDate(false); }}
-          onBlur={() => setEditingDate(false)}
-          className="agent-input"
-          style={{ padding: "4px 8px", fontSize: 12 }}
-          wrapperStyle={{ display: "inline-block", marginLeft: "auto", marginTop: 1 }}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditingDate(true)}
-          disabled={busy}
-          title="Change review date"
-          style={{ background: "none", border: "none", padding: 0, cursor: busy ? "wait" : "pointer", marginLeft: "auto", marginTop: 1, textAlign: "right" }}
-        >
-          <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap", textDecoration: "underline", textUnderlineOffset: 2, textDecorationColor: "var(--agent-border-default)" }}>{due.label}</span>
-        </button>
-      )}
-    </div>
-  );
-}
 
-function ResumeOptionCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ textAlign: "left", padding: "12px 14px", background: "var(--agent-surface-glass)", border: "0.5px solid rgba(15,23,42,0.10)", borderRadius: 12, cursor: "pointer", transition: "background 150ms, border-color 150ms" }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint)"; e.currentTarget.style.borderColor = "rgba(255,107,74,0.30)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--agent-surface-glass)"; e.currentTarget.style.borderColor = "rgba(15,23,42,0.10)"; }}
-    >
-      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>{title}</p>
-      <p style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5, margin: "4px 0 0" }}>{description}</p>
-    </button>
+      {!editing && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", marginTop: 1 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: due.color, whiteSpace: "nowrap" }}>{due.label}</span>
+          {!dimmed && !isDone && (
+            <button
+              ref={caretRef}
+              className="rv-menu-btn"
+              data-open={menuOpen}
+              disabled={busy}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Review options"
+              onClick={() => { setView("items"); setDateVal(""); setMenuOpen((o) => !o); }}
+            >
+              <CaretDown className="rv-cv" size={13} weight="bold" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <PortalMenu anchorRef={caretRef} open={menuOpen} onClose={() => setMenuOpen(false)}>
+        {view === "items" ? (
+          <>
+            <button className="rv-mi" onClick={() => { setView("date"); setDateVal(""); }}>
+              <span className="rv-ico"><CalendarPlus size={16} /></span>
+              <span>Reschedule<small>Pick a new date</small></span>
+            </button>
+            <button className="rv-mi" onClick={startEdit}>
+              <span className="rv-ico"><PencilSimple size={16} /></span>
+              <span>Edit<small>Change the wording</small></span>
+            </button>
+            <button className="rv-mi danger" onClick={() => setView("confirm")}>
+              <span className="rv-ico"><Trash size={16} /></span>
+              <span>Remove<small>Take it off the list</small></span>
+            </button>
+          </>
+        ) : view === "date" ? (
+          <div className="rv-datebox">
+            <span className="rv-when">New date</span>
+            <DateField value={dateVal} min={todayStrFn()} autoFocus onChange={(e) => setDateVal(e.target.value)} className="rv-date" wrapperStyle={{ display: "block" }} />
+            <button
+              className="rv-primary"
+              disabled={!dateVal || dateVal < todayStrFn()}
+              onClick={() => { onSetManualDate(item.id, dateVal); setMenuOpen(false); }}
+            >
+              Save
+            </button>
+          </div>
+        ) : (
+          <div className="rv-datebox">
+            <span className="rv-when">Remove this review?</span>
+            <button className="rv-primary" style={{ background: "var(--agent-danger)" }} onClick={() => { onDelete(item.id); setMenuOpen(false); }}>Remove</button>
+          </div>
+        )}
+      </PortalMenu>
+    </div>
   );
 }
