@@ -4,14 +4,16 @@ import { useState, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { calculateRiskScore } from "@/lib/services/risk";
+import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
 import type { TransactionStatus, UserRole } from "@prisma/client";
+import type { DisplayStageKey } from "@/lib/milestones/display-stages";
 
 // ── Tab-aware columns ────────────────────────────────────────────────────────
 // The visible columns adapt to the active status tab, because several columns
@@ -72,6 +74,22 @@ export type HealthRaw = {
   onTrack?: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
 };
 
+// The single definition of a row's risk level — the exact mapping the List's
+// Risk chip and the Pipeline board both read, so "At risk" means one thing
+// across every All Files surface. No health → "low" (nothing to score yet).
+export function riskLevelForRow(t: { health?: HealthRaw }): RiskLevel {
+  if (!t.health) return "low";
+  return calculateRiskScore({
+    onTrack: t.health.onTrack ?? "unknown",
+    escalatedTaskCount: t.health.escalatedTasks,
+    overdueTaskCount: t.health.pendingOverdueTasks,
+    daysSinceLastActivity: t.health.lastActivityAt
+      ? Math.floor((Date.now() - new Date(t.health.lastActivityAt).getTime()) / 86400000)
+      : null,
+    daysStuckOnMilestone: t.health.daysStuckOnMilestone,
+  }).level;
+}
+
 export type TransactionRow = {
   id: string;
   propertyAddress: string;
@@ -97,6 +115,9 @@ export type TransactionRow = {
   // Agency name shown for internal staff (admin / sales_progressor). Optional —
   // only present when listTransactions is called with a scope param.
   agency?: { id: string; name: string } | null;
+  // The file's current pipeline stage, decorated by FilesWorkspace from the
+  // stage map. Drives the journey bar; absent on non-active rows (no bar).
+  boardStage?: DisplayStageKey;
 };
 
 function splitAddress(address: string): { line: string; location: string } {
@@ -571,6 +592,7 @@ export function TransactionRowView({
               {showAgencyColumn && tx.agency?.name && (
                 <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
               )}
+              {tx.boardStage && !isDone && !isDead && <JourneyBar stage={tx.boardStage} />}
             </PropertyPeopleHover>
           </div>
 
@@ -627,6 +649,7 @@ export function TransactionRowView({
                 → {health.nextActionLabel}
               </p>
             )}
+            {tx.boardStage && !isDone && !isDead && <JourneyBar stage={tx.boardStage} />}
           </PropertyPeopleHover>
         </div>
 

@@ -197,3 +197,21 @@ export function resolveDisplayStages(
     };
   });
 }
+
+// The single board column a file belongs in — its live position on the
+// pipeline. Because conveyancing runs in parallel (searches awaited while
+// enquiries are answered), several stages can be in_progress at once; the
+// board places the file at the FURTHEST one, so the count in each column
+// reads as "how far the book has got", not "where the earliest loose end
+// is". Falls back to the up_next stage (file between stages) and finally to
+// completion (everything settled). Used by the All Files pipeline view and,
+// later, the enriched list-row journey bar.
+export function currentBoardStage(stages: ResolvedStage[]): DisplayStageKey {
+  let furthestInProgress: DisplayStageKey | null = null;
+  let firstUpNext: DisplayStageKey | null = null;
+  for (const s of stages) {
+    if (s.status === "in_progress") furthestInProgress = s.key;
+    if (s.status === "up_next" && firstUpNext === null) firstUpNext = s.key;
+  }
+  return furthestInProgress ?? firstUpNext ?? "completion";
+}

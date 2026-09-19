@@ -6,8 +6,7 @@ import { Funnel } from "@phosphor-icons/react/dist/ssr";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
-import { activityStateFor, type ActivityState } from "./TransactionRowView";
-import { calculateRiskScore } from "@/lib/services/risk";
+import { activityStateFor, riskLevelForRow, type ActivityState } from "./TransactionRowView";
 import type { RiskLevel } from "@/lib/services/risk";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -537,20 +536,7 @@ export function TransactionListWithSearch({
     }
 
     if (selectedRiskLevels.size > 0) {
-      result = result.filter((t) => {
-        const level: RiskLevel = t.health
-          ? calculateRiskScore({
-              onTrack: t.health.onTrack ?? "unknown",
-              escalatedTaskCount: t.health.escalatedTasks,
-              overdueTaskCount: t.health.pendingOverdueTasks,
-              daysSinceLastActivity: t.health.lastActivityAt
-                ? Math.floor((Date.now() - new Date(t.health.lastActivityAt).getTime()) / 86400000)
-                : null,
-              daysStuckOnMilestone: t.health.daysStuckOnMilestone,
-            }).level
-          : "low";
-        return selectedRiskLevels.has(level);
-      });
+      result = result.filter((t) => selectedRiskLevels.has(riskLevelForRow(t)));
     }
 
     if (activityFilter.size > 0) {

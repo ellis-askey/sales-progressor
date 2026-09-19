@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAccessScope } from "@/lib/security/access-scope";
-import { listTransactions, getExchangeForecast } from "@/lib/services/transactions";
+import { listTransactions } from "@/lib/services/transactions";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
-import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
-import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
+import { getHubFilteredIds, getMonthExchangingIds, getGoneQuietFiles, type HubFilter } from "@/lib/services/hub";
+import { getWorkQueueItems } from "@/lib/services/work-queue";
+import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
+import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
-import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -110,10 +112,10 @@ export default async function AllTransactionsPage({
     ? ((filter as TransactionStatus | "all") ?? "active")
     : "active";
 
-  const [allTransactions, forecastMonths] = await Promise.all([
-    listTransactions(session.user.agencyId, agentId, opts, txScope ?? undefined),
-    getExchangeForecast(session.user.agencyId, agentId, opts, txScope ?? undefined).catch(() => []),
-  ]);
+  // The exchange forecast is now a view inside the workspace (built from the
+  // rows themselves), so this page no longer fetches getExchangeForecast or
+  // renders the standalone month strip — both still live for the dashboard.
+  const allTransactions = await listTransactions(session.user.agencyId, agentId, opts, txScope ?? undefined);
 
   // Hub / month views narrow to a server-computed subset. The status tabs, by
   // contrast, now filter CLIENT-side (instant) — so in status mode we hand the
@@ -132,13 +134,49 @@ export default async function AllTransactionsPage({
 
   const clientTransactions = inNarrowedMode ? narrowedSubset : allTransactions;
 
-  // Sign property photos in one round trip, then decorate rows with photoUrl
-  // (null when absent → the row shows the neutral house thumbnail).
-  const photoMap = await getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath));
+  // Sign photos, resolve each active file's pipeline stage, and gather the
+  // segment id-sets whose data isn't on the row (gone-quiet + work-queue
+  // alerts) in one parallel pass. The segment sets are skipped in narrowed
+  // mode, where the strip + segments don't render. getGoneQuietFiles /
+  // getWorkQueueItems are the canonical detectors — imported, not re-derived.
+  const [photoMap, stageMap, quietFiles, workQueue] = await Promise.all([
+    getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath)),
+    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active").map((t) => t.id)),
+    inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis).catch(() => []),
+    inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
+  ]);
   const rowsWithPhotos = clientTransactions.map((t) => ({
     ...t,
     photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
   }));
+  const stageByTx = Object.fromEntries(stageMap);
+
+  const goneQuietIds = quietFiles.map((q) => q.transactionId);
+  const noSolicitorIds = workQueue
+    .filter((i) => i.alerts.includes("missing_vendor_solicitor") || i.alerts.includes("missing_purchaser_solicitor"))
+    .map((i) => i.id);
+  const stalledIds = workQueue.filter((i) => i.alerts.includes("stale")).map((i) => i.id);
+
+  // Current calendar month, for the strip's "Exchanging <month>" tile + link.
+  const nowDate = new Date();
+  const monthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}`;
+
+  // Agency monthly fees target (drives the Forecast "ahead / short" line).
+  // Agency-scoped, so internal staff (agencyId null) get none. Wrapped so the
+  // page still loads if the additive column hasn't been migrated yet (the
+  // feature simply stays dormant until it lands).
+  let monthlyTargetPence: number | null = null;
+  if (session.user.agencyId) {
+    try {
+      const agencyTarget = await prisma.agency.findUnique({
+        where: { id: session.user.agencyId },
+        select: { monthlyFeeTargetPence: true },
+      });
+      monthlyTargetPence = agencyTarget?.monthlyFeeTargetPence ?? null;
+    } catch {
+      monthlyTargetPence = null;
+    }
+  }
 
   // Pretty month label for the active-month banner + empty state
   const monthLabel = monthFilter
@@ -213,9 +251,9 @@ export default async function AllTransactionsPage({
         )}
 
         {/* Month-filter banner — parallel to hub-filter banner, fires when
-         * ?exchanging=YYYY-MM is set. The compact ForecastStrip below still
-         * renders (active pill carries .on state) — banner is the explicit
-         * state confirmation + escape hatch. */}
+         * ?exchanging=YYYY-MM is set (reached from the Forecast view or the
+         * portfolio strip's "Exchanging" tile). The banner is the explicit
+         * state confirmation + escape hatch back to the full book. */}
         {monthFilter && (
           <div
             className="tl-filter-banner"
@@ -296,18 +334,10 @@ export default async function AllTransactionsPage({
           )
         ) : (
           <div className="space-y-5 agent-fade-up">
-            {/* Exchange forecast — compact month-pill strip. Refactored
-             * 2026-05-12 from tall card to single-row filter affordance.
-             * Hidden when hub filter is active (banner replaces forecast in
-             * narrowed contexts). When monthFilter is active the strip stays
-             * visible and the matching pill renders with .on state. */}
-            {!hubFilter && forecastMonths.length > 0 && (
-              <ForecastStrip
-                months={forecastMonths}
-                basePath="/agent/transactions"
-                activeMonthKey={monthFilter?.key ?? null}
-              />
-            )}
+            {/* The exchange forecast lives inside the workspace now (its own
+             * view tab), replacing the standalone month-pill strip. The month
+             * filter (?exchanging=YYYY-MM) is still reachable from the Forecast
+             * view and the portfolio strip's "Exchanging" tile. */}
 
             {/* Status tabs moved into TransactionListWithSearch's hanging-basket
              * bar (2026-05-12) — status tabs (LEFT) + filter chips (RIGHT) now
@@ -352,14 +382,23 @@ export default async function AllTransactionsPage({
               /* Status mode hands the client EVERY file; it slices by tab
                * client-side (instant) and renders its own per-status empty
                * state. Narrowed mode passes the subset with tabs hidden. */
-              <TransactionListWithSearch
+              <FilesWorkspace
                 transactions={rowsWithPhotos}
+                stageByTx={stageByTx}
                 basePath="/agent/transactions"
                 isDirector={isDirector}
                 initialStatus={inNarrowedMode ? "all" : statusFilter}
                 showStatusTabs={!inNarrowedMode}
                 showAgencyColumn={isInternalStaff}
                 showAssignedToColumn={showAssignedToColumn}
+                showViewSwitcher={!inNarrowedMode}
+                currentUserId={session.user.id}
+                goneQuietIds={goneQuietIds}
+                noSolicitorIds={noSolicitorIds}
+                stalledIds={stalledIds}
+                monthKey={monthKey}
+                monthlyTargetPence={monthlyTargetPence}
+                streetViewKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null}
               />
             )}
           </div>
