@@ -185,9 +185,12 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     // Ellis's pick set, 2026-08-09.
     <GlassCard glassId="activity-comms-entry" label="Activity · Log a communication" defaultVariant="v22" className="rounded-[12px]" style={{ position: "relative", zIndex: 30 }}>
       <style>{`
-        .ce-primary { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:9px; border:1px solid var(--agent-coral); background:var(--agent-coral); color:#fff; cursor:pointer; box-shadow:0 1px 4px rgba(224,78,44,0.30); transition:background 120ms ease, border-color 120ms ease; }
-        .ce-primary:hover { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); }
-        .ce-ghost { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:9px; border:1px solid var(--agent-border-default); background:var(--agent-surface-glass); color:var(--agent-text-secondary); cursor:pointer; transition:border-color 120ms ease, color 120ms ease; }
+        /* Same gradient polish as the enquiries CTA (coral → coral-deep, lit top
+           edge). No chevron. When active (draft panel open) it dims back. */
+        .ce-primary { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:9px; border:1px solid transparent; color:var(--agent-text-on-coral,#fff); background:linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 4px rgba(224,78,44,0.26); cursor:pointer; transition:filter 120ms ease, opacity 120ms ease; }
+        .ce-primary:hover { filter:brightness(1.04); }
+        .ce-primary[data-active="true"] { opacity:0.62; box-shadow:none; }
+        .ce-ghost { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:9px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-secondary); cursor:pointer; transition:border-color 120ms ease, color 120ms ease; }
         .ce-ghost:hover { border-color:var(--agent-coral); color:var(--agent-text-primary); }
         .ce-ghost[data-on="true"] { border-color:var(--agent-coral-deep); color:var(--agent-coral-deep); }
         .ce-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
@@ -210,7 +213,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         }}
       >
         {/* Draft for everyone — the primary action (type one fact → client message + file note) */}
-        <button onClick={openDraftMode} className="ce-primary">✨ Draft for everyone</button>
+        <button onClick={openDraftMode} className="ce-primary" data-active={isDraftMode}>✨ Draft for everyone</button>
 
         {/* Note */}
         <button onClick={() => selectChannel("note")} className="ce-ghost" data-on={isNote}>📝 Note</button>

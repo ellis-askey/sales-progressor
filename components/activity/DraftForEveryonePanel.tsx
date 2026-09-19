@@ -254,13 +254,7 @@ export function DraftForEveryonePanel({
 
   return (
     <div className="agent-reveal-in" style={{ padding: "12px 14px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-          ✨ Draft for everyone
-        </p>
-        <button onClick={onClose} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Cancel</button>
-      </div>
-
+      {/* Title + cancel live on the composer row above — not repeated here. */}
       {/* The fact */}
       <p style={{ ...labelStyle, marginBottom: 5 }}>The update, in your own words</p>
       <textarea
@@ -275,7 +269,7 @@ export function DraftForEveryonePanel({
           {drafting ? "Drafting…" : hasDrafts ? "Re-draft" : "Draft"}
         </button>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
-          Type the fact once. We&rsquo;ll create a version for each side and a file note. Nothing is sent until you click.
+          Type the fact once. We&rsquo;ll turn it into the right update for each side and add a note to the file. Nothing goes out until you click.
         </span>
       </div>
 
