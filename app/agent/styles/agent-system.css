@@ -1975,14 +1975,19 @@
 
   /* ── Enquiries triage page ──────────────────────────────────────────────── */
   /* Summary tiles */
-  .enq-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-  @media (max-width: 900px) { .enq-tiles { grid-template-columns: repeat(2, 1fr); } }
-  .enq-tile { background: var(--agent-surface-glass); border: 1px solid var(--agent-border-subtle); border-radius: 14px; padding: 14px 16px; }
-  .enq-tile-top { display: flex; align-items: center; justify-content: space-between; }
-  .enq-tile-value { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; }
-  .enq-tile-icon { display: grid; place-items: center; color: var(--agent-text-muted); flex-shrink: 0; }
-  .enq-tile-label { font-size: 13px; font-weight: 700; color: var(--agent-text-primary); margin-top: 8px; }
-  .enq-tile-sub { font-size: 11.5px; color: var(--agent-text-muted); margin-top: 1px; }
+  /* Summary overview: one GlassCard, four divided cells — same family as the
+     Chains summary hero and the Completions momentum band. */
+  .enq-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .enq-summary-cell { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .enq-summary-cell + .enq-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
+  .enq-summary-val { font-size: 22px; font-weight: 600; line-height: 1; letter-spacing: -0.01em; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; }
+  .enq-summary-label { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.2; }
+  .enq-summary-sub { font-size: 10.5px; color: var(--agent-text-muted); line-height: 1.2; }
+  @media (max-width: 900px) {
+    .enq-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .enq-summary-cell:nth-child(odd) { border-left: none; }
+    .enq-summary-cell:nth-child(n+3) { border-top: 1px solid var(--agent-border-subtle); }
+  }
 
   /* Toolbar */
   .enq-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -2112,12 +2117,16 @@
      picker on top and the clock-resetting actions stacked below (disabled
      until a day is chosen). No row collapse; the card just elevates. */
   .enq-bd-menu { min-width: 246px; }
-  .enq-bd-when { padding: 4px 8px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.01em; color: var(--agent-text-muted); }
-  .enq-bd-field { width: 100%; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--agent-text-primary); padding: 8px 10px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease; }
-  .enq-bd-field:hover { border-color: var(--agent-coral); }
-  .enq-bd-field:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
-  .enq-bd-field::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
-  .enq-bd-field::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+  .enq-bd-when { padding: 2px 4px 8px; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); }
+  /* The whole field is a clickable control (opens the picker on click); a
+     hidden native date input under it carries the value + calendar UI. */
+  .enq-bd-field { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 11px; margin-bottom: 2px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease; }
+  .enq-bd-field:hover, .enq-bd-field:focus-visible { outline: none; border-color: var(--agent-coral); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.10); }
+  .enq-bd-cal { color: var(--agent-text-muted); flex-shrink: 0; }
+  .enq-bd-field:hover .enq-bd-cal, .enq-bd-field:focus-visible .enq-bd-cal { color: var(--agent-coral-deep); }
+  .enq-bd-ph { font-size: 13px; color: var(--agent-text-muted); }
+  .enq-bd-val { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); }
+  .enq-bd-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; pointer-events: none; }
 
   @media (max-width: 1180px) {
     .enq-a-desktop { display: none !important; }

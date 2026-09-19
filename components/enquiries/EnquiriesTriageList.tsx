@@ -22,6 +22,7 @@ import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiri
 import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { DateField } from "@/components/ui/DateField";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
+import { GlassCard } from "@/components/glass/GlassCard";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
 const courtShort = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's side" : "buyer's side");
@@ -232,13 +233,15 @@ export function EnquiriesTriageList({
 
   return (
     <div>
-      {/* Tiles */}
-      <div className="enq-tiles">
-        <Tile icon={<ChatCircleDots size={22} />} value={tiles.total} label="in enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
-        <Tile icon={<WarningCircle size={22} weight="fill" />} value={tiles.needChecking} label="need checking" sub="Overdue or due today" danger />
-        <Tile icon={<PaperPlaneTilt size={22} />} value={tiles.awaiting} label="awaiting replies" sub="With a solicitor" />
-        <Tile icon={<CalendarBlank size={22} />} value={tiles.expectedToday} label="expected today" sub="Based on latest updates" />
-      </div>
+      {/* Summary overview — same family as Chains / Completions */}
+      <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+        <div className="enq-summary-grid">
+          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="in enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
+          <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="need checking" sub="Overdue or due today" />
+          <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="awaiting replies" sub="With a solicitor" />
+          <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expectedToday} label="expected today" sub="Based on latest updates" />
+        </div>
+      </GlassCard>
 
       {/* Toolbar */}
       <div className="enq-toolbar">
@@ -360,6 +363,10 @@ function dateToISO(d: Date): string {
 function todayISO(): string {
   return dateToISO(new Date());
 }
+function fmtBd(iso: string): string {
+  if (iso === todayISO()) return "Today";
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 function RowActions({
   row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy,
 }: {
@@ -381,6 +388,7 @@ function RowActions({
   const [bdOpen, setBdOpen] = useState(false);
   const [bdISO, setBdISO] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const bdRef = useRef<HTMLInputElement>(null);
 
   // Keep the parent (card elevation for the dropdown) in sync with the menu.
   const changeMenu = (open: boolean) => { setMenuOpen(open); onMenuOpenChange(open); };
@@ -395,6 +403,12 @@ function RowActions({
     setBdOpen(false);
     setBdISO("");
     onMenuOpenChange(false);
+  }
+  // Open the native calendar from anywhere on the field, not just the icon.
+  function openBdPicker() {
+    const el = bdRef.current;
+    if (!el) return;
+    try { el.showPicker(); } catch { el.focus(); }
   }
 
   useEffect(() => {
@@ -492,16 +506,27 @@ function RowActions({
       {bdOpen && (
         <div className="enq-menu enq-bd-menu" role="menu">
           <div className="enq-bd-when">When did this happen?</div>
-          <input
-            type="date"
+          <div
             className="enq-bd-field"
-            min={dateToISO(row.openedAt)}
-            max={todayISO()}
-            value={bdISO}
-            onChange={(e) => setBdISO(e.target.value)}
-            aria-label="When did this happen"
-            autoFocus
-          />
+            role="button"
+            tabIndex={0}
+            onClick={openBdPicker}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openBdPicker(); } }}
+          >
+            <CalendarBlank size={15} className="enq-bd-cal" />
+            <span className={bdISO ? "enq-bd-val" : "enq-bd-ph"}>{bdISO ? fmtBd(bdISO) : "Choose a date"}</span>
+            <input
+              ref={bdRef}
+              type="date"
+              className="enq-bd-native"
+              min={dateToISO(row.openedAt)}
+              max={todayISO()}
+              value={bdISO}
+              onChange={(e) => setBdISO(e.target.value)}
+              aria-label="When did this happen"
+              tabIndex={-1}
+            />
+          </div>
           <div className="enq-mi-div" />
           {bdActs.map((a) => (
             <button
@@ -526,15 +551,16 @@ function RowActions({
   );
 }
 
-function Tile({ icon, value, label, sub, danger }: { icon: React.ReactNode; value: number; label: string; sub: string; danger?: boolean }) {
+type TileTone = "coral" | "info" | "warning" | "success" | "neutral";
+function Tile({ icon, value, label, sub, tone }: { icon: React.ReactNode; value: number; label: string; sub: string; tone: TileTone }) {
   return (
-    <div className="enq-tile">
-      <div className="enq-tile-top">
-        <span className="enq-tile-value" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{value}</span>
-        <span className="enq-tile-icon" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{icon}</span>
-      </div>
-      <div className="enq-tile-label" style={danger ? { color: "var(--agent-coral-deep)" } : undefined}>{label}</div>
-      <div className="enq-tile-sub">{sub}</div>
+    <div className="enq-summary-cell">
+      <span aria-hidden className={`stat-circle stat-circle--${tone}`}>{icon}</span>
+      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+        <span className="enq-summary-val">{value.toLocaleString()}</span>
+        <span className="enq-summary-label">{label}</span>
+        <span className="enq-summary-sub">{sub}</span>
+      </span>
     </div>
   );
 }
