@@ -44,6 +44,12 @@ model Agency {
   enquiryReplyChaseEnabled Boolean @default(false)
   enquiryRaiseChaseEnabled Boolean @default(false)
 
+  // Director-set monthly fees goal (in pence) for this agency. Drives the
+  // "ahead / short" line on the All Files → Forecast tab: each month's forecast
+  // fees are compared against this figure. Null = no target set. Set/edited
+  // inline on the Forecast header by directors only (setAgencyMonthlyFeeTarget).
+  monthlyFeeTargetPence Int?
+
   // Verified sender address for outbound surveyor quote requests on this
   // agency's files (e.g. ellis@akeman-residential.co.uk). Null → the quote is
   // sent from the Sales Progressor fallback (ellis@thesalesprogressor.co.uk).
