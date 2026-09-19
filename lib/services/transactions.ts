@@ -34,10 +34,15 @@ export async function listTransactions(
   const now = new Date();
   const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
   let whereClause: Record<string, unknown>;
-  // Internal staff path: scope overrides all agencyId-based filtering.
-  // Agent callers pass no scope — they hit the existing branches below unchanged.
+  // Internal staff path: scope overrides all agencyId-based filtering. Internal
+  // staff only ever work OUTSOURCED files on the agent surface — agencies'
+  // self-managed sales belong in Command Centre, not here — so mirror the
+  // outsourced-only rule every other internal tab applies (work-queue.ts,
+  // analytics.ts, reminders.ts). Agent callers pass no scope, so this never
+  // touches a director/negotiator, who legitimately see their own whole book.
   if (scope) {
-    whereClause = { ...scopeTransactionWhere(scope), status: { not: "draft" } };
+    const internal = scope.kind !== "agency";
+    whereClause = { ...scopeTransactionWhere(scope), ...(internal ? { serviceType: "outsourced" } : {}), status: { not: "draft" } };
   } else if (opts?.allAgentFiles) {
     whereClause = opts.firmName
       ? { agencyId, agentUser: { firmName: opts.firmName } }
@@ -348,8 +353,11 @@ export async function countTransactionsByStatus(
   scope?: AccessScope
 ) {
   let whereClause: Record<string, unknown>;
+  // Internal staff see outsourced files only (see listTransactions) — keep the
+  // status-tab counts in step so the totals match the rows they head.
   if (scope) {
-    whereClause = { ...scopeTransactionWhere(scope), status: { not: "draft" } };
+    const internal = scope.kind !== "agency";
+    whereClause = { ...scopeTransactionWhere(scope), ...(internal ? { serviceType: "outsourced" } : {}), status: { not: "draft" } };
   } else if (opts?.allAgentFiles) {
     whereClause = opts.firmName
       ? { agencyId, agentUser: { firmName: opts.firmName } }
@@ -377,10 +385,12 @@ export async function listTransactionsByScope(scope: AccessScope) {
   const now = new Date();
   const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
   const base = scopeTransactionWhere(scope);
+  // Non-agency (internal) scope sees outsourced files only, matching every
+  // other internal tab (see listTransactions).
   const whereClause: Record<string, unknown> =
     scope.kind === "agency"
       ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
-      : { ...base, status: { not: "draft" } };
+      : { ...base, serviceType: "outsourced", status: { not: "draft" } };
 
   // Phase-3: same two-step round-id pre-load + OR scoping as listTransactions.
   const activeRoundIds = await loadActiveRoundIds(whereClause);
@@ -506,10 +516,12 @@ export async function listTransactionsByScope(scope: AccessScope) {
 
 export async function countTransactionsByScope(scope: AccessScope) {
   const base = scopeTransactionWhere(scope);
+  // Non-agency (internal) scope sees outsourced files only, matching every
+  // other internal tab (see listTransactions).
   const whereClause: Record<string, unknown> =
     scope.kind === "agency"
       ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
-      : { ...base, status: { not: "draft" } };
+      : { ...base, serviceType: "outsourced", status: { not: "draft" } };
 
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
