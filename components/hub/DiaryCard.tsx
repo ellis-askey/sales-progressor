@@ -20,10 +20,18 @@ function todayKey(): string {
 }
 
 const DIARY_STYLES = `
+  /* The whole row lifts on hover (like the other hub row groups), but keeps its
+     purposely-coloured background rather than washing to a neutral tint. */
+  .diary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 10px 13px; border-left: 3px solid var(--diary-accent); background: var(--diary-bg); transition: background-color .15s ease, box-shadow .15s ease; }
+  .diary-row:hover { background: var(--diary-bg-hover); box-shadow: var(--agent-hover-lift); position: relative; z-index: 1; }
   .diary-idlink { text-decoration: none; }
   .diary-addr-l1 { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .14s ease; }
   .diary-addr-town { font-size: 11px; color: var(--agent-text-secondary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .14s ease; }
-  .diary-idlink:hover .diary-addr-l1, .diary-idlink:hover .diary-addr-town { color: var(--agent-coral-deep); }
+  .diary-row:hover .diary-addr-l1, .diary-row:hover .diary-addr-town { color: var(--agent-coral-deep); }
+  /* Buttons are solid white here only — the row background is coloured, so the
+     transparent ghost buttons would otherwise disappear into it. */
+  .diary-row .agent-btn-ghost-bordered { background: var(--agent-surface-elevated); }
+  .diary-row .agent-btn-ghost-bordered:hover:not(:disabled) { background: var(--agent-surface-elevated); border-color: var(--agent-coral); }
 `;
 
 export function DiaryCard({ items }: { items: Item[] }) {

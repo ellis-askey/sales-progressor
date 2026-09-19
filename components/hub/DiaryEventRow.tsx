@@ -129,18 +129,17 @@ export function DiaryEventRow({
     menuItems.push({ key: "confirm", icon: <Check size={16} weight="bold" />, title: `Confirm ${c.verb}`, sub: "If it's actually done.", onClick: () => { setGateMsg(null); setOpen(true); } });
   }
 
-  const rowStyle: React.CSSProperties = {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "10px 16px 10px 13px",
-    borderLeft: `3px solid ${item.type === "completion" ? "var(--agent-success)" : "var(--agent-coral)"}`,
-    background: item.type === "completion" ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
+  const isCompletion = item.type === "completion";
+  const rowVars = {
+    "--diary-accent": isCompletion ? "var(--agent-success)" : "var(--agent-coral)",
+    "--diary-bg": isCompletion ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
+    "--diary-bg-hover": isCompletion ? "rgba(var(--agent-success-rgb), 0.16)" : "rgba(var(--agent-coral-rgb), 0.13)",
     borderTop: !isFirst ? "0.5px solid var(--agent-border-subtle)" : undefined,
-    gap: 12,
-  };
+  } as React.CSSProperties;
 
   return (
-    <div style={rowStyle}>
-      <Link href={`${basePath}/${item.transactionId}`} className="agent-hover-row diary-idlink" style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, borderRadius: 8, padding: "3px 5px" }}>
+    <div className="diary-row" style={rowVars}>
+      <Link href={`${basePath}/${item.transactionId}`} className="diary-idlink" style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0 }}>
         <PropertyThumb photoUrl={item.photoUrl} size={38} />
         <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
           <span className="diary-addr-l1">{line1.trim()}</span>
