@@ -41,12 +41,6 @@ const isConfirmedNoChain = (s: NoChainSale) => s.noChainConfirmedAt != null && !
 
 type TileTone = "coral" | "info" | "warning";
 
-const TILE_TINT: Record<TileTone, { icon: string; bg: string }> = {
-  coral: { icon: "var(--agent-coral-deep)", bg: "rgba(var(--agent-coral-base-rgb), 0.12)" },
-  info: { icon: "#0d9488", bg: "rgba(13, 148, 136, 0.12)" },
-  warning: { icon: "var(--agent-warning)", bg: "var(--agent-warning-bg)" },
-};
-
 function SummaryTile({
   icon,
   value,
@@ -64,23 +58,9 @@ function SummaryTile({
   onClick?: () => void;
   highlight?: boolean;
 }) {
-  const tint = TILE_TINT[tone];
   const inner = (
     <>
-      <span
-        aria-hidden
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: tint.bg,
-          color: tint.icon,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
+      <span aria-hidden className={`stat-circle stat-circle--${tone}`}>
         {icon}
       </span>
       <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
@@ -400,14 +380,14 @@ export function ChainsWorkspace({
       <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" className="chains-summary-card" style={{ borderRadius: 14, overflow: "hidden" }}>
         <div className="chains-summary-grid">
           <SummaryTile
-            icon={<House size={20} weight="regular" />}
+            icon={<House size={22} weight="regular" />}
             value={activeSales}
             label="Active sales"
             sublabel="Across all files"
             tone="coral"
           />
           <SummaryTile
-            icon={<LinkSimpleHorizontal size={20} weight="regular" />}
+            icon={<LinkSimpleHorizontal size={22} weight="regular" />}
             value={filesInChains}
             label="In chains"
             sublabel="Linked to other sales"
@@ -415,7 +395,7 @@ export function ChainsWorkspace({
             onClick={() => { setTab("chains"); setOnlyNeedsInvite(false); }}
           />
           <SummaryTile
-            icon={<HouseLine size={20} weight="regular" />}
+            icon={<HouseLine size={22} weight="regular" />}
             value={needsSetupAll.length}
             label="Need chain setup"
             sublabel="Chain not yet resolved"
@@ -423,7 +403,7 @@ export function ChainsWorkspace({
             onClick={() => setTab("needs")}
           />
           <SummaryTile
-            icon={<UsersThree size={20} weight="regular" />}
+            icon={<UsersThree size={22} weight="regular" />}
             value={agentsToInvite}
             label="Agents to invite"
             sublabel={agentsToInvite === 0 ? "All invited" : `Across ${chainsWithInvites} ${chainsWithInvites === 1 ? "chain" : "chains"}`}
