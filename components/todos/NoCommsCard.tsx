@@ -121,8 +121,10 @@ export function NoCommsCard({ items }: { items: Item[] }) {
                       <div className={`nocomms-side${side.drifting ? " warn" : ""}`} key={side.side}>
                         <div className="nocomms-side-top">
                           <ContactAvatar contact={{ name: side.name, roleType: side.side }} size={40} />
-                          <span className="nocomms-who">{side.name}</span>
-                          <Pill glass tone={seller ? "info" : "success"} size="sm">{roleLabel(side.side)}</Pill>
+                          <div className="nocomms-whocol">
+                            <Pill glass tone={seller ? "info" : "success"} size="sm">{roleLabel(side.side)}</Pill>
+                            <span className="nocomms-who">{side.name}</span>
+                          </div>
                           <span className={`nocomms-chip ${r.cls}`}><span className="nocomms-dot" />{r.label}</span>
                         </div>
                         <div className="nocomms-acts">

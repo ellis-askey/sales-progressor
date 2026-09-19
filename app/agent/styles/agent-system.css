@@ -404,7 +404,9 @@
   .todo-cols { display: flex; flex-direction: column; gap: 24px; }
   .todo-col-main { max-width: 680px; min-width: 0; }
   @media (min-width: 1100px) {
-    .todo-cols { display: grid; grid-template-columns: minmax(0, 680px) minmax(320px, 400px); gap: 28px; align-items: start; }
+    /* Left boxed for readability; right (No-comms) is fluid so it grows into
+       the extra width when the window's wider / zoomed out, like other pages. */
+    .todo-cols { display: grid; grid-template-columns: minmax(0, 680px) minmax(340px, 1fr); gap: 28px; align-items: start; }
     .todo-col-side { position: sticky; top: 84px; }
   }
 
@@ -452,12 +454,15 @@
   .nocomms-role.buyer { color: #2E6FB0; background: rgba(46,111,176,0.13); }
   :root[data-theme="dark"] .nocomms-role.seller { color: #F0B463; background: rgba(230,164,78,0.14); }
   :root[data-theme="dark"] .nocomms-role.buyer { color: #79B4E8; background: rgba(90,150,220,0.16); }
-  .nocomms-who { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .nocomms-chip { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+  /* Role pill above the name, so the name gets the full width beside the avatar. */
+  .nocomms-whocol { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; flex: 1; }
+  .nocomms-who { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Recency: dot + text only, no pill background. */
+  .nocomms-chip { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
   .nocomms-dot { width: 6px; height: 6px; border-radius: 999px; }
-  .nocomms-chip.hot { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.16); } .nocomms-chip.hot .nocomms-dot { background: var(--agent-coral-deep); }
-  .nocomms-chip.warm { color: var(--agent-warning); background: rgba(217,138,43,0.14); } .nocomms-chip.warm .nocomms-dot { background: var(--agent-warning); }
-  .nocomms-chip.calm { color: var(--agent-success); background: rgba(79,158,118,0.15); } .nocomms-chip.calm .nocomms-dot { background: var(--agent-success); }
+  .nocomms-chip.hot { color: var(--agent-coral-deep); } .nocomms-chip.hot .nocomms-dot { background: var(--agent-coral-deep); }
+  .nocomms-chip.warm { color: var(--agent-warning); } .nocomms-chip.warm .nocomms-dot { background: var(--agent-warning); }
+  .nocomms-chip.calm { color: var(--agent-success); } .nocomms-chip.calm .nocomms-dot { background: var(--agent-success); }
 
   .nocomms-acts { margin-top: 9px; display: flex; align-items: center; gap: 6px; }
   .nocomms-cbtn { width: 31px; height: 31px; border-radius: 9px; flex-shrink: 0; display: grid; place-items: center; cursor: pointer; color: var(--agent-text-secondary);
