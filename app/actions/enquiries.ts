@@ -12,6 +12,10 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { getEnquiryHistory, type EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import { confirmMilestoneAction } from "./milestones";
 import { postEnquiryEcho } from "@/lib/services/chase-echo";
+import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import {
   logEnquiryMovement,
   setEnquiryOutstandingNote,
@@ -173,6 +177,90 @@ export async function getEnquiryHistoryAction(transactionId: string): Promise<En
   const session = await getServerSession(authOptions);
   if (!session?.user) return [];
   return getEnquiryHistory(getAccessScope(session), transactionId);
+}
+
+// Preview one chase email from the enquiry timeline, exactly as it was sent.
+// Three sources, best first: (1) the archived HTML on rows that store it
+// (branded solicitor sends from 2026-09-10); (2) for client chases, rebuild
+// the branded shell from the stored plain-text body with the same helper the
+// edit path uses, so it renders true-to-inbox; (3) a plain-text card as a last
+// resort. Scope-checked via the transaction (Law 7).
+export type EnquiryChaseEmail = {
+  subject: string;
+  recipientName: string;
+  recipientEmail: string;
+  html: string;
+  sentAt: Date | null;
+};
+function plainBodyHtml(text: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const paras = text
+    .split(/\r?\n\r?\n/)
+    .map((b) => b.split(/\r?\n/).map(esc).join("<br />"))
+    .filter((b) => b.trim().length > 0)
+    .map((b) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">${b}</p>`)
+    .join("\n");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;">
+  <div style="padding:24px 26px;">${paras || '<p style="margin:0;color:#6b7280;font-size:14px;">No body was recorded for this message.</p>'}</div>
+</body></html>`;
+}
+export async function getEnquiryChaseEmailAction(
+  messageId: string,
+): Promise<{ ok: true; data: EnquiryChaseEmail } | { ok: false; error: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return { ok: false, error: "Not signed in." };
+  const scope = getAccessScope(session);
+
+  const msg = await prisma.outboundMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      id: true, transactionId: true, subject: true, content: true, sentEmailHtml: true,
+      recipientName: true, recipientEmail: true, contactIds: true, sentAt: true, createdAt: true,
+    },
+  });
+  if (!msg || !msg.transactionId) return { ok: false, error: "Message not found." };
+
+  // Multi-tenant guard: caller must be able to see the file this message is on.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, msg.transactionId),
+    select: { id: true, agency: { select: { name: true } } },
+  });
+  if (!tx) return { ok: false, error: "Not found." };
+
+  const subject = msg.subject ?? "(no subject)";
+  const recipientName = msg.recipientName ?? "the recipient";
+  const recipientEmail = msg.recipientEmail ?? "";
+  const base = { subject, recipientName, recipientEmail, sentAt: msg.sentAt ?? msg.createdAt };
+
+  // 1. Archived exact HTML.
+  if (msg.sentEmailHtml) {
+    return { ok: true, data: { ...base, html: msg.sentEmailHtml } };
+  }
+
+  // 2. Client chase → rebuild the branded shell from the stored body.
+  const contactId = msg.contactIds?.[0] ?? null;
+  const contact = contactId
+    ? await prisma.contact.findUnique({ where: { id: contactId }, select: { id: true, portalToken: true } })
+    : null;
+  if (contact?.portalToken && msg.content?.trim()) {
+    const sender = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
+    const theme = sender.theme ?? resolveEmailTheme(null);
+    const portalBase = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
+    const html = renderEditedChaseEmailHtml({
+      agencyName: tx.agency?.name ?? "Sales Progressor",
+      subject,
+      text: msg.content,
+      respondUrl: `${portalBase}/portal/${contact.portalToken}/respond`,
+      pauseUrl: buildContactPauseUrl(contact.id),
+      unsubscribeUrl: buildContactUnsubscribeUrl(contact.id),
+      theme,
+    });
+    return { ok: true, data: { ...base, html } };
+  }
+
+  // 3. Last resort: render whatever body text we stored, honestly.
+  return { ok: true, data: { ...base, html: plainBodyHtml(msg.content ?? "") } };
 }
 
 export async function setEnquiryOutstandingAction(input: {

@@ -3,27 +3,26 @@
 // Opens a chase email from the enquiry timeline exactly as it was sent — the
 // true-to-inbox HTML in a sandboxed iframe. Composes the canonical ui/Drawer
 // (ARIA, Escape, focus, scroll-lock, dark mode all free) and reuses the same
-// getMessageForPreview server action + previewSrcDoc sanitiser the automated-
-// emails detail drawer uses, so the render matches everywhere.
+// previewSrcDoc sanitiser the automated-emails detail drawer uses, so the
+// render matches everywhere.
 //
-// Rows sent from 2026-09-10 carry the real email HTML; older rows fall back to
-// the summary getMessageForPreview returns (honest "exact email isn't stored").
+// The HTML comes from getEnquiryChaseEmailAction, which shows the archived
+// email where we stored it, and otherwise rebuilds the branded shell from the
+// stored body (client chases) so the preview is true-to-inbox regardless.
 
 import { useEffect, useState } from "react";
 import { PaperPlaneTilt, ArrowSquareOut } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
 import { SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { getMessageForPreview } from "@/app/actions/automated-emails";
+import { getEnquiryChaseEmailAction, type EnquiryChaseEmail } from "@/app/actions/enquiries";
 import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
-
-type Preview = Extract<Awaited<ReturnType<typeof getMessageForPreview>>, { ok: true }>["data"];
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
 const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
 const fmtWhen = (d: Date | null | undefined) => (d ? `${dateFmt.format(new Date(d))} at ${timeFmt.format(new Date(d))}` : "");
 
 export function EnquiryEmailPreview({ messageId, onClose }: { messageId: string | null; onClose: () => void }) {
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<EnquiryChaseEmail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -31,10 +30,10 @@ export function EnquiryEmailPreview({ messageId, onClose }: { messageId: string 
     if (!messageId) return;
     setPreview(null); setError(null); setLoading(true);
     let live = true;
-    getMessageForPreview(messageId)
+    getEnquiryChaseEmailAction(messageId)
       .then((res) => {
         if (!live) return;
-        if (res.ok) setPreview(res.data as Preview);
+        if (res.ok) setPreview(res.data);
         else setError(res.error);
       })
       .catch(() => { if (live) setError("Couldn't load this email."); })
@@ -61,10 +60,10 @@ export function EnquiryEmailPreview({ messageId, onClose }: { messageId: string 
               Chase email
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 17, fontWeight: 700, color: "var(--agent-text-on-coral, #fff)", lineHeight: 1.25 }}>
-              Sent to the solicitor
+              {preview ? `To ${preview.recipientName}` : "Chase email"}
             </p>
             {preview?.sentAt && (
-              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "rgba(255,255,255,0.9)" }}>{fmtWhen(preview.sentAt)}</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "rgba(255,255,255,0.9)" }}>Sent {fmtWhen(preview.sentAt)}</p>
             )}
           </div>
         </div>
@@ -73,7 +72,7 @@ export function EnquiryEmailPreview({ messageId, onClose }: { messageId: string 
       <Drawer.Body>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
           <p className="agent-eyebrow" style={{ margin: 0 }}>Email preview</p>
-          {preview?.canOpenInNewWindow && preview?.html && (
+          {preview?.html && (
             <button
               type="button"
               onClick={openInNewWindow}
