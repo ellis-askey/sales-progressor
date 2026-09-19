@@ -21,6 +21,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { DateField } from "@/components/ui/DateField";
+import { ChaseBar } from "@/components/enquiries/ChaseBar";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
 const courtShort = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's side" : "buyer's side");
@@ -266,11 +267,6 @@ export function EnquiriesTriageList({
           const pill = statusPill(r);
           const isSeller = r.currentlyWith === "seller_solicitor";
           const withBuyer = !isSeller;
-          // Two-stage chase bar: coral (→ chase at 7wd), red (→ escalate at 13wd),
-          // blue while holding to an expected date. Fill grows from the ball's side.
-          const barColor = r.chaseBar.stage === "hold" ? "var(--agent-info)" : r.chaseBar.stage === "chase" ? "var(--agent-coral)" : "var(--agent-danger)";
-          const barPct = Math.round(r.chaseBar.progress * 100);
-          const barOpacity = 0.4 + 0.5 * r.chaseBar.progress;
           const [line1, ...rest] = r.address.split(",");
           const expanded = expandedId === r.transactionId;
           return (
@@ -299,21 +295,7 @@ export function EnquiriesTriageList({
 
                 {/* Court slider */}
                 <div className="enq-slider">
-                  <div className="enq-track">
-                    {barPct > 0 && (
-                      <span
-                        className="enq-fill"
-                        style={{
-                          left: isSeller ? 0 : undefined,
-                          right: isSeller ? undefined : 0,
-                          width: `${barPct}%`,
-                          background: barColor,
-                          opacity: barOpacity,
-                        }}
-                      />
-                    )}
-                    <span className="enq-handle" style={{ left: isSeller ? "0" : "calc(100% - 14px)", background: barColor }} />
-                  </div>
+                  <ChaseBar stage={r.chaseBar.stage} progress={r.chaseBar.progress} isSeller={isSeller} />
                   <div className="enq-ends">
                     <span style={{ color: isSeller ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", fontWeight: isSeller ? 700 : 500 }}>Seller&apos;s solicitor</span>
                     <span style={{ color: !isSeller ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", fontWeight: !isSeller ? 700 : 500 }}>Buyer&apos;s solicitor</span>
