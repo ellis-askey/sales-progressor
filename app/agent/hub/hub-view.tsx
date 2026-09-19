@@ -875,6 +875,15 @@ async function PipelineHealthCard({
   const showHealthStrip =
     health.medianDaysToExchange != null || health.within12WeekPct != null || health.exchangesLast30 > 0;
 
+  // Sparkline geometry from the last-8-weeks exchange series.
+  const spark = health.weeklyExchanges ?? [];
+  const sparkMax = Math.max(1, ...spark);
+  const sparkHasData = spark.some((v) => v > 0);
+  const sparkPts = spark
+    .map((v, i) => `${(spark.length > 1 ? i / (spark.length - 1) : 0) * 94 + 3},${27 - (v / sparkMax) * 22}`)
+    .join(" ");
+  const sparkLastY = spark.length ? 27 - (spark[spark.length - 1] / sparkMax) * 22 : 27;
+
   return (
     <SectionReveal order={3}>
       <GlassCard glassId="hub-pipeline-health" label="Hub · Pipeline health" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
@@ -893,10 +902,12 @@ async function PipelineHealthCard({
               {
                 value: pipelineStats.activeFiles.toLocaleString(),
                 label: "Active files",
-                color: "var(--agent-coral)",
+                color: "var(--agent-coral-deep)",
                 href: "/agent/transactions",
                 delta: pipelineStats.newThisMonth > 0 ? `+${pipelineStats.newThisMonth} this month` : null,
                 deltaTone: "up" as const,
+                sub: null,
+                subTone: "muted" as const,
               },
               {
                 value: pipelineStats.exchangingSoon.toLocaleString(),
@@ -907,6 +918,8 @@ async function PipelineHealthCard({
                   ? `${pipelineStats.comingUp.exchangingThisWeek} this week`
                   : null,
                 deltaTone: "up" as const,
+                sub: null,
+                subTone: "muted" as const,
               },
               {
                 value: attentionFileCount.toLocaleString(),
@@ -915,120 +928,94 @@ async function PipelineHealthCard({
                 href: attentionFileCount > 0 ? "/agent/work-queue" : null,
                 delta: escalatedCount > 0
                   ? `${escalatedCount} escalated`
-                  : attentionFileCount === 0 ? "All clear" : null,
-                deltaTone: (escalatedCount > 0 ? "down" : "up") as "up" | "down" | "flat",
+                  : attentionFileCount === 0 ? "all clear" : null,
+                deltaTone: (escalatedCount > 0 ? "down" : "flat") as "up" | "down" | "flat",
+                sub: null,
+                subTone: "muted" as const,
               },
               {
                 value: fmtCurrency(pipelineStats.pipelineValuePence),
                 label: "Pipeline value",
                 color: "var(--agent-text-primary)",
                 href: null,
-                delta: pipelineStats.comingUp.closingThisMonth.total > 0
-                  ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} closing this month`
-                  : null,
+                delta: null,
                 deltaTone: "up" as const,
-                // Our own forecast revenue from this pipeline — internal only.
-                sub: isAdmin && pipelineStats.pipelineFeesPence > 0
-                  ? `≈ ${fmtCurrency(pipelineStats.pipelineFeesPence)} our fees`
-                  : null,
+                // One sub-line: our forecast revenue (internal), or what's closing
+                // this month (agency). Never both.
+                sub: isAdmin
+                  ? (pipelineStats.pipelineFeesPence > 0 ? `≈ ${fmtCurrency(pipelineStats.pipelineFeesPence)} our fees` : null)
+                  : (pipelineStats.comingUp.closingThisMonth.total > 0 ? `${fmtCurrency(pipelineStats.comingUp.closingThisMonth.total)} closing` : null),
+                subTone: (isAdmin ? "fees" : "muted") as "fees" | "muted",
               },
-            ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat"; sub?: string | null }[]
-          ).map(({ value, label, color, href, delta, deltaTone, sub }, i) => {
+            ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat"; sub: string | null; subTone: "fees" | "muted" }[]
+          ).map(({ value, label, color, href, delta, deltaTone, sub, subTone }, i) => {
             const inner = (
               <>
-                <span style={{
-                  fontSize: 22, fontWeight: 600, color,
-                  lineHeight: 1, letterSpacing: "-0.01em",
-                  fontVariantNumeric: "tabular-nums",
-                }}>
+                <span style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
                   {value}
                 </span>
-                <span style={{
-                  fontSize: 11, color: "var(--agent-text-muted)",
-                  textAlign: "center", lineHeight: 1.3,
-                }}>
-                  {label}
-                </span>
+                <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>{label}</span>
                 {delta && (
-                  <span style={{
-                    fontSize: 10,
-                    color: deltaTone === "down"
-                      ? "var(--agent-warning)"
-                      : deltaTone === "flat"
-                        ? "var(--agent-text-muted)"
-                        : "var(--agent-success)",
-                    fontWeight: 500, textAlign: "center",
-                  }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, marginTop: 3, color: deltaTone === "down" ? "var(--agent-warning)" : deltaTone === "flat" ? "var(--agent-text-muted)" : "var(--agent-success)" }}>
                     {delta}
                   </span>
                 )}
                 {sub && (
-                  <span style={{
-                    fontSize: 10, color: "var(--agent-coral-deep)",
-                    fontWeight: 600, textAlign: "center",
-                  }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, marginTop: 3, color: subTone === "fees" ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
                     {sub}
                   </span>
                 )}
               </>
             );
             const cellStyle: React.CSSProperties = {
-              display: "flex", flexDirection: "column",
-              alignItems: "center", padding: "6px 12px", gap: 4,
+              display: "flex", flexDirection: "column", alignItems: "flex-start",
+              padding: i === 0 ? "0 16px 0 0" : "0 16px",
               borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
-              borderRadius: 8,
             };
             return href ? (
-              <Link
-                key={i}
-                href={href}
-                style={{ ...cellStyle, textDecoration: "none" }}
-                className="agent-press-cell"
-                aria-label={label}
-              >
-                {inner}
-              </Link>
+              <Link key={i} href={href} style={{ ...cellStyle, textDecoration: "none" }} aria-label={label}>{inner}</Link>
             ) : (
               <div key={i} style={cellStyle} aria-label={label}>{inner}</div>
             );
           })}
         </div>
 
-        {/* Health strip — speed, SLA, momentum. Both roles (an agency sees its
-            own performance). Hidden until there's at least one exchange to read. */}
+        {/* Health strip — speed, SLA, momentum + an 8-week exchange sparkline.
+            Both roles (an agency sees its own performance). Hidden until there's
+            at least one exchange to read. */}
         {showHealthStrip && (
           <div style={{
             borderTop: "1px solid var(--agent-border-subtle)",
             marginTop: 14, paddingTop: 12,
-            display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap",
+            display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap",
           }}>
             {health.medianDaysToExchange != null && (
               <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
-                  {health.medianDaysToExchange}d
-                </span>
-                <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>median to exchange</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>{health.medianDaysToExchange}d</span>
+                <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Median to exch.</span>
               </div>
             )}
             {health.within12WeekPct != null && (
               <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: slaColor, letterSpacing: "-0.01em" }}>
-                  {health.within12WeekPct}%
-                </span>
-                <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>within 12 wks</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: slaColor, letterSpacing: "-0.01em" }}>{health.within12WeekPct}%</span>
+                <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Within 12 wks</span>
               </div>
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
                 {health.exchangesLast30}
                 {momText && (
-                  <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>
-                    {momText}
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>{momText}</span>
                 )}
               </span>
-              <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>exchanges (30 days)</span>
+              <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Exchanges · 30d</span>
             </div>
+            {sparkHasData && (
+              <svg width="96" height="30" viewBox="0 0 100 30" aria-hidden style={{ marginLeft: "auto" }}>
+                <polyline points={sparkPts} fill="none" stroke="var(--agent-coral)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx={97} cy={sparkLastY} r="2.6" fill="var(--agent-coral)" />
+              </svg>
+            )}
           </div>
         )}
 

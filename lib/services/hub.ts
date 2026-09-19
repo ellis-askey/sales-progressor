@@ -428,6 +428,8 @@ export async function getHubPipelineHealth(vis: AgentVisibility): Promise<{
   // are always like-for-like.
   exchangesLast30: number;
   exchangesPrev30: number;
+  // Exchanges per week over the last 8 weeks (oldest → newest) for the sparkline.
+  weeklyExchanges: number[];
 }> {
   const now = new Date();
   const d30 = new Date(now.getTime() - 30 * 86400000);
@@ -445,12 +447,18 @@ export async function getHubPipelineHealth(vis: AgentVisibility): Promise<{
   const recentDays: number[] = []; // days-to-exchange over the full 90-day sample
   let slaEligible = 0;
   let slaHit = 0;
+  const SPARK_WEEKS = 8;
+  const weeklyExchanges = new Array<number>(SPARK_WEEKS).fill(0);
+  const weekMs = 7 * 86400000;
 
   for (const tx of exchanged) {
     const ex = tx.exchangedAt;
     if (!ex) continue;
     if (ex >= d30) exchangesLast30++;
     else if (ex >= d60) exchangesPrev30++;
+
+    const weeksAgo = Math.floor((now.getTime() - ex.getTime()) / weekMs);
+    if (weeksAgo >= 0 && weeksAgo < SPARK_WEEKS) weeklyExchanges[SPARK_WEEKS - 1 - weeksAgo]++;
 
     recentDays.push(Math.max(0, Math.round((ex.getTime() - tx.createdAt.getTime()) / 86400000)));
     if (tx.twelveWeekTarget) {
@@ -469,7 +477,7 @@ export async function getHubPipelineHealth(vis: AgentVisibility): Promise<{
 
   const within12WeekPct = slaEligible > 0 ? Math.round((slaHit / slaEligible) * 100) : null;
 
-  return { medianDaysToExchange, within12WeekPct, exchangesLast30, exchangesPrev30 };
+  return { medianDaysToExchange, within12WeekPct, exchangesLast30, exchangesPrev30, weeklyExchanges };
 }
 
 // ── Hub filter helpers (used by /agent/transactions?filter=...) ──────────────
