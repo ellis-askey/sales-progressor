@@ -279,21 +279,25 @@ export function EnquiriesTriageList({
               data-busy={busy ? "" : undefined}
             >
               <div className="enq-row2">
-                {signedPhoto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img className="enq-thumb" src={signedPhoto} alt="" aria-hidden />
-                ) : (
-                  <div className="enq-thumb property-photo-fallback" aria-hidden />
-                )}
-                <div className="enq-idcol">
-                  <Link href={`/agent/transactions/${r.transactionId}`} className="enq-addr" data-sensitive="true">{line1.trim()}</Link>
-                  {rest.length > 0 && <div className="enq-town" data-sensitive="true">{rest.join(",").trim()}</div>}
-                  <div className="enq-meta2">
-                    {r.tenure ? <span style={{ textTransform: "capitalize" }}>{r.tenure}</span> : null}
-                    {r.tenure && fmtPrice(r.price) ? " · " : ""}
-                    {fmtPrice(r.price) ?? ""}
+                {/* Photo + address are one link: hovering anywhere (photo or
+                    town) highlights the address, clicking opens the file. */}
+                <Link href={`/agent/transactions/${r.transactionId}`} className="enq-idlink" aria-label={`Open ${line1.trim()}`}>
+                  {signedPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="enq-thumb" src={signedPhoto} alt="" aria-hidden />
+                  ) : (
+                    <div className="enq-thumb property-photo-fallback" aria-hidden />
+                  )}
+                  <div className="enq-idcol">
+                    <span className="enq-addr" data-sensitive="true">{line1.trim()}</span>
+                    {rest.length > 0 && <div className="enq-town" data-sensitive="true">{rest.join(",").trim()}</div>}
+                    <div className="enq-meta2">
+                      {r.tenure ? <span style={{ textTransform: "capitalize" }}>{r.tenure}</span> : null}
+                      {r.tenure && fmtPrice(r.price) ? " · " : ""}
+                      {fmtPrice(r.price) ?? ""}
+                    </div>
                   </div>
-                </div>
+                </Link>
 
                 {/* Court slider */}
                 <div className="enq-slider">
@@ -328,7 +332,14 @@ export function EnquiriesTriageList({
                 />
               </div>
 
-              {expanded && <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />}
+              {/* Accordion: always mounted so the grid-rows 0fr→1fr reveal
+                  animates both ways. The history fetch stays gated on expand
+                  (toggleExpand), so collapsed rows don't hit the server. */}
+              <div className={`agent-acc${expanded ? " open" : ""}`}>
+                <div className="agent-acc-in">
+                  <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />
+                </div>
+              </div>
             </div>
           );
         })}
