@@ -4219,10 +4219,15 @@ body[data-demo-file] [data-onboarding-checklist] {
 .fm-caret { color: var(--agent-text-muted); transition: transform 200ms ease; }
 .fm-btn.open .fm-caret { transform: rotate(180deg); }
 
-.fm-pop { width: 258px; padding: 7px; }
+.fm-pop { width: 258px; padding: 7px; max-height: min(72vh, 540px); overflow-y: auto; }
 .fm-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 8px; }
 .fm-clear { font: inherit; font-size: 11.5px; font-weight: 600; color: var(--agent-coral-deep); background: none; border: none; cursor: pointer; padding: 0; }
 .fm-clear:disabled { opacity: 0.35; cursor: default; }
+
+/* Sections — Yours / Needs attention / Service. Hairline between groups; a
+   small uppercase caption heads each one. */
+.fm-section + .fm-section { margin-top: 4px; padding-top: 6px; border-top: 0.5px solid var(--agent-border-subtle); }
+.fm-section-title { margin: 2px 0 3px; padding: 0 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--agent-text-muted); }
 
 .fm-row {
   display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px; border-radius: 9px;
