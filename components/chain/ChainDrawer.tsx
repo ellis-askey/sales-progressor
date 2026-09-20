@@ -882,7 +882,6 @@ export function ChainView({
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <SheetBandHeader
-              kicker="Chain"
               title={chain?.name?.trim() || "Chain"}
               subtitle={
                 allChainLinks.length > 0
