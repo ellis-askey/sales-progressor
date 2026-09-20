@@ -230,12 +230,8 @@ export function AgentFileSidebar({
   const agencyIsFree = agencyFeeOverride?.feeTier === "free";
   const progressorFeePence =
     showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !transaction.firstOutsourcedFree && !agencyIsFree ? ourFee.fee : 0;
-  const totalFeesPence =
-    (agentFeeCalcPence ?? 0)
-    + (transaction.referralFee ?? 0)
-    + (transaction.brokerReferralFee ?? 0)
-    + (transaction.onwardBrokerReferralFee ?? 0)
-    - progressorFeePence;
+  // Whether to surface a progressor-fee line at all (charged or "Free").
+  const showProgressorRow = showOurFee && ourFee.fee != null && !agencyIsFree;
   const hasTotal = agentFeeCalcPence != null;
 
   const agentFeeValue = transaction.agentFeeAmount
@@ -246,16 +242,24 @@ export function AgentFileSidebar({
 
   const VAT = 1.2;
   const referrals = (transaction.referralFee ?? 0) + (transaction.brokerReferralFee ?? 0) + (transaction.onwardBrokerReferralFee ?? 0);
-  const grossTotalPence: number | null =
-    agentFeeCalcPence != null && transaction.agentFeeIsVatInclusive != null
-      ? transaction.agentFeeIsVatInclusive
-        ? agentFeeCalcPence + referrals - progressorFeePence
-        : Math.round(agentFeeCalcPence * VAT) + referrals - progressorFeePence
-      : null;
-  const netTotalPence: number =
-    transaction.agentFeeIsVatInclusive === true && agentFeeCalcPence != null
-      ? Math.round(agentFeeCalcPence / VAT) + referrals - progressorFeePence
-      : totalFeesPence;
+
+  // Income is stated ex VAT. Agents are VAT-registered and their fee is always
+  // "+ VAT" at the end of the day — the VAT is collected for HMRC, never the
+  // agency's income. The stored flag only records how the entered figure was
+  // keyed (null is treated as exclusive), so we back out the same ex-VAT number
+  // either way.
+  const agentFeeExVatPence: number | null =
+    agentFeeCalcPence == null
+      ? null
+      : transaction.agentFeeIsVatInclusive === true
+        ? Math.round(agentFeeCalcPence / VAT)
+        : agentFeeCalcPence;
+
+  // Gross = fee income ex VAT (+ referrals). Net = gross less the progressor fee
+  // (a flat charge, no VAT applied yet). So gross − progressor = net, exactly.
+  const grossIncomePence: number | null =
+    agentFeeExVatPence != null ? agentFeeExVatPence + referrals : null;
+  const netTotalPence: number = (grossIncomePence ?? 0) - progressorFeePence;
 
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 
@@ -539,20 +543,29 @@ export function AgentFileSidebar({
             value={transaction.onwardBrokerReferralFee != null ? formatFee(transaction.onwardBrokerReferralFee) : "–"}
           />
         )}
-        {showOurFee && ourFee.fee != null && !agencyIsFree && (
-          <SidebarRow
-            label="Progressor fee"
-            value={transaction.firstOutsourcedFree
-              ? <span style={{ color: "var(--agent-coral)" }} title="Your agency's first outsourced sale is on us.">Free (first file on us)</span>
-              : (transaction.serviceType === "self_managed" || transaction.freeOnExchange)
-                ? <span style={{ color: "var(--agent-coral)" }}>Free</span>
-                : ourFee.label}
-          />
-        )}
         {hasTotal && (
           <div style={{ borderTop: "0.5px solid var(--agent-border-default)", marginTop: 10, paddingTop: 10 }}>
-            {grossTotalPence != null && (
-              <SidebarRow label="Gross income" value={<span style={{ color: "var(--agent-text-muted)" }}>{formatFee(grossTotalPence)}</span>} />
+            {/* A charged progressor fee shows the ex-VAT gross, the fee coming
+                off as a deduction, then net — so the cost is visible and the
+                three numbers reconcile (gross − fee = net). When it's free (or
+                hidden), gross == net, so a single Net income line is enough. */}
+            {progressorFeePence > 0 && grossIncomePence != null ? (
+              <>
+                <SidebarRow label="Gross income (ex VAT)" value={<span style={{ color: "var(--agent-text-muted)" }}>{formatFee(grossIncomePence)}</span>} />
+                <SidebarRow
+                  label="Progressor fee"
+                  value={<span style={{ color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums" }}>{"−"}{formatFee(progressorFeePence)}</span>}
+                />
+              </>
+            ) : (
+              showProgressorRow && (
+                <SidebarRow
+                  label="Progressor fee"
+                  value={<span style={{ color: "var(--agent-coral)" }} title={transaction.firstOutsourcedFree ? "Your agency's first outsourced sale is on us." : undefined}>
+                    {transaction.firstOutsourcedFree ? "Free (first file on us)" : "Free"}
+                  </span>}
+                />
+              )
             )}
             <SidebarRow
               label="Net income"
