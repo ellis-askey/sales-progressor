@@ -9,7 +9,6 @@
 import { Fragment } from "react";
 import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal, XCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ChainMiniMap } from "@/components/chain/ChainMiniMap";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
@@ -130,9 +129,6 @@ export function ChainCard({
                 >
                   {addrLine1}
                 </span>
-                {chain.ourPosition != null && (
-                  <Pill glass tone="brand" size="sm" style={{ flexShrink: 0 }}>Your sale</Pill>
-                )}
               </div>
               {addrLine2 && (
                 <div data-sensitive="true" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
