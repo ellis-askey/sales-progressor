@@ -1269,6 +1269,8 @@ select {
    the 760px drawer alike. Each fork column is a container too, so a nested
    fork measures the column it actually sits in. */
 .chain-stack { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+/* Activity view: space the value card off the activity card. */
+.chain-stack--gap { gap: 12px; }
 .chain-side  { display: flex; flex-direction: column; gap: 12px; }
 @media (max-width: 720px) { .chain-dbody { grid-template-columns: 1fr; } }
 
@@ -1293,29 +1295,35 @@ select {
   border-color: var(--agent-border-default);
   box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.08);
 }
-/* Inline Map: the compact panel docked beside the geographic map, within the tab. */
-.chain-inline-cc { display: flex; gap: 12px; align-items: stretch; height: 72vh; min-height: 460px; }
-.chain-view-inline--map { width: 380px; flex-shrink: 0; min-width: 0; overflow: hidden; }
-.chain-inline-map { flex: 1; min-width: 0; position: relative; border-radius: 14px; overflow: hidden;
+/* Inline Map: below the switcher, the compact panel docked left of a rounded map. */
+.chain-inline-cc { display: flex; gap: 12px; align-items: stretch; height: 72vh; min-height: 460px; margin: 8px 8px 0; }
+.chain-inline-panel { width: 360px; flex-shrink: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 10px 16px; }
+.chain-inline-map { flex: 1; min-width: 0; position: relative; border-radius: 16px; overflow: hidden;
   border: 0.5px solid var(--agent-border-default); }
 
 /* ── Chain → Map (command centre) ─────────────────────────────────────────────
    The Map view switch, the docked two-pane layout (compact chain panel beside
    the nav + map), and the numbered map pins. See ChainDrawer + ChainMap. */
 .chain-viewswitch {
-  flex-shrink: 0; display: inline-flex; gap: 2px; margin: 12px 24px 0; padding: 3px;
+  flex-shrink: 0; position: relative; display: inline-flex; gap: 0; margin: 12px 24px 0; padding: 3px;
   background: rgba(var(--agent-shadow-rgb), 0.05); border-radius: 999px; align-self: flex-start;
 }
+/* Sliding active pill — slides to the selected tab (index in --vs-idx). */
+.chain-viewswitch::before {
+  content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3);
+  transform: translateX(calc(var(--vs-idx, 0) * 100%));
+  background: var(--agent-surface-elevated); border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.12);
+  transition: transform 0.28s cubic-bezier(0.25, 0, 0, 1); z-index: 0;
+}
 .chain-vs-btn {
+  position: relative; z-index: 1; flex: 1 1 0; min-width: 82px; text-align: center;
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--agent-text-muted);
-  padding: 5px 16px; border: none; background: none; border-radius: 999px; cursor: pointer;
-  transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  padding: 5px 10px; border: none; background: none; border-radius: 999px; cursor: pointer;
+  transition: color 150ms ease;
 }
 .chain-vs-btn:hover { color: var(--agent-text-secondary); }
-.chain-vs-btn.on {
-  color: var(--agent-coral-deep); background: var(--agent-surface-elevated);
-  box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.12);
-}
+.chain-vs-btn.on { color: var(--agent-coral-deep); }
 
 /* Command-centre layout: docked to the right of the fixed 220px app nav. */
 .chain-cc { position: absolute; top: 0; bottom: 0; left: 220px; right: 0; display: flex; overflow: hidden; pointer-events: auto; }
@@ -1536,9 +1544,10 @@ select {
   display: flex; flex-direction: column; box-sizing: border-box;
   border: 1px solid var(--agent-border-subtle); border-radius: 13px;
   background: var(--agent-surface);
-  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition: border-color 140ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
-.cmp-rowwrap:not(.on):hover { border-color: var(--agent-border-default); background: rgba(var(--agent-shadow-rgb), 0.035); }
+/* Lift on hover (rather than a shade) — the card rises with a soft shadow. */
+.cmp-rowwrap:not(.on):hover { border-color: var(--agent-border-default); transform: translateY(-2px); box-shadow: 0 5px 16px rgba(var(--agent-shadow-rgb), 0.12); }
 .cmp-rowwrap.on {
   border-color: rgba(var(--agent-coral-rgb), 0.5);
   box-shadow: 0 2px 10px rgba(var(--agent-shadow-rgb), 0.10);

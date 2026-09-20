@@ -179,9 +179,8 @@ export function chainStatusMeta(link: ChainLinkV2, currentUserId: string): strin
   if (status.kind === "invited") return `Invite sent · ${relativeTime(link.inviteSentAt)}`;
   if (status.kind === "bounced") return "Email bounced";
   if (status.kind === "declined") return `Agent declined · ${relativeTime(link.inviteDeclinedAt)}`;
-  if (status.kind === "unclaimed_no_email") return "Email needed";
-  // claimed_other's "by {name}" is shown inline with the status, not as a
-  // second line — so it's intentionally not returned here.
+  // "Email needed" is dropped — the "Add email to invite" CTA already says it.
+  // claimed_other's "by {name}" is shown inline with the status, not here.
   return null;
 }
 

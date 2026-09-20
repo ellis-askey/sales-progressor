@@ -699,7 +699,7 @@ export function ChainView({
     // Primary CTA — identical wording/gating to the Timeline LinkCard.
     let cta: ChainMapCta | null = null;
     if (canEdit) {
-      if (st.kind === "unclaimed_no_email") cta = { label: "Add email", kind: "edit", tone: "primary" };
+      if (st.kind === "unclaimed_no_email") cta = { label: "Add email to invite", kind: "edit", tone: "primary" };
       else if (st.kind === "unclaimed_unsent") cta = { label: "Send invite", kind: "invite", tone: "primary" };
       else if (st.kind === "invited") cta = { label: "Resend invite", kind: "invite", tone: "normal" };
       else if (st.kind === "bounced") cta = { label: "Update email & resend", kind: "edit", tone: "warn" };
@@ -1002,7 +1002,7 @@ export function ChainView({
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
       role={inline ? undefined : "dialog"}
       aria-label={inline ? undefined : "Chain"}
-      className={inline ? `chain-view-inline flex flex-col${isMap ? " chain-view-inline--map" : ""}` : isMap ? `relative z-10 flex flex-col h-full chain-cc-panel${sheetOpen ? " open" : ""}` : "relative z-10 flex flex-col h-full resp-drawer-wide"}
+      className={inline ? "chain-view-inline flex flex-col" : isMap ? `relative z-10 flex flex-col h-full chain-cc-panel${sheetOpen ? " open" : ""}` : "relative z-10 flex flex-col h-full resp-drawer-wide"}
       style={
         inline
           ? undefined
@@ -1080,7 +1080,10 @@ export function ChainView({
       )}
 
       {/* Timeline | Map | Activity view switch */}
-      <div className={`chain-viewswitch${inline ? " chain-viewswitch--inline" : ""}`}>
+      <div
+        className={`chain-viewswitch${inline ? " chain-viewswitch--inline" : ""}`}
+        style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
+      >
         <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
         <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
         <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
@@ -1089,9 +1092,27 @@ export function ChainView({
       {/* Map mode: the compact ordered chain list. The full dashboard body below
           is kept mounted but hidden, so switching back to Timeline is instant. */}
       {isMap && (
-        <div className="flex-1 overflow-y-auto cmp-scroll">
-          {chainPanel}
-        </div>
+        inline ? (
+          // Inline tab: the map sits BELOW the switcher (which stays put), the
+          // compact panel docked to its left, both in the same content area.
+          <div className="chain-inline-cc">
+            <div className="chain-inline-panel">{chainPanel}</div>
+            <div className="chain-inline-map">
+              <ChainGeoMap
+                nodes={mapNodes}
+                moves={mapMoves}
+                details={mapDetails}
+                selectedId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                theme={isNight ? "dark" : "light"}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto cmp-scroll">
+            {chainPanel}
+          </div>
+        )
       )}
 
         {/* Body */}
@@ -1184,7 +1205,7 @@ export function ChainView({
           {!loading && chain && links.length > 0 && (
             <div className="chain-dbody chain-dbody--stack">
               {view === "activity" ? (
-              <div className="chain-stack">
+              <div className="chain-stack chain-stack--gap">
                 <ChainSummaryCard chain={chain} />
                 <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
               </div>
@@ -1478,25 +1499,12 @@ export function ChainView({
   ) : null;
 
   // Inline (tab) mode: render the body flat, no portal / backdrop / scroll-lock.
-  // Map view docks the compact panel beside the geographic map, within the tab.
+  // The Map view lives inside the shell (below the switcher), so the switcher
+  // never moves and stays reachable.
   if (inline) {
     return (
       <div data-theme={theme} data-night={isNight ? "" : undefined}>
-        {isMap ? (
-          <div className="chain-inline-cc">
-            {shell}
-            <div className="chain-inline-map">
-              <ChainGeoMap
-                nodes={mapNodes}
-                moves={mapMoves}
-                details={mapDetails}
-                selectedId={selectedNodeId}
-                onSelectNode={setSelectedNodeId}
-                theme={isNight ? "dark" : "light"}
-              />
-            </div>
-          </div>
-        ) : shell}
+        {shell}
         {chaseNeighbourDrawer}
       </div>
     );
