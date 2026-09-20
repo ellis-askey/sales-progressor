@@ -52,18 +52,19 @@ function haversineMiles(a: LatLng, b: LatLng): number {
 }
 const miEl = (mi: number) => `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
 
-// The household move a selected property represents: the household living here is
-// buying the sale directly above (its onward), so prefer the outgoing move
-// (fromId === selected). If there's none (top of the chain), fall back to the
-// incoming move (someone buying this property). Prefer the non-fork spine leg so
-// a sale with several onward purchases resolves to its main move, never an
-// invented one. Returns null when the chain establishes no move for this sale.
+// The household move a selected property represents. Always framed as
+// selected → the property directly ABOVE it (the onward purchase its household is
+// moving to). Moves are stored {fromId: upper, toId: lower} — the lower household
+// buys the one above — so the selected sale's onward is the non-fork move where it
+// is the lower end (toId === sel); its fromId is the property above. A sale whose
+// only onward is a fork branch resolves to that branch. Returns null at the top of
+// the chain — that household isn't buying on, so there's no onward move.
 function deriveMove(sel: string | null, moves: ChainMapMove[]): { fromId: string; toId: string } | null {
   if (!sel) return null;
-  const out = moves.find((m) => m.fromId === sel && !m.fork) ?? moves.find((m) => m.fromId === sel);
-  if (out) return { fromId: sel, toId: out.toId };
-  const inc = moves.find((m) => m.toId === sel && !m.fork) ?? moves.find((m) => m.toId === sel);
-  if (inc) return { fromId: inc.fromId, toId: sel };
+  const up = moves.find((m) => m.toId === sel && !m.fork);
+  if (up) return { fromId: sel, toId: up.fromId };
+  const fork = moves.find((m) => m.fromId === sel && m.fork);
+  if (fork) return { fromId: sel, toId: fork.toId };
   return null;
 }
 
@@ -118,13 +119,16 @@ export function ChainGeoMap({
   const nodePcRef = useRef(nodePc);
   nodePcRef.current = nodePc;
   const rk = (a: string, b: string) => `${a}__${b}`;
+  // Driving distance/time is symmetric, and routes are cached in the stored move
+  // direction (upper→lower) — so a journey lookup (selected→onward, the reverse)
+  // must check both keys.
   const routeFor = (fromId: string, toId: string): RouteResult | null => {
     const f = nodePc[fromId], t = nodePc[toId];
-    return f && t ? routes[rk(f, t)] ?? null : null;
+    return f && t ? routes[rk(f, t)] ?? routes[rk(t, f)] ?? null : null;
   };
   const routeForRef = (fromId: string, toId: string): RouteResult | null => {
     const f = nodePcRef.current[fromId], t = nodePcRef.current[toId];
-    return f && t ? routesRef.current[rk(f, t)] ?? null : null;
+    return f && t ? routesRef.current[rk(f, t)] ?? routesRef.current[rk(t, f)] ?? null : null;
   };
   const M_PER_MI = 1609.34;
   const fmtDur = (s: number) => { const min = Math.round(s / 60); return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${min % 60}m`; };
@@ -182,9 +186,13 @@ export function ChainGeoMap({
         const line = r && r.geometry.length > 1 ? r.geometry : [[a.lng, a.lat], [b.lng, b.lat]];
         // No selection → every route at its normal weight. A selection lights up
         // the one household move and fades the rest (kept visible, not hidden).
-        const state = !active ? "normal"
-          : active.fromId === m.fromId && active.toId === m.toId ? "active"
-            : "faded";
+        // Match unordered: the journey (selected→onward) is the reverse of the
+        // stored move (upper→lower).
+        const isActive = !!active && (
+          (active.fromId === m.fromId && active.toId === m.toId) ||
+          (active.fromId === m.toId && active.toId === m.fromId)
+        );
+        const state = !active ? "normal" : isActive ? "active" : "faded";
         return [{
           type: "Feature" as const,
           geometry: { type: "LineString" as const, coordinates: line },
@@ -246,8 +254,10 @@ export function ChainGeoMap({
     // Click a move line → select the household making that move (its origin), so
     // the same journey popup opens and the route lights up. Click empty map → clear.
     const onLineClick = (e: maplibregl.MapLayerMouseEvent) => {
-      const fromId = e.features?.[0]?.properties?.fromId as string | undefined;
-      if (fromId) onSelectRef.current(fromId);
+      // Select the household making the move (the lower end, toId) so the popup
+      // shows selected → onward, matching the pin/panel selection.
+      const toId = e.features?.[0]?.properties?.toId as string | undefined;
+      if (toId) onSelectRef.current(toId);
     };
     map.on("click", "chain-move-line", onLineClick);
     map.on("click", "chain-move-broken", onLineClick);
@@ -429,10 +439,11 @@ export function ChainGeoMap({
               <button type="button" className="chn-focus-x" aria-label="Clear selection" onClick={() => onSelectNode(null)}>×</button>
             </>
           ) : longest ? (
-            <button type="button" className="chn-focus-long" onClick={() => onSelectNode(longest.m.fromId)}>
+            // Framed as the household move (lower → upper): select the mover (toId).
+            <button type="button" className="chn-focus-long" onClick={() => onSelectNode(longest.m.toId)}>
               <span className="chn-focus-label">Longest move</span>
               <span className="chn-focus-val">{allDriving ? "" : "~"}{miEl(longest.miles)}{longest.r ? ` · ${fmtDur(longest.r.durationSeconds)}` : ""}</span>
-              <span className="chn-focus-sub">{details[longest.m.fromId]?.line1} → {details[longest.m.toId]?.line1}</span>
+              <span className="chn-focus-sub">{details[longest.m.toId]?.line1} → {details[longest.m.fromId]?.line1}</span>
             </button>
           ) : null}
         </div>
@@ -447,10 +458,10 @@ export function ChainGeoMap({
         ))}
       </div>
 
-      {/* Selection popup. When the selected property represents a household move
-          (it has an onward, or an incoming move at the top), the card becomes a
-          compact journey label: where they're moving + real drive distance/time +
-          position. Otherwise the simple property card is retained. */}
+      {/* Selection popup. When the selected sale has an onward purchase (a sale
+          directly above it), the card becomes a compact journey label: selected →
+          onward, with the real drive distance/time. At the top of the chain there's
+          no onward, so it stays the simple property card with a "no onward" note. */}
       {selPt && selDetail && (
         active && fromD && toD ? (
           <div
@@ -489,6 +500,7 @@ export function ChainGeoMap({
                   <span style={{ color: CHAIN_STATUS_COLOR[selDetail.status], fontWeight: 650 }}>{CHAIN_STATUS_LABEL[selDetail.status]}</span>
                   {selDetail.agency && <span className="chn-card-ag"> · {selDetail.agency}</span>}
                 </span>
+                {!active && <span className="chn-card-note">Top of the chain · no onward purchase</span>}
                 {selDetail.progressPercent != null && (
                   <span className="chn-card-bar"><i style={{ width: `${Math.min(100, Math.max(0, selDetail.progressPercent))}%` }} /></span>
                 )}

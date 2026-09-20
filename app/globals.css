@@ -1375,6 +1375,7 @@ select {
   background: var(--agent-border-subtle); overflow: hidden; }
 .chn-card-bar i { display: block; height: 100%; border-radius: 99px;
   background: linear-gradient(90deg, rgba(var(--agent-success-rgb), 0.55), var(--agent-success)); }
+.chn-card-note { display: block; margin-top: 4px; font-size: 11px; color: var(--agent-text-muted); }
 .chn-card-cta { display: block; text-align: center; padding: 10px; font-size: 12.5px; font-weight: 650;
   color: var(--agent-coral-deep); text-decoration: none; border-top: 0.5px solid var(--agent-border-subtle); }
 .chn-card-cta:hover { background: rgba(var(--agent-coral-rgb), 0.06); }
