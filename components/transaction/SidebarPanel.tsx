@@ -132,6 +132,10 @@ export async function SidebarPanel({
         brokerContact: { select: { id: true, name: true } },
         onwardBrokerReferralFee: true,
         onwardBrokerFirm: { select: { id: true, name: true } },
+        // VAT treatment snapshots for the fees-card income + VAT-to-collect math.
+        referralFeeVat: true,
+        brokerReferralFeeVat: true,
+        onwardBrokerReferralFeeVat: true,
       },
     }).catch(() => null),
 
@@ -335,6 +339,9 @@ export async function SidebarPanel({
         brokerFirmName: brokerRow?.brokerFirm?.name ?? null,
         onwardBrokerReferralFee: brokerRow?.onwardBrokerReferralFee ?? null,
         onwardBrokerFirmName: brokerRow?.onwardBrokerFirm?.name ?? null,
+        referralFeeVat: brokerRow?.referralFeeVat ?? null,
+        brokerReferralFeeVat: brokerRow?.brokerReferralFeeVat ?? null,
+        onwardBrokerReferralFeeVat: brokerRow?.onwardBrokerReferralFeeVat ?? null,
         serviceType: transaction.serviceType ?? null,
         freeOnExchange: transaction.freeOnExchange ?? null,
         firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,

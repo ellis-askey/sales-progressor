@@ -38,7 +38,7 @@ import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, Ar
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { ProgressResult } from "@/lib/services/fees";
-import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
+import type { ClientType, Tenure, PurchaseType, FeeVatTreatment } from "@prisma/client";
 
 type KeyDate = { name: string; code?: string; eventDate: Date };
 
@@ -68,11 +68,14 @@ type Props = {
     agentFeePercent: number | null;
     agentFeeIsVatInclusive: boolean | null;
     referralFee?: number | null;
+    referralFeeVat?: FeeVatTreatment | null;
     referredFirmName?: string | null;
     referredFirmId?: string | null;
     brokerReferralFee?: number | null;
+    brokerReferralFeeVat?: FeeVatTreatment | null;
     brokerFirmName?: string | null;
     onwardBrokerReferralFee?: number | null;
+    onwardBrokerReferralFeeVat?: FeeVatTreatment | null;
     onwardBrokerFirmName?: string | null;
     serviceType?: "self_managed" | "outsourced" | null;
     freeOnExchange?: boolean | null;
@@ -241,13 +244,23 @@ export function AgentFileSidebar({
       : "–";
 
   const VAT = 1.2;
-  const referrals = (transaction.referralFee ?? 0) + (transaction.brokerReferralFee ?? 0) + (transaction.onwardBrokerReferralFee ?? 0);
 
-  // Income is stated ex VAT. Agents are VAT-registered and their fee is always
-  // "+ VAT" at the end of the day — the VAT is collected for HMRC, never the
-  // agency's income. The stored flag only records how the entered figure was
-  // keyed (null is treated as exclusive), so we back out the same ex-VAT number
-  // either way.
+  // Per-fee VAT helpers. `plus` = stored figure is ex VAT (VAT added on top);
+  // `inc` = stored figure already includes VAT; `none` = not a VATable supply.
+  const exVat = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>
+    !pence ? 0 : vat === "inc" ? Math.round(pence / VAT) : pence;
+  const vatPortion = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>
+    !pence ? 0 : vat === "plus" ? Math.round(pence * VAT) - pence : vat === "inc" ? pence - Math.round(pence / VAT) : 0;
+
+  // Referral income, each stated ex VAT per its own treatment.
+  const referralsExVat =
+    exVat(transaction.referralFee, transaction.referralFeeVat)
+    + exVat(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
+    + exVat(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
+
+  // Agent fee ex VAT. It's always "+ VAT" at the end of the day — the VAT is
+  // collected for HMRC, never the agency's income — so income is stated ex VAT.
+  // A null flag is treated as exclusive.
   const agentFeeExVatPence: number | null =
     agentFeeCalcPence == null
       ? null
@@ -258,8 +271,22 @@ export function AgentFileSidebar({
   // Gross = fee income ex VAT (+ referrals). Net = gross less the progressor fee
   // (a flat charge, no VAT applied yet). So gross − progressor = net, exactly.
   const grossIncomePence: number | null =
-    agentFeeExVatPence != null ? agentFeeExVatPence + referrals : null;
+    agentFeeExVatPence != null ? agentFeeExVatPence + referralsExVat : null;
   const netTotalPence: number = (grossIncomePence ?? 0) - progressorFeePence;
+
+  // Output VAT collected across the agent fee + any VATable referrals. Money
+  // held for HMRC, not income — surfaced as a muted footnote only.
+  const agentFeeVatPence =
+    agentFeeCalcPence == null || agentFeeExVatPence == null
+      ? 0
+      : transaction.agentFeeIsVatInclusive === true
+        ? agentFeeCalcPence - agentFeeExVatPence
+        : Math.round(agentFeeCalcPence * VAT) - agentFeeCalcPence;
+  const vatToCollectPence =
+    agentFeeVatPence
+    + vatPortion(transaction.referralFee, transaction.referralFeeVat)
+    + vatPortion(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
+    + vatPortion(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
 
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 
@@ -571,6 +598,13 @@ export function AgentFileSidebar({
               label="Net income"
               value={<span style={{ fontSize: 14, fontWeight: 700, color: "#047857" }}>{formatFee(netTotalPence)}</span>}
             />
+            {/* VAT sits apart from the income waterfall: net is already ex VAT,
+                so this is a parallel fact, not a deduction. Money held for HMRC. */}
+            {vatToCollectPence > 0 && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                incl. {formatFee(vatToCollectPence)} VAT collected for HMRC
+              </p>
+            )}
           </div>
         )}
       </GlassCard>
