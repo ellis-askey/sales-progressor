@@ -129,7 +129,15 @@ export type ReminderLogWithRule = {
     escalationReason: string | null;
     escalatedAt: Date | null;
     escalatedBy: { name: string | null } | null;
-    communications: { createdAt: Date; method: string | null }[];
+    // Actor fields are only selected by getAgentReminderLogs (the work queue),
+    // so they're optional — the file-detail query omits them.
+    communications: {
+      createdAt: Date;
+      method: string | null;
+      isAutomated?: boolean;
+      createdById?: string | null;
+      createdBy?: { name: string | null } | null;
+    }[];
   }[];
 };
 
@@ -334,7 +342,10 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
             where: { type: "outbound" },
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { createdAt: true, method: true },
+            // Actor on the last chase so the card can say "last chased by
+            // <you / full name / Autopilot>". isAutomated true → Autopilot;
+            // otherwise createdBy.name (compared to the viewer for "you").
+            select: { createdAt: true, method: true, isAutomated: true, createdById: true, createdBy: { select: { name: true } } },
           },
         },
         orderBy: { createdAt: "desc" },

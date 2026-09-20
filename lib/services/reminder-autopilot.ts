@@ -18,7 +18,14 @@ import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 
 export type AutopilotStatus =
   | { kind: "auto"; pipeline: "client" | "solicitor"; nextSend: string } // ISO
-  | { kind: "manual"; reason: string | null };
+  // category tells the card how to render the reason:
+  //   exhausted            → the chase status line already says it; suppress
+  //   blocker_client_email → offer an inline "add email" affordance
+  //   blocker_solicitor    → offer an inline "add solicitor" affordance
+  //   info                 → show the reason as plain text (paused / off / etc.)
+  | { kind: "manual"; reason: string | null; category: ManualCategory };
+
+export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info";
 
 export interface AutopilotFlags {
   clientChaseEnabled: boolean; // CLIENT_CHASE_ENABLED env
@@ -59,16 +66,19 @@ function nextCronRun(dueDate: Date, cron: { hour: number; minute: number; days: 
   return d.toISOString();
 }
 
-// Short, honest reason a chase turned manual (handed back by the cron).
-function fallbackReason(kind: string): string | null {
+// Short, honest reason a chase turned manual (handed back by the cron), plus the
+// category that tells the card how to render it.
+function fallbackReason(kind: string): { reason: string | null; category: ManualCategory } {
   switch (kind) {
-    case "no_email_on_contact": return "No email on file";
-    case "no_portalToken_on_contact": return "Client has no portal access";
-    case "client_opted_out": return "Client opted out of emails";
-    case "client_emails_paused": return "Client emails paused";
-    case "max_chases_exhausted": return "Autopilot chased twice, no reply";
-    case "days_cap_exhausted": return "Silent for 14 days";
-    default: return null;
+    case "no_email_on_contact": return { reason: "No email on file for the client", category: "blocker_client_email" };
+    case "no_portalToken_on_contact": return { reason: "Client has no portal access", category: "info" };
+    case "client_opted_out": return { reason: "Client opted out of emails", category: "info" };
+    case "client_emails_paused": return { reason: "Client emails paused", category: "info" };
+    // Exhaustion reasons: the chase status line now states "chased N · no reply
+    // yet", so the card suppresses these to avoid the old duplication.
+    case "max_chases_exhausted": return { reason: "Autopilot chased twice, no reply", category: "exhausted" };
+    case "days_cap_exhausted": return { reason: "Silent for 14 days", category: "exhausted" };
+    default: return { reason: null, category: "info" };
   }
 }
 
@@ -80,9 +90,9 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const code = log.reminderRule.targetMilestoneCode;
     const tx = log.transaction;
 
-    if (task?.fallbackKind) { out.set(log.id, { kind: "manual", reason: fallbackReason(task.fallbackKind) }); continue; }
-    if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it" }); continue; }
-    if (!code) { out.set(log.id, { kind: "manual", reason: null }); continue; }
+    if (task?.fallbackKind) { out.set(log.id, { kind: "manual", ...fallbackReason(task.fallbackKind) }); continue; }
+    if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it", category: "info" }); continue; }
+    if (!code) { out.set(log.id, { kind: "manual", reason: null, category: "info" }); continue; }
 
     const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";
     const dueDate = new Date(log.nextDueDate);
@@ -109,12 +119,13 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
 
     // Manual — say why, honestly.
     let reason: string | null = null;
-    if (solCode && !solContact?.email) reason = "No solicitor on file yet";
-    else if (clientCode && clientOn) reason = "No email on file for the client";
-    else if (clientCode && !clientOn) reason = "Client auto-chase is off for this file";
-    else if (solCode && !solOn) reason = "Solicitor auto-chase is off for this file";
-    else reason = null; // not an automated step
-    out.set(log.id, { kind: "manual", reason });
+    let category: ManualCategory = "info";
+    if (solCode && !solContact?.email) { reason = "No solicitor on file yet"; category = "blocker_solicitor"; }
+    else if (clientCode && clientOn) { reason = "No email on file for the client"; category = "blocker_client_email"; }
+    else if (clientCode && !clientOn) { reason = "Client auto-chase is off for this file"; category = "info"; }
+    else if (solCode && !solOn) { reason = "Solicitor auto-chase is off for this file"; category = "info"; }
+    else { reason = null; category = "info"; } // not an automated step
+    out.set(log.id, { kind: "manual", reason, category });
   }
 
   return out;

@@ -7,7 +7,7 @@ import { CaretDown, CheckCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
-import { classifyReminder, chaseCountWord } from "@/lib/reminders/classify";
+import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -123,10 +123,25 @@ function computeUrgency(
 }
 
 // Friendly label for a comm method on the chase-history line.
-function methodLabel(m: string | null): string | null {
-  if (!m) return null;
-  const map: Record<string, string> = { email: "email", whatsapp: "WhatsApp", call: "phone", sms: "text", letter: "letter", portal: "the portal" };
-  return map[m] ?? m;
+// "3 days ago" / "yesterday" / "today" from a timestamp.
+function relativeDays(when: Date | string): string {
+  const d = Math.floor((Date.now() - new Date(when).getTime()) / 86400000);
+  if (d <= 0) return "today";
+  if (d === 1) return "yesterday";
+  return `${d} days ago`;
+}
+
+// Who sent the last chase, for "Last chased … by <actor>": Autopilot for an
+// automated send, "you" when it was the viewer, otherwise the person's name.
+// Returns null when we can't attribute it (older sends with no actor stored).
+function lastChaseActor(
+  comm: { isAutomated?: boolean; createdById?: string | null; createdBy?: { name: string | null } | null } | undefined,
+  currentUserId?: string | null,
+): string | null {
+  if (!comm) return null;
+  if (comm.isAutomated) return "Autopilot";
+  if (comm.createdById && currentUserId && comm.createdById === currentUserId) return "you";
+  return comm.createdBy?.name ?? null;
 }
 
 // Split a UK address into "first line" + "town/postcode" (last two comma parts),
@@ -346,6 +361,7 @@ function SplitFileCard({
   handleSnoozeAll,
   handleChased,
   hideChase,
+  currentUserId,
 }: {
   txId: string;
   address: string;
@@ -361,6 +377,7 @@ function SplitFileCard({
   handleSnoozeAll: (logIds: string[], taskIds: string[], choice: SnoozeChoice) => void;
   handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
+  currentUserId?: string | null;
 }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -514,7 +531,8 @@ function SplitFileCard({
             ? "var(--agent-coral-deep)"
             : bucket === "due_today" ? "var(--agent-warning)" : "var(--agent-text-muted)";
           const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
-          const autoChases = Math.max(0, task.chaseCount - task.manualChaseCount);
+          // Optimistic "mark chased" bumps the shown count before the row exits.
+          const effectiveChaseCount = task.chaseCount + Math.max(0, manualChases - task.manualChaseCount);
           const escalationLine = task.priority === "escalated"
             ? (task.escalationReason || task.escalatedAt)
               ? `Escalated${task.escalatedBy?.name ? ` by ${task.escalatedBy.name}` : ""}${task.escalatedAt ? ` on ${formatDate(task.escalatedAt)}` : ""}${task.escalationReason ? ` · ${task.escalationReason}` : ""}`
@@ -547,22 +565,18 @@ function SplitFileCard({
           // ("the seller" fallback reads singular too); plural for joint clients.
           const copy = renderChaseCardCopy(code, clientNames, solicitorFirm, clientList.length <= 1);
           const lastComm = task.communications[0];
-          const chaseHistory = (() => {
-            if (task.chaseCount === 0) return "Not chased yet · first nudge due";
-            const bits: string[] = [];
-            // Human, sentence-led: "You've chased this once" (you), "We've chased
-            // this twice" (autopilot), or a breakdown when it's a mix.
-            if (autoChases > 0 && manualChases > 0) bits.push(`Chased ${task.chaseCount} times · ${manualChases} by you, ${autoChases} by us`);
-            else if (manualChases > 0) bits.push(`You've chased this ${chaseCountWord(manualChases)}`);
-            else bits.push(`We've chased this ${chaseCountWord(autoChases)}`);
-            if (lastComm) {
-              const d = Math.floor((Date.now() - new Date(lastComm.createdAt).getTime()) / 86400000);
-              const when = d <= 0 ? "today" : d === 1 ? "yesterday" : `${d}d ago`;
-              const ml = methodLabel(lastComm.method);
-              bits.push(`last ${when}${ml ? ` by ${ml}` : ""}`);
-            }
-            return bits.join(" · ");
-          })();
+          // One status line (no duplication with the autopilot reason). "No reply
+          // yet" is honest: the reminder is open because the client hasn't yet
+          // actioned or confirmed what we chased.
+          const statusLine = effectiveChaseCount === 0
+            ? "Not chased yet · first nudge due"
+            : `Chased ${effectiveChaseCount} time${effectiveChaseCount === 1 ? "" : "s"} · No reply yet`;
+          // Attributed last-chase line: "Last chased 3 days ago by you / <name> /
+          // Autopilot" (null when there's no send to attribute).
+          const actor = lastChaseActor(lastComm, currentUserId);
+          const lastChasedLine = lastComm
+            ? `Last chased ${relativeDays(lastComm.createdAt)}${actor ? ` by ${actor}` : ""}`
+            : null;
 
           const isExiting = exitingIds.has(log.id);
           const autoState = autopilot?.get(log.id);
@@ -592,12 +606,15 @@ function SplitFileCard({
                       {copy?.line ?? info?.outstanding}
                     </p>
                   )}
-                  <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {chaseHistory}</p>
+                  <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {statusLine}</p>
+                  {lastChasedLine && (
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-disabled)" }}>{lastChasedLine}</p>
+                  )}
                 </>
               ) : (
                 // Multiple reminders on one file: one compact meta line, no box.
                 <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {task.chaseCount === 0 ? "not chased yet" : `chased ${task.chaseCount}×`}
+                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {effectiveChaseCount === 0 ? "not chased yet" : `chased ${effectiveChaseCount}×`}
                 </p>
               )}
               {solFirm && (
@@ -612,22 +629,33 @@ function SplitFileCard({
               {escalationLine && (
                 <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
               )}
-              {/* Manual-block reason stays inline; the green auto countdown is
-                  rendered full-width outside this block (autopilot rows). When the
-                  blocker is "no solicitor this side", the reason opens the modal. */}
-              {autoState?.kind === "manual" && autoState.reason && (
-                !sideSol ? (
-                  <button
-                    type="button"
-                    onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
-                    className="agent-link"
-                    style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
-                  >
-                    {autoState.reason} <LinkArrow />
-                  </button>
-                ) : (
-                  <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{autoState.reason}</p>
-                )
+              {/* Manual reason, by category. "exhausted" is suppressed — the
+                  status line above already says "chased N · no reply yet", so
+                  showing it again is the old duplication. Missing solicitor /
+                  client email render as actionable add affordances; everything
+                  else (paused, off, opted-out) is plain informational text. */}
+              {autoState?.kind === "manual" && autoState.category === "blocker_solicitor" && (
+                <button
+                  type="button"
+                  onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
+                  className="agent-link"
+                  style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                >
+                  {autoState.reason ?? "No solicitor on file yet"} <LinkArrow />
+                </button>
+              )}
+              {autoState?.kind === "manual" && autoState.category === "blocker_client_email" && (
+                <button
+                  type="button"
+                  onClick={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
+                  className="agent-link"
+                  style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                >
+                  Add an email to chase them <LinkArrow />
+                </button>
+              )}
+              {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
+                <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{autoState.reason}</p>
               )}
             </>
           );
@@ -819,7 +847,7 @@ function SplitFileCard({
   );
 }
 
-export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean }) {
+export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase, currentUserId }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean; currentUserId?: string | null }) {
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -1164,6 +1192,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                         handleSnoozeAll={handleSnoozeAll}
                         handleChased={handleChased}
                         hideChase={hideChase}
+                        currentUserId={currentUserId}
                       />
                     ))}
                   </div>

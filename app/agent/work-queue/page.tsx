@@ -220,7 +220,7 @@ export default async function WorkQueuePage() {
             </div>
           </>
         ) : (
-          <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} />
+          <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
         )}
       </div>
     </>
