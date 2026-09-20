@@ -722,7 +722,7 @@ export function ChainView({
       statusLabel: chainLinkStatusLabel(st),
       statusDanger,
       // Signals ported from the Timeline card (parity for the drawer swap).
-      buyerPosition: l.transaction?.buyerPosition ?? null,
+      claimedByName: st.kind === "claimed_other" ? (l.claimedBy?.name ?? null) : null,
       priceLabel: mine && l.transaction ? (l.transaction.purchasePrice != null ? formatChainPriceFull(l.transaction.purchasePrice) : "Price TBC") : null,
       metaLine: [chainStatusMeta(l, currentUserId), chainChasedMeta(l)].filter(Boolean).join(" · ") || null,
       badges: chainWithdrawalBadges(l, directional[l.id]),

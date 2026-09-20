@@ -180,7 +180,8 @@ export function chainStatusMeta(link: ChainLinkV2, currentUserId: string): strin
   if (status.kind === "bounced") return "Email bounced";
   if (status.kind === "declined") return `Agent declined · ${relativeTime(link.inviteDeclinedAt)}`;
   if (status.kind === "unclaimed_no_email") return "Email needed";
-  if (status.kind === "claimed_other") return link.claimedBy?.name ? `Claimed by ${link.claimedBy.name}` : null;
+  // claimed_other's "by {name}" is shown inline with the status, not as a
+  // second line — so it's intentionally not returned here.
   return null;
 }
 

@@ -38,7 +38,7 @@ export type ChainMapPanelItem = {
   statusLabel: string; // exact Timeline label (Unclaimed / Invited / Bounced / Declined / Claimed / Your file)
   statusDanger: boolean; // bounced / declined — render the label in danger
   // Signals ported from the Timeline card (parity for the drawer swap):
-  buyerPosition: string | null; // "Cash buyer" / "First-time buyer"
+  claimedByName: string | null; // shown inline as "Claimed by {name}" for another agency's file
   priceLabel: string | null; // £ figure on your own file
   metaLine: string | null; // relative-time context ("Invite sent · 2h ago", "Chased · 3d ago")
   badges: ChainCardBadge[]; // withdrawal / cascade badges
@@ -246,8 +246,9 @@ function PanelRow({
             {item.line2 && <span className="cmp-l2">{item.line2}</span>}
             <span className="cmp-meta">
               <span className="cmp-status" style={{ color: item.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[item.status] }}>{item.statusLabel}</span>
-              {item.agency && <span className="cmp-agency">· {item.agency}</span>}
-              {item.buyerPosition && <span className="cmp-bpos">{item.buyerPosition}</span>}
+              {item.claimedByName
+                ? <span className="cmp-claimer">by {item.claimedByName}</span>
+                : item.agency && <span className="cmp-agency">· {item.agency}</span>}
             </span>
             {item.metaLine && <span className="cmp-submeta">{item.metaLine}</span>}
             {item.badges.length > 0 && (
