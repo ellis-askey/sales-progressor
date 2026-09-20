@@ -7,7 +7,7 @@
 // → getPropertyEnrichment; every tab degrades independently and never blocks
 // the page. Keeps all prior EPC + sold-price functionality.
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Info, ArrowSquareOut } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -51,10 +51,18 @@ const EPC_BANDS = ["A", "B", "C", "D", "E", "F", "G"];
 const LBL: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--agent-text-muted)" };
 
 const PP_STYLES = `
-  .pp-tabs { display:flex; gap:2px; padding:6px 10px; background:var(--agent-surface-glass); border-top:0.5px solid var(--agent-border-default); border-bottom:0.5px solid var(--agent-border-default); }
-  .pp-tab { flex:1; font-family:inherit; font-size:12px; font-weight:600; color:var(--agent-text-secondary); background:none; border:none; border-radius:8px; padding:7px 6px; cursor:pointer; transition:background-color .14s ease, color .14s ease; }
+  .pp-tabs { position:relative; display:flex; gap:2px; padding:6px 10px; background:var(--agent-surface-glass); border-top:0.5px solid var(--agent-border-default); border-bottom:0.5px solid var(--agent-border-default); }
+  /* Sliding indicator overshoots slightly then settles (back-out easing). */
+  .pp-tab-ind { position:absolute; top:6px; bottom:6px; left:0; border-radius:8px; background:var(--agent-surface-elevated); box-shadow:0 1px 3px rgba(30,45,74,0.10); z-index:0; pointer-events:none; transition:left .42s cubic-bezier(.34,1.56,.64,1), width .42s cubic-bezier(.34,1.56,.64,1); }
+  .pp-tab { position:relative; z-index:1; flex:1; font-family:inherit; font-size:12px; font-weight:600; color:var(--agent-text-secondary); background:none; border:none; border-radius:8px; padding:7px 6px; cursor:pointer; transition:color .14s ease; }
   .pp-tab:hover { color:var(--agent-text-primary); }
-  .pp-tab.on { background:var(--agent-surface-elevated); color:var(--agent-coral-deep); box-shadow:0 1px 3px rgba(30,45,74,0.10); }
+  .pp-tab.on { color:var(--agent-coral-deep); }
+  /* This card only: coral links keep their colour change on hover, no underline. */
+  .pp-card a.agent-link, .pp-card a.agent-link:hover { text-decoration:none; }
+  /* Portal chips: branded colours, raise on hover, press on click. */
+  .pp-portal { display:inline-flex; align-items:center; font-size:11px; font-weight:600; color:#fff; padding:3px 9px; border-radius:8px; text-decoration:none; transition:transform .12s cubic-bezier(.34,1.56,.64,1), box-shadow .12s ease, filter .12s ease; }
+  .pp-portal:hover { transform:translateY(-1.5px); box-shadow:0 3px 8px rgba(0,0,0,0.18); filter:brightness(1.05); }
+  .pp-portal:active { transform:translateY(0) scale(0.95); box-shadow:none; }
 `;
 
 function EpcChip({ rating, size = 26 }: { rating: string; size?: number }) {
@@ -72,6 +80,17 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<TabKey>("ov");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [ind, setInd] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  // Position the sliding tab indicator under the active tab (measured, so it
+  // works with the flex widths). Runs before paint to avoid a flicker.
+  useLayoutEffect(() => {
+    const host = tabsRef.current;
+    if (!host) return;
+    const el = host.querySelector(`[data-tk="${tab}"]`) as HTMLElement | null;
+    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [tab, loading, data]);
 
   useEffect(() => {
     fetch(`/api/property-intel?transactionId=${transactionId}`)
@@ -121,7 +140,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
       )}
 
       {!loading && !error && data && (
-        <div className="agent-reveal-in">
+        <div className="agent-reveal-in pp-card">
           {/* ── Hero ─────────────────────────────────────────────────────── */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px" }}>
             {epc && <EpcChip rating={epc.rating} size={46} />}
@@ -145,9 +164,10 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
           </div>
 
           {/* ── Tabs ─────────────────────────────────────────────────────── */}
-          <div className="pp-tabs" role="tablist">
+          <div className="pp-tabs" role="tablist" ref={tabsRef}>
+            <span className="pp-tab-ind" style={{ left: ind.left, width: ind.width }} aria-hidden />
             {TABS.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={`pp-tab${tab === t.key ? " on" : ""}`} onClick={() => setTab(t.key)}>
+              <button key={t.key} type="button" role="tab" data-tk={t.key} aria-selected={tab === t.key} className={`pp-tab${tab === t.key ? " on" : ""}`} onClick={() => setTab(t.key)}>
                 {t.label}
               </button>
             ))}
@@ -285,9 +305,9 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
             </span>
             {data.links && (
               <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-                <a href={data.links.rightmove} target="_blank" rel="noopener noreferrer" className="text-[11px] px-2 py-0.5 rounded-md" style={{ color: "var(--agent-text-secondary)", border: "0.5px solid var(--agent-border-default)" }}>Rightmove</a>
-                <a href={data.links.zoopla} target="_blank" rel="noopener noreferrer" className="text-[11px] px-2 py-0.5 rounded-md" style={{ color: "var(--agent-text-secondary)", border: "0.5px solid var(--agent-border-default)" }}>Zoopla</a>
-                <a href={data.links.landReg} target="_blank" rel="noopener noreferrer" className="text-[11px] px-2 py-0.5 rounded-md" style={{ color: "var(--agent-text-secondary)", border: "0.5px solid var(--agent-border-default)" }}>Title</a>
+                <a href={data.links.rightmove} target="_blank" rel="noopener noreferrer" className="pp-portal" style={{ background: "#00deb6" }}>Rightmove</a>
+                <a href={data.links.zoopla} target="_blank" rel="noopener noreferrer" className="pp-portal" style={{ background: "#8c1d82" }}>Zoopla</a>
+                <a href={data.links.landReg} target="_blank" rel="noopener noreferrer" className="pp-portal" style={{ background: "#1d70b8" }}>Title</a>
               </div>
             )}
           </div>
