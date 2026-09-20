@@ -1372,6 +1372,31 @@ select {
   transition: background 140ms ease, border-color 140ms ease;
 }
 .chn-move-acts button:hover { border-color: rgba(var(--agent-coral-rgb), 0.45); color: var(--agent-coral-deep); }
+
+/* ── Chain map, mobile ────────────────────────────────────────────────────────
+   The two-pane dock doesn't work on a phone. Map goes full-screen; the chain
+   panel becomes a bottom sheet — peek by default (title + switch), tap the
+   handle to open. See ChainDrawer (chain-sheet-handle + .open). */
+.chain-sheet-handle { display: none; }
+@media (max-width: 767px) {
+  .chain-cc { display: block; }
+  .chain-cc-map { position: absolute !important; inset: 0 !important; height: 100% !important; }
+  .chain-cc-panel {
+    position: absolute !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+    width: auto !important; min-width: 0 !important; height: 76vh !important; max-height: 76vh !important;
+    border-right: none !important; border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.20) !important; animation: none !important; z-index: 3;
+    transform: translateY(calc(100% - 132px)); transition: transform 320ms cubic-bezier(0.25, 0, 0, 1);
+  }
+  .chain-cc-panel.open { transform: translateY(0); }
+  .chain-sheet-handle {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    height: 22px; padding: 9px 0 2px; background: none; border: none; cursor: pointer;
+  }
+  .chain-sheet-handle span { width: 42px; height: 4px; border-radius: 99px; background: var(--agent-border-strong, rgba(0, 0, 0, 0.22)); }
+  .chn-legend { bottom: calc(132px + 12px); }
+}
+@media (prefers-reduced-motion: reduce) { .chain-cc-panel { transition: none; } }
 @keyframes chain-map-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes chain-panel-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .chain-cc-map, .chain-cc-panel { animation: none !important; } }

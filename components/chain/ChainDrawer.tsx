@@ -234,6 +234,8 @@ export function ChainView({
   // Timeline (the cards) vs Map (the geographic command centre). Drawer-only.
   const [view, setView] = useState<"timeline" | "map">("timeline");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // Mobile: the panel is a bottom sheet — peek by default, tap the handle to open.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [notAParticipant, setNotAParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
@@ -870,7 +872,7 @@ export function ChainView({
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
       role={inline ? undefined : "dialog"}
       aria-label={inline ? undefined : "Chain"}
-      className={inline ? "chain-view-inline flex flex-col" : isMap ? "relative z-10 flex flex-col h-full chain-cc-panel" : "relative z-10 flex flex-col h-full resp-drawer-wide"}
+      className={inline ? "chain-view-inline flex flex-col" : isMap ? `relative z-10 flex flex-col h-full chain-cc-panel${sheetOpen ? " open" : ""}` : "relative z-10 flex flex-col h-full resp-drawer-wide"}
       style={
         inline
           ? undefined
@@ -903,6 +905,18 @@ export function ChainView({
             }
       }
     >
+      {/* Mobile bottom-sheet grab handle (hidden on desktop via CSS). */}
+      {isMap && (
+        <button
+          type="button"
+          className="chain-sheet-handle"
+          onClick={() => setSheetOpen((o) => !o)}
+          aria-label={sheetOpen ? "Collapse chain list" : "Expand chain list"}
+        >
+          <span />
+        </button>
+      )}
+
       {/* Header — drawer chrome only; the property-file tab has its own heading. */}
       {!inline && (
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
