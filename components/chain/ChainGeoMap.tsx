@@ -34,12 +34,20 @@ const STYLE = {
 
 // Restrained TSP palette — your sale coral, claimed green, invited amber,
 // unclaimed grey, completed a deeper green. Four legend colours + a done shade.
-const STATUS_COLOR: Record<ChainMapStatus, string> = {
+export const CHAIN_STATUS_COLOR: Record<ChainMapStatus, string> = {
   yours: "#FF6B4A",
   completed: "#1F8A4A",
   claimed: "#2F9E63",
   invited: "#E0A32E",
   unclaimed: "#94A3B8",
+};
+
+export const CHAIN_STATUS_LABEL: Record<ChainMapStatus, string> = {
+  yours: "Your sale",
+  completed: "Completed",
+  claimed: "Claimed",
+  invited: "Invited",
+  unclaimed: "Unclaimed",
 };
 
 // Deterministic ±~70m jitter so two properties sharing a postcode don't stack.
@@ -156,9 +164,13 @@ export function ChainGeoMap({
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    map.on("load", () => { loadedRef.current = true; installLine(map); syncMarkers(); });
+    map.on("load", () => { loadedRef.current = true; installLine(map); syncMarkers(); map.resize(); });
     map.on("styledata", () => { if (map.isStyleLoaded()) installLine(map); });
-    return () => { map.remove(); mapRef.current = null; loadedRef.current = false; markersRef.current.clear(); };
+    // The map is born inside a docking/animating panel, so its container size
+    // isn't settled at init — keep it in step or it renders blank / clipped.
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(containerRef.current);
+    return () => { ro.disconnect(); map.remove(); mapRef.current = null; loadedRef.current = false; markersRef.current.clear(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,7 +202,7 @@ export function ChainGeoMap({
         m.setLngLat([c.lng, c.lat]);
       }
       const el = m.getElement();
-      el.style.setProperty("--pin", STATUS_COLOR[n.status]);
+      el.style.setProperty("--pin", CHAIN_STATUS_COLOR[n.status]);
       el.textContent = String(n.displayPos);
       el.classList.toggle("on", n.id === selectedId);
     }

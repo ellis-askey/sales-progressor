@@ -23,6 +23,7 @@ import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
 import { ChainGeoMap, type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/components/chain/ChainGeoMap";
+import { ChainMapPanel, type ChainMapPanelItem } from "@/components/chain/ChainMapPanel";
 import { displayChainPosition } from "@/lib/chain/positions";
 
 // This file holds ONE chain body — `ChainView` — rendered two ways:
@@ -548,7 +549,7 @@ export function ChainView({
   // A node per link (numbered bottom=1 like the cards); a move per consecutive
   // pair (the household in the lower property is buying the one above). Memoised
   // on the chain so the map doesn't re-geocode on every render.
-  const { mapNodes, mapMoves } = useMemo(() => {
+  const { mapNodes, mapMoves, panelItems } = useMemo(() => {
     const spine = (chain?.links ?? []).filter((l) => (l.branchKey ?? "") === "");
     const total = spine.length;
     const nodeStatus = (l: ChainV2["links"][number]): ChainMapStatus => {
@@ -566,7 +567,21 @@ export function ChainView({
     }));
     const moves: ChainMapMove[] = [];
     for (let i = 0; i < spine.length - 1; i++) moves.push({ fromId: spine[i].id, toId: spine[i + 1].id });
-    return { mapNodes: nodes, mapMoves: moves };
+    const items: ChainMapPanelItem[] = spine.map((l) => {
+      const addr = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
+      const ci = addr.indexOf(",");
+      return {
+        id: l.id,
+        displayPos: displayChainPosition(l.position, total),
+        line1: ci === -1 ? addr : addr.slice(0, ci),
+        line2: ci === -1 ? "" : addr.slice(ci + 1).trim(),
+        agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
+        photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
+        status: nodeStatus(l),
+        progressPercent: l.progressPercent,
+      };
+    });
+    return { mapNodes: nodes, mapMoves: moves, panelItems: items };
   }, [chain, currentUserId, transactionId]);
 
   // Chase-neighbour: the stub agent on the link directly above (onward) or below
@@ -855,8 +870,16 @@ export function ChainView({
         </div>
       )}
 
+      {/* Map mode: the compact ordered chain list. The full dashboard body below
+          is kept mounted but hidden, so switching back to Timeline is instant. */}
+      {isMap && (
+        <div className="flex-1 overflow-y-auto cmp-scroll">
+          <ChainMapPanel items={panelItems} selectedId={selectedNodeId} onSelect={setSelectedNodeId} />
+        </div>
+      )}
+
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-6 py-5" style={isMap ? { display: "none" } : undefined}>
           {/* Skeleton loading state */}
           {loading && (
             <div className="space-y-2 py-2">
