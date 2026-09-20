@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X, Plus } from "@phosphor-icons/react";
@@ -22,6 +22,8 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
+import { ChainGeoMap, type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/components/chain/ChainGeoMap";
+import { displayChainPosition } from "@/lib/chain/positions";
 
 // This file holds ONE chain body — `ChainView` — rendered two ways:
 //   - variant="drawer" (default): a right-hand slide-over via createPortal, used
@@ -220,6 +222,9 @@ export function ChainView({
   // Inline (tab) mode must not scroll-lock the page or hijack Escape.
   useOverlayChrome(doClose, !inline);
   const [chain, setChain] = useState<ChainV2 | null>(null);
+  // Timeline (the cards) vs Map (the geographic command centre). Drawer-only.
+  const [view, setView] = useState<"timeline" | "map">("timeline");
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [notAParticipant, setNotAParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
@@ -539,6 +544,31 @@ export function ChainView({
     (l) => l.claimedByUserId === currentUserId || l.createdByUserId === currentUserId,
   ) ?? null;
 
+  // Map nodes + moves — the spine (main chain line) turned into geographic data.
+  // A node per link (numbered bottom=1 like the cards); a move per consecutive
+  // pair (the household in the lower property is buying the one above). Memoised
+  // on the chain so the map doesn't re-geocode on every render.
+  const { mapNodes, mapMoves } = useMemo(() => {
+    const spine = (chain?.links ?? []).filter((l) => (l.branchKey ?? "") === "");
+    const total = spine.length;
+    const nodeStatus = (l: ChainV2["links"][number]): ChainMapStatus => {
+      if (l.claimedByUserId === currentUserId || l.transactionId === transactionId) return "yours";
+      if (l.transaction?.status === "completed") return "completed";
+      if (l.transactionId != null) return "claimed";
+      if (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED") return "invited";
+      return "unclaimed";
+    };
+    const nodes: ChainMapNode[] = spine.map((l) => ({
+      id: l.id,
+      displayPos: displayChainPosition(l.position, total),
+      address: l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "",
+      status: nodeStatus(l),
+    }));
+    const moves: ChainMapMove[] = [];
+    for (let i = 0; i < spine.length - 1; i++) moves.push({ fromId: spine[i].id, toId: spine[i + 1].id });
+    return { mapNodes: nodes, mapMoves: moves };
+  }, [chain, currentUserId, transactionId]);
+
   // Chase-neighbour: the stub agent on the link directly above (onward) or below
   // (related) OUR OWN file — the inbound twin of the far-side tracker. Gated to a
   // stub with an email we can see, in our own ladder. Opens ChaseNeighbourDrawer.
@@ -749,15 +779,28 @@ export function ChainView({
     );
   };
 
+  const isMap = !inline && view === "map";
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
   const shell = (
     <div
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
       role={inline ? undefined : "dialog"}
       aria-label={inline ? undefined : "Chain"}
-      className={inline ? "chain-view-inline flex flex-col" : "relative z-10 flex flex-col h-full resp-drawer-wide"}
+      className={inline ? "chain-view-inline flex flex-col" : isMap ? "relative z-10 flex flex-col h-full chain-cc-panel" : "relative z-10 flex flex-col h-full resp-drawer-wide"}
       style={
         inline
           ? undefined
+          : isMap
+          ? {
+              // Map mode: the drawer becomes a compact left panel docked against
+              // the nav, with the map filling the space to its right.
+              width: "min(400px, 46vw)", flexShrink: 0, height: "100%",
+              background: "var(--agent-surface-elevated)",
+              borderRight: "0.5px solid var(--agent-border-default)",
+              boxShadow: "4px 0 24px rgba(0,0,0,0.10)",
+              animation: reduceMotion ? undefined : "chain-panel-in 300ms cubic-bezier(0.25,0,0,1) both",
+            }
           : {
               // Scale with the widest fork so columns never bunch: linear stays
               // narrow, a V split gets more room, a trident opens almost full width.
@@ -801,6 +844,14 @@ export function ChainView({
           >
             <X size={14} weight="bold" />
           </button>
+        </div>
+      )}
+
+      {/* Timeline | Map view switch (drawer only) */}
+      {!inline && (
+        <div className="chain-viewswitch">
+          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
+          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
         </div>
       )}
 
@@ -1190,12 +1241,28 @@ export function ChainView({
     );
   }
 
-  // Drawer mode: the same body inside a right-hand slide-over.
+  // Drawer mode: timeline = right-hand slide-over; map = a docked command centre
+  // (compact chain panel beside the nav, map filling the rest, nav still visible).
   return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
-      {/* Backdrop */}
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
-      {shell}
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0${isMap ? "" : " flex justify-end"}${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000, pointerEvents: isMap ? "none" : undefined }}>
+      {/* Backdrop — timeline only; map mode leaves the nav visible. */}
+      {!isMap && <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />}
+      {isMap ? (
+        <div className="chain-cc">
+          {shell}
+          <div className="chain-cc-map">
+            <ChainGeoMap
+              nodes={mapNodes}
+              moves={mapMoves}
+              selectedId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              theme={isNight ? "dark" : "light"}
+            />
+          </div>
+        </div>
+      ) : (
+        shell
+      )}
       {chaseNeighbourDrawer}
     </div>,
     document.body,
