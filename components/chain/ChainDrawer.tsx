@@ -1093,20 +1093,17 @@ export function ChainView({
           is kept mounted but hidden, so switching back to Timeline is instant. */}
       {isMap && (
         inline ? (
-          // Inline tab: the map sits BELOW the switcher (which stays put), the
-          // compact panel docked to its left, both in the same content area.
-          <div className="chain-inline-cc">
-            <div className="chain-inline-panel">{chainPanel}</div>
-            <div className="chain-inline-map">
-              <ChainGeoMap
-                nodes={mapNodes}
-                moves={mapMoves}
-                details={mapDetails}
-                selectedId={selectedNodeId}
-                onSelectNode={setSelectedNodeId}
-                theme={isNight ? "dark" : "light"}
-              />
-            </div>
+          // Inline tab: the map fills the full chain content width below the
+          // switcher (its own rounded panel), pins carry selection — no side list.
+          <div className="chain-inline-map">
+            <ChainGeoMap
+              nodes={mapNodes}
+              moves={mapMoves}
+              details={mapDetails}
+              selectedId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              theme={isNight ? "dark" : "light"}
+            />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto cmp-scroll">
