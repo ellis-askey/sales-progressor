@@ -171,8 +171,13 @@ export function isExchangeOverdueStuck(args: {
     return { stuck: false, passedDate: effective };
   }
 
-  // Confirmed activity on/after the date → still moving, not stuck.
-  if (args.lastMilestoneConfirmedAt && args.lastMilestoneConfirmedAt >= effective) {
+  // Confirmed activity on/after the date → still moving, not stuck — but ONLY
+  // for the auto-predicted date, which self-heals (every confirm calls
+  // refreshExpectedExchangeDate and pushes it forward). A manual override is
+  // never refreshed, so a passed override still needs a human even while the
+  // file keeps moving (see the header note). Without this override guard, a
+  // stale pin on a still-progressing file silently drops off the hub.
+  if (!args.overridePredictedDate && args.lastMilestoneConfirmedAt && args.lastMilestoneConfirmedAt >= effective) {
     return { stuck: false, passedDate: effective };
   }
 
