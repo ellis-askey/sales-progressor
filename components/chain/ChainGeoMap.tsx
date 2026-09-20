@@ -51,6 +51,21 @@ function haversineMiles(a: LatLng, b: LatLng): number {
 }
 const miEl = (mi: number) => `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
 
+// The household move a selected property represents: the household living here is
+// buying the sale directly above (its onward), so prefer the outgoing move
+// (fromId === selected). If there's none (top of the chain), fall back to the
+// incoming move (someone buying this property). Prefer the non-fork spine leg so
+// a sale with several onward purchases resolves to its main move, never an
+// invented one. Returns null when the chain establishes no move for this sale.
+function deriveMove(sel: string | null, moves: ChainMapMove[]): { fromId: string; toId: string } | null {
+  if (!sel) return null;
+  const out = moves.find((m) => m.fromId === sel && !m.fork) ?? moves.find((m) => m.fromId === sel);
+  if (out) return { fromId: sel, toId: out.toId };
+  const inc = moves.find((m) => m.toId === sel && !m.fork) ?? moves.find((m) => m.toId === sel);
+  if (inc) return { fromId: inc.fromId, toId: sel };
+  return null;
+}
+
 export function ChainGeoMap({
   nodes,
   moves,
@@ -80,7 +95,10 @@ export function ChainGeoMap({
   const coordsRef = useRef(coords);
   coordsRef.current = coords;
   const [, setTick] = useState(0); // bump on map move so projected overlays follow
-  const [selMove, setSelMove] = useState<{ fromId: string; toId: string } | null>(null);
+  // The move currently lit up on the map (derived from the selected property).
+  // Kept in a ref so moveFC — rebuilt inside map callbacks — can read it without
+  // re-installing layers.
+  const activeMoveRef = useRef<{ fromId: string; toId: string } | null>(null);
 
   // Driving routes (Phase 2): distance/time + road polyline per postcode pair,
   // from /api/chain/routes (ORS-backed, cached). Missing ones fall back to a
@@ -151,6 +169,7 @@ export function ChainGeoMap({
   }, [nodes]);
 
   function moveFC(): GeoJSON.FeatureCollection {
+    const active = activeMoveRef.current;
     return {
       type: "FeatureCollection",
       features: movesRef.current.flatMap((m) => {
@@ -158,10 +177,15 @@ export function ChainGeoMap({
         if (!a || !b) return [];
         const r = routeForRef(m.fromId, m.toId);
         const line = r && r.geometry.length > 1 ? r.geometry : [[a.lng, a.lat], [b.lng, b.lat]];
+        // No selection → every route at its normal weight. A selection lights up
+        // the one household move and fades the rest (kept visible, not hidden).
+        const state = !active ? "normal"
+          : active.fromId === m.fromId && active.toId === m.toId ? "active"
+            : "faded";
         return [{
           type: "Feature" as const,
           geometry: { type: "LineString" as const, coordinates: line },
-          properties: { broken: !!m.broken, fromId: m.fromId, toId: m.toId },
+          properties: { broken: !!m.broken, fromId: m.fromId, toId: m.toId, state },
         }];
       }),
     };
@@ -171,20 +195,31 @@ export function ChainGeoMap({
     if (!map.getSource("chain-moves")) {
       map.addSource("chain-moves", { type: "geojson", data: moveFC() });
     }
+    // Width / opacity are data-driven on the feature "state" so selecting a
+    // property makes its move prominent and fades the others, with no layer churn.
+    // line-sort-key lifts the active line above the faded ones.
+    const width = ["match", ["get", "state"], "active", 4.5, "faded", 2, 2.5] as unknown as maplibregl.ExpressionSpecification;
+    const opacity = ["match", ["get", "state"], "active", 0.95, "faded", 0.16, 0.55] as unknown as maplibregl.ExpressionSpecification;
+    const sortKey = ["match", ["get", "state"], "active", 2, 1] as unknown as maplibregl.ExpressionSpecification;
     if (!map.getLayer("chain-move-line")) {
       map.addLayer({
         id: "chain-move-line", type: "line", source: "chain-moves",
         filter: ["!", ["to-boolean", ["get", "broken"]]],
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#FF6B4A", "line-width": 2.5, "line-opacity": 0.55 },
+        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": sortKey },
+        paint: { "line-color": "#FF6B4A", "line-width": width, "line-opacity": opacity },
       });
     }
     if (!map.getLayer("chain-move-broken")) {
       map.addLayer({
         id: "chain-move-broken", type: "line", source: "chain-moves",
         filter: ["to-boolean", ["get", "broken"]],
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#94A3B8", "line-width": 2, "line-opacity": 0.6, "line-dasharray": [1.6, 1.4] },
+        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": sortKey },
+        paint: {
+          "line-color": "#94A3B8",
+          "line-width": ["match", ["get", "state"], "active", 3.5, "faded", 1.6, 2] as unknown as maplibregl.ExpressionSpecification,
+          "line-opacity": ["match", ["get", "state"], "active", 0.9, "faded", 0.2, 0.6] as unknown as maplibregl.ExpressionSpecification,
+          "line-dasharray": [1.6, 1.4],
+        },
       });
     }
   }
@@ -205,18 +240,17 @@ export function ChainGeoMap({
     const bump = () => setTick((t) => t + 1);
     map.on("move", bump); map.on("zoom", bump); map.on("resize", bump);
 
-    // Click a move line → move card. Click empty map → clear selection.
+    // Click a move line → select the household making that move (its origin), so
+    // the same journey popup opens and the route lights up. Click empty map → clear.
     const onLineClick = (e: maplibregl.MapLayerMouseEvent) => {
-      const f = e.features?.[0];
-      const fromId = f?.properties?.fromId as string | undefined;
-      const toId = f?.properties?.toId as string | undefined;
-      if (fromId && toId) { setSelMove({ fromId, toId }); onSelectRef.current(null); }
+      const fromId = e.features?.[0]?.properties?.fromId as string | undefined;
+      if (fromId) onSelectRef.current(fromId);
     };
     map.on("click", "chain-move-line", onLineClick);
     map.on("click", "chain-move-broken", onLineClick);
     map.on("click", (e) => {
       const hit = map.queryRenderedFeatures(e.point, { layers: ["chain-move-line", "chain-move-broken"] });
-      if (hit.length === 0) { setSelMove(null); onSelectRef.current(null); }
+      if (hit.length === 0) onSelectRef.current(null);
     });
     for (const id of ["chain-move-line", "chain-move-broken"]) {
       map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -261,7 +295,7 @@ export function ChainGeoMap({
         const el = document.createElement("button");
         el.type = "button";
         el.className = "chn-pin";
-        el.addEventListener("click", (e) => { e.stopPropagation(); setSelMove(null); onSelectRef.current(n.id); });
+        el.addEventListener("click", (e) => { e.stopPropagation(); onSelectRef.current(n.id); });
         m = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([c.lng, c.lat]).addTo(map);
         markersRef.current.set(n.id, m);
       } else {
@@ -272,6 +306,9 @@ export function ChainGeoMap({
       el.textContent = n.label;
       el.classList.toggle("onward", !!n.onward);
       el.classList.toggle("on", n.id === selectedId);
+      // The other end of the lit-up move — keep it clearly visible so the journey
+      // reads as a pair, not a single pin.
+      el.classList.toggle("dest", activeMoveRef.current?.toId === n.id && n.id !== selectedId);
     }
     for (const [id, m] of markersRef.current) {
       if (!seen.has(id)) { m.remove(); markersRef.current.delete(id); }
@@ -317,11 +354,21 @@ export function ChainGeoMap({
   const selDetail = selectedId ? details[selectedId] : null;
   const selPt = map && selCoord ? project(selCoord) : null;
 
-  const moveA = selMove ? coords[selMove.fromId] : null;
-  const moveB = selMove ? coords[selMove.toId] : null;
-  const movePt = map && moveA && moveB ? project({ lat: (moveA.lat + moveB.lat) / 2, lng: (moveA.lng + moveB.lng) / 2 }) : null;
-  const moveMi = moveA && moveB ? haversineMiles(moveA, moveB) : null;
-  const moveRoute = selMove ? routeFor(selMove.fromId, selMove.toId) : null;
+  // The household move this selected property represents — the popup content and
+  // the lit-up route both come from here. activeMoveRef feeds moveFC (map paint).
+  const active = deriveMove(selectedId, moves);
+  activeMoveRef.current = active;
+  const fromD = active ? details[active.fromId] : null;
+  const toD = active ? details[active.toId] : null;
+  const jRoute = active ? routeFor(active.fromId, active.toId) : null;
+  const jFrom = active ? coords[active.fromId] : null;
+  const jTo = active ? coords[active.toId] : null;
+  const jMi = jFrom && jTo ? haversineMiles(jFrom, jTo) : null;
+  // "X of N in chain" — only for a numbered spine property (branch labels are "↑").
+  const posLabel = selDetail && /^\d+$/.test(selDetail.label) ? `${selDetail.label} of ${nodes.length} in chain` : null;
+  const longestMove = geoMoves.reduce<{ from: string; miles: number } | null>(
+    (mx, x) => (!mx || x.miles > mx.miles ? { from: x.m.fromId, miles: x.miles } : mx), null,
+  );
 
   return (
     <div className="chn-map-wrap">
@@ -333,7 +380,9 @@ export function ChainGeoMap({
         <span className="chn-sum-item"><b>{moves.length}</b> {moves.length === 1 ? "move" : "moves"}</span>
         {geoMoves.length > 0 && <span className="chn-sum-item"><b>{allDriving ? "" : "~"}{Math.round(totalMiles)} mi</b> total</span>}
         {longestMi > 0 && (
-          <span className="chn-sum-item chn-sum-long">Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></span>
+          longestMove
+            ? <button type="button" className="chn-sum-item chn-sum-long chn-sum-longbtn" onClick={() => onSelectNode(longestMove.from)}>Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></button>
+            : <span className="chn-sum-item chn-sum-long">Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></span>
         )}
         <span className="chn-sum-note">{allDriving ? "driving distance" : anyDriving ? "part driving" : "approx straight-line"}</span>
       </div>
@@ -347,43 +396,54 @@ export function ChainGeoMap({
         ))}
       </div>
 
-      {/* Property card */}
+      {/* Selection popup. When the selected property represents a household move
+          (it has an onward, or an incoming move at the top), the card becomes a
+          compact journey label: where they're moving + real drive distance/time +
+          position. Otherwise the simple property card is retained. */}
       {selPt && selDetail && (
-        <div
-          className="chn-card"
-          style={{ left: selPt.x, top: selPt.y, transform: `translate(-50%, ${selPt.y < 180 ? "22px" : "calc(-100% - 20px)"})` }}
-        >
-          <div className="chn-card-in">
-            <PropertyThumb photoUrl={selDetail.photoUrl} size={46} />
-            <div className="chn-card-txt">
-              <span className="chn-card-l1">{selDetail.line1}</span>
-              {selDetail.line2 && <span className="chn-card-l2">{selDetail.line2}</span>}
-              <span className="chn-card-meta">
-                <span style={{ color: CHAIN_STATUS_COLOR[selDetail.status], fontWeight: 650 }}>{CHAIN_STATUS_LABEL[selDetail.status]}</span>
-                {selDetail.agency && <span className="chn-card-ag"> · {selDetail.agency}</span>}
-              </span>
-              {selDetail.progressPercent != null && (
-                <span className="chn-card-bar"><i style={{ width: `${Math.min(100, Math.max(0, selDetail.progressPercent))}%` }} /></span>
-              )}
+        active && fromD && toD ? (
+          <div
+            className="chn-card chn-journey"
+            style={{ left: selPt.x, top: selPt.y, transform: `translate(-50%, ${selPt.y < 180 ? "22px" : "calc(-100% - 20px)"})` }}
+          >
+            <button type="button" className="chn-journey-x" aria-label="Close" onClick={() => onSelectNode(null)}>×</button>
+            <div className="chn-card-in">
+              <PropertyThumb photoUrl={selDetail.photoUrl} size={44} />
+              <div className="chn-card-txt">
+                <span className="chn-journey-route">
+                  <span className="chn-journey-from">{fromD.line1}</span>
+                  <span className="chn-journey-arrow" aria-hidden>→</span>
+                  <button type="button" className="chn-journey-to" onClick={() => onSelectNode(active.toId)}>{toD.line1}</button>
+                </span>
+                {jRoute
+                  ? <span className="chn-journey-dist">🚗 {miEl(jRoute.distanceMeters / M_PER_MI)} · {fmtDur(jRoute.durationSeconds)}</span>
+                  : jMi != null && <span className="chn-journey-dist">{miEl(jMi)} · straight-line</span>}
+                {posLabel && <span className="chn-journey-pos">{posLabel}</span>}
+              </div>
             </div>
           </div>
-          {selDetail.href && <Link href={selDetail.href} className="chn-card-cta">View chain details →</Link>}
-        </div>
-      )}
-
-      {/* Move card */}
-      {movePt && selMove && (
-        <div className="chn-move" style={{ left: movePt.x, top: movePt.y, transform: "translate(-50%, calc(-100% - 14px))" }}>
-          <p className="chn-move-h">Move {details[selMove.fromId]?.label} → {details[selMove.toId]?.label}</p>
-          <p className="chn-move-addr">{details[selMove.fromId]?.line1} → {details[selMove.toId]?.line1}</p>
-          {moveRoute
-            ? <p className="chn-move-dist">🚗 {miEl(moveRoute.distanceMeters / M_PER_MI)} · {fmtDur(moveRoute.durationSeconds)}</p>
-            : moveMi != null && <p className="chn-move-dist">{miEl(moveMi)} · approx straight-line</p>}
-          <div className="chn-move-acts">
-            <button type="button" onClick={() => { setSelMove(null); onSelectNode(selMove.fromId); }}>{details[selMove.fromId]?.line1}</button>
-            <button type="button" onClick={() => { setSelMove(null); onSelectNode(selMove.toId); }}>{details[selMove.toId]?.line1}</button>
+        ) : (
+          <div
+            className="chn-card"
+            style={{ left: selPt.x, top: selPt.y, transform: `translate(-50%, ${selPt.y < 180 ? "22px" : "calc(-100% - 20px)"})` }}
+          >
+            <div className="chn-card-in">
+              <PropertyThumb photoUrl={selDetail.photoUrl} size={46} />
+              <div className="chn-card-txt">
+                <span className="chn-card-l1">{selDetail.line1}</span>
+                {selDetail.line2 && <span className="chn-card-l2">{selDetail.line2}</span>}
+                <span className="chn-card-meta">
+                  <span style={{ color: CHAIN_STATUS_COLOR[selDetail.status], fontWeight: 650 }}>{CHAIN_STATUS_LABEL[selDetail.status]}</span>
+                  {selDetail.agency && <span className="chn-card-ag"> · {selDetail.agency}</span>}
+                </span>
+                {selDetail.progressPercent != null && (
+                  <span className="chn-card-bar"><i style={{ width: `${Math.min(100, Math.max(0, selDetail.progressPercent))}%` }} /></span>
+                )}
+              </div>
+            </div>
+            {selDetail.href && <Link href={selDetail.href} className="chn-card-cta">View chain details →</Link>}
           </div>
-        </div>
+        )
       )}
     </div>
   );

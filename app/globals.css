@@ -1375,6 +1375,35 @@ select {
 }
 .chn-move-acts button:hover { border-color: rgba(var(--agent-coral-rgb), 0.45); color: var(--agent-coral-deep); }
 
+/* Journey popup — the evolved selection card. A compact "from → to" label with
+   the real drive distance/time and the property's position. ~320px, content-tall. */
+.chn-journey { width: 320px; }
+.chn-journey .chn-card-in { align-items: center; padding: 12px 34px 12px 12px; }
+.chn-journey-x {
+  position: absolute; top: 7px; right: 8px; width: 22px; height: 22px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: none; border: none; color: var(--agent-text-muted); font-size: 17px; line-height: 1;
+  transition: background 140ms ease, color 140ms ease;
+}
+.chn-journey-x:hover { background: var(--agent-hover-shade); color: var(--agent-text-primary); }
+.chn-journey-route { display: block; font-size: 13.5px; font-weight: 650; color: var(--agent-text-primary); line-height: 1.35; }
+.chn-journey-arrow { color: var(--agent-text-muted); margin: 0 5px; font-weight: 500; }
+.chn-journey-to { font: inherit; font-weight: 650; color: var(--agent-coral-deep); background: none;
+  border: none; padding: 0; cursor: pointer; text-align: left; }
+.chn-journey-to:hover { text-decoration: underline; }
+.chn-journey-dist { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--agent-coral-deep); }
+.chn-journey-pos { display: block; margin-top: 3px; font-size: 11px; color: var(--agent-text-muted); }
+
+/* The clickable "Longest" metric opts back into pointer events (the summary strip
+   is otherwise click-through). */
+.chn-sum-longbtn {
+  pointer-events: auto; cursor: pointer; font-family: inherit; font-size: 12.5px;
+  color: var(--agent-text-secondary); background: none; border: none;
+  border-left: 0.5px solid var(--agent-border-default); padding: 0 0 0 14px;
+}
+.chn-sum-longbtn b { color: var(--agent-text-primary); font-weight: 700; }
+.chn-sum-longbtn:hover b { color: var(--agent-coral-deep); }
+
 /* ── Chain map, mobile ────────────────────────────────────────────────────────
    The two-pane dock doesn't work on a phone. Map goes full-screen; the chain
    panel becomes a bottom sheet — peek by default (title + switch), tap the
@@ -1413,6 +1442,8 @@ select {
 }
 .chn-pin:hover { transform: scale(1.12); }
 .chn-pin.on { transform: scale(1.28); box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.35), 0 3px 10px rgba(0, 0, 0, 0.32); }
+/* The other end of the lit-up move — a quiet ring so the journey reads as a pair. */
+.chn-pin.dest { transform: scale(1.14); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.22), 0 3px 10px rgba(0, 0, 0, 0.30); }
 /* Onward-purchase pin — a touch smaller so branches read as offshoots. */
 .chn-pin.onward { width: 21px; height: 21px; font-size: 12px; }
 
