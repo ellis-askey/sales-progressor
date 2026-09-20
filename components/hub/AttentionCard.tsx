@@ -870,7 +870,7 @@ function AttentionRow({
     txId = r.transaction.id;
     address = r.transaction.propertyAddress;
     secondary = r.reminderName;
-    href = `/agent/transactions/${r.transaction.id}?tab=reminders`;
+    href = `/agent/transactions/${r.transaction.id}/reminders`;
   } else if (row.kind === "hold") {
     const h = row.item;
     tone = "danger";

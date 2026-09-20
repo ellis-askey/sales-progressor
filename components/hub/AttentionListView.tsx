@@ -85,7 +85,7 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
           return (
             <Link
               key={item.id}
-              href={`/agent/transactions/${item.transaction.id}?tab=reminders`}
+              href={`/agent/transactions/${item.transaction.id}/reminders`}
               unstable_dynamicOnHover
               style={{
                 display: "flex", alignItems: "center",
