@@ -1533,7 +1533,7 @@ select {
    stops at the card edge below. */
 .cmp-tree-body--rail { position: relative; }
 .cmp-tree-body--rail::before {
-  content: ""; position: absolute; left: 8px; top: -10px; bottom: 0; width: 1.5px;
+  content: ""; position: absolute; left: 8px; top: -10px; bottom: -16px; width: 1.5px;
   background: var(--agent-border-default); pointer-events: none;
 }
 
