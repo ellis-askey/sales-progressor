@@ -13,6 +13,7 @@ import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/component
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { AddFirmModal } from "@/components/solicitors/AddFirmModal";
+import { AddClientEmailModal } from "@/components/reminders/AddClientEmailModal";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Button } from "@/components/ui/Button";
 import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
@@ -385,6 +386,8 @@ function SplitFileCard({
   const [collapsed, setCollapsed] = useState(false);
   // Add-solicitor modal, opened from a "No solicitor on file yet" row.
   const [addSolFor, setAddSolFor] = useState<"vendor" | "purchaser" | null>(null);
+  // Add-client-email modal, opened from a "No email on file for the client" row.
+  const [addEmailFor, setAddEmailFor] = useState<{ isBuyer: boolean; contacts: { id: string; name: string; roleType: string; email: string | null }[] } | null>(null);
   const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[] } | null>(null);
   // "View" preview of a pending auto-chase email (autopilot rows).
   const [previewRow, setPreviewRow] = useState<{ logId: string; pipeline: "client" | "solicitor"; sendLabel: string } | null>(null);
@@ -647,7 +650,7 @@ function SplitFileCard({
               {autoState?.kind === "manual" && autoState.category === "blocker_client_email" && (
                 <button
                   type="button"
-                  onClick={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
+                  onClick={() => setAddEmailFor({ isBuyer, contacts: contacts.filter((c) => c.roleType === (isBuyer ? "purchaser" : "vendor")).map((c) => ({ id: c.id, name: c.name, roleType: c.roleType, email: c.email })) })}
                   className="agent-link"
                   style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
                 >
@@ -791,6 +794,18 @@ function SplitFileCard({
             setAddSolFor(null);
             router.refresh();
           }}
+        />
+      )}
+
+      {/* Add-client-email modal, opened from a "No email on file for the client"
+          row. Writes onto the existing contact, then refreshes so the row can
+          return to autopilot. */}
+      {addEmailFor && (
+        <AddClientEmailModal
+          contacts={addEmailFor.contacts}
+          isBuyer={addEmailFor.isBuyer}
+          onClose={() => setAddEmailFor(null)}
+          onSaved={() => { setAddEmailFor(null); router.refresh(); }}
         />
       )}
 

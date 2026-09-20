@@ -1684,6 +1684,36 @@ export async function savePurchaseTypeAction(transactionId: string, purchaseType
   revalidateTx(transactionId);
 }
 
+// Add (or correct) a client contact's email from the reminders card, so a file
+// that autopilot couldn't chase ("No email on file for the client") becomes
+// chaseable. Writes to the EXISTING contact — never a duplicate. Scoped: the
+// contact must sit on a transaction in the caller's access scope.
+export async function saveContactEmailAction(contactId: string, email: string) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const clean = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That email address doesn't look right");
+
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId },
+    select: { id: true, propertyTransactionId: true },
+  });
+  if (!contact) throw new Error("Contact not found");
+
+  // Ownership guard — verify the contact's file is in scope before writing.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, contact.propertyTransactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Contact not found");
+
+  await prisma.contact.update({ where: { id: contactId }, data: { email: clean } });
+
+  await logActivity(contact.propertyTransactionId, `${session.user.name} added a client email address`, session.user.id);
+  revalidateTx(contact.propertyTransactionId);
+}
+
 export async function saveReferralAction(
   transactionId: string,
   data: { referredFirmId: string | null; referralFee: number | null; referralFeeReceived: boolean }
