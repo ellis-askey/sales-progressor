@@ -64,6 +64,8 @@ type ChainViewProps = {
     // Insert-between: slot a new sale at a specific interior position beside an
     // anchor link, rather than a column top or the chain ends.
     insertBetween?: { anchorLinkId: string; placement: "above" | "below" },
+    // Land the edit drawer on the agent-email field (the "Add email" CTA).
+    focusField?: "agentEmail",
   ) => void;
   declineNotification?: { address: string; at: string } | null;
   refreshKey?: number;
@@ -723,6 +725,12 @@ export function ChainView({
     onEdit: (id) => {
       const l = allChainLinks.find((x) => x.id === id);
       if (l && onOpenAddNode && chain) onOpenAddNode("above", chain.id, l);
+    },
+    onEditEmail: (id) => {
+      // The Add email / Update email & resend CTA — open Edit and land on the
+      // agent-email field so the user doesn't hunt for it.
+      const l = allChainLinks.find((x) => x.id === id);
+      if (l && onOpenAddNode && chain) onOpenAddNode("above", chain.id, l, undefined, undefined, undefined, "agentEmail");
     },
     onAddOnward: (id) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, id); },
     onMoveUp: (id) => { void handleMove(id, "up"); },

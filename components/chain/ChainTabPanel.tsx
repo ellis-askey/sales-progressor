@@ -39,6 +39,7 @@ export function ChainTabPanel({ transactionId, currentUserId, currentUserRole, d
           forkFromLinkId={addNode.forkFromLinkId}
           aboveOfLinkId={addNode.aboveOfLinkId}
           insertBetween={addNode.insertBetween}
+          focusField={addNode.focusField}
           onClose={closeAddNode}
           onSaved={onNodeSaved}
         />

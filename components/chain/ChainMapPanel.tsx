@@ -49,6 +49,8 @@ export type ChainMapPanelItem = {
 
 export type ChainMapActions = {
   onEdit?: (id: string) => void;
+  onEditEmail?: (id: string) => void; // Add email / Update email & resend — opens Edit focused on the email field
+  onInsert?: (id: string, placement: "above" | "below") => void; // insert a sale beside this one
   onRemove?: (id: string) => void;
   onCopyShare?: (id: string) => void;
   onRevokeShare?: (id: string) => void;
@@ -188,7 +190,7 @@ export function ChainMapPanel({
         const runCta = () => {
           if (!it.cta) return;
           if (it.cta.kind === "invite") onInvite?.(it.id);
-          else actions.onEdit?.(it.id);
+          else (actions.onEditEmail ?? actions.onEdit)?.(it.id);
         };
         const acts = !!it.href || !!it.cta;
         return (

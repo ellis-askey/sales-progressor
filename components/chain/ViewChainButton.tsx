@@ -52,6 +52,7 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
           forkFromLinkId={addNode.forkFromLinkId}
           aboveOfLinkId={addNode.aboveOfLinkId}
           insertBetween={addNode.insertBetween}
+          focusField={addNode.focusField}
           onClose={closeAddNode}
           onSaved={onNodeSaved}
         />

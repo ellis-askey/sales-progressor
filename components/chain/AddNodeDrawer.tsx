@@ -55,6 +55,10 @@ type Props = {
   // link (between two existing links) rather than at a column top or the ends.
   // Stub-only (self-linking your own file between two links isn't supported yet).
   insertBetween?: { anchorLinkId: string; placement: "above" | "below" };
+  // Opened specifically to add/fix the agent email (the "Add email" / "Update
+  // email & resend" CTAs) — scroll the Agent contact section into view and focus
+  // the email input, so the user lands on the field instead of the drawer top.
+  focusField?: "agentEmail";
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
@@ -183,11 +187,24 @@ export function AddNodeDrawer({
   forkFromLinkId,
   aboveOfLinkId,
   insertBetween,
+  focusField,
   onSaveToMemory,
   onClose,
   onSaved,
 }: Props) {
   const isBranch = !!forkFromLinkId;
+  const contactRef = useRef<HTMLElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  // Land on the email field when opened via "Add email" — wait out the drawer
+  // slide-in (240ms) so the scroll target has its final position.
+  useEffect(() => {
+    if (focusField !== "agentEmail") return;
+    const t = setTimeout(() => {
+      contactRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      emailInputRef.current?.focus({ preventScroll: true });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [focusField]);
   const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -595,7 +612,7 @@ export function AddNodeDrawer({
               </section>
 
               {/* Agent contact */}
-              <section className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+              <section ref={contactRef} className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
                 <SectionHeader
                   icon={<User size={22} />}
                   title="Agent contact"
@@ -615,6 +632,7 @@ export function AddNodeDrawer({
                     <div className="space-y-1">
                       <label className="block text-xs font-semibold text-slate-900/65">Agent email</label>
                       <input
+                        ref={emailInputRef}
                         type="email"
                         value={form.stubAgentEmail}
                         onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}

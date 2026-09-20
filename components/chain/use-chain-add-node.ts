@@ -18,6 +18,7 @@ export type AddNodeRequest = {
   forkFromLinkId?: string;
   aboveOfLinkId?: string;
   insertBetween?: { anchorLinkId: string; placement: "above" | "below" };
+  focusField?: "agentEmail";
 };
 
 export function useChainAddNode() {
@@ -34,8 +35,9 @@ export function useChainAddNode() {
       forkFromLinkId?: string,
       aboveOfLinkId?: string,
       insertBetween?: { anchorLinkId: string; placement: "above" | "below" },
+      focusField?: "agentEmail",
     ) => {
-      setAddNode({ direction, chainId, editingLink, forkFromLinkId, aboveOfLinkId, insertBetween });
+      setAddNode({ direction, chainId, editingLink, forkFromLinkId, aboveOfLinkId, insertBetween, focusField });
     },
     [],
   );
