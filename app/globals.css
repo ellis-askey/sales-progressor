@@ -1532,8 +1532,9 @@ select {
    fork card's top edge. Overlaps the branch guide above (invisible, same line);
    stops at the card edge below. */
 .cmp-tree-body--rail { position: relative; }
+.cmp-tree-body--rail .cmp-insert { margin: 0; }
 .cmp-tree-body--rail::before {
-  content: ""; position: absolute; left: 8px; top: -10px; bottom: -16px; width: 1.5px;
+  content: ""; position: absolute; left: 8px; top: 0; bottom: 0; width: 1.5px;
   background: var(--agent-border-default); pointer-events: none;
 }
 
