@@ -6,10 +6,12 @@ import { formatDate, toUKDateStr } from "@/lib/utils";
 export function ExchangeTargetCell({
   transactionId,
   expectedExchangeDate,
+  overridePredictedDate = null,
   createdAt,
 }: {
   transactionId: string;
   expectedExchangeDate: Date | null;
+  overridePredictedDate?: Date | null;
   createdAt: Date;
 }) {
   const [localDate, setLocalDate] = useState<Date | null>(null);
@@ -18,7 +20,9 @@ export function ExchangeTargetCell({
   const twelveWeekTarget = new Date(createdAt);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  const effectiveDate = localDate ?? expectedExchangeDate;
+  // A manually-moved date wins over the automatic prediction, matching the
+  // Forecast and Hub diary. localDate is a just-saved edit in this cell.
+  const effectiveDate = localDate ?? overridePredictedDate ?? expectedExchangeDate;
   const todayStr = toUKDateStr(new Date());
 
   async function handleDateChange(dateStr: string) {

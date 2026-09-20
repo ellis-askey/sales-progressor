@@ -103,6 +103,7 @@ export type TransactionRow = {
   photoUrl?: string | null;
   status: TransactionStatus;
   expectedExchangeDate: Date | null;
+  overridePredictedDate?: Date | null;
   completionDate?: Date | null;
   // Withdrawal detail for the Withdrawn tab. No dedicated withdrawnAt is
   // stored, so updatedAt (the file's last change — the withdrawal itself for a
@@ -459,6 +460,7 @@ export function TransactionRowView({
     <ExchangeTargetCell
       transactionId={tx.id}
       expectedExchangeDate={tx.expectedExchangeDate}
+      overridePredictedDate={tx.overridePredictedDate ?? null}
       createdAt={tx.createdAt}
     />
   );
@@ -514,10 +516,12 @@ export function TransactionRowView({
           </div>
 
           <div>{isDead ? <WithdrawnCell tx={tx} /> : targetContent}</div>
-          <div>
-            <p className="handled-card-label">Handled by</p>
-            <HandledBy tx={tx} />
-          </div>
+          {cols.includes("assigned") && (
+            <div>
+              <p className="handled-card-label">Handled by</p>
+              <HandledBy tx={tx} />
+            </div>
+          )}
         </div>
       </Link>
 
