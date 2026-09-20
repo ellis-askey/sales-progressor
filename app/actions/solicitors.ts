@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { validateHandlerContact } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
+import type { FeeVatTreatment } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -15,14 +16,15 @@ function requireDirector(role: string) {
 export async function upsertRecommendedSolicitorAction(
   solicitorFirmId: string,
   defaultReferralFeePence: number | null,
+  defaultReferralFeeVat: FeeVatTreatment = "plus",
 ) {
   const session = await requireSession();
   requireDirector(session.user.role);
 
   await db.agencyRecommendedSolicitor.upsert({
     where: { agencyId_solicitorFirmId: { agencyId: session.user.agencyId, solicitorFirmId } },
-    create: { agencyId: session.user.agencyId, solicitorFirmId, defaultReferralFeePence },
-    update: { defaultReferralFeePence },
+    create: { agencyId: session.user.agencyId, solicitorFirmId, defaultReferralFeePence, defaultReferralFeeVat },
+    update: { defaultReferralFeePence, defaultReferralFeeVat },
   });
   revalidatePath("/agent/solicitors");
 }
@@ -81,6 +83,7 @@ export async function addRecommendedSolicitorWithContactAction(input: {
   contactPhone?: string;
   contactEmail?: string;
   referralFeePence: number | null;
+  referralFeeVat?: FeeVatTreatment;
 }): Promise<{ firmId: string; firmName: string }> {
   const session = await requireSession();
   requireDirector(session.user.role);
@@ -122,8 +125,8 @@ export async function addRecommendedSolicitorWithContactAction(input: {
   // Add to recommended list with the given fee
   await db.agencyRecommendedSolicitor.upsert({
     where: { agencyId_solicitorFirmId: { agencyId: session.user.agencyId, solicitorFirmId: firmId } },
-    create: { agencyId: session.user.agencyId, solicitorFirmId: firmId, defaultReferralFeePence: input.referralFeePence },
-    update: { defaultReferralFeePence: input.referralFeePence },
+    create: { agencyId: session.user.agencyId, solicitorFirmId: firmId, defaultReferralFeePence: input.referralFeePence, defaultReferralFeeVat: input.referralFeeVat ?? "plus" },
+    update: { defaultReferralFeePence: input.referralFeePence, defaultReferralFeeVat: input.referralFeeVat ?? "plus" },
   });
 
   revalidatePath("/agent/solicitors");

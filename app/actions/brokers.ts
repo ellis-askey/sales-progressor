@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import type { FeeVatTreatment } from "@prisma/client";
 
 function requireDirector(role: string) {
   if (role !== "director" && role !== "admin") throw new Error("Unauthorised");
@@ -73,14 +74,15 @@ export async function addBrokerForSaleAction(input: {
 export async function upsertPreferredBrokerAction(
   brokerFirmId: string,
   defaultReferralFeePence: number | null,
+  defaultReferralFeeVat: FeeVatTreatment = "plus",
 ) {
   const session = await requireSession();
   requireDirector(session.user.role);
 
   await prisma.agencyPreferredBroker.upsert({
     where: { agencyId: session.user.agencyId },
-    create: { agencyId: session.user.agencyId, brokerFirmId, defaultReferralFeePence },
-    update: { brokerFirmId, defaultReferralFeePence },
+    create: { agencyId: session.user.agencyId, brokerFirmId, defaultReferralFeePence, defaultReferralFeeVat },
+    update: { brokerFirmId, defaultReferralFeePence, defaultReferralFeeVat },
   });
 
   revalidatePath("/agent/partners");
@@ -105,6 +107,7 @@ export async function addBrokerWithContactAction(input: {
   contactPhone: string;
   contactEmail: string;
   referralFeePence: number | null;
+  referralFeeVat?: FeeVatTreatment;
 }): Promise<{ firmId: string; firmName: string; contactId: string }> {
   const session = await requireSession();
   requireDirector(session.user.role);
@@ -134,8 +137,8 @@ export async function addBrokerWithContactAction(input: {
 
   await prisma.agencyPreferredBroker.upsert({
     where: { agencyId: session.user.agencyId },
-    create: { agencyId: session.user.agencyId, brokerFirmId: firmId, defaultReferralFeePence: input.referralFeePence },
-    update: { brokerFirmId: firmId, defaultReferralFeePence: input.referralFeePence },
+    create: { agencyId: session.user.agencyId, brokerFirmId: firmId, defaultReferralFeePence: input.referralFeePence, defaultReferralFeeVat: input.referralFeeVat ?? "plus" },
+    update: { brokerFirmId: firmId, defaultReferralFeePence: input.referralFeePence, defaultReferralFeeVat: input.referralFeeVat ?? "plus" },
   });
 
   revalidatePath("/agent/partners");

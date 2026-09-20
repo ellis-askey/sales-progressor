@@ -16,10 +16,11 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PartnerPopup } from "@/components/agent/partners/PartnerPopup";
 import { BrokerForm, type PreferredBroker } from "@/components/agent/PreferredBrokerSettings";
 import { AddSolicitorForm, type AddedSolicitor } from "@/components/agent/partners/AddSolicitorForm";
+import type { FeeVatTreatment } from "@prisma/client";
 import { removePreferredBrokerAction } from "@/app/actions/brokers";
 import { removeRecommendedSolicitorAction } from "@/app/actions/solicitors";
 
-type RecommendedFirm = { firmId: string; firmName: string; defaultReferralFeePence: number | null };
+type RecommendedFirm = { firmId: string; firmName: string; defaultReferralFeePence: number | null; defaultReferralFeeVat: FeeVatTreatment };
 type AllFirm = { id: string; name: string };
 type PopupMode = "chooser" | "broker" | "solicitor";
 

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { rollToBusinessDay, calculateProgressionFeePence } from "@/lib/services/fees";
+import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { toUKDateStr } from "@/lib/utils";
@@ -1011,6 +1012,14 @@ export async function createTransaction(input: CreateTransactionInput) {
   const isSelfManaged = (input.progressedBy ?? "progressor") === "agent";
   const chaseRuleSnapshot = await buildChaseRuleSnapshot(input.agencyId, isSelfManaged);
 
+  // Snapshot the referral VAT treatment from the agency's Partners defaults so
+  // the fees card states each referral ex VAT correctly from day one. Broker is
+  // agency-level, shared by the buyer and onward-broker referrals.
+  const [referralFeeVat, brokerReferralFeeVat] = await Promise.all([
+    resolveSolicitorReferralVat(input.agencyId, input.referredFirmId),
+    resolveBrokerReferralVat(input.agencyId),
+  ]);
+
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment
     // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws
@@ -1076,13 +1085,16 @@ export async function createTransaction(input: CreateTransactionInput) {
       agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
       referredFirmId: input.referredFirmId ?? null,
       referralFee: input.referralFee ?? null,
+      referralFeeVat,
       brokerFirmId: input.brokerFirmId ?? null,
       brokerContactId: input.brokerContactId ?? null,
       brokerReferralFee: input.brokerReferralFee ?? null,
+      brokerReferralFeeVat,
       purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
       onwardBrokerFirmId: input.onwardBrokerFirmId ?? null,
       onwardBrokerContactId: input.onwardBrokerContactId ?? null,
       onwardBrokerReferralFee: input.onwardBrokerReferralFee ?? null,
+      onwardBrokerReferralFeeVat: brokerReferralFeeVat,
       onwardBrokerReferral: input.onwardBrokerReferral ?? false,
       twelveWeekTarget,
     },

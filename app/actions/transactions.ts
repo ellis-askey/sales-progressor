@@ -10,6 +10,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
+import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { solicitorPairViolation, solicitorHandlerRequiredMessage } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
@@ -1560,11 +1561,18 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   const current = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
     select: {
+      agencyId: true,
       vendorSolicitorFirmId: true, vendorSolicitorContactId: true,
       purchaserSolicitorFirmId: true, purchaserSolicitorContactId: true,
     },
   });
   if (!current) throw new Error("Transaction not found");
+
+  // When this patch sets the referral firm/fee, snapshot its VAT treatment from
+  // the firm's Partners default so the fees card states it ex VAT correctly.
+  if (referredFirmId !== undefined) {
+    data.referralFeeVat = await resolveSolicitorReferralVat(current.agencyId, referredFirmId);
+  }
   const merged = (key: keyof typeof current) =>
     key in solicitorPatch ? (solicitorPatch as Record<string, string | null | undefined>)[key] ?? null : current[key];
   if (solicitorPairViolation(merged("vendorSolicitorFirmId"), merged("vendorSolicitorContactId"))) {
@@ -1685,9 +1693,13 @@ export async function saveReferralAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, agencyId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Snapshot the referral's VAT treatment from the firm's Partners default so
+  // the fees card states it ex VAT correctly.
+  const referralFeeVat = await resolveSolicitorReferralVat(tx.agencyId, data.referredFirmId);
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
@@ -1695,6 +1707,7 @@ export async function saveReferralAction(
       referredFirmId:      data.referredFirmId,
       referralFee:         data.referralFee,
       referralFeeReceived: data.referralFeeReceived,
+      referralFeeVat,
     },
   });
 
@@ -1725,9 +1738,13 @@ export async function saveBrokerReferralAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, agencyId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Snapshot the broker referral's VAT treatment from the agency's Partners
+  // default (agency-level, shared by both broker sides).
+  const brokerReferralVat = await resolveBrokerReferralVat(tx.agencyId);
 
   const updateData = side === "vendor"
     ? {
@@ -1735,6 +1752,7 @@ export async function saveBrokerReferralAction(
         onwardBrokerContactId:           data.brokerContactId,
         onwardBrokerReferralFee:         data.brokerReferralFee,
         onwardBrokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        onwardBrokerReferralFeeVat:      brokerReferralVat,
         ...(data.purchaserBrokerReferral !== undefined
           ? { onwardBrokerReferral: data.purchaserBrokerReferral }
           : {}),
@@ -1744,6 +1762,7 @@ export async function saveBrokerReferralAction(
         brokerContactId:           data.brokerContactId,
         brokerReferralFee:         data.brokerReferralFee,
         brokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        brokerReferralFeeVat:      brokerReferralVat,
         ...(data.purchaserBrokerReferral !== undefined
           ? { purchaserBrokerReferral: data.purchaserBrokerReferral }
           : {}),

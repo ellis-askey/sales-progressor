@@ -14,6 +14,7 @@ import {
   getBrokerDirectoryForScope,
 } from "@/lib/services/brokers";
 import type { BrokerFirmWithStats } from "@/lib/services/brokers";
+import type { FeeVatTreatment } from "@prisma/client";
 import {
   getSolicitorExchangeStats,
   getSolicitorExchangeStatsForScope,
@@ -137,6 +138,7 @@ export default async function AgentPartnersPage() {
             id: true,
             solicitorFirmId: true,
             defaultReferralFeePence: true,
+            defaultReferralFeeVat: true,
             solicitorFirm: { select: { name: true } },
           },
         })
@@ -150,6 +152,7 @@ export default async function AgentPartnersPage() {
             where: { agencyId: session.user.agencyId },
             select: {
               defaultReferralFeePence: true,
+              defaultReferralFeeVat: true,
               brokerFirm: {
                 select: {
                   id: true,
@@ -176,6 +179,7 @@ export default async function AgentPartnersPage() {
         contactPhone: preferredBrokerRow.brokerFirm.handlers[0]?.phone ?? null,
         contactEmail: preferredBrokerRow.brokerFirm.handlers[0]?.email ?? null,
         defaultReferralFeePence: preferredBrokerRow.defaultReferralFeePence ?? null,
+        defaultReferralFeeVat: preferredBrokerRow.defaultReferralFeeVat ?? "plus",
       }
     : null;
 
@@ -193,10 +197,11 @@ export default async function AgentPartnersPage() {
         {showOnboarding ? (
           <PartnersEmptyState
             initialBroker={preferredBroker}
-            initialRecommended={(recommendedSolicitors as { solicitorFirmId: string; solicitorFirm: { name: string }; defaultReferralFeePence: number | null }[]).map((r) => ({
+            initialRecommended={(recommendedSolicitors as { solicitorFirmId: string; solicitorFirm: { name: string }; defaultReferralFeePence: number | null; defaultReferralFeeVat: FeeVatTreatment }[]).map((r) => ({
               firmId: r.solicitorFirmId,
               firmName: r.solicitorFirm.name,
               defaultReferralFeePence: r.defaultReferralFeePence,
+              defaultReferralFeeVat: r.defaultReferralFeeVat,
             }))}
             allFirms={allSolicitorFirms}
             canCreateSale
@@ -242,6 +247,7 @@ export default async function AgentPartnersPage() {
                   firmId: r.solicitorFirmId,
                   firmName: r.solicitorFirm.name,
                   defaultReferralFeePence: r.defaultReferralFeePence,
+                  defaultReferralFeeVat: r.defaultReferralFeeVat,
                 }))}
                 allFirms={allSolicitorFirms}
               />

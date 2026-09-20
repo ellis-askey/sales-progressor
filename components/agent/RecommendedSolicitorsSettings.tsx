@@ -9,12 +9,15 @@ import {
   removeRecommendedSolicitorAction,
   addRecommendedSolicitorWithContactAction,
 } from "@/app/actions/solicitors";
+import { VatToggle } from "@/components/agent/partners/VatToggle";
+import type { FeeVatTreatment } from "@prisma/client";
 
 type RecommendedFirm = {
   id: string;
   firmId: string;
   firmName: string;
   defaultReferralFeePence: number | null;
+  defaultReferralFeeVat: FeeVatTreatment;
 };
 
 type AllFirm = { id: string; name: string };
@@ -42,6 +45,7 @@ export function RecommendedSolicitorsSettings({
   const [cPhone, setCPhone] = useState("");
   const [cEmail, setCEmail] = useState("");
   const [pendingFee, setPendingFee] = useState<number | null>(null);
+  const [pendingVat, setPendingVat] = useState<FeeVatTreatment>("plus");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -64,12 +68,26 @@ export function RecommendedSolicitorsSettings({
     );
   }
 
-  function saveFee(firmId: string, pence: number | null) {
+  function persist(firmId: string, pence: number | null, vat: FeeVatTreatment) {
     setSaving(firmId);
     startTransition(async () => {
-      try { await upsertRecommendedSolicitorAction(firmId, pence); }
+      try { await upsertRecommendedSolicitorAction(firmId, pence, vat); }
       finally { setSaving(null); }
     });
+  }
+
+  // Changing the VAT toggle updates state and saves immediately (a discrete
+  // choice, not a blur-to-save field like the fee).
+  function saveVat(firmId: string, vat: FeeVatTreatment) {
+    let pence: number | null = null;
+    setRecommended((prev) =>
+      prev.map((r) => {
+        if (r.firmId !== firmId) return r;
+        pence = r.defaultReferralFeePence;
+        return { ...r, defaultReferralFeeVat: vat };
+      }),
+    );
+    persist(firmId, pence, vat);
   }
 
   function handleRemove(firmId: string) {
@@ -85,13 +103,13 @@ export function RecommendedSolicitorsSettings({
   function openContactForm(firm: { id?: string; name: string }) {
     setQuery("");
     setShowSearch(false);
-    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setAddError("");
+    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setPendingVat("plus"); setAddError("");
     setPendingFirm(firm);
   }
 
   function cancelPending() {
     setPendingFirm(null);
-    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setAddError("");
+    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setPendingVat("plus"); setAddError("");
   }
 
   async function confirmAdd() {
@@ -109,10 +127,11 @@ export function RecommendedSolicitorsSettings({
         contactPhone: cPhone,
         contactEmail: cEmail,
         referralFeePence: pendingFee,
+        referralFeeVat: pendingVat,
       });
       setRecommended((prev) => [
         ...prev,
-        { id: "", firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: pendingFee },
+        { id: "", firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: pendingFee, defaultReferralFeeVat: pendingVat },
       ]);
       cancelPending();
     } catch {
@@ -137,7 +156,7 @@ export function RecommendedSolicitorsSettings({
             <NumericFormat
               value={r.defaultReferralFeePence != null ? r.defaultReferralFeePence / 100 : ""}
               onValueChange={({ floatValue }) => updateFee(r.firmId, floatValue != null ? Math.round(floatValue * 100) : null)}
-              onBlur={() => saveFee(r.firmId, r.defaultReferralFeePence)}
+              onBlur={() => persist(r.firmId, r.defaultReferralFeePence, r.defaultReferralFeeVat)}
               prefix="£"
               thousandSeparator=","
               decimalScale={2}
@@ -147,6 +166,8 @@ export function RecommendedSolicitorsSettings({
               className="w-28 px-2 py-1 text-sm rounded-lg bg-white/50 border border-white/30 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
             />
           </div>
+
+          <VatToggle value={r.defaultReferralFeeVat} onChange={(v) => saveVat(r.firmId, v)} disabled={saving === r.firmId} />
 
           {saving === r.firmId && <span className="text-xs text-slate-900/30 flex-shrink-0">Saving…</span>}
 
@@ -206,17 +227,20 @@ export function RecommendedSolicitorsSettings({
             </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs text-slate-900/50 mb-1">Default referral fee (optional)</label>
-              <NumericFormat
-                value={pendingFee != null ? pendingFee / 100 : ""}
-                onValueChange={({ floatValue }) => setPendingFee(floatValue != null ? Math.round(floatValue * 100) : null)}
-                prefix="£"
-                thousandSeparator=","
-                decimalScale={2}
-                allowNegative={false}
-                inputMode="decimal"
-                placeholder="£250"
-                className="w-40 px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-              />
+              <div className="flex items-center gap-2">
+                <NumericFormat
+                  value={pendingFee != null ? pendingFee / 100 : ""}
+                  onValueChange={({ floatValue }) => setPendingFee(floatValue != null ? Math.round(floatValue * 100) : null)}
+                  prefix="£"
+                  thousandSeparator=","
+                  decimalScale={2}
+                  allowNegative={false}
+                  inputMode="decimal"
+                  placeholder="£250"
+                  className="w-40 px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
+                />
+                <VatToggle value={pendingVat} onChange={setPendingVat} disabled={adding} />
+              </div>
             </div>
           </div>
 

@@ -13,7 +13,9 @@ import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { addRecommendedSolicitorWithContactAction, getSolicitorFirmHandlersAction } from "@/app/actions/solicitors";
 
-export type AddedSolicitor = { firmId: string; firmName: string; defaultReferralFeePence: number | null };
+import type { FeeVatTreatment } from "@prisma/client";
+
+export type AddedSolicitor = { firmId: string; firmName: string; defaultReferralFeePence: number | null; defaultReferralFeeVat: FeeVatTreatment };
 type AllFirm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
 type SelectedFirm = { id?: string; name: string };
@@ -114,7 +116,7 @@ export function AddSolicitorForm({
         contactEmail: addingNew ? cEmail.trim() : undefined,
         referralFeePence: feePence,
       });
-      onAdded({ firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: feePence });
+      onAdded({ firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: feePence, defaultReferralFeeVat: "plus" });
     } catch {
       setError("Failed to save. Please try again.");
       setSaving(false);

@@ -6,6 +6,8 @@ import { Buildings, ArrowSquareOut } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { upsertPreferredBrokerAction, removePreferredBrokerAction, addBrokerWithContactAction } from "@/app/actions/brokers";
+import { VatToggle } from "@/components/agent/partners/VatToggle";
+import type { FeeVatTreatment } from "@prisma/client";
 
 export type PreferredBroker = {
   firmId: string;
@@ -15,6 +17,7 @@ export type PreferredBroker = {
   contactPhone: string | null;
   contactEmail: string | null;
   defaultReferralFeePence: number | null;
+  defaultReferralFeeVat: FeeVatTreatment;
 };
 
 function ensureHttps(url: string): string {
@@ -36,9 +39,10 @@ function BrokerCard({
   removing: boolean;
   onEdit: () => void;
   onRemove: () => void;
-  onSaveFee: (pence: number | null) => void;
+  onSaveFee: (pence: number | null, vat: FeeVatTreatment) => void;
 }) {
   const [feePence, setFeePence] = useState<number | null>(broker.defaultReferralFeePence);
+  const [feeVat, setFeeVat] = useState<FeeVatTreatment>(broker.defaultReferralFeeVat);
   return (
     <div style={{
       borderRadius: 14,
@@ -105,7 +109,7 @@ function BrokerCard({
         <NumericFormat
           value={feePence != null ? feePence / 100 : ""}
           onValueChange={({ floatValue }) => setFeePence(floatValue != null ? Math.round(floatValue * 100) : null)}
-          onBlur={() => onSaveFee(feePence)}
+          onBlur={() => onSaveFee(feePence, feeVat)}
           prefix="£"
           thousandSeparator=","
           decimalScale={2}
@@ -114,6 +118,7 @@ function BrokerCard({
           placeholder="£—"
           style={{ width: 90, padding: "4px 8px", fontSize: 13, borderRadius: 8, border: "1px solid rgba(99,102,241,0.20)", background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)", outline: "none" }}
         />
+        <VatToggle value={feeVat} onChange={(v) => { setFeeVat(v); onSaveFee(feePence, v); }} disabled={saving} />
         {saving && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Saving…</span>}
         <div style={{ flex: 1 }} />
         <button
@@ -156,6 +161,7 @@ export function BrokerForm({
   const [contactPhone, setContactPhone] = useState(initial?.contactPhone ?? "");
   const [contactEmail, setContactEmail] = useState(initial?.contactEmail ?? "");
   const [feePence, setFeePence] = useState<number | null>(initial?.defaultReferralFeePence ?? null);
+  const [feeVat, setFeeVat] = useState<FeeVatTreatment>(initial?.defaultReferralFeeVat ?? "plus");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -175,6 +181,7 @@ export function BrokerForm({
         contactPhone: contactPhone.trim(),
         contactEmail: contactEmail.trim(),
         referralFeePence: feePence,
+        referralFeeVat: feeVat,
       });
       onSaved({
         firmId: result.firmId,
@@ -184,6 +191,7 @@ export function BrokerForm({
         contactPhone: contactPhone.trim(),
         contactEmail: contactEmail.trim(),
         defaultReferralFeePence: feePence,
+        defaultReferralFeeVat: feeVat,
       });
     } catch {
       setError("Failed to save. Please try again.");
@@ -290,6 +298,7 @@ export function BrokerForm({
           className="agent-input"
           style={{ width: 120 }}
         />
+        <VatToggle value={feeVat} onChange={setFeeVat} disabled={saving} />
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>(optional)</span>
       </div>
 
@@ -346,13 +355,13 @@ export function PreferredBrokerSettings({
     });
   }
 
-  function handleSaveFee(pence: number | null) {
+  function handleSaveFee(pence: number | null, vat: FeeVatTreatment) {
     if (!broker) return;
     setSaving(true);
     startTransition(async () => {
       try {
-        await upsertPreferredBrokerAction(broker.firmId, pence);
-        setBroker((b) => b ? { ...b, defaultReferralFeePence: pence } : b);
+        await upsertPreferredBrokerAction(broker.firmId, pence, vat);
+        setBroker((b) => b ? { ...b, defaultReferralFeePence: pence, defaultReferralFeeVat: vat } : b);
       } finally {
         setSaving(false);
       }
