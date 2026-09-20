@@ -27,8 +27,12 @@ import { type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/com
 import { ChainMapPanel, type ChainMapPanelItem } from "@/components/chain/ChainMapPanel";
 import { displayChainPosition } from "@/lib/chain/positions";
 
-// Client-only (WebGL) — matches how the My Files map loads PropertyMap.
-const ChainGeoMap = dynamic(() => import("@/components/chain/ChainGeoMap").then((m) => m.ChainGeoMap), { ssr: false });
+// Client-only (WebGL) — matches how the My Files map loads PropertyMap. The
+// visible loading fallback also tells us the pane is sized if the map is slow.
+const ChainGeoMap = dynamic(() => import("@/components/chain/ChainGeoMap").then((m) => m.ChainGeoMap), {
+  ssr: false,
+  loading: () => <div className="chn-map-loading">Loading map…</div>,
+});
 
 // This file holds ONE chain body — `ChainView` — rendered two ways:
 //   - variant="drawer" (default): a right-hand slide-over via createPortal, used
@@ -594,7 +598,9 @@ export function ChainView({
     }
 
     // Onward purchases grouped by the spine node they fork from, so the panel can
-    // indent them right under it.
+    // sit them ABOVE it (the chain reads bottom→top). Kept in position order —
+    // top of the branch first, the immediate onward (branch bottom) last — so the
+    // immediate onward ends up directly above its property.
     const onwardByForkNode = new Map<string, Link[]>();
     for (const [k, group] of ladders) {
       if (k === "") continue;
@@ -602,7 +608,7 @@ export function ChainView({
       const forkId = s[s.length - 1]?.forkFromLinkId; // branch bottom carries the fork
       if (!forkId) continue;
       const arr = onwardByForkNode.get(forkId) ?? [];
-      arr.push(...[...s].reverse()); // immediate onward first
+      arr.push(...s);
       onwardByForkNode.set(forkId, arr);
     }
 
@@ -621,8 +627,8 @@ export function ChainView({
     };
     const items: ChainMapPanelItem[] = [];
     for (const l of spine) {
+      for (const b of onwardByForkNode.get(l.id) ?? []) items.push(makeItem(b, true)); // onward purchases sit above their property
       items.push(makeItem(l, false));
-      for (const b of onwardByForkNode.get(l.id) ?? []) items.push(makeItem(b, true));
     }
 
     return { mapNodes: nodes, mapMoves: moves, panelItems: items };
@@ -853,8 +859,10 @@ export function ChainView({
           : isMap
           ? {
               // Map mode: the drawer becomes a compact left panel docked against
-              // the nav, with the map filling the space to its right.
-              width: "min(400px, 46vw)", flexShrink: 0, height: "100%",
+              // the nav, with the map filling the space to its right. minWidth:0 +
+              // overflow:hidden stop the panel's content from pushing it wider
+              // than 400px and squeezing the map pane to nothing.
+              width: "min(400px, 46vw)", flexShrink: 0, flexGrow: 0, minWidth: 0, overflow: "hidden", height: "100%",
               background: "var(--agent-surface-elevated)",
               borderRight: "0.5px solid var(--agent-border-default)",
               boxShadow: "4px 0 24px rgba(0,0,0,0.10)",
