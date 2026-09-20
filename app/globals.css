@@ -1313,18 +1313,35 @@ select {
   font-size: 13px; color: var(--agent-text-muted); }
 
 /* Summary strip — floats over the top of the map. Info only, click-through. */
+/* Summary bar — a row of metric cards + a contextual focus panel, along the top. */
 .chn-summary {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5;
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; max-width: calc(100% - 100px);
-  padding: 8px 16px; border-radius: 999px; pointer-events: none;
-  background: rgba(255, 255, 255, 0.82); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 5;
+  display: flex; align-items: stretch; overflow: hidden; pointer-events: auto;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border: 0.5px solid rgba(255, 255, 255, 0.7); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
-[data-theme="dark"] .chn-summary { background: rgba(24, 28, 38, 0.82); border-color: rgba(255, 255, 255, 0.12); }
-.chn-sum-item { font-size: 12.5px; color: var(--agent-text-secondary); white-space: nowrap; }
-.chn-sum-item b { color: var(--agent-text-primary); font-weight: 700; }
-.chn-sum-long { padding-left: 14px; border-left: 0.5px solid var(--agent-border-default); }
-.chn-sum-note { font-size: 10.5px; color: var(--agent-text-muted); white-space: nowrap; }
+[data-theme="dark"] .chn-summary { background: rgba(24, 28, 38, 0.88); border-color: rgba(255, 255, 255, 0.12); }
+.chn-metric { display: flex; align-items: center; gap: 11px; padding: 10px 18px; flex-shrink: 0;
+  border-right: 0.5px solid var(--agent-border-subtle); }
+.chn-metric-ic { display: flex; flex-shrink: 0; color: var(--agent-coral-deep); }
+.chn-metric > span:not(.chn-metric-ic) { display: flex; flex-direction: column; min-width: 0; }
+.chn-metric b { font-size: 17.5px; font-weight: 750; color: var(--agent-text-primary); line-height: 1.1; }
+.chn-metric > span:not(.chn-metric-ic) > span { font-size: 11px; color: var(--agent-text-muted); }
+.chn-focus { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; }
+.chn-focus-txt, .chn-focus-long { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
+.chn-focus-long { background: none; border: none; cursor: pointer; font: inherit; padding: 0; }
+.chn-focus-label { font-size: 12.5px; font-weight: 700; color: var(--agent-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chn-focus-long .chn-focus-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); }
+.chn-focus-val { font-size: 13px; font-weight: 700; color: var(--agent-coral-deep); margin-top: 1px; }
+.chn-focus-sub { font-size: 11px; color: var(--agent-text-muted); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chn-focus-long:hover .chn-focus-sub { color: var(--agent-text-secondary); }
+.chn-focus-x { flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; background: none; border: none;
+  color: var(--agent-text-muted); font-size: 17px; line-height: 1; transition: background 140ms ease, color 140ms ease; }
+.chn-focus-x:hover { background: var(--agent-hover-shade); color: var(--agent-text-primary); }
 
 /* Legend — small, bottom-left, click-through. */
 .chn-legend {
@@ -1394,7 +1411,6 @@ select {
 .chn-journey-dist { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--agent-coral-deep); }
 .chn-journey-via { display: block; margin-top: 2px; font-size: 11px; color: var(--agent-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chn-journey-pos { display: block; margin-top: 3px; font-size: 11px; color: var(--agent-text-muted); }
 
 /* Cursor-following route label (hover). Points above the cursor, click-through. */
 .chn-tip {
@@ -1404,15 +1420,6 @@ select {
   background: rgba(20, 24, 33, 0.92); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
-/* The clickable "Longest" metric opts back into pointer events (the summary strip
-   is otherwise click-through). */
-.chn-sum-longbtn {
-  pointer-events: auto; cursor: pointer; font-family: inherit; font-size: 12.5px;
-  color: var(--agent-text-secondary); background: none; border: none;
-  border-left: 0.5px solid var(--agent-border-default); padding: 0 0 0 14px;
-}
-.chn-sum-longbtn b { color: var(--agent-text-primary); font-weight: 700; }
-.chn-sum-longbtn:hover b { color: var(--agent-coral-deep); }
 
 /* ── Chain map, mobile ────────────────────────────────────────────────────────
    The two-pane dock doesn't work on a phone. Map goes full-screen; the chain
@@ -1436,6 +1443,11 @@ select {
   }
   .chain-sheet-handle span { width: 42px; height: 4px; border-radius: 99px; background: var(--agent-border-strong, rgba(0, 0, 0, 0.22)); }
   .chn-legend { bottom: calc(132px + 12px); }
+  /* The wider metric bar scrolls horizontally rather than clipping on a phone. */
+  .chn-summary { left: 8px; right: 8px; top: 8px; overflow-x: auto; overflow-y: hidden; }
+  .chn-metric { padding: 9px 13px; gap: 9px; }
+  .chn-metric b { font-size: 16px; }
+  .chn-focus { flex: 0 0 auto; min-width: 190px; }
 }
 @media (prefers-reduced-motion: reduce) { .chain-cc-panel { transition: none; } }
 @keyframes chain-map-in  { from { opacity: 0; } to { opacity: 1; } }

@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
+import { House, ShareNetwork, MapPin, Clock } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";
 import { extractPostcode } from "@/lib/geo/postcode";
@@ -365,7 +366,8 @@ export function ChainGeoMap({
     })
     .filter((x): x is { m: ChainMapMove; a: LatLng; b: LatLng; r: RouteResult | null; miles: number } => !!x);
   const totalMiles = geoMoves.reduce((s, x) => s + x.miles, 0);
-  const longestMi = geoMoves.reduce((mx, x) => Math.max(mx, x.miles), 0);
+  const totalDriveSeconds = geoMoves.reduce((s, x) => s + (x.r?.durationSeconds ?? 0), 0);
+  const longest = geoMoves.reduce<(typeof geoMoves)[number] | null>((mx, x) => (!mx || x.miles > mx.miles ? x : mx), null);
   const allDriving = geoMoves.length > 0 && geoMoves.every((x) => x.r);
   const anyDriving = geoMoves.some((x) => x.r);
 
@@ -385,9 +387,6 @@ export function ChainGeoMap({
   const jMi = jFrom && jTo ? haversineMiles(jFrom, jTo) : null;
   // "X of N in chain" — only for a numbered spine property (branch labels are "↑").
   const posLabel = selDetail && /^\d+$/.test(selDetail.label) ? `${selDetail.label} of ${nodes.length} in chain` : null;
-  const longestMove = geoMoves.reduce<{ from: string; miles: number } | null>(
-    (mx, x) => (!mx || x.miles > mx.miles ? { from: x.m.fromId, miles: x.miles } : mx), null,
-  );
 
   return (
     <div className="chn-map-wrap">
@@ -396,17 +395,47 @@ export function ChainGeoMap({
       {/* Cursor-following route label */}
       {hoverTip && <div className="chn-tip" style={{ left: hoverTip.x, top: hoverTip.y }}>{hoverTip.label}</div>}
 
-      {/* Summary strip */}
+      {/* Summary bar — metric cards + a contextual focus panel (the longest move
+          by default; the selected property's place in the chain once one is
+          picked). Position lives here now, so the map popup stays lean. */}
       <div className="chn-summary">
-        <span className="chn-sum-item"><b>{nodes.length}</b> {nodes.length === 1 ? "property" : "properties"}</span>
-        <span className="chn-sum-item"><b>{moves.length}</b> {moves.length === 1 ? "move" : "moves"}</span>
-        {geoMoves.length > 0 && <span className="chn-sum-item"><b>{allDriving ? "" : "~"}{Math.round(totalMiles)} mi</b> total</span>}
-        {longestMi > 0 && (
-          longestMove
-            ? <button type="button" className="chn-sum-item chn-sum-long chn-sum-longbtn" onClick={() => onSelectNode(longestMove.from)}>Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></button>
-            : <span className="chn-sum-item chn-sum-long">Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></span>
+        <div className="chn-metric">
+          <span className="chn-metric-ic"><House size={20} weight="regular" /></span>
+          <span><b>{nodes.length}</b><span>{nodes.length === 1 ? "property" : "properties"}</span></span>
+        </div>
+        <div className="chn-metric">
+          <span className="chn-metric-ic"><ShareNetwork size={20} weight="regular" /></span>
+          <span><b>{moves.length}</b><span>{moves.length === 1 ? "move" : "moves"}</span></span>
+        </div>
+        {geoMoves.length > 0 && (
+          <div className="chn-metric">
+            <span className="chn-metric-ic"><MapPin size={20} weight="regular" /></span>
+            <span><b>{allDriving ? "" : "~"}{Math.round(totalMiles)}</b><span>miles total</span></span>
+          </div>
         )}
-        <span className="chn-sum-note">{allDriving ? "driving distance" : anyDriving ? "part driving" : "approx straight-line"}</span>
+        {anyDriving && totalDriveSeconds > 0 && (
+          <div className="chn-metric">
+            <span className="chn-metric-ic"><Clock size={20} weight="regular" /></span>
+            <span><b>{allDriving ? "" : "~"}{fmtDur(totalDriveSeconds)}</b><span>total drive time</span></span>
+          </div>
+        )}
+        <div className="chn-focus">
+          {selectedId && selDetail ? (
+            <>
+              <span className="chn-focus-txt">
+                <span className="chn-focus-label">{posLabel ?? "Onward purchase"}</span>
+                <span className="chn-focus-sub">{selDetail.line1}</span>
+              </span>
+              <button type="button" className="chn-focus-x" aria-label="Clear selection" onClick={() => onSelectNode(null)}>×</button>
+            </>
+          ) : longest ? (
+            <button type="button" className="chn-focus-long" onClick={() => onSelectNode(longest.m.fromId)}>
+              <span className="chn-focus-label">Longest move</span>
+              <span className="chn-focus-val">{allDriving ? "" : "~"}{miEl(longest.miles)}{longest.r ? ` · ${fmtDur(longest.r.durationSeconds)}` : ""}</span>
+              <span className="chn-focus-sub">{details[longest.m.fromId]?.line1} → {details[longest.m.toId]?.line1}</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Legend */}
@@ -443,7 +472,6 @@ export function ChainGeoMap({
                 {jRoute?.viaRoads && jRoute.viaRoads.length > 0 && (
                   <span className="chn-journey-via">Via {jRoute.viaRoads.join(", ")}</span>
                 )}
-                {posLabel && <span className="chn-journey-pos">{posLabel}</span>}
               </div>
             </div>
           </div>
