@@ -1431,6 +1431,35 @@ select {
   background: var(--agent-surface-elevated); border-color: rgba(var(--agent-coral-rgb), 0.45);
   box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.10);
 }
+/* Row line: the selectable row, plus the ⋯ menu trigger pinned to its right. */
+.cmp-rowline { display: flex; align-items: center; gap: 2px; }
+.cmp-rowline .cmp-row { flex: 1; min-width: 0; }
+.cmp-menu-btn {
+  flex-shrink: 0; width: 26px; height: 26px; margin-right: 4px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: none; border: 1px solid transparent; color: var(--agent-text-muted);
+  font-size: 17px; line-height: 1; font: inherit; letter-spacing: 1px;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.cmp-menu-btn:hover { background: var(--agent-hover-shade); color: var(--agent-text-primary); }
+.cmp-menu-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
+/* Portal dropdown (fixed-positioned in ChainMapPanel). */
+.cmp-menu {
+  min-width: 178px; padding: 5px; border-radius: 12px;
+  background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-default);
+  box-shadow: 0 12px 32px rgba(var(--agent-shadow-rgb), 0.22);
+  display: flex; flex-direction: column; gap: 1px;
+  transform-origin: top right; animation: portal-pop-in 120ms ease both;
+}
+.cmp-menu-item {
+  text-align: left; padding: 7px 10px; border-radius: 8px; font: inherit; font-size: 12.5px;
+  font-weight: 550; color: var(--agent-text-primary); background: none; border: none; cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.cmp-menu-item:hover { background: var(--agent-hover-shade); }
+.cmp-menu-item.danger { color: var(--agent-danger); }
+.cmp-menu-item.danger:hover { background: rgba(var(--agent-danger-rgb), 0.10); }
+
 .cmp-rowwrap { display: flex; flex-direction: column; }
 /* Onward purchase — indented under its spine property with a connector elbow. */
 .cmp-rowwrap--onward { margin-left: 26px; position: relative; }

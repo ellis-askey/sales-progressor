@@ -24,7 +24,7 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
 import dynamic from "next/dynamic";
 import { type ChainMapNode, type ChainMapMove, type ChainMapStatus, type ChainMapDetail } from "@/components/chain/chain-map-shared";
-import { ChainMapPanel, type ChainMapPanelItem } from "@/components/chain/ChainMapPanel";
+import { ChainMapPanel, type ChainMapPanelItem, type ChainMapActions } from "@/components/chain/ChainMapPanel";
 import { displayChainPosition } from "@/lib/chain/positions";
 
 // Client-only (WebGL) — matches how the My Files map loads PropertyMap. The
@@ -559,7 +559,7 @@ export function ChainView({
   // A node per link (numbered bottom=1 like the cards); a move per consecutive
   // pair (the household in the lower property is buying the one above). Memoised
   // on the chain so the map doesn't re-geocode on every render.
-  const { mapNodes, mapMoves, panelItems, mapDetails } = useMemo(() => {
+  const { mapNodes, mapMoves, mapDetails, orderedPanelLinks } = useMemo(() => {
     type Link = ChainV2["links"][number];
     const all: Link[] = chain?.links ?? [];
     const spine = all.filter((l) => (l.branchKey ?? "") === "").sort((a, b) => a.position - b.position);
@@ -614,30 +614,13 @@ export function ChainView({
       onwardByForkNode.set(forkId, arr);
     }
 
-    const makeItem = (l: Link, onward: boolean): ChainMapPanelItem => {
-      const a = addr(l);
-      const ci = a.indexOf(",");
-      const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
-      const invite: "send" | "resend" | null =
-        l.transactionId == null && !!l.stubAgentEmail
-          ? (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED" ? "resend" : "send")
-          : null;
-      return {
-        id: l.id, label: labelOf(l), onward,
-        line1: ci === -1 ? a : a.slice(0, ci),
-        line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
-        agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
-        photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
-        status: nodeStatus(l),
-        progressPercent: l.progressPercent,
-        href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
-        invite,
-      };
-    };
-    const items: ChainMapPanelItem[] = [];
+    // Panel order: each spine property with its onward purchases above it. The
+    // per-row capabilities (edit/remove/chase/reorder…) are attached OUTSIDE the
+    // memo — they use render-time gating that must not churn the map data.
+    const orderedPanelLinks: { link: Link; onward: boolean }[] = [];
     for (const l of spine) {
-      for (const b of onwardByForkNode.get(l.id) ?? []) items.push(makeItem(b, true)); // onward purchases sit above their property
-      items.push(makeItem(l, false));
+      for (const b of onwardByForkNode.get(l.id) ?? []) orderedPanelLinks.push({ link: b, onward: true });
+      orderedPanelLinks.push({ link: l, onward: false });
     }
 
     // Per-node detail (keyed) for the floating property + move cards.
@@ -658,7 +641,7 @@ export function ChainView({
       };
     }
 
-    return { mapNodes: nodes, mapMoves: moves, panelItems: items, mapDetails: detailById };
+    return { mapNodes: nodes, mapMoves: moves, mapDetails: detailById, orderedPanelLinks };
   }, [chain, currentUserId, transactionId]);
 
   // Chase-neighbour: the stub agent on the link directly above (onward) or below
@@ -674,6 +657,75 @@ export function ChainView({
     return null;
   };
   const [chaseNeighbour, setChaseNeighbour] = useState<{ direction: NeighbourChaseDirection; address: string | null } | null>(null);
+
+  // Panel rows with per-row capabilities (edit / remove / reorder / chase /
+  // add-onward / photo), using the same gating the Timeline's LinkCard uses.
+  // Kept out of the map memo so this render-time gating doesn't churn map data.
+  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, onward }) => {
+    const a = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
+    const ci = a.indexOf(",");
+    const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
+    const isSpineLink = (l.branchKey ?? "") === "";
+    const spineIdx = links.findIndex((x) => x.id === l.id);
+    const canEdit = l.canEditStub ?? canEditLink(l, currentUserId, currentUserRole);
+    const status: ChainMapStatus =
+      mine ? "yours"
+        : l.transaction?.status === "completed" ? "completed"
+          : l.transactionId != null ? "claimed"
+            : (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED") ? "invited"
+              : "unclaimed";
+    const invite: "send" | "resend" | null =
+      l.transactionId == null && !!l.stubAgentEmail
+        ? (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED" ? "resend" : "send")
+        : null;
+    return {
+      id: l.id,
+      label: isSpineLink ? String(displayChainPosition(l.position, links.length)) : "↑",
+      onward,
+      line1: ci === -1 ? a : a.slice(0, ci),
+      line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
+      agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
+      photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
+      status,
+      progressPercent: l.progressPercent,
+      href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
+      invite,
+      canEdit,
+      hasShareLink: !!l.hasShareLink,
+      canMoveUp: isSpineLink && canReorder && spineIdx > 0,
+      canMoveDown: isSpineLink && canReorder && spineIdx >= 0 && spineIdx < links.length - 1,
+      canAddOnward: (isInternal || canAddAbove(l, currentUserId, currentUserRole)) && onwardsAbove(l).length < MAX_ONWARDS,
+      canUploadPhoto: l.transactionId == null && canEdit,
+      chaseDir: chaseDirForLink(l),
+    };
+  });
+
+  // The ⋯-menu / photo handlers for the compact Map panel — the same ones the
+  // Timeline's LinkCard uses, resolved from the link id the panel hands back.
+  const mapPanelActions: ChainMapActions = {
+    onEdit: (id) => {
+      const l = allChainLinks.find((x) => x.id === id);
+      if (l && onOpenAddNode && chain) onOpenAddNode("above", chain.id, l);
+    },
+    onAddOnward: (id) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, id); },
+    onMoveUp: (id) => { void handleMove(id, "up"); },
+    onMoveDown: (id) => { void handleMove(id, "down"); },
+    onChase: (id) => {
+      const l = allChainLinks.find((x) => x.id === id);
+      const dir = l ? chaseDirForLink(l) : null;
+      if (l && dir) setChaseNeighbour({ direction: dir, address: l.stubPropertyAddress ?? null });
+    },
+    onUploadPhoto: (id, file) => { void handleUploadPhoto(id, file); },
+    onCopyShare: (id) => { void handleCopyShareLink(id); },
+    onRevokeShare: (id) => { void handleRevokeShareLink(id); },
+    onRemove: (id) => {
+      const l = allChainLinks.find((x) => x.id === id);
+      const label = l?.stubPropertyAddress ?? l?.transaction?.propertyAddress ?? "this sale";
+      if (typeof window !== "undefined" && window.confirm(`Remove ${label} from the chain?`)) {
+        void doDeleteConfirmed(id);
+      }
+    },
+  };
 
   // Internal staff own no link on an outsourced file, so they can't anchor an
   // add on "their" link — allow them to add at the chain's bottom directly.
@@ -973,6 +1025,7 @@ export function ChainView({
             onAddAbove={onOpenAddNode && chain ? () => onOpenAddNode("above", chain.id) : undefined}
             onAddBelow={onOpenAddNode && chain ? () => onOpenAddNode("below", chain.id) : undefined}
             busyInviteId={sendingInvites}
+            actions={mapPanelActions}
           />
         </div>
       )}
