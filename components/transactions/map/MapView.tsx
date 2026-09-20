@@ -14,6 +14,7 @@
 //     is configured (Phase 4); otherwise that control is simply absent.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -62,6 +63,22 @@ export function MapView({
   const [geo, setGeo] = useState<Record<string, LatLng>>({});
   const [market, setMarket] = useState<Record<string, number | null>>({});
   const [selectedSale, setSelectedSale] = useState<{ id: string; address: string; lat: number; lng: number } | null>(null);
+  // Street View overlay fade-out: `closing` plays the exit, then a timer
+  // unmounts (robust under prefers-reduced-motion, where animationend never
+  // fires). The timer is cancelled if a new pin opens mid-fade.
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (closeTimer.current) window.clearTimeout(closeTimer.current); }, []);
+
+  function closeStreetView() {
+    setClosing(true);
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      setSelectedSale(null);
+      setClosing(false);
+      closeTimer.current = null;
+    }, 200);
+  }
 
   // Raw file rows → map files (all statuses; withdrawn is filtered later).
   const mapFiles = useMemo(
@@ -198,6 +215,9 @@ export function MapView({
   const geocodedCount = new Set(sales.map((s) => s.id)).size;
 
   function onSelectSale(id: string) {
+    // Cancel a fade-out in flight so opening a new pin doesn't get unmounted.
+    if (closeTimer.current) { window.clearTimeout(closeTimer.current); closeTimer.current = null; }
+    setClosing(false);
     const s = saleById.current.get(id);
     if (s) setSelectedSale({ id: s.id, address: s.address, lat: s.lat, lng: s.lng });
   }
@@ -274,12 +294,20 @@ export function MapView({
         </div>
       </div>
 
-      {selectedSale && (
-        <div className="map-modal-scrim" onClick={() => setSelectedSale(null)}>
+      {/* Street View — portalled to <body> so the full-page blur sits above the
+          nav bars too (a glassy ancestor would otherwise trap position:fixed).
+          The blur is the only backdrop (no dark scrim); clicking it fades the
+          blur + popup out together (child opacity rides the scrim's). */}
+      {selectedSale && typeof document !== "undefined" && createPortal(
+        <div
+          data-theme={theme}
+          className={`map-modal-scrim${closing ? " closing" : ""}`}
+          onClick={closeStreetView}
+        >
           <div className="map-modal" onClick={(e) => e.stopPropagation()}>
             <div className="map-modal-head">
               <span className="map-modal-addr">{selectedSale.address}</span>
-              <button type="button" className="map-modal-x" onClick={() => setSelectedSale(null)} aria-label="Close">✕</button>
+              <button type="button" className="map-modal-x" onClick={closeStreetView} aria-label="Close">✕</button>
             </div>
             {streetViewKey ? (
               <iframe
@@ -294,7 +322,8 @@ export function MapView({
             )}
             <Link href={`${basePath}/${selectedSale.id}`} className="map-modal-cta">Open file</Link>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

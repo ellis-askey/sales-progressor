@@ -4432,12 +4432,18 @@ body[data-demo-file] [data-onboarding-checklist] {
 /* Canonical backdrop + modal chrome (matches .agent-backdrop / .agent-modal):
    themed blur-dim, elevated surface, spring-in. The card keeps its own layout
    (edge-to-edge Street View), so no inner padding. */
+/* Street View overlay — no dark scrim: the whole page frosts behind it. Portaled
+   to <body> and z-index above the nav, so the blur covers the top bars too.
+   Click the blur → .closing fades the scrim (and its child popup, via opacity)
+   out together. */
 .map-modal-scrim {
-  position: fixed; inset: 0; z-index: var(--agent-z-modal, 1000); display: grid; place-items: center; padding: 20px;
-  background: rgba(var(--agent-shadow-rgb), 0.40);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 20px;
+  background: transparent;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   animation: agent-backdrop-in 200ms var(--agent-ease) both;
 }
+.map-modal-scrim.closing { animation: map-overlay-out 180ms var(--agent-ease) forwards; }
+@keyframes map-overlay-out { from { opacity: 1; } to { opacity: 0; } }
 .map-modal {
   width: min(560px, 100%); border-radius: var(--agent-radius-xl, 20px); overflow: hidden;
   background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default);
