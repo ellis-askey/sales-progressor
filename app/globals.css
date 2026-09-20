@@ -1394,6 +1394,14 @@ select {
 .chn-journey-dist { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--agent-coral-deep); }
 .chn-journey-pos { display: block; margin-top: 3px; font-size: 11px; color: var(--agent-text-muted); }
 
+/* Cursor-following route label (hover). Points above the cursor, click-through. */
+.chn-tip {
+  position: absolute; z-index: 7; pointer-events: none; white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 12px));
+  padding: 4px 9px; border-radius: 7px; font-size: 11.5px; font-weight: 600; color: #fff;
+  background: rgba(20, 24, 33, 0.92); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
 /* The clickable "Longest" metric opts back into pointer events (the summary strip
    is otherwise click-through). */
 .chn-sum-longbtn {
@@ -1512,6 +1520,13 @@ select {
 .cmp-guide { width: 18px; flex: none; position: relative; }
 .cmp-guide::before {
   content: ""; position: absolute; left: 8px; top: 0; bottom: 0; width: 1.5px;
+  background: var(--agent-border-default);
+}
+/* Elbow tick — a short horizontal connector from the rail into the branch card,
+   so each onward purchase visibly hooks onto the fork it belongs to (the rail
+   still runs on down to the fork sale below). */
+.cmp-guide--elbow::after {
+  content: ""; position: absolute; left: 8px; top: 26px; width: 12px; height: 1.5px;
   background: var(--agent-border-default);
 }
 .cmp-tree-body { flex: 1; min-width: 0; }

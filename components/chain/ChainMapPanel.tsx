@@ -187,7 +187,9 @@ function TreeRow({
   return (
     <div className="cmp-tree">
       {Array.from({ length: depth }).map((_, i) => (
-        <span key={i} className="cmp-guide" aria-hidden />
+        // The guide nearest the card gets an elbow tick (only on the card row, not
+        // the thin add/insert rows) so each branch visibly hooks onto the rail.
+        <span key={i} className={`cmp-guide${i === depth - 1 && spacing === "card" ? " cmp-guide--elbow" : ""}`} aria-hidden />
       ))}
       <div className={`cmp-tree-body cmp-tree-body--${spacing}`}>{children}</div>
     </div>

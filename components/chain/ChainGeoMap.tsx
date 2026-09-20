@@ -95,6 +95,8 @@ export function ChainGeoMap({
   const coordsRef = useRef(coords);
   coordsRef.current = coords;
   const [, setTick] = useState(0); // bump on map move so projected overlays follow
+  // Tiny "18.4 mi · 31 min" label that follows the cursor while hovering a route.
+  const [hoverTip, setHoverTip] = useState<{ x: number; y: number; label: string } | null>(null);
   // The move currently lit up on the map (derived from the selected property).
   // Kept in a ref so moveFC — rebuilt inside map callbacks — can read it without
   // re-installing layers.
@@ -252,9 +254,26 @@ export function ChainGeoMap({
       const hit = map.queryRenderedFeatures(e.point, { layers: ["chain-move-line", "chain-move-broken"] });
       if (hit.length === 0) onSelectRef.current(null);
     });
+    // Hover a route → a small label tracks the cursor with the real drive figures
+    // (or straight-line when there's no route). Same data the click popup shows.
+    const onLineMove = (e: maplibregl.MapLayerMouseEvent) => {
+      const f = e.features?.[0];
+      const fromId = f?.properties?.fromId as string | undefined;
+      const toId = f?.properties?.toId as string | undefined;
+      if (!fromId || !toId) return;
+      const r = routeForRef(fromId, toId);
+      let label = "";
+      if (r) label = `${miEl(r.distanceMeters / M_PER_MI)} · ${fmtDur(r.durationSeconds)}`;
+      else {
+        const a = coordsRef.current[fromId], b = coordsRef.current[toId];
+        if (a && b) label = `${miEl(haversineMiles(a, b))} · straight-line`;
+      }
+      if (label) setHoverTip({ x: e.point.x, y: e.point.y, label });
+    };
     for (const id of ["chain-move-line", "chain-move-broken"]) {
       map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+      map.on("mousemove", id, onLineMove);
+      map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; setHoverTip(null); });
     }
 
     const ro = new ResizeObserver(() => map.resize());
@@ -373,6 +392,9 @@ export function ChainGeoMap({
   return (
     <div className="chn-map-wrap">
       <div ref={containerRef} className="chn-map-canvas" />
+
+      {/* Cursor-following route label */}
+      {hoverTip && <div className="chn-tip" style={{ left: hoverTip.x, top: hoverTip.y }}>{hoverTip.label}</div>}
 
       {/* Summary strip */}
       <div className="chn-summary">
