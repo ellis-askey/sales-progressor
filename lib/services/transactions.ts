@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
-import { rollToBusinessDay } from "@/lib/services/fees";
+import { rollToBusinessDay, calculateProgressionFeePence } from "@/lib/services/fees";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { toUKDateStr } from "@/lib/utils";
@@ -65,7 +65,7 @@ export async function listTransactions(
     orderBy: { createdAt: "desc" },
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
-      assignedUser: { select: { id: true, name: true, image: true } },
+      assignedUser: { select: { id: true, name: true, image: true, clientType: true, legacyFee: true } },
       agentUser: { select: { id: true, name: true, role: true, image: true } },
       // Phase-3: scope Contact list reads to the active round + file-level.
       // Pre-Phase-3 the cross-tx include returned every contact regardless
@@ -233,11 +233,38 @@ export async function listTransactions(
       "off_track";
 
     const { chaseTasks: _c, _count: _cnt, agentFeeAmount, agentFeePercent, referralFee, ...rest } = tx;
+    const agentFeeAmountNum = agentFeeAmount != null ? Number(agentFeeAmount) : null;
+    const agentFeePercentNum = agentFeePercent != null ? Number(agentFeePercent) : null;
+    const referralFeeNum = referralFee != null ? Number(referralFee) : null;
+    // Fee shown across the workspace (stat strip / forecast / pipeline / map):
+    // OUR progression income for internal staff, the agency's own gross fee
+    // (agent commission + referrals, not net of our fee) otherwise. Resolved
+    // here where the viewer's scope is known, so every fee display reads one
+    // number. scope is only passed for internal staff; agency callers hit the
+    // agencyId branches with no scope → their own gross fee.
+    const feeIsOurs = !!scope && scope.kind !== "agency";
+    const feePence = feeIsOurs
+      ? calculateProgressionFeePence({
+          purchasePrice: tx.purchasePrice ?? null,
+          agentFeeAmount: agentFeeAmountNum,
+          agentFeePercent: agentFeePercentNum,
+          referralFee: referralFeeNum,
+          brokerReferralFee: tx.brokerReferralFee ?? null,
+          onwardBrokerReferralFee: tx.onwardBrokerReferralFee ?? null,
+          serviceType: tx.serviceType,
+          freeOnExchange: tx.freeOnExchange,
+          firstOutsourcedFree: tx.firstOutsourcedFree,
+          assignedUser: tx.assignedUser ? { clientType: tx.assignedUser.clientType, legacyFee: tx.assignedUser.legacyFee } : null,
+          agencyOverride: tx.agency ? { feeTier: tx.agency.feeTier, legacyOutsourcedFeePence: tx.agency.legacyOutsourcedFeePence } : null,
+        })
+      : (agentFeeAmountNum ?? (agentFeePercentNum != null && tx.purchasePrice != null ? Math.round(tx.purchasePrice * agentFeePercentNum / 100) : 0))
+        + (referralFeeNum ?? 0) + Number(tx.brokerReferralFee ?? 0) + Number(tx.onwardBrokerReferralFee ?? 0);
     return {
       ...rest,
-      agentFeeAmount: agentFeeAmount != null ? Number(agentFeeAmount) : null,
-      agentFeePercent: agentFeePercent != null ? Number(agentFeePercent) : null,
-      referralFee: referralFee != null ? Number(referralFee) : null,
+      agentFeeAmount: agentFeeAmountNum,
+      agentFeePercent: agentFeePercentNum,
+      referralFee: referralFeeNum,
+      feePence,
       health: {
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,

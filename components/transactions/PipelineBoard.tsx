@@ -27,6 +27,9 @@ export type PipelineRow = TransactionRow & {
   referralFee?: number | null;
   brokerReferralFee?: number | null;
   onwardBrokerReferralFee?: number | null;
+  // Server-resolved display fee (pence): our progression income for internal
+  // staff, the agency's own gross fee otherwise. See listTransactions.
+  feePence?: number;
 };
 
 // Per-stage icon — the tinted icon-in-circle style used on the Enquiries /
@@ -40,12 +43,13 @@ const STAGE_ICON: Record<DisplayStageKey, typeof FileText> = {
   completion: Key,
 };
 
-// What the file is worth to the agency in pence — the fee portion of the
-// canonical calculateFileFeesPence (lib/services/fees.ts): agent commission
-// (fixed amount, else percent of the sale price) + solicitor referral +
-// buyer's broker referral + seller's onward-broker referral. Matches the fee
-// basis on Completions so the same file never reads two different totals.
+// The fee shown for a file, in pence. Prefer the server-resolved feePence —
+// OUR progression income for internal staff, the agency's own gross fee (agent
+// commission + solicitor/broker referrals) otherwise. Falls back to the
+// agency-fee maths for any row predating the field. Every workspace fee display
+// (strip / forecast / pipeline / map) reads this one function.
 function fileFeePence(r: PipelineRow): number {
+  if (typeof r.feePence === "number") return r.feePence;
   const commission =
     r.agentFeeAmount != null
       ? r.agentFeeAmount
