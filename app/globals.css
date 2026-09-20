@@ -1315,12 +1315,13 @@ select {
 /* Summary strip — floats over the top of the map. Info only, click-through. */
 /* Summary bar — a row of metric cards + a contextual focus panel, along the top. */
 .chn-summary {
-  position: absolute; top: 12px; left: 12px; right: 12px; z-index: 5;
-  display: flex; align-items: stretch; overflow: hidden; pointer-events: auto;
+  position: absolute; top: 12px; left: 12px; z-index: 5; max-width: calc(100% - 24px);
+  display: inline-flex; align-items: stretch; flex-wrap: nowrap; overflow: hidden; pointer-events: auto;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.9); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border: 0.5px solid rgba(255, 255, 255, 0.7); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
+.chn-metric b, .chn-metric > span:not(.chn-metric-ic) > span { white-space: nowrap; }
 [data-theme="dark"] .chn-summary { background: rgba(24, 28, 38, 0.88); border-color: rgba(255, 255, 255, 0.12); }
 .chn-metric { display: flex; align-items: center; gap: 11px; padding: 10px 18px; flex-shrink: 0;
   border-right: 0.5px solid var(--agent-border-subtle); }
@@ -1328,7 +1329,7 @@ select {
 .chn-metric > span:not(.chn-metric-ic) { display: flex; flex-direction: column; min-width: 0; }
 .chn-metric b { font-size: 17.5px; font-weight: 750; color: var(--agent-text-primary); line-height: 1.1; }
 .chn-metric > span:not(.chn-metric-ic) > span { font-size: 11px; color: var(--agent-text-muted); }
-.chn-focus { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; }
+.chn-focus { flex: 0 1 auto; min-width: 0; max-width: 300px; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; }
 .chn-focus-txt, .chn-focus-long { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
 .chn-focus-long { background: none; border: none; cursor: pointer; font: inherit; padding: 0; }
 .chn-focus-label { font-size: 12.5px; font-weight: 700; color: var(--agent-text-primary);
@@ -1526,13 +1527,11 @@ select {
 /* A branched onward purchase reads slightly quieter than the spine trunk. */
 .cmp-rowwrap--branch { background: var(--agent-surface-subtle, var(--agent-surface)); }
 /* Fork sale — its onward purchases sit one level in (rail at +8px), so the rail
-   curves down into this card's node, completing the tree ("these fork off here"). */
+   runs straight down into this card's node, completing the tree. */
 .cmp-rowwrap--fork { position: relative; }
 .cmp-rowwrap--fork::before {
-  content: ""; position: absolute; left: 8px; top: -9px; width: 10px; height: 30px;
-  border-left: 1.5px solid var(--agent-border-default);
-  border-bottom: 1.5px solid var(--agent-border-default);
-  border-bottom-left-radius: 9px; pointer-events: none;
+  content: ""; position: absolute; left: 8px; top: -9px; width: 1.5px; height: 30px;
+  background: var(--agent-border-default); pointer-events: none;
 }
 
 /* ── Tree rail (Option B) ─────────────────────────────────────────────────────
