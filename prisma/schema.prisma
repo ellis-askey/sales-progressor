@@ -5180,6 +5180,10 @@ model PostcodeRoute {
   distanceMeters  Int
   durationSeconds Int
   geometry        Json
+  // Major roads travelled ("Via A41, A418"), parsed from the route's steps. Null
+  // = never computed with instructions (older cache row) → re-fetched lazily; an
+  // empty array = computed but no classified roads (all residential).
+  viaRoads        Json?
   provider        String   @default("openroute")
   computedAt      DateTime @default(now())
 

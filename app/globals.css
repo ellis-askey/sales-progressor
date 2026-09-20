@@ -1392,6 +1392,8 @@ select {
   border: none; padding: 0; cursor: pointer; text-align: left; }
 .chn-journey-to:hover { text-decoration: underline; }
 .chn-journey-dist { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--agent-coral-deep); }
+.chn-journey-via { display: block; margin-top: 2px; font-size: 11px; color: var(--agent-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chn-journey-pos { display: block; margin-top: 3px; font-size: 11px; color: var(--agent-text-muted); }
 
 /* Cursor-following route label (hover). Points above the cursor, click-through. */

@@ -105,7 +105,7 @@ export function ChainGeoMap({
   // Driving routes (Phase 2): distance/time + road polyline per postcode pair,
   // from /api/chain/routes (ORS-backed, cached). Missing ones fall back to a
   // straight line + haversine distance.
-  type RouteResult = { distanceMeters: number; durationSeconds: number; geometry: number[][] };
+  type RouteResult = { distanceMeters: number; durationSeconds: number; geometry: number[][]; viaRoads?: string[] };
   const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
   const routesRef = useRef(routes);
   routesRef.current = routes;
@@ -440,6 +440,9 @@ export function ChainGeoMap({
                 {jRoute
                   ? <span className="chn-journey-dist">🚗 {miEl(jRoute.distanceMeters / M_PER_MI)} · {fmtDur(jRoute.durationSeconds)}</span>
                   : jMi != null && <span className="chn-journey-dist">{miEl(jMi)} · straight-line</span>}
+                {jRoute?.viaRoads && jRoute.viaRoads.length > 0 && (
+                  <span className="chn-journey-via">Via {jRoute.viaRoads.join(", ")}</span>
+                )}
                 {posLabel && <span className="chn-journey-pos">{posLabel}</span>}
               </div>
             </div>
