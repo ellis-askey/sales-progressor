@@ -179,10 +179,15 @@ function InsertStrip({ onClick, label = "Insert a sale here" }: { onClick: () =>
 function TreeRow({
   depth,
   spacing = "card",
+  railThrough = false,
   children,
 }: {
   depth: number;
   spacing?: "card" | "tight" | "none";
+  // Draw the branch rail straight through this row (at the branch depth, +8px into
+  // the body). Used on the thin add/insert rows that sit between a fork sale and
+  // its branches, so the rail stays one continuous line down to the fork card.
+  railThrough?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -192,7 +197,7 @@ function TreeRow({
         // the thin add/insert rows) so each branch visibly hooks onto the rail.
         <span key={i} className={`cmp-guide${i === depth - 1 && spacing === "card" ? " cmp-guide--elbow" : ""}`} aria-hidden />
       ))}
-      <div className={`cmp-tree-body cmp-tree-body--${spacing}`}>{children}</div>
+      <div className={`cmp-tree-body cmp-tree-body--${spacing}${railThrough ? " cmp-tree-body--rail" : ""}`}>{children}</div>
     </div>
   );
 }
@@ -225,7 +230,7 @@ function PanelRow({
   };
   const acts = !!item.href || !!item.cta;
   return (
-    <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${item.forkParent ? " cmp-rowwrap--fork" : ""}${selected ? " on" : ""}`}>
+    <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${selected ? " on" : ""}`}>
       <div className="cmp-rowline">
         <button type="button" className="cmp-row" onClick={() => onSelect(item.id)}>
           <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[item.status] }}>{item.label}</span>
@@ -322,18 +327,19 @@ export function ChainMapPanel({
               so the tree stays clean — the same circle as insert-between. */}
           {it.canColumnAdd && actions.onColumnAdd && (
             it.depth === 0 ? (
-              <TreeRow depth={0} spacing="tight">
+              <TreeRow depth={0} spacing="tight" railThrough={it.forkParent}>
                 <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
               </TreeRow>
             ) : (
-              <TreeRow depth={it.depth} spacing="none">
+              <TreeRow depth={it.depth} spacing="none" railThrough={it.forkParent}>
                 <InsertStrip onClick={() => actions.onColumnAdd!(it.id)} label="Add a sale above" />
               </TreeRow>
             )
           )}
-          {/* Insert between two sales in the same branch (a real adjacent pair). */}
+          {/* Insert between two sales in the same branch (a real adjacent pair). On a
+              fork sale this thin row also carries the rail down to the card. */}
           {it.canInsertAbove && actions.onInsert && (
-            <TreeRow depth={it.depth} spacing="none">
+            <TreeRow depth={it.depth} spacing="none" railThrough={it.forkParent}>
               <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
             </TreeRow>
           )}
