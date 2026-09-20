@@ -93,9 +93,11 @@ export type ChainNodeIntel = {
 // Compact pointer to the (already-built) onward tracker, shown only on the
 // viewer's OWN sale node and only while the onward is still ours to report
 // (hidden once superseded = the agent above claimed, or abandoned). The full
-// editable onward card lives on the file overview; this is a summary + link-in.
-export type ChainOnwardSummary = {
-  onwardAddress: string | null;
+// editable tracker lives on the file overview; this is a summary + link-in. Used
+// for both chain-side trackers a file can have: its onward purchase (the seller
+// buying on) and its related sale (the buyer also selling).
+export type ChainSideSummary = {
+  address: string | null;
   status: string | null; // OnwardTrackerStatus or null when no tracker opened yet
   typeFactsSet: boolean;
   completeCount: number;
@@ -210,10 +212,14 @@ export type ChainLinkV2 = {
   // "Revoke share link". Gated to editors (same set as canEditStub); false for any
   // other viewer and for claimed links.
   hasShareLink?: boolean;
-  // Compact onward summary — populated only on the viewer's own sale node, and
-  // only while the onward is still a reported stand-in (not superseded/abandoned).
-  // Null everywhere else. Optional so hand-built demo links are unaffected.
-  onwardSummary?: ChainOnwardSummary | null;
+  // Compact onward-purchase summary — populated only on the viewer's own sale
+  // node, and only while the onward is still a reported stand-in (not
+  // superseded/abandoned). Null everywhere else. Optional so hand-built demo
+  // links are unaffected.
+  onwardSummary?: ChainSideSummary | null;
+  // Compact related-sale summary (the viewer's buyer is also selling) — same
+  // gating, same shape. The mirror of onwardSummary.
+  relatedSummary?: ChainSideSummary | null;
 };
 
 export type ChainV2 = {
@@ -634,24 +640,38 @@ export async function getChainV2(
         })
         .map((l) => l.transactionId as string)
     : [];
-  const onwardByTx = new Map<string, ChainOnwardSummary>();
+  const onwardByTx = new Map<string, ChainSideSummary>();
+  const relatedByTx = new Map<string, ChainSideSummary>();
   if (ownTxIds.length) {
-    const { getOnwardTrackerView, getOnwardSignalForFile } = await import("@/lib/services/onward");
+    const { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } = await import("@/lib/services/onward");
     await Promise.all(
       ownTxIds.map(async (txId) => {
-        const [sig, view] = await Promise.all([
+        // Onward purchase (the seller buying on) and related sale (the buyer also
+        // selling) are the two chain-side trackers a file can have; summarise both.
+        const [onwardSig, onwardView, relatedSig, relatedView] = await Promise.all([
           getOnwardSignalForFile(txId).catch(() => ({ buyingOnward: false, onwardAddress: null })),
           getOnwardTrackerView(txId).catch(() => null),
+          getRelatedSaleSignalForFile(txId).catch(() => ({ selling: false, relatedAddress: null })),
+          getOnwardTrackerView(txId, "related_sale").catch(() => null),
         ]);
-        if (!sig.buyingOnward) return;
-        if (view && (view.status === "superseded" || view.status === "abandoned")) return;
-        onwardByTx.set(txId, {
-          onwardAddress: sig.onwardAddress,
-          status: view?.status ?? null,
-          typeFactsSet: view?.typeFactsSet ?? false,
-          completeCount: view?.completeCount ?? 0,
-          applicableCount: view?.applicableCount ?? 0,
-        });
+        if (onwardSig.buyingOnward && !(onwardView && (onwardView.status === "superseded" || onwardView.status === "abandoned"))) {
+          onwardByTx.set(txId, {
+            address: onwardSig.onwardAddress,
+            status: onwardView?.status ?? null,
+            typeFactsSet: onwardView?.typeFactsSet ?? false,
+            completeCount: onwardView?.completeCount ?? 0,
+            applicableCount: onwardView?.applicableCount ?? 0,
+          });
+        }
+        if (relatedSig.selling && !(relatedView && (relatedView.status === "superseded" || relatedView.status === "abandoned"))) {
+          relatedByTx.set(txId, {
+            address: relatedSig.relatedAddress,
+            status: relatedView?.status ?? null,
+            typeFactsSet: relatedView?.typeFactsSet ?? false,
+            completeCount: relatedView?.completeCount ?? 0,
+            applicableCount: relatedView?.applicableCount ?? 0,
+          });
+        }
       }),
     );
   }
@@ -755,6 +775,7 @@ export async function getChainV2(
           canEditStub,
           hasShareLink,
           onwardSummary: null,
+          relatedSummary: null,
         };
       }
       const {
@@ -815,6 +836,7 @@ export async function getChainV2(
         canEditStub,
         hasShareLink,
         onwardSummary: l.transactionId ? onwardByTx.get(l.transactionId) ?? null : null,
+        relatedSummary: l.transactionId ? relatedByTx.get(l.transactionId) ?? null : null,
       };
     }),
   };

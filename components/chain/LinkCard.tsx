@@ -13,7 +13,7 @@ import { Pill, type PillProps } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { prepareImageForUpload } from "@/lib/images/prepare-upload";
-import type { ChainLinkV2, ChainNodeIntel } from "@/lib/services/chains";
+import type { ChainLinkV2, ChainNodeIntel, ChainSideSummary } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { DateField } from "@/components/ui/DateField";
 
@@ -294,11 +294,12 @@ export function hasIntelValues(intel: ChainNodeIntel | null): boolean {
   );
 }
 
-// ── Onward summary line ──────────────────────────────────────────────────────
-// A compact, read-only pointer to the (already-built) onward tracker, shown only
-// on the viewer's own sale node. Links to the full editable card on the file
-// overview (id="onward-section"); we never re-render that card here.
-function onwardStatusLabel(s: NonNullable<ChainLinkV2["onwardSummary"]>): string {
+// ── Chain-side summary line ──────────────────────────────────────────────────
+// A compact, read-only pointer to one of a file's chain-side trackers — the
+// onward purchase (seller buying on) or the related sale (buyer also selling).
+// Shown only on the viewer's own sale node; the full editable card lives on the
+// file overview, which this deep-links to (focusing that sub-card).
+function sideStatusLabel(s: ChainSideSummary): string {
   if (s.status === "exchanged") return "Exchanged";
   if (s.status === "completed") return "Completed";
   if (!s.typeFactsSet) return "Not set up yet";
@@ -306,35 +307,42 @@ function onwardStatusLabel(s: NonNullable<ChainLinkV2["onwardSummary"]>): string
   return "In progress";
 }
 
-function OnwardSummaryLine({
+function SideSummaryLine({
+  kind,
   summary,
   fileId,
 }: {
-  summary: NonNullable<ChainLinkV2["onwardSummary"]>;
+  kind: "onward" | "related";
+  summary: ChainSideSummary;
   fileId: string | null;
 }) {
+  const isOnward = kind === "onward";
   // Not set up = no type facts captured yet. The CTA says "Set up…", so the
   // redundant "Not set up yet" status text is dropped.
   const notSetUp = !summary.typeFactsSet;
-  const detail = [summary.onwardAddress, notSetUp ? "" : onwardStatusLabel(summary)]
+  const detail = [summary.address, notSetUp ? "" : sideStatusLabel(summary)]
     .filter(Boolean)
     .join(" · ");
+  const heading = isOnward ? "Onward purchase" : "Related sale";
+  const cta = notSetUp
+    ? isOnward ? "Set up onward purchase" : "Set up related sale"
+    : isOnward ? "View onward" : "View related";
   return (
     <div style={{ fontSize: 12 }}>
-      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Onward purchase</div>
+      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>{heading}</div>
       {detail && (
         <div style={{ color: "var(--agent-text)", marginTop: 2 }}>{detail}</div>
       )}
       {fileId && (
-        // Land on the chain card on the file overview (focus the onward sub-card),
-        // the same "take me straight to it" move as the Add-email flow.
+        // Land on the chain card on the file overview (focus this sub-card), the
+        // same "take me straight to it" move as the Add-email flow.
         <Link
-          href={`/agent/transactions/${fileId}?focus=onward`}
+          href={`/agent/transactions/${fileId}?focus=${kind}`}
           className="chain-act-link chain-act-primary"
           style={{ display: "inline-block", marginTop: 4, fontWeight: 600 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {notSetUp ? "Set up onward purchase" : "View onward"} <LinkArrow />
+          {cta} <LinkArrow />
         </Link>
       )}
     </div>
@@ -533,7 +541,7 @@ export function isChainCardExpandable(link: ChainLinkV2): boolean {
   const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
   const notesText = unifiedNotes(link);
   const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
-  return showIntel || !!link.onwardSummary || showStubDetails || showNotes;
+  return showIntel || !!link.onwardSummary || !!link.relatedSummary || showStubDetails || showNotes;
 }
 
 // The card's expandable detail body: onward summary, stub contact rows, notes,
@@ -550,12 +558,14 @@ export function ChainCardExpand({
   const intelForCard = link.intel ?? null;
   const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
   const onwardForCard = link.onwardSummary ?? null;
+  const relatedForCard = link.relatedSummary ?? null;
   const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
   const notesText = unifiedNotes(link);
   const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
   return (
     <div style={{ display: "grid", gap: 10, paddingTop: 8, marginTop: 4, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-      {onwardForCard && <OnwardSummaryLine summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
+      {onwardForCard && <SideSummaryLine kind="onward" summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
+      {relatedForCard && <SideSummaryLine kind="related" summary={relatedForCard} fileId={link.transaction?.id ?? null} />}
       {showStubDetails && <StubDetailsRows link={link} />}
       {showNotes && <NotesBlock text={notesText} />}
       {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
