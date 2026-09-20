@@ -1526,11 +1526,13 @@ select {
 }
 /* A branched onward purchase reads slightly quieter than the spine trunk. */
 .cmp-rowwrap--branch { background: var(--agent-surface-subtle, var(--agent-surface)); }
-/* Fork sale — its onward purchases sit one level in (rail at +8px), so the rail
-   runs straight down into this card's node, completing the tree. */
+/* Fork sale — its onward purchases sit one level in (rail at +8px, collinear with
+   the branch rail above). The connector extends UP to overlap that rail — bridging
+   the thin add/insert row that would otherwise break it — and down into this
+   card's node, so it reads as one continuous line, not a separate segment. */
 .cmp-rowwrap--fork { position: relative; }
 .cmp-rowwrap--fork::before {
-  content: ""; position: absolute; left: 8px; top: -9px; width: 1.5px; height: 30px;
+  content: ""; position: absolute; left: 8px; top: -40px; width: 1.5px; height: 62px;
   background: var(--agent-border-default); pointer-events: none;
 }
 
