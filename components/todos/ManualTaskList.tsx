@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
-import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
+import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
 import { Card } from "@/components/ui/Card";

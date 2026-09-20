@@ -10,7 +10,7 @@
 // PropertyFileTabs re-renders with the new badge.
 
 import { useEffect } from "react";
-import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
+import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 
 type Props = {
   tabKey: string;

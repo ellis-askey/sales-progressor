@@ -31,7 +31,11 @@ const HOLE_PAD = 8;
 const CARD_W = 344;
 const CARD_GAP = 14;
 const MOBILE_MAX = 640;
-const RESOLVE_TIMEOUT = 1600; // ms to wait for a target to mount before skipping
+// ms to wait for a target to mount before skipping. Tabs are route segments now
+// (2026-09-20 file-page overhaul), so a step that switches to a not-yet-visited
+// tab waits on a route fetch + panel render, not just a frame — give it room so
+// the tour follows the tab instead of skipping the step.
+const RESOLVE_TIMEOUT = 4000;
 
 // The overlay renders through a portal at document.body, OUTSIDE the agent CSS
 // scope, so the scoped .agent-btn / .agent-glass classes don't reach it. Style

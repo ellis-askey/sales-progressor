@@ -14,7 +14,7 @@ import type { Contact } from "@/components/reminders/ReminderCard";
 import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
 import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
+import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
