@@ -1282,6 +1282,22 @@ select {
 @media (max-width: 1000px) {
   .chain-view-inline .chain-dbody { grid-template-columns: 1fr; }
 }
+/* Inline tab: less horizontal inset so the chain uses the tab's width. */
+.chain-body-inline { padding-left: 8px; padding-right: 8px; }
+.chain-viewswitch--inline { margin-left: 8px; margin-right: 8px; }
+/* Inline tab: the cards need a solid surface — the page behind is glass /
+   iridescent, unlike the opaque drawer, so transparent cards showed through. */
+.chain-view-inline .cmp-rowwrap,
+.chain-view-inline .cmp-rowwrap--branch {
+  background: var(--agent-surface-elevated);
+  border-color: var(--agent-border-default);
+  box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.08);
+}
+/* Inline Map: the compact panel docked beside the geographic map, within the tab. */
+.chain-inline-cc { display: flex; gap: 12px; align-items: stretch; height: 72vh; min-height: 460px; }
+.chain-view-inline--map { width: 380px; flex-shrink: 0; min-width: 0; overflow: hidden; }
+.chain-inline-map { flex: 1; min-width: 0; position: relative; border-radius: 14px; overflow: hidden;
+  border: 0.5px solid var(--agent-border-default); }
 
 /* ── Chain → Map (command centre) ─────────────────────────────────────────────
    The Map view switch, the docked two-pane layout (compact chain panel beside
@@ -1558,6 +1574,11 @@ select {
   content: ""; position: absolute; left: 8px; top: 26px; width: 12px; height: 1.5px;
   background: var(--agent-border-default);
 }
+/* Cap the top of a branch's own rail: start it at the elbow of the top card (a
+   right angle) rather than running the line past it; hide it entirely on the thin
+   add row that sits above that top card. */
+.cmp-guide--captop::before { top: 26px; }
+.cmp-guide--capnone::before { content: none; }
 .cmp-tree-body { flex: 1; min-width: 0; }
 .cmp-tree-body--card { padding-bottom: 8px; }
 .cmp-tree-body--tight { padding-bottom: 4px; }

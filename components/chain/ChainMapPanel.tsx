@@ -29,6 +29,7 @@ export type ChainMapPanelItem = {
   label: string; // number for a spine property, "↑" for an onward purchase
   depth: number; // 0 = spine (the trunk); each fork level indents one more, with a rail
   forkParent: boolean; // has branch onwards above it → the rail curves down into this card
+  branchTop: boolean; // top of its own ladder (no sale above it) → caps the rail
   canColumnAdd: boolean; // this is the top of its own ladder → offer "+ add sale above"
   line1: string;
   line2: string;
@@ -186,6 +187,7 @@ function TreeRow({
   depth,
   spacing = "card",
   railThrough = false,
+  railCap,
   children,
 }: {
   depth: number;
@@ -194,15 +196,24 @@ function TreeRow({
   // the body). Used on the thin add/insert rows that sit between a fork sale and
   // its branches, so the rail stays one continuous line down to the fork card.
   railThrough?: boolean;
+  // Cap the rail at the top of a branch: "top" starts the branch's own rail at the
+  // elbow of its topmost card (a right angle, not a line running past it); "none"
+  // hides the rail entirely (the add row above that top card).
+  railCap?: "top" | "none";
   children: ReactNode;
 }) {
   return (
     <div className="cmp-tree">
-      {Array.from({ length: depth }).map((_, i) => (
-        // The guide nearest the card gets an elbow tick (only on the card row, not
-        // the thin add/insert rows) so each branch visibly hooks onto the rail.
-        <span key={i} className={`cmp-guide${i === depth - 1 && spacing === "card" ? " cmp-guide--elbow" : ""}`} aria-hidden />
-      ))}
+      {Array.from({ length: depth }).map((_, i) => {
+        const last = i === depth - 1;
+        // The guide nearest the card gets an elbow tick (card rows only) so each
+        // branch visibly hooks onto the rail. railCap trims the last (own) guide.
+        let cls = "cmp-guide";
+        if (last && spacing === "card") cls += " cmp-guide--elbow";
+        if (last && railCap === "top") cls += " cmp-guide--captop";
+        if (last && railCap === "none") cls += " cmp-guide--capnone";
+        return <span key={i} className={cls} aria-hidden />;
+      })}
       <div className={`cmp-tree-body cmp-tree-body--${spacing}${railThrough ? " cmp-tree-body--rail" : ""}`}>{children}</div>
     </div>
   );
@@ -348,7 +359,7 @@ export function ChainMapPanel({
                 <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
               </TreeRow>
             ) : (
-              <TreeRow depth={it.depth} spacing="none" railThrough={it.forkParent}>
+              <TreeRow depth={it.depth} spacing="none" railThrough={it.forkParent} railCap="none">
                 <InsertStrip onClick={() => actions.onColumnAdd!(it.id)} label="Add a sale above" />
               </TreeRow>
             )
@@ -360,7 +371,7 @@ export function ChainMapPanel({
               <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
             </TreeRow>
           )}
-          <TreeRow depth={it.depth}>
+          <TreeRow depth={it.depth} railCap={it.branchTop && it.depth > 0 ? "top" : undefined}>
             <PanelRow
               item={it}
               selected={it.id === selectedId}

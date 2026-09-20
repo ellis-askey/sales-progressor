@@ -710,6 +710,7 @@ export function ChainView({
       label: isSpineLink ? String(displayChainPosition(l.position, links.length)) : "↑",
       depth,
       forkParent,
+      branchTop,
       // A branch column's top can grow upward (its own "+ add above"), just like
       // each column in the Timeline. The spine top is depth-0 branchTop and uses
       // the same control, so there's one add-above per column and no duplicate.
@@ -977,7 +978,7 @@ export function ChainView({
     );
   };
 
-  const isMap = !inline && view === "map";
+  const isMap = view === "map";
   const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   // Drawer swap: the compact card is now the Timeline (and the property-file chain
@@ -1001,7 +1002,7 @@ export function ChainView({
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
       role={inline ? undefined : "dialog"}
       aria-label={inline ? undefined : "Chain"}
-      className={inline ? "chain-view-inline flex flex-col" : isMap ? `relative z-10 flex flex-col h-full chain-cc-panel${sheetOpen ? " open" : ""}` : "relative z-10 flex flex-col h-full resp-drawer-wide"}
+      className={inline ? `chain-view-inline flex flex-col${isMap ? " chain-view-inline--map" : ""}` : isMap ? `relative z-10 flex flex-col h-full chain-cc-panel${sheetOpen ? " open" : ""}` : "relative z-10 flex flex-col h-full resp-drawer-wide"}
       style={
         inline
           ? undefined
@@ -1078,14 +1079,12 @@ export function ChainView({
         </div>
       )}
 
-      {/* Timeline | Map view switch (drawer only) */}
-      {!inline && (
-        <div className="chain-viewswitch">
-          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
-          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
-          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
-        </div>
-      )}
+      {/* Timeline | Map | Activity view switch */}
+      <div className={`chain-viewswitch${inline ? " chain-viewswitch--inline" : ""}`}>
+        <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
+        <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
+        <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
+      </div>
 
       {/* Map mode: the compact ordered chain list. The full dashboard body below
           is kept mounted but hidden, so switching back to Timeline is instant. */}
@@ -1096,7 +1095,7 @@ export function ChainView({
       )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5" style={isMap ? { display: "none" } : undefined}>
+        <div className={`flex-1 overflow-y-auto py-5 ${inline ? "chain-body-inline" : "px-6"}`} style={isMap ? { display: "none" } : undefined}>
           {/* Skeleton loading state */}
           {loading && (
             <div className="space-y-2 py-2">
@@ -1183,7 +1182,7 @@ export function ChainView({
 
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
-            <div className={`chain-dbody${inline ? "" : " chain-dbody--stack"}`}>
+            <div className="chain-dbody chain-dbody--stack">
               {view === "activity" ? (
               <div className="chain-stack">
                 <ChainSummaryCard chain={chain} />
@@ -1441,14 +1440,6 @@ export function ChainView({
               </>)}
               </div>
 
-              {/* Right column, inline tab only: the drawer moves value + activity
-                  to its own Activity tab. */}
-              {inline && (
-                <div className="chain-side">
-                  <ChainSummaryCard chain={chain} />
-                  <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
-                </div>
-              )}
               </>)}
             </div>
           )}
@@ -1487,10 +1478,25 @@ export function ChainView({
   ) : null;
 
   // Inline (tab) mode: render the body flat, no portal / backdrop / scroll-lock.
+  // Map view docks the compact panel beside the geographic map, within the tab.
   if (inline) {
     return (
       <div data-theme={theme} data-night={isNight ? "" : undefined}>
-        {shell}
+        {isMap ? (
+          <div className="chain-inline-cc">
+            {shell}
+            <div className="chain-inline-map">
+              <ChainGeoMap
+                nodes={mapNodes}
+                moves={mapMoves}
+                details={mapDetails}
+                selectedId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                theme={isNight ? "dark" : "light"}
+              />
+            </div>
+          </div>
+        ) : shell}
         {chaseNeighbourDrawer}
       </div>
     );
