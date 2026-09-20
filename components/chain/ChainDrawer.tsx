@@ -602,29 +602,37 @@ export function ChainView({
       if (l.forkFromLinkId) moves.push({ fromId: l.forkFromLinkId, toId: l.id, fork: true });
     }
 
-    // Onward purchases grouped by the spine node they fork from, so the panel can
-    // sit them ABOVE it (the chain reads bottom→top). Kept in position order —
-    // top of the branch first, the immediate onward (branch bottom) last — so the
-    // immediate onward ends up directly above its property.
-    const onwardByForkNode = new Map<string, Link[]>();
-    for (const [k, group] of ladders) {
-      if (k === "") continue;
-      const s = [...group].sort((a, b) => a.position - b.position);
-      const forkId = s[s.length - 1]?.forkFromLinkId; // branch bottom carries the fork
-      if (!forkId) continue;
-      const arr = onwardByForkNode.get(forkId) ?? [];
-      arr.push(...s);
-      onwardByForkNode.set(forkId, arr);
+    // Panel order = the chain as a TREE, walked from the spine bottom up so every
+    // sale's onward purchases sit above it. A sale's FIRST onward stays in its own
+    // ladder (the trunk, same depth); its 2nd/3rd onwards are branches that indent
+    // one level (depth+1) with a rail. A branch can fork again → indents further.
+    // depth 0 = the spine. branchTop = top of its own ladder (offer "+ add above").
+    // hasLadderUp = there's a sale directly above in the same ladder (insertable).
+    const byBranch = new Map<string, Link[]>();
+    for (const l of all) { const k = l.branchKey ?? ""; (byBranch.get(k) ?? byBranch.set(k, []).get(k)!).push(l); }
+    for (const arr of byBranch.values()) arr.sort((a, b) => a.position - b.position);
+    // Branch legs forking off a node, keyed by that node. Only the branch BOTTOM
+    // carries forkFromLinkId, so this is one entry per branch. Stable order.
+    const forkChildren = new Map<string, Link[]>();
+    for (const l of all) {
+      if ((l.branchKey ?? "") !== "" && l.forkFromLinkId) {
+        (forkChildren.get(l.forkFromLinkId) ?? forkChildren.set(l.forkFromLinkId, []).get(l.forkFromLinkId)!).push(l);
+      }
     }
+    for (const arr of forkChildren.values()) arr.sort((a, b) => a.position - b.position);
 
-    // Panel order: each spine property with its onward purchases above it. The
-    // per-row capabilities (edit/remove/chase/reorder…) are attached OUTSIDE the
-    // memo — they use render-time gating that must not churn the map data.
-    const orderedPanelLinks: { link: Link; onward: boolean }[] = [];
-    for (const l of spine) {
-      for (const b of onwardByForkNode.get(l.id) ?? []) orderedPanelLinks.push({ link: b, onward: true });
-      orderedPanelLinks.push({ link: l, onward: false });
-    }
+    const orderedPanelLinks: { link: Link; depth: number; branchTop: boolean; hasLadderUp: boolean }[] = [];
+    const walk = (link: Link, depth: number) => {
+      const ladder = byBranch.get(link.branchKey ?? "") ?? [];
+      const idx = ladder.findIndex((l) => l.id === link.id);
+      const up = idx > 0 ? ladder[idx - 1] : null; // the sale directly above in this ladder
+      const forks = forkChildren.get(link.id) ?? []; // extra onward purchases (branches)
+      if (up) walk(up, depth);                       // continue the ladder upward first (trunk)
+      for (const f of forks) walk(f, depth + 1);     // then each branch, indented
+      orderedPanelLinks.push({ link, depth, branchTop: !up, hasLadderUp: !!up });
+    };
+    const spineBottomLink = spine[spine.length - 1];
+    if (spineBottomLink) walk(spineBottomLink, 0);
 
     // Per-node detail (keyed) for the floating property + move cards.
     const detailById: Record<string, ChainMapDetail> = {};
@@ -664,7 +672,7 @@ export function ChainView({
   // Panel rows with per-row capabilities (edit / remove / reorder / chase /
   // add-onward / photo), using the same gating the Timeline's LinkCard uses.
   // Kept out of the map memo so this render-time gating doesn't churn map data.
-  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, onward }, idx) => {
+  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, depth, branchTop, hasLadderUp }) => {
     const a = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
     const ci = a.indexOf(",");
     const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
@@ -698,7 +706,11 @@ export function ChainView({
     return {
       id: l.id,
       label: isSpineLink ? String(displayChainPosition(l.position, links.length)) : "↑",
-      onward,
+      depth,
+      // A branch column's top can grow upward (its own "+ add above"), just like
+      // each column in the Timeline. The spine top is depth-0 branchTop and uses
+      // the same control, so there's one add-above per column and no duplicate.
+      canColumnAdd: branchTop && (isInternal || canAddAbove(l, currentUserId, currentUserRole)),
       line1: ci === -1 ? a : a.slice(0, ci),
       line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
       agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
@@ -717,15 +729,10 @@ export function ChainView({
       canUploadPhoto: l.transactionId == null && canEdit,
       chaseDir: chaseDirForLink(l),
       expand: isChainCardExpandable(l) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} /> : null,
-      // Hover "+" in the gap ABOVE this card: only between two sales in the SAME
-      // ladder (same branch) — a fork boundary isn't an insertion point. Anchors
-      // to this (lower) card, placement "above", exactly like the Timeline.
-      canInsertAbove: (() => {
-        const prev = orderedPanelLinks[idx - 1];
-        if (!prev) return false;
-        if ((prev.link.branchKey ?? "") !== (l.branchKey ?? "")) return false;
-        return isInternal || canAddAbove(l, currentUserId, currentUserRole);
-      })(),
+      // Hover "+" in the gap ABOVE this card: only where there's a sale directly
+      // above in the SAME ladder (a real adjacent pair — a fork boundary isn't an
+      // insertion point). Anchors to this (lower) card, placement "above".
+      canInsertAbove: hasLadderUp && (isInternal || canAddAbove(l, currentUserId, currentUserRole)),
     };
   });
 
@@ -743,6 +750,9 @@ export function ChainView({
       if (l && onOpenAddNode && chain) onOpenAddNode("above", chain.id, l, undefined, undefined, undefined, "agentEmail");
     },
     onAddOnward: (id) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, id); },
+    // Grow a column upward — add a sale at the top of this link's own ladder
+    // (spine or a branch), via the aboveOfLinkId add path.
+    onColumnAdd: (id) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, undefined, id); },
     onInsert: (id, placement) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, undefined, undefined, { anchorLinkId: id, placement }); },
     onMoveUp: (id) => { void handleMove(id, "up"); },
     onMoveDown: (id) => { void handleMove(id, "down"); },
@@ -1058,7 +1068,6 @@ export function ChainView({
             selectedId={selectedNodeId}
             onSelect={setSelectedNodeId}
             onInvite={(id) => { void handleResendInvite(id); }}
-            onAddAbove={onOpenAddNode && chain ? () => onOpenAddNode("above", chain.id) : undefined}
             onAddBelow={onOpenAddNode && chain ? () => onOpenAddNode("below", chain.id) : undefined}
             busyInviteId={sendingInvites}
             actions={mapPanelActions}

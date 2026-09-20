@@ -26,7 +26,8 @@ export type ChainMapCta = { label: string; kind: "invite" | "edit"; tone: "prima
 export type ChainMapPanelItem = {
   id: string;
   label: string; // number for a spine property, "↑" for an onward purchase
-  onward?: boolean;
+  depth: number; // 0 = spine (the trunk); each fork level indents one more, with a rail
+  canColumnAdd: boolean; // this is the top of its own ladder → offer "+ add sale above"
   line1: string;
   line2: string;
   agency: string | null;
@@ -56,6 +57,7 @@ export type ChainMapPanelItem = {
 export type ChainMapActions = {
   onEdit?: (id: string) => void;
   onEditEmail?: (id: string) => void; // Add email / Update email & resend — opens Edit focused on the email field
+  onColumnAdd?: (id: string) => void; // grow this column upward (add above its ladder top)
   onInsert?: (id: string, placement: "above" | "below") => void; // insert a sale beside this one
   onRemove?: (id: string) => void;
   onCopyShare?: (id: string) => void;
@@ -169,6 +171,29 @@ function InsertStrip({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Indents a row by its depth in the chain tree and draws the rail guides that
+// show branching. depth 0 (the spine) renders no guide. Each deeper level adds
+// one guide column with a continuous vertical line, so a fork's onward purchases
+// read as a grouped branch hanging off the sale below them.
+function TreeRow({
+  depth,
+  spacing = "card",
+  children,
+}: {
+  depth: number;
+  spacing?: "card" | "tight" | "none";
+  children: ReactNode;
+}) {
+  return (
+    <div className="cmp-tree">
+      {Array.from({ length: depth }).map((_, i) => (
+        <span key={i} className="cmp-guide" aria-hidden />
+      ))}
+      <div className={`cmp-tree-body cmp-tree-body--${spacing}`}>{children}</div>
+    </div>
+  );
+}
+
 // One property card: the selectable row, its chevron (expand) + ⋮ menu, the
 // action bar, and the expandable detail body. Owns its own expand state.
 function PanelRow({
@@ -197,7 +222,7 @@ function PanelRow({
   };
   const acts = !!item.href || !!item.cta;
   return (
-    <div ref={innerRef} className={`cmp-rowwrap${item.onward ? " cmp-rowwrap--onward" : ""}${selected ? " on" : ""}`}>
+    <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${selected ? " on" : ""}`}>
       <div className="cmp-rowline">
         <button type="button" className="cmp-row" onClick={() => onSelect(item.id)}>
           <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[item.status] }}>{item.label}</span>
@@ -264,7 +289,6 @@ export function ChainMapPanel({
   selectedId,
   onSelect,
   onInvite,
-  onAddAbove,
   onAddBelow,
   busyInviteId,
   actions = {},
@@ -273,7 +297,6 @@ export function ChainMapPanel({
   selectedId: string | null;
   onSelect: (id: string) => void;
   onInvite?: (linkId: string) => void;
-  onAddAbove?: () => void;
   onAddBelow?: () => void;
   busyInviteId?: string | null;
   actions?: ChainMapActions;
@@ -289,22 +312,32 @@ export function ChainMapPanel({
 
   return (
     <div className="cmp-list">
-      {onAddAbove && <button type="button" className="chain-addbtn chain-addbtn-above" onClick={onAddAbove}>+ Add sale above</button>}
-
       {items.map((it) => (
         <Fragment key={it.id}>
-          {it.canInsertAbove && actions.onInsert && (
-            <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
+          {/* Each column's own "+ add above" at its ladder top (spine or branch) —
+              mirrors the Timeline's per-column add. Mutually exclusive with the
+              insert strip (a ladder top has no sale above it to insert between). */}
+          {it.canColumnAdd && actions.onColumnAdd && (
+            <TreeRow depth={it.depth} spacing="tight">
+              <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
+            </TreeRow>
           )}
-          <PanelRow
-            item={it}
-            selected={it.id === selectedId}
-            innerRef={it.id === selectedId ? selRef : undefined}
-            busyInviteId={busyInviteId}
-            onSelect={onSelect}
-            onInvite={onInvite}
-            actions={actions}
-          />
+          {it.canInsertAbove && actions.onInsert && (
+            <TreeRow depth={it.depth} spacing="none">
+              <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
+            </TreeRow>
+          )}
+          <TreeRow depth={it.depth}>
+            <PanelRow
+              item={it}
+              selected={it.id === selectedId}
+              innerRef={it.id === selectedId ? selRef : undefined}
+              busyInviteId={busyInviteId}
+              onSelect={onSelect}
+              onInvite={onInvite}
+              actions={actions}
+            />
+          </TreeRow>
         </Fragment>
       ))}
 
