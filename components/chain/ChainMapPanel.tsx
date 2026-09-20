@@ -10,7 +10,7 @@
 // from. Selecting a row highlights its map pin; a selected pin scrolls its row
 // into view.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -45,6 +45,12 @@ export type ChainMapPanelItem = {
   canAddOnward: boolean;
   canUploadPhoto: boolean;
   chaseDir: "onward" | "related" | null;
+  // Expandable detail (intel / notes / contact / onward), prebuilt by ChainView
+  // via the shared ChainCardExpand. null when there's nothing to show.
+  expand: ReactNode | null;
+  // A hover "+" may appear in the gap above this card to insert a sale between
+  // it and the one above (same-ladder pairs only).
+  canInsertAbove: boolean;
 };
 
 export type ChainMapActions = {
@@ -152,6 +158,103 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
   );
 }
 
+// A hover-revealed "+" in the gap between two cards — the lineless equivalent of
+// the Timeline's connector insert. Inserts a sale between this card and the one
+// above it.
+function InsertStrip({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="cmp-insert">
+      <button type="button" className="cmp-insert-btn" onClick={onClick} aria-label="Insert a sale here" title="Insert a sale here">+</button>
+    </div>
+  );
+}
+
+// One property card: the selectable row, its chevron (expand) + ⋮ menu, the
+// action bar, and the expandable detail body. Owns its own expand state.
+function PanelRow({
+  item,
+  selected,
+  busyInviteId,
+  onSelect,
+  onInvite,
+  actions,
+  innerRef,
+}: {
+  item: ChainMapPanelItem;
+  selected: boolean;
+  busyInviteId?: string | null;
+  onSelect: (id: string) => void;
+  onInvite?: (id: string) => void;
+  actions: ChainMapActions;
+  innerRef?: Ref<HTMLDivElement>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const busy = busyInviteId === item.id;
+  const runCta = () => {
+    if (!item.cta) return;
+    if (item.cta.kind === "invite") onInvite?.(item.id);
+    else (actions.onEditEmail ?? actions.onEdit)?.(item.id);
+  };
+  const acts = !!item.href || !!item.cta;
+  return (
+    <div ref={innerRef} className={`cmp-rowwrap${item.onward ? " cmp-rowwrap--onward" : ""}${selected ? " on" : ""}`}>
+      <div className="cmp-rowline">
+        <button type="button" className="cmp-row" onClick={() => onSelect(item.id)}>
+          <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[item.status] }}>{item.label}</span>
+          <PropertyThumb photoUrl={item.photoUrl} size={40} />
+          <span className="cmp-txt">
+            <span className="cmp-l1">{item.line1}</span>
+            {item.line2 && <span className="cmp-l2">{item.line2}</span>}
+            <span className="cmp-meta">
+              <span className="cmp-status" style={{ color: item.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[item.status] }}>{item.statusLabel}</span>
+              {item.agency && <span className="cmp-agency">· {item.agency}</span>}
+            </span>
+            {item.progressPercent != null && (
+              <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }} /></span>
+            )}
+          </span>
+        </button>
+        <div className="cmp-rowtools">
+          {item.expand && (
+            <button
+              type="button"
+              className="cmp-chevron"
+              aria-expanded={expanded}
+              aria-label={expanded ? "Hide details" : "Show details"}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <span aria-hidden style={{ display: "inline-block", transition: "transform 0.22s ease", transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
+            </button>
+          )}
+          <RowMenu item={item} actions={actions} />
+        </div>
+      </div>
+
+      {acts && (
+        <div className="cmp-acts">
+          {item.href && <Link href={item.href} className="cmp-act cmp-act--primary">Open file →</Link>}
+          {item.cta && (
+            <button
+              type="button"
+              className={`cmp-act cmp-act--${item.cta.tone}`}
+              disabled={item.cta.kind === "invite" && busy}
+              onClick={runCta}
+            >
+              {item.cta.kind === "invite" && busy ? "Sending…" : item.cta.label}
+            </button>
+          )}
+        </div>
+      )}
+
+      {item.expand && (
+        <div className={`cmp-expand${expanded ? " open" : ""}`}>
+          <div><div className="cmp-expand-inner">{item.expand}</div></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChainMapPanel({
   items,
   selectedId,
@@ -184,58 +287,22 @@ export function ChainMapPanel({
     <div className="cmp-list">
       {onAddAbove && <button type="button" className="chain-addbtn chain-addbtn-above" onClick={onAddAbove}>+ Add sale above</button>}
 
-      {items.map((it) => {
-        const on = it.id === selectedId;
-        const busy = busyInviteId === it.id;
-        const runCta = () => {
-          if (!it.cta) return;
-          if (it.cta.kind === "invite") onInvite?.(it.id);
-          else (actions.onEditEmail ?? actions.onEdit)?.(it.id);
-        };
-        const acts = !!it.href || !!it.cta;
-        return (
-          <div
-            key={it.id}
-            ref={on ? selRef : undefined}
-            className={`cmp-rowwrap${it.onward ? " cmp-rowwrap--onward" : ""}${on ? " on" : ""}`}
-          >
-            <div className="cmp-rowline">
-              <button type="button" className="cmp-row" onClick={() => onSelect(it.id)}>
-                <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[it.status] }}>{it.label}</span>
-                <PropertyThumb photoUrl={it.photoUrl} size={40} />
-                <span className="cmp-txt">
-                  <span className="cmp-l1">{it.line1}</span>
-                  {it.line2 && <span className="cmp-l2">{it.line2}</span>}
-                  <span className="cmp-meta">
-                    <span className="cmp-status" style={{ color: it.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[it.status] }}>{it.statusLabel}</span>
-                    {it.agency && <span className="cmp-agency">· {it.agency}</span>}
-                  </span>
-                  {it.progressPercent != null && (
-                    <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, it.progressPercent))}%` }} /></span>
-                  )}
-                </span>
-              </button>
-              <RowMenu item={it} actions={actions} />
-            </div>
-
-            {acts && (
-              <div className="cmp-acts">
-                {it.href && <Link href={it.href} className="cmp-act cmp-act--primary">Open file →</Link>}
-                {it.cta && (
-                  <button
-                    type="button"
-                    className={`cmp-act cmp-act--${it.cta.tone}`}
-                    disabled={it.cta.kind === "invite" && busy}
-                    onClick={runCta}
-                  >
-                    {it.cta.kind === "invite" && busy ? "Sending…" : it.cta.label}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {items.map((it) => (
+        <Fragment key={it.id}>
+          {it.canInsertAbove && actions.onInsert && (
+            <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
+          )}
+          <PanelRow
+            item={it}
+            selected={it.id === selectedId}
+            innerRef={it.id === selectedId ? selRef : undefined}
+            busyInviteId={busyInviteId}
+            onSelect={onSelect}
+            onInvite={onInvite}
+            actions={actions}
+          />
+        </Fragment>
+      ))}
 
       {onAddBelow && <button type="button" className="chain-addbtn chain-addbtn-below" onClick={onAddBelow}>+ Add sale below</button>}
     </div>

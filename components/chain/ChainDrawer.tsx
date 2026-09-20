@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X, Plus } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
+import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
@@ -664,7 +664,7 @@ export function ChainView({
   // Panel rows with per-row capabilities (edit / remove / reorder / chase /
   // add-onward / photo), using the same gating the Timeline's LinkCard uses.
   // Kept out of the map memo so this render-time gating doesn't churn map data.
-  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, onward }) => {
+  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, onward }, idx) => {
     const a = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
     const ci = a.indexOf(",");
     const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
@@ -716,6 +716,16 @@ export function ChainView({
       canAddOnward: (isInternal || canAddAbove(l, currentUserId, currentUserRole)) && onwardsAbove(l).length < MAX_ONWARDS,
       canUploadPhoto: l.transactionId == null && canEdit,
       chaseDir: chaseDirForLink(l),
+      expand: isChainCardExpandable(l) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} /> : null,
+      // Hover "+" in the gap ABOVE this card: only between two sales in the SAME
+      // ladder (same branch) — a fork boundary isn't an insertion point. Anchors
+      // to this (lower) card, placement "above", exactly like the Timeline.
+      canInsertAbove: (() => {
+        const prev = orderedPanelLinks[idx - 1];
+        if (!prev) return false;
+        if ((prev.link.branchKey ?? "") !== (l.branchKey ?? "")) return false;
+        return isInternal || canAddAbove(l, currentUserId, currentUserRole);
+      })(),
     };
   });
 
@@ -733,6 +743,7 @@ export function ChainView({
       if (l && onOpenAddNode && chain) onOpenAddNode("above", chain.id, l, undefined, undefined, undefined, "agentEmail");
     },
     onAddOnward: (id) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, id); },
+    onInsert: (id, placement) => { if (onOpenAddNode && chain) onOpenAddNode("above", chain.id, undefined, undefined, undefined, { anchorLinkId: id, placement }); },
     onMoveUp: (id) => { void handleMove(id, "up"); },
     onMoveDown: (id) => { void handleMove(id, "down"); },
     onChase: (id) => {

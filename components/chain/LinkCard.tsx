@@ -503,6 +503,44 @@ function ChainIntelBody({
   );
 }
 
+// Whether a link has any expandable detail (onward summary, stub contact rows,
+// notes, or own-side chain intel). Shared by the Timeline card and the compact
+// Map card so both decide "is this expandable" identically.
+export function isChainCardExpandable(link: ChainLinkV2): boolean {
+  const showIntel = (link.canEditIntel ?? false) || hasIntelValues(link.intel ?? null);
+  const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
+  const notesText = unifiedNotes(link);
+  const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
+  return showIntel || !!link.onwardSummary || showStubDetails || showNotes;
+}
+
+// The card's expandable detail body: onward summary, stub contact rows, notes,
+// and own-side chain intel (read rows or the inline edit form). Rendered by both
+// the Timeline LinkCard and the compact Map card so they never diverge. The
+// caller owns the expand/collapse animation; this is just the content.
+export function ChainCardExpand({
+  link,
+  onSaveIntel,
+}: {
+  link: ChainLinkV2;
+  onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
+}) {
+  const intelForCard = link.intel ?? null;
+  const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
+  const onwardForCard = link.onwardSummary ?? null;
+  const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
+  const notesText = unifiedNotes(link);
+  const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
+  return (
+    <div style={{ display: "grid", gap: 10, paddingTop: 8, marginTop: 4, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+      {onwardForCard && <OnwardSummaryLine summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
+      {showStubDetails && <StubDetailsRows link={link} />}
+      {showNotes && <NotesBlock text={notesText} />}
+      {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
+    </div>
+  );
+}
+
 // Per-card ⋯ menu — the structural actions (Edit / Add another onward / Remove)
 // live here so the chain isn't cluttered with inline buttons. A small popup
 // anchored to the button; closes on outside click or Escape. 2026-09-01.
@@ -634,21 +672,10 @@ export function LinkCard({
   const isOriginator = link.createdByUserId === currentUserId;
   const isUnclaimed = link.transactionId === null;
 
-  // The card's expand: chain details (own-side intel) + onward summary. Only
-  // offered when there's something to show — otherwise the card isn't tappable
-  // and shows no chevron ("neither if it's not available").
-  const intelForCard = link.intel ?? null;
-  const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
-  const onwardForCard = link.onwardSummary ?? null;
-  // The stub contact details are private to whoever may edit the stub; show them
-  // on the card so you don't have to open Edit to read them.
-  const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
-  // One unified Notes value (stub note or intel note), visible to whoever may
-  // edit either surface.
-  const notesText = unifiedNotes(link);
-  const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
-  const onwardForCardTruthy = !!onwardForCard;
-  const expandable = showIntel || onwardForCardTruthy || showStubDetails || showNotes;
+  // The card's expand: onward summary + stub contact + notes + own-side chain
+  // intel. Only offered when there's something to show. The body itself is the
+  // shared ChainCardExpand (also used by the compact Map card).
+  const expandable = isChainCardExpandable(link);
   const [expanded, setExpanded] = useState(false);
 
   // Whole card toggles, but never when the tap lands on an interactive control
@@ -987,22 +1014,7 @@ export function LinkCard({
               }}
             >
               <div style={{ overflow: "hidden", minHeight: 0 }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 10,
-                    paddingTop: 8,
-                    marginTop: 4,
-                    borderTop: "0.5px solid var(--agent-border-subtle)",
-                  }}
-                >
-                  {onwardForCard && (
-                    <OnwardSummaryLine summary={onwardForCard} fileId={link.transaction?.id ?? null} />
-                  )}
-                  {showStubDetails && <StubDetailsRows link={link} />}
-                  {showNotes && <NotesBlock text={notesText} />}
-                  {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
-                </div>
+                <ChainCardExpand link={link} onSaveIntel={onSaveIntel} />
               </div>
             </div>
           </div>
