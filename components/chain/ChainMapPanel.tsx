@@ -3,16 +3,25 @@
 // The compact ordered chain list shown in the left panel of the Map command
 // centre. One row per property in real chain order — numbered + status-coloured
 // (matching the map pins), photo, address, agency, status, progress — plus the
-// Timeline actions: Send/Resend invite, Open file, a ⋯ menu (edit / add onward /
-// move / chase / photo / share link / remove), and Add sale above/below. Onward
-// purchases are indented under the property they fork from. Selecting a row
-// highlights its map pin; a selected pin scrolls its row into view.
+// Timeline actions: the status-driven primary CTA (Add email / Send invite /
+// Resend / Update email & resend), Open file, and a ⋮ menu (edit / add onward /
+// move / chase / photo / share link / remove). Everything for one property lives
+// inside its card. Onward purchases are indented under the property they fork
+// from. Selecting a row highlights its map pin; a selected pin scrolls its row
+// into view.
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { CHAIN_STATUS_COLOR, CHAIN_STATUS_LABEL, type ChainMapStatus } from "@/components/chain/chain-map-shared";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
+
+// The primary call-to-action for a row, mirroring the Timeline's status-driven
+// buttons. `kind` tells the panel which handler to call: "invite" → onInvite
+// (send/resend), "edit" → actions.onEdit (opens the edit drawer to add/fix the
+// agent email).
+export type ChainMapCta = { label: string; kind: "invite" | "edit"; tone: "primary" | "normal" | "warn" };
 
 export type ChainMapPanelItem = {
   id: string;
@@ -22,11 +31,13 @@ export type ChainMapPanelItem = {
   line2: string;
   agency: string | null;
   photoUrl: string | null;
-  status: ChainMapStatus;
+  status: ChainMapStatus; // drives the numbered pin colour (5-state, matches the map)
+  statusLabel: string; // exact Timeline label (Unclaimed / Invited / Bounced / Declined / Claimed / Your file)
+  statusDanger: boolean; // bounced / declined — render the label in danger
   progressPercent: number | null;
   href: string | null; // open the file (your own sales)
-  invite: "send" | "resend" | null; // invite the stub agent
-  // ⋯ menu capabilities
+  cta: ChainMapCta | null;
+  // ⋮ menu capabilities
   canEdit: boolean;
   hasShareLink: boolean;
   canMoveUp: boolean;
@@ -49,23 +60,26 @@ export type ChainMapActions = {
 };
 
 function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMapActions }) {
+  const { theme } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Close on Escape / scroll / resize, so the fixed-positioned menu never drifts
+  // from its button (mirrors the Timeline's CardMenu).
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return;
-      setOpen(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const close = () => setOpen(false);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
     };
-    const onScroll = () => setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", onScroll, true);
-    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", onScroll, true); };
   }, [open]);
 
   const rows: { label: string; onClick: () => void; danger?: boolean }[] = [];
@@ -88,36 +102,47 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
         type="button"
         className="cmp-menu-btn"
         aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={(e) => {
           e.stopPropagation();
-          const r = btnRef.current?.getBoundingClientRect();
-          if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+          if (!open) {
+            const r = btnRef.current?.getBoundingClientRect();
+            if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+          }
           setOpen((o) => !o);
         }}
       >
-        ⋯
+        ⋮
       </button>
       {actions.onUploadPhoto && (
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) actions.onUploadPhoto!(item.id, f); e.target.value = ""; }}
         />
       )}
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popRef} className="cmp-menu" style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 9999 }} onClick={(e) => e.stopPropagation()}>
-          {rows.map((r) => (
-            <button
-              key={r.label}
-              type="button"
-              className={`cmp-menu-item${r.danger ? " danger" : ""}`}
-              onClick={() => { setOpen(false); r.onClick(); }}
-            >
-              {r.label}
-            </button>
-          ))}
+        // data-theme re-establishes the agent token scope: the portal renders under
+        // <body>, outside the AgentShell where --agent-* live, so without this the
+        // menu would resolve every token to nothing and render unstyled.
+        <div data-theme={theme}>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1600 }} />
+          <div role="menu" className="cmp-menu" style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 1601 }}>
+            {rows.map((r) => (
+              <button
+                key={r.label}
+                type="button"
+                role="menuitem"
+                className={`cmp-menu-item${r.danger ? " danger" : ""}`}
+                onClick={(e) => { e.stopPropagation(); setOpen(false); r.onClick(); }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>,
         document.body,
       )}
@@ -144,7 +169,7 @@ export function ChainMapPanel({
   busyInviteId?: string | null;
   actions?: ChainMapActions;
 }) {
-  const selRef = useRef<HTMLButtonElement>(null);
+  const selRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selectedId) selRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedId]);
@@ -159,23 +184,28 @@ export function ChainMapPanel({
 
       {items.map((it) => {
         const on = it.id === selectedId;
-        const acts = !!it.href || (!!it.invite && !!onInvite);
+        const busy = busyInviteId === it.id;
+        const runCta = () => {
+          if (!it.cta) return;
+          if (it.cta.kind === "invite") onInvite?.(it.id);
+          else actions.onEdit?.(it.id);
+        };
+        const acts = !!it.href || !!it.cta;
         return (
-          <div key={it.id} className={`cmp-rowwrap${it.onward ? " cmp-rowwrap--onward" : ""}`}>
+          <div
+            key={it.id}
+            ref={on ? selRef : undefined}
+            className={`cmp-rowwrap${it.onward ? " cmp-rowwrap--onward" : ""}${on ? " on" : ""}`}
+          >
             <div className="cmp-rowline">
-              <button
-                ref={on ? selRef : undefined}
-                type="button"
-                className={`cmp-row${on ? " on" : ""}`}
-                onClick={() => onSelect(it.id)}
-              >
+              <button type="button" className="cmp-row" onClick={() => onSelect(it.id)}>
                 <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[it.status] }}>{it.label}</span>
                 <PropertyThumb photoUrl={it.photoUrl} size={40} />
                 <span className="cmp-txt">
                   <span className="cmp-l1">{it.line1}</span>
                   {it.line2 && <span className="cmp-l2">{it.line2}</span>}
                   <span className="cmp-meta">
-                    <span className="cmp-status" style={{ color: CHAIN_STATUS_COLOR[it.status] }}>{CHAIN_STATUS_LABEL[it.status]}</span>
+                    <span className="cmp-status" style={{ color: it.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[it.status] }}>{it.statusLabel}</span>
                     {it.agency && <span className="cmp-agency">· {it.agency}</span>}
                   </span>
                   {it.progressPercent != null && (
@@ -189,14 +219,14 @@ export function ChainMapPanel({
             {acts && (
               <div className="cmp-acts">
                 {it.href && <Link href={it.href} className="cmp-act cmp-act--primary">Open file →</Link>}
-                {it.invite && onInvite && (
+                {it.cta && (
                   <button
                     type="button"
-                    className="cmp-act"
-                    disabled={busyInviteId === it.id}
-                    onClick={() => onInvite(it.id)}
+                    className={`cmp-act cmp-act--${it.cta.tone}`}
+                    disabled={it.cta.kind === "invite" && busy}
+                    onClick={runCta}
                   >
-                    {busyInviteId === it.id ? "Sending…" : it.invite === "resend" ? "Resend invite" : "Send invite"}
+                    {it.cta.kind === "invite" && busy ? "Sending…" : it.cta.label}
                   </button>
                 )}
               </div>

@@ -24,7 +24,8 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
 import dynamic from "next/dynamic";
 import { type ChainMapNode, type ChainMapMove, type ChainMapStatus, type ChainMapDetail } from "@/components/chain/chain-map-shared";
-import { ChainMapPanel, type ChainMapPanelItem, type ChainMapActions } from "@/components/chain/ChainMapPanel";
+import { ChainMapPanel, type ChainMapPanelItem, type ChainMapActions, type ChainMapCta } from "@/components/chain/ChainMapPanel";
+import { getChainLinkStatus, chainLinkStatusLabel } from "@/lib/chain/status";
 import { displayChainPosition } from "@/lib/chain/positions";
 
 // Client-only (WebGL) — matches how the My Files map loads PropertyMap. The
@@ -668,16 +669,30 @@ export function ChainView({
     const isSpineLink = (l.branchKey ?? "") === "";
     const spineIdx = links.findIndex((x) => x.id === l.id);
     const canEdit = l.canEditStub ?? canEditLink(l, currentUserId, currentUserRole);
+    // Exact same status the Timeline LinkCard derives — drives both the label and
+    // the primary CTA, so the panel never diverges from the Timeline.
+    const st = getChainLinkStatus(
+      { transactionId: l.transactionId, claimedByUserId: l.claimedByUserId, stubAgentEmail: l.stubAgentEmail, inviteStatus: l.inviteStatus ?? "NOT_SENT" },
+      currentUserId,
+    );
+    const statusDanger = st.kind === "bounced" || st.kind === "declined";
+    // 5-state colour for the numbered map pin (bounced/declined fall back to
+    // unclaimed grey on the map; the row itself flags them in danger).
     const status: ChainMapStatus =
       mine ? "yours"
         : l.transaction?.status === "completed" ? "completed"
           : l.transactionId != null ? "claimed"
-            : (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED") ? "invited"
+            : st.kind === "invited" ? "invited"
               : "unclaimed";
-    const invite: "send" | "resend" | null =
-      l.transactionId == null && !!l.stubAgentEmail
-        ? (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED" ? "resend" : "send")
-        : null;
+    // Primary CTA — identical wording/gating to the Timeline LinkCard.
+    let cta: ChainMapCta | null = null;
+    if (canEdit) {
+      if (st.kind === "unclaimed_no_email") cta = { label: "Add email", kind: "edit", tone: "primary" };
+      else if (st.kind === "unclaimed_unsent") cta = { label: "Send invite", kind: "invite", tone: "primary" };
+      else if (st.kind === "invited") cta = { label: "Resend invite", kind: "invite", tone: "normal" };
+      else if (st.kind === "bounced") cta = { label: "Update email & resend", kind: "edit", tone: "warn" };
+      else if (st.kind === "declined") cta = { label: "Resend", kind: "invite", tone: "primary" };
+    }
     return {
       id: l.id,
       label: isSpineLink ? String(displayChainPosition(l.position, links.length)) : "↑",
@@ -687,9 +702,11 @@ export function ChainView({
       agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
       photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
       status,
+      statusLabel: chainLinkStatusLabel(st),
+      statusDanger,
       progressPercent: l.progressPercent,
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
-      invite,
+      cta,
       canEdit,
       hasShareLink: !!l.hasShareLink,
       canMoveUp: isSpineLink && canReorder && spineIdx > 0,
