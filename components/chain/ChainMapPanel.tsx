@@ -16,6 +16,7 @@ import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
+import type { ChainCardBadge } from "@/components/chain/LinkCard";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
 // buttons. `kind` tells the panel which handler to call: "invite" → onInvite
@@ -36,6 +37,11 @@ export type ChainMapPanelItem = {
   status: ChainMapStatus; // drives the numbered pin colour (5-state, matches the map)
   statusLabel: string; // exact Timeline label (Unclaimed / Invited / Bounced / Declined / Claimed / Your file)
   statusDanger: boolean; // bounced / declined — render the label in danger
+  // Signals ported from the Timeline card (parity for the drawer swap):
+  buyerPosition: string | null; // "Cash buyer" / "First-time buyer"
+  priceLabel: string | null; // £ figure on your own file
+  metaLine: string | null; // relative-time context ("Invite sent · 2h ago", "Chased · 3d ago")
+  badges: ChainCardBadge[]; // withdrawal / cascade badges
   progressPercent: number | null;
   href: string | null; // open the file (your own sales)
   cta: ChainMapCta | null;
@@ -241,7 +247,16 @@ function PanelRow({
             <span className="cmp-meta">
               <span className="cmp-status" style={{ color: item.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[item.status] }}>{item.statusLabel}</span>
               {item.agency && <span className="cmp-agency">· {item.agency}</span>}
+              {item.buyerPosition && <span className="cmp-bpos">{item.buyerPosition}</span>}
             </span>
+            {item.metaLine && <span className="cmp-submeta">{item.metaLine}</span>}
+            {item.badges.length > 0 && (
+              <span className="cmp-badges">
+                {item.badges.map((b, i) => (
+                  <span key={i} className={`cmp-badge cmp-badge--${b.tone}`}>{b.label}</span>
+                ))}
+              </span>
+            )}
           </span>
         </button>
         <div className="cmp-rowtools">
@@ -264,6 +279,7 @@ function PanelRow({
         <div className="cmp-progress">
           <span className="cmp-pct">{Math.round(item.progressPercent)}%</span>
           <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }} /></span>
+          {item.priceLabel && <span className="cmp-price">{item.priceLabel}</span>}
         </div>
       )}
 

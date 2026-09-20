@@ -1585,6 +1585,17 @@ select {
 .cmp-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 2px; min-width: 0; }
 .cmp-status { font-weight: 650; flex-shrink: 0; }
 .cmp-agency { color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Ported Timeline signals. */
+.cmp-bpos { flex-shrink: 0; font-size: 10px; font-weight: 650; padding: 1px 6px; border-radius: 999px;
+  background: rgba(var(--agent-success-rgb), 0.12); color: var(--agent-success); }
+.cmp-submeta { font-size: 10.5px; color: var(--agent-text-muted); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cmp-badge { font-size: 9.5px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.cmp-badge--danger { color: var(--agent-danger); background: rgba(var(--agent-danger-rgb), 0.10); }
+.cmp-badge--info { color: var(--agent-text-secondary); background: rgba(var(--agent-shadow-rgb), 0.06); }
+.cmp-price { flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: var(--agent-text-primary);
+  font-variant-numeric: tabular-nums; }
 /* Progress row — the % sits directly under the property photo (left edge aligns
    with the thumb: 10px row pad + 22px number + 11px gap = 43px), a bar fills the
    rest to the card's right edge. */

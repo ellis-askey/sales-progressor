@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X, Plus } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable } from "@/components/chain/LinkCard";
+import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { saveChainIntelAction } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2 } from "@/lib/services/chains";
-import { computeChainSummary, formatChainValueShort } from "@/lib/chain/summary";
+import { computeChainSummary, formatChainValueShort, formatChainPriceFull } from "@/lib/chain/summary";
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
@@ -721,6 +721,11 @@ export function ChainView({
       status,
       statusLabel: chainLinkStatusLabel(st),
       statusDanger,
+      // Signals ported from the Timeline card (parity for the drawer swap).
+      buyerPosition: l.transaction?.buyerPosition ?? null,
+      priceLabel: mine && l.transaction ? (l.transaction.purchasePrice != null ? formatChainPriceFull(l.transaction.purchasePrice) : "Price TBC") : null,
+      metaLine: [chainStatusMeta(l, currentUserId), chainChasedMeta(l)].filter(Boolean).join(" · ") || null,
+      badges: chainWithdrawalBadges(l, directional[l.id]),
       progressPercent: l.progressPercent,
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
       cta,

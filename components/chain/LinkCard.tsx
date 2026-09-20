@@ -162,6 +162,53 @@ function Badge({ kind, arrow }: { kind: BadgeKind; arrow?: "↑" | "↓" }) {
   );
 }
 
+// ── Shared card signals ──────────────────────────────────────────────────────
+// The Timeline card and the compact Map card show the same signals; these
+// helpers compute them once so the two never drift.
+
+export type ChainCardBadge = { label: string; tone: "danger" | "info" };
+
+// The relative-time status descriptor ("Invite sent · 2h ago", "Email bounced",
+// "Agent declined · 3d ago", "Email needed", "Claimed by …"). Null when there's
+// nothing time-relevant to add beyond the status pill (e.g. your own file).
+export function chainStatusMeta(link: ChainLinkV2, currentUserId: string): string | null {
+  const status = getChainLinkStatus(
+    { transactionId: link.transactionId, claimedByUserId: link.claimedByUserId, stubAgentEmail: link.stubAgentEmail, inviteStatus: link.inviteStatus },
+    currentUserId,
+  );
+  if (status.kind === "invited") return `Invite sent · ${relativeTime(link.inviteSentAt)}`;
+  if (status.kind === "bounced") return "Email bounced";
+  if (status.kind === "declined") return `Agent declined · ${relativeTime(link.inviteDeclinedAt)}`;
+  if (status.kind === "unclaimed_no_email") return "Email needed";
+  if (status.kind === "claimed_other") return link.claimedBy?.name ? `Claimed by ${link.claimedBy.name}` : null;
+  return null;
+}
+
+// The chase-recency line ("Chased · 3d ago") for a neighbour we've chased.
+export function chainChasedMeta(link: ChainLinkV2): string | null {
+  return link.lastAgentChasedAt ? `Chased · ${relativeTime(link.lastAgentChasedAt)}` : null;
+}
+
+// Withdrawal / cascade badges — withdrawn, going back to market, waiting for the
+// chain to reform, proceeding without an onward purchase. Direction-aware.
+export function chainWithdrawalBadges(
+  link: ChainLinkV2,
+  directional?: { upward: string | null; downward: string | null },
+): ChainCardBadge[] {
+  const out: ChainCardBadge[] = [];
+  const kind = (k: string | null | undefined): BadgeKind | null => (k && k in BADGE_STYLE ? (k as BadgeKind) : null);
+  if (link.transaction?.status === "withdrawn") out.push({ label: "Withdrawn", tone: "danger" });
+  if (link.withdrawalStatus === "WITHDRAWN" && link.transaction?.status !== "withdrawn") {
+    out.push({ label: BADGE_STYLE.WITHDRAWN.label, tone: "info" });
+  } else if (directional) {
+    const up = kind(directional.upward); if (up) out.push({ label: `↑ ${BADGE_STYLE[up].label}`, tone: "info" });
+    const down = kind(directional.downward); if (down) out.push({ label: `↓ ${BADGE_STYLE[down].label}`, tone: "info" });
+  } else {
+    const w = kind(link.withdrawalStatus); if (w) out.push({ label: BADGE_STYLE[w].label, tone: "info" });
+  }
+  return out;
+}
+
 // ── Chain-node intel (own-side private) ──────────────────────────────────────
 // Expands inside the card. Read-only for viewers who may see but not edit; an
 // inline form for those who may. Rendered only when there is something to show
