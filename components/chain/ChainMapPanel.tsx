@@ -27,6 +27,7 @@ export type ChainMapPanelItem = {
   id: string;
   label: string; // number for a spine property, "↑" for an onward purchase
   depth: number; // 0 = spine (the trunk); each fork level indents one more, with a rail
+  forkParent: boolean; // has branch onwards above it → the rail curves down into this card
   canColumnAdd: boolean; // this is the top of its own ladder → offer "+ add sale above"
   line1: string;
   line2: string;
@@ -224,7 +225,7 @@ function PanelRow({
   };
   const acts = !!item.href || !!item.cta;
   return (
-    <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${selected ? " on" : ""}`}>
+    <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${item.forkParent ? " cmp-rowwrap--fork" : ""}${selected ? " on" : ""}`}>
       <div className="cmp-rowline">
         <button type="button" className="cmp-row" onClick={() => onSelect(item.id)}>
           <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[item.status] }}>{item.label}</span>

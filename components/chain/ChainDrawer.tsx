@@ -621,7 +621,7 @@ export function ChainView({
     }
     for (const arr of forkChildren.values()) arr.sort((a, b) => a.position - b.position);
 
-    const orderedPanelLinks: { link: Link; depth: number; branchTop: boolean; hasLadderUp: boolean }[] = [];
+    const orderedPanelLinks: { link: Link; depth: number; branchTop: boolean; hasLadderUp: boolean; forkParent: boolean }[] = [];
     const walk = (link: Link, depth: number) => {
       const ladder = byBranch.get(link.branchKey ?? "") ?? [];
       const idx = ladder.findIndex((l) => l.id === link.id);
@@ -629,7 +629,9 @@ export function ChainView({
       const forks = forkChildren.get(link.id) ?? []; // extra onward purchases (branches)
       if (up) walk(up, depth);                       // continue the ladder upward first (trunk)
       for (const f of forks) walk(f, depth + 1);     // then each branch, indented
-      orderedPanelLinks.push({ link, depth, branchTop: !up, hasLadderUp: !!up });
+      // forkParent = this sale has branch onwards above it, so the rail should
+      // curve down into it (it's where those branches fork from).
+      orderedPanelLinks.push({ link, depth, branchTop: !up, hasLadderUp: !!up, forkParent: forks.length > 0 });
     };
     const spineBottomLink = spine[spine.length - 1];
     if (spineBottomLink) walk(spineBottomLink, 0);
@@ -672,7 +674,7 @@ export function ChainView({
   // Panel rows with per-row capabilities (edit / remove / reorder / chase /
   // add-onward / photo), using the same gating the Timeline's LinkCard uses.
   // Kept out of the map memo so this render-time gating doesn't churn map data.
-  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, depth, branchTop, hasLadderUp }) => {
+  const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, depth, branchTop, hasLadderUp, forkParent }) => {
     const a = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
     const ci = a.indexOf(",");
     const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
@@ -707,6 +709,7 @@ export function ChainView({
       id: l.id,
       label: isSpineLink ? String(displayChainPosition(l.position, links.length)) : "↑",
       depth,
+      forkParent,
       // A branch column's top can grow upward (its own "+ add above"), just like
       // each column in the Timeline. The spine top is depth-0 branchTop and uses
       // the same control, so there's one add-above per column and no duplicate.

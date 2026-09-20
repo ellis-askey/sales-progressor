@@ -1513,6 +1513,15 @@ select {
 }
 /* A branched onward purchase reads slightly quieter than the spine trunk. */
 .cmp-rowwrap--branch { background: var(--agent-surface-subtle, var(--agent-surface)); }
+/* Fork sale — its onward purchases sit one level in (rail at +8px), so the rail
+   curves down into this card's node, completing the tree ("these fork off here"). */
+.cmp-rowwrap--fork { position: relative; }
+.cmp-rowwrap--fork::before {
+  content: ""; position: absolute; left: 8px; top: -9px; width: 10px; height: 30px;
+  border-left: 1.5px solid var(--agent-border-default);
+  border-bottom: 1.5px solid var(--agent-border-default);
+  border-bottom-left-radius: 9px; pointer-events: none;
+}
 
 /* ── Tree rail (Option B) ─────────────────────────────────────────────────────
    Each row is indented by its depth; every level draws one guide column with a
