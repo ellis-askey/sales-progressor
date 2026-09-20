@@ -16,6 +16,18 @@ export type ChainMapNode = {
 // purchase (a branch); `broken` = the household leaves the chain.
 export type ChainMapMove = { fromId: string; toId: string; broken?: boolean; fork?: boolean };
 
+// Per-node detail for the floating property card + move card (keyed by link id).
+export type ChainMapDetail = {
+  label: string; // "3", "↑" — matches the pin
+  line1: string;
+  line2: string;
+  agency: string | null;
+  photoUrl: string | null;
+  status: ChainMapStatus;
+  progressPercent: number | null;
+  href: string | null; // /agent/transactions/<id> when it's a file you can open
+};
+
 // Restrained TSP palette — your sale coral, claimed green, invited amber,
 // unclaimed grey, completed a deeper green. Four legend colours + a done shade.
 export const CHAIN_STATUS_COLOR: Record<ChainMapStatus, string> = {

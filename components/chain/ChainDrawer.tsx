@@ -23,7 +23,7 @@ import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
 import dynamic from "next/dynamic";
-import { type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/components/chain/chain-map-shared";
+import { type ChainMapNode, type ChainMapMove, type ChainMapStatus, type ChainMapDetail } from "@/components/chain/chain-map-shared";
 import { ChainMapPanel, type ChainMapPanelItem } from "@/components/chain/ChainMapPanel";
 import { displayChainPosition } from "@/lib/chain/positions";
 
@@ -557,7 +557,7 @@ export function ChainView({
   // A node per link (numbered bottom=1 like the cards); a move per consecutive
   // pair (the household in the lower property is buying the one above). Memoised
   // on the chain so the map doesn't re-geocode on every render.
-  const { mapNodes, mapMoves, panelItems } = useMemo(() => {
+  const { mapNodes, mapMoves, panelItems, mapDetails } = useMemo(() => {
     type Link = ChainV2["links"][number];
     const all: Link[] = chain?.links ?? [];
     const spine = all.filter((l) => (l.branchKey ?? "") === "").sort((a, b) => a.position - b.position);
@@ -631,7 +631,25 @@ export function ChainView({
       items.push(makeItem(l, false));
     }
 
-    return { mapNodes: nodes, mapMoves: moves, panelItems: items };
+    // Per-node detail (keyed) for the floating property + move cards.
+    const detailById: Record<string, ChainMapDetail> = {};
+    for (const l of all) {
+      const a = addr(l);
+      const ci = a.indexOf(",");
+      const isYours = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
+      detailById[l.id] = {
+        label: labelOf(l),
+        line1: ci === -1 ? a : a.slice(0, ci),
+        line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
+        agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
+        photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
+        status: nodeStatus(l),
+        progressPercent: l.progressPercent,
+        href: l.transactionId && isYours ? `/agent/transactions/${l.transactionId}` : null,
+      };
+    }
+
+    return { mapNodes: nodes, mapMoves: moves, panelItems: items, mapDetails: detailById };
   }, [chain, currentUserId, transactionId]);
 
   // Chase-neighbour: the stub agent on the link directly above (onward) or below
@@ -1328,6 +1346,7 @@ export function ChainView({
             <ChainGeoMap
               nodes={mapNodes}
               moves={mapMoves}
+              details={mapDetails}
               selectedId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
               theme={isNight ? "dark" : "light"}
