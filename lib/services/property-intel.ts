@@ -178,22 +178,137 @@ function epcValidUntil(inspectionDate: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-function mapEpcRow(row: Record<string, string>): EpcData {
-  const inspectionDate = row["inspection-date"] ?? "";
+// A single row from the new /api/domestic/search response. The search endpoint
+// returns a SUMMARY per certificate — it does not include score, potential
+// rating, floor area, property type, built form or tenure (those live on the
+// full certificate, fetched separately by certificate number).
+type EpcSearchRow = {
+  certificateNumber?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  addressLine3?: string;
+  addressLine4?: string;
+  postcode?: string;
+  postTown?: string;
+  council?: string;
+  constituency?: string;
+  currentEnergyEfficiencyBand?: string;
+  registrationDate?: string;
+  uprn?: number | string;
+  schemaType?: string;
+};
+
+function epcRowAddress(row: EpcSearchRow): string {
+  return [row.addressLine1, row.addressLine2, row.addressLine3, row.addressLine4]
+    .filter((p) => p && p.trim())
+    .join(", ");
+}
+
+// The full certificate's "data" block. Keys vary by certificate schema, so this
+// is an untyped bag we read defensively (snake_case first, then kebab-case and
+// known aliases) rather than a fixed shape.
+type EpcCertData = Record<string, unknown>;
+
+function certField(data: EpcCertData, ...keys: string[]): unknown {
+  for (const k of keys) {
+    const v = data[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+}
+function certStr(data: EpcCertData, ...keys: string[]): string {
+  const v = certField(data, ...keys);
+  return v == null ? "" : String(v);
+}
+function certNum(data: EpcCertData, ...keys: string[]): number | null {
+  const v = certField(data, ...keys);
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : parseFloat(String(v));
+  return Number.isNaN(n) ? null : n;
+}
+
+// Fetch the full certificate by number. Returns its "data" block, or null on any
+// failure — callers fall back to the search summary so the rating still shows.
+async function fetchEpcCertificate(certificateNumber: string, token: string): Promise<EpcCertData | null> {
+  const url = `https://api.get-energy-performance-data.communities.gov.uk/api/certificate?certificate_number=${encodeURIComponent(certificateNumber)}`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json?.data;
+    return data && typeof data === "object" ? (data as EpcCertData) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Map the full certificate "data" block to EpcData. Keys are tried in the new
+// API's snake_case, then the legacy kebab-case, then sensible aliases.
+function mapEpcCert(data: EpcCertData, summary: EpcSearchRow): EpcData {
+  const inspectionDate =
+    certStr(data, "inspection_date", "inspection-date") ||
+    certStr(data, "registration_date", "registration-date") ||
+    (summary.registrationDate ?? "");
+  const validUntil =
+    certStr(data, "expiry_date", "expiry-date") || epcValidUntil(inspectionDate) || null;
+  const addressParts = [
+    certStr(data, "address_line_1", "address1", "address"),
+    certStr(data, "address_line_2", "address2"),
+    certStr(data, "address_line_3", "address3"),
+  ].filter((p) => p);
   return {
-    rating: row["current-energy-rating"] ?? "",
-    score: row["current-energy-efficiency"] ? parseInt(row["current-energy-efficiency"], 10) : null,
-    potentialRating: row["potential-energy-rating"] ?? "",
-    potentialScore: row["potential-energy-efficiency"] ? parseInt(row["potential-energy-efficiency"], 10) : null,
-    propertyType: row["property-type"] ?? "",
-    floorArea: row["total-floor-area"] ? parseFloat(row["total-floor-area"]) : null,
-    builtForm: row["built-form"] ?? "",
+    rating: certStr(data, "current_energy_efficiency_band", "current-energy-rating", "current_energy_rating") || (summary.currentEnergyEfficiencyBand ?? ""),
+    score: certNum(data, "current_energy_efficiency", "current-energy-efficiency"),
+    potentialRating: certStr(data, "potential_energy_efficiency_band", "potential-energy-rating", "potential_energy_rating"),
+    potentialScore: certNum(data, "potential_energy_efficiency", "potential-energy-efficiency"),
+    propertyType: certStr(data, "property_type", "property-type"),
+    floorArea: certNum(data, "total_floor_area", "total-floor-area"),
+    builtForm: certStr(data, "built_form", "built-form"),
+    inspectionDate,
+    validUntil,
+    uprn:
+      (certField(data, "uprn") != null ? String(certField(data, "uprn")).trim() : "") ||
+      (summary.uprn != null ? String(summary.uprn).trim() : "") ||
+      null,
+    tenure: certStr(data, "tenure"),
+    localAuthority: certStr(data, "council", "local_authority_label", "local-authority-label") || (summary.council ?? ""),
+    address: addressParts.length ? addressParts.join(", ") : epcRowAddress(summary),
+  };
+}
+
+// Resolve a search-summary row to full EpcData: fetch the full certificate and
+// map it; if that fetch fails, degrade to the summary (rating still shows).
+async function resolveEpc(row: EpcSearchRow, token: string): Promise<EpcData> {
+  const certNo = row.certificateNumber;
+  if (certNo) {
+    const full = await fetchEpcCertificate(certNo, token);
+    if (full) return mapEpcCert(full, row);
+  }
+  return mapEpcRow(row);
+}
+
+function mapEpcRow(row: EpcSearchRow): EpcData {
+  // registrationDate is when the certificate was lodged — the closest thing the
+  // search summary gives us to a certified date, and EPC validity runs 10 years
+  // from lodgement, so it drives validUntil too.
+  const inspectionDate = row.registrationDate ?? "";
+  return {
+    rating: row.currentEnergyEfficiencyBand ?? "",
+    score: null,
+    potentialRating: "",
+    potentialScore: null,
+    propertyType: "",
+    floorArea: null,
+    builtForm: "",
     inspectionDate,
     validUntil: epcValidUntil(inspectionDate),
-    uprn: row["uprn"]?.trim() || null,
-    tenure: row["tenure"] ?? "",
-    localAuthority: row["local-authority-label"] ?? row["local-authority"] ?? "",
-    address: row["address"] ?? row["address1"] ?? "",
+    uprn: row.uprn != null ? String(row.uprn).trim() || null : null,
+    tenure: "",
+    localAuthority: row.council ?? "",
+    address: epcRowAddress(row),
   };
 }
 
@@ -219,21 +334,25 @@ function epcMatchScore(address1: string, searchPaon: string): number {
 // cause of false "No EPC found" results) and picks the row that best matches
 // the house number/name.
 export async function fetchEpcStatus(postcode: string, paon?: string | null): Promise<EpcResult> {
-  const email = process.env.EPC_API_EMAIL;
   const key = process.env.EPC_API_KEY;
-  if (!email || !key) return { status: "ok", data: null };
+  if (!key) return { status: "ok", data: null };
 
-  const auth = Buffer.from(`${email}:${key}`).toString("base64");
+  // The Open Data Communities API (epc.opendatacommunities.org) was retired on
+  // 30 May 2026 — it now 301-redirects and no longer serves data. This is the
+  // replacement service, which uses Bearer auth. The token is the ready-made
+  // bearer token copied from the account's "my account" page and is used
+  // verbatim (not base64-encoded). EPC_API_EMAIL is no longer used.
+  const token = key;
   // Search by POSTCODE ONLY and match the house number/name locally. The
   // register's own &address= filter is unreliable — it 404s for addresses it
   // actually holds (e.g. "21 Mandelyns") — so we pull the postcode's whole set
-  // of certificates and pick ours from it.
-  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}&size=${EPC_ROW_LIMIT}`;
+  // of certificates and pick ours from it. page_size caps the page (1–5000).
+  const url = `https://api.get-energy-performance-data.communities.gov.uk/api/domestic/search?postcode=${encodeURIComponent(postcode)}&page_size=${EPC_ROW_LIMIT}`;
 
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       next: { revalidate: 86400 },
     });
   } catch {
@@ -246,27 +365,28 @@ export async function fetchEpcStatus(postcode: string, paon?: string | null): Pr
   if (res.status === 404) return { status: "ok", data: null };
   if (!res.ok) return { status: "error" };
 
-  let rows: Record<string, string>[] = [];
+  let rows: EpcSearchRow[] = [];
   try {
     const json = await res.json();
-    rows = json?.rows ?? [];
+    // New API: { data: [ ...rows ], pagination: {...} }.
+    rows = Array.isArray(json?.data) ? json.data : [];
   } catch {
     return { status: "error" };
   }
   if (rows.length === 0) return { status: "ok", data: null };
 
   // No house number/name to pin to: take the register's nearest result.
-  if (!paon) return { status: "ok", data: mapEpcRow(rows[0]) };
+  if (!paon) return { status: "ok", data: await resolveEpc(rows[0], token) };
 
   // Pick the best-scoring row. A zero best-score means none of the returned
   // certificates are for this specific address (a genuine "no certificate").
-  let best: Record<string, string> | null = null;
+  let best: EpcSearchRow | null = null;
   let bestScore = 0;
   for (const row of rows) {
-    const score = epcMatchScore(row["address1"] ?? "", paon);
+    const score = epcMatchScore(row.addressLine1 ?? "", paon);
     if (score > bestScore) { best = row; bestScore = score; }
   }
-  return { status: "ok", data: best ? mapEpcRow(best) : null };
+  return { status: "ok", data: best ? await resolveEpc(best, token) : null };
 }
 
 // Backward-compatible wrapper (EpcData | null) for callers that don't need the

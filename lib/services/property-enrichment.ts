@@ -180,7 +180,7 @@ function nearbyPlanningLink(lat: number, lng: number): SourceRef {
 export async function getPropertyEnrichment(address: string): Promise<PropertyEnrichment> {
   const postcode = extractPostcode(address);
   const paon = extractPaon(address);
-  const epcConfigured = !!(process.env.EPC_API_EMAIL && process.env.EPC_API_KEY);
+  const epcConfigured = !!process.env.EPC_API_KEY;
 
   // Base payload — everything defaults to a safe, empty, non-error state so a
   // missing postcode (or any failed source) still returns a usable object.
