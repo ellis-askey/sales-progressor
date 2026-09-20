@@ -1475,9 +1475,10 @@ select {
   border-left: 1.5px solid var(--agent-border-default);
   border-bottom: 1.5px solid var(--agent-border-default); border-bottom-left-radius: 7px;
 }
-/* Per-row action bar — inside the card, under the row, with a hairline divider. */
-.cmp-acts { display: flex; gap: 16px; align-items: center;
-  margin: 0 10px 9px 63px; padding-top: 8px;
+/* Per-row action bar — inside the card, under the row, right-aligned, with a
+   full-width hairline divider. */
+.cmp-acts { display: flex; gap: 16px; align-items: center; justify-content: flex-end;
+  margin: 0 12px 9px 12px; padding-top: 8px;
   border-top: 1px solid var(--agent-border-subtle); }
 .cmp-act { font: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer; padding: 0;
   background: none; border: none; color: var(--agent-coral-deep); text-decoration: none; }
@@ -1498,8 +1499,10 @@ select {
 .cmp-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 2px; min-width: 0; }
 .cmp-status { font-weight: 650; flex-shrink: 0; }
 .cmp-agency { color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Progress row — full card width, the % pinned left of a bar that fills the rest. */
-.cmp-progress { display: flex; align-items: center; gap: 9px; padding: 2px 12px 10px 12px; }
+/* Progress row — the % sits directly under the property photo (left edge aligns
+   with the thumb: 10px row pad + 22px number + 11px gap = 43px), a bar fills the
+   rest to the card's right edge. */
+.cmp-progress { display: flex; align-items: center; gap: 9px; padding: 2px 12px 10px 43px; }
 .cmp-pct { flex-shrink: 0; min-width: 30px; font-size: 11.5px; font-weight: 700;
   color: var(--agent-text-secondary); font-variant-numeric: tabular-nums; }
 .cmp-bar { flex: 1; display: block; height: 5px; border-radius: 99px;
