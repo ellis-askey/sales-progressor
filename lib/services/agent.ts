@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
-import { detectPhase } from "@/lib/services/fees";
+import { detectPhase, feeExVat } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
@@ -202,7 +202,9 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       agentFeePercent: true,
       agentFeeIsVatInclusive: true,
       brokerReferralFee: true,
+      brokerReferralFeeVat: true,
       onwardBrokerReferralFee: true,
+      onwardBrokerReferralFeeVat: true,
       photoStoragePath: true,
       // Journey anchors: instructed (file created) -> exchanged -> completing,
       // plus the 12-week target for the "on time" read.
@@ -249,7 +251,8 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         agentFeeAmount: tx.agentFeeAmount,
         agentFeePercent: tx.agentFeePercent != null ? Number(tx.agentFeePercent) : null,
         agentFeeIsVatInclusive: tx.agentFeeIsVatInclusive,
-        brokerFeeTotal: (tx.brokerReferralFee ?? 0) + (tx.onwardBrokerReferralFee ?? 0),
+        // Broker income ex VAT (consistent with the fees card + net income).
+        brokerFeeTotal: feeExVat(tx.brokerReferralFee, tx.brokerReferralFeeVat) + feeExVat(tx.onwardBrokerReferralFee, tx.onwardBrokerReferralFeeVat),
         photoStoragePath: tx.photoStoragePath,
         agencyName:       tx.agency?.name ?? null,
         assignedUserName: tx.assignedUser?.name ?? null,
@@ -351,7 +354,9 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
       purchasePrice: true,
       agentFeeAmount: true,
       brokerReferralFee: true,
+      brokerReferralFeeVat: true,
       onwardBrokerReferralFee: true,
+      onwardBrokerReferralFeeVat: true,
       photoStoragePath: true,
       agency:       { select: { name: true } },
       assignedUser: { select: { name: true } },
@@ -367,7 +372,7 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     exchangedAt: tx.exchangedAt,
     purchasePrice: tx.purchasePrice,
     agentFeeAmount: tx.agentFeeAmount,
-    brokerFeeTotal: (tx.brokerReferralFee ?? 0) + (tx.onwardBrokerReferralFee ?? 0),
+    brokerFeeTotal: feeExVat(tx.brokerReferralFee, tx.brokerReferralFeeVat) + feeExVat(tx.onwardBrokerReferralFee, tx.onwardBrokerReferralFeeVat),
     photoStoragePath: tx.photoStoragePath,
     agencyName:       tx.agency?.name ?? null,
     assignedUserName: tx.assignedUser?.name ?? null,

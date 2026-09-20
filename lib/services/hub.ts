@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma, ClientType } from "@prisma/client";
+import type { Prisma, ClientType, FeeVatTreatment } from "@prisma/client";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
@@ -185,16 +185,18 @@ export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSu
 // One select fragment + one mapper, shared by the pipeline + service-split totals
 // so they can't drift from each other or from the property-file Fees card.
 const FEE_INPUT_SELECT = {
-  purchasePrice: true, agentFeeAmount: true, agentFeePercent: true,
-  referralFee: true, brokerReferralFee: true, onwardBrokerReferralFee: true,
+  purchasePrice: true, agentFeeAmount: true, agentFeePercent: true, agentFeeIsVatInclusive: true,
+  referralFee: true, referralFeeVat: true,
+  brokerReferralFee: true, brokerReferralFeeVat: true,
+  onwardBrokerReferralFee: true, onwardBrokerReferralFeeVat: true,
   serviceType: true, freeOnExchange: true, firstOutsourcedFree: true,
   assignedUser: { select: { clientType: true, legacyFee: true } },
   agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
 } as const;
 
 type FeeInputRow = {
-  purchasePrice: number | null; agentFeeAmount: number | null; agentFeePercent: Prisma.Decimal | null;
-  referralFee: number | null; brokerReferralFee: number | null; onwardBrokerReferralFee: number | null;
+  purchasePrice: number | null; agentFeeAmount: number | null; agentFeePercent: Prisma.Decimal | null; agentFeeIsVatInclusive: boolean | null;
+  referralFee: number | null; referralFeeVat: FeeVatTreatment; brokerReferralFee: number | null; brokerReferralFeeVat: FeeVatTreatment; onwardBrokerReferralFee: number | null; onwardBrokerReferralFeeVat: FeeVatTreatment;
   serviceType: "self_managed" | "outsourced"; freeOnExchange: boolean; firstOutsourcedFree: boolean;
   assignedUser: { clientType: ClientType; legacyFee: number | null } | null;
   agency: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
@@ -202,8 +204,10 @@ type FeeInputRow = {
 
 function toFeeInput(tx: FeeInputRow): FileFeesInput {
   return {
-    purchasePrice: tx.purchasePrice, agentFeeAmount: tx.agentFeeAmount, agentFeePercent: tx.agentFeePercent,
-    referralFee: tx.referralFee, brokerReferralFee: tx.brokerReferralFee, onwardBrokerReferralFee: tx.onwardBrokerReferralFee,
+    purchasePrice: tx.purchasePrice, agentFeeAmount: tx.agentFeeAmount, agentFeePercent: tx.agentFeePercent, agentFeeIsVatInclusive: tx.agentFeeIsVatInclusive,
+    referralFee: tx.referralFee, referralFeeVat: tx.referralFeeVat,
+    brokerReferralFee: tx.brokerReferralFee, brokerReferralFeeVat: tx.brokerReferralFeeVat,
+    onwardBrokerReferralFee: tx.onwardBrokerReferralFee, onwardBrokerReferralFeeVat: tx.onwardBrokerReferralFeeVat,
     serviceType: tx.serviceType, freeOnExchange: tx.freeOnExchange, firstOutsourcedFree: tx.firstOutsourcedFree,
     assignedUser: tx.assignedUser, agencyOverride: tx.agency,
   };

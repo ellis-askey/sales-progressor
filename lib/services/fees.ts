@@ -1,9 +1,29 @@
 // lib/services/fees.ts
 // Fee calculation and progress/exchange prediction logic.
 
-import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
+import type { ClientType, Tenure, PurchaseType, FeeVatTreatment } from "@prisma/client";
 import { computeFee } from "@/lib/billing/fee";
 import { pooledCompletionRaw } from "@/lib/milestones/progress-percent";
+
+// ─── VAT helpers ───────────────────────────────────────────────────────────────
+// Income is stated ex VAT: VAT is collected for HMRC, never the agency's income.
+// `plus` = the stored figure is already ex VAT; `inc` = it includes VAT, so
+// divide it out. A null/absent treatment is `plus` (the backfill default). One
+// home for this so the fees card and every report agree.
+const VAT_MULTIPLIER = 1.2;
+
+export function feeExVat(pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number {
+  if (!pence) return 0;
+  return vat === "inc" ? Math.round(pence / VAT_MULTIPLIER) : pence;
+}
+
+// The VAT portion of a fee (money collected for HMRC). `plus` adds VAT on top;
+// `inc` carries it within; used by the fees card's "VAT to collect" footnote.
+export function feeVatPortion(pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number {
+  if (!pence) return 0;
+  if (vat === "inc") return pence - Math.round(pence / VAT_MULTIPLIER);
+  return Math.round(pence * VAT_MULTIPLIER) - pence;
+}
 
 
 // ─── Fee calculation ──────────────────────────────────────────────────────────
@@ -74,9 +94,15 @@ export type FileFeesInput = {
   purchasePrice: number | null;      // pence
   agentFeeAmount: number | null;     // pence
   agentFeePercent: unknown;          // Prisma Decimal | number | null
+  // Agent fee is always "+ VAT" at the end of the day; a null flag is treated as
+  // exclusive. Backed out so net income is stated ex VAT (matches the fees card).
+  agentFeeIsVatInclusive?: boolean | null;
   referralFee: number | null;
+  referralFeeVat?: FeeVatTreatment | null;
   brokerReferralFee: number | null;
+  brokerReferralFeeVat?: FeeVatTreatment | null;
   onwardBrokerReferralFee: number | null;
+  onwardBrokerReferralFeeVat?: FeeVatTreatment | null;
   serviceType: "self_managed" | "outsourced";
   freeOnExchange: boolean;
   firstOutsourcedFree: boolean;
@@ -113,11 +139,17 @@ export function calculateFileFeesPence(t: FileFeesInput): number {
 
   const progressorFeePence = calculateProgressionFeePence(t);
 
+  // Net income, stated ex VAT: the agent fee and every referral are backed out of
+  // VAT so this matches the fees card exactly, then the progressor fee comes off.
+  const agentFeeExVat = t.agentFeeIsVatInclusive === true && agentFeeCalcPence != null
+    ? Math.round(agentFeeCalcPence / VAT_MULTIPLIER)
+    : (agentFeeCalcPence ?? 0);
+
   return (
-    (agentFeeCalcPence ?? 0)
-    + (t.referralFee ?? 0)
-    + (t.brokerReferralFee ?? 0)
-    + (t.onwardBrokerReferralFee ?? 0)
+    agentFeeExVat
+    + feeExVat(t.referralFee, t.referralFeeVat)
+    + feeExVat(t.brokerReferralFee, t.brokerReferralFeeVat)
+    + feeExVat(t.onwardBrokerReferralFee, t.onwardBrokerReferralFeeVat)
     - progressorFeePence
   );
 }

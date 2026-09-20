@@ -23,7 +23,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buildCheckInMessage, type DueStep } from "@/lib/chase/step-questions";
 import { markStepsChasedAction } from "@/app/actions/tasks";
-import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
+import { formatPrice, formatFee, calculateOurFee, feeExVat, feeVatPortion } from "@/lib/services/fees";
 import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
 import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
@@ -245,19 +245,13 @@ export function AgentFileSidebar({
 
   const VAT = 1.2;
 
-  // Per-fee VAT helpers. `plus` = stored figure is ex VAT (VAT added on top);
-  // `inc` = stored figure already includes VAT. A null treatment (legacy) is
-  // treated as ex VAT with no VAT surfaced.
-  const exVat = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>
-    !pence ? 0 : vat === "inc" ? Math.round(pence / VAT) : pence;
-  const vatPortion = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>
-    !pence ? 0 : vat === "plus" ? Math.round(pence * VAT) - pence : vat === "inc" ? pence - Math.round(pence / VAT) : 0;
-
-  // Referral income, each stated ex VAT per its own treatment.
+  // Referral income, each stated ex VAT per its own treatment. feeExVat /
+  // feeVatPortion are the shared helpers in fees.ts so this card and every
+  // income report agree exactly.
   const referralsExVat =
-    exVat(transaction.referralFee, transaction.referralFeeVat)
-    + exVat(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
-    + exVat(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
+    feeExVat(transaction.referralFee, transaction.referralFeeVat)
+    + feeExVat(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
+    + feeExVat(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
 
   // Agent fee ex VAT. It's always "+ VAT" at the end of the day — the VAT is
   // collected for HMRC, never the agency's income — so income is stated ex VAT.
@@ -285,9 +279,9 @@ export function AgentFileSidebar({
         : Math.round(agentFeeCalcPence * VAT) - agentFeeCalcPence;
   const vatToCollectPence =
     agentFeeVatPence
-    + vatPortion(transaction.referralFee, transaction.referralFeeVat)
-    + vatPortion(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
-    + vatPortion(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
+    + feeVatPortion(transaction.referralFee, transaction.referralFeeVat)
+    + feeVatPortion(transaction.brokerReferralFee, transaction.brokerReferralFeeVat)
+    + feeVatPortion(transaction.onwardBrokerReferralFee, transaction.onwardBrokerReferralFeeVat);
 
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { calculateOurFee } from "@/lib/services/fees";
+import { calculateOurFee, feeExVat } from "@/lib/services/fees";
 import type { AgentVisibility } from "./agent";
-import type { Prisma, TransactionStatus } from "@prisma/client";
+import type { Prisma, TransactionStatus, FeeVatTreatment } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
@@ -237,6 +237,7 @@ async function referralStatsFromWhere(base: Prisma.PropertyTransactionWhereInput
     where: { ...base, referredFirmId: { not: null }, status: { not: "draft" } },
     select: {
       referralFee: true,
+      referralFeeVat: true,
       referralFeeReceived: true,
       referredFirm: { select: { id: true, name: true } },
     },
@@ -253,9 +254,11 @@ async function referralStatsFromWhere(base: Prisma.PropertyTransactionWhereInput
       feeReceivedPence: 0,
       pendingCount: 0,
     };
+    // Income ex VAT — consistent with the fees card and net-income reporting.
+    const feePence = feeExVat(r.referralFee, r.referralFeeVat);
     existing.referralCount++;
-    existing.feeExpectedPence += r.referralFee ?? 0;
-    if (r.referralFeeReceived) existing.feeReceivedPence += r.referralFee ?? 0;
+    existing.feeExpectedPence += feePence;
+    if (r.referralFeeReceived) existing.feeReceivedPence += feePence;
     else existing.pendingCount++;
     map.set(r.referredFirm.id, existing);
   }
@@ -292,16 +295,18 @@ async function brokerReferralStatsFromWhere(base: Prisma.PropertyTransactionWher
     where: { ...base, status: { not: "draft" }, OR: [{ brokerFirmId: { not: null } }, { onwardBrokerFirmId: { not: null } }] },
     select: {
       brokerReferralFee: true,
+      brokerReferralFeeVat: true,
       brokerReferralFeeReceived: true,
       brokerFirm: { select: { id: true, name: true } },
       onwardBrokerReferralFee: true,
+      onwardBrokerReferralFeeVat: true,
       onwardBrokerReferralFeeReceived: true,
       onwardBrokerFirm: { select: { id: true, name: true } },
     },
   }).catch(() => []);
 
   const map = new Map<string, BrokerReferralStat>();
-  const add = (firm: { id: string; name: string } | null, fee: number | null, received: boolean) => {
+  const add = (firm: { id: string; name: string } | null, fee: number | null, vat: FeeVatTreatment, received: boolean) => {
     if (!firm) return;
     const existing = map.get(firm.id) ?? {
       firmId: firm.id,
@@ -311,15 +316,17 @@ async function brokerReferralStatsFromWhere(base: Prisma.PropertyTransactionWher
       feeReceivedPence: 0,
       pendingCount: 0,
     };
+    // Income ex VAT — consistent with the fees card and net-income reporting.
+    const feePence = feeExVat(fee, vat);
     existing.referralCount++;
-    existing.feeExpectedPence += fee ?? 0;
-    if (received) existing.feeReceivedPence += fee ?? 0;
+    existing.feeExpectedPence += feePence;
+    if (received) existing.feeReceivedPence += feePence;
     else existing.pendingCount++;
     map.set(firm.id, existing);
   };
   for (const r of rows) {
-    add(r.brokerFirm, r.brokerReferralFee, r.brokerReferralFeeReceived);
-    add(r.onwardBrokerFirm, r.onwardBrokerReferralFee, r.onwardBrokerReferralFeeReceived);
+    add(r.brokerFirm, r.brokerReferralFee, r.brokerReferralFeeVat, r.brokerReferralFeeReceived);
+    add(r.onwardBrokerFirm, r.onwardBrokerReferralFee, r.onwardBrokerReferralFeeVat, r.onwardBrokerReferralFeeReceived);
   }
 
   return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);
