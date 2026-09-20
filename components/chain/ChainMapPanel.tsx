@@ -55,7 +55,7 @@ export function ChainMapPanel({
 
   return (
     <div className="cmp-list">
-      {onAddAbove && <button type="button" className="cmp-add" onClick={onAddAbove}>+ Add sale above</button>}
+      {onAddAbove && <button type="button" className="chain-addbtn chain-addbtn-above" onClick={onAddAbove}>+ Add sale above</button>}
 
       {items.map((it) => {
         const on = it.id === selectedId;
@@ -102,7 +102,7 @@ export function ChainMapPanel({
         );
       })}
 
-      {onAddBelow && <button type="button" className="cmp-add" onClick={onAddBelow}>+ Add sale below</button>}
+      {onAddBelow && <button type="button" className="chain-addbtn chain-addbtn-below" onClick={onAddBelow}>+ Add sale below</button>}
     </div>
   );
 }

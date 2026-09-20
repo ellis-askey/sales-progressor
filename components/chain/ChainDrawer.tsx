@@ -232,7 +232,7 @@ export function ChainView({
   useOverlayChrome(doClose, !inline);
   const [chain, setChain] = useState<ChainV2 | null>(null);
   // Timeline (the cards) vs Map (the geographic command centre). Drawer-only.
-  const [view, setView] = useState<"timeline" | "map">("timeline");
+  const [view, setView] = useState<"timeline" | "map" | "activity">("timeline");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // Mobile: the panel is a bottom sheet — peek by default, tap the handle to open.
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -957,6 +957,7 @@ export function ChainView({
         <div className="chain-viewswitch">
           <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
           <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
+          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
         </div>
       )}
 
@@ -1064,7 +1065,13 @@ export function ChainView({
 
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
-            <div className="chain-dbody">
+            <div className={`chain-dbody${inline ? "" : " chain-dbody--stack"}`}>
+              {view === "activity" ? (
+              <div className="chain-stack">
+                <ChainSummaryCard chain={chain} />
+                <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
+              </div>
+              ) : (<>
               <div className="chain-stack">
               {/* Decline notification banner */}
               {declineNotification && !declineDismissed && (
@@ -1311,11 +1318,15 @@ export function ChainView({
               )}
               </div>
 
-              {/* Right column: value summary + activity feed */}
-              <div className="chain-side">
-                <ChainSummaryCard chain={chain} />
-                <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
-              </div>
+              {/* Right column, inline tab only: the drawer moves value + activity
+                  to its own Activity tab. */}
+              {inline && (
+                <div className="chain-side">
+                  <ChainSummaryCard chain={chain} />
+                  <ChainActivityCard chainId={chain.id} refreshKey={refreshKey + activityTick} />
+                </div>
+              )}
+              </>)}
             </div>
           )}
         </div>
