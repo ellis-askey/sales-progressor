@@ -59,9 +59,9 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
 import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
 
-// Perceived-performance: let the client router reuse the shell for 5 minutes
-// after a visit, so bouncing around a working burst never re-renders it.
-export const unstable_dynamicStaleTime = 300;
+// Note: unstable_dynamicStaleTime is a page-only segment config (Next rejects it
+// on layouts at build), so the 5-minute client-router reuse is set on each tab
+// page.tsx instead — which is what actually gets cached per route anyway.
 
 export default async function AgentTransactionFileLayout({
   params,
