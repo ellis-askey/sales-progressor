@@ -163,10 +163,10 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
 // A hover-revealed "+" in the gap between two cards — the lineless equivalent of
 // the Timeline's connector insert. Inserts a sale between this card and the one
 // above it.
-function InsertStrip({ onClick }: { onClick: () => void }) {
+function InsertStrip({ onClick, label = "Insert a sale here" }: { onClick: () => void; label?: string }) {
   return (
     <div className="cmp-insert">
-      <button type="button" className="cmp-insert-btn" onClick={onClick} aria-label="Insert a sale here" title="Insert a sale here">+</button>
+      <button type="button" className="cmp-insert-btn" onClick={onClick} aria-label={label} title={label}>+</button>
     </div>
   );
 }
@@ -314,14 +314,21 @@ export function ChainMapPanel({
     <div className="cmp-list">
       {items.map((it) => (
         <Fragment key={it.id}>
-          {/* Each column's own "+ add above" at its ladder top (spine or branch) —
-              mirrors the Timeline's per-column add. Mutually exclusive with the
-              insert strip (a ladder top has no sale above it to insert between). */}
+          {/* Grow a column upward. The spine (depth 0) keeps its clear "+ Add sale
+              above" button; branch columns use the discoverable "+" circle instead,
+              so the tree stays clean — the same circle as insert-between. */}
           {it.canColumnAdd && actions.onColumnAdd && (
-            <TreeRow depth={it.depth} spacing="tight">
-              <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
-            </TreeRow>
+            it.depth === 0 ? (
+              <TreeRow depth={0} spacing="tight">
+                <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
+              </TreeRow>
+            ) : (
+              <TreeRow depth={it.depth} spacing="none">
+                <InsertStrip onClick={() => actions.onColumnAdd!(it.id)} label="Add a sale above" />
+              </TreeRow>
+            )
           )}
+          {/* Insert between two sales in the same branch (a real adjacent pair). */}
           {it.canInsertAbove && actions.onInsert && (
             <TreeRow depth={it.depth} spacing="none">
               <InsertStrip onClick={() => actions.onInsert!(it.id, "above")} />
