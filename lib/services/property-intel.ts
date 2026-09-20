@@ -149,6 +149,14 @@ export type EpcData = {
   // Domestic EPCs are valid for 10 years from inspection. Derived, not a raw
   // field, so the card can flag an expired certificate.
   validUntil: string | null;
+  // Already present in the EPC row, previously discarded. UPRN is our stable
+  // property identity; localAuthority + address corroborate the match; tenure is
+  // the EPC's own tenure (owner-occupied / rented / social) — NOT legal
+  // freehold/leasehold, so it must be labelled as such wherever shown.
+  uprn: string | null;
+  tenure: string;
+  localAuthority: string;
+  address: string;
 };
 
 // Distinguishes a reachable-but-no-certificate result from an outright lookup
@@ -182,6 +190,10 @@ function mapEpcRow(row: Record<string, string>): EpcData {
     builtForm: row["built-form"] ?? "",
     inspectionDate,
     validUntil: epcValidUntil(inspectionDate),
+    uprn: row["uprn"]?.trim() || null,
+    tenure: row["tenure"] ?? "",
+    localAuthority: row["local-authority-label"] ?? row["local-authority"] ?? "",
+    address: row["address"] ?? row["address1"] ?? "",
   };
 }
 

@@ -5,13 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import {
   extractPostcode,
-  extractPaon,
-  fetchPricePaid,
-  fetchEpcStatus,
   buildRightmoveUrl,
   buildZooplaUrl,
   buildLandRegUrl,
 } from "@/lib/services/property-intel";
+import { getPropertyEnrichment } from "@/lib/services/property-enrichment";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -27,29 +25,21 @@ export async function GET(req: NextRequest) {
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // One enrichment call fans out (failure-isolated) to EPC + Land Registry +
+  // postcodes.io + planning.data.gov.uk, each cached at the fetch layer with its
+  // own TTL. Never blocks or throws — a missing postcode still returns a usable
+  // (empty) payload.
+  const enrichment = await getPropertyEnrichment(tx.propertyAddress);
   const postcode = extractPostcode(tx.propertyAddress);
-  if (!postcode) return NextResponse.json({ postcode: null, pricePaid: [], epc: null, links: null });
-
-  const paon = extractPaon(tx.propertyAddress);
-
-  const [pricePaid, epcResult] = await Promise.all([
-    fetchPricePaid(postcode, paon).catch(() => []),
-    fetchEpcStatus(postcode, paon).catch(() => ({ status: "error" as const })),
-  ]);
 
   return NextResponse.json({
-    postcode,
-    address: tx.propertyAddress,
-    pricePaid,
-    epc: epcResult.status === "ok" ? epcResult.data : null,
-    // True only when the lookup itself failed (network / register down), so the
-    // card can say "couldn't reach the register" rather than "no certificate".
-    epcError: epcResult.status === "error",
-    epcConfigured: !!(process.env.EPC_API_EMAIL && process.env.EPC_API_KEY),
-    links: {
-      rightmove: buildRightmoveUrl(tx.propertyAddress, postcode),
-      zoopla: buildZooplaUrl(postcode),
-      landReg: buildLandRegUrl(postcode),
-    },
+    ...enrichment,
+    links: postcode
+      ? {
+          rightmove: buildRightmoveUrl(tx.propertyAddress, postcode),
+          zoopla: buildZooplaUrl(postcode),
+          landReg: buildLandRegUrl(postcode),
+        }
+      : null,
   });
 }
