@@ -22,9 +22,13 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
-import { ChainGeoMap, type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/components/chain/ChainGeoMap";
+import dynamic from "next/dynamic";
+import { type ChainMapNode, type ChainMapMove, type ChainMapStatus } from "@/components/chain/chain-map-shared";
 import { ChainMapPanel, type ChainMapPanelItem } from "@/components/chain/ChainMapPanel";
 import { displayChainPosition } from "@/lib/chain/positions";
+
+// Client-only (WebGL) — matches how the My Files map loads PropertyMap.
+const ChainGeoMap = dynamic(() => import("@/components/chain/ChainGeoMap").then((m) => m.ChainGeoMap), { ssr: false });
 
 // This file holds ONE chain body — `ChainView` — rendered two ways:
 //   - variant="drawer" (default): a right-hand slide-over via createPortal, used
@@ -550,37 +554,77 @@ export function ChainView({
   // pair (the household in the lower property is buying the one above). Memoised
   // on the chain so the map doesn't re-geocode on every render.
   const { mapNodes, mapMoves, panelItems } = useMemo(() => {
-    const spine = (chain?.links ?? []).filter((l) => (l.branchKey ?? "") === "");
-    const total = spine.length;
-    const nodeStatus = (l: ChainV2["links"][number]): ChainMapStatus => {
+    type Link = ChainV2["links"][number];
+    const all: Link[] = chain?.links ?? [];
+    const spine = all.filter((l) => (l.branchKey ?? "") === "").sort((a, b) => a.position - b.position);
+    const spineTotal = spine.length;
+
+    const nodeStatus = (l: Link): ChainMapStatus => {
       if (l.claimedByUserId === currentUserId || l.transactionId === transactionId) return "yours";
       if (l.transaction?.status === "completed") return "completed";
       if (l.transactionId != null) return "claimed";
       if (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED") return "invited";
       return "unclaimed";
     };
-    const nodes: ChainMapNode[] = spine.map((l) => ({
-      id: l.id,
-      displayPos: displayChainPosition(l.position, total),
-      address: l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "",
-      status: nodeStatus(l),
+    const addr = (l: Link) => l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
+    const isSpine = (l: Link) => (l.branchKey ?? "") === "";
+    const labelOf = (l: Link) => (isSpine(l) ? String(displayChainPosition(l.position, spineTotal)) : "↑");
+
+    // Nodes = every link (spine + onward-purchase branches). Onward pins are
+    // marked so they read as branches, not spine positions.
+    const nodes: ChainMapNode[] = all.map((l) => ({
+      id: l.id, label: labelOf(l), onward: !isSpine(l), address: addr(l), status: nodeStatus(l),
     }));
+
+    // Moves = the real tree. Within each ladder (spine or a branch) consecutive
+    // links are a move; each branch's bottom link forks from a spine node
+    // (forkFromLinkId) — the spine seller buying that onward purchase.
     const moves: ChainMapMove[] = [];
-    for (let i = 0; i < spine.length - 1; i++) moves.push({ fromId: spine[i].id, toId: spine[i + 1].id });
-    const items: ChainMapPanelItem[] = spine.map((l) => {
-      const addr = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
-      const ci = addr.indexOf(",");
+    const ladders = new Map<string, Link[]>();
+    for (const l of all) {
+      const k = l.branchKey ?? "";
+      (ladders.get(k) ?? ladders.set(k, []).get(k)!).push(l);
+    }
+    for (const group of ladders.values()) {
+      const s = [...group].sort((a, b) => a.position - b.position);
+      for (let i = 0; i < s.length - 1; i++) moves.push({ fromId: s[i].id, toId: s[i + 1].id });
+    }
+    for (const l of all) {
+      if (l.forkFromLinkId) moves.push({ fromId: l.forkFromLinkId, toId: l.id, fork: true });
+    }
+
+    // Onward purchases grouped by the spine node they fork from, so the panel can
+    // indent them right under it.
+    const onwardByForkNode = new Map<string, Link[]>();
+    for (const [k, group] of ladders) {
+      if (k === "") continue;
+      const s = [...group].sort((a, b) => a.position - b.position);
+      const forkId = s[s.length - 1]?.forkFromLinkId; // branch bottom carries the fork
+      if (!forkId) continue;
+      const arr = onwardByForkNode.get(forkId) ?? [];
+      arr.push(...[...s].reverse()); // immediate onward first
+      onwardByForkNode.set(forkId, arr);
+    }
+
+    const makeItem = (l: Link, onward: boolean): ChainMapPanelItem => {
+      const a = addr(l);
+      const ci = a.indexOf(",");
       return {
-        id: l.id,
-        displayPos: displayChainPosition(l.position, total),
-        line1: ci === -1 ? addr : addr.slice(0, ci),
-        line2: ci === -1 ? "" : addr.slice(ci + 1).trim(),
+        id: l.id, label: labelOf(l), onward,
+        line1: ci === -1 ? a : a.slice(0, ci),
+        line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
         agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
         photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
         status: nodeStatus(l),
         progressPercent: l.progressPercent,
       };
-    });
+    };
+    const items: ChainMapPanelItem[] = [];
+    for (const l of spine) {
+      items.push(makeItem(l, false));
+      for (const b of onwardByForkNode.get(l.id) ?? []) items.push(makeItem(b, true));
+    }
+
     return { mapNodes: nodes, mapMoves: moves, panelItems: items };
   }, [chain, currentUserId, transactionId]);
 

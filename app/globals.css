@@ -1303,7 +1303,8 @@ select {
 .chain-cc { position: absolute; top: 0; bottom: 0; left: 220px; right: 0; display: flex; overflow: hidden; pointer-events: auto; }
 @media (max-width: 1100px) { .chain-cc { left: 64px; } }
 @media (max-width: 767px)  { .chain-cc { left: 0; } }
-.chain-cc-map { position: relative; flex: 1; min-width: 0; animation: chain-map-in 340ms cubic-bezier(0.25, 0, 0, 1) both; }
+.chain-cc-map { position: relative; flex: 1 1 0%; min-width: 0; height: 100%;
+  background: rgba(var(--agent-shadow-rgb), 0.04); animation: chain-map-in 340ms cubic-bezier(0.25, 0, 0, 1) both; }
 .chn-map-canvas { position: absolute; inset: 0; }
 @keyframes chain-map-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes chain-panel-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
@@ -1319,6 +1320,8 @@ select {
 }
 .chn-pin:hover { transform: scale(1.12); }
 .chn-pin.on { transform: scale(1.28); box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.35), 0 3px 10px rgba(0, 0, 0, 0.32); }
+/* Onward-purchase pin — a touch smaller so branches read as offshoots. */
+.chn-pin.onward { width: 21px; height: 21px; font-size: 12px; }
 
 /* Compact chain list (map mode left panel). See ChainMapPanel. */
 .cmp-scroll { padding: 8px 12px 16px; }
@@ -1334,6 +1337,13 @@ select {
 .cmp-row.on {
   background: var(--agent-surface-elevated); border-color: rgba(var(--agent-coral-rgb), 0.45);
   box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.10);
+}
+/* Onward purchase — indented under its spine property with a connector elbow. */
+.cmp-row--onward { margin-left: 26px; position: relative; }
+.cmp-row--onward::before {
+  content: ""; position: absolute; left: -14px; top: -3px; height: 24px; width: 10px;
+  border-left: 1.5px solid var(--agent-border-default);
+  border-bottom: 1.5px solid var(--agent-border-default); border-bottom-left-radius: 7px;
 }
 .cmp-num {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; color: #fff;

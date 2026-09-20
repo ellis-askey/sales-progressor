@@ -1,53 +1,22 @@
 "use client";
 
-// Chain → Map view canvas. A MapLibre map (client-only; touches WebGL) that
-// plots every chain property as a numbered pin in real chain order and draws the
-// actual household moves between consecutive properties. Reuses the same free
-// stack as the My Files map: MapLibre + Carto keyless GL basemap, postcodes.io
-// geocoding (client-side, localStorage-cached). No API key here. Driving
-// distances are layered on later (Phase 2); this renders position + moves.
+// Chain → Map view canvas. A MapLibre map (client-only; touches WebGL, so it's
+// loaded via next/dynamic({ssr:false}) from ChainDrawer) that plots every chain
+// property as a numbered pin and draws the actual household moves between them,
+// branches (onward purchases) included. Reuses the free My Files stack: MapLibre
+// + Carto keyless GL basemap, postcodes.io geocoding (client-side, localStorage-
+// cached). No API key. Driving distances land later (Phase 2).
 
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";
 import { extractPostcode } from "@/lib/geo/postcode";
-
-export type ChainMapStatus = "yours" | "completed" | "claimed" | "invited" | "unclaimed";
-
-export type ChainMapNode = {
-  id: string; // chain link id
-  displayPos: number; // 1..N, bottom of chain = 1 (matches the cards)
-  address: string;
-  status: ChainMapStatus;
-};
-
-// A real household move: the seller of `fromId` is buying `toId` (the property
-// directly above them in the chain). `broken` = the move leaves the chain
-// (withdrawal / break), drawn dashed rather than solid.
-export type ChainMapMove = { fromId: string; toId: string; broken?: boolean };
+import { CHAIN_STATUS_COLOR, type ChainMapNode, type ChainMapMove } from "@/components/chain/chain-map-shared";
 
 const STYLE = {
   light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-};
-
-// Restrained TSP palette — your sale coral, claimed green, invited amber,
-// unclaimed grey, completed a deeper green. Four legend colours + a done shade.
-export const CHAIN_STATUS_COLOR: Record<ChainMapStatus, string> = {
-  yours: "#FF6B4A",
-  completed: "#1F8A4A",
-  claimed: "#2F9E63",
-  invited: "#E0A32E",
-  unclaimed: "#94A3B8",
-};
-
-export const CHAIN_STATUS_LABEL: Record<ChainMapStatus, string> = {
-  yours: "Your sale",
-  completed: "Completed",
-  claimed: "Claimed",
-  invited: "Invited",
-  unclaimed: "Unclaimed",
 };
 
 // Deterministic ±~70m jitter so two properties sharing a postcode don't stack.
@@ -77,7 +46,6 @@ export function ChainGeoMap({
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const loadedRef = useRef(false);
   const fittedRef = useRef(false);
-  // Latest handlers/data for the stable marker click closures.
   const onSelectRef = useRef(onSelectNode);
   onSelectRef.current = onSelectNode;
   const movesRef = useRef(moves);
@@ -154,9 +122,10 @@ export function ChainGeoMap({
 
   // ── init the map once ──
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
     const map = new maplibregl.Map({
-      container: containerRef.current,
+      container,
       style: STYLE[theme],
       center: [-1.5, 52.4],
       zoom: 6,
@@ -169,8 +138,14 @@ export function ChainGeoMap({
     // The map is born inside a docking/animating panel, so its container size
     // isn't settled at init — keep it in step or it renders blank / clipped.
     const ro = new ResizeObserver(() => map.resize());
-    ro.observe(containerRef.current);
-    return () => { ro.disconnect(); map.remove(); mapRef.current = null; loadedRef.current = false; markersRef.current.clear(); };
+    ro.observe(container);
+    const nudges = [80, 260, 480].map((ms) => window.setTimeout(() => map.resize(), ms));
+    return () => {
+      nudges.forEach(clearTimeout);
+      ro.disconnect();
+      map.remove();
+      mapRef.current = null; loadedRef.current = false; markersRef.current.clear();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -203,10 +178,10 @@ export function ChainGeoMap({
       }
       const el = m.getElement();
       el.style.setProperty("--pin", CHAIN_STATUS_COLOR[n.status]);
-      el.textContent = String(n.displayPos);
+      el.textContent = n.label;
+      el.classList.toggle("onward", !!n.onward);
       el.classList.toggle("on", n.id === selectedId);
     }
-    // Drop markers for nodes that vanished.
     for (const [id, m] of markersRef.current) {
       if (!seen.has(id)) { m.remove(); markersRef.current.delete(id); }
     }

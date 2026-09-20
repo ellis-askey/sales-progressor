@@ -1,17 +1,19 @@
 "use client";
 
 // The compact ordered chain list shown in the left panel of the Map command
-// centre. One row per property in real chain order: numbered + status-coloured
-// (matching the map pins), photo, address, agency, status, progress. Selecting a
-// row highlights its map pin; a selected pin scrolls its row into view.
+// centre. One row per property in real chain order — numbered + status-coloured
+// (matching the map pins), photo, address, agency, status, progress. Onward
+// purchases (branches) are indented under the property they fork from.
+// Selecting a row highlights its map pin; a selected pin scrolls its row in.
 
 import { useEffect, useRef } from "react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { CHAIN_STATUS_COLOR, CHAIN_STATUS_LABEL, type ChainMapStatus } from "@/components/chain/ChainGeoMap";
+import { CHAIN_STATUS_COLOR, CHAIN_STATUS_LABEL, type ChainMapStatus } from "@/components/chain/chain-map-shared";
 
 export type ChainMapPanelItem = {
   id: string;
-  displayPos: number;
+  label: string; // number for a spine property, "↑" for an onward purchase
+  onward?: boolean;
   line1: string;
   line2: string;
   agency: string | null;
@@ -47,11 +49,12 @@ export function ChainMapPanel({
             key={it.id}
             ref={on ? selRef : undefined}
             type="button"
-            className={`cmp-row${on ? " on" : ""}`}
+            className={`cmp-row${on ? " on" : ""}${it.onward ? " cmp-row--onward" : ""}`}
             onClick={() => onSelect(it.id)}
+            title={it.onward ? "Onward purchase" : undefined}
           >
-            <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[it.status] }}>{it.displayPos}</span>
-            <PropertyThumb photoUrl={it.photoUrl} size={44} />
+            <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[it.status] }}>{it.label}</span>
+            <PropertyThumb photoUrl={it.photoUrl} size={40} />
             <span className="cmp-txt">
               <span className="cmp-l1">{it.line1}</span>
               {it.line2 && <span className="cmp-l2">{it.line2}</span>}
