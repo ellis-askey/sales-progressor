@@ -10,6 +10,7 @@
 
 import type { TransactionStatus } from "@prisma/client";
 import { getReminderLogsCached, listManualTasksCached } from "@/lib/services/cached-fetchers";
+import { getFileSetup } from "@/lib/services/file-setup";
 import { countActionable } from "@/lib/reminders/classify";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
 
@@ -21,9 +22,10 @@ type Props = {
 };
 
 export async function TabBadgeCounts({ transactionId, agencyId, transactionStatus, isInternalStaff }: Props) {
-  const [reminderLogs, manualTasks] = await Promise.all([
+  const [reminderLogs, manualTasks, fileSetup] = await Promise.all([
     getReminderLogsCached(transactionId, agencyId).catch(() => []),
     listManualTasksCached(transactionId, agencyId).catch(() => []),
+    getFileSetup(transactionId).catch(() => null),
   ]);
 
   const remindersCount = transactionStatus === "on_hold" ? 0 : countActionable(reminderLogs, new Date());
@@ -35,6 +37,7 @@ export async function TabBadgeCounts({ transactionId, agencyId, transactionStatu
     <>
       <TabBadgeReporter tabKey="reminders" count={remindersCount} />
       <TabBadgeReporter tabKey="todos" count={todosCount} />
+      <TabBadgeReporter tabKey="setup" count={fileSetup?.remaining ?? 0} />
     </>
   );
 }

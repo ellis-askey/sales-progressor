@@ -44,14 +44,13 @@ import { TransactionViewTracker } from "@/components/agent/TransactionViewTracke
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
-import { getFileSetup } from "@/lib/services/file-setup";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
 import { ExchangeDayReadyBanner } from "@/components/transaction/ExchangeDayReadyBanner";
 import { getExchangeDayState, getExchangeDayAuthority } from "@/lib/services/exchange-day";
 import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
 import { ReconcileLaterAsync } from "@/components/transaction/ReconcileLaterAsync";
-import { SidebarPanelSkeleton } from "@/components/transaction/PanelSkeletons";
+import { SidebarPanelSkeleton, FilePageSkeleton } from "@/components/transaction/PanelSkeletons";
 import { TabBadgeCounts } from "@/components/transaction/TabBadgeCounts";
 import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
@@ -71,6 +70,23 @@ export default async function AgentTransactionFileLayout({
   children: React.ReactNode;
 }) {
   const { id } = await params;
+  // Fix (2026-09-21) — instant navigation feedback. The shell's data-fetching
+  // sits BELOW the route's loading.tsx boundary (a loading.tsx only wraps the
+  // page, not this layout), so while the shell fetched, clicking a file showed
+  // no skeleton and the link never highlighted until everything resolved — the
+  // "frozen click". This Suspense puts the file-shaped skeleton back in front of
+  // the shell's work, so navigation paints the skeleton and commits the URL
+  // (highlighting the clicked link) instantly, then streams the real shell in.
+  // FileShell renders {children} in its tab-content slot, so it stays mounted
+  // across tab navigations exactly like a layout — no re-fetch on tab switch.
+  return (
+    <Suspense fallback={<FilePageSkeleton />}>
+      <FileShell id={id}>{children}</FileShell>
+    </Suspense>
+  );
+}
+
+async function FileShell({ id, children }: { id: string; children: React.ReactNode }) {
   const ctx = await loadFilePageContext(id);
   const { session, transaction, isInternalStaff, isProgressor, isAdminRole, isEllis, isInternalTeam, isDirectorRole, isAgentRole } = ctx;
 
@@ -78,13 +94,15 @@ export default async function AgentTransactionFileLayout({
 
   const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
 
-  // Perceived-performance (Layer 2): the shell's independent lookups run as ONE
-  // parallel barrier instead of three sequential awaits, so first paint waits on
-  // the slowest single query, not the sum of them. milestones, the agent user,
-  // the reassign list, the hero photo, file-setup, exchange-day state and the
-  // demo-tour flag don't depend on each other. (spSenderIdentity moved to the
-  // Activity segment; exchangeAuthority stays below — it needs exchangeDay.)
-  const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, fileSetup, exchangeDay, demoTourUser] = await Promise.all([
+  // Perceived-performance (Layer 2 + Fix 2, 2026-09-21): the shell's independent
+  // lookups run as ONE parallel barrier, and this barrier now holds ONLY what the
+  // visible frame needs — milestones (hero % + strip), the agent user (hero
+  // name), the reassign list, the hero photo, the exchange-day state (strip
+  // control + banner + gate) and the demo-tour flag. file-setup was pulled out:
+  // it only feeds the File setup tab's badge count, so it streams in after paint
+  // via TabBadgeCounts instead of holding the tabs back. (spSenderIdentity is on
+  // the Activity segment; exchangeAuthority stays below — it needs exchangeDay.)
+  const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, exchangeDay, demoTourUser] = await Promise.all([
     getMilestonesCached(id, session.user.agencyId).catch(() => null),
     transaction.agentUserId
       ? prisma.user.findUnique({
@@ -105,7 +123,6 @@ export default async function AgentTransactionFileLayout({
         return null;
       }
     })(),
-    getFileSetup(transaction.id).catch(() => null),
     getExchangeDayState(transaction.id).catch(() => null),
     transaction.isDemo
       ? prisma.user
@@ -175,13 +192,12 @@ export default async function AgentTransactionFileLayout({
   const showChaseTimeline =
     isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
 
-  // (fileSetup / exchangeDay / demoTourUser resolved in the single barrier above.
-  // fileSetup here is only the remaining count for the tab badge; the File setup
-  // segment re-runs getFileSetup for the full checklist.)
+  // (exchangeDay / demoTourUser resolved in the single barrier above. The File
+  // setup badge streams in via TabBadgeCounts — it starts at 0 here.)
 
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
-    { key: "setup",      label: "File setup", badge: fileSetup?.remaining ?? 0, icon: "setup" },
+    { key: "setup",      label: "File setup", badge: 0, icon: "setup" },
     { key: "milestones", label: "Steps", icon: "steps" },
     { key: "chain",      label: "Chain", icon: "chain" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
