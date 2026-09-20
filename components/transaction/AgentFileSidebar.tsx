@@ -246,7 +246,8 @@ export function AgentFileSidebar({
   const VAT = 1.2;
 
   // Per-fee VAT helpers. `plus` = stored figure is ex VAT (VAT added on top);
-  // `inc` = stored figure already includes VAT; `none` = not a VATable supply.
+  // `inc` = stored figure already includes VAT. A null treatment (legacy) is
+  // treated as ex VAT with no VAT surfaced.
   const exVat = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>
     !pence ? 0 : vat === "inc" ? Math.round(pence / VAT) : pence;
   const vatPortion = (pence: number | null | undefined, vat: FeeVatTreatment | null | undefined): number =>

@@ -388,12 +388,12 @@ enum ProgressedBy {
 
 // How a fee is quoted for VAT. Drives the ex-VAT income and the VAT-to-collect
 // figures on the fees card. `plus` = the stored figure is ex VAT and VAT is
-// added on top; `inc` = the stored figure already includes VAT; `none` = not a
-// VATable supply, so no VAT applies.
+// added on top; `inc` = the stored figure already includes VAT. Referral income
+// for a VAT-registered agency is always VATable, so the only question is how the
+// figure was keyed — there is no "no VAT" case.
 enum FeeVatTreatment {
   plus
   inc
-  none
 }
 
 model PropertyTransaction {
@@ -493,9 +493,8 @@ model PropertyTransaction {
   brokerContactId             String?
   brokerReferralFee           Int?
   // VAT treatment of the buyer-broker referral income (snapshot from the
-  // preferred broker's default). Broker arrangements are often not a VATable
-  // supply, so the default is `none`.
-  brokerReferralFeeVat        FeeVatTreatment   @default(none)
+  // preferred broker's default). Defaults to the common +VAT quoting convention.
+  brokerReferralFeeVat        FeeVatTreatment   @default(plus)
   brokerReferralFeeReceived   Boolean           @default(false)
   purchaserBrokerReferral     Boolean           @default(false)
   // Seller's onward-purchase broker (Phase 2, 2026-09-15). Mirrors the buyer set
@@ -506,7 +505,7 @@ model PropertyTransaction {
   onwardBrokerReferralFee     Int?
   // VAT treatment of the seller's onward-broker referral income (snapshot from
   // the preferred broker's default). Same convention as the buyer broker above.
-  onwardBrokerReferralFeeVat  FeeVatTreatment   @default(none)
+  onwardBrokerReferralFeeVat  FeeVatTreatment   @default(plus)
   onwardBrokerReferralFeeReceived Boolean       @default(false)
   onwardBrokerReferral        Boolean           @default(false)
 
@@ -1194,8 +1193,8 @@ model AgencyPreferredBroker {
   brokerFirmId            String
   defaultReferralFeePence Int?
   // Default VAT treatment for this broker's referral fee, snapshotted onto each
-  // file. Broker arrangements are often not VATable, hence `none`.
-  defaultReferralFeeVat   FeeVatTreatment @default(none)
+  // file. Defaults to the common +VAT quoting convention.
+  defaultReferralFeeVat   FeeVatTreatment @default(plus)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
