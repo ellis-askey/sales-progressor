@@ -1498,7 +1498,11 @@ select {
 .cmp-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 2px; min-width: 0; }
 .cmp-status { font-weight: 650; flex-shrink: 0; }
 .cmp-agency { color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cmp-bar { display: block; height: 4px; border-radius: 99px; margin-top: 6px;
+/* Progress row — full card width, the % pinned left of a bar that fills the rest. */
+.cmp-progress { display: flex; align-items: center; gap: 9px; padding: 2px 12px 10px 12px; }
+.cmp-pct { flex-shrink: 0; min-width: 30px; font-size: 11.5px; font-weight: 700;
+  color: var(--agent-text-secondary); font-variant-numeric: tabular-nums; }
+.cmp-bar { flex: 1; display: block; height: 5px; border-radius: 99px;
   background: var(--agent-border-subtle); overflow: hidden; }
 .cmp-bar i { display: block; height: 100%; border-radius: 99px;
   background: linear-gradient(90deg, rgba(var(--agent-success-rgb), 0.55), var(--agent-success)); }

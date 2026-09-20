@@ -209,9 +209,6 @@ function PanelRow({
               <span className="cmp-status" style={{ color: item.statusDanger ? "var(--agent-danger)" : CHAIN_STATUS_COLOR[item.status] }}>{item.statusLabel}</span>
               {item.agency && <span className="cmp-agency">· {item.agency}</span>}
             </span>
-            {item.progressPercent != null && (
-              <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }} /></span>
-            )}
           </span>
         </button>
         <div className="cmp-rowtools">
@@ -229,6 +226,13 @@ function PanelRow({
           <RowMenu item={item} actions={actions} />
         </div>
       </div>
+
+      {item.progressPercent != null && (
+        <div className="cmp-progress">
+          <span className="cmp-pct">{Math.round(item.progressPercent)}%</span>
+          <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }} /></span>
+        </div>
+      )}
 
       {acts && (
         <div className="cmp-acts">

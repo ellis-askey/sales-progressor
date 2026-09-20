@@ -313,21 +313,28 @@ function OnwardSummaryLine({
   summary: NonNullable<ChainLinkV2["onwardSummary"]>;
   fileId: string | null;
 }) {
+  // Not set up = no type facts captured yet. The CTA says "Set up…", so the
+  // redundant "Not set up yet" status text is dropped.
+  const notSetUp = !summary.typeFactsSet;
+  const detail = [summary.onwardAddress, notSetUp ? "" : onwardStatusLabel(summary)]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div style={{ fontSize: 12 }}>
-      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Onward purchase · reported</div>
-      <div style={{ color: "var(--agent-text)", marginTop: 2 }}>
-        {summary.onwardAddress ? `${summary.onwardAddress} · ` : ""}
-        {onwardStatusLabel(summary)}
-      </div>
+      <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Onward purchase</div>
+      {detail && (
+        <div style={{ color: "var(--agent-text)", marginTop: 2 }}>{detail}</div>
+      )}
       {fileId && (
+        // Land on the chain card on the file overview (focus the onward sub-card),
+        // the same "take me straight to it" move as the Add-email flow.
         <Link
-          href={`/agent/transactions/${fileId}#onward-section`}
+          href={`/agent/transactions/${fileId}?focus=onward`}
           className="chain-act-link chain-act-primary"
           style={{ display: "inline-block", marginTop: 4, fontWeight: 600 }}
           onClick={(e) => e.stopPropagation()}
         >
-          View onward <LinkArrow />
+          {notSetUp ? "Set up onward purchase" : "View onward"} <LinkArrow />
         </Link>
       )}
     </div>
@@ -375,114 +382,7 @@ function ChainIntelBody({
     }
   }
 
-  if (editing) {
-    return (
-      <div style={{ display: "grid", gap: 10 }}>
-        <label style={intelLabelStyle}>
-          Breaking the chain
-          <select
-            value={form.breakChainStance ?? ""}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, breakChainStance: (e.target.value || null) as ChainNodeIntelInput["breakChainStance"] }))
-            }
-            style={intelInputStyle}
-            disabled={saving}
-          >
-            <option value="">Not established</option>
-            {STANCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label style={intelLabelStyle}>
-          Conditions around breaking
-          <textarea
-            value={form.breakChainConditions ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, breakChainConditions: e.target.value }))}
-            rows={2}
-            style={intelInputStyle}
-            disabled={saving}
-          />
-        </label>
-
-        <label style={intelLabelStyle}>
-          Expected timescale / delays
-          <input
-            value={form.expectedTimescale ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, expectedTimescale: e.target.value }))}
-            style={intelInputStyle}
-            disabled={saving}
-          />
-        </label>
-
-        <label style={intelLabelStyle}>
-          Notes
-          <textarea
-            value={form.chainNotes ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
-            rows={3}
-            style={intelInputStyle}
-            disabled={saving}
-          />
-        </label>
-
-        <label style={intelLabelStyle}>
-          Last chain check
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <DateField
-              value={form.lastChainCheckAt ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
-              style={{ ...intelInputStyle, flex: 1 }}
-              disabled={saving}
-            />
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, lastChainCheckAt: new Date().toISOString().slice(0, 10) }))}
-              className="chain-act-link"
-              disabled={saving}
-            >
-              Today
-            </button>
-          </div>
-        </label>
-
-        {error && (
-          <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>
-            {error}
-          </p>
-        )}
-
-        <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-          <button
-            type="button"
-            onClick={() => void save()}
-            className="agent-btn-color-primary"
-            disabled={saving}
-            style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(false);
-              setError(null);
-            }}
-            className="agent-btn-ghost-bordered"
-            disabled={saving}
-            style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600 }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+  const readView = (
     <>
       {hasAny && intel ? (
         <IntelReadRows intel={intel} />
@@ -500,6 +400,128 @@ function ChainIntelBody({
         </button>
       )}
     </>
+  );
+
+  // Nothing to edit → just the read view, no reveal machinery.
+  if (!canEdit) return readView;
+
+  const editForm = (
+    <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
+      <label style={intelLabelStyle}>
+        Breaking the chain
+        <select
+          value={form.breakChainStance ?? ""}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, breakChainStance: (e.target.value || null) as ChainNodeIntelInput["breakChainStance"] }))
+          }
+          style={intelInputStyle}
+          disabled={saving}
+        >
+          <option value="">Not established</option>
+          {STANCE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label style={intelLabelStyle}>
+        Conditions around breaking
+        <textarea
+          value={form.breakChainConditions ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, breakChainConditions: e.target.value }))}
+          rows={2}
+          style={intelInputStyle}
+          disabled={saving}
+        />
+      </label>
+
+      <label style={intelLabelStyle}>
+        Expected timescale / delays
+        <input
+          value={form.expectedTimescale ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, expectedTimescale: e.target.value }))}
+          style={intelInputStyle}
+          disabled={saving}
+        />
+      </label>
+
+      <label style={intelLabelStyle}>
+        Notes
+        <textarea
+          value={form.chainNotes ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
+          rows={3}
+          style={intelInputStyle}
+          disabled={saving}
+        />
+      </label>
+
+      <label style={intelLabelStyle}>
+        Last chain check
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <DateField
+            value={form.lastChainCheckAt ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
+            style={{ ...intelInputStyle, flex: 1 }}
+            disabled={saving}
+          />
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, lastChainCheckAt: new Date().toISOString().slice(0, 10) }))}
+            className="chain-act-link"
+            disabled={saving}
+          >
+            Today
+          </button>
+        </div>
+      </label>
+
+      {error && (
+        <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+        <button
+          type="button"
+          onClick={() => void save()}
+          className="agent-btn-color-primary"
+          disabled={saving}
+          style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setError(null);
+          }}
+          className="agent-btn-ghost-bordered"
+          disabled={saving}
+          style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600 }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  // Cross-fade read view ↔ edit form by height (grid 0fr/1fr), so opening the
+  // editor from "Add details" / closing it on Save/Cancel animates rather than
+  // jumping. Both stay mounted; only one is expanded at a time.
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateRows: editing ? "0fr" : "1fr", transition: "grid-template-rows 0.24s ease" }}>
+        <div style={{ overflow: "hidden", minHeight: 0 }}>{readView}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateRows: editing ? "1fr" : "0fr", transition: "grid-template-rows 0.24s ease" }}>
+        <div style={{ overflow: "hidden", minHeight: 0 }}>{editForm}</div>
+      </div>
+    </div>
   );
 }
 

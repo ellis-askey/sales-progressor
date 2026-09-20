@@ -15,7 +15,8 @@
 // (onward → this sale → related) the moment the CARD is too narrow to hold three
 // across without squishing, regardless of the browser width.
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -106,6 +107,26 @@ export function PropertyChainCard({
 }) {
   const { setActiveTab } = useTabContext();
   const [focus, setFocus] = useState<FocusKey>("current");
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const focusFired = useRef(false);
+  // Arriving from a chain drawer's "Set up / View onward" link: focus that
+  // sub-card and scroll the chain card into view, then drop the param so a
+  // refresh doesn't re-trigger. Waits a beat for the overview to lay out.
+  useEffect(() => {
+    if (focusFired.current) return;
+    const f = params.get("focus");
+    if (f !== "onward" && f !== "related") return;
+    focusFired.current = true;
+    setFocus(f);
+    const t = setTimeout(() => {
+      document.getElementById("chain-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    router.replace(pathname, { scroll: false });
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [farSide, setFarSide] = useState<{ onward: boolean; related: boolean }>({ onward: false, related: false });
   const [learnOpen, setLearnOpen] = useState(false);
   const [reopenedOnward, setReopenedOnward] = useState(false);
