@@ -9,7 +9,7 @@
 // cache). Distances here are straight-line (haversine); Phase 2 swaps in real
 // driving routes + times from OpenRouteService.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
@@ -82,6 +82,48 @@ export function ChainGeoMap({
   const [, setTick] = useState(0); // bump on map move so projected overlays follow
   const [selMove, setSelMove] = useState<{ fromId: string; toId: string } | null>(null);
 
+  // Driving routes (Phase 2): distance/time + road polyline per postcode pair,
+  // from /api/chain/routes (ORS-backed, cached). Missing ones fall back to a
+  // straight line + haversine distance.
+  type RouteResult = { distanceMeters: number; durationSeconds: number; geometry: number[][] };
+  const [routes, setRoutes] = useState<Record<string, RouteResult>>({});
+  const routesRef = useRef(routes);
+  routesRef.current = routes;
+  const nodePc = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const n of nodes) { const pc = extractPostcode(n.address); if (pc) m[n.id] = pc; }
+    return m;
+  }, [nodes]);
+  const nodePcRef = useRef(nodePc);
+  nodePcRef.current = nodePc;
+  const rk = (a: string, b: string) => `${a}__${b}`;
+  const routeFor = (fromId: string, toId: string): RouteResult | null => {
+    const f = nodePc[fromId], t = nodePc[toId];
+    return f && t ? routes[rk(f, t)] ?? null : null;
+  };
+  const routeForRef = (fromId: string, toId: string): RouteResult | null => {
+    const f = nodePcRef.current[fromId], t = nodePcRef.current[toId];
+    return f && t ? routesRef.current[rk(f, t)] ?? null : null;
+  };
+  const M_PER_MI = 1609.34;
+  const fmtDur = (s: number) => { const min = Math.round(s / 60); return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${min % 60}m`; };
+
+  // Ask the server for driving routes once we know each move's postcodes.
+  useEffect(() => {
+    const legs = moves
+      .map((m) => ({ fromPostcode: nodePc[m.fromId], toPostcode: nodePc[m.toId] }))
+      .filter((l) => l.fromPostcode && l.toPostcode && l.fromPostcode !== l.toPostcode);
+    if (legs.length === 0) return;
+    let cancelled = false;
+    fetch("/api/chain/routes", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ legs }),
+    })
+      .then((r) => (r.ok ? r.json() : { routes: {} }))
+      .then((j) => { if (!cancelled) setRoutes(j.routes ?? {}); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [moves, nodePc]);
+
   const reduceMotion = typeof window !== "undefined"
     && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -114,9 +156,11 @@ export function ChainGeoMap({
       features: movesRef.current.flatMap((m) => {
         const a = coordsRef.current[m.fromId], b = coordsRef.current[m.toId];
         if (!a || !b) return [];
+        const r = routeForRef(m.fromId, m.toId);
+        const line = r && r.geometry.length > 1 ? r.geometry : [[a.lng, a.lat], [b.lng, b.lat]];
         return [{
           type: "Feature" as const,
-          geometry: { type: "LineString" as const, coordinates: [[a.lng, a.lat], [b.lng, b.lat]] },
+          geometry: { type: "LineString" as const, coordinates: line },
           properties: { broken: !!m.broken, fromId: m.fromId, toId: m.toId },
         }];
       }),
@@ -245,18 +289,29 @@ export function ChainGeoMap({
   }
   useEffect(() => { syncMarkers(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [coords, nodes, selectedId]);
 
+  // Routes arrived → redraw the lines along the actual roads.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && loadedRef.current) (map.getSource("chain-moves") as maplibregl.GeoJSONSource | undefined)?.setData(moveFC());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes]);
+
   // ── overlay geometry (projected each render via the tick) ──
   const map = mapRef.current;
   const project = (c: LatLng) => map!.project([c.lng, c.lat]);
 
   const geoMoves = moves
-    .map((m) => ({ m, a: coords[m.fromId], b: coords[m.toId] }))
-    .filter((x): x is { m: ChainMapMove; a: LatLng; b: LatLng } => !!x.a && !!x.b);
-  const totalMiles = geoMoves.reduce((s, x) => s + haversineMiles(x.a, x.b), 0);
-  const longest = geoMoves.reduce<{ mi: number; x: typeof geoMoves[number] | null }>(
-    (mx, x) => { const mi = haversineMiles(x.a, x.b); return mi > mx.mi ? { mi, x } : mx; },
-    { mi: 0, x: null },
-  );
+    .map((m) => {
+      const a = coords[m.fromId], b = coords[m.toId];
+      if (!a || !b) return null;
+      const r = routeFor(m.fromId, m.toId);
+      return { m, a, b, r, miles: r ? r.distanceMeters / M_PER_MI : haversineMiles(a, b) };
+    })
+    .filter((x): x is { m: ChainMapMove; a: LatLng; b: LatLng; r: RouteResult | null; miles: number } => !!x);
+  const totalMiles = geoMoves.reduce((s, x) => s + x.miles, 0);
+  const longestMi = geoMoves.reduce((mx, x) => Math.max(mx, x.miles), 0);
+  const allDriving = geoMoves.length > 0 && geoMoves.every((x) => x.r);
+  const anyDriving = geoMoves.some((x) => x.r);
 
   const selCoord = selectedId ? coords[selectedId] : null;
   const selDetail = selectedId ? details[selectedId] : null;
@@ -266,6 +321,7 @@ export function ChainGeoMap({
   const moveB = selMove ? coords[selMove.toId] : null;
   const movePt = map && moveA && moveB ? project({ lat: (moveA.lat + moveB.lat) / 2, lng: (moveA.lng + moveB.lng) / 2 }) : null;
   const moveMi = moveA && moveB ? haversineMiles(moveA, moveB) : null;
+  const moveRoute = selMove ? routeFor(selMove.fromId, selMove.toId) : null;
 
   return (
     <div className="chn-map-wrap">
@@ -275,13 +331,11 @@ export function ChainGeoMap({
       <div className="chn-summary">
         <span className="chn-sum-item"><b>{nodes.length}</b> {nodes.length === 1 ? "property" : "properties"}</span>
         <span className="chn-sum-item"><b>{moves.length}</b> {moves.length === 1 ? "move" : "moves"}</span>
-        {geoMoves.length > 0 && <span className="chn-sum-item"><b>~{Math.round(totalMiles)} mi</b> total</span>}
-        {longest.x && (
-          <span className="chn-sum-item chn-sum-long">
-            Longest <b>~{miEl(longest.mi)}</b>
-          </span>
+        {geoMoves.length > 0 && <span className="chn-sum-item"><b>{allDriving ? "" : "~"}{Math.round(totalMiles)} mi</b> total</span>}
+        {longestMi > 0 && (
+          <span className="chn-sum-item chn-sum-long">Longest <b>{allDriving ? "" : "~"}{miEl(longestMi)}</b></span>
         )}
-        <span className="chn-sum-note">approx straight-line</span>
+        <span className="chn-sum-note">{allDriving ? "driving distance" : anyDriving ? "part driving" : "approx straight-line"}</span>
       </div>
 
       {/* Legend */}
@@ -322,7 +376,9 @@ export function ChainGeoMap({
         <div className="chn-move" style={{ left: movePt.x, top: movePt.y, transform: "translate(-50%, calc(-100% - 14px))" }}>
           <p className="chn-move-h">Move {details[selMove.fromId]?.label} → {details[selMove.toId]?.label}</p>
           <p className="chn-move-addr">{details[selMove.fromId]?.line1} → {details[selMove.toId]?.line1}</p>
-          {moveMi != null && <p className="chn-move-dist">{miEl(moveMi)} · approx straight-line</p>}
+          {moveRoute
+            ? <p className="chn-move-dist">🚗 {miEl(moveRoute.distanceMeters / M_PER_MI)} · {fmtDur(moveRoute.durationSeconds)}</p>
+            : moveMi != null && <p className="chn-move-dist">{miEl(moveMi)} · approx straight-line</p>}
           <div className="chn-move-acts">
             <button type="button" onClick={() => { setSelMove(null); onSelectNode(selMove.fromId); }}>{details[selMove.fromId]?.line1}</button>
             <button type="button" onClick={() => { setSelMove(null); onSelectNode(selMove.toId); }}>{details[selMove.toId]?.line1}</button>

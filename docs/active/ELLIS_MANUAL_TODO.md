@@ -8,6 +8,16 @@ Last updated: 2026-09-19
 
 ---
 
+## ~~Add ORS_API_KEY for driving routes on the Chain → Map view (2026-09-20)~~ — DONE (Ellis added the key 2026-09-20)
+
+The Chain → **Map** view draws each household's move between chain properties. With a key it shows the **actual driving route** (road-shaped line) + **distance + drive time** from OpenRouteService (free tier, ~2,000 routes/day, no card). Without it, it falls back to an honest straight-line figure — nothing breaks.
+
+**Setup (done):** openrouteservice.org → sign up (free) → dashboard → "Basic Key" (the Directions V2 quota is 2000/day). Added to Vercel as **`ORS_API_KEY`** (server-side, **not** `NEXT_PUBLIC_` — it's called from the server, so it stays private). Routes are cached in the `PostcodeRoute` table (keyed by postcode pair), so opening a chain never re-bills a route. DPA: only postcode-centroid lat/lng is sent to ORS, no client PII.
+
+*Requires the `PostcodeRoute` migration (`20260920140000_add_postcode_route`) to be deployed — applies via Vercel `migrate deploy` on the next deploy (staging first).*
+
+---
+
 ## Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY for Street View on the All Files → Map tab (2026-09-19) — optional; Map works without it
 
 The new **Map** tab (All Files → Map) plots your sales, heat-shades postcode districts, and shows market share from Land Registry — all with **no key** (map tiles via Carto's free GL styles, geocoding via postcodes.io, market data via HM Land Registry). Only **Street View** (click a sale pin → see the property) needs Google. It's feature-flagged: with no key, the pin modal just shows "Open file" and a note; nothing breaks.

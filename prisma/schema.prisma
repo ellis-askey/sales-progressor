@@ -5168,3 +5168,20 @@ model ContentSettings {
   weeklyPlan     Json? // { day, pillar, idea, inboxItemId? }[]
   weeklyPlanAt   DateTime?
 }
+
+// Cached driving routes between two postcode centroids (OpenRouteService), for
+// the chain map's move distances/times + road-shaped lines. Keyed by the
+// ordered postcode pair so opening a chain never re-bills a route. geometry is
+// the road polyline as [[lng,lat], ...]. Routes barely change, so no TTL.
+model PostcodeRoute {
+  id              String   @id @default(cuid())
+  originPostcode  String
+  destPostcode    String
+  distanceMeters  Int
+  durationSeconds Int
+  geometry        Json
+  provider        String   @default("openroute")
+  computedAt      DateTime @default(now())
+
+  @@unique([originPostcode, destPostcode])
+}
