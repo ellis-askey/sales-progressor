@@ -63,6 +63,9 @@ export type CompletionFileRow = {
   // True for admin / SP (internal). Gates the buyer's funds figures — agencies
   // see only the non-financial context.
   internal?: boolean;
+  // Hide the inline fee editor. Progressors are blocked from editing commercial
+  // fees server-side, so the control could only ever fail for them.
+  hideFeeEdit?: boolean;
   // Journey: instructed (file created) -> exchanged -> completing.
   instructedAtIso?: string | null;
   // How many managed files sit in this file's chain (>1 => "part of a chain of N").
@@ -329,7 +332,7 @@ export function CompletionFileRowView({
               {onComplete && <ActionButton onClick={onComplete} primary>Mark completed</ActionButton>}
               <DateMenu txId={file.id} currentIso={file.completionDateIso} hasDate={!!file.completionDateIso} />
               <span style={{ flex: 1 }} />
-              <FeeMenu txId={file.id} agentFeeAmount={file.agentFeeAmount} agentFeePercent={file.agentFeePercent} agentFeeIsVatInclusive={file.agentFeeIsVatInclusive} purchasePrice={file.purchasePrice} />
+              {!file.hideFeeEdit && <FeeMenu txId={file.id} agentFeeAmount={file.agentFeeAmount} agentFeePercent={file.agentFeePercent} agentFeeIsVatInclusive={file.agentFeeIsVatInclusive} purchasePrice={file.purchasePrice} />}
               <Link href={href} className="agent-link comp-open" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", textDecoration: "none" }}>Open file</Link>
             </div>
           </div>

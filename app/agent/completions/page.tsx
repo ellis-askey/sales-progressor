@@ -164,6 +164,9 @@ export default async function AgentCompletionsPage() {
         photoUrl:              signed(f.photoStoragePath),
         // Completions hub: journey + buyer-entered context (funds gated to internal)
         internal:              isInternalStaff,
+        // Progressors are blocked from editing commercial fees server-side, so
+        // don't offer them the inline editor — it could only ever fail.
+        hideFeeEdit:           isProgressor,
         chainSize:             f.chainSize,
         instructedAtIso:       f.instructedAt ? new Date(f.instructedAt).toISOString() : null,
         firstTimeBuyer:        f.firstTimeBuyer,
