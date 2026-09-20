@@ -76,13 +76,16 @@ export default async function AgentTransactionFileLayout({
 
   const basePath = `/agent/transactions/${transaction.id}`;
 
-  const milestoneData = await getMilestonesCached(id, session.user.agencyId).catch(() => null);
-
   const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
 
-  // Shell-only parallel fan-out (spSenderIdentity moved to the Activity segment
-  // where it's actually used).
-  const [agentUser, assignableAgents, heroPhotoUrl] = await Promise.all([
+  // Perceived-performance (Layer 2): the shell's independent lookups run as ONE
+  // parallel barrier instead of three sequential awaits, so first paint waits on
+  // the slowest single query, not the sum of them. milestones, the agent user,
+  // the reassign list, the hero photo, file-setup, exchange-day state and the
+  // demo-tour flag don't depend on each other. (spSenderIdentity moved to the
+  // Activity segment; exchangeAuthority stays below — it needs exchangeDay.)
+  const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, fileSetup, exchangeDay, demoTourUser] = await Promise.all([
+    getMilestonesCached(id, session.user.agencyId).catch(() => null),
     transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
@@ -102,6 +105,13 @@ export default async function AgentTransactionFileLayout({
         return null;
       }
     })(),
+    getFileSetup(transaction.id).catch(() => null),
+    getExchangeDayState(transaction.id).catch(() => null),
+    transaction.isDemo
+      ? prisma.user
+          .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
+          .catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   // ── Hero-level progress (derived from the critical-path milestones) ───
@@ -165,17 +175,9 @@ export default async function AgentTransactionFileLayout({
   const showChaseTimeline =
     isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
 
-  // File setup completeness (badge). getFileSetup is re-run on the File setup
-  // segment; here we only need the remaining count for the tab badge.
-  const [fileSetup, exchangeDay, demoTourUser] = await Promise.all([
-    getFileSetup(transaction.id).catch(() => null),
-    getExchangeDayState(transaction.id).catch(() => null),
-    transaction.isDemo
-      ? prisma.user
-          .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
-          .catch(() => null)
-      : Promise.resolve(null),
-  ]);
+  // (fileSetup / exchangeDay / demoTourUser resolved in the single barrier above.
+  // fileSetup here is only the remaining count for the tab badge; the File setup
+  // segment re-runs getFileSetup for the full checklist.)
 
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
