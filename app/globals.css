@@ -1429,13 +1429,25 @@ select {
   background: var(--agent-surface-elevated); border-color: rgba(var(--agent-coral-rgb), 0.45);
   box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.10);
 }
+.cmp-rowwrap { display: flex; flex-direction: column; }
 /* Onward purchase — indented under its spine property with a connector elbow. */
-.cmp-row--onward { margin-left: 26px; position: relative; }
-.cmp-row--onward::before {
-  content: ""; position: absolute; left: -14px; top: -3px; height: 24px; width: 10px;
+.cmp-rowwrap--onward { margin-left: 26px; position: relative; }
+.cmp-rowwrap--onward::before {
+  content: ""; position: absolute; left: -14px; top: -3px; height: 30px; width: 10px;
   border-left: 1.5px solid var(--agent-border-default);
   border-bottom: 1.5px solid var(--agent-border-default); border-bottom-left-radius: 7px;
 }
+/* Per-row actions (Open file / Send-Resend invite). */
+.cmp-acts { display: flex; gap: 14px; padding: 1px 10px 3px 63px; }
+.cmp-act { font: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer; padding: 2px 0;
+  background: none; border: none; color: var(--agent-coral-deep); text-decoration: none; }
+.cmp-act:hover { text-decoration: underline; }
+.cmp-act:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+/* Add sale above / below. */
+.cmp-add { width: 100%; font: inherit; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary);
+  cursor: pointer; padding: 8px; border-radius: 10px; border: 1px dashed var(--agent-border-default); background: none;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease; }
+.cmp-add:hover { border-color: rgba(var(--agent-coral-rgb), 0.5); color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.04); }
 .cmp-num {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; color: #fff;
   font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;

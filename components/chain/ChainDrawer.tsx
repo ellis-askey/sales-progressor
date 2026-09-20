@@ -617,6 +617,11 @@ export function ChainView({
     const makeItem = (l: Link, onward: boolean): ChainMapPanelItem => {
       const a = addr(l);
       const ci = a.indexOf(",");
+      const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
+      const invite: "send" | "resend" | null =
+        l.transactionId == null && !!l.stubAgentEmail
+          ? (l.inviteStatus === "SENT" || l.inviteStatus === "BOUNCED" ? "resend" : "send")
+          : null;
       return {
         id: l.id, label: labelOf(l), onward,
         line1: ci === -1 ? a : a.slice(0, ci),
@@ -625,6 +630,8 @@ export function ChainView({
         photoUrl: l.photoUrl ?? l.transaction?.photoUrl ?? null,
         status: nodeStatus(l),
         progressPercent: l.progressPercent,
+        href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
+        invite,
       };
     };
     const items: ChainMapPanelItem[] = [];
@@ -957,7 +964,15 @@ export function ChainView({
           is kept mounted but hidden, so switching back to Timeline is instant. */}
       {isMap && (
         <div className="flex-1 overflow-y-auto cmp-scroll">
-          <ChainMapPanel items={panelItems} selectedId={selectedNodeId} onSelect={setSelectedNodeId} />
+          <ChainMapPanel
+            items={panelItems}
+            selectedId={selectedNodeId}
+            onSelect={setSelectedNodeId}
+            onInvite={(id) => { void handleResendInvite(id); }}
+            onAddAbove={onOpenAddNode && chain ? () => onOpenAddNode("above", chain.id) : undefined}
+            onAddBelow={onOpenAddNode && chain ? () => onOpenAddNode("below", chain.id) : undefined}
+            busyInviteId={sendingInvites}
+          />
         </div>
       )}
 
