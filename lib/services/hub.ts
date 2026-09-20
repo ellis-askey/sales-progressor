@@ -147,9 +147,12 @@ export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSu
     prisma.propertyTransaction.count({
       where: {
         ...txWhere, isDemo: false, status: "active",
+        // Effective date = manual move if set, else the automatic prediction.
+        // Mirrors the diary (a47552e2): a file moved out to another month must
+        // not read "exchange today" just because its raw prediction lands today.
         OR: [
-          { expectedExchangeDate: { gte: startOfToday, lte: endOfToday } },
           { overridePredictedDate: { gte: startOfToday, lte: endOfToday } },
+          { overridePredictedDate: null, expectedExchangeDate: { gte: startOfToday, lte: endOfToday } },
         ],
       },
     }),
@@ -157,8 +160,8 @@ export async function getHubSubtitleSignals(vis: AgentVisibility): Promise<HubSu
       where: {
         ...txWhere, isDemo: false, status: "active",
         OR: [
-          { expectedExchangeDate: { gte: now, lte: in7Days } },
           { overridePredictedDate: { gte: now, lte: in7Days } },
+          { overridePredictedDate: null, expectedExchangeDate: { gte: now, lte: in7Days } },
         ],
       },
     }),
