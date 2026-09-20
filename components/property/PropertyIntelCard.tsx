@@ -268,7 +268,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                   {/* Sources + portal links */}
                   <div style={{ borderTop: "0.5px solid var(--agent-border-default)", marginTop: 14, paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>
-                      {data.sources.length ? `Sources: ${data.sources.map((s) => s.label).join(" · ")}` : "TSP surfaces this automatically — always verify before relying on it."}
+                      {data.sources.length ? `Sources: ${data.sources.map((s) => s.label).join(" · ")}` : "TSP surfaces this automatically. Always verify before relying on it."}
                     </span>
                     {data.links && (
                       <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
