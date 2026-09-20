@@ -22,6 +22,7 @@
 //     are shaped now (link-outs, or parked) so a future real integration fills
 //     the same slot without an architectural rewrite.
 
+import { unstable_cache } from "next/cache";
 import {
   extractPostcode,
   extractPaon,
@@ -266,3 +267,16 @@ export async function getPropertyEnrichment(address: string): Promise<PropertyEn
 
   return out;
 }
+
+// Perceived-performance (Layer 3): cache the whole enrichment per address for a
+// day. Every source inside is external and slow-changing (EPC, sold prices,
+// planning designations), and PropertyEnrichment is plain JSON — no Prisma Date
+// or Decimal — so it survives the cache's serialization cleanly. This turns the
+// Property Information card's slowest work into a single cache hit on re-open,
+// shared across everyone who views the same property. Bump the key suffix to
+// invalidate the whole cache after a shape or source change.
+export const getPropertyEnrichmentCached = unstable_cache(
+  (address: string) => getPropertyEnrichment(address),
+  ["property-enrichment-v1"],
+  { revalidate: 60 * 60 * 24 },
+);

@@ -9,7 +9,7 @@ import {
   buildZooplaUrl,
   buildLandRegUrl,
 } from "@/lib/services/property-intel";
-import { getPropertyEnrichment } from "@/lib/services/property-enrichment";
+import { getPropertyEnrichmentCached } from "@/lib/services/property-enrichment";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   // postcodes.io + planning.data.gov.uk, each cached at the fetch layer with its
   // own TTL. Never blocks or throws — a missing postcode still returns a usable
   // (empty) payload.
-  const enrichment = await getPropertyEnrichment(tx.propertyAddress);
+  const enrichment = await getPropertyEnrichmentCached(tx.propertyAddress);
   const postcode = extractPostcode(tx.propertyAddress);
 
   return NextResponse.json({
