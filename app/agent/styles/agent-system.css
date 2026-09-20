@@ -4444,6 +4444,29 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .map-modal-scrim.closing { animation: map-overlay-out 180ms var(--agent-ease) forwards; }
 @keyframes map-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Pin hover preview (Pins mode) — photo + address, MapLibre popup. Never steals
+   the pin's click (pointer-events:none). See PropertyMap.pinCardHTML. */
+.map-pin-popup { pointer-events: none; }
+.map-pin-popup .maplibregl-popup-content {
+  padding: 0; border-radius: 12px; overflow: hidden;
+  background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default);
+  box-shadow: 0 8px 28px rgba(var(--agent-shadow-rgb), 0.18);
+}
+.map-pin-popup .maplibregl-popup-tip { display: none; }
+.map-pin-card { display: flex; align-items: center; gap: 10px; width: 224px; padding: 8px; }
+.map-pin-thumb {
+  width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0;
+  background-size: cover; background-position: center;
+  background-color: rgba(var(--agent-coral-rgb), 0.10);
+}
+.map-pin-thumb--empty { display: grid; place-items: center; color: var(--agent-coral-deep); }
+.map-pin-thumb--empty svg { width: 22px; height: 22px; }
+.map-pin-txt { display: flex; flex-direction: column; min-width: 0; }
+.map-pin-l1 { font-size: 13px; font-weight: 650; line-height: 1.25; color: var(--agent-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-pin-l2 { font-size: 11px; color: var(--agent-text-muted); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-modal {
   width: min(560px, 100%); border-radius: var(--agent-radius-xl, 20px); overflow: hidden;
   background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default);

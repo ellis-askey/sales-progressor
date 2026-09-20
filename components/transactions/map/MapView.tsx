@@ -189,16 +189,17 @@ export function MapView({
 
   // Individual sale pins (Phase 2), jittered off their postcode centroid.
   const sales = useMemo<MapSale[]>(() => {
+    const photoById = new Map(rows.map((r) => [r.id, r.photoUrl ?? null]));
     const out: MapSale[] = [];
     for (const f of filtered) {
       if (!f.postcode) continue;
       const c = geo[f.postcode];
       if (!c) continue;
       const [dLat, dLng] = jitter(f.id);
-      out.push({ id: f.id, address: f.address, lat: c.lat + dLat, lng: c.lng + dLng, status: f.status });
+      out.push({ id: f.id, address: f.address, lat: c.lat + dLat, lng: c.lng + dLng, status: f.status, photoUrl: photoById.get(f.id) ?? null });
     }
     return out;
-  }, [filtered, geo]);
+  }, [filtered, geo, rows]);
 
   const saleById = useRef(new Map<string, MapSale>());
   saleById.current = new Map(sales.map((s) => [s.id, s]));
