@@ -1472,6 +1472,8 @@ select {
 
 /* Compact chain list (map mode left panel). See ChainMapPanel. */
 .cmp-scroll { padding: 8px 12px 16px; overflow-x: hidden; }
+/* Compact panel rendered inside the drawer/tab body, which already pads. */
+.cmp-scroll--flush { padding: 0; }
 .cmp-empty { padding: 24px 20px; font-size: 13px; color: var(--agent-text-muted); text-align: center; }
 /* No gap between rows — spacing comes from each tree-body's padding, so the rail
    guide lines run continuously across rows instead of breaking in the gaps. */

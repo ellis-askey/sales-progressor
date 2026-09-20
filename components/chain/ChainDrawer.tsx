@@ -980,6 +980,22 @@ export function ChainView({
   const isMap = !inline && view === "map";
   const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+  // Drawer swap: the compact card is now the Timeline (and the property-file chain
+  // tab) too, not just the Map panel. The old LinkCard column tree is kept below
+  // behind this flag — flip to false to restore it. (Remove once confirmed.)
+  const USE_COMPACT_TIMELINE = true;
+  const chainPanel = (
+    <ChainMapPanel
+      items={panelItems}
+      selectedId={selectedNodeId}
+      onSelect={setSelectedNodeId}
+      onInvite={(id) => { void handleResendInvite(id); }}
+      onAddBelow={onOpenAddNode && chain ? () => onOpenAddNode("below", chain.id) : undefined}
+      busyInviteId={sendingInvites}
+      actions={mapPanelActions}
+    />
+  );
+
   const shell = (
     <div
       // A dialog only in drawer mode; inline it's a page tab panel, not a modal.
@@ -1007,7 +1023,11 @@ export function ChainView({
               // calc(100vw - 48px) caps guarantee a ≥48px backdrop dismiss gutter;
               // .resp-drawer-wide commits to full-screen below 900 (audit E2 —
               // the old 96vw/100vw left an 8px strip at 768).
-              width: maxFanout >= 3 ? "min(1440px, calc(100vw - 48px))" : maxFanout === 2 ? "min(1120px, calc(100vw - 48px))" : "min(760px, calc(100vw - 48px))",
+              // Compact timeline needs no fork-column room — a single, comfortable
+              // width. (Old fan-out-scaled width kept for the flag's false branch.)
+              width: USE_COMPACT_TIMELINE
+                ? "min(600px, calc(100vw - 48px))"
+                : maxFanout >= 3 ? "min(1440px, calc(100vw - 48px))" : maxFanout === 2 ? "min(1120px, calc(100vw - 48px))" : "min(760px, calc(100vw - 48px))",
               transition: "width 260ms cubic-bezier(0.25,0,0,1)",
               background: "var(--agent-surface-elevated)",
               borderLeft: "0.5px solid rgba(0,0,0,0.08)",
@@ -1071,15 +1091,7 @@ export function ChainView({
           is kept mounted but hidden, so switching back to Timeline is instant. */}
       {isMap && (
         <div className="flex-1 overflow-y-auto cmp-scroll">
-          <ChainMapPanel
-            items={panelItems}
-            selectedId={selectedNodeId}
-            onSelect={setSelectedNodeId}
-            onInvite={(id) => { void handleResendInvite(id); }}
-            onAddBelow={onOpenAddNode && chain ? () => onOpenAddNode("below", chain.id) : undefined}
-            busyInviteId={sendingInvites}
-            actions={mapPanelActions}
-          />
+          {chainPanel}
         </div>
       )}
 
@@ -1406,6 +1418,10 @@ export function ChainView({
                 );
               })()}
 
+              {USE_COMPACT_TIMELINE ? (
+                // The compact card tree — same component the Map view uses.
+                <div className="cmp-scroll cmp-scroll--flush">{chainPanel}</div>
+              ) : (<>
               {/* The chain as a tree: walk from the spine bottom up. A sale with
                   2-3 onward purchases renders them side by side (V / trident)
                   above it; linear runs stay a single column. "Add sale above"
@@ -1422,6 +1438,7 @@ export function ChainView({
                   + Add sale below
                 </button>
               )}
+              </>)}
               </div>
 
               {/* Right column, inline tab only: the drawer moves value + activity
