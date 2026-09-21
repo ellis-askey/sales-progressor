@@ -1330,7 +1330,7 @@ select {
 @media (max-width: 767px)  { .chain-cc { left: 0; } }
 .chain-cc-map { position: relative; flex: 1 1 0%; min-width: 0; height: 100%;
   background: rgba(var(--agent-shadow-rgb), 0.04); animation: chain-map-in 340ms cubic-bezier(0.25, 0, 0, 1) both; }
-.chn-map-wrap { position: absolute; inset: 0; }
+.chn-map-wrap { position: absolute; inset: 0; container-type: inline-size; container-name: chnmap; }
 .chn-map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .chn-map-loading { position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 13px; color: var(--agent-text-muted); }
@@ -1376,6 +1376,9 @@ select {
   display: flex; align-items: center; justify-content: center; background: none; border: none;
   color: var(--agent-text-muted); font-size: 17px; line-height: 1; transition: background 140ms ease, color 140ms ease; }
 .chn-focus-x:hover { background: var(--agent-hover-shade); color: var(--agent-text-primary); }
+/* Nothing selected and no "longest move" yet (e.g. before any move exists) →
+   the focus panel is empty, so it shouldn't take up space or show a chip. */
+.chn-focus:empty { display: none; }
 
 /* Legend — small, bottom-left, click-through. */
 .chn-legend {
@@ -1484,6 +1487,35 @@ select {
   .chn-metric b { font-size: 16px; }
   .chn-focus { flex: 0 0 auto; min-width: 190px; }
 }
+
+/* ── Summary bar — narrow-container layout ────────────────────────────────────
+   Queried on the MAP's own width (container query), not the viewport, so it also
+   applies when the map is a narrow column on a wide screen (the new-sale build
+   map). The single content-width row becomes a full-width 2-up grid of metric
+   chips, with the focus panel on its own full-width row — nothing truncates and
+   nothing scrolls sideways. The wide drawer map keeps its single-row strip. */
+@container chnmap (max-width: 800px) {
+  .chn-summary {
+    left: 12px; right: 12px; top: 12px; max-width: none;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    padding: 6px; overflow: visible;
+  }
+  .chn-summary .chn-metric {
+    border-right: none; border-radius: 10px; padding: 9px 12px; gap: 9px;
+    background: rgba(15, 23, 42, 0.045);
+  }
+  .chn-summary .chn-focus {
+    grid-column: 1 / -1; max-width: none; min-width: 0;
+    border-radius: 10px; padding: 9px 12px;
+    background: rgba(15, 23, 42, 0.045);
+  }
+  [data-theme="dark"] .chn-summary .chn-metric,
+  [data-theme="dark"] .chn-summary .chn-focus { background: rgba(255, 255, 255, 0.06); }
+}
+@container chnmap (max-width: 360px) {
+  .chn-summary { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) { .chain-cc-panel { transition: none; } }
 @keyframes chain-map-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes chain-panel-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
