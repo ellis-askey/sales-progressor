@@ -52,6 +52,42 @@ function haversineMiles(a: LatLng, b: LatLng): number {
 }
 const miEl = (mi: number) => `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
 
+// ── Cinematic new-leg reveal (build map only) ────────────────────────────────
+// Distance between two [lng, lat] points, metres — used to walk a route polyline
+// by arc-length so the camera can travel it at a steady pace.
+function havLngLat(a: number[], b: number[]): number {
+  const R = 6371000;
+  const dLat = ((b[1] - a[1]) * Math.PI) / 180;
+  const dLng = ((b[0] - a[0]) * Math.PI) / 180;
+  const la1 = (a[1] * Math.PI) / 180, la2 = (b[1] * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+// The point a fraction t (0→1) of the way along a polyline, by real distance.
+function pointAlong(geom: number[][], t: number): [number, number] {
+  if (geom.length <= 1) return [geom[0]?.[0] ?? 0, geom[0]?.[1] ?? 0];
+  const seg: number[] = [];
+  let total = 0;
+  for (let i = 0; i < geom.length - 1; i++) { const d = havLngLat(geom[i], geom[i + 1]); seg.push(d); total += d; }
+  if (total === 0) return [geom[0][0], geom[0][1]];
+  const target = Math.max(0, Math.min(1, t)) * total;
+  let acc = 0;
+  for (let i = 0; i < seg.length; i++) {
+    if (acc + seg[i] >= target) {
+      const f = seg[i] === 0 ? 0 : (target - acc) / seg[i];
+      return [geom[i][0] + (geom[i + 1][0] - geom[i][0]) * f, geom[i][1] + (geom[i + 1][1] - geom[i][1]) * f];
+    }
+    acc += seg[i];
+  }
+  const last = geom[geom.length - 1];
+  return [last[0], last[1]];
+}
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// Tighter camera on short hops, wider on long ones, so the moving viewport keeps
+// the road in frame while it travels.
+const travelZoomFor = (mi: number) => (mi > 60 ? 7.5 : mi > 30 ? 8.5 : mi > 12 ? 9.5 : mi > 4 ? 10.5 : 11.5);
+const legKey = (m: { fromId: string; toId: string }) => `${m.fromId}__${m.toId}`;
+
 // The household move a selected property represents. Always framed as
 // selected → the property directly ABOVE it (the onward purchase its household is
 // moving to). Moves are stored {fromId: upper, toId: lower} — the lower household
@@ -76,6 +112,7 @@ export function ChainGeoMap({
   onSelectNode,
   theme,
   hideAttribution = false,
+  animateNewLegs = false,
 }: {
   nodes: ChainMapNode[];
   moves: ChainMapMove[];
@@ -87,6 +124,11 @@ export function ChainGeoMap({
   // the map is a small embedded companion). Also flips the zoom control to the
   // bottom-right so it never sits under the top-left summary bar.
   hideAttribution?: boolean;
+  // Build-map only: when a genuinely new leg appears (a save-and-add from the
+  // drawer), play a cinematic reveal — the first leg gets a full camera flight
+  // along the route, later legs get a quick reframe + fast draw-on. Off in the
+  // real chain drawer, whose Map view stays a static fit-once render.
+  animateNewLegs?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -97,6 +139,18 @@ export function ChainGeoMap({
   onSelectRef.current = onSelectNode;
   const movesRef = useRef(moves);
   movesRef.current = moves;
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+
+  // New-leg reveal state. hiddenKeyRef is the leg currently drawn on the anim
+  // overlay (and thus filtered out of the settled main layer); seededRef marks
+  // that we've recorded the legs present at mount so only later additions animate.
+  const hiddenKeyRef = useRef<string | null>(null);
+  const seededRef = useRef(false);
+  const animatedRef = useRef<Set<string>>(new Set());
+  const animatedCountRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const animCancelRef = useRef<(() => void) | null>(null);
 
   const [coords, setCoords] = useState<Record<string, LatLng>>({});
   const coordsRef = useRef(coords);
@@ -201,10 +255,23 @@ export function ChainGeoMap({
         return [{
           type: "Feature" as const,
           geometry: { type: "LineString" as const, coordinates: line },
-          properties: { broken: !!m.broken, fromId: m.fromId, toId: m.toId, state },
+          properties: { broken: !!m.broken, fromId: m.fromId, toId: m.toId, state, mkey: legKey(m) },
         }];
       }),
     };
+  }
+
+  // Main-line filter: the normal broken/solid split, minus whichever leg is
+  // mid-reveal (drawn on the anim overlay instead, then handed back on finish).
+  function lineFilter(broken: boolean): maplibregl.FilterSpecification {
+    const base = broken ? ["to-boolean", ["get", "broken"]] : ["!", ["to-boolean", ["get", "broken"]]];
+    return ["all", base, ["!=", ["get", "mkey"], hiddenKeyRef.current ?? "__none__"]] as unknown as maplibregl.FilterSpecification;
+  }
+  function refreshHidden() {
+    const map = mapRef.current;
+    if (!map) return;
+    if (map.getLayer("chain-move-line")) map.setFilter("chain-move-line", lineFilter(false));
+    if (map.getLayer("chain-move-broken")) map.setFilter("chain-move-broken", lineFilter(true));
   }
 
   function installLine(map: maplibregl.Map) {
@@ -220,7 +287,7 @@ export function ChainGeoMap({
     if (!map.getLayer("chain-move-line")) {
       map.addLayer({
         id: "chain-move-line", type: "line", source: "chain-moves",
-        filter: ["!", ["to-boolean", ["get", "broken"]]],
+        filter: lineFilter(false),
         layout: { "line-cap": "round", "line-join": "round", "line-sort-key": sortKey },
         paint: { "line-color": "#FF6B4A", "line-width": width, "line-opacity": opacity },
       });
@@ -228,7 +295,7 @@ export function ChainGeoMap({
     if (!map.getLayer("chain-move-broken")) {
       map.addLayer({
         id: "chain-move-broken", type: "line", source: "chain-moves",
-        filter: ["to-boolean", ["get", "broken"]],
+        filter: lineFilter(true),
         layout: { "line-cap": "round", "line-join": "round", "line-sort-key": sortKey },
         paint: {
           "line-color": "#94A3B8",
@@ -237,6 +304,113 @@ export function ChainGeoMap({
           "line-dasharray": [1.6, 1.4],
         },
       });
+    }
+    // Overlay layer for the cinematic reveal — a single leg drawn on with a
+    // line-gradient wipe (needs lineMetrics on its source). Empty until a new
+    // leg animates.
+    if (!map.getSource("chain-anim")) {
+      map.addSource("chain-anim", { type: "geojson", lineMetrics: true, data: { type: "FeatureCollection", features: [] } });
+    }
+    if (!map.getLayer("chain-anim-line")) {
+      map.addLayer({
+        id: "chain-anim-line", type: "line", source: "chain-anim",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-width": 5,
+          "line-gradient": ["step", ["line-progress"], "rgba(255,107,74,1)", 0.0001, "rgba(255,107,74,0)"] as unknown as maplibregl.ExpressionSpecification,
+        },
+      });
+    }
+  }
+
+  // Ease the camera to frame every plotted pin. Uses cameraForBounds + easeTo so
+  // we can also level the pitch back out after a tilted flight.
+  function fitAll(duration: number, resetPitch: boolean) {
+    const map = mapRef.current;
+    if (!map) return;
+    const pts = nodesRef.current.map((n) => coordsRef.current[n.id]).filter(Boolean) as LatLng[];
+    if (pts.length === 0) return;
+    const b = new maplibregl.LngLatBounds([pts[0].lng, pts[0].lat], [pts[0].lng, pts[0].lat]);
+    for (const p of pts) b.extend([p.lng, p.lat]);
+    const pad = { top: 60, bottom: 60, left: 60, right: 60 };
+    const cam = map.cameraForBounds(b, { padding: pad, maxZoom: 13 });
+    if (cam) map.easeTo({ center: cam.center, zoom: cam.zoom, duration, pitch: resetPitch ? 0 : map.getPitch() });
+    else map.fitBounds(b, { padding: pad, maxZoom: 13, duration });
+  }
+
+  // Play the reveal for one freshly-added leg. full = the first leg (camera
+  // flies to the start pin, then travels the route as it draws, then pulls back
+  // to frame the chain); otherwise a quick reframe + fast draw-on.
+  function playLeg(m: ChainMapMove, full: boolean) {
+    const map = mapRef.current;
+    if (!map) return;
+    animCancelRef.current?.();
+    const a = coordsRef.current[m.fromId], b = coordsRef.current[m.toId];
+    if (!a || !b) return;
+    const r = routeForRef(m.fromId, m.toId);
+    const geom: number[][] = r && r.geometry.length > 1 ? r.geometry : [[a.lng, a.lat], [b.lng, b.lat]];
+    const key = legKey(m);
+
+    if (reduceMotion) { hiddenKeyRef.current = null; refreshHidden(); fitAll(0, true); return; }
+
+    hiddenKeyRef.current = key;
+    refreshHidden();
+    (map.getSource("chain-anim") as maplibregl.GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: [{ type: "Feature", geometry: { type: "LineString", coordinates: geom }, properties: {} }],
+    });
+    const setReveal = (t: number) => {
+      if (map.getLayer("chain-anim-line")) {
+        map.setPaintProperty("chain-anim-line", "line-gradient",
+          ["step", ["line-progress"], "rgba(255,107,74,1)", Math.max(0.0001, Math.min(1, t)), "rgba(255,107,74,0)"] as unknown as maplibregl.ExpressionSpecification);
+      }
+    };
+    setReveal(0);
+
+    let cancelled = false;
+    let timer: number | null = null;
+    const cleanup = () => {
+      cancelled = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      hiddenKeyRef.current = null;
+      refreshHidden();
+      (map.getSource("chain-anim") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] });
+      if (full) map.easeTo({ pitch: 0, duration: 200 });
+    };
+    animCancelRef.current = cleanup;
+
+    const drawMs = full ? 1700 : 380;
+    const legMiles = havLngLat([a.lng, a.lat], [b.lng, b.lat]) / 1609.34;
+
+    const runDraw = () => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        if (cancelled) return;
+        const raw = Math.min(1, (now - start) / drawMs);
+        const t = easeInOutCubic(raw);
+        setReveal(t);
+        if (full) map.jumpTo({ center: pointAlong(geom, t) });
+        if (raw < 1) {
+          rafRef.current = requestAnimationFrame(tick);
+        } else {
+          rafRef.current = null;
+          animCancelRef.current = null;
+          hiddenKeyRef.current = null;
+          refreshHidden();
+          (map.getSource("chain-anim") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] });
+          fitAll(full ? 750 : 0, true);
+        }
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    if (full) {
+      map.easeTo({ center: [a.lng, a.lat], zoom: travelZoomFor(legMiles), duration: 560, pitch: 38 });
+      timer = window.setTimeout(() => { if (!cancelled) runDraw(); }, 580);
+    } else {
+      fitAll(460, false);
+      runDraw();
     }
   }
 
@@ -250,7 +424,13 @@ export function ChainGeoMap({
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), hideAttribution ? "bottom-right" : "top-right");
-    map.on("load", () => { loadedRef.current = true; installLine(map); syncMarkers(); map.resize(); });
+    map.on("load", () => {
+      loadedRef.current = true;
+      installLine(map); syncMarkers(); map.resize();
+      // Record the legs already present so only genuine later additions animate.
+      movesRef.current.forEach((m) => animatedRef.current.add(legKey(m)));
+      seededRef.current = true;
+    });
     map.on("styledata", () => { if (map.isStyleLoaded()) installLine(map); });
 
     const bump = () => setTick((t) => t + 1);
@@ -297,6 +477,8 @@ export function ChainGeoMap({
     const nudges = [80, 260, 480].map((ms) => window.setTimeout(() => map.resize(), ms));
     return () => {
       nudges.forEach(clearTimeout);
+      animCancelRef.current?.();
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       ro.disconnect(); map.remove();
       mapRef.current = null; loadedRef.current = false; markersRef.current.clear();
     };
@@ -367,6 +549,23 @@ export function ChainGeoMap({
     if (map && loadedRef.current) (map.getSource("chain-moves") as maplibregl.GeoJSONSource | undefined)?.setData(moveFC());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routes]);
+
+  // A new leg appeared → play its reveal (build map only). Only fires once the
+  // leg's two endpoints have geocoded (so it's actually plottable), and only for
+  // leg keys not present at mount — so edits, which never mint a new leg key,
+  // don't re-trigger it. First leg gets the full flight, later ones the quick draw.
+  useEffect(() => {
+    if (!animateNewLegs) return;
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !seededRef.current) return;
+    const next = moves.find((m) => !animatedRef.current.has(legKey(m)) && coords[m.fromId] && coords[m.toId]);
+    if (!next) return;
+    animatedRef.current.add(legKey(next));
+    const full = animatedCountRef.current === 0;
+    animatedCountRef.current += 1;
+    playLeg(next, full);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animateNewLegs, moves, coords, routes]);
 
   // ── overlay geometry (projected each render via the tick) ──
   const map = mapRef.current;

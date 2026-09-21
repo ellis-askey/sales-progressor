@@ -110,7 +110,7 @@ export function ChainBuildMap({ stubs, originatorAddress, bare = false }: { stub
           <Placeholder label="Add a property with a postcode and it'll drop onto the map here. Your chain takes shape as you build it." />
         ) : (
           <>
-            <ChainGeoMap nodes={nodes} moves={moves} details={details} selectedId={selectedId} onSelectNode={setSelectedId} theme={isNight ? "dark" : "light"} hideAttribution />
+            <ChainGeoMap nodes={nodes} moves={moves} details={details} selectedId={selectedId} onSelectNode={setSelectedId} theme={isNight ? "dark" : "light"} hideAttribution animateNewLegs />
             {plotted === 0 && (
               <div style={{ position: "absolute", left: 12, right: 12, bottom: 12, padding: "8px 11px", borderRadius: 10, background: "rgba(10,14,24,0.82)", border: "0.5px solid var(--agent-border-subtle)", pointerEvents: "none" }}>
                 <p style={{ margin: 0, fontSize: 11, color: "#e7edf7", lineHeight: 1.45 }}>Add a real UK postcode to any property to drop it onto the map.</p>
