@@ -1339,12 +1339,22 @@ select {
 /* Summary bar — a row of metric cards + a contextual focus panel, along the top. */
 .chn-summary {
   position: absolute; top: 12px; left: 12px; z-index: 5; max-width: calc(100% - 24px);
-  display: inline-flex; align-items: stretch; flex-wrap: nowrap; overflow: hidden; pointer-events: auto;
+  display: inline-flex; align-items: stretch; flex-wrap: nowrap;
+  /* Scroll rather than clip so the bar works at every width (never cuts off
+     "miles total"); the zoom control moved to bottom-right so it can't collide. */
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
+  pointer-events: auto;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.9); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border: 0.5px solid rgba(255, 255, 255, 0.7); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 }
+.chn-summary::-webkit-scrollbar { display: none; }
 .chn-metric b, .chn-metric > span:not(.chn-metric-ic) > span { white-space: nowrap; }
+@media (max-width: 600px) {
+  .chn-metric { padding: 8px 12px; gap: 8px; }
+  .chn-metric b { font-size: 15px; }
+  .chn-metric-ic svg { width: 17px; height: 17px; }
+}
 [data-theme="dark"] .chn-summary { background: rgba(24, 28, 38, 0.88); border-color: rgba(255, 255, 255, 0.12); }
 .chn-metric { display: flex; align-items: center; gap: 11px; padding: 10px 18px; flex-shrink: 0;
   border-right: 0.5px solid var(--agent-border-subtle); }

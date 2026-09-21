@@ -75,6 +75,7 @@ export function ChainGeoMap({
   selectedId,
   onSelectNode,
   theme,
+  hideAttribution = false,
 }: {
   nodes: ChainMapNode[];
   moves: ChainMapMove[];
@@ -82,6 +83,10 @@ export function ChainGeoMap({
   selectedId: string | null;
   onSelectNode: (id: string | null) => void;
   theme: "light" | "dark";
+  // Drop the map's attribution "ⓘ" control (used by the new-sale preview, where
+  // the map is a small embedded companion). Also flips the zoom control to the
+  // bottom-right so it never sits under the top-left summary bar.
+  hideAttribution?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -241,10 +246,10 @@ export function ChainGeoMap({
     if (!container) return;
     const map = new maplibregl.Map({
       container, style: STYLE[theme], center: [-1.5, 52.4], zoom: 6,
-      attributionControl: { compact: true },
+      attributionControl: hideAttribution ? false : { compact: true },
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), hideAttribution ? "bottom-right" : "top-right");
     map.on("load", () => { loadedRef.current = true; installLine(map); syncMarkers(); map.resize(); });
     map.on("styledata", () => { if (map.isStyleLoaded()) installLine(map); });
 

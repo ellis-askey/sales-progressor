@@ -24,6 +24,10 @@ type Props = {
   onEditStub: (id: string, data: StubFormData) => void;
   onRemoveStub: (id: string) => void;
   originatorAddress: string;
+  // When true, the EXPANDED builder renders without its own card chrome, so it
+  // can sit as the left half of the full-width shared "builder + map" card in
+  // the new-sale flow. Collapsed prompt is unaffected.
+  bare?: boolean;
   // When set, the section opened itself because the purchase type makes a
   // chain likely (audit #5). Reframes the header as a direct question and
   // shows the reason so the open state never feels arbitrary.
@@ -122,6 +126,7 @@ export function ChainSection({
   onRemoveStub,
   originatorAddress,
   autoOpenReason,
+  bare = false,
 }: Props) {
   const [position, setPosition] = useState<ChainPosition>("unknown");
   const [addNodeDir, setAddNodeDir] = useState<"above" | "below" | null>(null);
@@ -256,7 +261,7 @@ export function ChainSection({
 
   // ── Expanded builder — now wrapped in its own white card ──────────────────
   const expandedCard = (
-    <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "18px 20px" }}>
+    <div className={bare ? "" : chainSurface.surfaceClass} {...(bare ? {} : chainSurface.tag)} style={{ borderRadius: bare ? 0 : cardRadius, padding: "18px 20px", height: bare ? "100%" : undefined }}>
       {/* Header. When the section opened itself (audit #5) it leads with the
           question + the reason; a manual open keeps the plain "Chain" label. */}
       <div className="mb-3">

@@ -2,12 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import type { MemoSources, ContactEntry } from "@/components/transactions-v2/types";
-import type { FormFields, SolicitorSelection, InMemoryStub } from "./types";
-import { isChainLikely, chainOpenReason } from "./types";
-import type { StubFormData } from "@/components/chain/AddNodeDrawer";
+import type { FormFields, SolicitorSelection } from "./types";
 import { ContactsRow } from "./ContactsRow";
 import { SolicitorSection } from "./SolicitorSection";
-import { FormChainSection } from "./FormChainSection";
 import { SectionAccordion } from "./SectionAccordion";
 import { OutsourcedBanner } from "./OutsourcedBanner";
 import { PortalInvitePrompt } from "./PortalInvitePrompt";
@@ -76,30 +73,12 @@ export function Stage2Sections({
   purchaserConflicts,
 }: Props) {
   const recommendedFirmIds = recommendedFirms.map((f) => f.id);
-  const originatorAddress = [fields.streetAddress, fields.city, fields.postcode].filter(Boolean).join(", ");
   const contactsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!vendorError && !purchaserError) return;
     contactsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [vendorError, purchaserError]);
-
-  // Audit #5 — chain, brought to the surface. For purchase types where a
-  // chain is near-certain (mortgage / cash-from-proceeds) the section opens
-  // by default and asks the question outright, instead of sitting collapsed
-  // and "(optional)" at the bottom. We track a manual touch so once the
-  // agent opens or dismisses it themselves, we stop steering the state.
-  const chainTouchedRef = useRef(false);
-  const chainReason = chainOpenReason(fields.purchaseType);
-  useEffect(() => {
-    if (chainTouchedRef.current) return;
-    if (fields.chainStubs.length > 0) return;
-    const shouldOpen = isChainLikely(fields.purchaseType);
-    if (shouldOpen !== fields.chainExpanded) onChange({ chainExpanded: shouldOpen });
-    // Reacts to the purchase type only; the other fields are read fresh via
-    // closure whenever the type changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields.purchaseType]);
 
   function ms(n: number) { return (startDelay + n) * 80; }
 
@@ -201,25 +180,9 @@ export function Stage2Sections({
 
       {/* Price & Fees moved to the right-column earnings builder (EarningsBuilder). */}
       {/* Notes moved to the right column, under the File worth / Sold prices tabs. */}
-
-      {/* 5 — Chain. The orange card is the whole thing now — no outer accordion. */}
-      <Section delayMs={ms(5)}>
-        <FormChainSection
-          stubs={fields.chainStubs}
-          expanded={fields.chainExpanded}
-          autoOpenReason={chainReason}
-          originatorAddress={originatorAddress}
-          onExpand={() => { chainTouchedRef.current = true; onChange({ chainExpanded: true }); }}
-          onCollapse={() => { chainTouchedRef.current = true; onChange({ chainExpanded: false, chainStubs: [] }); }}
-          onAddStub={(stub: InMemoryStub) => onChange({ chainStubs: [...fields.chainStubs, stub] })}
-          onEditStub={(id: string, data: StubFormData) =>
-            onChange({ chainStubs: fields.chainStubs.map((s) => (s.id === id ? { ...s, ...data } : s)) })
-          }
-          onRemoveStub={(id: string) =>
-            onChange({ chainStubs: fields.chainStubs.filter((s) => s.id !== id) })
-          }
-        />
-      </Section>
+      {/* Chain lifted to a full-width "builder + live map" card below the two
+          columns — see NewSaleFlow (with the auto-open logic that used to live
+          here). */}
 
     </div>
   );

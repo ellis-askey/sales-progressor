@@ -13,6 +13,9 @@ import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
+import { ChainBuildMap } from "@/components/chain/ChainBuildMap";
+import { FormChainSection } from "@/components/transactions-v2/form/FormChainSection";
+import type { StubFormData } from "@/components/chain/AddNodeDrawer";
 import { RequiredPrompt } from "@/components/transactions-v2/form/RequiredPrompt";
 import { NotesSection } from "@/components/transactions-v2/form/NotesSection";
 import { CollapsibleSection } from "@/components/transactions-v2/form/CollapsibleSection";
@@ -23,7 +26,7 @@ import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAdd
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
 import { DraftPanel } from "@/components/transactions-v2/DraftPanel";
 import { autoFillSolicitor } from "@/components/transactions-v2/form/SolicitorSection";
-import { defaultFormFields } from "@/components/transactions-v2/form/types";
+import { defaultFormFields, isChainLikely, chainOpenReason } from "@/components/transactions-v2/form/types";
 import type { InMemoryStub } from "@/components/transactions-v2/form/types";
 import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
@@ -1088,6 +1091,81 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     onLookup: handleFormLookup,
   } as const;
 
+  // Chain — lifted out of Stage2Sections (2026-09-21) so it renders as a
+  // full-width "builder + live map" card below the two columns. The auto-open
+  // logic (open for chain-likely purchase types until the agent touches it) and
+  // the stub handlers moved here with it.
+  const chainTouchedRef = useRef(false);
+  const chainReason = chainOpenReason(formFields.purchaseType);
+  useEffect(() => {
+    if (chainTouchedRef.current) return;
+    if (formFields.chainStubs.length > 0) return;
+    const shouldOpen = isChainLikely(formFields.purchaseType);
+    if (shouldOpen !== formFields.chainExpanded) updateFormFields({ chainExpanded: shouldOpen });
+    // Reacts to the purchase type only; other fields read fresh via closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formFields.purchaseType]);
+  const chainOriginatorAddress = [formFields.streetAddress, formFields.city, formFields.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
+  const chainSectionProps = {
+    stubs: formFields.chainStubs as InMemoryStub[],
+    expanded: formFields.chainExpanded,
+    autoOpenReason: chainReason,
+    originatorAddress: chainOriginatorAddress,
+    onExpand: () => { chainTouchedRef.current = true; updateFormFields({ chainExpanded: true }); },
+    onCollapse: () => { chainTouchedRef.current = true; updateFormFields({ chainExpanded: false, chainStubs: [] }); },
+    onAddStub: (stub: InMemoryStub) => updateFormFields({ chainStubs: [...formFields.chainStubs, stub] }),
+    onEditStub: (id: string, data: StubFormData) => updateFormFields({ chainStubs: formFields.chainStubs.map((s) => (s.id === id ? { ...s, ...data } : s)) }),
+    onRemoveStub: (id: string) => updateFormFields({ chainStubs: formFields.chainStubs.filter((s) => s.id !== id) }),
+  };
+
+  // Full-width chain card (collapsed prompt, or the shared builder(40%) + map(60%)
+  // card when open) followed by the Create / Save-draft controls. Rendered below
+  // the two-column grid so it can span the page width.
+  const chainAndSubmit = (
+    <>
+      {/* Collapsed, the chain sits at the left-column width (in line with the
+          solicitors / broker cards above it). Clicking "add the chain" grows the
+          card out to the full page width — builder left, live map right. */}
+      <div className={`chain-width-wrap${formFields.chainExpanded ? " is-expanded" : ""}`} style={{ marginTop: 20 }}>
+        {formFields.chainExpanded ? (
+          <div className="chain-shared-card">
+            <div className="chain-build-half">
+              <FormChainSection {...chainSectionProps} bare />
+            </div>
+            <div className="chain-map-half">
+              <ChainBuildMap bare stubs={formFields.chainStubs as InMemoryStub[]} originatorAddress={chainOriginatorAddress} />
+            </div>
+          </div>
+        ) : (
+          <FormChainSection {...chainSectionProps} />
+        )}
+      </div>
+      <div className="chain-submit-wrap" style={{ marginTop: 20 }}>
+        {isDirector && !isOutsourced && assignableAgents.length > 1 && (
+          <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+            <AgentPicker
+              value={formFields.assignToUserId || currentUserId}
+              onChange={(v) => updateFormFields({ assignToUserId: v })}
+              agents={assignableAgents}
+              currentUserId={currentUserId}
+              label="Assign this file to"
+            />
+          </div>
+        )}
+        {isOutsourced && !outsourcedReady && !isSubmitting && (
+          <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
+        )}
+        <SubmitButton
+          isSubmitting={isSubmitting}
+          isDisabled={isSubmitDisabled}
+          buttonText={submitButtonText}
+          onClick={() => handleSubmit()}
+        />
+        <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
+      </div>
+    </>
+  );
+
   const stage2SectionsProps = {
     fields: formFields,
     onChange: updateFormFields,
@@ -1189,32 +1267,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 vendorError={outsourcedError?.field === "vendors" ? outsourcedError.message : null}
                 purchaserError={outsourcedError?.field === "purchasers" ? outsourcedError.message : null}
               />
-              <div style={{ marginTop: 20 }}>
-                {isDirector && !isOutsourced && assignableAgents.length > 1 && (
-                  <div
-                    className="glass-card"
-                    style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}
-                  >
-                    <AgentPicker
-                      value={formFields.assignToUserId || currentUserId}
-                      onChange={(v) => updateFormFields({ assignToUserId: v })}
-                      agents={assignableAgents}
-                      currentUserId={currentUserId}
-                      label="Assign this file to"
-                    />
-                  </div>
-                )}
-                {isOutsourced && !outsourcedReady && !isSubmitting && (
-                  <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
-                )}
-                <SubmitButton
-                  isSubmitting={isSubmitting}
-                  isDisabled={isSubmitDisabled}
-                  buttonText={submitButtonText}
-                  onClick={() => handleSubmit()}
-                />
-                <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
-              </div>
             </>
           )}
 
@@ -1233,19 +1285,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       vendorError={outsourcedError?.field === "vendors" ? outsourcedError.message : null}
                       purchaserError={outsourcedError?.field === "purchasers" ? outsourcedError.message : null}
                     />
-                  </div>
-
-                  <div style={{ marginTop: 20 }}>
-                    {isOutsourced && !outsourcedReady && !isSubmitting && (
-                      <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
-                    )}
-                    <SubmitButton
-                      isSubmitting={isSubmitting}
-                      isDisabled={isSubmitDisabled}
-                      buttonText={submitButtonText}
-                      onClick={() => handleSubmit()}
-                    />
-                    <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
                   </div>
                 </>
               )}
@@ -1356,6 +1395,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         </div>
 
       </div>
+
+      {/* Full-width chain card (builder + live map) + Create / Save-draft
+          controls, below the two columns — shown once the form is on screen. */}
+      {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && chainAndSubmit}
 
       {/* Change file confirmation modal */}
       {showChangeFileModal && (

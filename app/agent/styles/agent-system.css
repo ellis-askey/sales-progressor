@@ -3250,6 +3250,60 @@
   }
 }
 
+/* ── New sale flow — chain card (builder + live map) ───────────────────────────
+ * Collapsed, the chain + the submit controls sit at the left-column width so they
+ * line up with the solicitors / broker cards above. Clicking "add the chain"
+ * animates the card out to the full page width (builder ~40% / map ~60%). Below
+ * 1200 everything is full width (matching the form's own single-column flip). */
+.chain-width-wrap {
+  max-width: calc((100% - 32px) * 0.65);
+  transition: max-width 460ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: max-width;
+}
+.chain-width-wrap.is-expanded {
+  max-width: 100%;
+}
+.chain-submit-wrap {
+  max-width: calc((100% - 32px) * 0.65);
+}
+@media (max-width: 1199px) {
+  .chain-width-wrap,
+  .chain-width-wrap.is-expanded,
+  .chain-submit-wrap {
+    max-width: 100%;
+  }
+}
+
+/* The shared card: one bordered surface, builder over map (stacked) below 1200,
+ * side-by-side above it. No divider between the halves. */
+.chain-shared-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--agent-radius-lg, 16px);
+  overflow: hidden;
+  border: 0.5px solid var(--agent-border-default);
+  background: var(--agent-surface-glass);
+}
+.chain-shared-card > .chain-build-half {
+  min-width: 0;
+}
+.chain-shared-card > .chain-map-half {
+  min-width: 0;
+  display: flex;
+}
+@media (min-width: 1200px) {
+  .chain-shared-card {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .chain-shared-card > .chain-build-half {
+    flex: 0 0 40%;
+  }
+  .chain-shared-card > .chain-map-half {
+    flex: 1 1 0;
+  }
+}
+
 /* ── New sale flow — contacts responsive grid ─────────────────────────────── */
 
 .contacts-section-grid {
