@@ -106,18 +106,24 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // via TabBadgeCounts instead of holding the tabs back. (spSenderIdentity is on
   // the Activity segment; exchangeAuthority stays below — it needs exchangeDay.)
   const _tBarrier = Date.now();
+  const _mark: { label: string; ms: number }[] = [];
+  const _timed = <T,>(label: string, p: Promise<T>): Promise<T> =>
+    p.then(
+      (r) => { _mark.push({ label, ms: Date.now() - _tBarrier }); return r; },
+      (e) => { _mark.push({ label, ms: Date.now() - _tBarrier }); throw e; },
+    );
   const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, exchangeDay, demoTourUser] = await Promise.all([
-    getMilestonesCached(id, session.user.agencyId).catch(() => null),
-    transaction.agentUserId
+    _timed("ms", getMilestonesCached(id, session.user.agencyId).catch(() => null)),
+    _timed("agent", transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
           select: { id: true, name: true, email: true, firmName: true, image: true },
         })
-      : Promise.resolve(null),
-    showReassign && session.user.agencyId
+      : Promise.resolve(null)),
+    _timed("reassign", showReassign && session.user.agencyId
       ? listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
-      : Promise.resolve([] as Awaited<ReturnType<typeof listAssignableAgentsForAgency>>),
-    (async (): Promise<string | null> => {
+      : Promise.resolve([] as Awaited<ReturnType<typeof listAssignableAgentsForAgency>>)),
+    _timed("photo", (async (): Promise<string | null> => {
       if (!transaction.photoStoragePath) return null;
       try {
         const { getSignedUrl } = await import("@/lib/supabase-storage");
@@ -126,13 +132,13 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         console.warn("[file-detail] failed to sign property-photo URL", err);
         return null;
       }
-    })(),
-    getExchangeDayState(transaction.id).catch(() => null),
-    transaction.isDemo
+    })()),
+    _timed("exState", getExchangeDayState(transaction.id).catch(() => null)),
+    _timed("demo", transaction.isDemo
       ? prisma.user
           .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
           .catch(() => null)
-      : Promise.resolve(null),
+      : Promise.resolve(null)),
   ]);
   const _barrierMs = Date.now() - _tBarrier;
 
@@ -300,7 +306,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
-      {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} />}
+      {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} items={_mark} />}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
       <Suspense><MosConfirmedNotice /></Suspense>

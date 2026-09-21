@@ -12,11 +12,15 @@ export function ShellTimingBadge({
   barrierMs,
   exchMs,
   shellMs,
+  items,
 }: {
   trunkMs: number;
   barrierMs: number;
   exchMs: number;
   shellMs: number;
+  // Per-item completion time within the parallel barrier (ms from barrier
+  // start). The one closest to barrierMs is the long pole.
+  items?: { label: string; ms: number }[];
 }) {
   const [hidden, setHidden] = useState(false);
   // Client paint delta: ms from this component's module first evaluating to
@@ -50,6 +54,11 @@ export function ShellTimingBadge({
       {cell("total", shellMs, true)}
       {cell("trunk", trunkMs)}
       {cell("barrier", barrierMs)}
+      {items && items.length > 0 && (
+        <span style={{ display: "inline-flex", gap: 8, paddingLeft: 8, borderLeft: "1px solid #333" }}>
+          {items.map((it) => cell(it.label, it.ms))}
+        </span>
+      )}
       {cell("exch", exchMs)}
       {clientMs != null && cell("perf.now", clientMs)}
       <button
