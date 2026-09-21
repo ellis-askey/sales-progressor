@@ -4,7 +4,20 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-19
+Last updated: 2026-09-21
+
+---
+
+## Create the `critique-screenshots` Supabase bucket (PRIVATE) — staging + prod (2026-09-21)
+
+The founder **Critique** tool (Report button → screenshotted notes-to-self, reviewed at `/command/critique`) uploads each screenshot to a Supabase Storage bucket named **`critique-screenshots`**. It must exist in **both** Supabase projects or uploads fail silently (the note still saves, just without a screenshot):
+
+1. Supabase → **staging** project (`etidawkbqctarmsdjoxp`) → Storage → **New bucket** → name exactly `critique-screenshots` → **Public = OFF** (private; the app serves time-limited signed URLs). Create.
+2. Repeat in the **production** project (`gmkfustgwipgihpmpjpr`) — same name, private.
+
+No env vars or keys needed — it reuses the existing `SUPABASE_SERVICE_ROLE_KEY`. Until the bucket exists, the Report button still works and saves the note text; only the screenshot is skipped.
+
+*Also requires the `20260922130000_add_critique_notes` migration to be applied (staging done by CC; prod applies via `db:migrate:prod` / Vercel `migrate deploy` on the next master deploy).*
 
 ---
 

@@ -3111,6 +3111,32 @@ model FeedbackSubmission {
   @@index([createdAt(sort: Desc)])
 }
 
+// Founder "Critique" notes — Ellis walks the app and fires screenshotted
+// notes-to-self, reviewed in the Command Centre (superadmin-only). Deliberately
+// its OWN table, never mixed with real user feedback (FeedbackSubmission): no
+// per-query type filter to forget, and the critique path never emails. Standalone
+// (userId/userEmail are plain strings) to avoid coupling to the User model.
+model CritiqueNote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  body               String  @db.Text // the note, Ellis's own words, no length cap
+  screenshotPath     String? // object path in the critique-screenshots bucket
+  screenshotFilename String?
+  pageUrl            String? // route/URL the note was fired from
+  viewportSize       String? // e.g. "1440x900"
+  userAgent          String?
+
+  userId    String? // who fired it (id, no FK — standalone)
+  userEmail String?
+
+  resolvedAt DateTime? // ticked done in the Command Centre
+  resolvedBy String? // user id/email who resolved it
+  adminNotes String?  @db.Text // reserved review field, nullable
+
+  @@index([resolvedAt, createdAt])
+}
+
 // â”€â”€â”€ RetentionEmailLog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // TODO: surface in admin dashboard â€” see future-admin-page ticket
 
