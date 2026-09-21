@@ -5,7 +5,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
-import { phoneSearchVariants } from "@/lib/utils";
+import { phoneMatchContactIds } from "@/lib/services/contact-search";
 
 export type AgentSearchResult = {
   transactions: { id: string; address: string; status: string; photoUrl: string | null }[];
@@ -34,18 +34,16 @@ export type AgentSearchResult = {
 
 const INTERNAL_ROLES = ["admin", "superadmin", "sales_progressor"];
 
-/** Name OR phone(any-format) lookup clauses for a Contact search.
- *  Phones in the DB are stored in international form (+447...), but agents
- *  type domestic form (07...) into the search box — phoneSearchVariants
- *  enumerates the equivalent representations so either form finds either. */
-function contactSearchClauses(q: string): Prisma.ContactWhereInput[] {
+/** Name / email / phone lookup clauses for a Contact search. Phone matching is
+ *  format-agnostic: `phoneIds` are pre-resolved by phoneMatchContactIds (which
+ *  strips non-digits from both sides so stored spacing never breaks a match),
+ *  and folded in here as an id filter. */
+function contactSearchClauses(q: string, phoneIds: string[]): Prisma.ContactWhereInput[] {
   const clauses: Prisma.ContactWhereInput[] = [
     { name: { contains: q, mode: "insensitive" } },
     { email: { contains: q, mode: "insensitive" } },
   ];
-  for (const v of phoneSearchVariants(q)) {
-    clauses.push({ phone: { contains: v, mode: "insensitive" } });
-  }
+  if (phoneIds.length > 0) clauses.push({ id: { in: phoneIds } });
   return clauses;
 }
 
@@ -79,6 +77,8 @@ export async function GET(req: NextRequest) {
     txWhere.status = { not: "draft" };
   }
 
+  const phoneIds = await phoneMatchContactIds(q);
+
   const [transactions, contacts, solicitors] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: { ...txWhere, propertyAddress: { contains: q, mode: "insensitive" } },
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     prisma.contact.findMany({
       where: {
         transaction: txWhere,
-        OR: contactSearchClauses(q),
+        OR: contactSearchClauses(q, phoneIds),
       },
       orderBy: { createdAt: "desc" },
       take: 6,
