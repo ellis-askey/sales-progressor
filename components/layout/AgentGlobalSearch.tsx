@@ -6,6 +6,50 @@ import { useRouter } from "next/navigation";
 import type { AgentSearchResult } from "@/app/api/agent/search/route";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { phoneSearchVariants } from "@/lib/utils";
+
+// Capitalised, friendly role words for the Clients sub-line.
+const ROLE_LABELS: Record<string, string> = {
+  purchaser: "Purchaser", vendor: "Seller", broker: "Broker", solicitor: "Solicitor", chain_agent: "Agent",
+};
+function roleLabel(role: string): string {
+  return ROLE_LABELS[role] ?? (role ? role.charAt(0).toUpperCase() + role.slice(1) : role);
+}
+
+// Find the span of a phone string that matches the typed query, tolerant of
+// format: the DB stores +44…, agents type 07…/spaces/etc. We match on digits
+// (via phoneSearchVariants) and map the hit back to display-string indices so
+// the right characters bold. Returns null when nothing matches.
+function phoneMatchRange(phone: string, query: string): { start: number; end: number } | null {
+  const variants = phoneSearchVariants(query)
+    .map((v) => v.replace(/\D/g, ""))
+    .filter((v) => v.length >= 4);
+  if (!variants.length) return null;
+  const digitAt: number[] = []; // digit-index → display-index
+  let digits = "";
+  for (let i = 0; i < phone.length; i++) {
+    if (phone[i] >= "0" && phone[i] <= "9") { digits += phone[i]; digitAt.push(i); }
+  }
+  let best: { pos: number; len: number } | null = null;
+  for (const v of variants) {
+    const pos = digits.indexOf(v);
+    if (pos >= 0 && (!best || v.length > best.len)) best = { pos, len: v.length };
+  }
+  if (!best) return null;
+  return { start: digitAt[best.pos], end: digitAt[best.pos + best.len - 1] + 1 };
+}
+
+// Render `text` with the [start,end) slice bolded (the matched email/phone bit).
+function highlight(text: string, range: { start: number; end: number } | null): React.ReactNode {
+  if (!range || range.start < 0) return text;
+  return (
+    <>
+      {text.slice(0, range.start)}
+      <b style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{text.slice(range.start, range.end)}</b>
+      {text.slice(range.end)}
+    </>
+  );
+}
 
 // Small property thumbnail for a Files result — the signed photo, or the
 // universal property-photo placeholder when the file has no picture.
@@ -276,10 +320,26 @@ export function AgentGlobalSearch() {
                   // row is still findable + clickable (lands them on the
                   // file, where Section 2 already hides the contact from
                   // the live Contacts panel).
-                  const sub = c.previousSale
-                    ? `${c.role} · Sale ${c.previousSale.roundNumber} · fell through · ${c.address}`
-                    : `${c.role} · ${c.address}`;
-                  const subColor = c.previousSale ? "var(--agent-danger, #C73E3E)" : undefined;
+                  const role = roleLabel(c.role);
+                  const qLower = query.toLowerCase();
+                  const nameMatch = c.name.toLowerCase().includes(qLower);
+                  // Surface + bold the matched detail ONLY when the search was an
+                  // email or phone (i.e. the name itself didn't match) — otherwise
+                  // the detail stays hidden and the address shows, same height.
+                  const emailIdx = !nameMatch && c.email ? c.email.toLowerCase().indexOf(qLower) : -1;
+                  const phoneRange = !nameMatch && emailIdx < 0 && c.phone ? phoneMatchRange(c.phone, query) : null;
+                  let sub: React.ReactNode;
+                  let subColor: string | undefined;
+                  if (c.previousSale) {
+                    sub = `${role} · Sale ${c.previousSale.roundNumber} · fell through · ${c.address}`;
+                    subColor = "var(--agent-danger, #C73E3E)";
+                  } else if (emailIdx >= 0 && c.email) {
+                    sub = <>{role} · {highlight(c.email, { start: emailIdx, end: emailIdx + query.length })}</>;
+                  } else if (phoneRange && c.phone) {
+                    sub = <>{role} · {highlight(c.phone, phoneRange)}</>;
+                  } else {
+                    sub = `${role} · ${c.address}`;
+                  }
                   return (
                     <SearchRow
                       key={c.id}
@@ -348,7 +408,7 @@ function SearchSection({ label, children }: { label: string; children: React.Rea
 function SearchRow({
   label, sub, subColor, subPill, leftVisual, selected, onClick, onMouseEnter,
 }: {
-  label: string; sub?: string; subColor?: string;
+  label: string; sub?: React.ReactNode; subColor?: string;
   // When set, the sub-line renders as a coloured status pill (Files rows) instead
   // of plain text.
   subPill?: { label: string; color: string };
@@ -375,8 +435,15 @@ function SearchRow({
           {label}
         </p>
         {subPill ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 3, fontSize: 10, fontWeight: 600, padding: "1px 8px 1px 6px", borderRadius: 999, background: `${subPill.color}1A`, color: subPill.color }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: subPill.color, flexShrink: 0 }} />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 3, fontSize: 11, fontWeight: 600, color: subPill.color }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+              background: subPill.color,
+              // A glossy highlight + soft colour glow so the dot reads as a bead,
+              // not a flat disc.
+              backgroundImage: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.75), rgba(255,255,255,0) 55%)",
+              boxShadow: `0 0 5px ${subPill.color}80, inset 0 -0.5px 1px rgba(0,0,0,0.12)`,
+            }} />
             {subPill.label}
           </span>
         ) : sub ? (
@@ -385,11 +452,21 @@ function SearchRow({
           </p>
         ) : null}
       </div>
-      {selected && (
-        <svg style={{ width: 14, height: 14, color: "var(--agent-coral)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {/* Hover chevron — slides in from the right + fades, matching the left
+          nav rail (.agent-rail-chevron). Driven by `selected`, which hover sets. */}
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex", flexShrink: 0, color: "var(--agent-coral)",
+          opacity: selected ? 1 : 0,
+          transform: selected ? "translateX(0)" : "translateX(10px)",
+          transition: "opacity 160ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
         </svg>
-      )}
+      </span>
     </button>
   );
 }

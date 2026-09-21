@@ -18,6 +18,10 @@ export type AgentSearchResult = {
     // The contact's own photo (Contact.image), a ready-to-render URL or null.
     // Null → the side-tinted fallback avatar (from `role`) is shown instead.
     avatarUrl: string | null;
+    // Returned so the palette can surface + bold-highlight the matched detail
+    // when the search was an email or phone number (never shown otherwise).
+    email: string | null;
+    phone: string | null;
     // Phase-2 PR 1 (GAP-4): purchaser-role contacts whose buyerRoundId
     // doesn't match the transaction's activeBuyerRoundId belong to a
     // previous (fell-through) sale. The row is still returned so the agent
@@ -37,6 +41,7 @@ const INTERNAL_ROLES = ["admin", "superadmin", "sales_progressor"];
 function contactSearchClauses(q: string): Prisma.ContactWhereInput[] {
   const clauses: Prisma.ContactWhereInput[] = [
     { name: { contains: q, mode: "insensitive" } },
+    { email: { contains: q, mode: "insensitive" } },
   ];
   for (const v of phoneSearchVariants(q)) {
     clauses.push({ phone: { contains: v, mode: "insensitive" } });
@@ -89,7 +94,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {
-        id: true, name: true, roleType: true, propertyTransactionId: true, image: true,
+        id: true, name: true, roleType: true, propertyTransactionId: true, image: true, email: true, phone: true,
         // Phase-2 PR 1 (GAP-4): pull the contact's buyerRound + the
         // transaction's active round so we can label previous-round
         // purchaser contacts on the frontend.
@@ -142,6 +147,8 @@ export async function GET(req: NextRequest) {
         transactionId: c.propertyTransactionId,
         address: c.transaction.propertyAddress,
         avatarUrl: c.image ?? null,
+        email: c.email ?? null,
+        phone: c.phone ?? null,
         previousSale: isPreviousPurchaser && c.buyerRound
           ? { roundNumber: c.buyerRound.roundNumber }
           : null,
