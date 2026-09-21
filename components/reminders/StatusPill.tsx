@@ -18,13 +18,13 @@ export function StatusPill({
 }: {
   tone?: PillProps["tone"];
   icon: ReactNode;
-  label: string;
+  label: ReactNode;
   size?: PillProps["size"];
   glass?: boolean;
   title?: string;
 }) {
   return (
-    <Pill tone={tone} size={size} glass={glass} title={title ?? label}>
+    <Pill tone={tone} size={size} glass={glass} title={title ?? (typeof label === "string" ? label : undefined)}>
       <span style={{ display: "inline-flex", flexShrink: 0 }}>{icon}</span>
       <span className="rem-pill-label">{label}</span>
     </Pill>

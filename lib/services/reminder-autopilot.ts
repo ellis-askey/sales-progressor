@@ -23,9 +23,11 @@ export type AutopilotStatus =
   //   blocker_client_email → offer an inline "add email" affordance
   //   blocker_solicitor    → offer an inline "add solicitor" affordance
   //   info                 → show the reason as plain text (paused / off / etc.)
+  //   autochase_off        → client auto-chase is off/paused; a file-level fact,
+  //                          so the card shows it once per file, not per row
   | { kind: "manual"; reason: string | null; category: ManualCategory };
 
-export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info";
+export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info" | "autochase_off";
 
 export interface AutopilotFlags {
   clientChaseEnabled: boolean; // CLIENT_CHASE_ENABLED env
@@ -122,7 +124,13 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     let category: ManualCategory = "info";
     if (solCode && !solContact?.email) { reason = "No solicitor on file yet"; category = "blocker_solicitor"; }
     else if (clientCode && clientOn) { reason = "No email on file for the client"; category = "blocker_client_email"; }
-    else if (clientCode && !clientOn) { reason = "Client auto-chase is off for this file"; category = "info"; }
+    else if (clientCode && !clientOn) {
+      // Off can mean: this file paused, or the agency/global switch is off. Only
+      // the first is truly "this file" — say so honestly rather than implying a
+      // file-level choice when it's off everywhere.
+      reason = tx.clientEmailsPaused ? "Client auto-chase is paused for this file" : "Client auto-chase is off";
+      category = "autochase_off";
+    }
     else if (solCode && !solOn) { reason = "Solicitor auto-chase is off for this file"; category = "info"; }
     else { reason = null; category = "info"; } // not an automated step
     out.set(log.id, { kind: "manual", reason, category });

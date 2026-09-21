@@ -341,8 +341,9 @@
     box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
   .agent-wq-count--muted {
-    color: var(--agent-text-secondary);
-    background: rgba(100, 116, 139, 0.16);
+    color: #fff;
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    box-shadow: 0 2px 8px rgba(100, 116, 139, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   }
   /* Onboarding "Getting started" progress counter (e.g. 1/8) — a polished coral
      gradient chip with a soft glow + lit edge, replacing the flat brand tint. */
@@ -374,7 +375,9 @@
     .wq-groupcols.has-auto {
       display: grid;
       grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
-      gap: 24px;
+      /* 40px gap so each column's 22px shadow-bleed (below) meets in the middle
+         rather than overlapping the neighbouring column's scroll box. */
+      gap: 40px;
       align-items: start;
     }
     /* Each column scrolls independently so the (short) autopilot pipeline never
@@ -392,9 +395,17 @@
       top: 104px;
       max-height: calc(100dvh - 124px);
       overflow-y: auto;
+      /* overflow-y:auto would coerce overflow-x to `auto` too (CSS spec), which
+         showed a phantom ~2px horizontal scrollbar. `clip` stops the scroll on x
+         without clipping the vertical scroll; the side padding holds the card
+         shadows, and the extra bottom padding stops the last card's shadow being
+         clipped by the scroll box. 22px sides / 40px bottom clears the soft card
+         shadow (the earlier 14/28 still cut a faint line); the 40px column gap
+         gives the wider side bleed room without the two columns colliding. */
+      overflow-x: clip;
       overscroll-behavior: contain;
-      padding: 6px 14px 20px;
-      margin: -6px -14px -14px;
+      padding: 6px 22px 40px;
+      margin: -6px -22px -40px;
     }
   }
 
@@ -631,6 +642,22 @@
   /* Solicitor firm link on a reminder row (solicitor-owed steps) — underline on
      hover as the affordance; the LinkArrow nudges alongside it. */
   .rem-sol-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* Firm name linked inside the bold reminder title (#4): inherits the title
+     colour at rest, goes primary on hover. */
+  .rem-firm-link { color: inherit; text-decoration: none; transition: color 140ms ease; }
+  .rem-firm-link:hover { color: var(--agent-coral-deep); }
+
+  /* Whole-file "Chase all / Snooze all" cluster. In a wide column it shows; in a
+     narrow one (e.g. the autopilot column) it would crush the property address,
+     so a container query hides it below the width needed to show both cleanly.
+     Each cards column is the query container (.wq-cardq). Per-row Chase buttons
+     stay, so nothing is lost — just the bulk shortcut. */
+  .wq-cardq { container-type: inline-size; container-name: wqcard; }
+  .wq-allactions { display: inline-flex; align-items: center; gap: 8px; }
+  @container wqcard (max-width: 600px) {
+    .wq-allactions { display: none; }
+  }
 
   /* Stat-tile icon circle — shared by the chain summary hero and the completions
      finish-line hero so the two read as one component in different states. A
@@ -2386,10 +2413,12 @@
     padding: 0 5px;
     border-radius: 999px;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.01em;
     line-height: 1;
-    color: var(--agent-text-on-coral);
-    background: var(--agent-coral-deep);
+    color: #fff;
+    background: linear-gradient(135deg, var(--agent-coral, #FF8A65), var(--agent-coral-deep, #FF6B4A));
+    box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
 
   /* ── Notification dot ────────────────────────────────────────────────────── */
@@ -2849,10 +2878,19 @@
   /* Reminders group accordions: the inner clip (needed for the height animation)
    * also clipped card shadows left/right. Widen just the clip box horizontally
    * with equal negative margin + padding so shadows have room while the cards
-   * stay put. Bleeds into the page's px-4/px-8 gutter, so no horizontal scroll. */
+   * stay put. On mobile the bleed must stay within the px-4 (16px) page gutter
+   * or it triggers a phantom horizontal scroll — so 16px there, widened to 22px
+   * from tablet up (px-8 = 32px gutter, plenty of room) where the soft ~20px
+   * card shadow was still catching a hard line. */
   .wq-acc > .agent-acc-in {
     margin-inline: -16px;
     padding-inline: 16px;
+  }
+  @media (min-width: 768px) {
+    .wq-acc > .agent-acc-in {
+      margin-inline: -22px;
+      padding-inline: 22px;
+    }
   }
 
   /* ── Accordion header ────────────────────────────────────────────────────── */
@@ -3003,6 +3041,16 @@
    * overflowing. Labels are fixed and short, so a viewport breakpoint is enough. */
   @media (max-width: 767px) {
     .rem-pill-label { display: none; }
+  }
+
+  /* Duration labels ("10d overdue" vs "10 days overdue"). Both render; the terse
+   * form shows by default and the full sentence takes over on large viewports,
+   * where there's room to read it out. Mirrors the pill-label collapse above. */
+  .wq-dur-abbr { display: inline; }
+  .wq-dur-full { display: none; }
+  @media (min-width: 1280px) {
+    .wq-dur-abbr { display: none; }
+    .wq-dur-full { display: inline; }
   }
 
   /* ── Reminder step name (desktop = fuller sentence, mobile = terse) ───────── */

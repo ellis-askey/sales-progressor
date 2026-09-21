@@ -98,12 +98,27 @@ function groupByFile(logs: AgentReminderLog[]): { txId: string; address: string;
   return Array.from(map.values());
 }
 
+// Duration label that reads out in full on large screens ("10 days overdue")
+// and stays terse on smaller ones ("10d overdue"). Both variants render; a
+// viewport breakpoint (see .wq-dur-abbr / .wq-dur-full in agent-system.css)
+// picks which shows, matching how the pill label itself collapses on mobile.
+function durationLabel(days: number, suffix: string): ReactNode {
+  const unit = days === 1 ? "day" : "days";
+  return (
+    <>
+      <span className="wq-dur-abbr">{days}d {suffix}</span>
+      <span className="wq-dur-full">{days} {unit} {suffix}</span>
+    </>
+  );
+}
+
 // Urgency bucket + label for a reminder. Shared by the header pill (shown on a
 // single-reminder file) and the per-row rendering, so the two always agree.
+// `title` carries the plain-string tooltip when `label` is a responsive node.
 function computeUrgency(
   log: AgentReminderLog,
   task: { chaseCount: number; priority: string },
-): { bucket: UrgencyBucket; label: string; hasBeenChased: boolean } {
+): { bucket: UrgencyBucket; label: ReactNode; title?: string; hasBeenChased: boolean } {
   const todayStr = toUKDateStr(new Date());
   const dueStr = toUKDateStr(log.nextDueDate);
   const isOverdue = dueStr < todayStr;
@@ -114,13 +129,16 @@ function computeUrgency(
     : isOverdue ? "overdue"
     : isDueToday ? "due_today"
     : "upcoming";
-  const label = task.priority === "escalated" ? "Escalated"
+  const label: ReactNode = task.priority === "escalated" ? "Escalated"
     : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
     : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
-    : isOverdue ? `${daysOverdue}d overdue`
+    : isOverdue ? durationLabel(daysOverdue, "overdue")
     : isDueToday ? "Due today"
     : `Next ${formatDate(log.nextDueDate)}`;
-  return { bucket, label, hasBeenChased };
+  const title = !hasBeenChased && isOverdue && task.priority !== "escalated"
+    ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} overdue`
+    : undefined;
+  return { bucket, label, title, hasBeenChased };
 }
 
 // Friendly label for a comm method on the chase-history line.
@@ -208,14 +226,17 @@ function FileCardShell({
             file. Hovering anywhere in it lights the first line coral (.rem-addr);
             the town/postcode stays muted. Stops propagation so it navigates
             rather than toggling the collapse. */}
+        {/* Only the photo + address navigate to the file (and drive the address
+            hover). Shrink-to-fit so it doesn't cover the empty header space —
+            that space belongs to the header and toggles the drawer. */}
         <Link
           href={`/agent/transactions/${txId}`}
           className="agent-link"
           onClick={(e) => e.stopPropagation()}
-          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, textDecoration: "none" }}
+          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: "0 1 auto", textDecoration: "none" }}
         >
           <PropertyThumb photoUrl={photoUrl} size={48} />
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ minWidth: 0 }}>
             <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
               {/* 2-line clamp (audit A8) — the address is the card's identity. */}
               <span className="rem-addr" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
@@ -363,6 +384,7 @@ function SplitFileCard({
   handleChased,
   hideChase,
   currentUserId,
+  showRowExplain,
 }: {
   txId: string;
   address: string;
@@ -379,6 +401,9 @@ function SplitFileCard({
   handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
   currentUserId?: string | null;
+  // "Needs you" only: keep the per-step explanation box on multi-reminder files
+  // too (elsewhere the multi layout collapses to a single compact meta line).
+  showRowExplain?: boolean;
 }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -386,6 +411,9 @@ function SplitFileCard({
   const [collapsed, setCollapsed] = useState(false);
   // Add-solicitor modal, opened from a "No solicitor on file yet" row.
   const [addSolFor, setAddSolFor] = useState<"vendor" | "purchaser" | null>(null);
+  // After a solicitor is added, collapse that side's "No solicitor on file"
+  // affordance (fade + tighten) before the refresh swaps in the resolved state.
+  const [collapsedSolSide, setCollapsedSolSide] = useState<"vendor" | "purchaser" | null>(null);
   // Add-client-email modal, opened from a "No email on file for the client" row.
   const [addEmailFor, setAddEmailFor] = useState<{ isBuyer: boolean; contacts: { id: string; name: string; roleType: string; email: string | null }[] } | null>(null);
   const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[]; responsible: "client" | "solicitor" } | null>(null);
@@ -433,6 +461,13 @@ function SplitFileCard({
   const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
   const allTaskIds = openTasks.map(({ task }) => task.id);
   const allLogIds  = openTasks.map(({ log })  => log.id);
+  // "Client auto-chase is off/paused" is a file-level fact (global / agency /
+  // this-file switch), so it's identical across every client row on the file.
+  // Surface it once as a card footer instead of repeating it on each chase.
+  const clientOffReason = (() => {
+    const s = openTasks.map(({ log }) => autopilot?.get(log.id)).find((a) => a?.kind === "manual" && a.category === "autochase_off");
+    return s?.kind === "manual" ? s.reason : null;
+  })();
   // Single open task on this file+group → side-scope the footer chase like the file tab.
   const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
   const soleIsBuyer = soleOpen ? isBuyerLog(soleOpen.log) : false;
@@ -471,14 +506,17 @@ function SplitFileCard({
             file. Hovering anywhere in it lights the first line coral (.rem-addr);
             the town/postcode stays muted. Stops propagation so it navigates
             rather than toggling the collapse. */}
+        {/* Only the photo + address navigate to the file (and drive the address
+            hover). Shrink-to-fit so it doesn't cover the empty header space —
+            that space belongs to the header and toggles the drawer. */}
         <Link
           href={`/agent/transactions/${txId}`}
           className="agent-link"
           onClick={(e) => e.stopPropagation()}
-          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1, textDecoration: "none" }}
+          style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: "0 1 auto", textDecoration: "none" }}
         >
           <PropertyThumb photoUrl={photoUrl} size={48} />
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ minWidth: 0 }}>
             <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
               {/* 2-line clamp (audit A8) — the address is the card's identity. */}
               <span className="rem-addr" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0 }}>
@@ -495,10 +533,10 @@ function SplitFileCard({
             click on Chase all / Snooze all doesn't also toggle the collapse. */}
         <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
           {!hideChase && openTasks.length >= 2 && (
-            <>
+            <span className="wq-allactions">
               <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
               <ChaseSplitButton solo label={`Chase all (${milestones.length})`} onChase={() => setDrawerOpen(true)} />
-            </>
+            </span>
           )}
           {isSingle && (
             (() => {
@@ -510,7 +548,7 @@ function SplitFileCard({
               return (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <SidePill isBuyer={sBuyer} />
-                  {u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} />}
+                  {u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} title={u.title} />}
                 </div>
               );
             })()
@@ -572,7 +610,7 @@ function SplitFileCard({
           // yet" is honest: the reminder is open because the client hasn't yet
           // actioned or confirmed what we chased.
           const statusLine = effectiveChaseCount === 0
-            ? "Not chased yet · first nudge due"
+            ? "Not chased yet · First nudge due"
             : `Chased ${effectiveChaseCount} time${effectiveChaseCount === 1 ? "" : "s"} · No reply yet`;
           // Attributed last-chase line: "Last chased 3 days ago by you / <name> /
           // Autopilot" (null when there's no send to attribute).
@@ -590,7 +628,12 @@ function SplitFileCard({
             nextChaseDays >= 2 ? `Next chase due in ${nextChaseDays} days`
             : nextChaseDays === 1 ? "Next chase due tomorrow"
             : nextChaseDays === 0 ? "Chase due today"
-            : "Chase was due";
+            : "Was due";
+
+          // #4: when the firm is on file and its name sits in the title, link it
+          // there (hover → primary) and drop the separate firm link below.
+          const desktopTitle = copy?.step ?? name;
+          const linkFirmInTitle = !!solFirm && desktopTitle.includes(solFirm.name);
 
           const isExiting = exitingIds.has(log.id);
           const autoState = autopilot?.get(log.id);
@@ -605,7 +648,18 @@ function SplitFileCard({
                   single-reminder file. Desktop: fuller sentence step name;
                   mobile: the terse milestone name (CSS toggles). */}
               <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-                <span className="rem-step-desktop">{copy?.step ?? name}</span>
+                <span className="rem-step-desktop">
+                  {linkFirmInTitle && solFirm ? (() => {
+                    const idx = desktopTitle.indexOf(solFirm.name);
+                    return (
+                      <>
+                        {desktopTitle.slice(0, idx)}
+                        <Link href={`/agent/partners/solicitor/${solFirm.id}`} className="rem-firm-link">{solFirm.name}</Link>
+                        {desktopTitle.slice(idx + solFirm.name.length)}
+                      </>
+                    );
+                  })() : desktopTitle}
+                </span>
                 <span className="rem-step-mobile">{name}</span>
               </p>
               {isSingle ? (
@@ -626,12 +680,21 @@ function SplitFileCard({
                   )}
                 </>
               ) : (
-                // Multiple reminders on one file: one compact meta line, no box.
-                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {effectiveChaseCount === 0 ? "not chased yet" : `chased ${effectiveChaseCount}×`}
-                </p>
+                // Multiple reminders on one file: a compact meta line. In "Needs
+                // you" we also keep the per-step explanation box so every actionable
+                // row still says what's outstanding (elsewhere it stays collapsed).
+                <>
+                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {effectiveChaseCount === 0 ? "Not chased yet" : `Chased ${effectiveChaseCount}×`}
+                  </p>
+                  {showRowExplain && (copy?.line ?? info?.outstanding) && (
+                    <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                      {copy?.line ?? info?.outstanding}
+                    </p>
+                  )}
+                </>
               )}
-              {solFirm && (
+              {solFirm && !linkFirmInTitle && (
                 <Link
                   href={`/agent/partners/solicitor/${solFirm.id}`}
                   className="agent-link rem-sol-link"
@@ -649,14 +712,24 @@ function SplitFileCard({
                   client email render as actionable add affordances; everything
                   else (paused, off, opted-out) is plain informational text. */}
               {autoState?.kind === "manual" && autoState.category === "blocker_solicitor" && (
-                <button
-                  type="button"
-                  onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
-                  className="agent-link"
-                  style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
-                >
-                  {autoState.reason ?? "No solicitor on file yet"} <LinkArrow />
-                </button>
+                <div style={{
+                  display: "grid",
+                  gridTemplateRows: collapsedSolSide === (isBuyer ? "purchaser" : "vendor") ? "0fr" : "1fr",
+                  opacity: collapsedSolSide === (isBuyer ? "purchaser" : "vendor") ? 0 : 1,
+                  transition: "grid-template-rows 340ms cubic-bezier(0.25,0,0,1), opacity 260ms ease",
+                  overflow: "hidden",
+                }}>
+                  <div style={{ minHeight: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setAddSolFor(isBuyer ? "purchaser" : "vendor")}
+                      className="agent-link"
+                      style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                    >
+                      {autoState.reason ?? "No solicitor on file yet"} <LinkArrow />
+                    </button>
+                  </div>
+                </div>
               )}
               {autoState?.kind === "manual" && autoState.category === "blocker_client_email" && (
                 <button
@@ -668,9 +741,8 @@ function SplitFileCard({
                   Add an email to chase them <LinkArrow />
                 </button>
               )}
-              {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
-                <p style={{ margin: "8px 0 0", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{autoState.reason}</p>
-              )}
+              {/* Info reasons (paused / off / opted-out) render in the right
+                  action column instead — centred under the date (see below). */}
             </>
           );
 
@@ -738,16 +810,19 @@ function SplitFileCard({
                   <div style={{ flex: 1, minWidth: 0 }}>{stringsEl}</div>
                   <div style={{
                     flexShrink: 0,
-                    display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 10,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10,
                     borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{actionsEl}</div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
                       <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{nextChaseLabel}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
                         <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(task.dueDate)}
                       </span>
                     </div>
+                    {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textAlign: "center", maxWidth: 160 }}>{autoState.reason}</p>
+                    )}
                   </div>
                 </>
               )}
@@ -795,6 +870,13 @@ function SplitFileCard({
             </div>
           );
         })}
+        {/* File-level footer: client auto-chase off/paused, shown once (a divider
+            line then centred text) rather than repeated on every chase row. */}
+        {clientOffReason && (
+          <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", margin: "6px 12px 0", paddingTop: 8, textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{clientOffReason}</p>
+          </div>
+        )}
       </div>
         </div>
       </div>
@@ -817,8 +899,12 @@ function SplitFileCard({
                 );
               } catch { /* leave it; the file just keeps the "add solicitor" nudge */ }
             }
+            const side = addSolFor;
             setAddSolFor(null);
-            router.refresh();
+            // Collapse the affordance (fade + tighten), then refresh once it's
+            // eased shut so the resolved row swaps in behind the animation.
+            setCollapsedSolSide(side);
+            setTimeout(() => router.refresh(), 380);
           }}
         />
       )}
@@ -904,13 +990,20 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
   const { toast } = useAgentToast();
 
-  // Pill nav: clicking a summary pill anchor-scrolls here and expands the matching section
+  // Pill nav: clicking a summary pill expands the matching section AND smooth-
+  // scrolls it into view. The native anchor jump lands instantly on a collapsed
+  // section (often below the fold, e.g. coming-up); we expand first, then after
+  // the accordion has begun opening (double rAF) we scroll so the open animation
+  // is visible and the section ends up properly in frame.
   useEffect(() => {
     function handleHash() {
       const key = window.location.hash.replace("#section-", "");
       // Section keys after the deck rebuild — the pills link to these ids.
       if (key === "needs-you" || key === "coming-up" || key === "autopilot") {
-        setCollapsed((prev) => ({ ...prev, [key]: false }));
+        setCollapsed((prev) => (prev[key] ? { ...prev, [key]: false } : prev));
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }));
       }
     }
     handleHash();
@@ -1176,9 +1269,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         const comingUpLogs = worstFirst(manual.filter((l) => classifyActive(l, now, upcomingCutoffStr) === "upcoming"));
         const autoLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind === "auto"));
         const groups = [
-          { key: "needs-you", label: "Needs you", sub: "due today or overdue", logs: needsYouLogs, you: true },
-          { key: "coming-up", label: "Coming up", sub: "yours over the next few working days", logs: comingUpLogs, you: true },
-          { key: "autopilot", label: "On autopilot", sub: "the system's got these", logs: autoLogs, you: false },
+          { key: "needs-you", label: "Needs you", sub: "Due today or overdue", logs: needsYouLogs, you: true },
+          { key: "coming-up", label: "Coming up", sub: "Yours over the next few working days", logs: comingUpLogs, you: true },
+          { key: "autopilot", label: "On autopilot", sub: "The system's got these", logs: autoLogs, you: false },
         ];
         // There are active reminders on the queue, but they're all manual and
         // further out than the window, so nothing surfaces yet. Say so rather than
@@ -1197,7 +1290,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           const isCollapsed = collapsed[grp.key];
           const fileGroups = groupByFile(grp.logs);
           return (
-            <div key={grp.key} className="space-y-2" id={`section-${grp.key}`}>
+            <div key={grp.key} className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
               <div
                 className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl`}
                 role="button"
@@ -1216,7 +1309,13 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
               </div>
               <div className={`agent-acc wq-acc${!isCollapsed ? " open" : ""}`}>
                 <div className="agent-acc-in">
-                  <div className="space-y-3" style={{ padding: "4px 12px 16px" }}>
+                  {/* No horizontal padding: the cards span the same width as the
+                      section bar above them (the .wq-acc clip box carries the side
+                      room for shadows — 16px mobile, 22px tablet+). 40px bottom so
+                      the last card's soft shadow isn't clipped by the accordion's
+                      overflow. A query container so the "Chase all / Snooze all"
+                      cluster can hide when the column is too narrow for it. */}
+                  <div className="space-y-3 wq-cardq" style={{ padding: "4px 0 40px" }}>
                     {fileGroups.map(({ txId, address, logs: fileLogs }) => (
                       <SplitFileCard
                         key={txId}
@@ -1227,6 +1326,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                         autopilot={autopilot}
                         logs={fileLogs}
                         groupKey={worstUrgency(fileLogs)}
+                        showRowExplain={grp.key === "needs-you"}
                         loading={loading}
                         exitingIds={exitingIds}
                         handleComplete={handleComplete}

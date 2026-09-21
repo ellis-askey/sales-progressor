@@ -3,6 +3,7 @@
 // so the urgency, side and "chase manually" chips are identical everywhere. All
 // compose the canonical StatusPill (icon + collapsible label).
 
+import type { ReactNode } from "react";
 import { Clock, Warning, CalendarBlank, HandTap, LockSimple } from "@phosphor-icons/react";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { StatusPill } from "./StatusPill";
@@ -12,15 +13,15 @@ export type UrgencyBucket = "escalated" | "overdue" | "due_today" | "upcoming";
 // Urgency pill. The label is computed by the caller (e.g. "3d overdue", "Due
 // today", "Was due 3 Sep", "Next 8 Sep"); this maps the bucket to the tone + icon.
 // A chased-but-not-escalated row goes muted, matching the file tab's calm-down.
-export function UrgencyPill({ label, bucket, chased }: { label: string; bucket: UrgencyBucket; chased?: boolean }) {
+export function UrgencyPill({ label, bucket, chased, title }: { label: ReactNode; bucket: UrgencyBucket; chased?: boolean; title?: string }) {
   if (chased && bucket !== "escalated") {
-    return <StatusPill tone="muted" icon={<Clock size={11} weight="bold" />} label={label} />;
+    return <StatusPill tone="muted" icon={<Clock size={11} weight="bold" />} label={label} title={title} />;
   }
   switch (bucket) {
-    case "escalated": return <StatusPill tone="danger" icon={<Warning size={11} weight="fill" />} label={label} />;
-    case "overdue":   return <StatusPill tone="danger" icon={<Clock size={11} weight="bold" />} label={label} />;
-    case "due_today": return <StatusPill tone="warning" icon={<Clock size={11} weight="bold" />} label={label} />;
-    default:          return <StatusPill tone="muted" icon={<CalendarBlank size={11} weight="bold" />} label={label} />;
+    case "escalated": return <StatusPill tone="danger" icon={<Warning size={11} weight="fill" />} label={label} title={title} />;
+    case "overdue":   return <StatusPill tone="danger" icon={<Clock size={11} weight="bold" />} label={label} title={title} />;
+    case "due_today": return <StatusPill tone="warning" icon={<Clock size={11} weight="bold" />} label={label} title={title} />;
+    default:          return <StatusPill tone="muted" icon={<CalendarBlank size={11} weight="bold" />} label={label} title={title} />;
   }
 }
 
