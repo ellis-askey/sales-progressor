@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CaretDown, CheckCircle } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
@@ -581,6 +581,17 @@ function SplitFileCard({
             ? `Last chased ${relativeDays(lastComm.createdAt)}${actor ? ` by ${actor}` : ""}`
             : null;
 
+          // Dated chase line under the action buttons (mock: "Next chase due in
+          // 4 days · 22 Sept"). Always shown, with the actual date — complements
+          // the urgency pill, which gives the elapsed amount ("108d overdue")
+          // rather than the date. Copy adapts to future / today / overdue.
+          const nextChaseDays = Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / 86400000);
+          const nextChaseLabel =
+            nextChaseDays >= 2 ? `Next chase due in ${nextChaseDays} days`
+            : nextChaseDays === 1 ? "Next chase due tomorrow"
+            : nextChaseDays === 0 ? "Chase due today"
+            : "Chase was due";
+
           const isExiting = exitingIds.has(log.id);
           const autoState = autopilot?.get(log.id);
           const isAuto = autoState?.kind === "auto";
@@ -706,7 +717,7 @@ function SplitFileCard({
             <div
               key={log.id}
               className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
-              style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: isAuto ? "column" : "row", alignItems: isAuto ? "stretch" : "flex-start", gap: 8 }}
+              style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: isAuto ? "column" : "row", alignItems: "stretch", gap: 8 }}
             >
               {isAuto ? (
                 // Autopilot: the strings and the green auto-chase countdown each
@@ -720,9 +731,24 @@ function SplitFileCard({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>{actionsEl}</div>
                 </>
               ) : (
+                // Needs-you: content on the left, a hairline divider, then the
+                // action column — Chase on top, the next-chase date beneath —
+                // vertically centred against the content (mock, 2026-09-21).
                 <>
                   <div style={{ flex: 1, minWidth: 0 }}>{stringsEl}</div>
-                  {actionsEl}
+                  <div style={{
+                    flexShrink: 0,
+                    display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 10,
+                    borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{actionsEl}</div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{nextChaseLabel}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+                        <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(task.dueDate)}
+                      </span>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
