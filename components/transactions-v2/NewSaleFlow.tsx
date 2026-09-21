@@ -669,8 +669,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     } catch (err) {
       clearTimers();
       if ((err as { name?: string }).name === "AbortError") return;
-      setExtractionError((err as Error).message || "Couldn't read the memo");
-      setFlowState("manual");
+      // A failed read returns to the drop screen (not a blank manual form) with
+      // the reason shown next to the dropzone — re-drop a clearer copy or add
+      // manually, their choice. resetToHero() clears extractionError, so re-set
+      // it after.
+      resetToHero();
+      setExtractionError("We couldn't read that memo. Try a clearer photo or PDF, or add the details manually.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1230,6 +1234,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               onFillManually={handleFillManually}
               onLoadDraft={loadDraft}
               onDeleteDraft={deleteDraft}
+              parseError={extractionError}
             />
           )}
 

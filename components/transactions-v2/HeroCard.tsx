@@ -93,9 +93,13 @@ type Props = {
   onFillManually: () => void;
   onLoadDraft: (draft: DraftEntry) => void;
   onDeleteDraft: (id: string) => void;
+  // Set when a dropped memo couldn't be read — surfaced inline here (next to the
+  // dropzone) so a failed parse lands back on this screen with both next steps
+  // in reach, rather than dumping the user on a blank manual form.
+  parseError?: string | null;
 };
 
-export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDeleteDraft }: Props) {
+export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDeleteDraft, parseError = null }: Props) {
   const isSolid = useSolidMode();
   const { surfaceClass, tag, picked } = useCardSurface("new-sale-drop-memo", "New sale · Drop a memo", "");
   const [dragOver, setDragOver] = useState(false);
@@ -371,8 +375,9 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         </div>
       )}
 
-      {/* File error */}
-      {fileError && (
+      {/* File error (local validation) or a failed memo read (from the parent) —
+          both render here, next to the dropzone, so the next step is in reach. */}
+      {(fileError || parseError) && (
         <p style={{
           marginTop: 12,
           fontSize: 12,
@@ -384,7 +389,7 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
           textAlign: "center",
           margin: "12px 0 0",
         }}>
-          {fileError}
+          {fileError ?? parseError}
         </p>
       )}
 
