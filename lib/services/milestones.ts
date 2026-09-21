@@ -730,20 +730,47 @@ export async function maybeLockExchangeGate(
 
 // ── getMilestonesForTransaction ───────────────────────────────────────────────
 
+// The milestone definition catalog is global, static config (changes only via a
+// migration/admin edit), yet it was re-queried on every milestone read — ~500ms
+// per file open in prod. Memoise it per lambda (5-min TTL). In-memory, so the
+// Prisma Decimal weights survive intact (unlike unstable_cache's JSON path); the
+// per-transaction completion reads are NOT cached, per the file-page constraint.
+let _defsCache: { at: number; defs: MilestoneDefinition[] } | null = null;
+const DEFS_TTL_MS = 5 * 60 * 1000;
+async function getMilestoneDefinitionsCached(): Promise<MilestoneDefinition[]> {
+  if (_defsCache && Date.now() - _defsCache.at < DEFS_TTL_MS) return _defsCache.defs;
+  const defs = await prisma.milestoneDefinition.findMany({
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+  });
+  _defsCache = { at: Date.now(), defs };
+  return defs;
+}
+
 export async function getMilestonesForTransaction(
   transactionId: string,
   agencyId: string | null
 ): Promise<MilestonesByTransaction> {
-  const transaction = await prisma.propertyTransaction.findFirst({
-    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: {
-      id: true,
-      activeBuyerRoundId: true,
-      bookedSurveyorName: true,
-      completionDate: true,
-      contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true } },
-    },
-  });
+  // Wave 1 — everything that doesn't depend on the transaction runs alongside
+  // it: the definition catalog (memoised) and the booked-surveyor lookup. These
+  // used to be serial awaits later in the function.
+  const [transaction, allDefinitions, bookedSurveyorRow] = await Promise.all([
+    prisma.propertyTransaction.findFirst({
+      where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
+      select: {
+        id: true,
+        activeBuyerRoundId: true,
+        bookedSurveyorName: true,
+        completionDate: true,
+        contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true } },
+      },
+    }),
+    getMilestoneDefinitionsCached(),
+    prisma.quoteRequest.findFirst({
+      where: { transactionId, status: { in: ["booked", "won"] } },
+      orderBy: { bookedAt: "desc" },
+      select: { provider: { select: { name: true } } },
+    }),
+  ]);
   if (!transaction) throw new Error("Transaction not found");
 
   // For "Confirmed by {name}" on portal confirms: prefer the exact Contact who
@@ -760,10 +787,9 @@ export async function getMilestonesForTransaction(
   // Retired enquiry sub-steps are hidden from every milestone list (enquiries
   // rework) — they no longer gate or carry weight, and are removed for good in
   // a later stage.
-  const definitions = (await prisma.milestoneDefinition.findMany({
-    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-  })).filter((d) => !RETIRED_ENQUIRY_CODES.has(d.code));
+  const definitions = allDefinitions.filter((d) => !RETIRED_ENQUIRY_CODES.has(d.code));
 
+  // Wave 2 — completions need the transaction's active round, so they follow it.
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
       transactionId,
@@ -774,8 +800,9 @@ export async function getMilestonesForTransaction(
   const completionMap = new Map<string, MilestoneCompletion>();
   completions.forEach((c) => completionMap.set(c.milestoneDefinitionId, c));
 
-  // Look up firm names for any solicitor-confirmed steps (one query) so the
-  // row can render "Confirmed by {firm}".
+  // Wave 3 — firm + confirming-agent names for completed steps ("Confirmed by
+  // {firm}" / "{name}"). Both derive from completions, so they run in parallel
+  // with each other. Empty id lists skip the query entirely.
   const firmIds = [
     ...new Set(
       completions
@@ -783,17 +810,6 @@ export async function getMilestonesForTransaction(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  const firmNameById = new Map<string, string>();
-  if (firmIds.length > 0) {
-    const firms = await prisma.solicitorFirm.findMany({
-      where: { id: { in: firmIds } },
-      select: { id: true, name: true },
-    });
-    firms.forEach((f) => firmNameById.set(f.id, f.name));
-  }
-
-  // Look up the confirming agent's name for each completed step (one query),
-  // so the completed-row disclosure can show "Confirmed by {name}".
   const userIds = [
     ...new Set(
       completions
@@ -801,23 +817,21 @@ export async function getMilestonesForTransaction(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
+  const [firms, users] = await Promise.all([
+    firmIds.length > 0
+      ? prisma.solicitorFirm.findMany({ where: { id: { in: firmIds } }, select: { id: true, name: true } })
+      : Promise.resolve([] as { id: string; name: string }[]),
+    userIds.length > 0
+      ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+      : Promise.resolve([] as { id: string; name: string | null }[]),
+  ]);
+  const firmNameById = new Map<string, string>();
+  firms.forEach((f) => firmNameById.set(f.id, f.name));
   const userNameById = new Map<string, string>();
-  if (userIds.length > 0) {
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, name: true },
-    });
-    users.forEach((u) => { if (u.name) userNameById.set(u.id, u.name); });
-  }
+  users.forEach((u) => { if (u.name) userNameById.set(u.id, u.name); });
 
-  // The surveyor the buyer booked (survey-booking loop), so the PM9 row can
-  // render "Booked with {firm}". One value per file.
-  const bookedSurveyor = await prisma.quoteRequest.findFirst({
-    where: { transactionId, status: { in: ["booked", "won"] } },
-    orderBy: { bookedAt: "desc" },
-    select: { provider: { select: { name: true } } },
-  });
-  const bookedSurveyorName = bookedSurveyor?.provider.name ?? transaction.bookedSurveyorName ?? null;
+  // The surveyor the buyer booked (survey-booking loop) — fetched in Wave 1.
+  const bookedSurveyorName = bookedSurveyorRow?.provider.name ?? transaction.bookedSurveyorName ?? null;
 
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");
