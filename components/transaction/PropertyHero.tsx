@@ -2,8 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
-import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft, Camera } from "@phosphor-icons/react/dist/ssr";
+
+// Location-visual backdrop for the empty (no-photo) hero state. Lazy + client-
+// only so maplibre stays out of the initial bundle and the server render.
+const PropertyLocationMap = dynamic(() => import("./PropertyLocationMap"), { ssr: false });
+
+// Trailing UK postcode from a full address (e.g. "…, Hemel Hempstead, HP1 2LS").
+function extractPostcode(addr: string): string | null {
+  const m = addr.match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\s*$/i);
+  return m ? m[1].toUpperCase() : null;
+}
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { useFileProgress } from "./FileProgressContext";
@@ -254,6 +265,25 @@ export function PropertyHero({
   // the agent hero below renders its controls; the dark progressor hero and
   // the no-transaction help preview ignore it.
   const photo = usePropertyPhoto(transactionId ?? "", photoUrl);
+  // Fade the photo in only once its pixels are actually decoded (not merely when
+  // hasPhoto flips), so it never fades in a half-loaded image and "pops".
+  const [photoLoaded, setPhotoLoaded] = useState(false);
+  useEffect(() => { setPhotoLoaded(false); }, [photo.displayUrl]);
+  // Which breakpoint is live, so the location map mounts in exactly ONE of the
+  // two responsive layers (both are in the DOM via CSS; two maplibre instances
+  // would fight). null until measured → neither renders for a tick.
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const postcode = extractPostcode(address);
+  // Empty state shows the location map when we can place it; otherwise the
+  // branded add-photo circle (foreign/missing postcode).
+  const showMap = !photo.hasPhoto && !!postcode;
   const canSwitchService = (isAdminViewer || canAgentHandOver) && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
@@ -332,67 +362,107 @@ export function PropertyHero({
     // Removing runs the exact reverse. displayUrl lags hasPhoto so the photo
     // can wipe out before its <img> unmounts.
     const EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+    // Same 380px zone in BOTH states so the layout never reflows — a photo, or a
+    // location map, or (no postcode) the add circle. The map sits under the photo
+    // and shares its right-edge mask, so add/remove cross-fades over it.
     const photoColumnDesktop = transactionId ? (
       <div className="hidden md:block" style={{
         position: "relative",
         flexGrow: 0,
         flexShrink: 1,
-        flexBasis: photo.hasPhoto ? 380 : 168,
-        minWidth: photo.hasPhoto ? 240 : 168,
+        flexBasis: 380,
+        minWidth: 240,
         alignSelf: "stretch",
         overflow: "hidden",
-        transition: `flex-basis 560ms ${EASE}, min-width 560ms ${EASE}`,
       }}>
+        {showMap && isDesktop === true && (
+          <div style={{
+            position: "absolute", inset: 0,
+            maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+          }}>
+            <PropertyLocationMap postcode={postcode} />
+          </div>
+        )}
         {photo.displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.displayUrl} alt="" style={{
+          <img src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} style={{
             position: "absolute", left: 0, top: 0, height: "100%", width: "100%",
             objectFit: "cover",
-            opacity: photo.hasPhoto ? 1 : 0,
+            opacity: photo.hasPhoto && photoLoaded ? 1 : 0,
             maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
             transition: `opacity 560ms ${EASE}`,
             pointerEvents: "none",
           }} />
         )}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          opacity: photo.hasPhoto ? 0 : 1,
-          pointerEvents: photo.hasPhoto ? "none" : "auto",
-          transition: "opacity 300ms ease",
-        }}>
-          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={120} />
-        </div>
+        {/* No-postcode fallback: keep the branded add circle centred. */}
+        {!photo.hasPhoto && !postcode && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={120} />
+          </div>
+        )}
       </div>
     ) : null;
 
     const photoLayerMobile = transactionId ? (
       <div className="md:hidden" style={{
         position: "relative", overflow: "hidden",
-        height: photo.hasPhoto ? 148 : 132,
+        height: (photo.hasPhoto || showMap) ? 148 : 132,
         transition: `height 460ms ${EASE}`,
       }}>
+        {showMap && isDesktop === false && (
+          <div style={{
+            position: "absolute", inset: 0,
+            maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
+          }}>
+            <PropertyLocationMap postcode={postcode} />
+          </div>
+        )}
         {photo.displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.displayUrl} alt="" style={{
+          <img src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} style={{
             position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-            opacity: photo.hasPhoto ? 1 : 0,
+            opacity: photo.hasPhoto && photoLoaded ? 1 : 0,
             maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
             transition: `opacity 460ms ${EASE}`,
             pointerEvents: "none",
           }} />
         )}
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          opacity: photo.hasPhoto ? 0 : 1,
-          pointerEvents: photo.hasPhoto ? "none" : "auto",
-          transition: "opacity 300ms ease",
-        }}>
-          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={100} />
-        </div>
+        {/* No-postcode fallback: the branded add circle, centred. */}
+        {!photo.hasPhoto && !postcode && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={100} />
+          </div>
+        )}
+        {/* Add-photo pill over the map (mobile — the desktop pill is hidden
+            below 640px, so the mobile map needs its own). */}
+        {showMap && (
+          <button
+            type="button"
+            onClick={photo.triggerUpload}
+            disabled={photo.busy}
+            style={{
+              position: "absolute", bottom: 12, left: 12, zIndex: 2,
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999,
+              border: "none", cursor: photo.busy ? "wait" : "pointer", color: "#fff",
+              background: "rgba(15,23,42,0.42)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+              fontFamily: "inherit",
+            }}
+          >
+            <Camera size={13} weight="regular" />
+            {photo.busy ? "Uploading…" : "Add photo"}
+          </button>
+        )}
       </div>
     ) : null;
 
@@ -716,6 +786,42 @@ export function PropertyHero({
           >
             <Trash size={13} weight="regular" />
             Remove photo
+          </button>
+        )}
+
+        {/* Add-photo pill — shown over the location map (empty state), in the
+            same spot the Remove pill uses when a photo is present. Dark glass so
+            it reads over the light map. */}
+        {transactionId && (
+          <button
+            type="button"
+            onClick={photo.triggerUpload}
+            disabled={photo.busy}
+            aria-hidden={!showMap}
+            className="hero-remove-photo"
+            style={{
+              zIndex: 2,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: "none",
+              cursor: photo.busy ? "wait" : "pointer",
+              color: "#fff",
+              background: "rgba(15,23,42,0.42)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              fontFamily: "inherit",
+              opacity: showMap ? 1 : 0,
+              pointerEvents: showMap ? "auto" : "none",
+              transition: showMap ? "opacity 360ms ease 240ms" : "opacity 220ms ease",
+            }}
+          >
+            <Camera size={13} weight="regular" />
+            {photo.busy ? "Uploading…" : "Add photo"}
           </button>
         )}
 
