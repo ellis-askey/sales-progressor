@@ -5,6 +5,22 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { AgentSearchResult } from "@/app/api/agent/search/route";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { ContactAvatar } from "@/components/ui/Avatar";
+
+// Small property thumbnail for a Files result — the signed photo, or the
+// universal property-photo placeholder when the file has no picture.
+function PropertyThumb({ url }: { url: string | null }) {
+  return (
+    <span style={{ width: 34, height: 34, borderRadius: 8, overflow: "hidden", flexShrink: 0, display: "block", border: url ? "0.5px solid var(--agent-border-subtle)" : "none" }}>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        <span className="property-photo-fallback" aria-hidden style={{ display: "block", width: "100%", height: "100%" }} />
+      )}
+    </span>
+  );
+}
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
@@ -241,8 +257,8 @@ export function AgentGlobalSearch() {
                   <SearchRow
                     key={t.id}
                     label={t.address}
-                    sub={STATUS_LABELS[t.status] ?? t.status}
-                    subColor={STATUS_COLORS[t.status]}
+                    leftVisual={<PropertyThumb url={t.photoUrl} />}
+                    subPill={{ label: STATUS_LABELS[t.status] ?? t.status, color: STATUS_COLORS[t.status] ?? "#94a3b8" }}
                     selected={selected === i}
                     onClick={() => navigate(`/agent/transactions/${t.id}`)}
                     onMouseEnter={() => setSelected(i)}
@@ -270,6 +286,7 @@ export function AgentGlobalSearch() {
                       label={c.name}
                       sub={sub}
                       subColor={subColor}
+                      leftVisual={<ContactAvatar contact={{ name: c.name, roleType: c.role }} size={34} image={c.avatarUrl} />}
                       selected={selected === results!.transactions.length + i}
                       onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
                       onMouseEnter={() => setSelected(results!.transactions.length + i)}
@@ -285,6 +302,7 @@ export function AgentGlobalSearch() {
                     key={s.id}
                     label={s.name}
                     sub={`${s.fileCount} file${s.fileCount !== 1 ? "s" : ""} on record`}
+                    leftVisual={<ContactAvatar contact={{ name: s.name, roleType: "solicitor" }} size={34} />}
                     selected={selected === results!.transactions.length + results!.contacts.length + i}
                     onClick={() => navigate(`/agent/solicitors`)}
                     onMouseEnter={() => setSelected(results!.transactions.length + results!.contacts.length + i)}
@@ -328,9 +346,15 @@ function SearchSection({ label, children }: { label: string; children: React.Rea
 }
 
 function SearchRow({
-  label, sub, subColor, selected, onClick, onMouseEnter,
+  label, sub, subColor, subPill, leftVisual, selected, onClick, onMouseEnter,
 }: {
-  label: string; sub: string; subColor?: string; selected: boolean; onClick: () => void; onMouseEnter: () => void;
+  label: string; sub?: string; subColor?: string;
+  // When set, the sub-line renders as a coloured status pill (Files rows) instead
+  // of plain text.
+  subPill?: { label: string; color: string };
+  // Optional visual before the text — a property thumbnail or a contact avatar.
+  leftVisual?: React.ReactNode;
+  selected: boolean; onClick: () => void; onMouseEnter: () => void;
 }) {
   return (
     <button
@@ -345,13 +369,21 @@ function SearchRow({
         borderLeft: selected ? "2px solid var(--agent-coral)" : "2px solid transparent",
       }}
     >
+      {leftVisual && <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{leftVisual}</span>}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {label}
         </p>
-        <p style={{ margin: 0, fontSize: 11, color: subColor ?? "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {sub}
-        </p>
+        {subPill ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 3, fontSize: 10, fontWeight: 600, padding: "1px 8px 1px 6px", borderRadius: 999, background: `${subPill.color}1A`, color: subPill.color }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: subPill.color, flexShrink: 0 }} />
+            {subPill.label}
+          </span>
+        ) : sub ? (
+          <p style={{ margin: 0, fontSize: 11, color: subColor ?? "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {sub}
+          </p>
+        ) : null}
       </div>
       {selected && (
         <svg style={{ width: 14, height: 14, color: "var(--agent-coral)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

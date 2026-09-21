@@ -4,16 +4,20 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { prisma } from "@/lib/prisma";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { phoneSearchVariants } from "@/lib/utils";
 
 export type AgentSearchResult = {
-  transactions: { id: string; address: string; status: string }[];
+  transactions: { id: string; address: string; status: string; photoUrl: string | null }[];
   contacts:     {
     id: string;
     name: string;
     role: string;
     transactionId: string;
     address: string;
+    // The contact's own photo (Contact.image), a ready-to-render URL or null.
+    // Null → the side-tinted fallback avatar (from `role`) is shown instead.
+    avatarUrl: string | null;
     // Phase-2 PR 1 (GAP-4): purchaser-role contacts whose buyerRoundId
     // doesn't match the transaction's activeBuyerRoundId belong to a
     // previous (fell-through) sale. The row is still returned so the agent
@@ -75,7 +79,7 @@ export async function GET(req: NextRequest) {
       where: { ...txWhere, propertyAddress: { contains: q, mode: "insensitive" } },
       orderBy: { updatedAt: "desc" },
       take: 6,
-      select: { id: true, propertyAddress: true, status: true },
+      select: { id: true, propertyAddress: true, status: true, photoStoragePath: true },
     }),
     prisma.contact.findMany({
       where: {
@@ -85,7 +89,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {
-        id: true, name: true, roleType: true, propertyTransactionId: true,
+        id: true, name: true, roleType: true, propertyTransactionId: true, image: true,
         // Phase-2 PR 1 (GAP-4): pull the contact's buyerRound + the
         // transaction's active round so we can label previous-round
         // purchaser contacts on the frontend.
@@ -111,8 +115,17 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
+  // Batch-sign the property thumbnails in one round trip (paths without a photo
+  // are absent from the map → the row shows the property-photo placeholder).
+  const photoMap = await getSignedUrlMap(transactions.map((t) => t.photoStoragePath));
+
   const result: AgentSearchResult = {
-    transactions: transactions.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
+    transactions: transactions.map((t) => ({
+      id: t.id,
+      address: t.propertyAddress,
+      status: t.status,
+      photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
+    })),
     contacts: contacts.map((c) => {
       // GAP-4 labelling: a purchaser contact with a buyerRoundId that
       // doesn't match the transaction's activeBuyerRoundId belongs to a
@@ -128,6 +141,7 @@ export async function GET(req: NextRequest) {
         role: c.roleType,
         transactionId: c.propertyTransactionId,
         address: c.transaction.propertyAddress,
+        avatarUrl: c.image ?? null,
         previousSale: isPreviousPurchaser && c.buyerRound
           ? { roundNumber: c.buyerRound.roundNumber }
           : null,
