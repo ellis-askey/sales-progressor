@@ -87,6 +87,10 @@ const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2
 // the road in frame while it travels.
 const travelZoomFor = (mi: number) => (mi > 60 ? 7.5 : mi > 30 ? 8.5 : mi > 12 ? 9.5 : mi > 4 ? 10.5 : 11.5);
 const legKey = (m: { fromId: string; toId: string }) => `${m.fromId}__${m.toId}`;
+// How long to wait for the real road geometry before revealing a new leg with a
+// straight line instead. Road lookups normally return in ~1–2s; past this we
+// accept the straight-line fallback so the reveal never stalls.
+const ROUTE_WAIT_MS = 4000;
 
 // The household move a selected property represents. Always framed as
 // selected → the property directly ABOVE it (the onward purchase its household is
@@ -151,6 +155,14 @@ export function ChainGeoMap({
   const animatedCountRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const animCancelRef = useRef<(() => void) | null>(null);
+  // A new leg waits here (hidden from the settled layer) until its real road
+  // geometry arrives, so we never animate a straight line and then snap to the
+  // road. pendingTimerRef is the safety timeout after which we accept the
+  // straight-line fallback; fallbackKeyRef marks the leg that timeout released.
+  const pendingRef = useRef<string | null>(null);
+  const pendingTimerRef = useRef<number | null>(null);
+  const fallbackKeyRef = useRef<string | null>(null);
+  const [animPoll, setAnimPoll] = useState(0);
 
   const [coords, setCoords] = useState<Record<string, LatLng>>({});
   const coordsRef = useRef(coords);
@@ -478,6 +490,7 @@ export function ChainGeoMap({
     return () => {
       nudges.forEach(clearTimeout);
       animCancelRef.current?.();
+      if (pendingTimerRef.current) { clearTimeout(pendingTimerRef.current); pendingTimerRef.current = null; }
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       ro.disconnect(); map.remove();
       mapRef.current = null; loadedRef.current = false; markersRef.current.clear();
@@ -554,18 +567,49 @@ export function ChainGeoMap({
   // leg's two endpoints have geocoded (so it's actually plottable), and only for
   // leg keys not present at mount — so edits, which never mint a new leg key,
   // don't re-trigger it. First leg gets the full flight, later ones the quick draw.
+  //
+  // Crucially, we hold the leg until its real road geometry has arrived from
+  // /api/chain/routes and only then reveal it, so the animation draws the road,
+  // not a straight line that snaps to the road the instant it finishes. A leg
+  // with no postcodes to route, or one whose route lookup is still empty after
+  // ROUTE_WAIT_MS, falls back to the straight line as a true fallback.
   useEffect(() => {
     if (!animateNewLegs) return;
     const map = mapRef.current;
     if (!map || !loadedRef.current || !seededRef.current) return;
     const next = moves.find((m) => !animatedRef.current.has(legKey(m)) && coords[m.fromId] && coords[m.toId]);
     if (!next) return;
-    animatedRef.current.add(legKey(next));
+    const key = legKey(next);
+    const hasRoute = !!routeForRef(next.fromId, next.toId);
+    const hasPostcodes = !!(nodePc[next.fromId] && nodePc[next.toId]);
+    const ready = hasRoute || !hasPostcodes || fallbackKeyRef.current === key;
+
+    if (!ready) {
+      // Hold: hide the leg from the settled layer so no static straight line
+      // shows, and arm the safety timeout once per pending leg.
+      if (pendingRef.current !== key) {
+        pendingRef.current = key;
+        hiddenKeyRef.current = key;
+        refreshHidden();
+        if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = window.setTimeout(() => {
+          pendingTimerRef.current = null;
+          fallbackKeyRef.current = key; // release the leg to the straight-line fallback
+          setAnimPoll((p) => p + 1);
+        }, ROUTE_WAIT_MS);
+      }
+      return;
+    }
+
+    if (pendingTimerRef.current) { clearTimeout(pendingTimerRef.current); pendingTimerRef.current = null; }
+    pendingRef.current = null;
+    if (fallbackKeyRef.current === key) fallbackKeyRef.current = null;
+    animatedRef.current.add(key);
     const full = animatedCountRef.current === 0;
     animatedCountRef.current += 1;
     playLeg(next, full);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animateNewLegs, moves, coords, routes]);
+  }, [animateNewLegs, moves, coords, routes, nodePc, animPoll]);
 
   // ── overlay geometry (projected each render via the tick) ──
   const map = mapRef.current;
