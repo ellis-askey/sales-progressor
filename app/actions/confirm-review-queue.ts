@@ -282,25 +282,25 @@ export async function cancelPendingConfirmEmails(input: {
     }
   }
 
-  // One internal_note per unique milestone code, listing the recipients
-  // it would have gone to. Keeps the comms feed honest without spam.
-  const codeToRecipients = new Map<string, string[]>();
-  for (const r of rows) {
-    const code = r.sourceId?.split(":")[1] ?? "unknown";
-    const list = codeToRecipients.get(code) ?? [];
-    if (r.recipientContact?.name) list.push(r.recipientContact.name);
-    codeToRecipients.set(code, list);
-  }
-  const noteParts: string[] = [];
-  for (const [code, recipients] of codeToRecipients) {
-    noteParts.push(`${code} → ${recipients.join(" + ") || "(no name)"}`);
-  }
+  // One plain-English internal note recording who was NOT emailed. Recipient
+  // names only — no milestone codes (they're internal). The steps stay confirmed
+  // either way, so the human-meaningful fact is which clients were held back.
+  const recipientNames = Array.from(
+    new Set(rows.map((r) => r.recipientContact?.name).filter((n): n is string => !!n)),
+  );
+  const joinAnd = (names: string[]) =>
+    names.length <= 1
+      ? names[0] ?? ""
+      : names.length === 2
+        ? `${names[0]} and ${names[1]}`
+        : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const who = joinAnd(recipientNames);
   await prisma.outboundMessage.create({
     data: {
       transactionId: tx.id,
       type: "internal_note",
       contactIds: [],
-      content: `${session.user.name ?? "Agent"} cancelled queued client update emails: ${noteParts.join("; ")}. Milestones remain confirmed on the file.`,
+      content: `${session.user.name ?? "Agent"} didn't send the queued update emails${who ? ` to ${who}` : ""}. The steps stay confirmed on the file.`,
       createdById: session.user.id,
     },
   });

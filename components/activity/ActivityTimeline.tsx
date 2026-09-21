@@ -582,7 +582,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
               const showBadge = !email;
               const showRecipientPill =
                 !isEditing && entry.type !== "inbound" && !!entry.recipientName && !displayContactNames.includes(entry.recipientName);
-              const hasFootChips = showBadge || (!isEditing && displayContactNames.length > 0) || showRecipientPill;
+              // Internal notes name the person in their own text (e.g. a
+              // "viewed portal" row), so the contact-name pill is pure noise on
+              // them. Email/message rows keep it — there it says who it went to.
+              const showContactPills = !isEditing && entry.type !== "internal_note" && displayContactNames.length > 0;
+              const hasFootChips = showBadge || showContactPills || showRecipientPill;
               return (
                 <GlassCard
                   glassId="activity-timeline-entry"
@@ -783,7 +787,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           {badge.label}
                         </Pill>
                       )}
-                      {!isEditing && displayContactNames.map((name) => (
+                      {showContactPills && displayContactNames.map((name) => (
                         <ContactPill key={name} name={name} />
                       ))}
                       {showRecipientPill && entry.recipientName && (

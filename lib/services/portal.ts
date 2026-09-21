@@ -816,7 +816,10 @@ export async function logPortalView(token: string): Promise<void> {
   }
 
   const tx = contact.transaction;
-  const content = `${contact.name} (${contact.roleType}) viewed their client portal for ${tx.propertyAddress}`;
+  // No "(vendor)"/"(purchaser)" here — the side is shown by the actor's coloured
+  // avatar in the activity feed. (Existing rows are cleaned on display too, see
+  // stripPortalViewSide in lib/services/comms.ts.)
+  const content = `${contact.name} viewed their client portal for ${tx.propertyAddress}`;
 
   // Log as internal note — use system user id or assigned user id
   const userId = tx.assignedUser?.id;

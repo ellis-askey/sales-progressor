@@ -135,6 +135,18 @@ function actorSubLabel(role: ActorRole): string | null {
   return null; // progressor / agent / system carry no sublabel
 }
 
+// Portal-view notes historically read "Name (vendor) viewed their client
+// portal…". The side is now shown by the actor's coloured avatar, so the "(role)"
+// is stripped for display (the source no longer writes it — see
+// lib/services/portal.ts). Only touches the portal-view line; other content is
+// returned untouched.
+function stripPortalViewSide(content: string): string {
+  return content.replace(
+    /^(.+?) \((?:vendor|purchaser|buyer|seller|broker|solicitor)\) (viewed their client portal)/i,
+    "$1 $2",
+  );
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getActivityTimeline(
@@ -432,7 +444,7 @@ export async function getActivityTimeline(
     at: c.sentAt ?? c.createdAt,
     type: c.type,
     method: c.method,
-    content: c.content,
+    content: stripPortalViewSide(c.content),
     createdById: c.createdById ?? null,
     createdByName: c.createdBy?.name ?? null,
     createdByImage: c.createdBy?.image ?? null,

@@ -333,6 +333,12 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
   actorRole?: ActorRole; actorName?: string | null; actorImage?: string | null;
 }) {
   const who = actorName ?? author;
+  // Drop the byline name when the text already leads with it (system lines like
+  // "Mr Pete Stevens viewed…" / "Ellis Askey confirmed…") — pure duplication.
+  // A manually typed note ("Chase the solicitor") doesn't start with the name,
+  // so it keeps "{who} · " as its only attribution.
+  const nameLeadsContent = !!who && content.trimStart().startsWith(who);
+  const showByName = !!who && !nameLeadsContent;
   return (
     <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative" }}>
       {actorRole ? (
@@ -354,7 +360,7 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
               padding: "1px 6px", borderRadius: 6, flexShrink: 0,
             }}>{tag}</span>
           )}
-          <span>{who ? `${who} · ` : ""}{time}</span>
+          <span>{showByName ? `${who} · ` : ""}{time}</span>
         </p>
       </div>
       {onDelete && (
