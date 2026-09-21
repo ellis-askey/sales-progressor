@@ -68,7 +68,16 @@ export function SnoozeMenu({
       if (contentRef.current?.contains(t)) return;
       close();
     }
-    function handleScroll() { close(); }
+    function handleScroll(e: Event) {
+      // Only a page/outside scroll should dismiss the fixed-position popover.
+      // Ignore scrolls that originate INSIDE it — e.g. the reason textarea
+      // scrolling as you type past its two visible rows, which otherwise closed
+      // the popover mid-note (it listens in the capture phase, so it sees the
+      // textarea's own scroll).
+      const t = e.target as Node | null;
+      if (t && contentRef.current?.contains(t)) return;
+      close();
+    }
     if (open) {
       document.addEventListener("mousedown", handle);
       window.addEventListener("scroll", handleScroll, true);
