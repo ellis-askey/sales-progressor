@@ -95,7 +95,7 @@ export function DiaryEventRow({
     startTransition(async () => {
       try {
         const r = await recalibrateExchangeDateAction(item.transactionId);
-        if (r.ok) { toast.success("Estimate recalculated", { description: "New expected date set from today." }); router.refresh(); }
+        if (r.ok) { toast.success("Estimate recalibrated", { description: r.newDate ? `New expected exchange: ${r.newDate}` : "New expected date set from today." }); router.refresh(); }
         else toast.error("Couldn't recalculate.");
       } catch { toast.error("Couldn't recalculate."); }
       finally { setBusy(false); }

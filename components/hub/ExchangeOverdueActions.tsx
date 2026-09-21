@@ -27,13 +27,20 @@ export function ExchangeOverdueActions({ transactionId, address, onDone }: {
   const [reviseOpen, setReviseOpen] = useState(false);
   const [, startTransition] = useTransition();
 
-  const run = (action: () => Promise<{ ok: boolean }>, okMsg: string, okDesc: string, failMsg: string) => {
+  // okDesc can be a plain string or, when the action returns detail worth showing
+  // (e.g. the recalibrated date), a function of the result.
+  const run = <T extends { ok: boolean }>(
+    action: () => Promise<T>,
+    okMsg: string,
+    okDesc: string | ((res: T) => string),
+    failMsg: string,
+  ) => {
     setBusy(true);
     startTransition(async () => {
       try {
         const res = await action();
         if (!res.ok) throw new Error("rejected");
-        toast.success(okMsg, { description: okDesc });
+        toast.success(okMsg, { description: typeof okDesc === "function" ? okDesc(res) : okDesc });
         onDone?.();
       } catch {
         toast.error(failMsg);
@@ -61,7 +68,12 @@ export function ExchangeOverdueActions({ transactionId, address, onDone }: {
           icon: <ArrowsClockwise size={16} weight="bold" />,
           title: "Recalibrate estimate",
           sub: "Re-estimate from today based on what's left.",
-          onClick: () => run(() => recalibrateExchangeDateAction(transactionId), "Estimate recalibrated", "New expected date set from today.", "Couldn't recalibrate"),
+          onClick: () => run(
+            () => recalibrateExchangeDateAction(transactionId),
+            "Estimate recalibrated",
+            (res) => (res.newDate ? `New expected exchange: ${res.newDate}` : "New expected date set from today."),
+            "Couldn't recalibrate",
+          ),
         },
         {
           key: "snooze",

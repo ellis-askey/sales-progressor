@@ -1182,7 +1182,7 @@ export async function reviseOverdueExchangeDateAction(input: {
 // and re-run the system estimate from today (which pushes the date forward off
 // the remaining critical path), so a file you're still working stops nagging with
 // a fresh, honest estimate rather than a fake set date.
-export async function recalibrateExchangeDateAction(transactionId: string): Promise<{ ok: boolean }> {
+export async function recalibrateExchangeDateAction(transactionId: string): Promise<{ ok: boolean; newDate?: string | null }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
@@ -1218,10 +1218,12 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
       if (p) predictions.push(p);
     }
 
+    let chainDateStr: string | null = null;
     if (predictions.length > 0) {
       const chainDate = rollToBusinessDay(
         new Date(Math.max(...predictions.map((d) => d.getTime()))),
       );
+      chainDateStr = chainDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
       for (const id of allIds) {
         await applyExchangeDateOverride({
           transactionId: id,
@@ -1235,7 +1237,7 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
       }
     }
     revalidatePath("/agent/hub", "page");
-    return { ok: true };
+    return { ok: true, newDate: chainDateStr };
   }
 
   // ── Single file (no managed chain-mates): plain recalibrate ──
@@ -1264,7 +1266,7 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
   );
   revalidateTx(transactionId);
   revalidatePath("/agent/hub", "page");
-  return { ok: true };
+  return { ok: true, newDate: dateStr };
 }
 
 // Hub "Exchange date passed" quick-action: SNOOZE. Suppress the nag for a few
