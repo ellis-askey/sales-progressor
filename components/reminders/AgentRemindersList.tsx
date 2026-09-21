@@ -388,7 +388,7 @@ function SplitFileCard({
   const [addSolFor, setAddSolFor] = useState<"vendor" | "purchaser" | null>(null);
   // Add-client-email modal, opened from a "No email on file for the client" row.
   const [addEmailFor, setAddEmailFor] = useState<{ isBuyer: boolean; contacts: { id: string; name: string; roleType: string; email: string | null }[] } | null>(null);
-  const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[] } | null>(null);
+  const [rowChase, setRowChase] = useState<{ taskId: string; name: string; chaseCount: number; isBuyer: boolean; contacts: ChaseContact[]; responsible: "client" | "solicitor" } | null>(null);
   // "View" preview of a pending auto-chase email (autopilot rows).
   const [previewRow, setPreviewRow] = useState<{ logId: string; pipeline: "client" | "solicitor"; sendLabel: string } | null>(null);
   const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
@@ -693,7 +693,7 @@ function SplitFileCard({
                 // Deck primary: Chase is the split-CTA; its chevron holds Mark
                 // chased + Mark done. Same actions, reorganised. Snooze is its own.
                 <ChaseSplitButton
-                  onChase={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer) })}
+                  onChase={() => setRowChase({ taskId: task.id, name, chaseCount: task.chaseCount, isBuyer, contacts: contactsForSide(isBuyer), responsible: info?.responsible === "solicitor" ? "solicitor" : "client" })}
                   onMarkChased={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                   onMarkDone={() => handleComplete(task.id)}
                   disabled={isExiting}
@@ -838,6 +838,7 @@ function SplitFileCard({
           chaseCount={rowChase.chaseCount}
           contacts={rowChase.contacts}
           defaultAddRole={rowChase.isBuyer ? "purchaser" : "vendor"}
+          preferRole={rowChase.responsible}
           onClose={() => setRowChase(null)}
           onSent={() => {
             const match = openTasks.find(({ task }) => task.id === rowChase.taskId);

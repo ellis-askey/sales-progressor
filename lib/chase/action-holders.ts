@@ -120,6 +120,17 @@ export function getActionHolder(code: string): ActionHolderSpec | null {
   return ACTION_HOLDERS[code] ?? null;
 }
 
+// The party a chase for this milestone is addressed to — the solicitor for
+// solicitor-held steps (own_sol, or a receipt confirmed by a solicitor), the
+// client otherwise. null for excluded / unknown steps. Client-safe, so the chase
+// drawer can pre-select the right recipient. Mirrors the reminders page's
+// glossary-derived `responsible`, from the same hand-authored source.
+export function chaseParty(code: string | null | undefined): "client" | "solicitor" | null {
+  const spec = code ? ACTION_HOLDERS[code] : undefined;
+  if (!spec || spec.kind === "excluded") return null;
+  return spec.holder === "seller_solicitor" || spec.holder === "buyer_solicitor" ? "solicitor" : "client";
+}
+
 export function isChaseable(code: string): boolean {
   const spec = ACTION_HOLDERS[code];
   return !!spec && spec.kind !== "excluded";

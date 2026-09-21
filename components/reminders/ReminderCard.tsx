@@ -11,6 +11,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { chaseBadgeLabel } from "@/lib/reminders/classify";
+import { chaseParty } from "@/lib/chase/action-holders";
 
 export type Contact = {
   id: string;
@@ -530,6 +531,7 @@ export function ReminderCard({
                     milestoneName={stripChase(log.reminderRule.name)}
                     chaseCount={openTask.chaseCount}
                     contacts={chaseContacts}
+                    preferRole={chaseParty(log.reminderRule.targetMilestoneCode) ?? "client"}
                     onSent={() => onChased?.(openTask.id)}
                   />
                   <SnoozeDropdown

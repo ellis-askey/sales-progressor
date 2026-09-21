@@ -18,6 +18,9 @@ interface ChaseButtonProps {
   milestoneName: string;
   chaseCount: number;
   contacts: Contact[];
+  // Which party owns the step (from the action-holder map) — pre-selects the
+  // solicitor for solicitor steps. Defaults to client-first when unset.
+  preferRole?: "client" | "solicitor";
   onSent?: () => void;
 }
 
@@ -28,6 +31,7 @@ export function ChaseButton({
   milestoneName,
   chaseCount,
   contacts,
+  preferRole,
   onSent,
 }: ChaseButtonProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -49,6 +53,7 @@ export function ChaseButton({
           milestoneName={milestoneName}
           chaseCount={chaseCount}
           contacts={contacts}
+          preferRole={preferRole}
           onClose={() => setDrawerOpen(false)}
           onSent={() => { onSent?.(); setDrawerOpen(false); }}
         />

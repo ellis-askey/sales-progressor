@@ -104,17 +104,23 @@ export function withSolicitorRecipients(
   return [...contacts, ...fresh];
 }
 
-// The default recipient the drawer pre-selects. Client-first, solicitor fallback,
-// then any addressable contact — identical to the drawer's previous
-// `clientContact ?? solicitorContact ?? contacts.find(email)` order, so wiring the
-// selector in does not change who a chase goes to by default.
-export function defaultRecipient(contacts: ChaseContact[]): ChaseContact | null {
-  return (
-    contacts.find((c) => CLIENT_ROLES.includes(c.roleType) && c.email) ??
-    contacts.find((c) => isSolicitorRecipient(c) && c.email) ??
-    contacts.find((c) => c.email || c.phone) ??
-    null
-  );
+// The default recipient the drawer pre-selects. `prefer` says which party owns
+// the step being chased (from the milestone action-holder map): a solicitor step
+// pre-selects the side's solicitor, a client step pre-selects the client. Either
+// way it falls back to the other party, then to any addressable contact, so a
+// step whose preferred party isn't on file still opens with someone selected.
+// Defaults to "client" — the historic behaviour — so untouched callers are
+// unchanged.
+export function defaultRecipient(
+  contacts: ChaseContact[],
+  prefer: "client" | "solicitor" = "client",
+): ChaseContact | null {
+  const client = contacts.find((c) => CLIENT_ROLES.includes(c.roleType) && c.email) ?? null;
+  const solicitor = contacts.find((c) => isSolicitorRecipient(c) && c.email) ?? null;
+  const anyReachable = contacts.find((c) => c.email || c.phone) ?? null;
+  return prefer === "solicitor"
+    ? (solicitor ?? client ?? anyReachable)
+    : (client ?? solicitor ?? anyReachable);
 }
 
 // Side-aware role wording for a single recipient. Buyer-facing wording per VOICE.md

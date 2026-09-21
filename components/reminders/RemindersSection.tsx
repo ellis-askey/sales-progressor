@@ -12,6 +12,7 @@ import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
+import { chaseParty } from "@/lib/chase/action-holders";
 import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { useTabBadge } from "@/components/transaction/TabBadgeContext";
@@ -156,11 +157,11 @@ function PriorityList({
   // "Chase now" drawer for reminders that don't have a task yet (start-early
   // path). Holds the freshly-created ChaseTask id returned by the server so
   // the same ChaseDrawer component can render it as a single-log chase.
-  const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; isBuyer: boolean } | null>(null);
+  const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; isBuyer: boolean; preferRole: "client" | "solicitor" } | null>(null);
   const [earlyChaseLoading, setEarlyChaseLoading] = useState<string | null>(null);
   // Per-row chase composer — the coloured Chase on a single row opens the
   // same ChaseDrawer for just that task.
-  const [rowChase, setRowChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; contacts: ChaseContact[]; defaultAddRole: "vendor" | "purchaser" } | null>(null);
+  const [rowChase, setRowChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number; contacts: ChaseContact[]; defaultAddRole: "vendor" | "purchaser"; preferRole: "client" | "solicitor" } | null>(null);
   // Optimistic chase-count overlay per task. Click the ↻ Chased button →
   // counter bumps in the UI immediately; the server action runs in
   // background. When the props refresh (server data lands), the prop
@@ -274,7 +275,7 @@ function PriorityList({
                 <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   <Button
                     size="sm"
-                    onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer), defaultAddRole: isBuyer ? "purchaser" : "vendor" })}
+                    onClick={() => setRowChase({ logId: log.id, taskId: task.id, name, chaseCount: task.chaseCount, contacts: contactsForSide(isBuyer), defaultAddRole: isBuyer ? "purchaser" : "vendor", preferRole: chaseParty(log.reminderRule.targetMilestoneCode) ?? "client" })}
                     style={{ height: 28 }}
                   >
                     Chase
@@ -304,7 +305,7 @@ function PriorityList({
                     setEarlyChaseLoading(log.id);
                     try {
                       const { taskId } = await chaseNowFromLogAction(log.id, pathname);
-                      setEarlyChase({ logId: log.id, taskId, name: stripChase(log.reminderRule.name), chaseCount: 0, isBuyer: !!log.reminderRule.targetMilestoneCode?.startsWith("PM") });
+                      setEarlyChase({ logId: log.id, taskId, name: stripChase(log.reminderRule.name), chaseCount: 0, isBuyer: !!log.reminderRule.targetMilestoneCode?.startsWith("PM"), preferRole: chaseParty(log.reminderRule.targetMilestoneCode) ?? "client" });
                     } catch (err) {
                       console.error("[RemindersSection] chaseNowFromLog failed", err);
                     } finally {
@@ -371,6 +372,7 @@ function PriorityList({
           chaseCount={rowChase.chaseCount}
           contacts={rowChase.contacts}
           defaultAddRole={rowChase.defaultAddRole}
+          preferRole={rowChase.preferRole}
           onClose={() => setRowChase(null)}
           onSent={() => {
             handleChased(rowChase.taskId, rowChase.logId);
@@ -388,6 +390,7 @@ function PriorityList({
           chaseCount={earlyChase.chaseCount}
           contacts={contactsForSide(earlyChase.isBuyer)}
           defaultAddRole={earlyChase.isBuyer ? "purchaser" : "vendor"}
+          preferRole={earlyChase.preferRole}
           onClose={() => setEarlyChase(null)}
           onSent={() => {
             handleChased(earlyChase.taskId, earlyChase.logId);

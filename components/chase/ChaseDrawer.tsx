@@ -83,6 +83,10 @@ interface ChaseDrawerProps {
   // side when the caller knows it (single-side row/early chase). Chase-all leaves
   // it unset and the form defaults to Vendor.
   defaultAddRole?: "vendor" | "purchaser";
+  // Which party owns the step being chased (from the milestone action-holder
+  // map). A solicitor-owned step pre-selects the side's solicitor as the
+  // recipient; a client step (or unset) pre-selects the client, as before.
+  preferRole?: "client" | "solicitor";
   onClose: () => void;
   onSent: () => void;
 }
@@ -172,6 +176,7 @@ export function ChaseDrawer({
   contacts: contactsProp,
   milestones,
   defaultAddRole,
+  preferRole = "client",
   onClose,
   onSent,
 }: ChaseDrawerProps) {
@@ -218,7 +223,7 @@ export function ChaseDrawer({
   // (see lib/services/chase-recipients.ts). The "To" selector drives the whole
   // send: who it goes to, which channels are available, and the CC.
   const recipientCandidates = contacts.filter((c) => c.email || c.phone);
-  const initialRecipient = defaultRecipient(contacts);
+  const initialRecipient = defaultRecipient(contacts, preferRole);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(initialRecipient?.id ?? null);
   const selectedRecipient =
     recipientCandidates.find((c) => c.id === selectedRecipientId) ?? initialRecipient;
@@ -280,6 +285,7 @@ export function ChaseDrawer({
   // Selecting a solicitor forces Email (solicitors are never WhatsApp'd).
   function selectRecipient(id: string) {
     setSelectedRecipientId(id);
+    setCcOnIds([]); // CC toggles are per-recipient; reset to default-off on switch
     closeToMenu();
     const next = recipientCandidates.find((c) => c.id === id) ?? null;
     if (next && isSolicitorRecipient(next) && channel === "whatsapp") {
@@ -287,7 +293,10 @@ export function ChaseDrawer({
     }
   }
 
-  const [ccOn, setCcOn] = useState(false);
+  // Per-person CC: the ids of the CC candidates currently toggled ON. Each
+  // candidate (each client when the solicitor is the recipient) is its own
+  // toggle, all default OFF. Cleared when the recipient changes.
+  const [ccOnIds, setCcOnIds] = useState<string[]>([]);
   // Email subject — pre-set from the recipient (address for solicitors, a
   // client-facing "Your sale/purchase of <first line> - Progression" for
   // clients), editable. Not driven by the AI draft; recomputed when the
@@ -351,20 +360,21 @@ export function ChaseDrawer({
   const clientCcContacts = contacts.filter(
     (c) => ["vendor", "purchaser", "broker"].includes(c.roleType) && c.email && c.id !== selectedRecipient?.id,
   );
+  // CC candidates rendered as one toggle EACH (per-person), all default off:
+  // solicitor recipient → every client on this side; client recipient → this
+  // side's solicitor. Joint sellers/buyers therefore get an individual switch.
   const ccContacts = recipientIsSolicitor
     ? clientCcContacts
     : (ccSolicitorContact ? [ccSolicitorContact] : []);
-  const ccEmails = ccContacts.map((c) => c.email).filter((e): e is string => !!e);
-  const ccLabel = recipientIsSolicitor
-    ? (clientCcContacts.length === 1 ? clientCcContacts[0].name : `${clientCcContacts.length} clients`)
-    : (ccSolicitorContact?.name ?? "");
   const ccRoleWord = recipientIsSolicitor ? "client" : "solicitor";
 
-  const showCcToggle = channel === "email" && ccEmails.length > 0;
-  const displayShowCcToggle = displayChannel === "email" && ccEmails.length > 0;
+  const showCcToggle = channel === "email" && ccContacts.length > 0;
+  const displayShowCcToggle = displayChannel === "email" && ccContacts.length > 0;
   const assistantCc =
     recipientIsSolicitor && selectedRecipient?.secondaryEmail ? [selectedRecipient.secondaryEmail] : [];
-  const effectiveCc = [...assistantCc, ...(showCcToggle && ccOn ? ccEmails : [])];
+  const ccdContacts = ccContacts.filter((c) => ccOnIds.includes(c.id));
+  const anyCcOn = ccdContacts.length > 0;
+  const effectiveCc = [...assistantCc, ...ccdContacts.map((c) => c.email).filter((e): e is string => !!e)];
   // WhatsApp is unavailable for solicitor recipients (email only) and for a
   // recipient with no phone number on file.
   const waAvailable = !recipientIsSolicitor && !!selectedRecipient?.phone;
@@ -570,8 +580,8 @@ export function ChaseDrawer({
         ? { recipientId: selectedRecipient.id, recipientRole: selectedRecipient.roleType }
         : {};
       const body = isMulti
-        ? { chaseTaskIds: milestones!.map((m) => m.chaseTaskId), channel, tone, includeCc: showCcToggle && ccOn, ...recipientFields }
-        : { chaseTaskId, channel, tone, includeCc: showCcToggle && ccOn, ...recipientFields };
+        ? { chaseTaskIds: milestones!.map((m) => m.chaseTaskId), channel, tone, includeCc: showCcToggle && anyCcOn, ...recipientFields }
+        : { chaseTaskId, channel, tone, includeCc: showCcToggle && anyCcOn, ...recipientFields };
       const res = await fetch("/api/ai/generate-chase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -612,7 +622,7 @@ export function ChaseDrawer({
       : selectedRecipient?.roleType === "purchaser" || selectedRecipient?.roleType === "broker"
         ? "purchaser"
         : "vendor";
-    const sameSideCcd = !!(recipientIsSolicitor && showCcToggle && ccOn && clientCcContacts.length > 0);
+    const sameSideCcd = !!(recipientIsSolicitor && showCcToggle && anyCcOn);
     const taskIds = isMulti ? milestones!.map((m) => m.chaseTaskId) : [chaseTaskId];
     setSentCtx({
       transactionId,
@@ -1150,24 +1160,31 @@ export function ChaseDrawer({
                 </p>
               )}
               {displayShowCcToggle && (
-                <button
-                  onClick={() => setCcOn((v) => !v)}
-                  style={{
-                    ...swapFade,
-                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "8px 12px", borderRadius: 10,
-                    border: ccOn ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
-                    background: ccOn ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
-                    cursor: "pointer", transition: "all 140ms",
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 500, color: ccOn ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
-                    CC {ccLabel} <span style={{ fontWeight: 400, opacity: 0.7 }}>({ccRoleWord})</span>
-                  </span>
-                  <span style={{ width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center", background: ccOn ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0 }}>
-                    <span style={{ width: 14, height: 14, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", marginLeft: ccOn ? 16 : 2, transition: "margin-left 140ms" }} />
-                  </span>
-                </button>
+                <div style={{ ...swapFade, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {ccContacts.map((c) => {
+                    const on = ccOnIds.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setCcOnIds((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]))}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 12px", borderRadius: 10,
+                          border: on ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
+                          background: on ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
+                          cursor: "pointer", transition: "all 140ms",
+                        }}
+                      >
+                        <span style={{ fontSize: 12, fontWeight: 500, color: on ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                          CC {c.name} <span style={{ fontWeight: 400, opacity: 0.7 }}>({ccRoleWord})</span>
+                        </span>
+                        <span style={{ width: 34, height: 18, borderRadius: 9, display: "flex", alignItems: "center", background: on ? "var(--agent-coral-deep)" : "var(--agent-border-subtle)", transition: "background 140ms", flexShrink: 0 }}>
+                          <span style={{ width: 14, height: 14, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", marginLeft: on ? 16 : 2, transition: "margin-left 140ms" }} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

@@ -53,6 +53,7 @@ import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction
 import { advanceChaseTaskAction, completeTaskAction, snoozeTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { withSolicitorRecipients } from "@/lib/services/chase-recipients";
+import { chaseParty } from "@/lib/chase/action-holders";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { assignWaitBadge } from "@/lib/hub/assign-wait";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -290,6 +291,7 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
           chaseCount={item.chaseCount}
           contacts={recipients}
           defaultAddRole={isBuyer ? "purchaser" : "vendor"}
+          preferRole={chaseParty(item.targetMilestoneCode) ?? "client"}
           onClose={() => setChaseTaskId(null)}
           onSent={() => {
             // Mirror the work queue's post-send step: advance the next chase

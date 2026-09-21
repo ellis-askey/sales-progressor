@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
+import { chaseParty } from "@/lib/chase/action-holders";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 
 function stripChase(name: string): string {
@@ -167,6 +168,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
             milestoneName={stripChase(task.reminderLog.reminderRule.name)}
             chaseCount={task.chaseCount}
             contacts={task.transaction.contacts}
+            preferRole={chaseParty(task.reminderLog.reminderRule.targetMilestoneCode) ?? "client"}
             onSent={onChased}
           />
 
