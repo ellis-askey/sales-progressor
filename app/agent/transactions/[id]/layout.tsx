@@ -57,6 +57,7 @@ import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
 import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
+import { ShellTimingBadge } from "@/components/transaction/ShellTimingBadge";
 
 // Note: unstable_dynamicStaleTime is a page-only segment config (Next rejects it
 // on layouts at build), so the 5-minute client-router reuse is set on each tab
@@ -87,7 +88,9 @@ export default async function AgentTransactionFileLayout({
 }
 
 async function FileShell({ id, children }: { id: string; children: React.ReactNode }) {
+  const _t0 = Date.now();
   const ctx = await loadFilePageContext(id);
+  const _trunkMs = Date.now() - _t0;
   const { session, transaction, isInternalStaff, isProgressor, isAdminRole, isEllis, isInternalTeam, isDirectorRole, isAgentRole } = ctx;
 
   const basePath = `/agent/transactions/${transaction.id}`;
@@ -102,6 +105,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // it only feeds the File setup tab's badge count, so it streams in after paint
   // via TabBadgeCounts instead of holding the tabs back. (spSenderIdentity is on
   // the Activity segment; exchangeAuthority stays below — it needs exchangeDay.)
+  const _tBarrier = Date.now();
   const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, exchangeDay, demoTourUser] = await Promise.all([
     getMilestonesCached(id, session.user.agencyId).catch(() => null),
     transaction.agentUserId
@@ -130,6 +134,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           .catch(() => null)
       : Promise.resolve(null),
   ]);
+  const _barrierMs = Date.now() - _tBarrier;
 
   // ── Hero-level progress (derived from the critical-path milestones) ───
   const allMilestones = [
@@ -273,9 +278,12 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
 
   // Exchange-day control (under "View timeline" in the milestone strip).
   const exchangeDayActive = !!exchangeDay && exchangeDay.active && !exchangeDay.exchanged;
+  const _tExch = Date.now();
   const exchangeAuthority = exchangeDayActive
     ? await getExchangeDayAuthority(transaction.id).catch(() => ({ seller: null, buyer: null }))
     : null;
+  const _exchMs = Date.now() - _tExch;
+  const _shellMs = Date.now() - _t0;
   const exchangeDayGate = resolveExchangeDayGate(allMilestones);
   const exchangeDayControl = exchangeDay && !exchangeDay.exchanged ? (
     <ExchangeDayControl
@@ -292,6 +300,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
+      {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} />}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
       <Suspense><MosConfirmedNotice /></Suspense>
