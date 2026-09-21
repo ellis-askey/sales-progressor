@@ -107,7 +107,7 @@ export function ChainBuildMap({ stubs, originatorAddress, bare = false }: { stub
         border: "0.5px solid var(--agent-border-subtle)",
       }}>
         {nodes.length === 0 ? (
-          <Placeholder label="Add a property with a postcode and it'll drop onto the map here — your chain, forming as you build it." />
+          <Placeholder label="Add a property with a postcode and it'll drop onto the map here. Your chain takes shape as you build it." />
         ) : (
           <>
             <ChainGeoMap nodes={nodes} moves={moves} details={details} selectedId={selectedId} onSelectNode={setSelectedId} theme={isNight ? "dark" : "light"} hideAttribution />
