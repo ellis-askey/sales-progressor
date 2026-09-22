@@ -6,6 +6,7 @@ import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
@@ -2250,9 +2251,6 @@ export async function getHubAttentionItems(
   vis: AgentVisibility
 ): Promise<HubAttentionItem[]> {
   const now = new Date();
-  // Generous DB upper bound — catches anything that could be "today UK"
-  // regardless of DST. Final classification happens in JS via classifyReminder.
-  const dbUpperBound = new Date(now.getTime() + 26 * 60 * 60 * 1000);
   const txNested = buildTxNested(vis);
 
   // Build the transaction filter for reminderLog.where.transaction.
@@ -2274,13 +2272,15 @@ export async function getHubAttentionItems(
       // attention items on the agency's real hub.
       : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", isDemo: false, ...txNested };
 
-  // Due today or overdue, not snoozed — scoped to this agent/firm
+  // Active + not snoozed, scoped to this agent/firm. NOTE: no nextDueDate cap —
+  // we also need chased-out rows whose stored next-chase date is in the future so
+  // the compute-on-read hand-over schedule (below) can surface them. The JS
+  // classifier still drops anything that isn't overdue/due-today/escalated.
   const logs = await prisma.reminderLog.findMany({
     where: {
       transaction: txLogFilter,
       status: "active",
       OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
-      nextDueDate: { lte: dbUpperBound },
     },
     orderBy: { nextDueDate: "asc" },
     select: {
@@ -2288,7 +2288,8 @@ export async function getHubAttentionItems(
       nextDueDate: true,
       // targetMilestoneCode + the transaction pause/contact fields below feed
       // resolveAutopilot (is the auto-chase pipeline still handling this?).
-      reminderRule: { select: { name: true, targetMilestoneCode: true } },
+      // repeatEveryDays feeds the hand-over schedule computed below.
+      reminderRule: { select: { name: true, targetMilestoneCode: true, repeatEveryDays: true } },
       transaction: {
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true,
@@ -2322,11 +2323,43 @@ export async function getHubAttentionItems(
     },
   });
 
+  // Hand-over schedule (compute-on-read) — mirror the work queue so a chased-out
+  // step surfaces here on the day it's due to a person, even if the hand-over
+  // cron stalled. See lib/reminders/chase-escalation.ts. The JS classifier below
+  // still keeps only the "now" (overdue/due-today) rows off this schedule.
+  const codesForChase = Array.from(new Set(logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)));
+  const txIdsForChase = Array.from(new Set(logs.map((l) => l.transaction.id)));
+  const chaseByTxCode = new Map<string, ChaseSnapshot>();
+  if (txIdsForChase.length > 0 && codesForChase.length > 0) {
+    const states = await prisma.clientChaseState.findMany({
+      where: { transactionId: { in: txIdsForChase }, milestoneCode: { in: codesForChase }, status: { in: ["active", "escalated"] } },
+      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true },
+    });
+    for (const s of states) {
+      const key = `${s.transactionId}:${s.milestoneCode}`;
+      const cur = chaseByTxCode.get(key);
+      if (!cur) chaseByTxCode.set(key, { chaseCount: s.chaseCount, firstChasedAt: s.firstChasedAt, lastChasedAt: s.lastChasedAt, lastEngagedAt: s.lastEngagedAt });
+      else {
+        cur.chaseCount = Math.max(cur.chaseCount, s.chaseCount);
+        if (s.firstChasedAt && (!cur.firstChasedAt || s.firstChasedAt < cur.firstChasedAt)) cur.firstChasedAt = s.firstChasedAt;
+        if (s.lastChasedAt && (!cur.lastChasedAt || s.lastChasedAt > cur.lastChasedAt)) cur.lastChasedAt = s.lastChasedAt;
+        if (s.lastEngagedAt && (!cur.lastEngagedAt || s.lastEngagedAt > cur.lastEngagedAt)) cur.lastEngagedAt = s.lastEngagedAt;
+      }
+    }
+  }
+  const enrichedLogs = logs.map((l) => {
+    const code = l.reminderRule.targetMilestoneCode;
+    const snap = code ? chaseByTxCode.get(`${l.transaction.id}:${code}`) : undefined;
+    const handoverDate = snap ? chaseHandoverDate(snap, l.reminderRule.repeatEveryDays, now) : null;
+    const due = handoverDate && chaseHandoverPhase(handoverDate, now) ? handoverDate : null;
+    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!due };
+  });
+
   // "With the system, not yet raised to a person" doesn't count: resolve each
   // reminder's autopilot state and drop the ones the auto-chase pipeline is
   // still handling. An escalated reminder always resolves to "manual", so it's
   // kept. Same split the Reminders work queue uses for needs-you vs on-autopilot.
-  const agencyIds = [...new Set(logs.map((l) => l.transaction.agencyId).filter((a): a is string => !!a))];
+  const agencyIds = [...new Set(enrichedLogs.map((l) => l.transaction.agencyId).filter((a): a is string => !!a))];
   const [solSettings, agencies] = await Promise.all([
     prisma.solicitorChaseSettings.findFirst({ select: { enabledByDefault: true } }),
     agencyIds.length
@@ -2339,12 +2372,12 @@ export async function getHubAttentionItems(
     agencyClientChase: new Map(agencies.map((a) => [a.id, a.chaseEmailsEnabled])),
     agencySolicitorChase: new Map(agencies.map((a) => [a.id, a.solicitorChaseEnabled])),
   };
-  const autopilot = resolveAutopilot(logs, flags);
+  const autopilot = resolveAutopilot(enrichedLogs, flags);
 
   // Apply the canonical classifier — chased rows (chaseCount >= 1) live
   // in Coming up and shouldn't surface on the hub attention card. Only
   // escalated / overdue / due_today land here.
-  const items: HubAttentionItem[] = logs
+  const items: HubAttentionItem[] = enrichedLogs
     .map((log) => {
       // On autopilot (system chasing, not escalated) → not a human's job yet.
       if (autopilot.get(log.id)?.kind === "auto") return null;

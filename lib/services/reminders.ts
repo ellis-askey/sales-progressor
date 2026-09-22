@@ -7,6 +7,7 @@ import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
+import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -414,7 +415,53 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     return !codes?.has(target);
   });
 
+  // ── Chase hand-over schedule (compute-on-read) ──────────────────────────────
+  // A client-chaseable step is hidden from this queue while the autopilot owns it
+  // (resolveAutopilot), and is meant to reappear when the autopilot hands it back
+  // via the daily cron. If that cron stalls, the step is lost silently. So we
+  // derive the hand-over date here from the chase state and surface the step on a
+  // fixed schedule — Coming up a few days early, Needs you on the day —
+  // independent of the cron. See lib/reminders/chase-escalation.ts.
+  const codesForChase = Array.from(
+    new Set(visibleLogs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)),
+  );
+  const chaseByTxCode = new Map<string, ChaseSnapshot>();
+  if (txIds.length > 0 && codesForChase.length > 0) {
+    const states = await prisma.clientChaseState.findMany({
+      where: { transactionId: { in: txIds }, milestoneCode: { in: codesForChase }, status: { in: ["active", "escalated"] } },
+      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true },
+    });
+    // Aggregate couple-as-one per (tx, milestone): furthest-along chase count,
+    // earliest first-chase, latest last-chase + last-engagement.
+    for (const s of states) {
+      const key = `${s.transactionId}:${s.milestoneCode}`;
+      const cur = chaseByTxCode.get(key);
+      if (!cur) {
+        chaseByTxCode.set(key, { chaseCount: s.chaseCount, firstChasedAt: s.firstChasedAt, lastChasedAt: s.lastChasedAt, lastEngagedAt: s.lastEngagedAt });
+      } else {
+        cur.chaseCount = Math.max(cur.chaseCount, s.chaseCount);
+        if (s.firstChasedAt && (!cur.firstChasedAt || s.firstChasedAt < cur.firstChasedAt)) cur.firstChasedAt = s.firstChasedAt;
+        if (s.lastChasedAt && (!cur.lastChasedAt || s.lastChasedAt > cur.lastChasedAt)) cur.lastChasedAt = s.lastChasedAt;
+        if (s.lastEngagedAt && (!cur.lastEngagedAt || s.lastEngagedAt > cur.lastEngagedAt)) cur.lastEngagedAt = s.lastEngagedAt;
+      }
+    }
+  }
+  const nowForChase = new Date();
+  // Per-log: the effective due date when it's within/past its hand-over schedule.
+  const handoverDueById = new Map<string, Date>();
+  for (const l of visibleLogs) {
+    const code = l.reminderRule.targetMilestoneCode;
+    if (!code) continue;
+    const snap = chaseByTxCode.get(`${l.transaction.id}:${code}`);
+    if (!snap) continue;
+    const handoverDate = chaseHandoverDate(snap, l.reminderRule.repeatEveryDays, nowForChase);
+    if (chaseHandoverPhase(handoverDate, nowForChase) && handoverDate) handoverDueById.set(l.id, handoverDate);
+  }
   const todayUKStr = toUKDateStr(new Date());
+  // Only pre-create tasks for rows genuinely due by their OWN schedule (existing
+  // behaviour). Hand-over rows surface without a pre-created task — the chase
+  // drawer makes one on demand — so a big backlog doesn't trigger a write storm
+  // on first load.
   const dueWithNoTask = visibleLogs.filter((l) => {
     return l.chaseTasks.length === 0 && toUKDateStr(l.nextDueDate) <= todayUKStr;
   });
@@ -429,7 +476,13 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     return getAgentReminderLogs(vis);
   }
 
-  return visibleLogs;
+  // Surface the hand-over schedule: override nextDueDate to the hand-over date and
+  // flag the row, so resolveAutopilot pulls it off autopilot and the date buckets
+  // it into Coming up (a few days before) / Needs you (on the day).
+  return visibleLogs.map((l) => {
+    const due = handoverDueById.get(l.id);
+    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!due };
+  });
 }
 
 export async function getChaseTasksForTransaction(transactionId: string, scope: AccessScope) {

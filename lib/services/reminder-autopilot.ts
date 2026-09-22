@@ -39,6 +39,9 @@ export interface AutopilotFlags {
 interface LogShape {
   id: string;
   nextDueDate: Date;
+  // Set by getAgentReminderLogs when the chase is within/past its computed
+  // hand-over schedule — pulls it off autopilot regardless of the cron.
+  handoverDue?: boolean;
   reminderRule: { targetMilestoneCode: string | null };
   chaseTasks: { status: string; priority: string; fallbackKind: string | null }[];
   transaction: {
@@ -94,6 +97,9 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
 
     if (task?.fallbackKind) { out.set(log.id, { kind: "manual", ...fallbackReason(task.fallbackKind) }); continue; }
     if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it", category: "info" }); continue; }
+    // Hand-over schedule reached (computed on read, cron-independent): the
+    // autopilot's had its run, so this is now the agent's — surface it.
+    if (log.handoverDue) { out.set(log.id, { kind: "manual", reason: "Autopilot's finished chasing — over to you", category: "exhausted" }); continue; }
     if (!code) { out.set(log.id, { kind: "manual", reason: null, category: "info" }); continue; }
 
     const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";
