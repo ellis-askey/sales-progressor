@@ -8,16 +8,11 @@ Last updated: 2026-09-21
 
 ---
 
-## Create the `critique-screenshots` Supabase bucket (PRIVATE) — staging + prod (2026-09-21)
+## ~~Create the `critique-screenshots` Supabase bucket~~ — NO LONGER NEEDED (auto-created 2026-09-22)
 
-The founder **Critique** tool (Report button → screenshotted notes-to-self, reviewed at `/command/critique`) uploads each screenshot to a Supabase Storage bucket named **`critique-screenshots`**. It must exist in **both** Supabase projects or uploads fail silently (the note still saves, just without a screenshot):
+The Critique tool now **creates the `critique-screenshots` bucket automatically** on first use (`ensureCritiqueBucket` in `lib/command/critique-storage.ts`, private), so there's no manual bucket step. If you already created it by hand, that's fine — the auto-create is idempotent and leaves an existing bucket alone. Screenshots now upload straight from the browser to storage via a signed URL, so large desktop shots no longer hit the serverless body limit.
 
-1. Supabase → **staging** project (`etidawkbqctarmsdjoxp`) → Storage → **New bucket** → name exactly `critique-screenshots` → **Public = OFF** (private; the app serves time-limited signed URLs). Create.
-2. Repeat in the **production** project (`gmkfustgwipgihpmpjpr`) — same name, private.
-
-No env vars or keys needed — it reuses the existing `SUPABASE_SERVICE_ROLE_KEY`. Until the bucket exists, the Report button still works and saves the note text; only the screenshot is skipped.
-
-*Also requires the `20260922130000_add_critique_notes` migration to be applied (staging done by CC; prod applies via `db:migrate:prod` / Vercel `migrate deploy` on the next master deploy).*
+*Still requires the `20260922130000_add_critique_notes` migration to be applied — prod applies via Vercel `migrate deploy` on deploy.*
 
 ---
 

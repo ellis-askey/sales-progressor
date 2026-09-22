@@ -1,13 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Storage for founder Critique screenshots. Own PRIVATE bucket, kept apart from
-// the real-feedback bucket so the two never share objects. Mirrors the upload /
-// signed-URL pattern the feedback route already uses (app/api/feedback), but
-// scoped to this bucket. Command-only (Law 8) — imported by the /api/command
-// route and the Command Centre review page.
+// the real-feedback bucket so the two never share objects. Command-only (Law 8).
 //
-// The bucket must be created in each Supabase project (staging + prod) as a
-// PRIVATE bucket — see docs/active/ELLIS_MANUAL_TODO.md.
+// The bucket is created automatically on first use (ensureCritiqueBucket) so
+// there is no manual provisioning step to forget — the earlier "no screenshots"
+// failure was a missing hand-created bucket. Screenshots upload straight from
+// the browser via a signed upload URL (createCritiqueUploadUrl), bypassing the
+// ~4.5 MB serverless request-body limit that was dropping large desktop shots.
 export const CRITIQUE_BUCKET = "critique-screenshots";
 
 function client() {
@@ -19,17 +19,48 @@ function client() {
   return createClient(url, key);
 }
 
-/** Upload a base64 PNG, returning the stored object path (null on failure). */
-export async function uploadCritiqueScreenshot(base64: string, filename: string): Promise<string | null> {
+// Create the bucket if it doesn't exist yet (private). Idempotent and cheap:
+// one list call, then create only when absent. Errors are swallowed — if the
+// bucket genuinely can't be provisioned the caller's mint/PUT will surface it.
+let ensured = false;
+export async function ensureCritiqueBucket(): Promise<void> {
+  if (ensured) return;
   try {
-    const buffer = Buffer.from(base64, "base64");
-    const safe = filename.toLowerCase().endsWith(".png") ? filename : `${filename}.png`;
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safe}`;
-    const { error } = await client().storage.from(CRITIQUE_BUCKET).upload(path, buffer, { contentType: "image/png" });
-    if (error) return null;
-    return path;
+    const sb = client();
+    const { data: buckets } = await sb.storage.listBuckets();
+    if (!buckets?.some((b) => b.name === CRITIQUE_BUCKET)) {
+      await sb.storage.createBucket(CRITIQUE_BUCKET, { public: false });
+    }
+    ensured = true;
+  } catch {
+    /* leave ensured=false so a later call retries */
+  }
+}
+
+/** Mint a one-time signed upload URL so the browser PUTs the PNG straight to
+ *  storage (no base64 through our serverless function). Ensures the bucket
+ *  exists first. Returns null if it can't be minted. */
+export async function createCritiqueUploadUrl(path: string): Promise<{ uploadUrl: string; path: string } | null> {
+  try {
+    await ensureCritiqueBucket();
+    const { data, error } = await client().storage.from(CRITIQUE_BUCKET).createSignedUploadUrl(path);
+    if (error || !data) return null;
+    return { uploadUrl: data.signedUrl, path: data.path };
   } catch {
     return null;
+  }
+}
+
+/** Confirm an object actually landed before we record its path on the note. */
+export async function critiqueObjectExists(path: string): Promise<boolean> {
+  try {
+    const slash = path.lastIndexOf("/");
+    const folder = slash === -1 ? "" : path.slice(0, slash);
+    const name = slash === -1 ? path : path.slice(slash + 1);
+    const { data } = await client().storage.from(CRITIQUE_BUCKET).list(folder, { search: name, limit: 100 });
+    return !!data?.some((o) => o.name === name);
+  } catch {
+    return false;
   }
 }
 
