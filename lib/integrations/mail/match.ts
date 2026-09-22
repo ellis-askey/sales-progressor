@@ -59,6 +59,11 @@ export function extractPostcodes(text: string): Set<string> {
 export type Index = {
   emailToTx: Map<string, Set<string>>;
   txAddress: Map<string, string>;
+  // Per-file chain member addresses (claimed links + unclaimed stubs). Lets a
+  // participant match be corroborated by the email naming this file's ONWARD /
+  // related property, not only its own — so legitimate onward-purchase mail keeps
+  // landing on the sale file while an unrelated deal a shared party is on stays out.
+  txChainAddresses?: Map<string, string[]>;
 };
 
 export async function buildIndex(emails: string[], scope: AccessScope): Promise<Index> {
@@ -120,15 +125,42 @@ export async function buildIndex(emails: string[], scope: AccessScope): Promise<
   }
 
   const txIds = [...new Set([...emailToTx.values()].flatMap((s) => [...s]))];
+  const txChainAddresses = new Map<string, string[]>();
   if (txIds.length) {
     const rows = await prisma.propertyTransaction.findMany({
       where: { id: { in: txIds } },
       select: { id: true, propertyAddress: true },
     });
     for (const r of rows) txAddress.set(r.id, r.propertyAddress ?? "");
+
+    // Chain-aware corroboration: for each matched file, gather every property in
+    // its chain (linked transactions' addresses + unclaimed stub addresses), so a
+    // participant match can be confirmed by the email naming the file's onward /
+    // related property, not only its own address.
+    const myLinks = await prisma.chainLink.findMany({
+      where: { transactionId: { in: txIds } },
+      select: { transactionId: true, chainId: true },
+    });
+    const chainIds = [...new Set(myLinks.map((l) => l.chainId))];
+    if (chainIds.length) {
+      const links = await prisma.chainLink.findMany({
+        where: { chainId: { in: chainIds } },
+        select: { chainId: true, stubPropertyAddress: true, transaction: { select: { propertyAddress: true } } },
+      });
+      const byChain = new Map<string, string[]>();
+      for (const l of links) {
+        const addr = (l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "").trim();
+        if (!addr) continue;
+        if (!byChain.has(l.chainId)) byChain.set(l.chainId, []);
+        byChain.get(l.chainId)!.push(addr);
+      }
+      for (const ml of myLinks) {
+        if (ml.transactionId) txChainAddresses.set(ml.transactionId, byChain.get(ml.chainId) ?? []);
+      }
+    }
   }
 
-  return { emailToTx, txAddress };
+  return { emailToTx, txAddress, txChainAddresses };
 }
 
 // ─── Address index (match an email to a file by the property it NAMES) ─────────
@@ -245,6 +277,22 @@ export function matchesAddressStart(folder: string, address: string): boolean {
   return firstLine === f || addr.startsWith(`${f},`) || addr.startsWith(`${f} `);
 }
 
+// Does the email text actually NAME this file's property — its street first line
+// (which carries a house number) or its postcode? A participant match is trusted
+// only when this holds, so a party shared across deals (a solicitor acting on this
+// sale AND an unrelated one) can't drag their unrelated mail onto the wrong file.
+export function mentionsFile(text: string, address: string | undefined | null): boolean {
+  const addr = (address ?? "").trim();
+  if (!addr) return false;
+  const lc = text.toLowerCase();
+  const firstLine = addr.split(",")[0]!.trim().toLowerCase();
+  if (firstLine && /\d/.test(firstLine) && firstLineAppears(lc, firstLine)) return true;
+  const filePcs = extractPostcodes(addr);
+  const textPcs = extractPostcodes(text);
+  for (const pc of filePcs) if (textPcs.has(pc)) return true;
+  return false;
+}
+
 // ─── Match one message to a single file ───────────────────────────────────────
 
 export function matchMessage(
@@ -283,22 +331,39 @@ export function matchMessage(
   // another file (a solicitor acting on several sales, say).
   if (folderTx) return { txId: folderTx, candidates: candidates.length ? candidates : [folderTx] };
 
-  // No property folder → fall back to who's on the email.
-  if (candidateSet.size === 1) return { txId: candidates[0], candidates };
-
-  if (candidateSet.size > 1) {
-    // Several files share a participant and there's no folder to disambiguate —
-    // try a postcode in the subject; otherwise send it to review, don't guess.
-    const subjectPostcodes = extractPostcodes(msg.subject);
-    if (subjectPostcodes.size > 0) {
-      const byPostcode = candidates.filter((txId) => {
-        const addrPostcodes = extractPostcodes(index.txAddress.get(txId) ?? "");
-        for (const pc of addrPostcodes) if (subjectPostcodes.has(pc)) return true;
-        return false;
-      });
-      if (byPostcode.length === 1) return { txId: byPostcode[0], candidates };
+  // No property folder → fall back to who's on the email. A participant match is
+  // trusted ONLY when the email actually names that property (its street or
+  // postcode). Without this, a party who acts on several deals — a solicitor on
+  // this sale and an unrelated one — drags their unrelated mail onto this file
+  // (the 2026-09 cross-file leak: a shared vendor solicitor pulled a whole
+  // unrelated commercial-lease thread onto a residential sale, because he was the
+  // file's registered solicitor). Filing into a property folder is a deliberate
+  // human signal and already returned above, so it stays exempt from this check.
+  if (candidateSet.size >= 1) {
+    const text = `${msg.subject}\n${msg.body}`;
+    const named = candidates.filter(
+      (txId) =>
+        mentionsFile(text, index.txAddress.get(txId)) ||
+        (index.txChainAddresses?.get(txId) ?? []).some((a) => mentionsFile(text, a)),
+    );
+    if (named.length === 1) return { txId: named[0], candidates };
+    if (named.length > 1) {
+      // More than one candidate file is named — disambiguate by a subject
+      // postcode, else send to review rather than guess.
+      const subjectPostcodes = extractPostcodes(msg.subject);
+      if (subjectPostcodes.size > 0) {
+        const byPostcode = named.filter((txId) => {
+          const addrPostcodes = extractPostcodes(index.txAddress.get(txId) ?? "");
+          for (const pc of addrPostcodes) if (subjectPostcodes.has(pc)) return true;
+          return false;
+        });
+        if (byPostcode.length === 1) return { txId: byPostcode[0], candidates };
+      }
+      return { txId: null, candidates };
     }
-    return { txId: null, candidates }; // ambiguous — offer the candidates for review
+    // A party matched but the email names none of their files → don't silently
+    // file it (this was the cross-file leak). Offer the candidates for review.
+    return { txId: null, candidates };
   }
 
   // Nobody on the email matched a file. Last resort: does the email NAME a

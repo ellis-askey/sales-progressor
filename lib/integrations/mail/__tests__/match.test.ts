@@ -39,9 +39,42 @@ describe("matchMessage", () => {
     expect(matchMessage(msg, MAILBOX, index, hints)).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
-  it("single participant match, no folder", () => {
-    const msg = baseMsg({ from: "buyer@x.com" });
+  it("single participant match that NAMES the file (street) → files it", () => {
+    const msg = baseMsg({ from: "buyer@x.com", subject: "Re: 8 Brambling Crescent" });
     expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
+  });
+
+  it("single participant match that names the file by postcode → files it", () => {
+    const msg = baseMsg({ from: "buyer@x.com", subject: "quick update", body: "regarding HP23 4DS please" });
+    expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
+  });
+
+  it("REGRESSION: participant on ONE file, but email is about a DIFFERENT property → not filed", () => {
+    // The 2026-09 cross-file leak. buyer@x.com is a party on exactly one file
+    // (txA), but this email is about a different property (a separate deal the
+    // same person is involved in). Old code filed it on txA purely because the
+    // party matched; now, since the email names none of that party's files, it
+    // goes to review instead of being silently misfiled.
+    const msg = baseMsg({ from: "buyer@x.com", subject: "Re: Lease of 45 High Street Hoddesdon" });
+    const r = matchMessage(msg, MAILBOX, index, new Map());
+    expect(r.txId).toBeNull();
+    expect(r.candidates).toEqual(["txA"]);
+  });
+
+  it("REGRESSION: shared solicitor, email about a different property → review, not a guess", () => {
+    const msg = baseMsg({ from: "sol@firm.com", subject: "Re: Assignment of Lease – 45 High Street" });
+    const r = matchMessage(msg, MAILBOX, index, new Map());
+    expect(r.txId).toBeNull();
+    expect(new Set(r.candidates)).toEqual(new Set(["txA", "txB"]));
+  });
+
+  it("chain-aware: an email naming the file's ONWARD purchase files onto the sale file", () => {
+    // txA (8 Brambling Crescent) is buying onward to 26 Tamarisk Way. buyer@x.com
+    // is on txA. An email about 26 Tamarisk Way names none of txA's OWN address,
+    // but it's in txA's chain → still files onto txA, not the review tray.
+    const chainIndex: Index = { ...index, txChainAddresses: new Map([["txA", ["26 Tamarisk Way, Weston Turville, HP22 5ZB"]]]) };
+    const msg = baseMsg({ from: "buyer@x.com", subject: "Re: 26 Tamarisk Way — searches back" });
+    expect(matchMessage(msg, MAILBOX, chainIndex, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
   it("multiple participants, no folder — disambiguated by a subject postcode", () => {
