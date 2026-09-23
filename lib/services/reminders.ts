@@ -2,7 +2,8 @@
 // Updated engine: graceDays, repeatEveryDays, escalateAfterChases, priority, chaseCount
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma, ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -96,6 +97,38 @@ export async function getGraceDaysByMilestoneCode(): Promise<Map<string, number>
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+// A losing race against the "one live chase / one active reminder" partial unique
+// indexes (migration 20260922150000) surfaces as P2002. Treat it as success and
+// return the row the winner created, so a concurrent engine-run + page-read (which
+// both create on work-queue open) can never 500 or duplicate.
+export function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
+
+async function createPendingChaseTaskSafe(data: Prisma.ChaseTaskUncheckedCreateInput): Promise<{ id: string }> {
+  try {
+    return await prisma.chaseTask.create({ data, select: { id: true } });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      const existing = await prisma.chaseTask.findFirst({ where: { reminderLogId: data.reminderLogId, status: "pending" }, select: { id: true } });
+      if (existing) return existing;
+    }
+    throw e;
+  }
+}
+
+async function createActiveReminderLogSafe(data: Prisma.ReminderLogUncheckedCreateInput): Promise<{ id: string }> {
+  try {
+    return await prisma.reminderLog.create({ data, select: { id: true } });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      const existing = await prisma.reminderLog.findFirst({ where: { transactionId: data.transactionId, reminderRuleId: data.reminderRuleId, status: "active" }, select: { id: true } });
+      if (existing) return existing;
+    }
+    throw e;
+  }
+}
 
 export type ReminderLogWithRule = {
   id: string;
@@ -277,13 +310,11 @@ export async function getReminderLogsForTransaction(
   if (dueWithNoTask.length > 0) {
     await Promise.all(
       dueWithNoTask.map((l) =>
-        prisma.chaseTask.create({
-          // Inherit the round + assignee stamp from the parent log (same rule as
-          // the engine create). Without buyerRoundId, a relist's round-keyed
-          // cancellation can't find a read-path-created PM chase, so it survives
-          // to chase the withdrawn buyer.
-          data: { transactionId, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: tx.assignedUserId },
-        })
+        // Inherit the round + assignee stamp from the parent log (same rule as the
+        // engine create). Without buyerRoundId, a relist's round-keyed cancellation
+        // can't find a read-path-created PM chase, so it survives to chase the
+        // withdrawn buyer. Safe-create so a race with the engine no-ops (P2002).
+        createPendingChaseTaskSafe({ transactionId, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: tx.assignedUserId })
       )
     );
     return getReminderLogsForTransaction(transactionId, agencyId);
@@ -490,12 +521,9 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   if (dueWithNoTask.length > 0) {
     await Promise.all(
       dueWithNoTask.map((l) =>
-        prisma.chaseTask.create({
-          // Inherit round + assignee from the parent log (same rule as the engine
-          // create) so a relist's round-keyed cancellation can find and cancel
-          // this chase, and it shows up in assignee-scoped views.
-          data: { transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: l.transaction.assignedUserId },
-        })
+        // Inherit round + assignee from the parent log (relist cancellation +
+        // assignee-scoped views). Safe-create so a race with the engine no-ops.
+        createPendingChaseTaskSafe({ transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: l.transaction.assignedUserId })
       )
     );
     return getAgentReminderLogs(vis);
@@ -988,15 +1016,13 @@ export async function evaluateTransactionReminders(
       // cancellation sweep can't find engine-created PM ReminderLogs on
       // a subsequent relist — they'd survive to fire about a dead buyer.
       const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
-      await prisma.reminderLog.create({
-        data: {
-          transactionId,
-          reminderRuleId: rule.id,
-          status: "active",
-          nextDueDate: firstDueDate,
-          sourceDateUsed: anchorDate,
-          buyerRoundId: isPurchaserTarget ? (transaction.activeBuyerRoundId ?? null) : null,
-        },
+      await createActiveReminderLogSafe({
+        transactionId,
+        reminderRuleId: rule.id,
+        status: "active",
+        nextDueDate: firstDueDate,
+        sourceDateUsed: anchorDate,
+        buyerRoundId: isPurchaserTarget ? (transaction.activeBuyerRoundId ?? null) : null,
       });
       await writeEngineAudit(
         transactionId,
@@ -1068,17 +1094,15 @@ export async function evaluateTransactionReminders(
         // Commit 4c-followup — inherit the buyerRoundId from the parent
         // ReminderLog (now correctly stamped above). Same rule as the
         // ChaseTask.createMany in createInitialRemindersInline.
-        await prisma.chaseTask.create({
-          data: {
-            transactionId,
-            reminderLogId: log.id,
-            assignedToId: transaction.assignedUserId,
-            dueDate: log.nextDueDate,
-            status: "pending",
-            priority: "normal",
-            chaseCount: 0,
-            buyerRoundId: log.buyerRoundId,
-          },
+        await createPendingChaseTaskSafe({
+          transactionId,
+          reminderLogId: log.id,
+          assignedToId: transaction.assignedUserId,
+          dueDate: log.nextDueDate,
+          status: "pending",
+          priority: "normal",
+          chaseCount: 0,
+          buyerRoundId: log.buyerRoundId,
         });
         // No audit entry — duplicates the "Automated chase scheduled…"
         // line written when the reminder log was created. Agents don't
@@ -1114,6 +1138,7 @@ export async function createInitialRemindersInline(
   if (eligibleRules.length === 0) return;
 
   await prisma.reminderLog.createMany({
+    skipDuplicates: true, // one active reminder per (tx, rule) — a re-run no-ops
     data: eligibleRules.map((rule) => {
       const dueDate = new Date(createdAt);
       dueDate.setDate(dueDate.getDate() + rule.graceDays);
@@ -1142,6 +1167,7 @@ export async function createInitialRemindersInline(
   if (dueLogs.length === 0) return;
 
   await prisma.chaseTask.createMany({
+    skipDuplicates: true, // one pending chase per reminder — a re-run no-ops
     data: dueLogs.map((log) => ({
       transactionId,
       reminderLogId: log.id,
@@ -1695,18 +1721,15 @@ export async function createAgentChaseTaskForMilestone(
         },
         select: { id: true },
       })
-    : await prisma.reminderLog.create({
-        data: {
-          transactionId,
-          reminderRuleId: rule.id,
-          status: "active",
-          nextDueDate: today,
-          sourceDateUsed: today,
-          statusReason: FALLBACK_REASON[kind],
-          // Commit 4c-followup — same PM*-targeted → active round stamp.
-          buyerRoundId: stampRoundId,
-        },
-        select: { id: true },
+    : await createActiveReminderLogSafe({
+        transactionId,
+        reminderRuleId: rule.id,
+        status: "active",
+        nextDueDate: today,
+        sourceDateUsed: today,
+        statusReason: FALLBACK_REASON[kind],
+        // Commit 4c-followup — same PM*-targeted → active round stamp.
+        buyerRoundId: stampRoundId,
       });
 
   // Find-or-create the pending ChaseTask. If one is already pending for this
@@ -1722,20 +1745,17 @@ export async function createAgentChaseTaskForMilestone(
         data: { fallbackKind: kind, assignedToId, dueDate: today, priority: "normal" },
         select: { id: true },
       })
-    : await prisma.chaseTask.create({
-        data: {
-          transactionId,
-          reminderLogId: log.id,
-          assignedToId,
-          dueDate: today,
-          status: "pending",
-          priority: "normal",
-          chaseCount: 0,
-          fallbackKind: kind,
-          // Commit 4c-followup — inherit the parent ReminderLog's stamp.
-          buyerRoundId: stampRoundId,
-        },
-        select: { id: true },
+    : await createPendingChaseTaskSafe({
+        transactionId,
+        reminderLogId: log.id,
+        assignedToId,
+        dueDate: today,
+        status: "pending",
+        priority: "normal",
+        chaseCount: 0,
+        fallbackKind: kind,
+        // Commit 4c-followup — inherit the parent ReminderLog's stamp.
+        buyerRoundId: stampRoundId,
       });
 
   // Activity-feed note — surfaces the reason in the agent's comm timeline so

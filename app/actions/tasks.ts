@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
-import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, isUniqueViolation, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
 import { sendMilestoneConfirmationNotifications } from "@/lib/services/milestone-confirm-notify";
 import { createCommunicationRecord } from "@/lib/services/comms";
@@ -274,46 +274,59 @@ export async function chaseNowFromLogAction(
   const session = await requireSession();
   const scope = getAccessScope(session);
 
-  const result = await prisma.$transaction(async (tx) => {
-    const log = await tx.reminderLog.findFirst({
-      where: scopeReminderLogWhere(scope, logId),
-      select: {
-        id: true,
-        transactionId: true,
-        status: true,
-        chaseTasks: {
-          where: { status: "pending" },
-          select: { id: true },
-          take: 1,
+  let result: { taskId: string; transactionId: string };
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const log = await tx.reminderLog.findFirst({
+        where: scopeReminderLogWhere(scope, logId),
+        select: {
+          id: true,
+          transactionId: true,
+          status: true,
+          chaseTasks: {
+            where: { status: "pending" },
+            select: { id: true },
+            take: 1,
+          },
         },
-      },
+      });
+      if (!log) throw new Error("Reminder log not found");
+      if (log.status !== "active") throw new Error("Reminder log is not active");
+
+      if (log.chaseTasks.length > 0) {
+        return { taskId: log.chaseTasks[0].id, transactionId: log.transactionId };
+      }
+
+      const task = await tx.chaseTask.create({
+        data: {
+          transactionId: log.transactionId,
+          reminderLogId: log.id,
+          dueDate: new Date(),
+          status: "pending",
+          priority: "normal",
+          chaseCount: 0,
+        },
+        select: { id: true },
+      });
+
+      await tx.reminderLog.update({
+        where: { id: log.id },
+        data: { nextDueDate: setUkChaseTime(new Date()), snoozedUntil: null, statusReason: null },
+      });
+
+      return { taskId: task.id, transactionId: log.transactionId };
     });
-    if (!log) throw new Error("Reminder log not found");
-    if (log.status !== "active") throw new Error("Reminder log is not active");
-
-    if (log.chaseTasks.length > 0) {
-      return { taskId: log.chaseTasks[0].id, transactionId: log.transactionId };
-    }
-
-    const task = await tx.chaseTask.create({
-      data: {
-        transactionId: log.transactionId,
-        reminderLogId: log.id,
-        dueDate: new Date(),
-        status: "pending",
-        priority: "normal",
-        chaseCount: 0,
-      },
-      select: { id: true },
-    });
-
-    await tx.reminderLog.update({
-      where: { id: log.id },
-      data: { nextDueDate: setUkChaseTime(new Date()), snoozedUntil: null, statusReason: null },
-    });
-
-    return { taskId: task.id, transactionId: log.transactionId };
-  });
+  } catch (e) {
+    // Lost the "one pending chase per reminder" race (another create won, e.g. the
+    // engine on the same open). The unique-index P2002 aborts this transaction, so
+    // recover outside it: return the pending chase that now exists.
+    if (isUniqueViolation(e)) {
+      const existing = await prisma.chaseTask.findFirst({ where: { reminderLogId: logId, status: "pending" }, select: { id: true } });
+      const log = await prisma.reminderLog.findFirst({ where: scopeReminderLogWhere(scope, logId), select: { transactionId: true } });
+      if (existing && log) result = { taskId: existing.id, transactionId: log.transactionId };
+      else throw e;
+    } else throw e;
+  }
 
   after(async () => {
     await touchLastActivity(result.transactionId).catch(() => {});
