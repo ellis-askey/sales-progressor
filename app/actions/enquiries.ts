@@ -149,7 +149,7 @@ export async function logEnquiryChaseAction(input: {
     verbNote,
     partyLabel ? `with ${partyLabel}` : null,
     isPhone && outcomeLabel && input.outcome !== "spoke" ? `(${outcomeLabel})` : null,
-    trimmedNote ? `— ${trimmedNote}` : null,
+    trimmedNote ? `· ${trimmedNote}` : null,
   ].filter(Boolean).join(" ");
 
   const ok = await logEnquiryMovement({
@@ -234,9 +234,12 @@ export async function markEnquiriesSatisfiedAction(input: {
   });
   // confirmMilestoneAction returns a { ok: false, kind: "prereqs_missing" }
   // shape when a direct prerequisite isn't committed yet, or its notifications
-  // payload on success. Surface the former as a soft failure for the toast.
+  // payload on success. Only surface the genuine prereqs case as that specific
+  // message; any other failure gets a plain "didn't save" so we never send the
+  // agent chasing the wrong thing (critique F6).
   if (res && typeof res === "object" && "ok" in res && res.ok === false) {
-    return { ok: false, reason: "prereqs_missing" };
+    const kind = (res as { kind?: string }).kind;
+    return { ok: false, reason: kind === "prereqs_missing" ? "prereqs_missing" : "failed" };
   }
   revalidatePath("/agent/enquiries");
   return { ok: true };

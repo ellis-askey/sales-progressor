@@ -45,6 +45,12 @@ function startOfTomorrow(): number {
 
 type Pill = { label: string; tone: "danger" | "amber" | "green" | "blue" };
 function statusPill(r: OpenEnquiryRow): Pill {
+  // A stalled loop (silent past escalation) is the loudest signal — surface it
+  // even when it was recently chased (a future nextChaseAt would otherwise read
+  // as a calm "Awaiting replies"/"Being reviewed"). Court-aware wording.
+  if (r.status === "stalled") {
+    return { label: r.currentlyWith === "seller_solicitor" ? "Replies overdue" : "Review overdue", tone: "danger" };
+  }
   const tomorrow = startOfTomorrow();
   const chaseMs = r.nextChaseAt ? new Date(r.nextChaseAt).getTime() : null;
   if (r.status !== "snoozed" && chaseMs != null) {
@@ -152,8 +158,9 @@ export function EnquiriesTriageList({
   // buckets so they read as a breakdown of the total.
   const tiles = useMemo(() => {
     const midnight = new Date().setHours(0, 0, 0, 0);
-    let needChecking = 0, awaiting = 0, expected = 0;
+    let needChecking = 0, awaiting = 0, expected = 0, withSellers = 0, withBuyers = 0;
     for (const r of rows) {
+      if (r.currentlyWith === "seller_solicitor") withSellers++; else withBuyers++;
       // Expected: a reply date has been given (today or later) — it's parked, not
       // waiting blind. (Moves these out of "awaiting" so the split reads true.)
       if (r.expectedDate && new Date(r.expectedDate).getTime() >= midnight) { expected++; continue; }
@@ -164,7 +171,7 @@ export function EnquiriesTriageList({
       if (dueNow || r.status === "stalled") { needChecking++; continue; }
       awaiting++;
     }
-    return { total: rows.length, needChecking, awaiting, expected };
+    return { total: rows.length, needChecking, awaiting, expected, withSellers, withBuyers };
   }, [rows]);
 
   const shown = useMemo(() => {
@@ -256,7 +263,7 @@ export function EnquiriesTriageList({
       {/* Summary overview — same family as Chains / Completions */}
       <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
         <div className="enq-summary-grid">
-          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
+          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={`${tiles.withSellers} with sellers · ${tiles.withBuyers} with buyers`} />
           <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
           <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
           <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
@@ -452,6 +459,11 @@ function dateToISO(d: Date): string {
 function todayISO(): string {
   return dateToISO(new Date());
 }
+function tomorrowISO(): string {
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  return dateToISO(t);
+}
 function fmtBd(iso: string): string {
   if (iso === todayISO()) return "Today";
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -477,7 +489,6 @@ function RowActions({
   const [bdOpen, setBdOpen] = useState(false);
   const [bdISO, setBdISO] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const bdRef = useRef<HTMLInputElement>(null);
 
   // Keep the parent (card elevation for the dropdown) in sync with the menu.
   const changeMenu = (open: boolean) => { setMenuOpen(open); onMenuOpenChange(open); };
@@ -492,12 +503,6 @@ function RowActions({
     setBdOpen(false);
     setBdISO("");
     onMenuOpenChange(false);
-  }
-  // Open the native calendar from anywhere on the field, not just the icon.
-  function openBdPicker() {
-    const el = bdRef.current;
-    if (!el) return;
-    try { el.showPicker(); } catch { el.focus(); }
   }
 
   useEffect(() => {
@@ -595,25 +600,21 @@ function RowActions({
       {bdOpen && (
         <div className="enq-menu enq-bd-menu" role="menu">
           <div className="enq-bd-when">When did this happen?</div>
-          <div
-            className="enq-bd-field"
-            role="button"
-            tabIndex={0}
-            onClick={openBdPicker}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openBdPicker(); } }}
-          >
+          {/* Tap-to-open: the native input covers the field and is directly
+              tappable, so a tap opens the OS picker on iOS (the old hidden-input +
+              showPicker pattern silently did nothing on iPhone — critique W2). */}
+          <div className="enq-bd-field">
             <CalendarBlank size={15} className="enq-bd-cal" />
             <span className={bdISO ? "enq-bd-val" : "enq-bd-ph"}>{bdISO ? fmtBd(bdISO) : "Choose a date"}</span>
             <input
-              ref={bdRef}
               type="date"
-              className="enq-bd-native"
+              className="enq-exp-native"
               min={dateToISO(row.openedAt)}
               max={todayISO()}
               value={bdISO}
+              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* iOS opens on tap anyway */ } }}
               onChange={(e) => setBdISO(e.target.value)}
               aria-label="When did this happen"
-              tabIndex={-1}
             />
           </div>
           <div className="enq-mi-div" />
@@ -683,19 +684,21 @@ function ExpandedDetail({
       </div>
       <div className="enq-detail-col">
         <div className="enq-detail-h">Expected</div>
-        {row.expectedDate ? (
+        {row.expectedDate && new Date(row.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0) ? (
           <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="enq-linkbtn" disabled={busy} onClick={() => onExpected(null)}>Clear</button></div>
         ) : (
           // Tap-to-open: a real (invisible) date input covers the field, so a tap
           // opens the OS picker directly. No autoFocus + onBlur — that combo made
-          // iOS cancel the picker the instant it stole focus (#3).
+          // iOS cancel the picker the instant it stole focus (#3). Earliest is
+          // tomorrow: a same-day "hold until" can't apply, so it would silently
+          // no-op (critique F1). An expired date falls back to this add field (W1).
           <div className="enq-bd-field enq-exp-field">
             <CalendarBlank size={15} className="enq-bd-cal" />
             <span className="enq-bd-ph">Add expected date</span>
             <input
               type="date"
               className="enq-exp-native"
-              min={todayISO()}
+              min={tomorrowISO()}
               disabled={busy}
               onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* iOS opens on tap anyway */ } }}
               onChange={(e) => { if (e.target.value) onExpected(e.target.value); }}

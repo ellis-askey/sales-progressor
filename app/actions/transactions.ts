@@ -672,7 +672,10 @@ export async function changeStatusAction(
     } else if (leavingHold && status === "active") {
       await ptx.enquiryTracker.updateMany({
         where: { transactionId, closedAt: null },
-        data: { lastChasedAt: new Date(), escalatedAt: null },
+        // Reset the movement anchor too, not just lastChasedAt: the escalation
+        // clock measures silence from lastMovementAt, so without this the next
+        // cron re-stalls the loop instantly on day one back (critique F3).
+        data: { lastChasedAt: new Date(), lastMovementAt: new Date(), escalatedAt: null },
       });
       await ptx.enquiryRaiseChase.updateMany({
         where: { transactionId, closedAt: null },

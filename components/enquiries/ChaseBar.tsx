@@ -26,7 +26,7 @@ export function ChaseBar({
   progress: number;
   isSeller: boolean;
   // When provided, the ball becomes draggable: drag it across to the other side
-  // and release past the halfway threshold to fire onDragCommit (the parent then
+  // and release past ~55% of the way to fire onDragCommit (the parent then
   // confirms). The ball snaps back on release; the real position only changes when
   // the confirmed action flips isSeller (which plays the normal handover dance).
   onDragCommit?: (dir: "to_seller" | "to_buyer") => void;
@@ -82,6 +82,10 @@ export function ChaseBar({
   const trackRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; width: number } | null>(null);
   const [dragX, setDragX] = useState(0);
+  // Live offset, mirrored to a ref so onUp reads the last position even if the
+  // final setDragX hasn't committed yet (avoids missing a just-past-threshold
+  // release — critique W3).
+  const dragXRef = useRef(0);
   const [dragging, setDragging] = useState(false);
 
   function onDown(e: React.PointerEvent) {
@@ -101,14 +105,16 @@ export function ChaseBar({
     // The ball leaves from the side it's on: seller (left) drags right only,
     // buyer (right) drags left only. Clamp to the track width.
     dx = side ? Math.max(0, Math.min(width, dx)) : Math.min(0, Math.max(-width, dx));
+    dragXRef.current = dx;
     setDragX(dx);
   }
   function onUp() {
     if (!dragging || !drag.current) return;
     const { width } = drag.current;
-    const crossed = Math.abs(dragX) >= width * 0.55;
+    const crossed = Math.abs(dragXRef.current) >= width * 0.55;
     setDragging(false);
     setDragX(0); // snap back; the real move happens only on confirm
+    dragXRef.current = 0;
     drag.current = null;
     if (crossed && onDragCommit) onDragCommit(side ? "to_buyer" : "to_seller");
   }
