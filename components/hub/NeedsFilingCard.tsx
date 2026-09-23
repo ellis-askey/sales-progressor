@@ -34,6 +34,13 @@ function ago(d: Date | string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// Button labels use just the first address line — the full address ran off the
+// page on smaller breakpoints (critique, 2026-09-23). Full address stays in the
+// button's tooltip.
+function firstLine(address: string): string {
+  return (address || "").split(",")[0].trim();
+}
+
 // "RE: RE: Fwd: Update - 25 Austin Hluse" → "update - 25 austin hluse"
 function threadKey(subject: string): string {
   let s = subject.trim().toLowerCase();
@@ -229,11 +236,14 @@ export function NeedsFilingCard({ rows }: { rows: PendingInboundRow[] }) {
                       type="button"
                       disabled={rowBusy}
                       onClick={() => fileThread(t, c)}
+                      title={c.address || undefined}
                       className="agent-btn agent-btn-sm agent-btn-primary"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
                     >
                       <Check size={12} weight="bold" />
-                      {multi ? `File all ${t.rows.length} to ${c.address || "this file"}` : `File to ${c.address || "this file"}`}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {multi ? `File all ${t.rows.length} to ${firstLine(c.address) || "this file"}` : `File to ${firstLine(c.address) || "this file"}`}
+                      </span>
                     </button>
                   ))
                 ) : (
