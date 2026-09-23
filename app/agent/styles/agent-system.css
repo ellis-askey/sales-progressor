@@ -2269,9 +2269,24 @@
   .enq-fill { position: absolute; top: 0; height: 100%; border-radius: 2px; background: var(--agent-coral); transition: width 400ms ease, opacity 300ms ease, background 250ms ease; }
   /* The ball: a clear, ringed circle marking the side the ball is with. Sits on
      top of the fill (z-index) with a white ring so it reads even on a full bar. */
-  .enq-ball { position: absolute; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--agent-coral); border: 3px solid var(--agent-surface-elevated); box-shadow: 0 1px 4px rgba(30,45,74,0.30); transition: left 220ms ease, right 220ms ease, background 250ms ease; z-index: 2; }
+  .enq-ball { position: absolute; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--agent-coral); border: 3px solid var(--agent-surface-elevated); box-shadow: 0 1px 4px rgba(30,45,74,0.30); transition: left 220ms ease, right 220ms ease, background 250ms ease, transform 220ms ease; z-index: 2; }
+  /* Drag-to-confirm handle (critique #20b): grabbable, generous touch target, no
+     transition mid-drag so it tracks the finger, then springs back on release. */
+  .enq-ball.is-draggable { cursor: grab; touch-action: none; }
+  .enq-ball.is-draggable::before { content: ""; position: absolute; inset: -12px; border-radius: 50%; }
+  .enq-ball.is-draggable:hover { box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.16), 0 1px 4px rgba(30,45,74,0.30); }
+  .enq-ball.is-dragging { cursor: grabbing; transition: background 250ms ease; box-shadow: 0 0 0 5px rgba(var(--agent-coral-rgb), 0.20), 0 2px 8px rgba(30,45,74,0.35); }
   .enq-ends { display: flex; justify-content: space-between; font-size: 10.5px; }
   .enq-forwd { font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
+
+  /* Drag-confirm modal (critique #20b). Quick centered dialog; stacked full-width
+     actions so it reads the same on desktop and mobile. */
+  .enq-modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,5,0,0.35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+  .enq-modal { width: 100%; max-width: 380px; padding: 20px; border-radius: 16px; background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default); box-shadow: 0 20px 60px rgba(15,5,0,0.28); animation: agent-dropdown-in 160ms ease both; }
+  .enq-modal-title { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--agent-text-primary); }
+  .enq-modal-body { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--agent-text-secondary); }
+  .enq-modal-actions { display: flex; flex-direction: column; gap: 8px; }
+  .enq-modal-actions .enq-btn { width: 100%; justify-content: center; }
 
   .enq-statuscol { width: 150px; flex-shrink: 0; }
   .enq-pill2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 0.5px solid rgba(255, 255, 255, 0.4); -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(30, 45, 74, 0.05); }

@@ -128,6 +128,9 @@ export function EnquiriesTriageList({
   // Which row currently has an open menu or backdate popover — elevate its card
   // so the dropdown sits above every sibling.
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  // Drag-to-confirm (critique #20b): set when a row's court slider is dragged
+  // across, opening a confirm modal before the handover actually fires.
+  const [dragConfirm, setDragConfirm] = useState<{ row: OpenEnquiryRow; dir: "to_seller" | "to_buyer" } | null>(null);
 
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
@@ -190,6 +193,14 @@ export function EnquiriesTriageList({
     node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
     scrollTargetRef.current = null;
   }, [shown]);
+
+  // Esc closes the drag-confirm modal.
+  useEffect(() => {
+    if (!dragConfirm) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setDragConfirm(null); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [dragConfirm]);
 
   function run(id: string, fn: () => Promise<{ ok: boolean; reason?: string }>, msg: string) {
     if (busyId) return;
@@ -303,7 +314,7 @@ export function EnquiriesTriageList({
 
                 {/* Court slider */}
                 <div className="enq-slider">
-                  <ChaseBar stage={r.chaseBar.stage} progress={r.chaseBar.progress} isSeller={isSeller} />
+                  <ChaseBar stage={r.chaseBar.stage} progress={r.chaseBar.progress} isSeller={isSeller} onDragCommit={(dir) => setDragConfirm({ row: r, dir })} />
                   <div className="enq-ends">
                     <span style={{ color: isSeller ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", fontWeight: isSeller ? 700 : 500 }}>Seller&apos;s solicitor</span>
                     <span style={{ color: !isSeller ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", fontWeight: !isSeller ? 700 : 500 }}>Buyer&apos;s solicitor</span>
@@ -348,6 +359,44 @@ export function EnquiriesTriageList({
       </div>
 
       <p className="enq-foot">Showing {shown.length} of {rows.length} {rows.length === 1 ? "enquiry" : "enquiries"}</p>
+
+      {dragConfirm && (() => {
+        const id = dragConfirm.row.transactionId;
+        const addr = dragConfirm.row.address.split(",")[0].trim();
+        const toBuyer = dragConfirm.dir === "to_buyer";
+        return (
+          <div className="enq-modal-overlay" role="presentation" onClick={() => setDragConfirm(null)}>
+            <div className="enq-modal" role="dialog" aria-modal="true" aria-label={toBuyer ? "Confirm replies issued in full" : "Confirm raising further enquiries"} onClick={(e) => e.stopPropagation()}>
+              <h3 className="enq-modal-title">{toBuyer ? "Replies issued in full?" : "Raise further enquiries?"}</h3>
+              <p className="enq-modal-body">
+                {toBuyer
+                  ? `This moves ${addr} to the buyer's solicitor to review. Only confirm once all replies are across.`
+                  : `This moves ${addr} back to the seller's solicitor for another round of enquiries.`}
+              </p>
+              <div className="enq-modal-actions">
+                {toBuyer ? (
+                  <>
+                    <button type="button" className="enq-btn enq-btn-satisfied" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "buyer_solicitor", kind: "replies_sent", note: "Replies sent" }), "Replies sent, moved to the buyer's side"); setDragConfirm(null); }}>
+                      <Checks size={14} weight="bold" /> Yes, replies issued in full
+                    </button>
+                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "touch", kind: "partial_replies", note: "Some replies sent across" }), "Logged: some replies in"); setDragConfirm(null); }}>
+                      Only some replies in
+                    </button>
+                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => setDragConfirm(null)}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="enq-btn enq-btn-primary2" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised" }), "Further enquiries raised, moved to the seller's side"); setDragConfirm(null); }}>
+                      <ArrowRight size={14} weight="bold" /> Yes, raise further
+                    </button>
+                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => setDragConfirm(null)}>Cancel</button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
