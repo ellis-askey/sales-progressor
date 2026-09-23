@@ -73,7 +73,7 @@ export async function completeTaskAction(
   eventDate?: string | null,
 ): Promise<CompleteTaskResult> {
   const session = await requireSession();
-  const { transactionId, reminderLogId, targetMilestoneCode } = await completeChaseTask(
+  const { transactionId, targetMilestoneCode } = await completeChaseTask(
     taskId,
     getAccessScope(session),
   );
@@ -93,7 +93,12 @@ export async function completeTaskAction(
           confirmer: { kind: "user", id: session.user.id, name: session.user.name ?? "" },
           eventDate: eventDate ? new Date(eventDate) : null,
         }, undefined, { def });
-        // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
+        // completeMilestone auto-closes the reminder log AND cancels its pending
+        // chase (autoCompleteRemindersForMilestone). Now that the confirm has
+        // succeeded, stamp the chase "done" (not just cancelled) so history and
+        // analytics read it as a genuine agent completion. Done AFTER the confirm,
+        // so a failed confirm never leaves a false "done".
+        await prisma.chaseTask.update({ where: { id: taskId }, data: { status: "done" } }).catch(() => {});
 
         // Record the real exchange/completion date on the file when captured, so
         // the diary/forecast and the completion-email staleness check see the
@@ -179,13 +184,12 @@ export async function completeTaskAction(
             missing: e.missing ?? [],
           };
         }
-        // Any other error: keep the original fallback — close the log so
-        // the row doesn't loop. Real errors are rare; this preserves
-        // existing recovery behaviour.
-        await prisma.reminderLog.update({
-          where: { id: reminderLogId },
-          data: { status: "completed", statusReason: "Chase task marked done" },
-        }).catch(() => {});
+        // Any other error: leave everything as it was. The chase was NOT marked
+        // done (that only happens after a successful confirm now), and the log
+        // stays active with its pending chase — so nothing is lost and the agent
+        // can retry. No regen loop, because the pending chase still exists (the
+        // read/engine only create when there's none). Previously this closed the
+        // log, which would now strand the still-pending chase on a closed reminder.
         console.error("[completeTaskAction] completeMilestone failed:", err);
       }
     }

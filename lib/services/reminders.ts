@@ -1405,16 +1405,16 @@ export async function completeChaseTask(
   });
   if (!task) throw new Error("Task not found");
 
-  await prisma.chaseTask.update({
-    where: { id: taskId },
-    data: { status: "done" },
-  });
-
   const targetMilestoneCode = task.reminderLog.reminderRule.targetMilestoneCode;
 
-  // If there's no target milestone, close the reminder log now.
-  // If there is one, the caller will call completeMilestone which auto-closes it.
+  // No target milestone: this chase IS the completion, so mark it done and close
+  // the reminder now. WITH a target milestone we deliberately do NOT write here —
+  // the caller confirms the milestone, whose auto-complete closes the log AND
+  // cancels this pending chase. That keeps completion all-or-nothing: a failed (or
+  // never-attempted) confirm leaves the chase untouched, instead of a false "done"
+  // over a still-active reminder that then regenerates a fresh chase.
   if (!targetMilestoneCode) {
+    await prisma.chaseTask.update({ where: { id: taskId }, data: { status: "done" } });
     await prisma.reminderLog.update({
       where: { id: task.reminderLogId },
       data: { status: "completed", statusReason: "Chase task marked done" },
