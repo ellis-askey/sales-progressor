@@ -182,12 +182,18 @@ export type ReminderLogWithRule = {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
+// Access contract (Law 7): `agencyId` scopes the read to that agency. `null` is
+// the DELIBERATE internal-staff "see any file" case (admin/superadmin/sales_
+// progressor), and every caller that passes null gates access first (file page
+// via loadFilePageContext's scoped getTransaction; the Ellis-only summary action).
+// Guarded below so only an explicit null is unscoped — an accidental empty/blank
+// agencyId scopes to nothing (returns "not found") instead of silently leaking.
 export async function getReminderLogsForTransaction(
   transactionId: string,
   agencyId: string | null
 ): Promise<ReminderLogWithRule[]> {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
+    where: agencyId === null ? { id: transactionId } : { id: transactionId, agencyId },
     select: { id: true, activeBuyerRoundId: true, assignedUserId: true },
   });
   if (!tx) throw new Error("Transaction not found");
