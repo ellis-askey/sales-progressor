@@ -456,6 +456,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   for (const l of visibleLogs) {
     const code = l.reminderRule.targetMilestoneCode;
     if (!code) continue;
+    // No hand-over when client chasing is paused for this file: there's no live
+    // autopilot to hand over FROM, so the step must not sit in "Coming up" waiting
+    // for a hand-over that will never come. Skipping the override lets it fall
+    // through to its real due date and land in "Needs you" if it's overdue.
+    if (l.transaction.clientEmailsPaused) continue;
     const snap = chaseByTxCode.get(`${l.transaction.id}:${code}`);
     if (!snap) continue;
     // Fold in the agent's own last chase of this step (Mark chased / drawer
