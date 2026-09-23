@@ -199,6 +199,7 @@ export function TransactionTable({
           basePath={basePath}
           isLast={i === sorted.length - 1}
           cols={cols}
+          activeTab={statusFilter}
           showAgencyColumn={showAgencyColumn}
           showAssignedToColumn={showAssignedToColumn}
         />

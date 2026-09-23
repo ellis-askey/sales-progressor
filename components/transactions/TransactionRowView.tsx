@@ -420,6 +420,7 @@ export function TransactionRowView({
   cols: colsProp,
   showAgencyColumn = false,
   showAssignedToColumn = true,
+  activeTab,
 }: {
   tx: TransactionRow;
   basePath?: string;
@@ -427,6 +428,10 @@ export function TransactionRowView({
   cols?: FilesColumn[];
   showAgencyColumn?: boolean;
   showAssignedToColumn?: boolean;
+  // The tab the list is showing. On the single-status tabs the row's own
+  // status pill is a tautology (everything on the On-hold tab is on hold), so
+  // it's suppressed (critique, 2026-09-22).
+  activeTab?: FilesTab;
 }) {
   // Column set is decided by the active tab (see filesColumns) so the row grid
   // matches the header exactly. Cell CONTENT keys off this row's own status, so
@@ -466,10 +471,15 @@ export function TransactionRowView({
   );
 
   const riskContent = isPaused ? (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 99, background: "rgba(15,23,42,0.05)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(15,23,42,0.30)" }} />
-      Paused
-    </span>
+    // On the On-hold tab every row is paused — the pill says nothing, so it
+    // goes (critique, 2026-09-22). On All (and anywhere else) it still marks
+    // the paused rows out from the active ones.
+    activeTab === "on_hold" ? null : (
+      <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 99, background: "rgba(15,23,42,0.05)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(15,23,42,0.30)" }} />
+        Paused
+      </span>
+    )
   ) : isDone || isDead ? (
     <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
   ) : tx.health ? (
@@ -496,7 +506,7 @@ export function TransactionRowView({
             <div className="min-w-0 flex-1">
               <div className="files-line1">
                 <span className="files-addr">{line}</span>
-                {!isDone && !isDead && <span className="files-pill">{riskContent}</span>}
+                {!isDone && !isDead && riskContent && <span className="files-pill">{riskContent}</span>}
               </div>
               {location && <span className="files-town">{location}</span>}
               {showAgencyColumn && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
@@ -544,7 +554,7 @@ export function TransactionRowView({
           <div className="min-w-0 flex-1">
             <div className="files-line1">
               <span className="files-addr">{line}</span>
-              {!isDone && !isDead && <span className="files-pill">{riskContent}</span>}
+              {!isDone && !isDead && riskContent && <span className="files-pill">{riskContent}</span>}
             </div>
             {location && <span className="files-town">{location}</span>}
             {tx.boardStage && !isDone && !isDead && (
