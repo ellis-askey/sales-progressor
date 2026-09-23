@@ -1026,7 +1026,7 @@ export async function evaluateTransactionReminders(
       });
       await writeEngineAudit(
         transactionId,
-        `Automated chase scheduled for "${rule.name}" — first reminder ${formatEngineDate(firstDueDate)}.`,
+        `Automated chase scheduled for "${rule.name}": first reminder ${formatEngineDate(firstDueDate)}.`,
         assignedUserId
       );
     }
@@ -1276,7 +1276,7 @@ async function deactivateLog(
 
   await writeEngineAudit(
     transactionId,
-    `"${existing.reminderRule.name}" chase closed — ${reason}.`,
+    `"${existing.reminderRule.name}" chase closed: ${reason}.`,
     assignedUserId
   );
 }
@@ -1618,12 +1618,12 @@ export type FallbackKind =
 // at user sign-off — do not edit without the corresponding chip-text + audit-
 // note copy review.
 const FALLBACK_REASON: Record<FallbackKind, string> = {
-  client_opted_out:             "Client opted out of automated chases — handed to agent",
-  max_chases_exhausted:         "Client chased twice, no response — handed to agent",
-  days_cap_exhausted:           "Client silent for 14 days — handed to agent",
-  no_email_on_contact:          "Client contact missing email address — handed to agent",
-  no_portalToken_on_contact:    "Client contact missing portal access — handed to agent",
-  client_emails_paused:         "Client emails paused on this file — handed to agent",
+  client_opted_out:             "Client opted out of automated chases, handed to agent",
+  max_chases_exhausted:         "Client chased twice, no response, handed to agent",
+  days_cap_exhausted:           "Client silent for 14 days, handed to agent",
+  no_email_on_contact:          "Client contact missing email address, handed to agent",
+  no_portalToken_on_contact:    "Client contact missing portal access, handed to agent",
+  client_emails_paused:         "Client emails paused on this file, handed to agent",
   chase_send_failed:            "Couldn't email the client (address failed). Handed to agent.",
 };
 
@@ -1652,27 +1652,24 @@ function fallbackActivityNote(input: FallbackInput): string {
   const dateFmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   switch (input.kind) {
     case "client_opted_out":
-      return `Automated client chase suppressed — ${input.contactName} opted out on ${dateFmt(input.optedOutAt)}. Reminder handed back to agent.`;
+      return `Automated client chase suppressed: ${input.contactName} opted out on ${dateFmt(input.optedOutAt)}. Reminder handed back to agent.`;
     case "max_chases_exhausted":
-      return `Automated client chase suppressed — ${input.contactName} chased ${input.chaseCount} time${input.chaseCount === 1 ? "" : "s"} (last on ${dateFmt(input.lastChasedAt)}) with no response. Reminder handed back to agent.`;
+      return `Automated client chase suppressed: ${input.contactName} chased ${input.chaseCount} time${input.chaseCount === 1 ? "" : "s"} (last on ${dateFmt(input.lastChasedAt)}) with no response. Reminder handed back to agent.`;
     case "days_cap_exhausted":
-      return `Automated client chase suppressed — ${input.contactName} silent since first chase on ${dateFmt(input.firstChasedAt)} (14-day cap reached). Reminder handed back to agent.`;
+      return `Automated client chase suppressed: ${input.contactName} silent since first chase on ${dateFmt(input.firstChasedAt)} (14-day cap reached). Reminder handed back to agent.`;
     case "no_email_on_contact":
-      return `Automated client chase couldn't fire — ${input.contactName} has no email address on file. Reminder handed back to agent.`;
+      return `Automated client chase couldn't fire: ${input.contactName} has no email address on file. Reminder handed back to agent.`;
     case "no_portalToken_on_contact":
-      return `Automated client chase couldn't fire — ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
+      return `Automated client chase couldn't fire: ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
     case "chase_send_failed":
       return `Automated client chase couldn't reach ${input.contactName}, the email address failed to send. Reminder handed back to agent.`;
     case "client_emails_paused":
-      // "contact" scope added 2026-08-11 (per-contact pause in the email
-      // settings drawer). New copy is em-dash-free per Law 21; the two
-      // pre-existing branches are locked copy (see FALLBACK_REASON note).
       if (input.pausedScope === "contact") {
         return `Automated client chase paused. Chase emails are paused for ${input.contactName} on this file. Reminder handed back to agent.`;
       }
       return input.pausedScope === "agency"
-        ? `Automated client chase paused — chase emails are switched off agency-wide. Reminder handed back to agent.`
-        : `Automated client chase paused — chase emails are paused on this file. Reminder handed back to agent.`;
+        ? `Automated client chase paused: chase emails are switched off agency-wide. Reminder handed back to agent.`
+        : `Automated client chase paused: chase emails are paused on this file. Reminder handed back to agent.`;
   }
 }
 
