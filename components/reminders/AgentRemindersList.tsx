@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction, advanceManyChaseTasksAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -322,7 +323,7 @@ function SnoozedFileCard({
       {sorted.map((log, i) => {
         const name = reminderDisplayName(log, milestoneInfo);
         const isBuyer = isBuyerLog(log);
-        const taskId = log.chaseTasks.find((t) => t.status === "pending")?.id;
+        const taskId = pickLiveChase(log.chaseTasks)?.id;
         const wakeLabel = log.snoozedUntil ? formatDate(log.snoozedUntil) : "soon";
         // When the step is the solicitor's to do, surface the firm and link into
         // its partner page (the firm is stored per side on the file).
@@ -453,9 +454,9 @@ function SplitFileCard({
   const isBuyerLog = (l: AgentReminderLog) => !!l.reminderRule.targetMilestoneCode?.startsWith("PM");
 
   const openTasks = logs
-    .flatMap((log) => { const task = log.chaseTasks.find((t) => t.status === "pending"); return task ? [{ log, task }] : []; })
+    .flatMap((log) => { const task = pickLiveChase(log.chaseTasks); return task ? [{ log, task }] : []; })
     .sort((a, b) => new Date(a.log.nextDueDate).getTime() - new Date(b.log.nextDueDate).getTime());
-  const scheduledLogs = logs.filter((log) => !log.chaseTasks.find((t) => t.status === "pending"));
+  const scheduledLogs = logs.filter((log) => !pickLiveChase(log.chaseTasks));
 
   const milestones = openTasks.map(({ log, task }) => ({
     chaseTaskId: task.id,

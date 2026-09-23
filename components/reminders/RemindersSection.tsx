@@ -6,6 +6,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
+import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -187,7 +188,7 @@ function PriorityList({
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const openTasks = logs.flatMap((log) => {
-    const task = log.chaseTasks.find((t) => t.status === "pending");
+    const task = pickLiveChase(log.chaseTasks);
     if (!task) return [];
     return [{ log, task }];
   });
@@ -212,7 +213,7 @@ function PriorityList({
       {/* Rows — one flat worst-first list, side shown per row */}
       <div ref={rowsRef} style={{ padding: "6px 0" }}>
         {logs.map((log, i) => {
-          const task = log.chaseTasks.find((t) => t.status === "pending");
+          const task = pickLiveChase(log.chaseTasks);
           const name = stripChase(log.reminderRule.name);
           const isBuyer = !!log.reminderRule.targetMilestoneCode?.startsWith("PM");
           // Optimistic override — chased rows show the new next-due-date

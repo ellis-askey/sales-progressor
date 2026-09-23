@@ -15,6 +15,7 @@
 
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
+import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 
 export type AutopilotStatus =
   | { kind: "auto"; pipeline: "client" | "solicitor"; nextSend: string } // ISO
@@ -43,7 +44,7 @@ interface LogShape {
   // hand-over schedule — pulls it off autopilot regardless of the cron.
   handoverDue?: boolean;
   reminderRule: { targetMilestoneCode: string | null };
-  chaseTasks: { status: string; priority: string; fallbackKind: string | null }[];
+  chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; lastChasedAt?: Date | null }[];
   transaction: {
     agencyId: string | null;
     clientEmailsPaused: boolean;
@@ -94,7 +95,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
   const out = new Map<string, AutopilotStatus>();
 
   for (const log of logs) {
-    const task = log.chaseTasks.find((t) => t.status === "pending");
+    const task = pickLiveChase(log.chaseTasks);
     const code = log.reminderRule.targetMilestoneCode;
     const tx = log.transaction;
 

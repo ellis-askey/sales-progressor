@@ -11,6 +11,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { chaseBadgeLabel } from "@/lib/reminders/classify";
+import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 import { chaseParty } from "@/lib/chase/action-holders";
 
 export type Contact = {
@@ -323,7 +324,7 @@ export function ReminderCard({
     return new Promise((resolve) => setTimeout(() => { onSnooze(taskId, hours); resolve(); }, 260));
   }
   const todayStr = toUKDateStr(new Date());
-  const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
+  const openTask = pickLiveChase(log.chaseTasks) ?? null;
   const isEscalated = openTask?.priority === "escalated";
   const dueStr = toUKDateStr(log.nextDueDate);
   const isOverdue = dueStr < todayStr;
