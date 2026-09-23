@@ -1284,6 +1284,11 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         </div>
       </GlassCard>
 
+      {/* Keyed on the view so switching active ↔ snoozed fades the list up
+          instead of snapping (critique, 2026-09-23). The sticky search card
+          stays outside so it never re-animates. */}
+      <div key={statusFilter} className="wq-view-swap space-y-5">
+
       {/* Filtered empty states */}
       {statusFilter === "active" && !hasActiveResults && (
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
@@ -1446,6 +1451,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           </div>
         )
       )}
+
+      </div>
 
       <ConfirmMilestoneDateModal
         open={!!datePrompt}
