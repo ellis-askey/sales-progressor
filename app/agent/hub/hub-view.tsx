@@ -24,7 +24,7 @@ import {
   getHubPipelineStats, getHubPipelineHealth, getHubAttentionItems, getHubWins,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
   getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
-  getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm,
+  getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm, getStalledEnquiries,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
 } from "@/lib/services/hub";
 import type { HubSubtitleSignals } from "@/lib/services/hub";
@@ -43,6 +43,7 @@ import { ExchangeOverdueCard } from "@/components/hub/ExchangeOverdueCard";
 import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
 import { BookingsToConfirmCard, type BookingConfirmRow } from "@/components/hub/BookingsToConfirmCard";
+import { StalledEnquiriesCard } from "@/components/hub/StalledEnquiriesCard";
 import { NeedsFilingCard } from "@/components/hub/NeedsFilingCard";
 import { getPendingInboundEmails } from "@/lib/services/pending-inbound";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
@@ -739,6 +740,9 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
   // Gone quiet shows for self-managed agencies and internal staff alike
   // (getGoneQuietFiles scopes by agency vs assigned inside).
   const goneQuiet = await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds]);
+  // Enquiry loops silent past the escalation threshold — the safety net that shows
+  // even when auto-chasing is off for the agency (getStalledEnquiries computes it).
+  const stalledEnquiries = await getStalledEnquiries(vis);
 
   const todayStr = toUKDateStr(new Date());
   const reviewsDue = reviewsResult.items.filter((i) => i.reviewDate && toUKDateStr(i.reviewDate) <= todayStr);
@@ -748,7 +752,8 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
     (mortgage.length > 0 ? 1 : 0) +
     (needsFiling.length > 0 ? 1 : 0) +
     (reviewsDue.length > 0 ? 1 : 0) +
-    (goneQuiet.length > 0 ? 1 : 0);
+    (goneQuiet.length > 0 ? 1 : 0) +
+    (stalledEnquiries.length > 0 ? 1 : 0);
   if (presentCount === 0) return null;
   const startCollapsed = presentCount > 1;
 
@@ -757,6 +762,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
     ...mortgage.map((i) => i.photoStoragePath),
     ...reviewsDue.map((i) => i.photoStoragePath),
     ...goneQuiet.map((i) => i.photoStoragePath),
+    ...stalledEnquiries.map((i) => i.photoStoragePath),
   ]);
   const reviewsWithPhotos = reviewsDue.map((i) => ({
     ...i,
@@ -804,6 +810,11 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             rows={buildGoneQuietRows(goneQuiet, photoMap)}
             defaultCollapsed={startCollapsed}
           />
+        </SectionReveal>
+      )}
+      {stalledEnquiries.length > 0 && (
+        <SectionReveal order={1}>
+          <StalledEnquiriesCard rows={stalledEnquiries} signedPhotos={Object.fromEntries(photoMap)} defaultCollapsed={startCollapsed} />
         </SectionReveal>
       )}
     </>

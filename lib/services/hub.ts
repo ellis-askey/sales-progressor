@@ -12,6 +12,8 @@ import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
+import { addWorkingDays } from "@/lib/emails/working-hours";
+import { ENQUIRY_ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -1137,6 +1139,74 @@ export type BookingToConfirmItem = {
   // First name of the client who logged it, or null if it can't be resolved.
   bookedByName: string | null;
 };
+
+export type StalledEnquiryItem = {
+  transactionId: string;
+  address: string;
+  photoStoragePath: string | null;
+  currentlyWith: "seller_solicitor" | "buyer_solicitor";
+  quietDays: number;
+  solicitorName: string | null;
+};
+
+// Enquiry loops that have gone quiet past the escalation threshold (13 working
+// days of silence). Computed HERE, not read from escalatedAt — the chase cron only
+// sets that flag for agencies with chasing ON, and this drawer must surface stalled
+// loops even where auto-chasing is off (the whole point of the hub safety net).
+export async function getStalledEnquiries(vis: AgentVisibility): Promise<StalledEnquiryItem[]> {
+  const txNested = buildTxNested(vis);
+  const now = new Date();
+  const rows = await prisma.enquiryTracker.findMany({
+    where: {
+      closedAt: null,
+      transaction: {
+        is: {
+          status: "active",
+          ...txNested,
+          ...(vis.internalMode ? {} : { agencyId: vis.agencyId }),
+        },
+      },
+    },
+    select: {
+      currentlyWith: true,
+      openedAt: true,
+      lastMovementAt: true,
+      escalatedAt: true,
+      snoozedUntil: true,
+      transaction: {
+        select: {
+          id: true,
+          propertyAddress: true,
+          photoStoragePath: true,
+          vendorSolicitorFirm: { select: { name: true } },
+          purchaserSolicitorFirm: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  const out: StalledEnquiryItem[] = [];
+  for (const r of rows) {
+    const tx = r.transaction;
+    if (!tx) continue;
+    // A future expected date (snooze) parks the loop — not stalled.
+    if (r.snoozedUntil && r.snoozedUntil > now) continue;
+    const anchor = r.lastMovementAt ?? r.openedAt;
+    const stalled = !!r.escalatedAt || now >= addWorkingDays(anchor, ENQUIRY_ESCALATE_WORKING_DAYS);
+    if (!stalled) continue;
+    const seller = r.currentlyWith === "seller_solicitor";
+    out.push({
+      transactionId: tx.id,
+      address: tx.propertyAddress,
+      photoStoragePath: tx.photoStoragePath,
+      currentlyWith: r.currentlyWith as "seller_solicitor" | "buyer_solicitor",
+      quietDays: Math.max(0, Math.floor((now.getTime() - anchor.getTime()) / 86400000)),
+      solicitorName: seller ? (tx.vendorSolicitorFirm?.name ?? null) : (tx.purchaserSolicitorFirm?.name ?? null),
+    });
+  }
+  out.sort((a, b) => b.quietDays - a.quietDays); // longest-quiet first
+  return out;
+}
 
 export async function getBookingsToConfirm(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<BookingToConfirmItem[]> {
   const txNested = buildTxNested(vis);

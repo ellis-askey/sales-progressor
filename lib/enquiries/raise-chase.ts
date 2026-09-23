@@ -41,7 +41,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
   const chases = await prisma.enquiryRaiseChase.findMany({
     // Live files only. A withdrawn / on-hold / completed sale keeps no live
     // chase (it's closed on status change), but this is the belt-and-braces guard.
-    where: { closedAt: null, transaction: { is: { status: "active", agency: { is: { enquiryRaiseChaseEnabled: true } } } } },
+    where: { closedAt: null, transaction: { is: { status: "active", enquiryChasePaused: false, agency: { is: { enquiryRaiseChaseEnabled: true } } } } },
     select: {
       id: true,
       openedAt: true,

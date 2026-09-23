@@ -29,6 +29,7 @@ import {
   EnvelopeSimple,
   PaperPlaneTilt,
   UsersThree,
+  ChatCircleText,
   Pause,
   Info,
   CaretDown,
@@ -41,6 +42,7 @@ import {
   setContactEmailsPaused,
   setContactStepConfirmPaused,
   setEmailAudiencePaused,
+  setEnquiryChasePaused,
   type EmailAudience,
   type EmailSettingsState,
 } from "@/app/actions/automation";
@@ -354,6 +356,22 @@ function EmailSettingsDrawer({
     });
   }
 
+  function toggleEnquiryChase() {
+    if (!state || pendingKey) return;
+    const nextPaused = !state.enquiryChasePaused;
+    setPendingKey("enquiry");
+    startTransition(async () => {
+      const res = await setEnquiryChasePaused(transactionId, nextPaused);
+      if (res.ok) {
+        onStateChange({ ...state, enquiryChasePaused: nextPaused });
+        toast.success(nextPaused ? "Enquiry chases paused" : "Enquiry chases resumed");
+      } else {
+        toast.error("Couldn't update. Try again");
+      }
+      setPendingKey(null);
+    });
+  }
+
   const sellers = state?.contacts.filter((c) => c.roleType === "vendor") ?? [];
   const buyers = state?.contacts.filter((c) => c.roleType === "purchaser") ?? [];
   const hasClients = sellers.length > 0 || buyers.length > 0;
@@ -512,6 +530,20 @@ function EmailSettingsDrawer({
                 </div>
               </div>
             </SectionCard>
+
+            <SectionCard
+              icon={<ChatCircleText size={20} weight="regular" />}
+              title="Chase enquiries"
+              subtitle="While enquiries are open, automatically chase the solicitor who owes replies, then flag it to you if it stalls. Off pauses this for this file only."
+              control={
+                <Switch
+                  on={!state.enquiryChasePaused}
+                  onClick={toggleEnquiryChase}
+                  disabled={pendingKey !== null}
+                  ariaLabel={`Chase enquiries: ${state.enquiryChasePaused ? "paused" : "on"}`}
+                />
+              }
+            />
 
             {(state.status === "active" || state.status === "on_hold") && (
               <SectionCard

@@ -207,6 +207,8 @@ export type EmailSettingsState = {
   suppressPortalConfirmEmails: boolean;
   status: "active" | "on_hold" | "other";
   clientEmailsPaused: boolean;
+  // Enquiry auto-chase paused for THIS file (raise nudges + reply-loop chase).
+  enquiryChasePaused: boolean;
   serviceType: string | null;
   contacts: EmailSettingsContact[];
   vendorSolicitor: { name: string; paused: boolean } | null;
@@ -259,6 +261,7 @@ export async function loadEmailSettings(
       serviceType: true,
       suppressPortalConfirmEmails: true,
       clientEmailsPaused: true,
+      enquiryChasePaused: true,
       vendorSolicitorEmailsPaused: true,
       purchaserSolicitorEmailsPaused: true,
       vendorSolicitorFirm: { select: { name: true } },
@@ -306,6 +309,7 @@ export async function loadEmailSettings(
       suppressPortalConfirmEmails: tx.suppressPortalConfirmEmails,
       status: tx.status === "active" ? "active" : tx.status === "on_hold" ? "on_hold" : "other",
       clientEmailsPaused: tx.clientEmailsPaused,
+      enquiryChasePaused: tx.enquiryChasePaused,
       serviceType: tx.serviceType ?? null,
       contacts,
       vendorSolicitor: tx.vendorSolicitorFirm
@@ -316,6 +320,21 @@ export async function loadEmailSettings(
         : null,
     },
   };
+}
+
+// Pause / resume the ENQUIRIES auto-chase for this file only (raise nudges +
+// reply-loop chase). Distinct from the per-solicitor pause, which silences all
+// solicitor email. The chase crons filter on enquiryChasePaused=false.
+export async function setEnquiryChasePaused(transactionId: string, paused: boolean): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+  const tx = await prisma.propertyTransaction.findFirst({ where, select: { id: true } });
+  if (!tx) return { ok: false, error: "Not found" };
+  await prisma.propertyTransaction.update({ where: { id: tx.id }, data: { enquiryChasePaused: paused } });
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/transactions/${transactionId}`);
+  return { ok: true };
 }
 
 // Pause / resume chase emails for ONE contact. The legacy whole-file
@@ -612,6 +631,25 @@ export async function setWeeklyClientUpdatesEnabled(enabled: boolean): Promise<A
   await prisma.agency.update({
     where: { id: agencyId },
     data: { weeklyClientUpdatesEnabled: enabled },
+  });
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
+
+// Director-only: turn the ENQUIRIES auto-chase on/off for the whole agency. Flips
+// both streams together (the nudge-to-raise chase AND the reply-loop chase) — the
+// Command Centre keeps the granular per-stream control. The platform master switch
+// (SolicitorChaseSettings.enabledByDefault) still gates everything above this.
+export async function setAgencyEnquiryChaseEnabled(enabled: boolean): Promise<ActionResult> {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can change automation settings." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "Missing agency context." };
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { enquiryReplyChaseEnabled: enabled, enquiryRaiseChaseEnabled: enabled },
   });
   revalidatePath("/agent/settings/automation");
   return { ok: true };

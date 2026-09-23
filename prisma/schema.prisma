@@ -590,6 +590,12 @@ model PropertyTransaction {
   vendorSolicitorEmailsPausedUntil    DateTime?
   purchaserSolicitorEmailsPausedUntil DateTime?
 
+  // Per-file opt-out of the ENQUIRIES auto-chase specifically (the raise nudges
+  // + the reply-loop chase). Distinct from the *SolicitorEmailsPaused flags,
+  // which silence ALL solicitor email on the file; this pauses only the enquiry
+  // chasing. Off (chasing on) by default. Toggled in the file's Email settings.
+  enquiryChasePaused Boolean @default(false)
+
   // Temporary internal-staff debug toggle. When true, the buyer/seller
   // portal confirmation email (sendAdminMilestoneNotificationToPortal)
   // is skipped on milestone confirms — all other side effects (chain
