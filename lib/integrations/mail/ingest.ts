@@ -7,7 +7,7 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { AccessScope } from "@/lib/security/access-scope";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
@@ -259,6 +259,27 @@ function toInfo(msg: IngestMessage): SyncMessageInfo {
   };
 }
 
+// Thread continuity (critique #16): if an email couldn't be placed by party /
+// folder / address, but its conversation is ALREADY filed to exactly one property
+// in scope, follow the thread there. Keyed on the specific conversation (one
+// matter/thread), so a party shared across files can't leak — a different matter
+// is a different thread. Returns the file id, or null when the thread is on zero
+// or more than one file (then it stays in the tray rather than guessing).
+async function conversationFile(conversationId: string, scope: AccessScope): Promise<string | null> {
+  const rows = await prisma.outboundMessage.findMany({
+    where: {
+      conversationId,
+      transactionId: { not: null },
+      transaction: { is: { AND: [scopeTransactionWhere(scope), { status: { not: "draft" } }] } },
+    },
+    select: { transactionId: true },
+    distinct: ["transactionId"],
+    take: 3,
+  });
+  const ids = [...new Set(rows.map((r) => r.transactionId).filter((x): x is string => !!x))];
+  return ids.length === 1 ? ids[0] : null;
+}
+
 // ─── Shared: match + ingest a batch of already-fetched messages ────────────────
 
 // The provider-agnostic heart of a mailbox sync. A connector fetches messages
@@ -330,7 +351,17 @@ export async function runMailboxSync(opts: {
 
   for (const msg of messages) {
     const info = toInfo(msg);
-    const { txId, candidates } = matchMessage(msg, mailboxEmail, index, folderHints, addressIndex);
+    const matched = matchMessage(msg, mailboxEmail, index, folderHints, addressIndex);
+    const candidates = matched.candidates;
+    let txId = matched.txId;
+
+    // Thread continuity (#16): couldn't place it, but this conversation is already
+    // on exactly one file → follow the thread there. Catches replies whose address
+    // is only in a mistyped subject / a body with no postcode.
+    if (!txId && msg.conversationId) {
+      const threadTx = await conversationFile(msg.conversationId, scope);
+      if (threadTx) txId = threadTx;
+    }
 
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);

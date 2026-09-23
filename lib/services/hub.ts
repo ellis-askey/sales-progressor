@@ -2189,9 +2189,17 @@ export async function getHubServiceSplit(vis: AgentVisibility): Promise<{
   }
 
   // Internal (platform) view: one pass over active files → counts, our fee income
-  // by service type, and the agencies making up the pipeline.
+  // by service type, and the agencies making up the pipeline. This card is the ONE
+  // place that must see BOTH service types: buildTxWhere hard-filters admins to
+  // outsourced (the internal team's book), which would make self-managed always 0
+  // here. So for admin_all we count every active non-demo file across all agencies;
+  // an assigned progressor still sees only their assigned book. (critique #18)
+  const splitWhere =
+    vis.internalMode === "admin_all"
+      ? { status: "active" as const, isDemo: false }
+      : { ...txWhere, status: "active" as const };
   const files = await prisma.propertyTransaction.findMany({
-    where: { ...txWhere, status: "active" },
+    where: splitWhere,
     select: {
       ...FEE_INPUT_SELECT,
       agencyId: true,
