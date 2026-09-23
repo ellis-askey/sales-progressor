@@ -125,6 +125,8 @@ export async function logEnquiryChaseAction(input: {
   if (!owned) throw new Error("Not found");
   const userId = session.user.id;
 
+  const isPhone = input.method === "phone";
+  const isEmail = input.method === "email";
   const trimmedNote = (input.note ?? "").trim();
   const partyLabel =
     input.withParty === "buyer" ? "the buyer"
@@ -138,15 +140,13 @@ export async function logEnquiryChaseAction(input: {
           : null;
 
   // Enquiry-timeline movement note (resets the chase clock via mode "touch").
-  const note =
-    input.method === "phone"
-      ? [
-          "Chased by phone",
-          partyLabel ? `with ${partyLabel}` : null,
-          outcomeLabel && input.outcome !== "spoke" ? `(${outcomeLabel})` : null,
-          trimmedNote ? `— ${trimmedNote}` : null,
-        ].filter(Boolean).join(" ")
-      : input.method === "email" ? "Chased by email" : "Chased";
+  const verbNote = isPhone ? "Chased by phone" : isEmail ? "Chased by email" : "Chased";
+  const note = [
+    verbNote,
+    partyLabel ? `with ${partyLabel}` : null,
+    isPhone && outcomeLabel && input.outcome !== "spoke" ? `(${outcomeLabel})` : null,
+    trimmedNote ? `— ${trimmedNote}` : null,
+  ].filter(Boolean).join(" ");
 
   const ok = await logEnquiryMovement({
     transactionId: input.transactionId,
@@ -156,22 +156,24 @@ export async function logEnquiryChaseAction(input: {
     createdByUserId: userId,
   });
 
-  // Mirror a phone chase onto the file's activity feed as a call, so it's logged
-  // there too (same as pressing Call on the property file's activity tab). The
-  // "who" lives in the content since solicitor contacts aren't Contact rows.
-  // Best-effort: a failure here never fails the chase itself.
-  if (ok && input.method === "phone" && (trimmedNote || input.outcome || input.withParty)) {
-    const callContent =
-      `${partyLabel ? `Call with ${partyLabel}` : "Call"} re enquiries` +
-      (outcomeLabel && input.outcome !== "spoke" ? ` (${outcomeLabel})` : "") +
+  // Mirror a detailed phone/email chase onto the file's activity feed (same as
+  // logging a call/email on the property file's activity tab), so the conversation
+  // is captured there too. The "who" lives in the content since solicitor contacts
+  // aren't Contact rows. Best-effort: a failure here never fails the chase itself.
+  const hasDetail = trimmedNote || input.withParty || (isPhone && input.outcome);
+  if (ok && (isPhone || isEmail) && hasDetail) {
+    const verb = isPhone ? "Call" : "Email";
+    const content =
+      `${partyLabel ? `${verb} with ${partyLabel}` : verb} re enquiries` +
+      (isPhone && outcomeLabel && input.outcome !== "spoke" ? ` (${outcomeLabel})` : "") +
       (trimmedNote ? `: ${trimmedNote}` : ".");
     try {
       await createCommunicationRecord({
         transactionId: input.transactionId,
         type: "outbound",
-        method: input.outcome === "voicemail" ? "voicemail" : "phone",
+        method: isPhone ? (input.outcome === "voicemail" ? "voicemail" : "phone") : "email",
         contactIds: [],
-        content: callContent,
+        content,
         visibleToClient: false,
         createdById: userId,
         createdByRole: session.user.role,

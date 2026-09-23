@@ -21,8 +21,8 @@ import {
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
-import { DateField } from "@/components/ui/DateField";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
+import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -61,7 +61,8 @@ function statusPill(r: OpenEnquiryRow): Pill {
     if (chaseMs < tomorrow) return { label: "Due today", tone: "danger" };
   }
   if (r.expectedDate && new Date(r.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0)) {
-    return { label: `Expected ${fmtDay(r.expectedDate)}`, tone: "amber" };
+    // Just the calendar icon + the date — the "Expected" word is dropped (critique #4).
+    return { label: fmtDay(r.expectedDate), tone: "amber" };
   }
   // Court-driven, not last-event-driven: with the buyer's solicitor means the
   // replies are in and they're deciding (satisfied / raise further); with the
@@ -116,9 +117,14 @@ const enqMovePlugin: AutoAnimationPlugin = (el, action, oldCoords, newCoords) =>
 export function EnquiriesTriageList({
   rows,
   signedPhotos,
+  emailConnected = false,
 }: {
   rows: OpenEnquiryRow[];
   signedPhotos: Record<string, string>;
+  // Whether the current user's mailbox ingest (Outlook/IMAP) is connected. Drives
+  // whether the Email chip logs one-tap (connected: sent email auto-captured) or
+  // opens the logger (not connected). See critique #6.
+  emailConnected?: boolean;
 }) {
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
@@ -131,6 +137,9 @@ export function EnquiriesTriageList({
   // Drag-to-confirm (critique #20b): set when a row's court slider is dragged
   // across, opening a confirm modal before the handover actually fires.
   const [dragConfirm, setDragConfirm] = useState<{ row: OpenEnquiryRow; dir: "to_seller" | "to_buyer" } | null>(null);
+  // Log-a-chase sheet (critique #5/#6): phone always, email when ingest isn't
+  // connected. Opened from a row; renders once at the list root so it overlays.
+  const [logSheet, setLogSheet] = useState<{ row: OpenEnquiryRow; mode: "phone" | "email" } | null>(null);
 
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
@@ -291,7 +300,15 @@ export function EnquiriesTriageList({
               className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}`}
               data-busy={busy ? "" : undefined}
             >
-              <div className="enq-row2">
+              {/* The whole row toggles expand/collapse, EXCEPT the file link, the
+                  court slider, and the action cluster — those keep their own
+                  behaviour (navigate / drag / act). Caret stays as the keyboard
+                  path (critique E1). */}
+              <div
+                className="enq-row2 enq-row2-clickable"
+                role="presentation"
+                onClick={(e) => { if (!(e.target as HTMLElement).closest(".enq-idlink, .enq-slider, .enq-actions2")) toggleExpand(r.transactionId); }}
+              >
                 {/* Photo + address are one link: hovering anywhere (photo or
                     town) highlights the address, clicking opens the file. */}
                 <Link href={`/agent/transactions/${r.transactionId}`} className="enq-idlink" aria-label={`Open ${line1.trim()}`}>
@@ -350,7 +367,7 @@ export function EnquiriesTriageList({
                   (toggleExpand), so collapsed rows don't hit the server. */}
               <div className={`agent-acc${expanded ? " open" : ""}`}>
                 <div className="agent-acc-in">
-                  <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method, details) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method, ...details }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />
+                  <ExpandedDetail row={r} history={history[r.transactionId]} emailConnected={emailConnected} onLog={(mode) => setLogSheet({ row: r, mode })} onChase={(method, details) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method, ...details }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />
                 </div>
               </div>
             </div>
@@ -397,6 +414,17 @@ export function EnquiriesTriageList({
           </div>
         );
       })()}
+
+      {logSheet && (
+        <EnquiryLogSheet
+          mode={logSheet.mode}
+          address={logSheet.row.address.split(",")[0].trim()}
+          defaultParty={logSheet.row.currentlyWith === "seller_solicitor" ? "seller_solicitor" : "buyer_solicitor"}
+          busy={busyId === logSheet.row.transactionId}
+          onSubmit={(d) => run(logSheet.row.transactionId, () => logEnquiryChaseAction({ transactionId: logSheet.row.transactionId, method: logSheet.mode, outcome: d.outcome, note: d.note, withParty: d.withParty }), logSheet.mode === "phone" ? "Call logged" : "Email logged")}
+          onClose={() => setLogSheet(null)}
+        />
+      )}
     </div>
   );
 }
@@ -628,28 +656,17 @@ function Tile({ icon, value, label, sub, tone }: { icon: React.ReactNode; value:
 }
 
 function ExpandedDetail({
-  row, history, onChase, onExpected, busy,
+  row, history, onChase, onLog, emailConnected, onExpected, busy,
 }: {
   row: OpenEnquiryRow;
   history: EnquiryHistoryEntry[] | "loading" | undefined;
   onChase: (method: "phone" | "email", details?: { outcome?: EnquiryCallOutcome; note?: string; withParty?: EnquiryCallParty }) => void;
+  onLog: (mode: "phone" | "email") => void;
+  emailConnected: boolean;
   onExpected: (date: string | null) => void;
   busy: boolean;
 }) {
-  const [dateOpen, setDateOpen] = useState(false);
   const [previewMsgId, setPreviewMsgId] = useState<string | null>(null);
-  // Phone-chase logger: capture who it was with, the outcome, and a note of the
-  // call. Email stays one-tap. Default the party to whoever currently owes replies.
-  const [phoneOpen, setPhoneOpen] = useState(false);
-  const [callParty, setCallParty] = useState<EnquiryCallParty>(row.currentlyWith === "seller_solicitor" ? "seller_solicitor" : "buyer_solicitor");
-  const [callOutcome, setCallOutcome] = useState<EnquiryCallOutcome>("spoke");
-  const [callNote, setCallNote] = useState("");
-  function submitPhone() {
-    onChase("phone", { outcome: callOutcome, note: callNote.trim() || undefined, withParty: callParty });
-    setPhoneOpen(false);
-    setCallNote("");
-    setCallOutcome("spoke");
-  }
   return (
     <div className="enq-detail">
       <div className="enq-detail-col">
@@ -669,47 +686,32 @@ function ExpandedDetail({
         <div className="enq-detail-h">Expected</div>
         {row.expectedDate ? (
           <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="enq-linkbtn" disabled={busy} onClick={() => onExpected(null)}>Clear</button></div>
-        ) : dateOpen ? (
-          <DateField className="enq-date" wrapperStyle={{ display: "inline-block" }} autoFocus disabled={busy} onChange={(e) => { if (e.target.value) onExpected(e.target.value); setDateOpen(false); }} onBlur={() => setDateOpen(false)} />
         ) : (
-          <button type="button" className="enq-linkbtn" onClick={() => setDateOpen(true)}>Add expected date</button>
+          // Tap-to-open: a real (invisible) date input covers the field, so a tap
+          // opens the OS picker directly. No autoFocus + onBlur — that combo made
+          // iOS cancel the picker the instant it stole focus (#3).
+          <div className="enq-bd-field enq-exp-field">
+            <CalendarBlank size={15} className="enq-bd-cal" />
+            <span className="enq-bd-ph">Add expected date</span>
+            <input
+              type="date"
+              className="enq-exp-native"
+              min={todayISO()}
+              disabled={busy}
+              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* iOS opens on tap anyway */ } }}
+              onChange={(e) => { if (e.target.value) onExpected(e.target.value); }}
+              aria-label="Expected replies date"
+            />
+          </div>
         )}
         <div className="enq-detail-chase">
           <span className="enq-detail-meta">Log a chase:</span>
-          <button type="button" className={`enq-chip${phoneOpen ? " is-on" : ""}`} disabled={busy} aria-expanded={phoneOpen} onClick={() => setPhoneOpen((o) => !o)}><Phone size={12} /> Phone</button>
-          <button type="button" className="enq-chip" disabled={busy} onClick={() => onChase("email")}><EnvelopeSimple size={12} /> Email</button>
+          <button type="button" className="enq-chip" disabled={busy} onClick={() => onLog("phone")}><Phone size={12} /> Phone</button>
+          {/* Email: one-tap when the mailbox ingest is connected (their sent email
+              is captured automatically); otherwise open the logger so they can
+              record it themselves (#6). */}
+          <button type="button" className="enq-chip" disabled={busy} onClick={() => (emailConnected ? onChase("email") : onLog("email"))}><EnvelopeSimple size={12} /> Email</button>
         </div>
-        {phoneOpen && (
-          <div className="enq-calllog" role="group" aria-label="Log a phone chase">
-            <div className="enq-calllog-field">
-              <span className="enq-calllog-lbl">Who with</span>
-              <div className="enq-seg">
-                <button type="button" className={callParty === "seller_solicitor" ? "on" : ""} onClick={() => setCallParty("seller_solicitor")}>Seller&apos;s solicitor</button>
-                <button type="button" className={callParty === "buyer_solicitor" ? "on" : ""} onClick={() => setCallParty("buyer_solicitor")}>Buyer&apos;s solicitor</button>
-                <button type="button" className={callParty === "buyer" ? "on" : ""} onClick={() => setCallParty("buyer")}>Buyer</button>
-              </div>
-            </div>
-            <div className="enq-calllog-field">
-              <span className="enq-calllog-lbl">Outcome</span>
-              <div className="enq-seg">
-                <button type="button" className={callOutcome === "spoke" ? "on" : ""} onClick={() => setCallOutcome("spoke")}>Spoke</button>
-                <button type="button" className={callOutcome === "voicemail" ? "on" : ""} onClick={() => setCallOutcome("voicemail")}>Voicemail</button>
-                <button type="button" className={callOutcome === "no_answer" ? "on" : ""} onClick={() => setCallOutcome("no_answer")}>No answer</button>
-              </div>
-            </div>
-            <textarea
-              className="enq-calllog-note"
-              value={callNote}
-              onChange={(e) => setCallNote(e.target.value)}
-              placeholder="What was discussed? (optional)"
-              rows={2}
-            />
-            <div className="enq-calllog-actions">
-              <button type="button" className="enq-btn enq-btn-flip" disabled={busy} onClick={() => setPhoneOpen(false)}>Cancel</button>
-              <button type="button" className="enq-btn enq-btn-primary2" disabled={busy} onClick={submitPhone}><Phone size={13} weight="fill" /> Log call</button>
-            </div>
-          </div>
-        )}
       </div>
       <div className="enq-detail-col">
         <div className="enq-detail-h">Chase history</div>

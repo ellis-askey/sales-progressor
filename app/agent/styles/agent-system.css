@@ -2250,6 +2250,10 @@
   .enq-card[data-busy] { opacity: 0.55; pointer-events: none; }
   .enq-card:hover { box-shadow: 0 4px 14px rgba(30,45,74,0.06); }
   .enq-row2 { display: flex; align-items: center; gap: 16px; padding: 12px 14px; }
+  /* The row toggles expand on click (critique E1); the slider keeps a default
+     cursor since it's excluded from the toggle. */
+  .enq-row2-clickable { cursor: pointer; }
+  .enq-row2-clickable .enq-slider { cursor: default; }
   /* Photo + address block is one link — hovering the photo or town highlights
      the first line, and a click anywhere opens the file. */
   .enq-idlink { display: flex; align-items: center; gap: 16px; min-width: 0; flex-shrink: 0; text-decoration: none; }
@@ -2288,15 +2292,38 @@
   .enq-modal-actions { display: flex; flex-direction: column; gap: 8px; }
   .enq-modal-actions .enq-btn { width: 100%; justify-content: center; }
 
+  /* Log-a-chase sheet (critique #5/#6): centred popup over the row on desktop, a
+     bottom drawer that slides up on mobile / tablet. Tapping the blurred backdrop,
+     Cancel or Esc slides it back down. */
+  .enq-sheet-overlay { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,5,0,0.35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: enq-fade-in 160ms ease both; }
+  .enq-sheet-overlay.is-closing { animation: enq-fade-out 200ms ease both; }
+  .enq-sheet { width: 100%; max-width: 420px; padding: 18px; border-radius: 16px; background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default); box-shadow: 0 20px 60px rgba(15,5,0,0.28); display: flex; flex-direction: column; gap: 12px; animation: agent-dropdown-in 180ms ease both; }
+  .enq-sheet-head { display: flex; align-items: center; justify-content: space-between; }
+  .enq-sheet-title { font-size: 15px; font-weight: 700; color: var(--agent-text-primary); }
+  .enq-sheet-x { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; border: none; background: none; color: var(--agent-text-muted); cursor: pointer; }
+  .enq-sheet-x:hover { background: var(--agent-hover-tint); color: var(--agent-text-primary); }
+  .enq-sheet-sub { margin: -4px 0 2px; font-size: 12.5px; font-weight: 600; color: var(--agent-text-secondary); }
+  @media (max-width: 767px) {
+    .enq-sheet-overlay { align-items: flex-end; padding: 0; }
+    .enq-sheet { max-width: none; border-radius: 18px 18px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); animation: enq-sheet-up 260ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+    .enq-sheet.is-closing { animation: enq-sheet-down 220ms ease both; }
+  }
+  @keyframes enq-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes enq-fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes enq-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes enq-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .enq-sheet-overlay, .enq-sheet-overlay.is-closing, .enq-sheet, .enq-sheet.is-closing { animation-duration: 1ms; }
+  }
+
   .enq-statuscol { width: 150px; flex-shrink: 0; }
-  .enq-pill2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 0.5px solid rgba(255, 255, 255, 0.4); -webkit-backdrop-filter: blur(8px) saturate(1.3); backdrop-filter: blur(8px) saturate(1.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(30, 45, 74, 0.05); }
-  .enq-pill-danger { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.14); }
-  .enq-pill-amber  { color: #b45309; background: rgba(245, 158, 11, 0.14); }
-  .enq-pill-green  { color: var(--agent-success); background: var(--agent-success-bg); }
-  /* "Awaiting replies" is the calm resting state — plain coloured text + icon,
-     no pill chrome, so the urgent pills (overdue/expected/reviewing) carry the
-     colour instead (critique #20a). */
-  .enq-pill-blue   { color: #2563eb; background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding-left: 0; padding-right: 0; }
+  /* Status: plain coloured text + icon, no pill chrome — the colour alone carries
+     the state (critique #20a/#4, all variants incl. overdue). */
+  .enq-pill2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; }
+  .enq-pill-danger { color: var(--agent-coral-deep); }
+  .enq-pill-amber  { color: #b45309; }
+  .enq-pill-green  { color: var(--agent-success); }
+  .enq-pill-blue   { color: #2563eb; }
   .enq-substatus { display: block; font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
 
   .enq-actions2 { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
@@ -2327,6 +2354,9 @@
   /* 1180 (was 1024): with the 220px sidebar the desktop row only has real
    * room above ~1180 viewport (responsive programme Phase 4, audit D6). */
   @media (max-width: 1180px) { .enq-detail { grid-template-columns: repeat(2, 1fr); padding-left: 16px; } }
+  /* Mobile: one full-width column, stacked in source order — Enquiry round, Last
+     update, Expected (+ Log a chase), Chase history (critique E2). */
+  @media (max-width: 767px) { .enq-detail { grid-template-columns: 1fr; gap: 16px; } }
   .enq-detail-h { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--agent-text-muted); margin-bottom: 6px; }
   .enq-detail-b { font-size: 12.5px; color: var(--agent-text-primary); line-height: 1.5; }
   .enq-detail-meta { font-size: 11px; color: var(--agent-text-muted); margin-top: 3px; }
@@ -2435,6 +2465,10 @@
   .enq-bd-ph { font-size: 13px; color: var(--agent-text-muted); }
   .enq-bd-val { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); }
   .enq-bd-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; pointer-events: none; }
+  /* Expected-date field: unlike the backdate one, its native input is directly
+     tappable (pointer-events on) so a tap opens the OS picker with no JS — the
+     reliable iOS path. font-size 16px stops iOS zooming on focus (critique E3). */
+  .enq-exp-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; cursor: pointer; font-size: 16px; }
 
   @media (max-width: 1180px) {
     .enq-a-desktop { display: none !important; }

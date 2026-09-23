@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { prisma } from "@/lib/prisma";
 import { getOpenEnquiries } from "@/lib/services/enquiries";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -20,7 +21,15 @@ export default async function EnquiriesPage() {
   }
 
   const scope = getAccessScope(session);
-  const rows = await getOpenEnquiries(scope);
+  // Is the current user's mailbox ingest connected? If so, their sent chase emails
+  // are captured automatically, so the Email chip stays one-tap; if not, it opens
+  // the logger so they can record the send themselves (critique #6).
+  const [rows, outlookCount, imapCount] = await Promise.all([
+    getOpenEnquiries(scope),
+    prisma.outlookConnection.count({ where: { userId: session.user.id, needsReconnect: false } }),
+    prisma.imapConnection.count({ where: { userId: session.user.id } }),
+  ]);
+  const emailConnected = outlookCount + imapCount > 0;
   // No open loops → the "all clear" empty state. Only reachable once the agency
   // has a live file (nav gates on hasSelfManagedFiles), so it reads as a resting
   // state, not a brand-new-account one. Skip the photo signing when there's
@@ -38,7 +47,7 @@ export default async function EnquiriesPage() {
         {rows.length === 0 ? (
           <EnquiriesEmptyState />
         ) : (
-          <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} />
+          <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} emailConnected={emailConnected} />
         )}
       </div>
     </div>
