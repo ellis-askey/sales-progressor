@@ -1047,12 +1047,16 @@ select {
    * browsers without container-query support stacking on phones). */
   .hub-grid-main    { grid-template-columns: 1fr !important; }
   .hub-grid-half    { grid-template-columns: 1fr !important; }
-  .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Row 2 sat flush against row 1 in the 2-col layout (critique, 2026-09-23) —
+   * the grid relied on side padding only, so give the wrapped rows air. */
+  .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; row-gap: 16px !important; }
   .hub-content-pad  { padding: 16px 16px !important; }
   .hub-header-pad   { padding: 16px 16px 20px !important; }
   /* Cell index 2 (nth-child 3) becomes the first cell of row 2 in 2-col layout.
-   * The i>0 borderLeft rule in hub/page.tsx orphans it — suppress here. */
-  .hub-stats-grid > *:nth-child(3) { border-left: none !important; }
+   * The i>0 borderLeft rule in hub/page.tsx orphans it — suppress here, and
+   * drop its left padding too so its number sits flush with the cell above
+   * (critique, 2026-09-23: "Need attention" number wasn't flush left). */
+  .hub-stats-grid > *:nth-child(3) { border-left: none !important; padding-left: 0 !important; }
 
   /* Hub activity ribbon — stack vertically on mobile/tablet (<768px).
    * Fixes two issues: (1) "View file" no longer floats right where it collides
@@ -3116,4 +3120,19 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
     0 1px 2px rgba(0, 0, 0, 0.45),
     0 5px 14px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* ─── Touch devices: no focus zoom (critique, 2026-09-23) ───────────────────
+ * iOS zooms the whole page when a focused form control's font-size is under
+ * 16px, and there is no reliable way to opt out that doesn't also break user
+ * pinch-zoom (accessibility). The fix is the control itself: on coarse-pointer
+ * devices (phones + tablets, any OS) every text-entry control renders at 16px.
+ * Checkboxes/radios excluded — they don't trigger the zoom and their size is
+ * set by their components. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
