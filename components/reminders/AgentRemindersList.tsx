@@ -1014,7 +1014,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, autopilot: true });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, chased: true, autopilot: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
@@ -1333,18 +1333,27 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         // window). Autopilot shows the whole forward pipeline, any date.
         const manual = filteredActive.filter((l) => autopilot?.get(l.id)?.kind !== "auto");
         const isDueNow = (l: AgentReminderLog) => { const g = classifyActive(l, now, upcomingCutoffStr); return g === "escalated" || g === "overdue" || g === "due_today"; };
+        // "Chased by you" = a human chase recorded on the row (↻ Mark chased or a
+        // drawer send bump manualChaseCount; autopilot sends never do). These sit
+        // BEYOND the Coming-up window (classifyActive returns null), so they'd
+        // otherwise vanish from the queue until due again — this keeps them visible.
+        const humanChased = (l: AgentReminderLog) => (pickLiveChase(l.chaseTasks)?.manualChaseCount ?? 0) > 0;
         const needsYouLogs = worstFirst(manual.filter(isDueNow));
         const comingUpLogs = worstFirst(manual.filter((l) => classifyActive(l, now, upcomingCutoffStr) === "upcoming"));
+        const chasedLogs = manual
+          .filter((l) => humanChased(l) && classifyActive(l, now, upcomingCutoffStr) === null)
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
         const autoLogs = worstFirst(filteredActive.filter((l) => autopilot?.get(l.id)?.kind === "auto"));
         const groups = [
           { key: "needs-you", label: "Needs you", sub: "Due today or overdue", logs: needsYouLogs, you: true },
           { key: "coming-up", label: "Coming up", sub: "Yours over the next few working days", logs: comingUpLogs, you: true },
+          { key: "chased", label: "Chased", sub: "Chased by you, waiting on a reply", logs: chasedLogs, you: true },
           { key: "autopilot", label: "On autopilot", sub: "The system's got these", logs: autoLogs, you: false },
         ];
         // There are active reminders on the queue, but they're all manual and
         // further out than the window, so nothing surfaces yet. Say so rather than
         // leaving a blank (they'll appear in "Coming up" as they approach).
-        if (hasActiveResults && needsYouLogs.length === 0 && comingUpLogs.length === 0 && autoLogs.length === 0) {
+        if (hasActiveResults && needsYouLogs.length === 0 && comingUpLogs.length === 0 && chasedLogs.length === 0 && autoLogs.length === 0) {
           return (
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>

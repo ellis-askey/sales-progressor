@@ -47,8 +47,11 @@ interface LogShape {
   // hand-over schedule — pulls it off autopilot regardless of the cron.
   handoverDue?: boolean;
   // Set by getAgentReminderLogs when a SOLICITOR chase has run out (escalated or
-  // chased to its cap) — surfaces it to the agent instead of a phantom autopilot.
+  // chased to its cap) AND is due — surfaces it to the agent instead of a phantom autopilot.
   solicitorHandoverDue?: boolean;
+  // Set whenever a solicitor chase has run out (regardless of due date), so a
+  // capped-but-not-due row (e.g. just manually chased) isn't shown as "on autopilot".
+  solicitorCapped?: boolean;
   reminderRule: { targetMilestoneCode: string | null };
   chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; lastChasedAt?: Date | null }[];
   transaction: {
@@ -150,7 +153,11 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const solOn = flags.solicitorGlobalEnabled && agencySolOk && !solPaused;
     const solCode = solicitorCodesForSide(side).has(code);
     const solContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
-    if (solOn && solCode) {
+    // solicitorCapped: the cron has run out of chases for this step, so it's no
+    // longer "on autopilot" even if the toggles are on — fall through to manual
+    // (due ones already handled by solicitorHandoverDue above; not-due ones land
+    // in "Chased" once a human has chased them).
+    if (solOn && solCode && !log.solicitorCapped) {
       if (solContact?.email) { out.set(log.id, { kind: "auto", pipeline: "solicitor", nextSend: nextCronRun(dueDate, SOLICITOR_CRON) }); continue; }
     }
 

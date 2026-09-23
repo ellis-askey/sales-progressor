@@ -543,6 +543,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   // stall silently. Surfaced NOW (nextDueDate → today) so it lands in Needs you,
   // independent of the cron.
   const solHandoverById = new Map<string, Date>();
+  // Solicitor chases that have run out (escalated / hit their cap). The cron won't
+  // send these again, so they must NOT read as "on autopilot" — whether or not
+  // they're due right now. Due ones hand over to Needs you (solHandoverById); a
+  // just-chased one (due date pushed out) drops to manual so it can sit in "Chased".
+  const solCappedIds = new Set<string>();
   const hasSolCodes = visibleLogs.some((l) => {
     const c = l.reminderRule.targetMilestoneCode;
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
@@ -567,13 +572,15 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       // A solicitor-given expected date legitimately parks it — that's a snooze,
       // not "run out" — so leave those on autopilot.
       if (st.snoozeUntil && st.snoozeUntil > nowForChase) continue;
-      // Only hand over a reminder that's actually DUE. A human "Mark chased" (or
-      // drawer send) advances this reminder's own nextDueDate to the next cycle, so
-      // a just-chased row isn't due — don't re-hand it over (that boomeranged
-      // chased rows straight back to Needs you). It re-surfaces when due again.
-      if (toUKDateStr(l.nextDueDate) > todayUKStr) continue;
       const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
-      if (ranOut) solHandoverById.set(l.id, nowForChase);
+      if (!ranOut) continue;
+      // Capped: never "on autopilot" (the cron is done with it), regardless of date.
+      solCappedIds.add(l.id);
+      // Hand over to Needs you only when it's actually DUE. A human "Mark chased"
+      // (or drawer send) advances the reminder's nextDueDate to the next cycle, so
+      // a just-chased capped row isn't due — it drops to manual and sits in "Chased"
+      // rather than boomeranging back to Needs you.
+      if (toUKDateStr(l.nextDueDate) <= todayUKStr) solHandoverById.set(l.id, nowForChase);
     }
   }
 
@@ -585,7 +592,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     const clientDue = handoverDueById.get(l.id);
     const solDue = solHandoverById.get(l.id);
     const due = clientDue ?? solDue;
-    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!clientDue, solicitorHandoverDue: !!solDue };
+    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!clientDue, solicitorHandoverDue: !!solDue, solicitorCapped: solCappedIds.has(l.id) };
   });
 }
 
