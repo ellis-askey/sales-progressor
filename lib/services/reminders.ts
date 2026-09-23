@@ -106,6 +106,7 @@ export type ReminderLogWithRule = {
   snoozedUntil: Date | null;
   sourceDateUsed: Date | null;
   statusReason: string | null;
+  buyerRoundId: string | null;
   createdAt: Date;
   updatedAt: Date;
   reminderRule: {
@@ -154,7 +155,7 @@ export async function getReminderLogsForTransaction(
 ): Promise<ReminderLogWithRule[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true, activeBuyerRoundId: true },
+    select: { id: true, activeBuyerRoundId: true, assignedUserId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -277,7 +278,11 @@ export async function getReminderLogsForTransaction(
     await Promise.all(
       dueWithNoTask.map((l) =>
         prisma.chaseTask.create({
-          data: { transactionId, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0 },
+          // Inherit the round + assignee stamp from the parent log (same rule as
+          // the engine create). Without buyerRoundId, a relist's round-keyed
+          // cancellation can't find a read-path-created PM chase, so it survives
+          // to chase the withdrawn buyer.
+          data: { transactionId, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: tx.assignedUserId },
         })
       )
     );
@@ -362,6 +367,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
           propertyAddress: true,
           photoStoragePath: true,
           activeBuyerRoundId: true,
+          assignedUserId: true,
           // Autopilot eligibility (see lib/services/reminder-autopilot.ts).
           agencyId: true,
           clientEmailsPaused: true,
@@ -485,7 +491,10 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     await Promise.all(
       dueWithNoTask.map((l) =>
         prisma.chaseTask.create({
-          data: { transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0 },
+          // Inherit round + assignee from the parent log (same rule as the engine
+          // create) so a relist's round-keyed cancellation can find and cancel
+          // this chase, and it shows up in assignee-scoped views.
+          data: { transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: l.transaction.assignedUserId },
         })
       )
     );
