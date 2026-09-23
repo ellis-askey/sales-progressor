@@ -8,8 +8,10 @@
 // + agent-hover-row items + coral-deep icons). Styling in agent-system.css
 // (.rem-chase*). Used by AgentRemindersList.
 //
-// `solo` renders just the chase button (no chevron/menu) for the file-level
-// "Chase all", which has no per-task mark-chased/done.
+// `solo` renders just the chase button (no chevron/menu) for callers with no
+// mark-chased/done equivalent. The file-level "Chase all" passes batch
+// handlers + "Mark all chased"/"Mark all done" labels instead (founder ask,
+// 2026-09-23).
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -21,6 +23,8 @@ export function ChaseSplitButton({
   onChase,
   onMarkChased,
   onMarkDone,
+  markChasedLabel = "Mark chased",
+  markDoneLabel = "Mark done",
   disabled = false,
   solo = false,
 }: {
@@ -28,6 +32,8 @@ export function ChaseSplitButton({
   onChase: () => void;
   onMarkChased?: () => void;
   onMarkDone?: () => void;
+  markChasedLabel?: string;
+  markDoneLabel?: string;
   disabled?: boolean;
   solo?: boolean;
 }) {
@@ -109,11 +115,11 @@ export function ChaseSplitButton({
           >
             <button className="agent-hover-row" style={itemStyle} onClick={() => { onMarkChased?.(); close(); }}>
               <ArrowClockwise size={15} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />
-              Mark chased
+              {markChasedLabel}
             </button>
             <button className="agent-hover-row" style={itemStyle} onClick={() => { onMarkDone?.(); close(); }}>
               <CheckCircle size={15} weight="fill" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />
-              Mark done
+              {markDoneLabel}
             </button>
           </div>
         </div>,

@@ -318,11 +318,15 @@ export async function chaseNowFromLogAction(
   return { taskId: result.taskId };
 }
 
-export async function advanceChaseTaskAction(taskId: string, pathname: string) {
-  const session = await requireSession();
-  const scope = getAccessScope(session);
-  // Read the step + pre-chase count (scope-guarded) so the portal echo fires
-  // only on the FIRST chase of this step.
+// The single-task core of "mark chased", shared by the one-task action and the
+// file-level "Mark all chased" batch. Scope-guarded; fires the portal echo only
+// on the FIRST chase of a step. The ↻ path picks no recipient, so it's
+// inferred from the step; shared client+solicitor steps are skipped.
+async function advanceOneChaseTask(
+  taskId: string,
+  session: Awaited<ReturnType<typeof requireSession>>,
+  scope: ReturnType<typeof getAccessScope>,
+) {
   const task = await prisma.chaseTask.findFirst({
     where: scopeChaseTaskWhere(scope, taskId),
     select: {
@@ -334,8 +338,6 @@ export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   await advanceChaseTask(taskId, scope);
   const code = task?.reminderLog?.reminderRule?.targetMilestoneCode ?? null;
   if (task && task.chaseCount === 0 && code) {
-    // The ↻ Chased button picks no recipient, so infer it from the step. Shared
-    // steps (client + solicitor) can't be told apart here, so they're skipped.
     const cls = classifyChaseFromCode(code);
     if (cls) {
       after(async () => {
@@ -347,6 +349,28 @@ export async function advanceChaseTaskAction(taskId: string, pathname: string) {
           actorUserId: session.user.id,
         }).catch(() => {});
       });
+    }
+  }
+}
+
+export async function advanceChaseTaskAction(taskId: string, pathname: string) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  await advanceOneChaseTask(taskId, session, scope);
+  revalidatePath(pathname, "page");
+}
+
+// File-level "Mark all chased": every open task on the file advances in one
+// action + one revalidate. Mirrors snoozeManyAction: a single bad id never
+// aborts the rest of the batch.
+export async function advanceManyChaseTasksAction(taskIds: string[], pathname: string) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  for (const id of taskIds) {
+    try {
+      await advanceOneChaseTask(id, session, scope);
+    } catch {
+      /* skip bad id, keep the batch going */
     }
   }
   revalidatePath(pathname, "page");

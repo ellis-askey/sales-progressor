@@ -8,7 +8,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
-import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction, advanceManyChaseTasksAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -382,6 +382,8 @@ function SplitFileCard({
   handleSnooze,
   handleSnoozeAll,
   handleChased,
+  handleChasedAll,
+  handleCompleteAll,
   hideChase,
   currentUserId,
   showRowExplain,
@@ -399,6 +401,8 @@ function SplitFileCard({
   handleSnooze: (taskId: string, choice: SnoozeChoice) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], choice: SnoozeChoice) => void;
   handleChased: (taskId: string, logId?: string) => void;
+  handleChasedAll: (items: { taskId: string; logId: string }[]) => void;
+  handleCompleteAll: (tasks: { taskId: string; code: string | null }[]) => void;
   hideChase?: boolean;
   currentUserId?: string | null;
   // "Needs you" only: keep the per-step explanation box on multi-reminder files
@@ -535,7 +539,23 @@ function SplitFileCard({
           {!hideChase && openTasks.length >= 2 && (
             <span className="wq-allactions">
               <SnoozeMenu variant="all" count={openTasks.length} disabled={loading !== null} onConfirm={(choice) => handleSnoozeAll(allLogIds, allTaskIds, choice)} />
-              <ChaseSplitButton solo label={`Chase all (${milestones.length})`} onChase={() => setDrawerOpen(true)} />
+              <ChaseSplitButton
+                label={`Chase all (${milestones.length})`}
+                markChasedLabel="Mark all chased"
+                markDoneLabel="Mark all done"
+                onChase={() => setDrawerOpen(true)}
+                onMarkChased={() => {
+                  // Bump every task's optimistic chase count (card-owned state),
+                  // then hand the batch to the deck for exit + server action.
+                  setOptimisticChases((prev) => {
+                    const next = { ...prev };
+                    for (const { task } of openTasks) next[task.id] = (next[task.id] ?? task.manualChaseCount) + 1;
+                    return next;
+                  });
+                  handleChasedAll(openTasks.map(({ log, task }) => ({ taskId: task.id, logId: log.id })));
+                }}
+                onMarkDone={() => handleCompleteAll(openTasks.map(({ log, task }) => ({ taskId: task.id, code: log.reminderRule.targetMilestoneCode ?? null })))}
+              />
             </span>
           )}
           {isSingle && (
@@ -987,6 +1007,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
   // is clicked, so the real event date is captured before confirming.
   const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
+  // Remaining date-needing steps from a "Mark all done" — prompted one modal at
+  // a time; cancelling the modal drops the rest (those steps stay open).
+  const [donePromptQueue, setDonePromptQueue] = useState<{ taskId: string; code: string | null }[]>([]);
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
   const { toast } = useAgentToast();
 
@@ -1153,6 +1176,33 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
       setOptimisticSnoozeAdd((n) => n + taskIds.length);
       act(taskIds[0] ?? "", () => snoozeManyAction(taskIds, choice, "/agent/work-queue"));
     }, 150);
+  }
+  // "Mark all chased" (Chase all chevron): every open task on the file advances
+  // in one server round-trip + one revalidate. Same optimistic exit shape as
+  // Snooze all; the per-task chase-count bump happens card-side (it owns that
+  // state), exactly as optimisticChase wraps handleChased for a single row.
+  function handleChasedAll(items: { taskId: string; logId: string }[]) {
+    setExitingIds((prev) => { const next = new Set(prev); items.forEach((it) => next.add(it.logId)); return next; });
+    setTimeout(() => {
+      setHiddenIds((prev) => { const next = new Set(prev); items.forEach((it) => next.add(it.logId)); return next; });
+      act(items[0]?.taskId ?? "", () => advanceManyChaseTasksAction(items.map((it) => it.taskId), "/agent/work-queue"));
+    }, 150);
+  }
+  // "Mark all done" (Chase all chevron): steps that need no event date complete
+  // straight away (each through the same per-task path, so a blocked step
+  // un-hides itself with its toast exactly as a single Done does). Steps whose
+  // milestone requires an event date queue up behind the date modal one at a
+  // time — a batch must never invent or skip a real event date.
+  function handleCompleteAll(tasks: { taskId: string; code: string | null }[]) {
+    const prompts: { taskId: string; code: string | null }[] = [];
+    for (const t of tasks) {
+      if (milestoneNeedsDatePrompt(t.code)) prompts.push(t);
+      else runComplete(t.taskId);
+    }
+    if (prompts.length > 0) {
+      setDonePromptQueue(prompts.slice(1));
+      setDatePrompt(prompts[0]);
+    }
   }
   function handleWakeup(logId: string) {
     setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
@@ -1333,6 +1383,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                         handleSnooze={handleSnooze}
                         handleSnoozeAll={handleSnoozeAll}
                         handleChased={handleChased}
+                        handleChasedAll={handleChasedAll}
+                        handleCompleteAll={handleCompleteAll}
                         hideChase={hideChase}
                         currentUserId={currentUserId}
                       />
@@ -1400,10 +1452,13 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         milestoneCode={datePrompt?.code ?? null}
         onConfirm={(eventDate) => {
           const p = datePrompt;
-          setDatePrompt(null);
           if (p) runComplete(p.taskId, eventDate);
+          // Next date-needing step from a "Mark all done", if any.
+          const [nextPrompt, ...rest] = donePromptQueue;
+          setDonePromptQueue(rest);
+          setDatePrompt(nextPrompt ?? null);
         }}
-        onClose={() => setDatePrompt(null)}
+        onClose={() => { setDonePromptQueue([]); setDatePrompt(null); }}
       />
     </div>
   );
