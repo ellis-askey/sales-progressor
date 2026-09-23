@@ -51,7 +51,10 @@ export function EnquiryEmailPreview({ messageId, onClose }: { messageId: string 
   }
 
   return (
-    <Drawer open={!!messageId} onClose={onClose} ariaLabel="Chase email preview" size="lg" closeTone="onDark">
+    // zLayer="escalated": must clear the fixed agent topbar (z-index 101) —
+    // same precedent as EmailSettingsDrawer, per the DESIGN_TOKENS.md
+    // escalation rule (Raised tier: above a page-level overlay).
+    <Drawer open={!!messageId} onClose={onClose} ariaLabel="Chase email preview" size="lg" closeTone="onDark" zLayer="escalated">
       <Drawer.Header style={SHEET_BAND_STYLE}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
           <PaperPlaneTilt size={26} weight="regular" style={{ flexShrink: 0, color: "var(--agent-text-on-coral, #fff)" }} aria-hidden />

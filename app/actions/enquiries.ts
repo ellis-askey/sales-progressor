@@ -267,11 +267,24 @@ export type EnquiryChaseEmail = {
 };
 function plainBodyHtml(text: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // A stored text body renders the update link as a bare URL line. The sent
+  // email showed it as a button, so the preview does too: /s/<token> lines get
+  // the chase email's own button style (chase-email.ts BTN), any other lone
+  // URL becomes a clickable link rather than raw text.
+  const BTN = "display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;";
   const paras = text
     .split(/\r?\n\r?\n/)
-    .map((b) => b.split(/\r?\n/).map(esc).join("<br />"))
     .filter((b) => b.trim().length > 0)
-    .map((b) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">${b}</p>`)
+    .map((b) => {
+      const line = b.trim();
+      if (/^https?:\/\/\S+$/.test(line)) {
+        const isUpdateLink = line.includes("/s/");
+        return isUpdateLink
+          ? `<p style="margin:0 0 16px;"><a href="${esc(line)}" style="${BTN}">Provide an update</a></p>`
+          : `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;"><a href="${esc(line)}" style="color:#2563eb;word-break:break-all;">${esc(line)}</a></p>`;
+      }
+      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">${b.split(/\r?\n/).map(esc).join("<br />")}</p>`;
+    })
     .join("\n");
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;">
