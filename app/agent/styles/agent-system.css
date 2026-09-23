@@ -3102,6 +3102,35 @@
     .rem-pill-label { display: none; }
   }
 
+  /* ── Reminder card, mobile relayout (founder mock, 2026-09-23) ────────────
+   * Content full width; then the due date on its own left-aligned line; then a
+   * full-width action row — snooze keeps its size, Chase stretches. The side
+   * column's hairline divider goes, and the auto-chase info line centres across
+   * the card (text only — no icon). Desktop untouched. */
+  @media (max-width: 767px) {
+    .rem-row-needs { flex-direction: column !important; }
+    .rem-row-side {
+      border-left: none !important;
+      padding-left: 0 !important;
+      margin-left: 0 !important;
+      width: 100%;
+      align-items: stretch !important;
+      gap: 10px !important;
+    }
+    .rem-row-date {
+      order: -1;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: flex-start;
+      gap: 6px !important;
+    }
+    .rem-row-actions { width: 100%; }
+    .rem-row-actions > :last-child { flex: 1; min-width: 0; }
+    .rem-row-actions .rem-chase { display: flex; width: 100%; }
+    .rem-row-actions .rem-chase-go { flex: 1; justify-content: center; }
+    .rem-row-info { max-width: none !important; }
+  }
+
   /* Duration labels ("10d overdue" vs "10 days overdue"). Both render; the terse
    * form shows by default and the full sentence takes over on large viewports,
    * where there's room to read it out. Mirrors the pill-label collapse above. */

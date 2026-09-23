@@ -809,7 +809,7 @@ function SplitFileCard({
           return (
             <div
               key={log.id}
-              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
+              className={`${isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : "")}${isAuto ? "" : " rem-row-needs"}`.trim() || undefined}
               style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: isAuto ? "column" : "row", alignItems: "stretch", gap: 8 }}
             >
               {isAuto ? (
@@ -829,20 +829,24 @@ function SplitFileCard({
                 // vertically centred against the content (mock, 2026-09-21).
                 <>
                   <div style={{ flex: 1, minWidth: 0 }}>{stringsEl}</div>
-                  <div style={{
+                  {/* Side column. On mobile (≤767px, founder mock 2026-09-23) the
+                      rem-row-* classes restack it: due date first on its own
+                      left-aligned line, then a full-width action row with Chase
+                      stretched, divider dropped, info line centred full-width. */}
+                  <div className="rem-row-side" style={{
                     flexShrink: 0,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10,
                     borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4,
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{actionsEl}</div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
+                    <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>{actionsEl}</div>
+                    <div className="rem-row-date" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
                       <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{nextChaseLabel}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
                         <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(task.dueDate)}
                       </span>
                     </div>
                     {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
-                      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textAlign: "center", maxWidth: 160 }}>{autoState.reason}</p>
+                      <p className="rem-row-info" style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textAlign: "center", maxWidth: 160 }}>{autoState.reason}</p>
                     )}
                   </div>
                 </>
