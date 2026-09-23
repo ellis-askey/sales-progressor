@@ -2152,13 +2152,19 @@
   .pipe-more-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); color: var(--agent-coral-deep); }
   /* The bubble — iOS-menu styling: elevated rounded panel above the trigger,
    * hairline-separated rows, text-only (no property photos), hover tint. */
+  /* The open card lifts above its siblings so the bubble isn't painted behind
+     the later reached cards (their backdrop-filter makes each a stacking
+     context, so a plain z-index on the bubble alone can't escape). Critique #12. */
+  .pipe-card:has(.pipe-more-bubble) { position: relative; z-index: 60; }
   .pipe-more-bubble {
     position: absolute;
     bottom: calc(100% + 8px);
     left: -6px;
-    z-index: 30;
+    z-index: 60;
     min-width: 190px;
-    max-width: 240px;
+    /* Never wider than the viewport, so it can't spill off the side of the page
+       at small breakpoints (critique #12). */
+    max-width: min(240px, calc(100vw - 24px));
     padding: 5px;
     border-radius: 14px;
     background: var(--agent-surface-elevated);
@@ -2272,7 +2278,10 @@
   .enq-pill-danger { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.14); }
   .enq-pill-amber  { color: #b45309; background: rgba(245, 158, 11, 0.14); }
   .enq-pill-green  { color: var(--agent-success); background: var(--agent-success-bg); }
-  .enq-pill-blue   { color: #2563eb; background: rgba(59, 130, 246, 0.12); }
+  /* "Awaiting replies" is the calm resting state — plain coloured text + icon,
+     no pill chrome, so the urgent pills (overdue/expected/reviewing) carry the
+     colour instead (critique #20a). */
+  .enq-pill-blue   { color: #2563eb; background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding-left: 0; padding-right: 0; }
   .enq-substatus { display: block; font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
 
   .enq-actions2 { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }

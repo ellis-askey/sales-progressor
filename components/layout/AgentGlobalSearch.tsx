@@ -223,7 +223,7 @@ export function AgentGlobalSearch() {
         <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
       </svg>
       <span style={{ flex: 1, textAlign: "left" }}>Search…</span>
-      <span style={{
+      <span className="kbd-hint" style={{
         fontSize: 10, fontWeight: 500,
         background: "var(--agent-surface-overlay)", border: "0.5px solid var(--agent-border-default)",
         borderRadius: 4, padding: "1px 5px", letterSpacing: "0.02em",
@@ -307,7 +307,7 @@ export function AgentGlobalSearch() {
                 />
               ))}
             </SearchSection>
-            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
+            <p className="kbd-hint" style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
               ↑↓ navigate · ↵ go · Esc close · type to search
             </p>
           </>
@@ -391,7 +391,7 @@ export function AgentGlobalSearch() {
                 ))}
               </SearchSection>
             )}
-            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
+            <p className="kbd-hint" style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
               ↑↓ navigate · ↵ open · Esc close
             </p>
           </>

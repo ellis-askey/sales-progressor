@@ -136,7 +136,7 @@ export function GlobalSearch() {
         <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
       </svg>
       <span className="flex-1 text-left">Search or navigate…</span>
-      <span className="text-[10px] font-medium bg-white/40 border border-white/30 rounded px-1.5 py-0.5 tracking-wide">⌘K</span>
+      <span className="kbd-hint text-[10px] font-medium bg-white/40 border border-white/30 rounded px-1.5 py-0.5 tracking-wide">⌘K</span>
     </button>
   );
 
@@ -191,7 +191,7 @@ export function GlobalSearch() {
                 />
               ))}
             </Section>
-            <p className="text-[11px] text-slate-400 px-4 py-2.5 border-t border-slate-100">
+            <p className="kbd-hint text-[11px] text-slate-400 px-4 py-2.5 border-t border-slate-100">
               ↑↓ to navigate · ↵ to go · Esc to close · type to search
             </p>
           </div>
@@ -262,7 +262,7 @@ export function GlobalSearch() {
               </Section>
             )}
 
-            <p className="text-[11px] text-slate-400 px-4 py-2.5 border-t border-slate-100">
+            <p className="kbd-hint text-[11px] text-slate-400 px-4 py-2.5 border-t border-slate-100">
               ↑↓ to navigate · ↵ to open · Esc to close
             </p>
           </div>
