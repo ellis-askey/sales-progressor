@@ -22,6 +22,7 @@ import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
+import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
@@ -172,19 +173,18 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     // Sending address = the file's agency authenticated address (Reply-To
     // matching), SP fallback when the agency has none (e.g. EXP). The body
     // signature identity (senderName / agencyName) is resolved separately below.
+    // White label: the sign-off always carries the file's agency name, even
+    // when an internal Sales Progressor person runs the file.
     const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
     let senderName = tx.agency?.name ?? "The Sales Progressor";
-    let agencyName = tx.agency?.name ?? "The Sales Progressor";
+    const agencyName = tx.agency?.name ?? "The Sales Progressor";
+    let ownerAgent: { name: string | null; agencyId: string | null; phone: string | null; directMobile: string | null } | null = null;
     if (ownerId) {
-      const agent = await prisma.user.findUnique({
+      ownerAgent = await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { id: true, name: true, agencyId: true, agency: { select: { name: true } } },
+        select: { name: true, agencyId: true, phone: true, directMobile: true },
       });
-      if (agent) {
-        senderName = agent.name ?? senderName;
-        // Internal staff (agencyId null) = outsourced / EXP -> sign as SP.
-        agencyName = agent.agencyId ? (agent.agency?.name ?? tx.agency?.name ?? agencyName) : "The Sales Progressor";
-      }
+      if (ownerAgent?.name) senderName = ownerAgent.name;
     }
 
     const token = signSolicitorToken(tx.id, seller ? "vendor" : "purchaser");
@@ -194,13 +194,22 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
       .map((c) => c.name);
     const handlerName = solicitorContact?.name ?? undefined;
-    // Self-managed → the agent's own signature; outsourced → null (plain sign-off kept).
+    // Self-managed → the agent's own signature; outsourced (internal owner) →
+    // the standardised in-house block (bold name, agency, phone), matching
+    // manual internal sends. Never "The Sales Progressor" — we're white label.
     const agentSig = await resolveAgentSignatureForFile({
       assignedUserId: tx.assignedUserId,
       agentUserId: tx.agentUserId,
       agentName: senderName,
       agency: tx.agency,
     });
+    const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
+      ? buildInHouseSignoff({
+          name: senderName,
+          agency: tx.agency?.name ?? "",
+          phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+        })
+      : null;
     const mail = buildEnquiryChaseEmail({
       court: seller ? "seller_solicitor" : "buyer_solicitor",
       address: tx.propertyAddress,
@@ -210,8 +219,8 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       agencyName,
       provideUpdateUrl: `${baseUrl()}/s/${token}`,
       now,
-      agentSignatureHtml: agentSig?.html ?? null,
-      agentSignatureText: agentSig?.text ?? null,
+      agentSignatureHtml: agentSig?.html ?? inHouseSig?.html ?? null,
+      agentSignatureText: agentSig?.text ?? (inHouseSig ? inHouseSig.text.trim() : null),
     });
 
     // Deterministic outbound Message-ID, stored on the OutboundMessage record

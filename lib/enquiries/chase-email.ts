@@ -25,9 +25,9 @@ export type EnquiryChaseInput = {
   agencyName: string;
   provideUpdateUrl: string;
   now?: Date;
-  // Self-managed files: the agent's own resolved signature. When set, it
+  // Self-managed files: the agent's own resolved signature. Outsourced files:
+  // the standardised in-house block (bold name, agency, phone). When set, it
   // replaces the plain "Best regards, {senderName} / {agencyName}" sign-off.
-  // Unset on outsourced files (plain sign-off kept).
   agentSignatureHtml?: string | null;
   agentSignatureText?: string | null;
 };

@@ -37,7 +37,8 @@ export function buildRaiseBuyerEmail(input: {
   // and the eyebrow accent so this buyer nudge matches the other client emails.
   theme: EmailTheme;
   // Self-managed files: the agent's own resolved signature, appended as a
-  // sign-off. Unset on outsourced files (no personal sign-off, like today).
+  // sign-off. Outsourced files: the standardised in-house block (bold name,
+  // agency, phone).
   agentSignatureHtml?: string | null;
   agentSignatureText?: string | null;
 }): { subject: string; text: string; html: string } {
@@ -113,7 +114,8 @@ export function buildRaiseSolicitorEmail(input: {
   provideUpdateUrl: string;
   now?: Date;
   // Self-managed files: the agent's own resolved signature (replaces the plain
-  // "Best regards, {senderName} / {agencyName}"). Unset on outsourced files.
+  // "Best regards, {senderName} / {agencyName}"). Outsourced files: the
+  // standardised in-house block (bold name, agency, phone).
   agentSignatureHtml?: string | null;
   agentSignatureText?: string | null;
 }): { subject: string; text: string; html: string } {

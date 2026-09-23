@@ -16,6 +16,7 @@ import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
+import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
@@ -143,27 +144,38 @@ export async function runRaiseChaseCron(now: Date): Promise<{
     // Sending address = the file's agency authenticated address (Reply-To
     // matching), SP fallback when the agency has none. Body signature identity
     // (senderName / agencyName) resolved separately below.
+    // White label: the sign-off always carries the file's agency name, even
+    // when an internal Sales Progressor person runs the file.
     const { from, replyTo } = await resolveAgencySenderForTransaction(tx.id, { persona: "personal" });
     let senderName = tx.agency?.name ?? "The Sales Progressor";
-    let agencyName = tx.agency?.name ?? "The Sales Progressor";
+    const agencyName = tx.agency?.name ?? "The Sales Progressor";
+    let ownerAgent: { name: string | null; agencyId: string | null; phone: string | null; directMobile: string | null } | null = null;
     if (ownerId) {
-      const agent = await prisma.user.findUnique({
+      ownerAgent = await prisma.user.findUnique({
         where: { id: ownerId },
-        select: { id: true, name: true, agencyId: true, agency: { select: { name: true } } },
+        select: { name: true, agencyId: true, phone: true, directMobile: true },
       });
-      if (agent) {
-        senderName = agent.name ?? senderName;
-        agencyName = agent.agencyId ? (agent.agency?.name ?? tx.agency?.name ?? agencyName) : "The Sales Progressor";
-      }
+      if (ownerAgent?.name) senderName = ownerAgent.name;
     }
 
-    // Self-managed → the agent's own signature; outsourced → null (kept plain).
+    // Self-managed → the agent's own signature; outsourced (internal owner) →
+    // the standardised in-house block (bold name, agency, phone), matching
+    // manual internal sends. Never "The Sales Progressor" — we're white label.
     const agentSig = await resolveAgentSignatureForFile({
       assignedUserId: tx.assignedUserId,
       agentUserId: tx.agentUserId,
       agentName: senderName,
       agency: tx.agency,
     });
+    const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
+      ? buildInHouseSignoff({
+          name: senderName,
+          agency: tx.agency?.name ?? "",
+          phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+        })
+      : null;
+    const sigHtml = agentSig?.html ?? inHouseSig?.html ?? null;
+    const sigText = agentSig?.text ?? (inHouseSig ? inHouseSig.text.trim() : null);
     // Brand theme for the client-styled buyer nudge (agency colours; coral default).
     const theme = resolveEmailTheme((tx.agency?.emailTheme ?? null) as EmailThemeInput | null);
 
@@ -192,8 +204,8 @@ export async function runRaiseChaseCron(now: Date): Promise<{
               agencyName: tx.agency?.name ?? agencyName,
               fileUrl: `${baseUrl()}/portal/${b.portalToken}`,
               theme,
-              agentSignatureHtml: agentSig?.html ?? null,
-              agentSignatureText: agentSig?.text ?? null,
+              agentSignatureHtml: sigHtml,
+              agentSignatureText: sigText,
             });
             await sendChainEmail({ to: b.email as string, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
             await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer", recipientName: b.name }).catch(() => {});
@@ -226,8 +238,8 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             agencyName,
             provideUpdateUrl: `${baseUrl()}/s/${token}`,
             now,
-            agentSignatureHtml: agentSig?.html ?? null,
-            agentSignatureText: agentSig?.text ?? null,
+            agentSignatureHtml: sigHtml,
+            agentSignatureText: sigText,
           });
           await sendChainEmail({ to: email, cc: await solicitorCcForAgency(tx.purchaserSolicitorContact, tx.agencyId), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
