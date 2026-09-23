@@ -52,6 +52,7 @@ export function fallbackChipText(kind: string): string {
     case "no_email_on_contact":       return "Add email to send updates";
     case "no_portalToken_on_contact": return "Portal access needed";
     case "client_emails_paused":      return "Client emails paused (manual)";
+    case "chase_send_failed":         return "Email failed, fix address";
     default:                          return "Manual handoff";
   }
 }
@@ -69,6 +70,8 @@ export function fallbackChipTitle(kind: string): string {
       return "This client has no portal access yet, so we can't send automated updates. Follow up manually.";
     case "client_emails_paused":
       return "Client emails are paused on this file. Chase manually if needed.";
+    case "chase_send_failed":
+      return "We tried to email this client but the address was rejected. Check the email address, or follow up another way.";
     default:
       return "Manual chase needed.";
   }

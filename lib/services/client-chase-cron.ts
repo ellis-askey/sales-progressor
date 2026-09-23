@@ -566,11 +566,14 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
           } else {
             const nextDue = addDays(state.lastChasedAt, repeatEveryDays);
             if (now < nextDue) continue;
-            // Engagement gate (couple-as-one): if EITHER person on this side
-            // engaged after this contact's last chase, pause. The next chase
-            // only fires once the whole couple has gone quiet again.
+            // Engagement gate (couple-as-one): engagement PAUSES the chase, it
+            // doesn't kill it. Hold only while engagement is recent (within one
+            // repeat window); if they engaged but the step still isn't done a
+            // repeat-gap later, resume chasing. (Previously "engaged after last
+            // chase" blocked forever — with lastChasedAt frozen at the 1st send,
+            // a single engagement wedged the row permanently.)
             const coupleEngagedAt = coupleEngagedByTxCode.get(`${transaction.id}:${targetCode}`) ?? null;
-            if (coupleEngagedAt && coupleEngagedAt > state.lastChasedAt) {
+            if (coupleEngagedAt && daysBetween(now, coupleEngagedAt) < repeatEveryDays) {
               continue;
             }
             reason = "repeat_due";

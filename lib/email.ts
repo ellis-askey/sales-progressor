@@ -121,6 +121,16 @@ export function isTransientSendError(err: unknown): boolean {
   return false;
 }
 
+// True when a send failed specifically because the From address isn't a
+// SendGrid-verified sender identity (a 403, or its tell-tale message). Used to
+// retry the send from the guaranteed-good shared address instead of stranding
+// the message when an agency/agent's verified domain lapses.
+export function isSenderIdentityError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  const msg = (err instanceof Error ? err.message : String(err ?? "")).toLowerCase();
+  return code === 403 || msg.includes("verified sender") || msg.includes("sender identity") || msg.includes("does not match a verified");
+}
+
 // ─── Mailbox routing (agent-connected SMTP) ──────────────────────────────────
 //
 // When the resolved From address belongs to a send-enabled connected mailbox

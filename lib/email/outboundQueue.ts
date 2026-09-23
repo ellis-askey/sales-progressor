@@ -5,7 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, MAX_SEND_RETRY_MS } from "@/lib/email";
+import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, isSenderIdentityError, MAX_SEND_RETRY_MS } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
@@ -166,6 +166,9 @@ export async function drainOutboundQueue(): Promise<{
       // Excluded here to avoid double-processing under the hourly drain.
       emailType: { not: "MILESTONE_CONFIRMATION" },
     },
+    // Oldest-scheduled first, so a backlog drains in order and a rotating set of
+    // rows can't starve the queue (the batch was previously unordered).
+    orderBy: { scheduledFor: "asc" },
     take: 50,
   });
 
@@ -174,6 +177,10 @@ export async function drainOutboundQueue(): Promise<{
   let failed = 0;
 
   for (const record of due) {
+   // Fix 5: a throw anywhere in this row's work (DB read/update, suppression
+   // check, atomic claim, send) now fails ONLY this row — a "poison" row can no
+   // longer abort the whole batch and block every email queued behind it.
+   try {
     // Retry age-out (P3). A row that has been retrying transient failures for
     // longer than MAX_SEND_RETRY_MS is dead-lettered (a visible errorAt) rather
     // than retried forever or dropped silently. The daily alert surfaces these.
@@ -436,6 +443,21 @@ export async function drainOutboundQueue(): Promise<{
       sent++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
+
+      // Fix 6: a verified-sender lapse (403) shouldn't strand the message. If a
+      // custom From/Reply-To was used, clear it and retry next drain from the
+      // guaranteed-good shared address rather than dead-lettering. Only fires
+      // while a custom sender is set, so it can't loop on the shared address.
+      if (isSenderIdentityError(err) && (payload.from || payload.replyTo)) {
+        await prisma.outboundEmailQueue.update({
+          where: { id: record.id },
+          data: { sentAt: null, payload: { ...payload, from: null, replyTo: null }, errorMessage: "sender_unverified: retrying from shared address" },
+        });
+        console.error(`[EMAIL_SENDER_FALLBACK] type=${record.emailType} to=${record.recipientEmail} err=${message}`);
+        failed++;
+        continue;
+      }
+
       const transient = isTransientSendError(err);
       // Release the claim (sentAt→null) either way so a failed send is never
       // left marked as sent (P2). A TRANSIENT failure leaves errorAt null so
@@ -448,11 +470,43 @@ export async function drainOutboundQueue(): Promise<{
           ? { sentAt: null, errorMessage: message }
           : { sentAt: null, errorAt: new Date(), errorMessage: message },
       });
+
+      // Fix 4: a PERMANENT failure on a client chase means the chase never sent
+      // and would otherwise silently dead-letter (and re-fail daily) with the
+      // step invisible. Hand it to a person to fix the address / reach out.
+      if (!transient && record.emailType === "CLIENT_CHASE" && record.recipientContactId) {
+        const transactionId = record.sourceId.split(":")[0];
+        const chaseCodes = Array.isArray(payload.milestoneCodes)
+          ? (payload.milestoneCodes as unknown[]).filter((c): c is string => typeof c === "string")
+          : [];
+        if (transactionId && chaseCodes.length > 0) {
+          try {
+            const { createAgentChaseTaskForMilestone } = await import("@/lib/services/reminders");
+            const contact = await prisma.contact.findUnique({ where: { id: record.recipientContactId }, select: { name: true } });
+            const contactName = contact?.name ?? "the client";
+            for (const code of chaseCodes) {
+              await createAgentChaseTaskForMilestone({ transactionId, milestoneCode: code, kind: "chase_send_failed", contactName })
+                .catch((e: unknown) => console.error(`[chase_send_failed handoff] ${code}:`, e));
+            }
+          } catch (handoffErr: unknown) {
+            console.error(`[chase_send_failed handoff] failed for queue id=${record.id}:`, handoffErr);
+          }
+        }
+      }
+
       console.error(
         `[EMAIL_FAIL] type=${record.emailType} to=${record.recipientEmail} transient=${transient} err=${message}`,
       );
       failed++;
     }
+   } catch (recordErr: unknown) {
+     // Pre-send work threw (DB error/timeout on this row). Isolate it: the row
+     // stays pending and retries next drain (bounded by the 24h age-out), while
+     // the rest of the batch still sends.
+     console.error(`[EMAIL_ROW_ERROR] id=${record.id} type=${record.emailType}:`, recordErr);
+     failed++;
+     continue;
+   }
   }
 
   // Proactive alert (P3): a failed/dead-lettered send would otherwise only be

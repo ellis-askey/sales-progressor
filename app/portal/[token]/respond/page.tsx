@@ -119,21 +119,13 @@ export default async function PortalRespondPage({
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  // 4. Engagement tracking. Every page-load resets the silence clock for
-  //    EVERY active row for this contact (not just the ones still due).
-  //    The visit alone counts as engagement per the locked spec — even
-  //    if the page shows "all caught up" because everything was confirmed
-  //    elsewhere, the visit is recorded.
-  if (states.length > 0) {
-    await prisma.clientChaseState.updateMany({
-      where: {
-        transactionId: contact.propertyTransactionId,
-        contactId: contact.id,
-        status: "active",
-      },
-      data: { lastEngagedAt: new Date() },
-    });
-  }
+  // 4. Engagement is NO LONGER recorded on a bare page-load. A visit — very
+  //    often an automated email-security scanner / link-prefetcher fetching the
+  //    chase link, not the client — used to reset the chase clock for EVERY
+  //    active row, which silently wedged the autopilot (see the chase-stall
+  //    investigation). Engagement is now recorded only on a real action
+  //    (confirming / submitting), in app/actions/portal.ts, and scoped to the
+  //    milestone(s) that action touches.
 
   // 5. Transaction for address display.
   const tx = await prisma.propertyTransaction.findUnique({

@@ -83,6 +83,9 @@ function fallbackReason(kind: string): { reason: string | null; category: Manual
     // yet", so the card suppresses these to avoid the old duplication.
     case "max_chases_exhausted": return { reason: "Autopilot chased twice, no reply", category: "exhausted" };
     case "days_cap_exhausted": return { reason: "Silent for 14 days", category: "exhausted" };
+    // A real send was attempted and permanently rejected — offer the same
+    // fix-the-email affordance as a missing email.
+    case "chase_send_failed": return { reason: "Couldn't email the client, the address failed", category: "blocker_client_email" };
     default: return { reason: null, category: "info" };
   }
 }

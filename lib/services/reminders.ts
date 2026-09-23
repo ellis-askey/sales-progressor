@@ -1517,7 +1517,11 @@ export type FallbackKind =
   | "days_cap_exhausted"
   | "no_email_on_contact"
   | "no_portalToken_on_contact"
-  | "client_emails_paused";
+  | "client_emails_paused"
+  // A chase email was actually attempted but the provider rejected it
+  // permanently (bad/bounced address, etc.) — the send never happened, so the
+  // chase is handed to a person to fix the address or reach out another way.
+  | "chase_send_failed";
 
 // Structured statusReason text written to ReminderLog.statusReason. Locked
 // at user sign-off — do not edit without the corresponding chip-text + audit-
@@ -1529,6 +1533,7 @@ const FALLBACK_REASON: Record<FallbackKind, string> = {
   no_email_on_contact:          "Client contact missing email address — handed to agent",
   no_portalToken_on_contact:    "Client contact missing portal access — handed to agent",
   client_emails_paused:         "Client emails paused on this file — handed to agent",
+  chase_send_failed:            "Couldn't email the client (address failed). Handed to agent.",
 };
 
 // Common input fields every kind requires.
@@ -1546,7 +1551,8 @@ export type FallbackInput =
   | (FallbackInputBase & { kind: "days_cap_exhausted";        firstChasedAt: Date })
   | (FallbackInputBase & { kind: "no_email_on_contact" })
   | (FallbackInputBase & { kind: "no_portalToken_on_contact" })
-  | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" | "contact" });
+  | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" | "contact" })
+  | (FallbackInputBase & { kind: "chase_send_failed" });
 
 // Human-readable activity-feed note. Each kind gets a kind-specific
 // rendering using its required context. Date formatting matches the rest of
@@ -1564,6 +1570,8 @@ function fallbackActivityNote(input: FallbackInput): string {
       return `Automated client chase couldn't fire — ${input.contactName} has no email address on file. Reminder handed back to agent.`;
     case "no_portalToken_on_contact":
       return `Automated client chase couldn't fire — ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
+    case "chase_send_failed":
+      return `Automated client chase couldn't reach ${input.contactName}, the email address failed to send. Reminder handed back to agent.`;
     case "client_emails_paused":
       // "contact" scope added 2026-08-11 (per-contact pause in the email
       // settings drawer). New copy is em-dash-free per Law 21; the two
