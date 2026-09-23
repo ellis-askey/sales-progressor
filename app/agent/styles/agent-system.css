@@ -72,6 +72,52 @@
   to   { opacity: 1; transform: scale(1.00) translateY(0);   }
 }
 
+/* ── Global search overlay + bell popup: smooth in AND out ──────────────────
+ * (critique, 2026-09-23). Both keep the element mounted during close, swap to
+ * .is-closing, and unmount on a component timer — so reduced-motion (duration
+ * forced near zero below) can never strand them. Mobile/tablet search rises
+ * from below for the native-sheet feel. */
+@keyframes agent-overlay-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes agent-overlay-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes agent-search-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.97) translateY(10px); }
+}
+@keyframes agent-search-in-mobile {
+  from { opacity: 0; transform: translateY(36px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes agent-search-out-mobile {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(24px); }
+}
+@keyframes agent-bell-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes agent-bell-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+
+.agent-search-backdrop            { animation: agent-overlay-fade-in 200ms ease-out both; }
+.agent-search-backdrop.is-closing { animation: agent-overlay-fade-out 180ms ease-in both; }
+.agent-search-panel               { animation: agent-modal-in 240ms cubic-bezier(0.25, 0, 0, 1) both; }
+.agent-search-panel.is-closing    { animation: agent-search-out 180ms ease-in both; }
+@media (max-width: 1024px) {
+  .agent-search-panel            { animation-name: agent-search-in-mobile; animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  .agent-search-panel.is-closing { animation-name: agent-search-out-mobile; animation-duration: 200ms; animation-timing-function: ease-in; }
+}
+.agent-bell-pop            { transform-origin: top right; animation: agent-bell-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.agent-bell-pop.is-closing { animation: agent-bell-out 180ms ease-in both; }
+@media (prefers-reduced-motion: reduce) {
+  .agent-search-backdrop, .agent-search-backdrop.is-closing,
+  .agent-search-panel,    .agent-search-panel.is-closing,
+  .agent-bell-pop,        .agent-bell-pop.is-closing {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 @keyframes agent-drawer-in {
   from { opacity: 0; transform: translateX(24px); }
   to   { opacity: 1; transform: translateX(0);    }

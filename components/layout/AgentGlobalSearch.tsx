@@ -101,22 +101,42 @@ const DARK_SEARCH_TOKENS: Record<string, string> = {
 export function AgentGlobalSearch() {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen]         = useState(false);
+  // Exit animation (critique, 2026-09-23): closing keeps the overlay mounted
+  // while the backdrop + panel play their out animations, then unmounts on a
+  // timer (timer rather than animationend so reduced-motion can't strand it).
+  const [closing, setClosing]   = useState(false);
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<AgentSearchResult | null>(null);
   const [loading, setLoading]   = useState(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openRef  = useRef(false);
   const router   = useRouter();
+
+  useEffect(() => { openRef.current = open; }, [open]);
+
+  const close = useCallback(() => {
+    if (!openRef.current) return;
+    setOpen(false);
+    setClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setClosing(false), 220);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setOpen((o) => !o); }
-      if (e.key === "Escape") setOpen(false);
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (openRef.current) close();
+        else { setClosing(false); setOpen(true); }
+      }
+      if (e.key === "Escape") close();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [close]);
 
   useEffect(() => {
     if (open) {
@@ -153,7 +173,7 @@ export function AgentGlobalSearch() {
     results.solicitors.forEach(() => flat.push({ href: `/agent/solicitors` }));
   }
 
-  function navigate(href: string) { setOpen(false); router.push(href); }
+  function navigate(href: string) { close(); router.push(href); }
 
   // Phase 3 perceived-performance (2026-09-18, PERF-16): programmatic
   // router.push gets no automatic prefetch (unlike <Link>), so warm the top
@@ -186,9 +206,9 @@ export function AgentGlobalSearch() {
   const hasResults = results && (results.transactions.length + results.contacts.length + results.solicitors.length) > 0;
 
   // Closed state — input-like trigger with white background and hairline border
-  if (!open) return (
+  if (!open && !closing) return (
     <button
-      onClick={() => setOpen(true)}
+      onClick={() => { setClosing(false); setOpen(true); }}
       title="Search (⌘K)"
       style={{
         width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
@@ -216,21 +236,22 @@ export function AgentGlobalSearch() {
   return createPortal(
     <div
       data-theme={theme}
-      style={{ ...(isNight ? (DARK_SEARCH_TOKENS as CSSProperties) : null), position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh" }}
-      onClick={() => setOpen(false)}
+      style={{ ...(isNight ? (DARK_SEARCH_TOKENS as CSSProperties) : null), position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh", pointerEvents: closing ? "none" : undefined }}
+      onClick={close}
     >
-      {/* Backdrop */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", backdropFilter: "blur(8px)" }} />
+      {/* Backdrop — fades with the panel (critique, 2026-09-23). */}
+      <div className={`agent-search-backdrop${closing ? " is-closing" : ""}`} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", backdropFilter: "blur(8px)" }} />
 
-      {/* Modal */}
+      {/* Modal — desktop scales in; mobile/tablet rises from below (see
+          .agent-search-panel in agent-system.css). */}
       <div
+        className={`agent-search-panel${closing ? " is-closing" : ""}`}
         style={{
           position: "relative", width: "100%", maxWidth: 560, margin: "0 16px",
           borderRadius: 18, overflow: "hidden",
           boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.12)",
           background: "var(--agent-surface-elevated)",
           border: "0.5px solid rgba(0,0,0,0.08)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -261,7 +282,7 @@ export function AgentGlobalSearch() {
             </svg>
           )}
           <button
-            onClick={() => setOpen(false)}
+            onClick={close}
             style={{
               fontSize: 11, color: "var(--agent-text-muted)", border: "0.5px solid var(--agent-border-subtle)",
               borderRadius: 5, padding: "2px 6px", background: "rgba(255,255,255,0.60)", cursor: "pointer",

@@ -113,13 +113,26 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
     }
   }, [count]);
 
+  // Exit animation (critique, 2026-09-23): closing keeps the popup mounted
+  // while it plays its out animation, then unmounts on a timer (timer rather
+  // than animationend so reduced-motion can't strand it).
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function close() {
+    if (!open) return;
+    setOpen(false);
+    setClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setClosing(false), 200);
+  }
+
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") close();
     }
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -127,15 +140,18 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("keydown", onKey);
     };
+    // close is stable enough here — it only reads `open`, which is a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function toggle() {
-    const next = !open;
-    setOpen(next);
+    if (open) { close(); return; }
+    setClosing(false);
+    setOpen(true);
     // Opening marks everything read — advance the baseline (server-backed) and
     // clear the badge. Fire-and-forget; the local ref moves immediately so the
     // next poll stays at zero.
-    if (next && count > 0) {
+    if (count > 0) {
       clearedRef.current = new Date().toISOString();
       setCount(0);
       markAgentBellReadAction().catch(() => {});
@@ -163,9 +179,10 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
         )}
       </button>
 
-      {open && (
+      {(open || closing) && (
         <div
           role="menu"
+          className={`agent-bell-pop${closing ? " is-closing" : ""}`}
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
@@ -181,7 +198,7 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
             display: "flex",
             flexDirection: "column",
             maxHeight: "min(70vh, 520px)",
-            animation: "agent-dropdown-in 160ms cubic-bezier(0.16,1,0.3,1)",
+            pointerEvents: closing ? "none" : undefined,
           }}
         >
           <div style={{
