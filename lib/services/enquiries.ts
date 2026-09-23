@@ -15,6 +15,17 @@ import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/acces
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
 import type { EnquiryCourt, EnquiryTrackerStatus, EnquiryMovementKind } from "@/lib/enquiries/tracker";
+import { nameWithoutTitle } from "@/lib/contacts/displayName";
+
+// "Who with" options for the log-a-chase sheet: the two solicitor firms + every
+// buyer/seller on file (titles stripped). Helpers/brokers are excluded.
+export type EnquiryParty = {
+  id: string; // "vsol" | "psol" | the contact id
+  label: string; // firm name or client name (no honorific)
+  side: "vendor" | "purchaser";
+  kind: "solicitor" | "client";
+  contactId?: string; // set for clients (a real Contact row) so the activity log can link the chip
+};
 
 export type OpenEnquiryRow = {
   transactionId: string;
@@ -42,6 +53,7 @@ export type OpenEnquiryRow = {
   clientNames: string; // for search
   vendorSolicitor: string | null;
   purchaserSolicitor: string | null;
+  parties: EnquiryParty[];
 };
 
 // Timeline entry for the expanded row's chase history.
@@ -95,7 +107,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
           photoStoragePath: true,
           purchasePrice: true,
           tenure: true,
-          contacts: { select: { name: true, roleType: true } },
+          contacts: { select: { id: true, name: true, roleType: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorContact: { select: { name: true } },
           purchaserSolicitorFirm: { select: { name: true } },
@@ -151,6 +163,21 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
               : { stage: "escalated", progress: 1 };
     const mv = t.movements[0] ?? null;
     const tx = t.transaction;
+
+    // "Who with" options for the logger: solicitor firm then that side's clients,
+    // seller side first. Titles stripped; only real buyers/sellers (no helpers).
+    const vendorSol = solicitorName(tx.vendorSolicitorFirm, tx.vendorSolicitorContact);
+    const purchaserSol = solicitorName(tx.purchaserSolicitorFirm, tx.purchaserSolicitorContact);
+    const parties: EnquiryParty[] = [];
+    if (vendorSol) parties.push({ id: "vsol", label: vendorSol, side: "vendor", kind: "solicitor" });
+    for (const c of tx.contacts) {
+      if (c.roleType === "vendor" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "vendor", kind: "client", contactId: c.id });
+    }
+    if (purchaserSol) parties.push({ id: "psol", label: purchaserSol, side: "purchaser", kind: "solicitor" });
+    for (const c of tx.contacts) {
+      if (c.roleType === "purchaser" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "purchaser", kind: "client", contactId: c.id });
+    }
+
     return {
       transactionId: tx.id,
       address: tx.propertyAddress,
@@ -176,8 +203,9 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
         .map((c) => c.name)
         .filter((n): n is string => !!n)
         .join(", "),
-      vendorSolicitor: solicitorName(tx.vendorSolicitorFirm, tx.vendorSolicitorContact),
-      purchaserSolicitor: solicitorName(tx.purchaserSolicitorFirm, tx.purchaserSolicitorContact),
+      vendorSolicitor: vendorSol,
+      purchaserSolicitor: purchaserSol,
+      parties,
     };
   });
 

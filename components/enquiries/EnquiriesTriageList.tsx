@@ -37,12 +37,6 @@ function fmtPrice(pence: number | null): string | null {
 function fmtDay(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
-function isToday(d: Date | null): boolean {
-  if (!d) return false;
-  const n = new Date();
-  const x = new Date(d);
-  return n.getFullYear() === x.getFullYear() && n.getMonth() === x.getMonth() && n.getDate() === x.getDate();
-}
 function startOfTomorrow(): number {
   const t = new Date();
   t.setHours(0, 0, 0, 0);
@@ -158,15 +152,19 @@ export function EnquiriesTriageList({
   // buckets so they read as a breakdown of the total.
   const tiles = useMemo(() => {
     const midnight = new Date().setHours(0, 0, 0, 0);
-    let needChecking = 0, awaiting = 0, expectedToday = 0;
+    let needChecking = 0, awaiting = 0, expected = 0;
     for (const r of rows) {
-      if (isToday(r.expectedDate)) { expectedToday++; continue; }
+      // Expected: a reply date has been given (today or later) — it's parked, not
+      // waiting blind. (Moves these out of "awaiting" so the split reads true.)
+      if (r.expectedDate && new Date(r.expectedDate).getTime() >= midnight) { expected++; continue; }
+      // Need checking: a chase is due today/overdue, OR the loop has STALLED (silent
+      // past escalation) even if recently chased — long silence still needs a human.
       const chaseMs = r.nextChaseAt ? new Date(r.nextChaseAt).getTime() : null;
-      if (r.status !== "snoozed" && chaseMs != null && chaseMs < startOfTomorrow()) { needChecking++; continue; }
+      const dueNow = r.status !== "snoozed" && chaseMs != null && chaseMs < startOfTomorrow();
+      if (dueNow || r.status === "stalled") { needChecking++; continue; }
       awaiting++;
     }
-    void midnight;
-    return { total: rows.length, needChecking, awaiting, expectedToday };
+    return { total: rows.length, needChecking, awaiting, expected };
   }, [rows]);
 
   const shown = useMemo(() => {
@@ -258,10 +256,10 @@ export function EnquiriesTriageList({
       {/* Summary overview — same family as Chains / Completions */}
       <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
         <div className="enq-summary-grid">
-          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="in enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
-          <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="need checking" sub="Overdue or due today" />
-          <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="awaiting replies" sub="With a solicitor" />
-          <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expectedToday} label="expected today" sub="Based on latest updates" />
+          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={`Across ${tiles.total} ${tiles.total === 1 ? "sale" : "sales"}`} />
+          <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
+          <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
+          <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
         </div>
       </GlassCard>
 
@@ -419,9 +417,10 @@ export function EnquiriesTriageList({
         <EnquiryLogSheet
           mode={logSheet.mode}
           address={logSheet.row.address.split(",")[0].trim()}
-          defaultParty={logSheet.row.currentlyWith === "seller_solicitor" ? "seller_solicitor" : "buyer_solicitor"}
+          parties={logSheet.row.parties}
+          defaultPartyId={logSheet.row.currentlyWith === "seller_solicitor" ? "vsol" : "psol"}
           busy={busyId === logSheet.row.transactionId}
-          onSubmit={(d) => run(logSheet.row.transactionId, () => logEnquiryChaseAction({ transactionId: logSheet.row.transactionId, method: logSheet.mode, outcome: d.outcome, note: d.note, withParty: d.withParty }), logSheet.mode === "phone" ? "Call logged" : "Email logged")}
+          onSubmit={(d) => run(logSheet.row.transactionId, () => logEnquiryChaseAction({ transactionId: logSheet.row.transactionId, method: logSheet.mode, outcome: d.outcome, note: d.note, partyLabel: d.partyLabel, contactId: d.contactId }), logSheet.mode === "phone" ? "Call logged" : "Email logged")}
           onClose={() => setLogSheet(null)}
         />
       )}

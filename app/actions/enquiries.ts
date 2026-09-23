@@ -107,12 +107,14 @@ export type EnquiryCallParty = "buyer" | "seller_solicitor" | "buyer_solicitor";
 export async function logEnquiryChaseAction(input: {
   transactionId: string;
   method: "phone" | "email" | "other";
-  // Phone-only detail. When present, the enquiry movement note is enriched AND the
-  // call is mirrored onto the file's activity feed (exactly like logging a call on
-  // the property file), so the conversation is captured in both places.
+  // Detail from the logger. When present, the enquiry movement note is enriched AND
+  // the chase is mirrored onto the file's activity feed (like logging a call/email
+  // on the property file), so it's captured in both places.
   outcome?: EnquiryCallOutcome;
   note?: string;
-  withParty?: EnquiryCallParty;
+  withParty?: EnquiryCallParty; // side/kind — used for defaulting + fallback label
+  partyLabel?: string; // the real party name/firm chosen in the logger ("Collective Legal", "John Smith")
+  contactId?: string; // set when the party is a client → links the activity-feed contact chip
 }): Promise<{ ok: boolean }> {
   // Inline auth so we have the scope + role for the activity-feed mirror below.
   const session = await getServerSession(authOptions);
@@ -128,11 +130,13 @@ export async function logEnquiryChaseAction(input: {
   const isPhone = input.method === "phone";
   const isEmail = input.method === "email";
   const trimmedNote = (input.note ?? "").trim();
+  // Prefer the real chosen name/firm; fall back to the generic side label.
   const partyLabel =
-    input.withParty === "buyer" ? "the buyer"
+    input.partyLabel?.trim() ||
+    (input.withParty === "buyer" ? "the buyer"
       : input.withParty === "seller_solicitor" ? "the seller's solicitor"
         : input.withParty === "buyer_solicitor" ? "the buyer's solicitor"
-          : null;
+          : null);
   const outcomeLabel =
     input.outcome === "voicemail" ? "left a voicemail"
       : input.outcome === "no_answer" ? "no answer"
@@ -160,7 +164,7 @@ export async function logEnquiryChaseAction(input: {
   // logging a call/email on the property file's activity tab), so the conversation
   // is captured there too. The "who" lives in the content since solicitor contacts
   // aren't Contact rows. Best-effort: a failure here never fails the chase itself.
-  const hasDetail = trimmedNote || input.withParty || (isPhone && input.outcome);
+  const hasDetail = trimmedNote || input.partyLabel || input.withParty || (isPhone && input.outcome);
   if (ok && (isPhone || isEmail) && hasDetail) {
     const verb = isPhone ? "Call" : "Email";
     const content =
@@ -172,7 +176,7 @@ export async function logEnquiryChaseAction(input: {
         transactionId: input.transactionId,
         type: "outbound",
         method: isPhone ? (input.outcome === "voicemail" ? "voicemail" : "phone") : "email",
-        contactIds: [],
+        contactIds: input.contactId ? [input.contactId] : [],
         content,
         visibleToClient: false,
         createdById: userId,
