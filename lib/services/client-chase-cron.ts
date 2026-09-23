@@ -141,7 +141,7 @@ export type DueChaseTuple = {
   // matching chip so the agent sees "add buyer email to enable updates"
   // instead of the client being silently never chased. Mutually exclusive
   // with a normal (reachable) tuple: blocked tuples carry no contactEmail.
-  blockedKind?: "no_email_on_contact" | "no_portalToken_on_contact" | "client_opted_out";
+  blockedKind?: "no_email_on_contact" | "no_portalToken_on_contact" | "client_opted_out" | "chase_send_failed";
   // The opted-out date, carried only for the "client_opted_out" block reason
   // so the handback's activity note can render "opted out on <date>".
   blockedOptedOutAt?: Date | null;
@@ -293,6 +293,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       email: true,
       portalToken: true,
       unsubscribedAt: true,
+      emailBouncedAt: true,
       propertyTransactionId: true,
       roleType: true,
       buyerRoundId: true,
@@ -316,7 +317,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
   // contacts drive the digest path (unchanged); blocked contacts drive the
   // fail-soft handback when their side's chase becomes due.
   const isReachable = (c: (typeof roundScopedContacts)[number]) =>
-    !!c.email && !!c.portalToken && c.unsubscribedAt == null;
+    !!c.email && !!c.portalToken && c.unsubscribedAt == null && c.emailBouncedAt == null;
   const contacts = roundScopedContacts.filter(isReachable);
   const blockedContacts = roundScopedContacts.filter((c) => !isReachable(c));
   const states = await prisma.clientChaseState.findMany({
@@ -498,12 +499,15 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
           // add, just chase manually).
           const noEmail = blockedRecipients.find((c) => !c.email);
           const noToken = blockedRecipients.find((c) => c.email && !c.portalToken);
-          const picked = noEmail ?? noToken ?? blockedRecipients[0];
+          const bounced = blockedRecipients.find((c) => c.email && c.portalToken && c.emailBouncedAt);
+          const picked = noEmail ?? noToken ?? bounced ?? blockedRecipients[0];
           const blockedKind: DueChaseTuple["blockedKind"] = !picked.email
             ? "no_email_on_contact"
             : !picked.portalToken
               ? "no_portalToken_on_contact"
-              : "client_opted_out";
+              : picked.emailBouncedAt
+                ? "chase_send_failed"
+                : "client_opted_out";
           due.push({
             transactionId: transaction.id,
             contactId: picked.id,
@@ -917,7 +921,9 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
           ? { ...base, kind: "client_opted_out" as const, optedOutAt: b.blockedOptedOutAt ?? now }
           : b.blockedKind === "no_portalToken_on_contact"
             ? { ...base, kind: "no_portalToken_on_contact" as const }
-            : { ...base, kind: "no_email_on_contact" as const };
+            : b.blockedKind === "chase_send_failed"
+              ? { ...base, kind: "chase_send_failed" as const }
+              : { ...base, kind: "no_email_on_contact" as const };
       const result = await createAgentChaseTaskForMilestone(input);
       if (result) blockedFallbacks += 1;
     } catch (err) {

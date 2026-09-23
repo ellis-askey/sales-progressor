@@ -43,6 +43,9 @@ interface LogShape {
   // Set by getAgentReminderLogs when the chase is within/past its computed
   // hand-over schedule — pulls it off autopilot regardless of the cron.
   handoverDue?: boolean;
+  // Set by getAgentReminderLogs when a SOLICITOR chase has run out (escalated or
+  // chased to its cap) — surfaces it to the agent instead of a phantom autopilot.
+  solicitorHandoverDue?: boolean;
   reminderRule: { targetMilestoneCode: string | null };
   chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; lastChasedAt?: Date | null }[];
   transaction: {
@@ -50,7 +53,7 @@ interface LogShape {
     clientEmailsPaused: boolean;
     vendorSolicitorEmailsPaused: boolean;
     purchaserSolicitorEmailsPaused: boolean;
-    contacts: { roleType: string; email: string | null; portalToken: string | null; unsubscribedAt: Date | null }[];
+    contacts: { roleType: string; email: string | null; portalToken: string | null; unsubscribedAt: Date | null; emailBouncedAt?: Date | null }[];
     vendorSolicitorContact: { email: string | null } | null;
     purchaserSolicitorContact: { email: string | null } | null;
   };
@@ -103,7 +106,12 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it", category: "info" }); continue; }
     // Hand-over schedule reached (computed on read, cron-independent): the
     // autopilot's had its run, so this is now the agent's — surface it.
-    if (log.handoverDue) { out.set(log.id, { kind: "manual", reason: "Autopilot's finished chasing — over to you", category: "exhausted" }); continue; }
+    if (log.handoverDue) { out.set(log.id, { kind: "manual", reason: "Autopilot's finished chasing, over to you", category: "exhausted" }); continue; }
+    // Solicitor chase ran out (escalated / hit its cap). The solicitor cron won't
+    // send again and only rang a bell, so hand it to the agent with an explicit
+    // reason (solicitor chases don't increment the task's chase count, so the
+    // status line alone wouldn't explain it).
+    if (log.solicitorHandoverDue) { out.set(log.id, { kind: "manual", reason: "No reply from the solicitor, chase them directly", category: "info" }); continue; }
     if (!code) { out.set(log.id, { kind: "manual", reason: null, category: "info" }); continue; }
 
     const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";
@@ -116,7 +124,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const clientCode = isClientChaseable(code);
     if (clientOn && clientCode) {
       const clientRole = side === "vendor" ? "vendor" : "purchaser";
-      const reachable = tx.contacts.some((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt);
+      const reachable = tx.contacts.some((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
       if (reachable) { out.set(log.id, { kind: "auto", pipeline: "client", nextSend: nextCronRun(dueDate, CLIENT_CRON) }); continue; }
     }
 

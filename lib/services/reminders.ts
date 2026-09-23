@@ -8,6 +8,7 @@ import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
+import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -366,7 +367,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
           clientEmailsPaused: true,
           vendorSolicitorEmailsPaused: true,
           purchaserSolicitorEmailsPaused: true,
-          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, emailBouncedAt: true } },
           // Real solicitors so the work-queue chase drawer can offer the
           // right-side solicitor as a recipient (they aren't Contact rows).
           vendorSolicitorFirm: { select: { id: true, name: true } },
@@ -486,12 +487,52 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     return getAgentReminderLogs(vis);
   }
 
+  // Solicitor hand-over (compute-on-read, mirrors the client backstop above).
+  // A solicitor step whose auto-chases have run out — escalated, or chased up to
+  // its cap — must land on the agent's desk. The solicitor cron only rings a bell
+  // on escalation and never creates a task, and resolveAutopilot otherwise keeps
+  // the row showing "on autopilot" forever, so without this a solicitor chase can
+  // stall silently. Surfaced NOW (nextDueDate → today) so it lands in Needs you,
+  // independent of the cron.
+  const solHandoverById = new Map<string, Date>();
+  const hasSolCodes = visibleLogs.some((l) => {
+    const c = l.reminderRule.targetMilestoneCode;
+    return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
+  });
+  if (txIds.length > 0 && hasSolCodes) {
+    const [solStates, solRules] = await Promise.all([
+      prisma.solicitorChaseState.findMany({
+        where: { transactionId: { in: txIds }, resolvedAt: null },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+      }),
+      prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+    ]);
+    const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    for (const l of visibleLogs) {
+      const code = l.reminderRule.targetMilestoneCode;
+      if (!code) continue;
+      const side: SolicitorSide = code.startsWith("PM") ? "purchaser" : "vendor";
+      if (!solicitorCodesForSide(side).has(code)) continue;
+      const st = solStateByKey.get(`${l.transaction.id}:${side}:${code}`);
+      if (!st) continue;
+      // A solicitor-given expected date legitimately parks it — that's a snooze,
+      // not "run out" — so leave those on autopilot.
+      if (st.snoozeUntil && st.snoozeUntil > nowForChase) continue;
+      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      if (ranOut) solHandoverById.set(l.id, nowForChase);
+    }
+  }
+
   // Surface the hand-over schedule: override nextDueDate to the hand-over date and
   // flag the row, so resolveAutopilot pulls it off autopilot and the date buckets
-  // it into Coming up (a few days before) / Needs you (on the day).
+  // it into Coming up (a few days before) / Needs you (on the day). Solicitor
+  // hand-over rows surface in Needs you today via solicitorHandoverDue.
   return visibleLogs.map((l) => {
-    const due = handoverDueById.get(l.id);
-    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!due };
+    const clientDue = handoverDueById.get(l.id);
+    const solDue = solHandoverById.get(l.id);
+    const due = clientDue ?? solDue;
+    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!clientDue, solicitorHandoverDue: !!solDue };
   });
 }
 

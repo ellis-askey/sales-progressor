@@ -419,9 +419,25 @@ export async function isUserEmailSuppressed(userId: string): Promise<boolean> {
 export async function isContactEmailSuppressed(contactId: string): Promise<boolean> {
   const contact = await prisma.contact.findUnique({
     where: { id: contactId },
-    select: { unsubscribedAt: true },
+    select: { unsubscribedAt: true, emailBouncedAt: true },
   });
-  return contact?.unsubscribedAt != null;
+  // Suppress if the client opted out OR their address hard-bounced (dead inbox).
+  return contact?.unsubscribedAt != null || contact?.emailBouncedAt != null;
+}
+
+// Mark every contact on this email address as hard-bounced, so automated chasing
+// stops re-sending to a dead inbox (the reminder is then handed back to the agent
+// as a "fix the email" task). Mirrors suppressUserByEmail for client Contacts.
+// Only stamps rows not already flagged, so it stays idempotent across repeat
+// bounces. Returns the number of contacts newly flagged.
+export async function suppressContactByEmail(email: string): Promise<number> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return 0;
+  const res = await prisma.contact.updateMany({
+    where: { email: { equals: normalized, mode: "insensitive" }, emailBouncedAt: null },
+    data: { emailBouncedAt: new Date() },
+  });
+  return res.count;
 }
 
 // Returns true if this chain link's invite has been unsubscribed (unclaimed agents only).

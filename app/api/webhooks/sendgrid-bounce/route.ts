@@ -23,6 +23,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createPublicKey, createVerify } from "node:crypto";
 import { handleBouncedInvite } from "@/lib/chain/invite";
+import { suppressContactByEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import {
@@ -122,6 +123,10 @@ export async function POST(req: NextRequest) {
     if (isHardBounce && typeof event.email === "string") {
       await handleBouncedInvite(event.email).catch(console.error);
       await suppressUserByEmail(event.email).catch(console.error);
+      // Also flag client Contacts on this address as bounced, so the client-chase
+      // cron stops re-sending to a dead inbox and hands the reminder back to the
+      // agent as a "fix the email" task instead of looping silently.
+      await suppressContactByEmail(event.email).catch(console.error);
       bounceSideEffects++;
     }
 
