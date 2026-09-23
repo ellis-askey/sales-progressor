@@ -13,7 +13,7 @@ import type { Prisma } from "@prisma/client";
 import type { AccessScope } from "@/lib/security/access-scope";
 import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { addWorkingDays } from "@/lib/emails/working-hours";
-import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
+import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
 import type { EnquiryCourt, EnquiryTrackerStatus, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
 
@@ -135,21 +135,23 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const quietSince = t.lastMovementAt ?? t.openedAt;
     const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
     const status: EnquiryTrackerStatus = snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
-    const nextChaseAt = snoozed
+    // No "next chase" once snoozed or escalated (auto-chasing stops on escalation).
+    // First chase after 6 working days, then every 5.
+    const nextChaseAt = snoozed || t.escalatedAt
       ? null
       : t.lastChasedAt
-        ? addWorkingDays(t.lastChasedAt, CHASE_WORKING_DAYS)
-        : addWorkingDays(quietSince, CHASE_WORKING_DAYS);
+        ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
+        : addWorkingDays(quietSince, FIRST_CHASE_DAYS);
 
     // Two-stage silence countdown, anchored on the last movement (the silence
-    // clock the chase engine uses). Coral fills 0 → 7 working days (chase), then
-    // red fills 7 → 13 (escalate). An expected date shows a blue "hold" fill
+    // clock the chase engine uses). Coral fills 0 → 6 working days (chase), then
+    // red fills 6 → 13 (escalate). An expected date shows a blue "hold" fill
     // toward that date instead. See enquiryChaseDecision.
     const barFrac = (from: Date, to: Date): number => {
       const span = to.getTime() - from.getTime();
       return span > 0 ? Math.max(0, Math.min(1, (now.getTime() - from.getTime()) / span)) : 1;
     };
-    const chaseDueAt = addWorkingDays(quietSince, CHASE_WORKING_DAYS);
+    const chaseDueAt = addWorkingDays(quietSince, FIRST_CHASE_DAYS);
     const escalateAt = addWorkingDays(quietSince, ESCALATE_WORKING_DAYS);
     const chaseBar: OpenEnquiryRow["chaseBar"] =
       t.escalatedAt

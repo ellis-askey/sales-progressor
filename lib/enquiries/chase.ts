@@ -27,7 +27,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
-import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "./cadence";
+import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "./cadence";
 
 // Pure decision: given a tracker's timestamps and "now", is a chase or an
 // escalation due? Extracted so the cadence logic is unit-testable without a
@@ -44,10 +44,13 @@ export function enquiryChaseDecision(
 ): { chaseDue: boolean; escalateDue: boolean } {
   if (t.snoozedUntil && t.snoozedUntil > now) return { chaseDue: false, escalateDue: false };
   const anchor = t.lastMovementAt ?? t.openedAt;
-  const escalateDue = !t.escalatedAt && now >= addWorkingDays(anchor, ESCALATE_WORKING_DAYS);
-  const firstDue = addWorkingDays(anchor, CHASE_WORKING_DAYS);
-  const nextDue = t.lastChasedAt ? addWorkingDays(t.lastChasedAt, CHASE_WORKING_DAYS) : firstDue;
-  const chaseDue = now >= nextDue;
+  const escalated = !!t.escalatedAt;
+  const escalateDue = !escalated && now >= addWorkingDays(anchor, ESCALATE_WORKING_DAYS);
+  // First chase after 6 working days, then every 5. Once escalated we STOP the
+  // auto-chases — it's handled by a human in the hub drawer from there.
+  const firstDue = addWorkingDays(anchor, FIRST_CHASE_DAYS);
+  const nextDue = t.lastChasedAt ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS) : firstDue;
+  const chaseDue = !escalated && now >= nextDue;
   return { chaseDue, escalateDue };
 }
 

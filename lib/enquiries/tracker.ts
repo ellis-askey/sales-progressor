@@ -5,7 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
-import { ENQUIRY_CHASE_WORKING_DAYS as CHASE_WORKING_DAYS } from "./cadence";
+import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS } from "./cadence";
 
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";
@@ -67,12 +67,14 @@ export async function getEnquiryTrackerView(
   const status: EnquiryTrackerStatus = t.closedAt ? "closed" : snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
 
   const anchor = t.lastMovementAt ?? t.openedAt;
+  // No "next chase" once closed, snoozed, or escalated (we stop auto-chasing on
+  // escalation). First chase after 6 working days, then every 5.
   const nextChaseAt =
-    t.closedAt || snoozed
+    t.closedAt || snoozed || t.escalatedAt
       ? null
       : t.lastChasedAt
-        ? addWorkingDays(t.lastChasedAt, CHASE_WORKING_DAYS)
-        : addWorkingDays(anchor, CHASE_WORKING_DAYS);
+        ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
+        : addWorkingDays(anchor, FIRST_CHASE_DAYS);
 
   return {
     currentlyWith: t.currentlyWith as EnquiryCourt,
@@ -132,11 +134,11 @@ export async function getEnquiryHeroState(
     const snoozed = !!(tracker.snoozedUntil && tracker.snoozedUntil > now);
     const status = snoozed ? "snoozed" : tracker.escalatedAt ? "stalled" : "chasing";
     const anchor = tracker.lastMovementAt ?? tracker.openedAt;
-    const nextChaseAt = snoozed
+    const nextChaseAt = snoozed || tracker.escalatedAt
       ? null
       : tracker.lastChasedAt
-        ? addWorkingDays(tracker.lastChasedAt, CHASE_WORKING_DAYS)
-        : addWorkingDays(anchor, CHASE_WORKING_DAYS);
+        ? addWorkingDays(tracker.lastChasedAt, REPEAT_CHASE_DAYS)
+        : addWorkingDays(anchor, FIRST_CHASE_DAYS);
     return {
       phase: "loop",
       currentlyWith: tracker.currentlyWith as EnquiryCourt,

@@ -20,12 +20,18 @@ const tracker = (over: Over = {}) => ({
 });
 
 describe("enquiryChaseDecision", () => {
-  it("no chase before 7 working days", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 6))).toEqual({ chaseDue: false, escalateDue: false });
+  it("no chase before 6 working days", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 5))).toEqual({ chaseDue: false, escalateDue: false });
   });
 
-  it("chase due at 7 working days, no escalation yet", () => {
-    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 7))).toEqual({ chaseDue: true, escalateDue: false });
+  it("first chase due at 6 working days, no escalation yet", () => {
+    expect(enquiryChaseDecision(tracker(), addWorkingDays(anchor, 6))).toEqual({ chaseDue: true, escalateDue: false });
+  });
+
+  it("repeat cadence runs 5 working days from the last chase", () => {
+    const lastChasedAt = addWorkingDays(anchor, 6);
+    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 4)).chaseDue).toBe(false);
+    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 5)).chaseDue).toBe(true);
   });
 
   it("escalates at 13 working days (~2.5 weeks) of silence", () => {
@@ -41,10 +47,11 @@ describe("enquiryChaseDecision", () => {
     expect(enquiryChaseDecision(tracker({ escalatedAt: now }), now).escalateDue).toBe(false);
   });
 
-  it("repeat cadence runs from the last chase", () => {
-    const lastChasedAt = addWorkingDays(anchor, 7);
-    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 6)).chaseDue).toBe(false);
-    expect(enquiryChaseDecision(tracker({ lastChasedAt }), addWorkingDays(lastChasedAt, 7)).chaseDue).toBe(true);
+  it("stops auto-chasing once escalated (handed to the hub)", () => {
+    const now = addWorkingDays(anchor, 20); // a chase would otherwise be due
+    const d = enquiryChaseDecision(tracker({ escalatedAt: addWorkingDays(anchor, 13), lastChasedAt: addWorkingDays(anchor, 11) }), now);
+    expect(d.chaseDue).toBe(false);
+    expect(d.escalateDue).toBe(false);
   });
 
   it("a logged movement resets both clocks", () => {
