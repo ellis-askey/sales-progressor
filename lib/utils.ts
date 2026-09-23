@@ -64,10 +64,16 @@ export function titleCase(str: string): string {
  * user-entered names and agency names where acronyms must survive — plain
  * titleCase() above force-lowercases and would turn "ABC Estates" into
  * "Abc Estates".
+ *
+ * Hyphenated and apostrophed segments each get their own capital:
+ * "gili-ross" → "Gili-Ross", "o'neill" → "O'Neill" (founder report,
+ * 2026-09-23 — "Gili-ross" was saving with a lowercase r).
  */
 export function titleCaseKeepAcronyms(str: string): string {
   return str.trim().replace(/\S+/g, (word) =>
-    /[A-Z]{2,}/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    /[A-Z]{2,}/.test(word)
+      ? word
+      : word.toLowerCase().replace(/(^|[-'’])\p{L}/gu, (m) => m.toUpperCase()),
   );
 }
 

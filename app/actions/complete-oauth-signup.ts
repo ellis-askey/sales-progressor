@@ -8,10 +8,11 @@ import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
-function toTitleCase(str: string): string {
-  return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-}
+// Canonical acronym-safe title-caser (lib/utils) — same reasoning as the
+// register route: acronyms survive, hyphen/apostrophe segments capitalise.
+const toTitleCase = titleCaseKeepAcronyms;
 
 export async function completeOAuthSignup(formData: FormData): Promise<
   { ok: true } | { ok: false; error: string }

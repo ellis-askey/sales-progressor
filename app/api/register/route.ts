@@ -10,10 +10,13 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
-function toTitleCase(str: string): string {
-  return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-}
+// Canonical acronym-safe title-caser (lib/utils): preserves typed acronyms
+// ("SJD Sales Progression" stays SJD, not Sjd) and capitalises after hyphens
+// and apostrophes ("Gili-Ross", "O'Neill"). The old local copy force-lowered
+// everything after each word's first letter.
+const toTitleCase = titleCaseKeepAcronyms;
 
 export async function POST(req: NextRequest) {
   try {
