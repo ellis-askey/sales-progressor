@@ -2312,6 +2312,9 @@ export async function getHubAttentionItems(
         select: {
           id: true, // hub chase split-button: mark-chased / done / snooze act on this task
           status: true, priority: true, chaseCount: true,
+          // Agent's last chase (Mark chased / drawer send) — resets the
+          // hand-over clock below, mirroring the work queue.
+          lastChasedAt: true,
           fallbackKind: true, // resolveAutopilot: a handed-back chase is "manual".
           // 2026-07-13 (Chunk 8): needed to build the Escalated tooltip.
           escalationReason: true,
@@ -2350,7 +2353,13 @@ export async function getHubAttentionItems(
   const enrichedLogs = logs.map((l) => {
     const code = l.reminderRule.targetMilestoneCode;
     const snap = code ? chaseByTxCode.get(`${l.transaction.id}:${code}`) : undefined;
-    const handoverDate = snap ? chaseHandoverDate(snap, l.reminderRule.repeatEveryDays, now) : null;
+    // Fold in the agent's own last chase so a human chase resets the hand-over
+    // clock (same fix as the work queue — chased rows must not boomerang).
+    const lastManualChaseAt = l.chaseTasks.reduce<Date | null>(
+      (max, t) => (t.lastChasedAt && (!max || t.lastChasedAt > max) ? t.lastChasedAt : max),
+      null,
+    );
+    const handoverDate = snap ? chaseHandoverDate({ ...snap, lastManualChaseAt }, l.reminderRule.repeatEveryDays, now) : null;
     const due = handoverDate && chaseHandoverPhase(handoverDate, now) ? handoverDate : null;
     return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!due };
   });

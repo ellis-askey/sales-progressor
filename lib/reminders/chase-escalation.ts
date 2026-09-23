@@ -24,11 +24,24 @@ export type ChaseSnapshot = {
   firstChasedAt: Date | null;
   lastChasedAt: Date | null;
   lastEngagedAt: Date | null;
+  // The agent's own last chase of this step (ChaseTask.lastChasedAt — stamped
+  // by ↻ Mark chased AND drawer sends). Without it, a handed-over row
+  // boomeranged: Mark chased advanced the task's own due date, but this
+  // schedule recomputed from autopilot history alone and yanked the row
+  // straight back into Needs you (founder report, 2026-09-23). A human chase
+  // resets the hand-over clock exactly like an autopilot chase does.
+  lastManualChaseAt?: Date | null;
 };
 
 function addDays(d: Date, n: number): Date {
   const out = new Date(d);
   out.setUTCDate(out.getUTCDate() + n);
+  return out;
+}
+
+function laterOf(...dates: (Date | null | undefined)[]): Date | null {
+  let out: Date | null = null;
+  for (const d of dates) if (d && (!out || d > out)) out = d;
   return out;
 }
 
@@ -39,19 +52,23 @@ export function chaseHandoverDate(s: ChaseSnapshot, repeatEveryDays: number, now
   void now; // schedule is date-only; the caller decides now-vs-schedule via chaseHandoverPhase
   if (!s.firstChasedAt) return null; // never chased → nothing to hand over yet
 
+  // The most recent chase from EITHER pipeline — autopilot or the agent.
+  const effectiveLastChase = laterOf(s.lastChasedAt, s.lastManualChaseAt);
+
   // Engagement pauses the clock (caller aggregates couple-as-one).
-  const engagedAfterLastChase = !!(s.lastEngagedAt && s.lastChasedAt && s.lastEngagedAt > s.lastChasedAt);
+  const engagedAfterLastChase = !!(s.lastEngagedAt && effectiveLastChase && s.lastEngagedAt > effectiveLastChase);
 
   const dates: Date[] = [];
 
-  // Count-cap path: the final autopilot chase + the repeat gap.
-  if (s.chaseCount >= CHASE_HANDOVER_CAP && s.lastChasedAt && !engagedAfterLastChase) {
-    dates.push(addDays(s.lastChasedAt, Math.max(repeatEveryDays, 1)));
+  // Count-cap path: the final chase (autopilot or human) + the repeat gap.
+  if (s.chaseCount >= CHASE_HANDOVER_CAP && effectiveLastChase && !engagedAfterLastChase) {
+    dates.push(addDays(effectiveLastChase, Math.max(repeatEveryDays, 1)));
   }
 
-  // 14-day silence backstop, anchored at the later of first-chase / last-engaged.
-  // This also surfaces a chase the autopilot stalled on (never sent its 2nd chase).
-  const silenceAnchor = s.lastEngagedAt && s.lastEngagedAt > s.firstChasedAt ? s.lastEngagedAt : s.firstChasedAt;
+  // 14-day silence backstop, anchored at the latest sign of life — first
+  // autopilot chase, client engagement, or the agent's own last chase. This
+  // also surfaces a chase the autopilot stalled on (never sent its 2nd chase).
+  const silenceAnchor = laterOf(s.firstChasedAt, s.lastEngagedAt, s.lastManualChaseAt) ?? s.firstChasedAt;
   dates.push(addDays(silenceAnchor, CHASE_HANDOVER_SILENCE_DAYS));
 
   return dates.reduce((min, d) => (d < min ? d : min));

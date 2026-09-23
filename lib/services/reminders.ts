@@ -124,6 +124,9 @@ export type ReminderLogWithRule = {
     chaseCount: number;
     manualChaseCount: number;
     dueDate: Date;
+    // Agent's last chase of this task (Mark chased / drawer send) — feeds the
+    // hand-over schedule so a human chase resets the surfacing clock.
+    lastChasedAt?: Date | null;
     fallbackKind: string | null;
     // 2026-07-13 (Chunk 8): manual-escalation trio - null on engine-triggered
     // escalations. Read by the tooltip on the "Escalated" chip.
@@ -188,7 +191,7 @@ export async function getReminderLogsForTransaction(
         },
         chaseTasks: {
           select: {
-            id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, fallbackKind: true,
+            id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, lastChasedAt: true, fallbackKind: true,
             // 2026-07-13 (Chunk 8): mirror getAgentReminderLogs shape so
             // the reminders panel on file-detail can render the same
             // Escalated tooltip as the work queue.
@@ -330,7 +333,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       chaseTasks: {
         where: { status: "pending" },
         select: {
-          id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, fallbackKind: true,
+          id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true, dueDate: true, lastChasedAt: true, fallbackKind: true,
           // 2026-07-13 (Chunk 8): expose the manual-escalation trio so the
           // work-queue can tooltip "escalated by X on Y - reason: Z" on the
           // Escalated chip. All three null on engine-triggered escalations
@@ -454,7 +457,14 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     if (!code) continue;
     const snap = chaseByTxCode.get(`${l.transaction.id}:${code}`);
     if (!snap) continue;
-    const handoverDate = chaseHandoverDate(snap, l.reminderRule.repeatEveryDays, nowForChase);
+    // Fold in the agent's own last chase of this step (Mark chased / drawer
+    // send stamp ChaseTask.lastChasedAt) so a human chase resets the hand-over
+    // clock — without it, chased rows boomeranged straight back into Needs you.
+    const lastManualChaseAt = l.chaseTasks.reduce<Date | null>(
+      (max, t) => (t.lastChasedAt && (!max || t.lastChasedAt > max) ? t.lastChasedAt : max),
+      null,
+    );
+    const handoverDate = chaseHandoverDate({ ...snap, lastManualChaseAt }, l.reminderRule.repeatEveryDays, nowForChase);
     if (chaseHandoverPhase(handoverDate, nowForChase) && handoverDate) handoverDueById.set(l.id, handoverDate);
   }
   const todayUKStr = toUKDateStr(new Date());
