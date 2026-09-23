@@ -53,7 +53,7 @@ interface LogShape {
   // capped-but-not-due row (e.g. just manually chased) isn't shown as "on autopilot".
   solicitorCapped?: boolean;
   reminderRule: { targetMilestoneCode: string | null };
-  chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; lastChasedAt?: Date | null }[];
+  chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; manualChaseCount?: number; lastChasedAt?: Date | null }[];
   transaction: {
     agencyId: string | null;
     clientEmailsPaused: boolean;
@@ -107,6 +107,15 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const task = pickLiveChase(log.chaseTasks);
     const code = log.reminderRule.targetMilestoneCode;
     const tx = log.transaction;
+    // A human has manually chased this row (↻ Mark chased or a drawer send — only
+    // those bump manualChaseCount; autopilot's own sends never do). Once you've
+    // taken it over it's no longer "hands-off", so it must NOT read as "on
+    // autopilot" even when a pipeline (e.g. the client digest) would still send.
+    // It drops to manual and buckets by its due date into Needs you / Coming up /
+    // Chased. The reason is set in the manual section below (the chase status line
+    // carries the rest). The background cron may still send — this only fixes what
+    // the agent sees, so a chased row is never hidden from them.
+    const manuallyChased = (task?.manualChaseCount ?? 0) > 0;
 
     if (task?.fallbackKind) { out.set(log.id, { kind: "manual", ...fallbackReason(task.fallbackKind) }); continue; }
     if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it", category: "info" }); continue; }
@@ -128,7 +137,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     // Client autopilot
     const clientOn = flags.clientChaseEnabled && agencyClientOk && !tx.clientEmailsPaused;
     const clientCode = isClientChaseable(code);
-    if (clientOn && clientCode) {
+    if (clientOn && clientCode && !manuallyChased) {
       const clientRole = side === "vendor" ? "vendor" : "purchaser";
       const reachableClients = tx.contacts.filter((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
       if (reachableClients.length > 0) {
@@ -157,14 +166,15 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     // longer "on autopilot" even if the toggles are on — fall through to manual
     // (due ones already handled by solicitorHandoverDue above; not-due ones land
     // in "Chased" once a human has chased them).
-    if (solOn && solCode && !log.solicitorCapped) {
+    if (solOn && solCode && !log.solicitorCapped && !manuallyChased) {
       if (solContact?.email) { out.set(log.id, { kind: "auto", pipeline: "solicitor", nextSend: nextCronRun(dueDate, SOLICITOR_CRON) }); continue; }
     }
 
     // Manual — say why, honestly.
     let reason: string | null = null;
     let category: ManualCategory = "info";
-    if (solCode && !solContact?.email) { reason = "No solicitor on file yet"; category = "blocker_solicitor"; }
+    if (manuallyChased) { reason = null; category = "info"; } // you've taken this over; the chase status line carries the detail
+    else if (solCode && !solContact?.email) { reason = "No solicitor on file yet"; category = "blocker_solicitor"; }
     else if (clientCode && clientOn) { reason = "No email on file for the client"; category = "blocker_client_email"; }
     else if (clientCode && !clientOn) {
       // Off can mean: this file paused, or the agency/global switch is off. Only
