@@ -52,6 +52,14 @@ async function logSnoozeNote(input: {
   }).catch(() => {});
 }
 
+// Reminder mutations happen from two surfaces: the work queue itself and a
+// property's Reminders tab. Revalidating only the acting page left the OTHER
+// surface stale (up to the work queue's 5-min client cache). Always freshen both.
+function revalidateReminderSurfaces(pathname: string) {
+  revalidatePath(pathname, "page");
+  if (pathname !== "/agent/work-queue") revalidatePath("/agent/work-queue", "page");
+}
+
 export type CompleteTaskResult =
   | { ok: true }
   | {
@@ -177,7 +185,7 @@ export async function completeTaskAction(
           after(async () => {
             await evaluateTransactionReminders(transactionId).catch(console.error);
           });
-          revalidatePath(pathname, "page");
+          revalidateReminderSurfaces(pathname);
           return {
             blocked: true,
             reason: "prerequisites_not_complete",
@@ -202,7 +210,7 @@ export async function completeTaskAction(
   after(async () => {
     await evaluateTransactionReminders(transactionId).catch(console.error);
   });
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
   return { ok: true };
 }
 
@@ -221,7 +229,7 @@ export async function snoozeTaskAction(taskId: string, opts: SnoozeOptions, path
     createdByRole: session.user.role,
     scope,
   });
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 // Snooze several reminders on one file at once (the "Snooze all" control), with a
@@ -252,13 +260,13 @@ export async function snoozeManyAction(taskIds: string[], opts: SnoozeOptions, p
       scope,
     });
   }
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 export async function wakeupReminderAction(logId: string, pathname: string) {
   const session = await requireSession();
   await wakeUpReminderLog(logId, getAccessScope(session));
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 // Agent chooses to chase this reminder BEFORE its scheduled start date. Creates
@@ -331,7 +339,7 @@ export async function chaseNowFromLogAction(
   after(async () => {
     await touchLastActivity(result.transactionId).catch(() => {});
   });
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
   return { taskId: result.taskId };
 }
 
@@ -374,7 +382,7 @@ export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
   const scope = getAccessScope(session);
   await advanceOneChaseTask(taskId, session, scope);
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 // File-level "Mark all chased": every open task on the file advances in one
@@ -390,7 +398,7 @@ export async function advanceManyChaseTasksAction(taskIds: string[], pathname: s
       /* skip bad id, keep the batch going */
     }
   }
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 // One tap after the WhatsApp check-in copy: stamps a manual chase on every
@@ -412,7 +420,7 @@ export async function markStepsChasedAction(
       await touchLastActivity(transactionId).catch(() => {});
     });
   }
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
   return { marked };
 }
 
@@ -447,7 +455,7 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
   after(async () => {
     await touchLastActivity(task.transactionId).catch(() => {});
   });
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 export async function escalateTaskAction(taskId: string, pathname: string, reason?: string) {
@@ -505,7 +513,7 @@ export async function escalateTaskAction(taskId: string, pathname: string, reaso
     });
   }
 
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 export async function runReminderEngineAction(pathname: string) {
@@ -515,7 +523,7 @@ export async function runReminderEngineAction(pathname: string) {
   } else {
     await runReminderEngine(session.user.agencyId || undefined);
   }
-  revalidatePath(pathname, "page");
+  revalidateReminderSurfaces(pathname);
 }
 
 export async function getTransactionReminderCountAction(transactionId: string): Promise<number> {
