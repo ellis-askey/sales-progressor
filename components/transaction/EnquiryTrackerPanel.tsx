@@ -28,6 +28,7 @@ export type EnquiryTrackerPanelData = {
   currentlyWith: Court;
   outstandingNote: string | null;
   status: Status;
+  paused: boolean;
   nextChaseAt: Date | null;
   snoozedUntil: Date | null;
   escalated: boolean;
@@ -103,20 +104,24 @@ export function EnquiryTrackerPanel({
   const headline = closed ? "Enquiries satisfied" : `With ${courtLabel(data.currentlyWith)}`;
   const headlineColor =
     data.status === "stalled" ? "var(--agent-warning)" : closed ? "var(--agent-success)" : "var(--agent-text-primary)";
+  // On hold: the chase cron skips this file, so a live "next chase" line would lie.
+  // Say it's paused instead (F4).
   const sub = closed
     ? "Nothing left to chase."
-    : data.status === "snoozed"
-      ? `Chasing paused until ${fmtDate(data.snoozedUntil)}`
-      : data.status === "stalled"
-        ? "No reply in three weeks. Worth a direct call."
-        : `Chasing${data.chaseCount > 0 ? ` · chased ${data.chaseCount}×` : ""}${data.nextChaseAt ? ` · next chase ${fmtDate(data.nextChaseAt)}` : ""}`;
+    : data.paused
+      ? "Paused whilst this sale is on hold"
+      : data.status === "snoozed"
+        ? `Chasing paused until ${fmtDate(data.snoozedUntil)}`
+        : data.status === "stalled"
+          ? "No reply in three weeks. Worth a direct call."
+          : `Chasing${data.chaseCount > 0 ? ` · chased ${data.chaseCount}×` : ""}${data.nextChaseAt ? ` · next chase ${fmtDate(data.nextChaseAt)}` : ""}`;
   const STATUS_CHIP: Record<Status, { label: string; color: string }> = {
     chasing: { label: "Chasing", color: "var(--agent-coral)" },
     stalled: { label: "Stalled", color: "var(--agent-warning)" },
     snoozed: { label: "Paused", color: "var(--agent-text-muted)" },
     closed:  { label: "Done", color: "var(--agent-success)" },
   };
-  const chip = STATUS_CHIP[data.status];
+  const chip = data.paused && !closed ? { label: "Paused", color: "var(--agent-text-muted)" } : STATUS_CHIP[data.status];
 
   const secBtn: CSSProperties = {
     fontSize: 11.5, fontWeight: 600, borderRadius: 8, padding: "6px 11px",

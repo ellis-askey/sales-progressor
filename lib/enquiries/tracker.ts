@@ -34,6 +34,9 @@ export type EnquiryTrackerView = {
   escalated: boolean;
   chaseCount: number;
   status: EnquiryTrackerStatus;
+  // True when the sale is on hold — the panel shows a paused note instead of a
+  // live "next chase" line (F4).
+  paused: boolean;
   nextChaseAt: Date | null;
   // Non-null when some (not all) replies are in and the ball is still their court.
   partialRepliesAt: Date | null;
@@ -50,9 +53,15 @@ export async function getEnquiryTrackerView(
     where: { transactionId },
     include: {
       movements: { where: { status: "accepted" }, orderBy: { occurredAt: "desc" }, take: 20 },
+      transaction: { select: { status: true } },
     },
   });
   if (!t) return null;
+  // A withdrawn / fallen-through sale: hide the box entirely rather than let a
+  // closed tracker read as "Enquiries satisfied". On hold: keep the box but flag
+  // it paused so the panel says so instead of a live "next chase" line. (F4)
+  if (t.transaction?.status === "withdrawn") return null;
+  const paused = t.transaction?.status === "on_hold";
 
   const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
   const status: EnquiryTrackerStatus = t.closedAt ? "closed" : snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
@@ -75,6 +84,7 @@ export async function getEnquiryTrackerView(
     escalated: !!t.escalatedAt,
     chaseCount: t.chaseCount,
     status,
+    paused,
     nextChaseAt,
     partialRepliesAt: t.partialRepliesAt,
     movements: t.movements.map((m) => ({

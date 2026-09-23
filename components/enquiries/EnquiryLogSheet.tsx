@@ -12,17 +12,25 @@
 // #6 and the round-2 drawer changes.
 
 import { useEffect, useState } from "react";
-import { Phone, EnvelopeSimple, X } from "@phosphor-icons/react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { Phone, EnvelopeSimple, Plus, X } from "@phosphor-icons/react";
 import type { EnquiryCallOutcome } from "@/app/actions/enquiries";
 import type { EnquiryParty } from "@/lib/services/enquiries";
+import { AddSolicitorModal } from "@/components/enquiries/AddSolicitorModal";
 
 function roleLabel(p: EnquiryParty): string {
   if (p.kind === "solicitor") return p.side === "vendor" ? "Seller's solicitor" : "Buyer's solicitor";
   return p.side === "vendor" ? "Seller" : "Buyer";
 }
 
+const PARTY_ORDER: Record<string, number> = { "solicitor:vendor": 0, "client:vendor": 1, "solicitor:buyer": 2, "client:buyer": 3 };
+function partySort(a: EnquiryParty, b: EnquiryParty): number {
+  return (PARTY_ORDER[`${a.kind}:${a.side}`] ?? 9) - (PARTY_ORDER[`${b.kind}:${b.side}`] ?? 9);
+}
+
 export function EnquiryLogSheet({
   mode,
+  transactionId,
   address,
   parties,
   defaultPartyId,
@@ -31,6 +39,7 @@ export function EnquiryLogSheet({
   onClose,
 }: {
   mode: "phone" | "email";
+  transactionId: string;
   address: string;
   parties: EnquiryParty[];
   defaultPartyId: string;
@@ -38,14 +47,27 @@ export function EnquiryLogSheet({
   onSubmit: (d: { outcome?: EnquiryCallOutcome; note?: string; partyLabel: string; contactId?: string }) => void;
   onClose: () => void;
 }) {
+  // Local so a solicitor added inline drops straight into the pills.
+  const [partyList, setPartyList] = useState<EnquiryParty[]>(parties);
   const [partyId, setPartyId] = useState(() =>
-    parties.some((p) => p.id === defaultPartyId) ? defaultPartyId : parties[0]?.id ?? "",
+    partyList.some((p) => p.id === defaultPartyId) ? defaultPartyId : partyList[0]?.id ?? "",
   );
   const [outcome, setOutcome] = useState<EnquiryCallOutcome>("spoke");
   const [note, setNote] = useState("");
   const [closing, setClosing] = useState(false);
+  // Which missing side's "add solicitor" pop-up is open.
+  const [addSide, setAddSide] = useState<"vendor" | "purchaser" | null>(null);
+  const [segRef] = useAutoAnimate<HTMLDivElement>();
   const isPhone = mode === "phone";
-  const selected = parties.find((p) => p.id === partyId) ?? parties[0] ?? null;
+  const selected = partyList.find((p) => p.id === partyId) ?? partyList[0] ?? null;
+  const hasVendorSol = partyList.some((p) => p.id === "vsol");
+  const hasBuyerSol = partyList.some((p) => p.id === "psol");
+
+  function onSolicitorAdded(party: EnquiryParty) {
+    setPartyList((prev) => [...prev.filter((p) => p.id !== party.id), party].sort(partySort));
+    setPartyId(party.id);
+    setAddSide(null);
+  }
 
   // Play the exit (slide-down on mobile / fade on desktop) before unmounting.
   function requestClose() {
@@ -92,12 +114,25 @@ export function EnquiryLogSheet({
 
         <div className="enq-calllog-field">
           <span className="enq-calllog-lbl">Who with</span>
-          <div className="enq-seg">
-            {parties.map((p) => (
+          <div className="enq-seg" ref={segRef}>
+            {partyList.map((p) => (
               <button key={p.id} type="button" className={partyId === p.id ? "on" : ""} onClick={() => setPartyId(p.id)} title={roleLabel(p)}>
                 {p.label}
               </button>
             ))}
+            {/* A side with no solicitor on file yet gets an add affordance instead
+                of a dead end — opens the picker over the sheet, saves to the file,
+                and drops the new solicitor straight in here (selected). */}
+            {!hasVendorSol && (
+              <button key="add-vsol" type="button" className="enq-seg-add" onClick={() => setAddSide("vendor")}>
+                <Plus size={12} weight="bold" /> Add seller&apos;s solicitor
+              </button>
+            )}
+            {!hasBuyerSol && (
+              <button key="add-psol" type="button" className="enq-seg-add" onClick={() => setAddSide("purchaser")}>
+                <Plus size={12} weight="bold" /> Add buyer&apos;s solicitor
+              </button>
+            )}
           </div>
         </div>
 
@@ -128,6 +163,15 @@ export function EnquiryLogSheet({
           </button>
         </div>
       </div>
+
+      {addSide && (
+        <AddSolicitorModal
+          transactionId={transactionId}
+          side={addSide}
+          onAdded={onSolicitorAdded}
+          onClose={() => setAddSide(null)}
+        />
+      )}
     </div>
   );
 }

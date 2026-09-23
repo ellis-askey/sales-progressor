@@ -423,6 +423,7 @@ export function EnquiriesTriageList({
       {logSheet && (
         <EnquiryLogSheet
           mode={logSheet.mode}
+          transactionId={logSheet.row.transactionId}
           address={logSheet.row.address.split(",")[0].trim()}
           parties={logSheet.row.parties}
           defaultPartyId={logSheet.row.currentlyWith === "seller_solicitor" ? "vsol" : "psol"}
