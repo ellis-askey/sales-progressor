@@ -60,6 +60,36 @@ beforeEach(() => {
   p.contact.findUnique.mockResolvedValue({ roleType: "vendor", buyerRoundId: null, transaction: { activeBuyerRoundId: null } });
 });
 
+describe("drainMilestoneDigests step-confirm toggle re-check", () => {
+  it("does NOT send when the recipient's step-confirmation emails are paused", async () => {
+    p.contact.findUnique.mockResolvedValue({
+      roleType: "vendor",
+      buyerRoundId: null,
+      stepConfirmPausedAt: new Date(),
+      transaction: { activeBuyerRoundId: null, suppressPortalConfirmEmails: false },
+    });
+    const res = await drainMilestoneDigests();
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(res.singleSends).toBe(0);
+    // Marked sent-with-reason (never retried), not errored.
+    expect(p.outboundEmailQueue.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ errorMessage: "suppressed:step_confirm_paused" }) })
+    );
+  });
+
+  it("does NOT send when the file-wide master switch is off", async () => {
+    p.contact.findUnique.mockResolvedValue({
+      roleType: "vendor",
+      buyerRoundId: null,
+      stepConfirmPausedAt: null,
+      transaction: { activeBuyerRoundId: null, suppressPortalConfirmEmails: true },
+    });
+    const res = await drainMilestoneDigests();
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(res.singleSends).toBe(0);
+  });
+});
+
 describe("drainMilestoneDigests atomic claim", () => {
   it("sends when it WINS the claim (updateMany matches the row)", async () => {
     p.outboundEmailQueue.updateMany.mockResolvedValue({ count: 1 });

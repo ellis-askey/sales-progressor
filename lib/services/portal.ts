@@ -2257,11 +2257,17 @@ async function sendRichMilestoneEmails(
       // isExchangeCompletionStale in exchange-completion-rules.ts.
       expectedExchangeDate: true,
       completionDate: true,
+      // Step-confirmation email controls (Email settings drawer). Honoured
+      // here on the agent-confirm path exactly as on the portal-confirm path —
+      // previously only the portal path checked them, so an agent ticking a
+      // step emailed clients whose toggles were off. (Founder-approved fix,
+      // 2026-09-23.)
+      suppressPortalConfirmEmails: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
         where: { roleType: { in: ["vendor", "purchaser"] }, portalEligible: true },
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true, stepConfirmPausedAt: true },
       },
     },
   });
@@ -2384,6 +2390,10 @@ async function sendRichMilestoneEmails(
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
+    // Step-confirmation email toggles (Email settings drawer): the file-wide
+    // master and the per-person switch both stop this contact's confirmation
+    // emails, same as the portal-confirm path has always done.
+    if (tx.suppressPortalConfirmEmails || c.stepConfirmPausedAt) continue;
     const recipientKey = c.roleType as "vendor" | "purchaser";
     // Skip the first-actor side on inverse-direction bilateral completions.
     if (suppressedRecipient && recipientKey === suppressedRecipient) continue;

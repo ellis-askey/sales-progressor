@@ -199,9 +199,22 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
       select: {
         roleType: true,
         buyerRoundId: true,
-        transaction: { select: { activeBuyerRoundId: true } },
+        stepConfirmPausedAt: true,
+        transaction: { select: { activeBuyerRoundId: true, suppressPortalConfirmEmails: true } },
       },
     });
+    // Step-confirmation toggles re-checked at send time (belt-and-braces —
+    // enqueue already skips paused recipients). Catches rows that were already
+    // queued when the agent flipped the switch inside the batching window.
+    // sentAt is stamped (not errorAt) so the row never retries; the structured
+    // errorMessage keeps the suppression auditable, same as unsubscribes.
+    if (recipientContact && (recipientContact.stepConfirmPausedAt || recipientContact.transaction.suppressPortalConfirmEmails)) {
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { sentAt: now, errorMessage: "suppressed:step_confirm_paused" },
+      });
+      continue;
+    }
     if (
       recipientContact &&
       recipientContact.roleType === "purchaser" &&
@@ -383,9 +396,22 @@ export async function drainMilestoneDigestsForFile(transactionId: string): Promi
       select: {
         roleType: true,
         buyerRoundId: true,
-        transaction: { select: { activeBuyerRoundId: true } },
+        stepConfirmPausedAt: true,
+        transaction: { select: { activeBuyerRoundId: true, suppressPortalConfirmEmails: true } },
       },
     });
+    // Step-confirmation toggles re-checked at send time (belt-and-braces —
+    // enqueue already skips paused recipients). Catches rows that were already
+    // queued when the agent flipped the switch inside the batching window.
+    // sentAt is stamped (not errorAt) so the row never retries; the structured
+    // errorMessage keeps the suppression auditable, same as unsubscribes.
+    if (recipientContact && (recipientContact.stepConfirmPausedAt || recipientContact.transaction.suppressPortalConfirmEmails)) {
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { sentAt: now, errorMessage: "suppressed:step_confirm_paused" },
+      });
+      continue;
+    }
     if (
       recipientContact &&
       recipientContact.roleType === "purchaser" &&
