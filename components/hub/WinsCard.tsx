@@ -163,6 +163,25 @@ export function WinsCard({ wins }: { wins: HubWins }) {
   const pausedRef = useRef(false);
   const [reduced, setReduced] = useState(false);
 
+  // Swipe between stories on touch (critique, 2026-09-23): a horizontal swipe
+  // of 40px+ moves next/previous, wrapping, and holds the auto-rotation for a
+  // beat so the timer doesn't immediately fight the reader's choice.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  function onTouchStart(e: React.TouchEvent) {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || slides.length < 2) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return; // not a horizontal swipe
+    setIdx((i) => (i + (dx < 0 ? 1 : -1) + slides.length) % slides.length);
+    pausedRef.current = true;
+    setTimeout(() => { pausedRef.current = false; }, ROTATE_MS);
+  }
+
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReduced(mq.matches);
@@ -202,9 +221,11 @@ export function WinsCard({ wins }: { wins: HubWins }) {
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 200 }}
+      style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 200, touchAction: "pan-y" }}
       onMouseEnter={() => { pausedRef.current = true; }}
       onMouseLeave={() => { pausedRef.current = false; }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {header}
 

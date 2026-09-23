@@ -2037,7 +2037,9 @@
 
   .pipe-prop {
     display: flex; align-items: center; gap: 9px;
-    margin: auto -6px -6px; padding: 6px; border-radius: 10px;
+    /* Top-aligned under the count (was margin-top:auto, which bottom-pinned a
+     * lone property and left a floating gap — critique, 2026-09-23). */
+    margin: 2px -6px 0; padding: 6px; border-radius: 10px;
     text-decoration: none; transition: background var(--agent-transition-fast), box-shadow var(--agent-transition-fast);
   }
   .pipe-prop:hover { background: var(--agent-hover-tint); box-shadow: var(--agent-hover-lift); }
@@ -2080,6 +2082,17 @@
   /* "+N more" — now a button that opens the bubble below. Coral on hover so
    * it reads as interactive. */
   .pipe-more-wrap { position: relative; }
+
+  /* Work-queue view swap (active ↔ snoozed) — a quick fade-up on the list body
+   * so the toggle doesn't snap (critique, 2026-09-23). Keyed remount triggers it. */
+  .wq-view-swap { animation: wq-view-fade 280ms cubic-bezier(0.25, 0, 0, 1) both; }
+  @keyframes wq-view-fade {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wq-view-swap { animation: none; }
+  }
   .pipe-more-btn {
     background: none;
     border: none;
