@@ -822,7 +822,7 @@ function SplitFileCard({
                 <>
                   <div style={{ minWidth: 0 }}>{stringsEl}</div>
                   {autoState?.kind === "auto" && (
-                    <AutoChaseCountdown iso={autoState.nextSend} onView={() => setPreviewRow({ logId: log.id, pipeline: autoState.pipeline, sendLabel: sendMoment(autoState.nextSend) })} />
+                    <AutoChaseCountdown iso={autoState.nextSend} pausedUntil={autoState.pausedUntil} onView={() => setPreviewRow({ logId: log.id, pipeline: autoState.pipeline, sendLabel: sendMoment(autoState.nextSend) })} />
                   )}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>{actionsEl}</div>
                 </>

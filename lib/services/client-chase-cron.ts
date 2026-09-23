@@ -532,6 +532,12 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
         const clientPaused =
           contact.chasesPausedUntil != null && contact.chasesPausedUntil > new Date();
 
+        // A client asked us to hold until a date: the chase auto-resumes then, so
+        // it must NOT be handed to the agent as "paused, chase manually". Skip it
+        // here (an agency/file/agent pause still falls through to the handback
+        // below, since those don't auto-resume).
+        if (clientPaused && !agencyOff && !fileOff && contact.emailsPausedAt == null) continue;
+
         const pausedScope: "agency" | "file" | "contact" | undefined = agencyOff
           ? "agency"
           : fileOff

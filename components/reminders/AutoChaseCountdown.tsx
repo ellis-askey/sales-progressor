@@ -37,14 +37,21 @@ function build(iso: string): string {
   return `Auto-chase ${sendMoment(iso)} · ${clock}`;
 }
 
-export function AutoChaseCountdown({ iso, onView }: { iso: string; onView?: () => void }) {
+export function AutoChaseCountdown({ iso, onView, pausedUntil }: { iso: string; onView?: () => void; pausedUntil?: string | null }) {
   const [text, setText] = useState<string | null>(null);
   useEffect(() => {
+    // Client asked us to hold until a date: still automated, just waiting — show a
+    // static "resumes <date>" line, not a ticking countdown (which would read as a
+    // giant hour count for a hold weeks out, and imply active chasing).
+    if (pausedUntil) {
+      setText(`Client asked us to hold · resumes ${sendMoment(pausedUntil)}`);
+      return;
+    }
     const update = () => setText(build(iso));
     update();
     const t = setInterval(update, 1000);
     return () => clearInterval(t);
-  }, [iso]);
+  }, [iso, pausedUntil]);
 
   return (
     <div style={{

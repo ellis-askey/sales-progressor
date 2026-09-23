@@ -18,7 +18,10 @@ import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 
 export type AutopilotStatus =
-  | { kind: "auto"; pipeline: "client" | "solicitor"; nextSend: string } // ISO
+  // pausedUntil (ISO) is set when every reachable client asked us to hold until a
+  // date: still on autopilot, just waiting — the card shows "resumes <date>"
+  // rather than a false "auto-chase tomorrow". nextSend is the resume date then.
+  | { kind: "auto"; pipeline: "client" | "solicitor"; nextSend: string; pausedUntil?: string } // ISO
   // category tells the card how to render the reason:
   //   exhausted            → the chase status line already says it; suppress
   //   blocker_client_email → offer an inline "add email" affordance
@@ -53,7 +56,7 @@ interface LogShape {
     clientEmailsPaused: boolean;
     vendorSolicitorEmailsPaused: boolean;
     purchaserSolicitorEmailsPaused: boolean;
-    contacts: { roleType: string; email: string | null; portalToken: string | null; unsubscribedAt: Date | null; emailBouncedAt?: Date | null }[];
+    contacts: { roleType: string; email: string | null; portalToken: string | null; unsubscribedAt: Date | null; emailBouncedAt?: Date | null; chasesPausedUntil?: Date | null }[];
     vendorSolicitorContact: { email: string | null } | null;
     purchaserSolicitorContact: { email: string | null } | null;
   };
@@ -124,8 +127,22 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const clientCode = isClientChaseable(code);
     if (clientOn && clientCode) {
       const clientRole = side === "vendor" ? "vendor" : "purchaser";
-      const reachable = tx.contacts.some((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
-      if (reachable) { out.set(log.id, { kind: "auto", pipeline: "client", nextSend: nextCronRun(dueDate, CLIENT_CRON) }); continue; }
+      const reachableClients = tx.contacts.filter((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
+      if (reachableClients.length > 0) {
+        const nowTs = Date.now();
+        const chaseableNow = reachableClients.some((c) => !(c.chasesPausedUntil && c.chasesPausedUntil.getTime() > nowTs));
+        if (chaseableNow) {
+          out.set(log.id, { kind: "auto", pipeline: "client", nextSend: nextCronRun(dueDate, CLIENT_CRON) });
+          continue;
+        }
+        // Everyone reachable asked us to hold — still automated, just waiting.
+        // Resume at the earliest hold-until date; the card shows "resumes <date>".
+        const resume = reachableClients
+          .map((c) => c.chasesPausedUntil as Date)
+          .sort((a, b) => a.getTime() - b.getTime())[0];
+        out.set(log.id, { kind: "auto", pipeline: "client", nextSend: nextCronRun(resume, CLIENT_CRON), pausedUntil: resume.toISOString() });
+        continue;
+      }
     }
 
     // Solicitor autopilot

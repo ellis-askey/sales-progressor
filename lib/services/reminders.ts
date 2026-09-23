@@ -367,7 +367,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
           clientEmailsPaused: true,
           vendorSolicitorEmailsPaused: true,
           purchaserSolicitorEmailsPaused: true,
-          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, emailBouncedAt: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, emailBouncedAt: true, chasesPausedUntil: true } },
           // Real solicitors so the work-queue chase drawer can offer the
           // right-side solicitor as a recipient (they aren't Contact rows).
           vendorSolicitorFirm: { select: { id: true, name: true } },
