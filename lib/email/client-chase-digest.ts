@@ -490,6 +490,25 @@ export async function enqueueClientChaseDigest(input: {
   }
   if (sendCodes.length === 0) return { enqueued: false, rowId: null };
 
+  // Cross-window dedup (Tier 4): the sourceId below is keyed by the ENQUEUE day, so
+  // a chase enqueued one day but deferred (e.g. over a weekend) and a fresh enqueue
+  // on its delivery day get different sourceIds — two rows, two emails. If an unsent
+  // (and not permanently errored) CLIENT_CHASE row for this contact is still pending
+  // from a recent enqueue, skip: it already covers this chase and will send once.
+  // Bounded to the last few days so an ancient stuck row can't suppress forever.
+  const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+  const pendingPrior = await prisma.outboundEmailQueue.findFirst({
+    where: {
+      emailType: "CLIENT_CHASE",
+      recipientContactId: contact.id,
+      sentAt: null,
+      errorAt: null,
+      scheduledFor: { gte: fourDaysAgo },
+    },
+    select: { id: true },
+  });
+  if (pendingPrior) return { enqueued: false, rowId: null };
+
   // Agency personalisation for the chase (subject override + optional intro/outro).
   const agencyCopy = await resolveClientChaseContent(transaction.agencyId);
 
