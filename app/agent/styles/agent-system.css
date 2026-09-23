@@ -3106,8 +3106,9 @@
    * Content full width; then the due date on its own left-aligned line; then a
    * full-width action row — snooze keeps its size, Chase stretches. The side
    * column's hairline divider goes, and the auto-chase info line centres across
-   * the card (text only — no icon). Desktop untouched. */
-  @media (max-width: 767px) {
+   * the card (text only — no icon). Phones only — tablets keep the side-column
+   * layout (founder correction, 2026-09-23: 767px caught tablets it shouldn't). */
+  @media (max-width: 540px) {
     .rem-row-needs { flex-direction: column !important; }
     .rem-row-side {
       border-left: none !important;
