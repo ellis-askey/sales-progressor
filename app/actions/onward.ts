@@ -14,11 +14,12 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
-import type { Tenure, PurchaseType } from "@prisma/client";
+import type { Tenure, PurchaseType, OnwardTrackerKind } from "@prisma/client";
 import {
   getOnwardTrackerView,
   openOnwardTracker,
   setOnwardTypeFacts,
+  setOnwardRelatedAddress,
   confirmOnwardStep,
   undoOnwardStep,
   type OnwardTrackerView,
@@ -84,6 +85,19 @@ export async function setOnwardTypeFactsAction(input: {
   await clearNoChainFlag(input.transactionId);
   revalidateTx(input.transactionId);
   return getOnwardTrackerView(input.transactionId);
+}
+
+// A+B (2026-09): capture the related/onward property's address so inbound mail
+// naming it auto-files onto this file (mail matcher reads it like a chain stub).
+export async function setOnwardRelatedAddressAction(input: {
+  transactionId: string;
+  kind: OnwardTrackerKind;
+  address: string | null;
+}): Promise<OnwardTrackerView> {
+  await requireTxInScope(input.transactionId);
+  await setOnwardRelatedAddress(input.transactionId, input.kind, input.address);
+  revalidateTx(input.transactionId);
+  return getOnwardTrackerView(input.transactionId, input.kind);
 }
 
 export async function confirmOnwardStepAction(input: {

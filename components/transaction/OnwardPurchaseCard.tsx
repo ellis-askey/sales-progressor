@@ -40,7 +40,9 @@ import {
   setRelatedBuyerTypeFactsAction,
   confirmRelatedBuyerStepAction,
   undoRelatedBuyerStepAction,
+  setOnwardRelatedAddressAction,
 } from "@/app/actions/onward";
+import type { OnwardTrackerKind } from "@prisma/client";
 import type {
   OnwardTrackerView,
   OnwardStepView,
@@ -375,6 +377,11 @@ export function OnwardPurchaseCard({
     related_buyer: { open: openRelatedBuyerAction, confirm: confirmRelatedBuyerStepAction, undo: undoRelatedBuyerStepAction, setFacts: setRelatedBuyerTypeFactsAction },
   };
   const actions = ACTIONS[direction];
+  const trackerKind: OnwardTrackerKind =
+    direction === "onward" ? "onward_purchase"
+      : direction === "related" ? "related_sale"
+        : direction === "onward_seller" ? "onward_purchase_seller"
+          : "related_sale_buyer";
 
   type CardCopy = {
     title: string; supersededTag: string; supersededBody: string; abandonedTag: string; abandonedBody: string;
@@ -457,6 +464,9 @@ export function OnwardPurchaseCard({
   // refreshes the rest of the page in the background.
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A+B: the related/onward property's address. Prefills from the tracker if set,
+  // else from the chain-derived address prop. When saved, mail naming it auto-files.
+  const [address, setAddress] = useState<string>(view.relatedPropertyAddress ?? onwardAddress ?? "");
 
   // Phase 5 follow-up (2026-09-18, perceived performance): optimistic
   // availability overlay. Confirming a step used to leave its dependents
@@ -687,6 +697,22 @@ export function OnwardPurchaseCard({
           </FactRow>
         )}
 
+        <div style={{ margin: "2px 0 12px" }}>
+          <label style={{ display: "block", fontSize: 12, color: MUTED, marginBottom: 4 }}>
+            Property address <span style={{ opacity: 0.7 }}>(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="e.g. 25 Austin House, Harlow, CM20 2UA"
+            style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated, #fff)", color: "var(--agent-text-primary)" }}
+          />
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: MUTED }}>
+            Emails naming this property will file onto this sale automatically.
+          </p>
+        </div>
+
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <Button
             variant="primary"
@@ -695,11 +721,16 @@ export function OnwardPurchaseCard({
             disabled={!canSave}
             onClick={() =>
               run(async () => {
-                const next = await actions.setFacts({
+                await actions.setFacts({
                   transactionId,
                   tenure: tenure as Tenure,
                   purchaseType: purchaseType as PurchaseType,
                   isShareOfFreehold: shareOfFreehold,
+                });
+                const next = await setOnwardRelatedAddressAction({
+                  transactionId,
+                  kind: trackerKind,
+                  address: address.trim() || null,
                 });
                 setEditingFacts(false);
                 return next;

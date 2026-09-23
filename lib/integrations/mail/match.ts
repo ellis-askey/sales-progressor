@@ -158,6 +158,22 @@ export async function buildIndex(emails: string[], scope: AccessScope): Promise<
         if (ml.transactionId) txChainAddresses.set(ml.transactionId, byChain.get(ml.chainId) ?? []);
       }
     }
+
+    // Related / onward property addresses captured on the lightweight tracker (no
+    // chain required) — merged into the same per-file address list, so mail that
+    // NAMES that property auto-files onto the sale file. Address match only, never
+    // a shared-people guess, so it can't reintroduce the cross-file leak.
+    const trackers = await prisma.onwardTracker.findMany({
+      where: { transactionId: { in: txIds }, relatedPropertyAddress: { not: null } },
+      select: { transactionId: true, relatedPropertyAddress: true },
+    });
+    for (const t of trackers) {
+      const addr = (t.relatedPropertyAddress ?? "").trim();
+      if (!addr) continue;
+      const list = txChainAddresses.get(t.transactionId) ?? [];
+      list.push(addr);
+      txChainAddresses.set(t.transactionId, list);
+    }
   }
 
   return { emailToTx, txAddress, txChainAddresses };

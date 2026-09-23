@@ -4044,6 +4044,11 @@ model OnwardTracker {
   purchaseType      PurchaseType?
   isShareOfFreehold Boolean             @default(false)
   status            OnwardTrackerStatus @default(active)
+  // The related / onward property's address (free text, e.g. "25 Austin House,
+  // Harlow, CM20 2UA"). Optional. When set, inbound mail that NAMES this address
+  // auto-files onto this sale file — the mail matcher reads it alongside chain
+  // stub addresses (buildIndex), an address match, never a shared-people guess.
+  relatedPropertyAddress String?
   // Steps the seller has manually opted out of (e.g. skipping the survey),
   // merged with the auto-not-required set on read. Mirrors the buyer's manual
   // survey skip, which is the only step a client can opt out of.

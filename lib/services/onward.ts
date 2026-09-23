@@ -131,6 +131,9 @@ export type OnwardTrackerView = {
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
   isShareOfFreehold: boolean;
+  // The related / onward property's address (free text). When set, inbound mail
+  // naming this property auto-files onto the sale file (mail matcher reads it).
+  relatedPropertyAddress: string | null;
   typeFactsSet: boolean; // both tenure + purchaseType present
   steps: OnwardStepView[]; // empty until typeFactsSet
   completeCount: number;
@@ -290,6 +293,7 @@ export async function getOnwardTrackerView(
       tenure: null,
       purchaseType: null,
       isShareOfFreehold: false,
+      relatedPropertyAddress: null,
       typeFactsSet: false,
       steps: [],
       completeCount: 0,
@@ -309,6 +313,7 @@ export async function getOnwardTrackerView(
       tenure: tracker.tenure,
       purchaseType: tracker.purchaseType,
       isShareOfFreehold: tracker.isShareOfFreehold,
+      relatedPropertyAddress: tracker.relatedPropertyAddress,
       typeFactsSet: false,
       steps: [],
       completeCount: 0,
@@ -394,6 +399,7 @@ export async function getOnwardTrackerView(
     tenure: tracker.tenure,
     purchaseType: tracker.purchaseType,
     isShareOfFreehold: tracker.isShareOfFreehold,
+    relatedPropertyAddress: tracker.relatedPropertyAddress,
     typeFactsSet: true,
     steps,
     completeCount: steps.filter((s) => s.isComplete).length,
@@ -621,6 +627,22 @@ export async function openOnwardTracker(
  * progress stays consistent with the new shape (mirrors the real edit-sale
  * cascade).
  */
+// Set (or clear) the related / onward property's address on the tracker, so mail
+// naming that property auto-files onto this file. Upserts so the address can be
+// captured before the type facts are set; an empty value clears it.
+export async function setOnwardRelatedAddress(
+  transactionId: string,
+  kind: OnwardTrackerKind,
+  address: string | null,
+): Promise<void> {
+  const value = address?.trim() ? address.trim() : null;
+  await prisma.onwardTracker.upsert({
+    where: { transactionId_kind: { transactionId, kind } },
+    create: { transactionId, kind, relatedPropertyAddress: value },
+    update: { relatedPropertyAddress: value },
+  });
+}
+
 export async function setOnwardTypeFacts(
   transactionId: string,
   // A related SALE has no buying axis, so purchaseType is optional (stored null).
