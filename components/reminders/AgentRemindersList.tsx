@@ -643,8 +643,11 @@ function SplitFileCard({
           // Dated chase line under the action buttons (mock: "Next chase due in
           // 4 days · 22 Sept"). Always shown, with the actual date — complements
           // the urgency pill, which gives the elapsed amount ("108d overdue")
-          // rather than the date. Copy adapts to future / today / overdue.
-          const nextChaseDays = Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / 86400000);
+          // rather than the date. Reads the reminder's own next-due date (the same
+          // value the header pill uses); the chase task's dueDate freezes at its
+          // original value once chased, so using it here made the header and this
+          // line disagree ("Next 25 Sept" over "Was due 18 Sept").
+          const nextChaseDays = Math.ceil((new Date(log.nextDueDate).getTime() - Date.now()) / 86400000);
           const nextChaseLabel =
             nextChaseDays >= 2 ? `Next chase due in ${nextChaseDays} days`
             : nextChaseDays === 1 ? "Next chase due tomorrow"
@@ -842,7 +845,7 @@ function SplitFileCard({
                     <div className="rem-row-date" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
                       <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{nextChaseLabel}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                        <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(task.dueDate)}
+                        <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(log.nextDueDate)}
                       </span>
                     </div>
                     {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
