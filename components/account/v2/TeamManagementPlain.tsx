@@ -42,6 +42,14 @@ type TeamMember = {
   directMobile?: string | null;
 };
 
+// A previously removed member: sign-in blocked, kept for history, reinstatable.
+type RemovedMember = {
+  id: string;
+  name: string;
+  email: string;
+  deactivatedAt: string;
+};
+
 export function TeamManagementPlain({
   currentUserId,
   pendingInvitations: initialPending = [],
@@ -51,6 +59,8 @@ export function TeamManagementPlain({
 }) {
   const { toast } = useAgentToast();
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [removed, setRemoved] = useState<RemovedMember[]>([]);
+  const [reinstatingId, setReinstatingId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingNegotiatorInvitation[]>(initialPending);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -61,7 +71,11 @@ export function TeamManagementPlain({
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
-    if (res.ok) setTeam(await res.json());
+    if (res.ok) {
+      const data = (await res.json()) as { members: TeamMember[]; removed: RemovedMember[] };
+      setTeam(data.members);
+      setRemoved(data.removed);
+    }
   }, []);
 
   const refreshPending = useCallback(async () => {
@@ -101,6 +115,22 @@ export function TeamManagementPlain({
     if (res.ok) {
       setTeam((prev) => prev.filter((m) => m.id !== id));
       toast.info(`${memberName} removed from team`);
+      await loadTeam(); // pick up the new entry in the removed list
+    }
+  }
+
+  async function reinstateMember(id: string, memberName: string) {
+    setReinstatingId(id);
+    try {
+      const res = await fetch(`/api/agent/team/${id}`, { method: "POST" });
+      if (res.ok) {
+        toast.success(`${memberName} is back on the team`);
+        await loadTeam();
+      } else {
+        toast.error("Couldn't reinstate them. Try again.");
+      }
+    } finally {
+      setReinstatingId(null);
     }
   }
 
@@ -202,6 +232,48 @@ export function TeamManagementPlain({
         onResendInvitation={handleResend}
         onCancelInvitation={handleCancel}
       />
+
+      {removed.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <p style={{ margin: "0 0 6px", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#9ca3af" }}>
+            Removed
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {removed.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                  padding: "10px 14px", background: "#fafafa",
+                  border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 10,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#6b7280" }}>{r.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {r.email} · can no longer sign in
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => reinstateMember(r.id, r.name)}
+                  disabled={reinstatingId === r.id}
+                  className="account-btn-coral-outline"
+                  style={{
+                    flexShrink: 0, padding: "7px 12px", fontSize: 12, fontWeight: 600,
+                    color: "var(--agent-coral-deep, #E2452A)", background: "#fff",
+                    border: "0.5px solid rgba(255,107,74,0.5)", borderRadius: 9,
+                    cursor: reinstatingId === r.id ? "default" : "pointer",
+                    opacity: reinstatingId === r.id ? 0.6 : 1,
+                  }}
+                >
+                  {reinstatingId === r.id ? "Reinstating…" : "Reinstate"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {managing && (
         <MemberManageDrawer

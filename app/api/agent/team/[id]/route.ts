@@ -65,10 +65,39 @@ export async function DELETE(
   });
   if (!target) return NextResponse.json({ error: "Negotiator not found" }, { status: 404 });
 
+  // Removal ends access, not just role: deactivatedAt refuses future sign-ins
+  // and the sessionVersion bump kills any live session immediately. The row
+  // stays (their name remains attributed on every timeline entry) and a
+  // director can reinstate from the Team page.
   await prisma.user.update({
     where: { id },
-    data: { role: "viewer" },
+    data: { role: "viewer", deactivatedAt: new Date(), sessionVersion: { increment: 1 } },
   });
 
   return NextResponse.json({ ok: true });
+}
+
+// POST /api/agent/team/[id] — reinstate a previously removed member: restores
+// the negotiator role and lets them sign in again. Director-only, same agency.
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { session, error } = await requireDirector();
+  if (error) return error;
+
+  const { id } = await params;
+  const target = await prisma.user.findFirst({
+    where: { id, agencyId: session!.user.agencyId, role: "viewer", deactivatedAt: { not: null } },
+    select: { id: true },
+  });
+  if (!target) return NextResponse.json({ error: "Removed member not found" }, { status: 404 });
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { role: "negotiator", deactivatedAt: null },
+    select: { id: true, name: true, email: true, role: true },
+  });
+
+  return NextResponse.json({ ok: true, member: updated });
 }

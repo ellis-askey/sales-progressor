@@ -85,6 +85,13 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Removed team members keep their row (history attribution) but lose
+        // access: sign-in is refused until a director reinstates them.
+        if (user.deactivatedAt) {
+          console.log(`[AUDIT] login_failed userId=${user.id} ip=${ip} reason=deactivated`);
+          return null;
+        }
+
         const valid = await compare(credentials.password, user.password);
         if (!valid) {
           console.log(`[AUDIT] login_failed userId=${user.id} ip=${ip} reason=wrong_password`);
@@ -176,8 +183,10 @@ export const authOptions: NextAuthOptions = {
           // OAuth: fetch role/agencyId/firmName from DB.
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            select: { role: true, agencyId: true, firmName: true, sessionVersion: true },
+            select: { role: true, agencyId: true, firmName: true, sessionVersion: true, deactivatedAt: true },
           });
+          // Removed team members can't come back in through OAuth either.
+          if (dbUser?.deactivatedAt) token.id = "";
           token.role = dbUser?.role ?? "viewer";
           token.agencyId = dbUser?.agencyId ?? "";
           token.firmName = dbUser?.firmName ?? null;
@@ -224,9 +233,13 @@ export const authOptions: NextAuthOptions = {
       // can't lock everyone out.
       if (!user && token.id) {
         try {
-          const cur = await prisma.user.findUnique({ where: { id: token.id }, select: { sessionVersion: true } });
+          const cur = await prisma.user.findUnique({ where: { id: token.id }, select: { sessionVersion: true, deactivatedAt: true } });
           if (cur) {
-            if (token.sessionVersion === undefined) {
+            // Removed team member: kill the live session on its next refresh
+            // (removal also bumps sessionVersion, so this is belt-and-braces).
+            if (cur.deactivatedAt) {
+              token.id = "";
+            } else if (token.sessionVersion === undefined) {
               token.sessionVersion = cur.sessionVersion;
             } else if (token.sessionVersion !== cur.sessionVersion) {
               token.id = "";

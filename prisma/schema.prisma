@@ -188,6 +188,11 @@ model User {
   // version bumped by "sign out of all other devices" (JWT invalidation).
   totpBackupCodes     String[]   @default([])
   sessionVersion      Int        @default(0)
+  // Set when a director removes this member from the team. The user row is
+  // never deleted (their name stays attributed on history); instead sign-in is
+  // refused and live sessions are killed (sessionVersion bump at removal).
+  // Cleared by reinstating from the Team page.
+  deactivatedAt       DateTime?
   role                UserRole   @default(viewer)
   agencyId            String?
   firmName            String?

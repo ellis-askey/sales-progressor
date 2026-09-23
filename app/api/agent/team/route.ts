@@ -28,12 +28,21 @@ export async function GET() {
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
-  return NextResponse.json(
-    team.map(({ password, ...m }) => ({
+  // Previously removed members (kept for history, sign-in blocked) — listed so
+  // a director can see who was removed and reinstate them.
+  const removed = await prisma.user.findMany({
+    where: { agencyId: session!.user.agencyId, role: "viewer", deactivatedAt: { not: null } },
+    select: { id: true, name: true, email: true, deactivatedAt: true },
+    orderBy: { deactivatedAt: "desc" },
+  });
+
+  return NextResponse.json({
+    members: team.map(({ password, ...m }) => ({
       ...m,
       invitationPending: password === null,
-    }))
-  );
+    })),
+    removed,
+  });
 }
 
 // POST /api/agent/team — invite a new negotiator (creates User + sends email)
