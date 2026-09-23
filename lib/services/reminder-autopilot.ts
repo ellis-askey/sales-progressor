@@ -31,7 +31,7 @@ export type AutopilotStatus =
   //                          so the card shows it once per file, not per row
   | { kind: "manual"; reason: string | null; category: ManualCategory };
 
-export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info" | "autochase_off";
+export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info" | "autochase_off" | "solicitor_handover";
 
 export interface AutopilotFlags {
   clientChaseEnabled: boolean; // CLIENT_CHASE_ENABLED env
@@ -114,7 +114,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     // send again and only rang a bell, so hand it to the agent with an explicit
     // reason (solicitor chases don't increment the task's chase count, so the
     // status line alone wouldn't explain it).
-    if (log.solicitorHandoverDue) { out.set(log.id, { kind: "manual", reason: "No reply from the solicitor, chase them directly", category: "info" }); continue; }
+    if (log.solicitorHandoverDue) { out.set(log.id, { kind: "manual", reason: "No reply from the solicitor, chase them directly", category: "solicitor_handover" }); continue; }
     if (!code) { out.set(log.id, { kind: "manual", reason: null, category: "info" }); continue; }
 
     const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";

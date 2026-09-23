@@ -662,6 +662,11 @@ function SplitFileCard({
           const isExiting = exitingIds.has(log.id);
           const autoState = autopilot?.get(log.id);
           const isAuto = autoState?.kind === "auto";
+          // Solicitor hand-over: the autopilot chased the SOLICITOR (tracked in
+          // SolicitorChaseState, not this ChaseTask), so the task's own chase count
+          // is 0 and a plain "Not chased yet" would contradict the "No reply from
+          // the solicitor" reason. Suppress the task-count status line for these.
+          const solHanded = autoState?.kind === "manual" && autoState.category === "solicitor_handover";
 
           // Shared row pieces so the autopilot layout (strings + green countdown
           // both full-width, actions on their own line below) and the normal
@@ -698,7 +703,7 @@ function SplitFileCard({
                       {copy?.line ?? info?.outstanding}
                     </p>
                   )}
-                  <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {statusLine}</p>
+                  {!solHanded && <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {statusLine}</p>}
                   {lastChasedLine && (
                     <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-disabled)" }}>{lastChasedLine}</p>
                   )}
@@ -709,7 +714,7 @@ function SplitFileCard({
                 // row still says what's outstanding (elsewhere it stays collapsed).
                 <>
                   <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span> · {effectiveChaseCount === 0 ? "Not chased yet" : `Chased ${effectiveChaseCount}×`}
+                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span>{solHanded ? "" : ` · ${effectiveChaseCount === 0 ? "Not chased yet" : `Chased ${effectiveChaseCount}×`}`}
                   </p>
                   {showRowExplain && (copy?.line ?? info?.outstanding) && (
                     <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
@@ -848,7 +853,7 @@ function SplitFileCard({
                         <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(log.nextDueDate)}
                       </span>
                     </div>
-                    {autoState?.kind === "manual" && autoState.category === "info" && autoState.reason && (
+                    {autoState?.kind === "manual" && (autoState.category === "info" || autoState.category === "solicitor_handover") && autoState.reason && (
                       <p className="rem-row-info" style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textAlign: "center", maxWidth: 160 }}>{autoState.reason}</p>
                     )}
                   </div>

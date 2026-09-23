@@ -567,6 +567,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       // A solicitor-given expected date legitimately parks it — that's a snooze,
       // not "run out" — so leave those on autopilot.
       if (st.snoozeUntil && st.snoozeUntil > nowForChase) continue;
+      // Only hand over a reminder that's actually DUE. A human "Mark chased" (or
+      // drawer send) advances this reminder's own nextDueDate to the next cycle, so
+      // a just-chased row isn't due — don't re-hand it over (that boomeranged
+      // chased rows straight back to Needs you). It re-surfaces when due again.
+      if (toUKDateStr(l.nextDueDate) > todayUKStr) continue;
       const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
       if (ranOut) solHandoverById.set(l.id, nowForChase);
     }
