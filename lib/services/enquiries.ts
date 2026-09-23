@@ -210,8 +210,12 @@ export async function getEnquiryHistory(scope: AccessScope, transactionId: strin
   });
   if (!tracker) return [];
 
+  // Only THIS file's enquiry chases — the pre-raise nudges + the reply-loop
+  // chases, tagged at send by logEnquiryChaseComm. Sourcing by isEnquiryChase (not
+  // purpose:"chase") keeps milestone / solicitor chases and other notes out of the
+  // enquiry timeline, which used to pollute it (critique #19b).
   const chaseComms = await prisma.outboundMessage.findMany({
-    where: { transactionId, purpose: "chase" },
+    where: { transactionId, isEnquiryChase: true },
     orderBy: { sentAt: "desc" },
     select: { id: true, sentAt: true, createdAt: true, recipientName: true, method: true },
     take: 30,

@@ -1867,6 +1867,15 @@ model OutboundMessage {
   // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
   importBatchId String?
 
+  // Enquiry-loop tag: true on the chase emails that belong to a file's enquiry
+  // process (the pre-raise "raise" nudges AND the reply-loop chases). Lets the
+  // enquiries chase-history timeline source ONLY its own chases, rather than
+  // every purpose:"chase" message on the file (which also holds milestone /
+  // solicitor chases and other notes). A flag rather than a tracker link because
+  // the "raise" nudges are sent before the EnquiryTracker exists. False on every
+  // other message. Set only by logEnquiryChaseComm.
+  isEnquiryChase Boolean @default(false)
+
   // Tier 3 stage 2: stamped once an inbound email has been run through the AI
   // interpreter (whatever the outcome), so it isn't re-read on every sync.
   aiInterpretedAt DateTime?
@@ -1894,6 +1903,7 @@ model OutboundMessage {
   @@index([sentAt])
   @@index([importBatchId])
   @@index([buyerRoundId])
+  @@index([transactionId, isEnquiryChase])
   @@index([transactionId, conversationId])
   @@index([internetMessageId])
   @@index([inReplyTo])

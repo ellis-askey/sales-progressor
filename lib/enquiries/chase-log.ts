@@ -43,6 +43,10 @@ export async function logEnquiryChaseComm(
     agencyId?: string | null;
     subject: string;
     body: string;
+    // The exact rendered HTML that was sent, stored so the enquiries chase-history
+    // timeline can show a true-to-inbox preview of the chase. Optional — falls
+    // back to a plain-text render of `body` when absent.
+    html?: string | null;
     recipientEmail: string;
     recipientName?: string | null;
     createdById?: string | null;
@@ -69,12 +73,16 @@ export async function logEnquiryChaseComm(
       recipientName: args.recipientName ?? undefined,
       subject: args.subject,
       content: args.body,
+      sentEmailHtml: args.html ?? null,
       contactIds: [],
       createdById: args.createdById ?? undefined,
       createdByRole: "system",
       sentAt: at,
       createdAt: at,
       internetMessageId: args.internetMessageId ?? null,
+      // This helper is called only from the enquiry chase paths (raise + reply
+      // loop), so every row it writes is an enquiry chase.
+      isEnquiryChase: true,
     },
   });
 }

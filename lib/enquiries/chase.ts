@@ -234,6 +234,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         agencyId: tx.agencyId,
         subject: mail.subject,
         body: mail.text,
+        html: mail.html,
         recipientEmail: email,
         recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? handlerName ?? null,
         createdById: ownerId ?? null,
