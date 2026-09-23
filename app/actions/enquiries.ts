@@ -10,6 +10,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getEnquiryHistory, type EnquiryHistoryEntry } from "@/lib/services/enquiries";
+import { createCommunicationRecord } from "@/lib/services/comms";
 import { confirmMilestoneAction } from "./milestones";
 import { postEnquiryEcho } from "@/lib/services/chase-echo";
 import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
@@ -100,15 +101,53 @@ export async function logEnquiryMovementAction(input: {
 // Log a manual chase (a call / an email we sent by hand). Resets the chase
 // clock (so the auto-chase doesn't fire straight after) without moving the
 // court, and shows in the history as "Chased by …".
+export type EnquiryCallOutcome = "spoke" | "voicemail" | "no_answer";
+export type EnquiryCallParty = "buyer" | "seller_solicitor" | "buyer_solicitor";
+
 export async function logEnquiryChaseAction(input: {
   transactionId: string;
   method: "phone" | "email" | "other";
+  // Phone-only detail. When present, the enquiry movement note is enriched AND the
+  // call is mirrored onto the file's activity feed (exactly like logging a call on
+  // the property file), so the conversation is captured in both places.
+  outcome?: EnquiryCallOutcome;
+  note?: string;
+  withParty?: EnquiryCallParty;
 }): Promise<{ ok: boolean }> {
-  const userId = await assertInScope(input.transactionId);
+  // Inline auth so we have the scope + role for the activity-feed mirror below.
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorised");
+  const scope = getAccessScope(session);
+  const owned = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!owned) throw new Error("Not found");
+  const userId = session.user.id;
+
+  const trimmedNote = (input.note ?? "").trim();
+  const partyLabel =
+    input.withParty === "buyer" ? "the buyer"
+      : input.withParty === "seller_solicitor" ? "the seller's solicitor"
+        : input.withParty === "buyer_solicitor" ? "the buyer's solicitor"
+          : null;
+  const outcomeLabel =
+    input.outcome === "voicemail" ? "left a voicemail"
+      : input.outcome === "no_answer" ? "no answer"
+        : input.outcome === "spoke" ? "spoke"
+          : null;
+
+  // Enquiry-timeline movement note (resets the chase clock via mode "touch").
   const note =
-    input.method === "phone" ? "Chased by phone"
-      : input.method === "email" ? "Chased by email"
-        : "Chased";
+    input.method === "phone"
+      ? [
+          "Chased by phone",
+          partyLabel ? `with ${partyLabel}` : null,
+          outcomeLabel && input.outcome !== "spoke" ? `(${outcomeLabel})` : null,
+          trimmedNote ? `— ${trimmedNote}` : null,
+        ].filter(Boolean).join(" ")
+      : input.method === "email" ? "Chased by email" : "Chased";
+
   const ok = await logEnquiryMovement({
     transactionId: input.transactionId,
     note,
@@ -116,6 +155,31 @@ export async function logEnquiryChaseAction(input: {
     kind: "chased",
     createdByUserId: userId,
   });
+
+  // Mirror a phone chase onto the file's activity feed as a call, so it's logged
+  // there too (same as pressing Call on the property file's activity tab). The
+  // "who" lives in the content since solicitor contacts aren't Contact rows.
+  // Best-effort: a failure here never fails the chase itself.
+  if (ok && input.method === "phone" && (trimmedNote || input.outcome || input.withParty)) {
+    const callContent =
+      `${partyLabel ? `Call with ${partyLabel}` : "Call"} re enquiries` +
+      (outcomeLabel && input.outcome !== "spoke" ? ` (${outcomeLabel})` : "") +
+      (trimmedNote ? `: ${trimmedNote}` : ".");
+    try {
+      await createCommunicationRecord({
+        transactionId: input.transactionId,
+        type: "outbound",
+        method: input.outcome === "voicemail" ? "voicemail" : "phone",
+        contactIds: [],
+        content: callContent,
+        visibleToClient: false,
+        createdById: userId,
+        createdByRole: session.user.role,
+        scope,
+      });
+    } catch { /* activity-feed mirror is best-effort */ }
+  }
+
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");

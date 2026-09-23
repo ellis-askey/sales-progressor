@@ -16,6 +16,7 @@ import {
 import {
   logEnquiryMovementAction, logEnquiryChaseAction, setEnquiryExpectedDateAction, getEnquiryHistoryAction,
   markEnquiriesSatisfiedAction,
+  type EnquiryCallOutcome, type EnquiryCallParty,
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
@@ -338,7 +339,7 @@ export function EnquiriesTriageList({
                   (toggleExpand), so collapsed rows don't hit the server. */}
               <div className={`agent-acc${expanded ? " open" : ""}`}>
                 <div className="agent-acc-in">
-                  <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />
+                  <ExpandedDetail row={r} history={history[r.transactionId]} onChase={(method, details) => run(r.transactionId, () => logEnquiryChaseAction({ transactionId: r.transactionId, method, ...details }), `Logged: chased by ${method}`)} onExpected={(date) => run(r.transactionId, () => setEnquiryExpectedDateAction({ transactionId: r.transactionId, date }), date ? "Expected date set" : "Expected date cleared")} busy={busy} />
                 </div>
               </div>
             </div>
@@ -582,12 +583,24 @@ function ExpandedDetail({
 }: {
   row: OpenEnquiryRow;
   history: EnquiryHistoryEntry[] | "loading" | undefined;
-  onChase: (method: "phone" | "email") => void;
+  onChase: (method: "phone" | "email", details?: { outcome?: EnquiryCallOutcome; note?: string; withParty?: EnquiryCallParty }) => void;
   onExpected: (date: string | null) => void;
   busy: boolean;
 }) {
   const [dateOpen, setDateOpen] = useState(false);
   const [previewMsgId, setPreviewMsgId] = useState<string | null>(null);
+  // Phone-chase logger: capture who it was with, the outcome, and a note of the
+  // call. Email stays one-tap. Default the party to whoever currently owes replies.
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [callParty, setCallParty] = useState<EnquiryCallParty>(row.currentlyWith === "seller_solicitor" ? "seller_solicitor" : "buyer_solicitor");
+  const [callOutcome, setCallOutcome] = useState<EnquiryCallOutcome>("spoke");
+  const [callNote, setCallNote] = useState("");
+  function submitPhone() {
+    onChase("phone", { outcome: callOutcome, note: callNote.trim() || undefined, withParty: callParty });
+    setPhoneOpen(false);
+    setCallNote("");
+    setCallOutcome("spoke");
+  }
   return (
     <div className="enq-detail">
       <div className="enq-detail-col">
@@ -614,9 +627,40 @@ function ExpandedDetail({
         )}
         <div className="enq-detail-chase">
           <span className="enq-detail-meta">Log a chase:</span>
-          <button type="button" className="enq-chip" disabled={busy} onClick={() => onChase("phone")}><Phone size={12} /> Phone</button>
+          <button type="button" className={`enq-chip${phoneOpen ? " is-on" : ""}`} disabled={busy} aria-expanded={phoneOpen} onClick={() => setPhoneOpen((o) => !o)}><Phone size={12} /> Phone</button>
           <button type="button" className="enq-chip" disabled={busy} onClick={() => onChase("email")}><EnvelopeSimple size={12} /> Email</button>
         </div>
+        {phoneOpen && (
+          <div className="enq-calllog" role="group" aria-label="Log a phone chase">
+            <div className="enq-calllog-field">
+              <span className="enq-calllog-lbl">Who with</span>
+              <div className="enq-seg">
+                <button type="button" className={callParty === "seller_solicitor" ? "on" : ""} onClick={() => setCallParty("seller_solicitor")}>Seller&apos;s solicitor</button>
+                <button type="button" className={callParty === "buyer_solicitor" ? "on" : ""} onClick={() => setCallParty("buyer_solicitor")}>Buyer&apos;s solicitor</button>
+                <button type="button" className={callParty === "buyer" ? "on" : ""} onClick={() => setCallParty("buyer")}>Buyer</button>
+              </div>
+            </div>
+            <div className="enq-calllog-field">
+              <span className="enq-calllog-lbl">Outcome</span>
+              <div className="enq-seg">
+                <button type="button" className={callOutcome === "spoke" ? "on" : ""} onClick={() => setCallOutcome("spoke")}>Spoke</button>
+                <button type="button" className={callOutcome === "voicemail" ? "on" : ""} onClick={() => setCallOutcome("voicemail")}>Voicemail</button>
+                <button type="button" className={callOutcome === "no_answer" ? "on" : ""} onClick={() => setCallOutcome("no_answer")}>No answer</button>
+              </div>
+            </div>
+            <textarea
+              className="enq-calllog-note"
+              value={callNote}
+              onChange={(e) => setCallNote(e.target.value)}
+              placeholder="What was discussed? (optional)"
+              rows={2}
+            />
+            <div className="enq-calllog-actions">
+              <button type="button" className="enq-btn enq-btn-flip" disabled={busy} onClick={() => setPhoneOpen(false)}>Cancel</button>
+              <button type="button" className="enq-btn enq-btn-primary2" disabled={busy} onClick={submitPhone}><Phone size={13} weight="fill" /> Log call</button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="enq-detail-col">
         <div className="enq-detail-h">Chase history</div>
