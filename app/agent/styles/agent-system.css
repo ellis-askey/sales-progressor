@@ -2243,6 +2243,12 @@
   .enq-select { height: 38px; padding: 0 10px; border-radius: 10px; background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-subtle); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--agent-text-secondary); cursor: pointer; transition: border-color var(--agent-transition-fast), box-shadow var(--agent-transition-fast); }
   .enq-select:hover { border-color: var(--agent-coral); }
   .enq-select:focus, .enq-select:focus-visible { outline: none; border-color: var(--agent-coral-deep); box-shadow: none; }
+  /* Phone: search takes its own line, then the two filters share the next row
+     50/50 instead of stacking full-width (critique). */
+  @media (max-width: 640px) {
+    .enq-search { flex-basis: 100%; }
+    .enq-select { flex: 1 1 0; min-width: 0; }
+  }
 
   /* Rows */
   .enq-list { display: flex; flex-direction: column; gap: 10px; }
