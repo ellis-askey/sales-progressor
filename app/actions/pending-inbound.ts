@@ -12,23 +12,25 @@ import { logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
 import { logSingleMessageToFile } from "@/lib/integrations/outlook/sync";
 import type { IngestMessage } from "@/lib/integrations/mail/types";
 
-export async function filePendingEmailAction(input: {
-  pendingId: string;
-  transactionId: string;
-}): Promise<{ ok: boolean }> {
-  const session = await requireSession();
+// The single-email core, shared by the one-tap action and the file-thread
+// batch. Scope rules identical: the caller's own mailbox row + a transaction
+// they can access. No revalidate here — callers revalidate once.
+async function fileOnePending(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  input: { pendingId: string; transactionId: string },
+): Promise<boolean> {
   const scope = getAccessScope(session);
 
   // Own mailbox row + a transaction the caller can access.
   const pending = await prisma.pendingInboundEmail.findFirst({
     where: { id: input.pendingId, userId: session.user.id, status: "open" },
   });
-  if (!pending) return { ok: false };
+  if (!pending) return false;
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
-  if (!tx) return { ok: false };
+  if (!tx) return false;
 
   // Direction carries through so a filed SENT email lands as our side, attributed
   // to the mailbox owner (who — because the tray is owner-scoped — is the caller).
@@ -84,16 +86,64 @@ export async function filePendingEmailAction(input: {
     where: { id: pending.id },
     data: { status: "filed", resolvedTransactionId: input.transactionId, resolvedById: session.user.id, resolvedAt: new Date() },
   });
+  return true;
+}
 
-  revalidatePath("/agent/hub");
-  revalidatePath(`/agent/transactions/${input.transactionId}`);
-  return { ok: true };
+export async function filePendingEmailAction(input: {
+  pendingId: string;
+  transactionId: string;
+}): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const ok = await fileOnePending(session, input);
+  if (ok) {
+    revalidatePath("/agent/hub");
+    revalidatePath(`/agent/transactions/${input.transactionId}`);
+  }
+  return { ok };
+}
+
+// File a whole thread in one tap (the 34-identical-cards report, 2026-09-23).
+// Each email runs the same single-email core; one bad row never aborts the
+// rest, and failed ids are returned so the UI can restore exactly those rows.
+export async function filePendingEmailsAction(input: {
+  pendingIds: string[];
+  transactionId: string;
+}): Promise<{ ok: boolean; filed: number; failedIds: string[] }> {
+  const session = await requireSession();
+  const failedIds: string[] = [];
+  let filed = 0;
+  for (const pendingId of input.pendingIds) {
+    try {
+      const ok = await fileOnePending(session, { pendingId, transactionId: input.transactionId });
+      if (ok) filed++;
+      else failedIds.push(pendingId);
+    } catch {
+      failedIds.push(pendingId);
+    }
+  }
+  if (filed > 0) {
+    revalidatePath("/agent/hub");
+    revalidatePath(`/agent/transactions/${input.transactionId}`);
+  }
+  return { ok: failedIds.length === 0, filed, failedIds };
 }
 
 export async function dismissPendingEmailAction(input: { pendingId: string }): Promise<{ ok: boolean }> {
   const session = await requireSession();
   const res = await prisma.pendingInboundEmail.updateMany({
     where: { id: input.pendingId, userId: session.user.id, status: "open" },
+    data: { status: "dismissed", resolvedById: session.user.id, resolvedAt: new Date() },
+  });
+  revalidatePath("/agent/hub");
+  return { ok: res.count > 0 };
+}
+
+// Dismiss a whole thread in one tap. Same ownership scope as the single
+// dismiss; one guarded updateMany.
+export async function dismissPendingEmailsAction(input: { pendingIds: string[] }): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const res = await prisma.pendingInboundEmail.updateMany({
+    where: { id: { in: input.pendingIds }, userId: session.user.id, status: "open" },
     data: { status: "dismissed", resolvedById: session.user.id, resolvedAt: new Date() },
   });
   revalidatePath("/agent/hub");
