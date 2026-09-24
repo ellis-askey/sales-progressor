@@ -584,9 +584,11 @@ body {
 .settings-footer-link { transition: color 150ms ease; }
 .settings-footer-link:hover { color: var(--agent-coral, #FF6B4A); }
 
-/* Client-portal settings preview: card lifts on hover (opens the real modal). */
+/* Client-portal settings preview: card lifts on hover (opens the real modal).
+   !important so it wins over agent-app button:hover resets (agent-system.css
+   loads after this file). */
 .cp-lift { transition: transform .16s ease, box-shadow .16s ease; }
-.cp-lift:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -12px rgba(0,0,0,.32); }
+.cp-lift:hover { transform: translateY(-2px) !important; box-shadow: 0 12px 24px -12px rgba(0,0,0,.32) !important; }
 
 .portal-keydates-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0; }
 @media (max-width: 650px) {

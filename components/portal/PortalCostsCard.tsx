@@ -323,7 +323,7 @@ export function PortalCostsCard({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pbtn pbtn-press block w-full text-left"
+          className={`pbtn pbtn-press block w-full text-left${previewMode ? " portal-chev cp-lift" : ""}`}
           style={{
             borderRadius: 16,
             padding: 16,
@@ -348,7 +348,7 @@ export function PortalCostsCard({
               About <b style={{ color: INFO }}><PortalMoney>{fmtGBP(starting.total)}</PortalMoney></b> on <PortalMoney>{fmtGBP(priceGBP)}</PortalMoney>. Assumes standard rates. Tap to adjust.
             </p>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={INFO} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+          <svg className="portal-chev-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={INFO} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
