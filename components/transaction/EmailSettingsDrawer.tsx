@@ -33,6 +33,7 @@ import {
   Pause,
   Info,
   CaretDown,
+  CalendarBlank,
 } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -47,6 +48,7 @@ import {
   type EmailSettingsState,
 } from "@/app/actions/automation";
 import { toggleSuppressPortalConfirmEmailsAction } from "@/app/actions/transactions";
+import { setTransactionKeyDatesOverride } from "@/app/actions/portal-display";
 import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -288,6 +290,22 @@ function EmailSettingsDrawer({
     });
   }
 
+  // Per-file key-dates override: null = follow agency, true = force show,
+  // false = force hide. Writes via the portal-display action + audit fields.
+  function setKeyDates(next: boolean | null) {
+    if (!state || pendingKey) return;
+    setPendingKey("keydates");
+    startTransition(async () => {
+      const res = await setTransactionKeyDatesOverride(transactionId, next);
+      if (res.ok) {
+        onStateChange({ ...state, portalKeyDatesOverride: next });
+      } else {
+        toast.error(res.error);
+      }
+      setPendingKey(null);
+    });
+  }
+
   function toggleContact(contactId: string, currentlyPaused: boolean) {
     if (!state || pendingKey) return;
     const nextPaused = !currentlyPaused;
@@ -384,13 +402,13 @@ function EmailSettingsDrawer({
       : "Temporarily stop reminders, automatic chases and the file's timers. Nothing will be sent until you resume it.";
 
   return (
-    <Drawer open={open} onClose={onClose} ariaLabel="Email settings for this file" size="md" zLayer="escalated" closeTone="onDark">
+    <Drawer open={open} onClose={onClose} ariaLabel="Client settings for this file" size="md" zLayer="escalated" closeTone="onDark">
       <Drawer.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader
-          kicker="Auto emails"
+          kicker="Client portal"
           icon={<EnvelopeSimple size={20} weight="regular" />}
-          title="Email settings"
-          subtitle="Control the emails and automatic chasing for this sale."
+          title="Client settings"
+          subtitle="What this client sees, plus the emails and automatic chasing for this sale."
         />
       </Drawer.Header>
       <Drawer.Body>
@@ -400,6 +418,46 @@ function EmailSettingsDrawer({
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* What the client sees: the key-dates card on their portal. Agency
+                default (Account -> Client portal), overridable here per sale. */}
+            <SectionCard
+              icon={<CalendarBlank size={20} weight="regular" />}
+              title="Key dates on their portal"
+              subtitle="The 12-week target and estimated exchange date."
+            >
+              <div style={{ padding: "0 16px 14px" }}>
+                <div style={{ display: "inline-flex", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)", borderRadius: 9, padding: 2, gap: 2 }}>
+                  {([["Follow agency", null], ["Show", true], ["Hide", false]] as [string, boolean | null][]).map(([lbl, val]) => {
+                    const sel = state.portalKeyDatesOverride === val;
+                    return (
+                      <button
+                        key={lbl}
+                        type="button"
+                        disabled={pendingKey !== null}
+                        onClick={() => setKeyDates(val)}
+                        style={{
+                          border: "none",
+                          background: sel ? "var(--agent-coral, #FF6B4A)" : "transparent",
+                          color: sel ? "#fff" : "var(--agent-text-secondary)",
+                          fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7,
+                          cursor: pendingKey ? "default" : "pointer",
+                        }}
+                      >
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p style={{ margin: "9px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  {state.portalKeyDatesOverride === null
+                    ? `Following your agency setting (currently ${state.agencyShowPortalKeyDates ? "shown" : "hidden"}).`
+                    : state.portalKeyDatesOverride
+                      ? "Shown to this client (agency default overridden)."
+                      : "Hidden from this client (agency default overridden)."}
+                </p>
+              </div>
+            </SectionCard>
+
             {/* Available to whoever controls this file's emails — internal staff
                 and self-managed agencies (the button only opens for those). */}
             <SectionCard
@@ -614,7 +672,7 @@ export function EmailSettingsButton({
   const attention = onHold || pausedCount > 0;
 
   const label = !state
-    ? "Email settings"
+    ? "Client settings"
     : onHold
       ? "On hold"
       : pausedCount > 0
@@ -636,7 +694,7 @@ export function EmailSettingsButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Email settings for this file"
+        title="Client settings for this file"
         className={attention ? "email-settings-pill is-attention" : "email-settings-pill"}
         style={{
           display: "inline-flex",

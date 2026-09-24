@@ -205,6 +205,11 @@ export type EmailSettingsContact = {
 
 export type EmailSettingsState = {
   suppressPortalConfirmEmails: boolean;
+  // Per-file key-dates portal override: null = follow the agency default,
+  // true = force show, false = force hide. `agencyShowPortalKeyDates` is the
+  // agency-wide default, shown so the drawer can render the resolved state.
+  portalKeyDatesOverride: boolean | null;
+  agencyShowPortalKeyDates: boolean;
   status: "active" | "on_hold" | "other";
   clientEmailsPaused: boolean;
   // Enquiry auto-chase paused for THIS file (raise nudges + reply-loop chase).
@@ -260,6 +265,8 @@ export async function loadEmailSettings(
       status: true,
       serviceType: true,
       suppressPortalConfirmEmails: true,
+      portalKeyDatesOverride: true,
+      agency: { select: { showPortalKeyDates: true } },
       clientEmailsPaused: true,
       enquiryChasePaused: true,
       vendorSolicitorEmailsPaused: true,
@@ -307,6 +314,8 @@ export async function loadEmailSettings(
     ok: true,
     data: {
       suppressPortalConfirmEmails: tx.suppressPortalConfirmEmails,
+      portalKeyDatesOverride: tx.portalKeyDatesOverride,
+      agencyShowPortalKeyDates: tx.agency?.showPortalKeyDates ?? true,
       status: tx.status === "active" ? "active" : tx.status === "on_hold" ? "on_hold" : "other",
       clientEmailsPaused: tx.clientEmailsPaused,
       enquiryChasePaused: tx.enquiryChasePaused,
