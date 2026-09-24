@@ -2871,9 +2871,19 @@ export async function postExchangeDateUpdateToClients(
 ): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { agencyId: true, activeBuyerRoundId: true },
+    select: {
+      agencyId: true,
+      activeBuyerRoundId: true,
+      portalKeyDatesOverride: true,
+      agency: { select: { showPortalKeyDates: true } },
+    },
   });
   if (!tx) return;
+
+  // If key dates are hidden from the client (agency default or per-file
+  // override), don't post an update about a date they can't see on their portal.
+  const showKeyDates = tx.portalKeyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true;
+  if (!showKeyDates) return;
 
   const contacts = await prisma.contact.findMany({
     where: {
