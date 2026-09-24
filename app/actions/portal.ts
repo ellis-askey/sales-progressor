@@ -26,6 +26,12 @@ export async function portalConfirmMilestoneAction(input: {
   token: string;
   milestoneDefinitionId: string;
   eventDate?: string | null;
+  // Where the confirm came from, for background attribution: "chase" when the
+  // client arrived via a chase-email link (the respond page), "app" for the
+  // in-portal progress / next-step surfaces. Defaults to "app" — only the
+  // respond-page wrapper passes "chase". Recorded on the confirm Event so we can
+  // report the split going forward.
+  source?: "app" | "chase";
 }): Promise<PortalConfirmResult> {
   try {
     await portalCompleteMilestone(input);
@@ -48,7 +54,7 @@ export async function portalConfirmMilestoneAction(input: {
       where: { portalToken: input.token, portalEligible: true },
       select: { id: true },
     });
-    if (c) await recordPortalEvent("portal_action_confirmed", c.id, { milestoneDefinitionId: input.milestoneDefinitionId });
+    if (c) await recordPortalEvent("portal_action_confirmed", c.id, { milestoneDefinitionId: input.milestoneDefinitionId, source: input.source ?? "app" });
   } catch {
     /* telemetry is best-effort */
   }
@@ -264,6 +270,7 @@ export async function portalConfirmFromRespondAction(input: {
     token: input.token,
     milestoneDefinitionId: input.milestoneDefinitionId,
     eventDate: input.eventDate,
+    source: "chase", // arrived via the chase-email link (the respond page)
   });
 
   if (result.ok) {

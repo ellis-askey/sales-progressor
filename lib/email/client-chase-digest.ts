@@ -194,7 +194,10 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   // for click-analytics only. (Copy-batch decision: single link, no per-item
   // anchors — anchor-jumping is inconsistent across mobile clients.)
   const codes = milestones.map((m) => m.code).join(",");
-  const respondUrl = `${base}/portal/${contact.portalToken}/respond?items=${encodeURIComponent(codes)}`;
+  // `src=chase` is a breadcrumb marking this as the chase-email entry point.
+  // Attribution is stamped action-side (the respond page's confirm always
+  // records source:"chase"); this keeps the intent visible in link analytics.
+  const respondUrl = `${base}/portal/${contact.portalToken}/respond?items=${encodeURIComponent(codes)}&src=chase`;
   const unsubscribeUrl = buildContactUnsubscribeUrl(contact.id);
   const pauseUrl = buildContactPauseUrl(contact.id);
 
