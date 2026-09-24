@@ -7,7 +7,7 @@
 // already correct.
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
-import { HIDE_MONEY_KEY, type PortalSettings } from "@/lib/portal/settings";
+import { HIDE_MONEY_KEY, DEFAULT_PORTAL_SETTINGS, type PortalSettings } from "@/lib/portal/settings";
 import { portalSaveSettingsAction } from "@/app/actions/portal";
 
 type Ctx = {
@@ -26,6 +26,21 @@ export function usePortalSettings(): Ctx {
   const c = useContext(PortalSettingsContext);
   if (!c) throw new Error("usePortalSettings must be used inside PortalSettingsProvider");
   return c;
+}
+
+// Inert provider for rendering portal components OUTSIDE the portal (e.g. the
+// director's Client-portal settings previews). Supplies default settings so
+// PortalMoney etc. work, with NO live DOM/theme mutation and NO DB saves.
+export function PortalSettingsPreviewProvider({ children }: { children: ReactNode }) {
+  const value: Ctx = {
+    settings: DEFAULT_PORTAL_SETTINGS,
+    update: () => {},
+    saving: false,
+    savedTick: 0,
+    moneyHidden: false,
+    setMoneyHidden: () => {},
+  };
+  return <PortalSettingsContext.Provider value={value}>{children}</PortalSettingsContext.Provider>;
 }
 
 function applyToDom(s: PortalSettings) {

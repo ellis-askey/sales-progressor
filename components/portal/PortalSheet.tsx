@@ -23,6 +23,7 @@ export function PortalSheet({
   closeDisabled = false,
   showClose = true,
   maxWidthClass = "max-w-lg",
+  lockScroll = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -31,6 +32,10 @@ export function PortalSheet({
   closeDisabled?: boolean;
   showClose?: boolean;
   maxWidthClass?: string;
+  /** Lock body scroll while open. Off for previews rendered inside another
+   *  scrolling surface (e.g. the account page), where locking the host body
+   *  shifts that page's sticky chrome. */
+  lockScroll?: boolean;
 }) {
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
@@ -42,8 +47,15 @@ export function PortalSheet({
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setShown(true));
-      return () => cancelAnimationFrame(id);
+      // Double rAF: guarantee the off-screen initial state (translateY 100%)
+      // paints for one frame before flipping to 0, so the slide-up transition
+      // reliably plays. A single rAF can be coalesced with the mount when open
+      // flips on a tap, skipping the animation.
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setShown(true));
+      });
+      return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner); };
     }
     setShown(false);
     const t = window.setTimeout(() => setMounted(false), EXIT_MS);
@@ -52,11 +64,11 @@ export function PortalSheet({
 
   // Lock the page behind while mounted (covers the exit animation too).
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !lockScroll) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
-  }, [mounted]);
+  }, [mounted, lockScroll]);
 
   if (!mounted || typeof document === "undefined") return null;
 

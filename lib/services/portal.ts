@@ -310,7 +310,8 @@ async function getPortalDataInner(token: string) {
       photoStoragePath: true,
       photoUploadedAt: true,
       bookedSurveyorName: true,
-      portalKeyDatesOverride: true,
+      portalKeyDatesOverrideVendor: true,
+      portalKeyDatesOverridePurchaser: true,
       agency: {
         select: {
           name: true,
@@ -325,10 +326,14 @@ async function getPortalDataInner(token: string) {
   if (!tx) return null;
 
   // "What the client sees" display settings. Agency-wide defaults, with a
-  // per-file override for key dates only (null = follow the agency default).
-  // All fall back to true (today's behaviour) when unset.
+  // per-file, PER-SIDE override for key dates (null = follow the agency default).
+  // Resolved against THIS viewing contact's side. All fall back to true.
+  const viewerSide = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const keyDatesOverride = viewerSide === "vendor"
+    ? tx.portalKeyDatesOverrideVendor
+    : tx.portalKeyDatesOverridePurchaser;
   const portalDisplay = {
-    keyDates: tx.portalKeyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true,
+    keyDates: keyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true,
     costs: tx.agency?.showPortalCosts ?? true,
     progressPercent: tx.agency?.showPortalProgressPercent ?? true,
     welcomeSheet: tx.agency?.showPortalWelcomeSheet ?? true,
@@ -2874,18 +2879,21 @@ export async function postExchangeDateUpdateToClients(
     select: {
       agencyId: true,
       activeBuyerRoundId: true,
-      portalKeyDatesOverride: true,
+      portalKeyDatesOverrideVendor: true,
+      portalKeyDatesOverridePurchaser: true,
       agency: { select: { showPortalKeyDates: true } },
     },
   });
   if (!tx) return;
 
-  // If key dates are hidden from the client (agency default or per-file
-  // override), don't post an update about a date they can't see on their portal.
-  const showKeyDates = tx.portalKeyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true;
-  if (!showKeyDates) return;
+  // Key dates can be hidden per side. Only post a date update to a side that can
+  // actually see key dates on their portal (agency default or per-file override).
+  const agencyDefault = tx.agency?.showPortalKeyDates ?? true;
+  const showVendor = tx.portalKeyDatesOverrideVendor ?? agencyDefault;
+  const showPurchaser = tx.portalKeyDatesOverridePurchaser ?? agencyDefault;
+  if (!showVendor && !showPurchaser) return;
 
-  const contacts = await prisma.contact.findMany({
+  const allContacts = await prisma.contact.findMany({
     where: {
       propertyTransactionId: transactionId,
       OR: [
@@ -2893,8 +2901,9 @@ export async function postExchangeDateUpdateToClients(
         { roleType: "purchaser", buyerRoundId: tx.activeBuyerRoundId },
       ],
     },
-    select: { id: true },
+    select: { id: true, roleType: true },
   });
+  const contacts = allContacts.filter((c) => (c.roleType === "vendor" ? showVendor : showPurchaser));
   if (contacts.length === 0) return;
 
   const dateStr = newDate.toLocaleDateString("en-GB", {

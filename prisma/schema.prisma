@@ -614,14 +614,15 @@ model PropertyTransaction {
   suppressPortalConfirmEmailsSetAt   DateTime?
   suppressPortalConfirmEmailsSetById String?
 
-  // Per-file override of the agency's "show key dates on portal" default
-  // (Agency.showPortalKeyDates). null = follow the agency default; true = force
-  // show for this sale; false = force hide. Only key-dates is overridable per
-  // file. Audit fields let us SQL-audit who changed it. Set in the file's Client
-  // settings drawer.
-  portalKeyDatesOverride        Boolean?
-  portalKeyDatesOverrideSetAt   DateTime?
-  portalKeyDatesOverrideSetById String?
+  // Per-file, PER-SIDE override of the agency's "show key dates on portal"
+  // default (Agency.showPortalKeyDates). null = follow the agency default; true =
+  // force show; false = force hide — resolved against the viewing contact's side.
+  // Only key-dates is overridable per file. Audit fields record the last change
+  // (either side). Set in the file's Client settings drawer.
+  portalKeyDatesOverrideVendor    Boolean?
+  portalKeyDatesOverridePurchaser Boolean?
+  portalKeyDatesOverrideSetAt     DateTime?
+  portalKeyDatesOverrideSetById   String?
 
   // Per-transaction snapshot of chase rule values at creation time. JSON
   // map keyed by milestone code: { graceDays, repeatEveryDays,

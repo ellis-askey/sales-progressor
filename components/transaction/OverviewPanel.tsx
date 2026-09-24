@@ -433,7 +433,10 @@ export async function OverviewPanel({
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
 
       {/* People: Clients (contacts) + Professionals (solicitors) in one card
-          with a header toggle, so the solicitor is one tap away. */}
+          with a header toggle, so the solicitor is one tap away. The id anchors
+          the jump from the Client settings drawer footer ("update these settings
+          anytime" -> here). */}
+      <div id="clients-section" style={{ scrollMarginTop: 84 }}>
       <PeoplePanel
         clients={
           <ContactsSection
@@ -513,6 +516,7 @@ export async function OverviewPanel({
           </div>
         }
       />
+      </div>
 
       {/* NextActionCard — highest-priority-thing-to-do tile. Vendor +
           purchaser NextMilestoneWidget replaced here 2026-07-03: the

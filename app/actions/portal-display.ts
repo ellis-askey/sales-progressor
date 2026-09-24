@@ -41,11 +41,13 @@ export async function setAgencyPortalDisplay(
   return { ok: true };
 }
 
-// Per-file override of the agency's key-dates default, set in the file's Client
-// settings drawer. null = follow the agency default, true = force show, false =
-// force hide. Scoped to the caller's own files; audit fields record who/when.
+// Per-file, PER-SIDE override of the agency's key-dates default, set in the
+// file's Client settings drawer. null = follow the agency default, true = force
+// show, false = force hide, for the given side (Seller / Buyer). Scoped to the
+// caller's own files; audit fields record who/when (last change, either side).
 export async function setTransactionKeyDatesOverride(
   transactionId: string,
+  side: "vendor" | "purchaser",
   override: boolean | null,
 ): Promise<ActionResult> {
   const session = await requireSession();
@@ -56,14 +58,12 @@ export async function setTransactionKeyDatesOverride(
   });
   if (!tx) return { ok: false, error: "File not found." };
 
-  await prisma.propertyTransaction.update({
-    where: { id: tx.id },
-    data: {
-      portalKeyDatesOverride: override,
-      portalKeyDatesOverrideSetAt: new Date(),
-      portalKeyDatesOverrideSetById: session.user.id,
-    },
-  });
+  const audit = { portalKeyDatesOverrideSetAt: new Date(), portalKeyDatesOverrideSetById: session.user.id };
+  const data = side === "vendor"
+    ? { portalKeyDatesOverrideVendor: override, ...audit }
+    : { portalKeyDatesOverridePurchaser: override, ...audit };
+
+  await prisma.propertyTransaction.update({ where: { id: tx.id }, data });
   revalidatePath(`/agent/transactions/${transactionId}`);
   return { ok: true };
 }

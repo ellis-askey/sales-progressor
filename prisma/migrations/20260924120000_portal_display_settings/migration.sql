@@ -15,6 +15,7 @@ ALTER TABLE "Agency"
   ADD COLUMN "showPortalWelcomeSheet"    BOOLEAN NOT NULL DEFAULT true;
 
 ALTER TABLE "PropertyTransaction"
-  ADD COLUMN "portalKeyDatesOverride"        BOOLEAN,
-  ADD COLUMN "portalKeyDatesOverrideSetAt"   TIMESTAMP(3),
-  ADD COLUMN "portalKeyDatesOverrideSetById" TEXT;
+  ADD COLUMN "portalKeyDatesOverrideVendor"    BOOLEAN,
+  ADD COLUMN "portalKeyDatesOverridePurchaser" BOOLEAN,
+  ADD COLUMN "portalKeyDatesOverrideSetAt"     TIMESTAMP(3),
+  ADD COLUMN "portalKeyDatesOverrideSetById"   TEXT;

@@ -56,10 +56,16 @@ type Props = {
   // Preview mode (director "Client portal" settings): identical calculation,
   // strings and interactive states, but never persists (no real token/file).
   previewMode?: boolean;
+  // Preview-only: lift the stamp-duty situation (first-time-buyer + surcharge)
+  // so the settings preview's two cards (before / after exchange) stay in sync.
+  // Omitted in the real portal, where each card owns its own state.
+  sharedSdlt?: { ftb: boolean; additional: boolean | null };
+  onSharedSdltChange?: (next: { ftb: boolean; additional: boolean | null }) => void;
 };
 
 export function PortalCostsCard({
   priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token, previewMode = false,
+  sharedSdlt, onSharedSdltChange,
 }: Props) {
   const [open, setOpen] = useState(false);
   // Item B: the "See your stamp duty" task prompt opens this card's sheet.
@@ -68,8 +74,19 @@ export function PortalCostsCard({
     window.addEventListener("portal:open-costs", onOpen);
     return () => window.removeEventListener("portal:open-costs", onOpen);
   }, []);
-  const [ftb, setFtb] = useState(savedFtb);
-  const [additional, setAdditional] = useState<boolean | null>(savedAdditional);
+  // ftb + additional are controlled when `sharedSdlt` is supplied (preview), so
+  // sibling preview cards agree; otherwise the card owns them (the real portal).
+  const [ftbInternal, setFtbInternal] = useState(savedFtb);
+  const [additionalInternal, setAdditionalInternal] = useState<boolean | null>(savedAdditional);
+  const sdltControlled = sharedSdlt != null;
+  const ftb = sdltControlled ? sharedSdlt.ftb : ftbInternal;
+  const additional = sdltControlled ? sharedSdlt.additional : additionalInternal;
+  // Set both stamp-duty answers atomically (they interact), routed to the parent
+  // when controlled, otherwise to local state.
+  const setSdlt = (next: { ftb: boolean; additional: boolean | null }) => {
+    if (sdltControlled) onSharedSdltChange?.(next);
+    else { setFtbInternal(next.ftb); setAdditionalInternal(next.additional); }
+  };
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showFundsParts, setShowFundsParts] = useState(false);
 
@@ -118,22 +135,18 @@ export function PortalCostsCard({
   // rules out first-time-buyer, so clear it.
   function confirmAdditional(v: boolean) {
     setSaved(false);
-    setAdditional(v);
-    if (v) setFtb(false);
+    setSdlt({ ftb: v ? false : ftb, additional: v });
   }
   // First-time buyer implies a single property, so it settles the surcharge too.
   function toggleFtb() {
     if (!ftbEligible) return;
     setSaved(false);
-    setFtb((v) => {
-      const n = !v;
-      // Only resolve the contradiction (they'd said they own another home). We
-      // do NOT set "single property" here: if they never answered the surcharge
-      // question, turning FTB on then off must return them to it, not silently
-      // assume standard rates and understate a second-property buyer.
-      if (n) setAdditional((a) => (a === true ? null : a));
-      return n;
-    });
+    const n = !ftb;
+    // Only resolve the contradiction (they'd said they own another home). We do
+    // NOT set "single property" here: if they never answered the surcharge
+    // question, turning FTB on then off must return them to it, not silently
+    // assume standard rates and understate a second-property buyer.
+    setSdlt({ ftb: n, additional: n ? (additional === true ? null : additional) : additional });
   }
 
   // One write path for everything on the card. The Save button persists the
@@ -292,7 +305,8 @@ export function PortalCostsCard({
             <p className="text-[12px] leading-relaxed mb-3" style={{ color: P.textMuted }}>
               Plus your solicitor&apos;s fees and any other costs. They&apos;ll confirm the exact balance to transfer on your completion statement.
             </p>
-            {saved && !dirty ? (
+            {/* No Save in the settings preview — nothing persists there. */}
+            {previewMode ? null : saved && !dirty ? (
               <span className="inline-flex items-center gap-1.5 text-[13px] font-bold" style={{ color: P.success }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <polyline points="20 6 9 17 4 12" />
@@ -321,14 +335,11 @@ export function PortalCostsCard({
             gap: 14,
           }}
         >
-          <div
-            className="flex items-center justify-center flex-shrink-0"
-            style={{ width: 52, height: 52, borderRadius: 14, background: P.cardBg, color: INFO, boxShadow: "0 2px 8px rgba(59,130,246,0.20)" }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <span className="flex items-center justify-center flex-shrink-0" style={{ color: INFO }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <line x1="3" y1="22" x2="21" y2="22" /><line x1="6" y1="18" x2="6" y2="11" /><line x1="10" y1="18" x2="10" y2="11" /><line x1="14" y1="18" x2="14" y2="11" /><line x1="18" y1="18" x2="18" y2="11" /><polygon points="12 2 20 7 4 7" />
             </svg>
-          </div>
+          </span>
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-bold" style={{ color: P.textPrimary, marginBottom: 2 }}>
               Stamp duty estimate
@@ -345,7 +356,7 @@ export function PortalCostsCard({
 
       {/* Stamp-duty sheet — portalled to <body>. Post-exchange it's the confirm
           flow (surcharge question); pre-exchange it's the full estimate calculator. */}
-      <PortalSheet open={open} onClose={() => setOpen(false)}>
+      <PortalSheet open={open} onClose={() => setOpen(false)} lockScroll={!previewMode}>
             <div className="px-6 pt-2 pb-6">
               <p className="text-[18px] font-semibold leading-snug mb-1" style={{ color: P.textPrimary }}>
                 {hasExchanged ? "Your stamp duty" : "Stamp duty estimate"}
@@ -383,9 +394,9 @@ export function PortalCostsCard({
               )}
 
               <PortalReveal show={!hasExchanged || sdltConfirmed}>
-                <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "rgba(59,130,246,0.06)", border: "0.5px solid rgba(59,130,246,0.14)" }}>
+                <div className="rounded-2xl px-5 py-4 mb-4" style={{ background: "linear-gradient(160deg, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0.05) 60%, rgba(99,102,241,0.06) 100%)", border: "1px solid rgba(59,130,246,0.22)", boxShadow: "0 10px 28px -14px rgba(59,130,246,0.45)" }}>
                   <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: INFO }}>Estimated stamp duty</p>
-                  <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: P.textPrimary }}><PortalMoney>{fmtGBP(sdlt)}</PortalMoney></p>
+                  <p className="text-[30px] font-black leading-none tabular-nums" style={{ color: "#1D4ED8" }}><PortalMoney>{fmtGBP(sdlt)}</PortalMoney></p>
                   <p className="text-[12px] mt-1.5" style={{ color: P.textSecondary }}>Effective rate {fmtPct(result.effectiveRate)} of the purchase price</p>
                 </div>
 
@@ -512,23 +523,32 @@ function OptionButton({ label, sub, selected, onClick }: { label: string; sub: s
       onClick={onClick}
       className="portal-optrow pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
       data-sel={selected}
-      style={{ border: `1px solid ${selected ? P.primary : P.border}`, borderWidth: selected ? 2 : 1, background: selected ? P.primaryBg : P.cardBg }}
+      style={selected ? OPT_SELECTED_STYLE : { border: `1px solid ${P.border}`, background: P.cardBg }}
       aria-pressed={selected}
     >
-      <span className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{ width: 20, height: 20, borderRadius: "50%", background: selected ? P.primary : "transparent", border: selected ? "none" : `1.5px solid ${P.border}` }}>
+      <span className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{ width: 20, height: 20, borderRadius: "50%", background: selected ? "#fff" : "transparent", border: selected ? "none" : `1.5px solid ${P.border}` }}>
         {selected && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E85A35" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
       </span>
       <span className="min-w-0">
-        <span className="block text-[14px] font-semibold" style={{ color: P.textPrimary }}>{label}</span>
-        <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: P.textMuted }}>{sub}</span>
+        <span className="block text-[14px] font-semibold" style={{ color: selected ? "#fff" : P.textPrimary }}>{label}</span>
+        <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: selected ? "rgba(255,255,255,0.88)" : P.textMuted }}>{sub}</span>
       </span>
     </button>
   );
 }
+
+// Solid coral gradient fill for a selected choice row, lifted from the claim
+// flow's `.claim-choice-card.on`. Border kept at 2px transparent so selecting
+// doesn't shift the row.
+const OPT_SELECTED_STYLE: React.CSSProperties = {
+  border: "2px solid transparent",
+  background: "linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%)",
+  boxShadow: "0 10px 24px rgba(255,107,74,0.4), inset 0 1px 0 rgba(255,255,255,0.4)",
+};
 
 function ToggleRow({ label, sub, on, onClick }: { label: string; sub: string; on: boolean; onClick: () => void }) {
   return (
@@ -537,19 +557,19 @@ function ToggleRow({ label, sub, on, onClick }: { label: string; sub: string; on
       onClick={onClick}
       className="portal-optrow pbtn pbtn-press flex items-start gap-3 text-left w-full rounded-xl px-4 py-3"
       data-sel={on}
-      style={{ border: `1px solid ${on ? P.primary : P.border}`, borderWidth: on ? 2 : 1, background: on ? P.primaryBg : P.cardBg }}
+      style={on ? OPT_SELECTED_STYLE : { border: `1px solid ${P.border}`, background: P.cardBg }}
       aria-pressed={on}
     >
-      <span className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{ width: 20, height: 20, borderRadius: 6, background: on ? P.primary : "transparent", border: on ? "none" : `1.5px solid ${P.border}` }}>
+      <span className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{ width: 20, height: 20, borderRadius: 6, background: on ? "#fff" : "transparent", border: on ? "none" : `1.5px solid ${P.border}` }}>
         {on && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E85A35" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
       </span>
       <span className="min-w-0">
-        <span className="block text-[14px] font-semibold" style={{ color: P.textPrimary }}>{label}</span>
-        <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: P.textMuted }}>{sub}</span>
+        <span className="block text-[14px] font-semibold" style={{ color: on ? "#fff" : P.textPrimary }}>{label}</span>
+        <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: on ? "rgba(255,255,255,0.88)" : P.textMuted }}>{sub}</span>
       </span>
     </button>
   );

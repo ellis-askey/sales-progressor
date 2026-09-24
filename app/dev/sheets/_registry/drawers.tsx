@@ -548,7 +548,8 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
           transactionId={DEMO_TX_ID}
           seedState={{
             suppressPortalConfirmEmails: false,
-            portalKeyDatesOverride: null,
+            portalKeyDatesOverrideVendor: null,
+            portalKeyDatesOverridePurchaser: null,
             agencyShowPortalKeyDates: true,
             status: onHold ? "on_hold" : "active",
             clientEmailsPaused: onHold,

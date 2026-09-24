@@ -25,8 +25,9 @@
 // §1.1) per Law 14.
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
-  EnvelopeSimple,
+  Gear,
   PaperPlaneTilt,
   UsersThree,
   ChatCircleText,
@@ -263,6 +264,20 @@ function EmailSettingsDrawer({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { toast } = useAgentToast();
+  const router = useRouter();
+
+  // Footer link: close the drawer, then take them to the file's clients/contacts
+  // section on the Overview tab. If we're already on Overview the section is in
+  // the DOM (scroll to it); otherwise route to Overview with the anchor.
+  const goToContacts = useCallback(() => {
+    onClose();
+    const el = document.getElementById("clients-section");
+    if (el) {
+      window.setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 320);
+    } else {
+      router.push(`/agent/transactions/${transactionId}#clients-section`);
+    }
+  }, [onClose, router, transactionId]);
   // Automatic-chasing list is collapsible; open by default so the agent
   // sees who's being chased without an extra tap.
   const [chasingOpen, setChasingOpen] = useState(true);
@@ -290,15 +305,20 @@ function EmailSettingsDrawer({
     });
   }
 
-  // Per-file key-dates override: null = follow agency, true = force show,
-  // false = force hide. Writes via the portal-display action + audit fields.
-  function setKeyDates(next: boolean | null) {
+  // Per-file, per-side key-dates override: null = follow agency, true = force
+  // show, false = force hide. Writes via the portal-display action + audit.
+  function setKeyDates(side: "vendor" | "purchaser", next: boolean | null) {
     if (!state || pendingKey) return;
     setPendingKey("keydates");
     startTransition(async () => {
-      const res = await setTransactionKeyDatesOverride(transactionId, next);
+      const res = await setTransactionKeyDatesOverride(transactionId, side, next);
       if (res.ok) {
-        onStateChange({ ...state, portalKeyDatesOverride: next });
+        onStateChange({
+          ...state,
+          ...(side === "vendor"
+            ? { portalKeyDatesOverrideVendor: next }
+            : { portalKeyDatesOverridePurchaser: next }),
+        });
       } else {
         toast.error(res.error);
       }
@@ -405,8 +425,8 @@ function EmailSettingsDrawer({
     <Drawer open={open} onClose={onClose} ariaLabel="Client settings for this file" size="md" zLayer="escalated" closeTone="onDark">
       <Drawer.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader
-          kicker="Client portal"
-          icon={<EnvelopeSimple size={20} weight="regular" />}
+          icon={<Gear size={26} weight="regular" />}
+          iconBare
           title="Client settings"
           subtitle="What this client sees, plus the emails and automatic chasing for this sale."
         />
@@ -418,46 +438,6 @@ function EmailSettingsDrawer({
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* What the client sees: the key-dates card on their portal. Agency
-                default (Account -> Client portal), overridable here per sale. */}
-            <SectionCard
-              icon={<CalendarBlank size={20} weight="regular" />}
-              title="Key dates on their portal"
-              subtitle="The 12-week target and estimated exchange date."
-            >
-              <div style={{ padding: "0 16px 14px" }}>
-                <div style={{ display: "inline-flex", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)", borderRadius: 9, padding: 2, gap: 2 }}>
-                  {([["Follow agency", null], ["Show", true], ["Hide", false]] as [string, boolean | null][]).map(([lbl, val]) => {
-                    const sel = state.portalKeyDatesOverride === val;
-                    return (
-                      <button
-                        key={lbl}
-                        type="button"
-                        disabled={pendingKey !== null}
-                        onClick={() => setKeyDates(val)}
-                        style={{
-                          border: "none",
-                          background: sel ? "var(--agent-coral, #FF6B4A)" : "transparent",
-                          color: sel ? "#fff" : "var(--agent-text-secondary)",
-                          fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7,
-                          cursor: pendingKey ? "default" : "pointer",
-                        }}
-                      >
-                        {lbl}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p style={{ margin: "9px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                  {state.portalKeyDatesOverride === null
-                    ? `Following your agency setting (currently ${state.agencyShowPortalKeyDates ? "shown" : "hidden"}).`
-                    : state.portalKeyDatesOverride
-                      ? "Shown to this client (agency default overridden)."
-                      : "Hidden from this client (agency default overridden)."}
-                </p>
-              </div>
-            </SectionCard>
-
             {/* Available to whoever controls this file's emails — internal staff
                 and self-managed agencies (the button only opens for those). */}
             <SectionCard
@@ -589,6 +569,78 @@ function EmailSettingsDrawer({
               </div>
             </SectionCard>
 
+            {/* What the client sees: the key-dates card on their portal. Agency
+                default (Account -> Client portal), overridable here per sale. */}
+            <SectionCard
+              icon={<CalendarBlank size={20} weight="regular" />}
+              title="Key dates on their portal"
+              subtitle="The 12-week target and estimated exchange date."
+            >
+              <div style={{ padding: "2px 16px 14px" }}>
+                {/* Seller + Buyer sit side by side, each control filling its
+                    column so there's no dead gutter. auto-fit collapses them to
+                    a single column when the drawer is too narrow. */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(188px, 1fr))", gap: 16 }}>
+                  {([["vendor", "Seller"], ["purchaser", "Buyer"]] as ["vendor" | "purchaser", string][]).map(([side, sideLabel]) => {
+                    const val = side === "vendor" ? state.portalKeyDatesOverrideVendor : state.portalKeyDatesOverridePurchaser;
+                    return (
+                      <div key={side} style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{sideLabel}</div>
+                        <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, marginBottom: 8, minHeight: 15 }}>
+                          {val === null
+                            ? `Following agency (currently ${state.agencyShowPortalKeyDates ? "shown" : "hidden"})`
+                            : val
+                              ? `Shown to the ${sideLabel.toLowerCase()}`
+                              : `Hidden from the ${sideLabel.toLowerCase()}`}
+                        </div>
+                        <div style={{ position: "relative", display: "flex", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)", borderRadius: 9, padding: 2 }}>
+                          {/* Sliding thumb — the selected fill glides between the
+                              three options with a gentle overshoot, rather than
+                              jumping. Follow=0, Show=1, Hide=2. */}
+                          <span
+                            aria-hidden
+                            style={{
+                              position: "absolute", top: 2, bottom: 2, left: 2,
+                              width: "calc((100% - 4px) / 3)",
+                              transform: `translateX(${(val === null ? 0 : val ? 1 : 2) * 100}%)`,
+                              background: "var(--agent-coral, #FF6B4A)",
+                              borderRadius: 7,
+                              boxShadow: "0 2px 6px -2px rgba(232,90,53,0.5)",
+                              transition: "transform 340ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+                            }}
+                          />
+                          {([["Follow", null], ["Show", true], ["Hide", false]] as [string, boolean | null][]).map(([lbl, v]) => {
+                            const sel = val === v;
+                            return (
+                              <button
+                                key={lbl}
+                                type="button"
+                                disabled={pendingKey !== null}
+                                onClick={() => setKeyDates(side, v)}
+                                style={{
+                                  position: "relative", zIndex: 1,
+                                  flex: 1,
+                                  border: "none",
+                                  background: "transparent",
+                                  color: sel ? "#fff" : "var(--agent-text-secondary)",
+                                  fontSize: 11.5, fontWeight: 600, padding: "6px 4px", borderRadius: 7,
+                                  cursor: pendingKey ? "default" : "pointer",
+                                  whiteSpace: "nowrap",
+                                  transition: "color 200ms ease",
+                                }}
+                              >
+                                {lbl}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard
               icon={<ChatCircleText size={20} weight="regular" />}
               title="Chase enquiries"
@@ -623,12 +675,21 @@ function EmailSettingsDrawer({
               />
             )}
 
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "0 4px" }}>
-              <Info size={15} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 1 }} />
-              <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+            <button
+              type="button"
+              onClick={goToContacts}
+              className="settings-footer-link"
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 9, padding: "0 4px",
+                width: "100%", textAlign: "left", border: "none", background: "none",
+                cursor: "pointer", color: "var(--agent-text-muted)",
+              }}
+            >
+              <Info size={15} weight="regular" style={{ color: "currentColor", flexShrink: 0, marginTop: 1 }} />
+              <span style={{ margin: 0, fontSize: 11.5, color: "currentColor", lineHeight: 1.5 }}>
                 Changes apply to this file only. You can update these settings anytime.
-              </p>
-            </div>
+              </span>
+            </button>
           </div>
         )}
       </Drawer.Body>
@@ -662,32 +723,30 @@ export function EmailSettingsButton({
     reload();
   }, [reload]);
 
-  const pausedCount = state
+  const pausedPeople = state
     ? state.contacts.filter((c) => c.paused).length +
       (state.vendorSolicitor?.paused ? 1 : 0) +
-      (state.purchaserSolicitor?.paused ? 1 : 0) +
-      (state.suppressPortalConfirmEmails ? 1 : 0)
+      (state.purchaserSolicitor?.paused ? 1 : 0)
     : 0;
   const onHold = state?.status === "on_hold";
-  const attention = onHold || pausedCount > 0;
+  // The pill just says "Settings" — the detail lives in the drawer. All we
+  // surface out here is a quiet ring: amber when some of the file's automated
+  // email/chase switches are off, red when they're all off (or it's on hold).
+  const mastersOff = state
+    ? [state.suppressPortalConfirmEmails, state.enquiryChasePaused, state.clientEmailsPaused]
+    : [];
+  const anyOff = onHold || pausedPeople > 0 || mastersOff.some(Boolean);
+  const allOff = onHold || (mastersOff.length > 0 && mastersOff.every(Boolean));
 
-  const label = !state
-    ? "Client settings"
-    : onHold
-      ? "On hold"
-      : pausedCount > 0
-        ? "Some emails paused"
-        : "Emails on";
-
-  // Fill + border live in CSS (.email-settings-pill, agent-system.css): a
-  // theme-aware chip on desktop where the pill sits on the hero surface; the
-  // v08 "Deep frost" glass at <= 767px where the hero photo runs behind it.
-  // Attention (paused / on hold) is carried by the amber label + border
-  // (.is-attention), not the fill — so the pill is always legible, never a
-  // chip that vanishes.
-  const tone = attention
-    ? "var(--agent-warning, #C97D1A)"
-    : "var(--agent-text-secondary, #475569)";
+  // Only the border colour carries the state, so the pill reads the same on the
+  // desktop chip and the mobile glass — inline so we don't touch the shared
+  // .email-settings-pill CSS (which only supplies fill + the hairline border).
+  const ringColor = allOff
+    ? "var(--agent-danger-border-strong, rgba(192, 54, 44, 0.60))"
+    : anyOff
+      ? "var(--agent-warning-border-strong, rgba(201, 125, 26, 0.50))"
+      : null;
+  const tone = "var(--agent-text-secondary, #475569)";
 
   return (
     <>
@@ -695,7 +754,7 @@ export function EmailSettingsButton({
         type="button"
         onClick={() => setOpen(true)}
         title="Client settings for this file"
-        className={attention ? "email-settings-pill is-attention" : "email-settings-pill"}
+        className="email-settings-pill"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -705,9 +764,10 @@ export function EmailSettingsButton({
           cursor: "pointer",
           flexShrink: 0,
           whiteSpace: "nowrap",
+          ...(ringColor ? { borderColor: ringColor } : {}),
         }}
       >
-        <EnvelopeSimple size={13} weight="regular" style={{ color: tone }} />
+        <Gear size={13} weight="regular" style={{ color: tone }} />
         <span
           style={{
             fontSize: 11,
@@ -716,7 +776,7 @@ export function EmailSettingsButton({
             letterSpacing: 0.02,
           }}
         >
-          {label}
+          Settings
         </span>
       </button>
       <EmailSettingsDrawer

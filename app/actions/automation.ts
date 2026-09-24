@@ -205,10 +205,11 @@ export type EmailSettingsContact = {
 
 export type EmailSettingsState = {
   suppressPortalConfirmEmails: boolean;
-  // Per-file key-dates portal override: null = follow the agency default,
-  // true = force show, false = force hide. `agencyShowPortalKeyDates` is the
-  // agency-wide default, shown so the drawer can render the resolved state.
-  portalKeyDatesOverride: boolean | null;
+  // Per-file, per-side key-dates portal override: null = follow the agency
+  // default, true = force show, false = force hide. `agencyShowPortalKeyDates`
+  // is the agency-wide default, shown so the drawer renders the resolved state.
+  portalKeyDatesOverrideVendor: boolean | null;
+  portalKeyDatesOverridePurchaser: boolean | null;
   agencyShowPortalKeyDates: boolean;
   status: "active" | "on_hold" | "other";
   clientEmailsPaused: boolean;
@@ -265,7 +266,8 @@ export async function loadEmailSettings(
       status: true,
       serviceType: true,
       suppressPortalConfirmEmails: true,
-      portalKeyDatesOverride: true,
+      portalKeyDatesOverrideVendor: true,
+      portalKeyDatesOverridePurchaser: true,
       agency: { select: { showPortalKeyDates: true } },
       clientEmailsPaused: true,
       enquiryChasePaused: true,
@@ -314,7 +316,8 @@ export async function loadEmailSettings(
     ok: true,
     data: {
       suppressPortalConfirmEmails: tx.suppressPortalConfirmEmails,
-      portalKeyDatesOverride: tx.portalKeyDatesOverride,
+      portalKeyDatesOverrideVendor: tx.portalKeyDatesOverrideVendor,
+      portalKeyDatesOverridePurchaser: tx.portalKeyDatesOverridePurchaser,
       agencyShowPortalKeyDates: tx.agency?.showPortalKeyDates ?? true,
       status: tx.status === "active" ? "active" : tx.status === "on_hold" ? "on_hold" : "other",
       clientEmailsPaused: tx.clientEmailsPaused,

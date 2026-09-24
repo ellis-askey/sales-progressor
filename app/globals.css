@@ -562,11 +562,36 @@ body {
    row takes a coral border + faint tint. Previously the .pbtn brightness wash
    lightened the hairline border and the empty radio ring until they vanished;
    filter:none stops that, and the radio ring stays visible. */
-.portal-optrow { transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
+.portal-optrow { transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease, transform 180ms ease; }
 .portal-optrow:hover:not(:disabled) { filter: none; }
 .portal-optrow[data-sel="false"]:hover:not(:disabled) {
   border-color: var(--portal-primary, #FF6B4A) !important;
-  background: var(--portal-primaryBg, rgba(255,107,74,0.10)) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(26,29,41,0.08);
+}
+/* Selected: solid coral gradient fill (matches the claim-flow choice cards),
+   lifting a touch further on hover. */
+.portal-optrow[data-sel="true"]:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(255,107,74,0.45), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+}
+
+/* Expected-exchange card: the 12-week target + estimated/planned date sit in two
+   columns. Below 650px they stack so long dates ("by 16 Nov 2026") stop
+   squishing; the right column's divider flips from a left border to a top one. */
+/* Client settings drawer footer: the whole line is a quiet link to the file's
+   contacts section — icon + text warm to the coral primary on hover. */
+.settings-footer-link { transition: color 150ms ease; }
+.settings-footer-link:hover { color: var(--agent-coral, #FF6B4A); }
+
+/* Client-portal settings preview: card lifts on hover (opens the real modal). */
+.cp-lift { transition: transform .16s ease, box-shadow .16s ease; }
+.cp-lift:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -12px rgba(0,0,0,.32); }
+
+.portal-keydates-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0; }
+@media (max-width: 650px) {
+  .portal-keydates-grid { grid-template-columns: 1fr; }
+  .portal-keydates-grid > .portal-keydates-col2 { border-left: none !important; border-top: 0.5px solid rgba(15,23,42,0.08); }
 }
 
 /* Neutral secondary that matches the portal card surface, with a gentle hover. */

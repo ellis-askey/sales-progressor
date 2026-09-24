@@ -15,19 +15,33 @@ import { PortalSheet } from "./PortalSheet";
 import { House, Check, ChatCircle, Package, Key } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
 
-export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string; side: "vendor" | "purchaser"; alreadySeen: boolean }) {
+export function PortalWelcomeSheet({
+  token, side, alreadySeen,
+  previewMode = false, previewOpen = false, onPreviewClose,
+}: {
+  token: string;
+  side: "vendor" | "purchaser";
+  alreadySeen: boolean;
+  // Preview (director "Client portal" settings): the parent controls open via
+  // `previewOpen`, there's no auto-open, and dismissing never persists.
+  previewMode?: boolean;
+  previewOpen?: boolean;
+  onPreviewClose?: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (previewMode) return; // preview: parent controls open; no auto-open.
     // Server gate wins: dismissed on any device -> never shows again.
     if (alreadySeen) return;
     const key = `portal-welcome-seen-${token}`;
     if (localStorage.getItem(key)) return;
     const t = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(t);
-  }, [token, alreadySeen]);
+  }, [token, alreadySeen, previewMode]);
 
   function dismiss() {
+    if (previewMode) { onPreviewClose?.(); return; } // preview: don't persist.
     localStorage.setItem(`portal-welcome-seen-${token}`, "1");
     // Persist to the Contact so it never re-appears on their other devices.
     // Fire-and-forget: if it fails, localStorage still gates this device and
@@ -41,7 +55,7 @@ export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string
   const startNode = side === "vendor" ? "Offer accepted" : "Sale agreed";
 
   return (
-    <PortalSheet open={open} onClose={dismiss} showClose={false}>
+    <PortalSheet open={previewMode ? previewOpen : open} onClose={dismiss} showClose={previewMode} lockScroll={!previewMode}>
         <div className="px-6 pt-3 pb-6">
           <h2 className="text-[26px] font-bold leading-[1.15] mb-2" style={{ color: P.textPrimary }}>
             Your {dealWord} starts here
@@ -54,15 +68,15 @@ export function PortalWelcomeSheet({ token, side, alreadySeen }: { token: string
           <Stepper startNode={startNode} side={side} />
 
           <div className="flex flex-col">
-            <Point icon={<House size={18} weight="fill" />} title="Follow your progress">
+            <Point icon={<House size={24} weight="fill" />} title="Follow your progress">
               See what&apos;s been completed, what&apos;s happening now and what comes next.
             </Point>
             <div className="h-px my-4" style={{ background: P.border }} />
-            <Point icon={<Check size={18} weight="bold" />} title="Confirm your steps">
+            <Point icon={<Check size={24} weight="bold" />} title="Confirm your steps">
               When you complete something, confirm it here and we&apos;ll keep everyone updated with the latest progress.
             </Point>
             <div className="h-px my-4" style={{ background: P.border }} />
-            <Point icon={<ChatCircle size={18} weight="fill" />} title="Stay in the loop">
+            <Point icon={<ChatCircle size={24} weight="fill" />} title="Stay in the loop">
               We&apos;ll keep you updated as things move forward, and your sales progressor is always on hand if you need
               them.
             </Point>
@@ -127,12 +141,12 @@ function Point({
 }) {
   return (
     <div className="flex items-start gap-3.5">
-      <div
-        className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-xl"
-        style={{ background: P.primaryBg, color: P.primary }}
+      <span
+        className="flex items-center justify-center flex-shrink-0"
+        style={{ color: P.primary, marginTop: 2 }}
       >
         {icon}
-      </div>
+      </span>
       <div className="min-w-0">
         <p className="text-[15px] font-bold" style={{ color: P.textPrimary }}>{title}</p>
         <p className="text-[13px] leading-snug mt-1" style={{ color: P.textSecondary }}>{children}</p>

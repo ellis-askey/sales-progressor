@@ -32,11 +32,14 @@ export function SheetBandHeader({
   title,
   subtitle,
   icon,
+  iconBare = false,
 }: {
   kicker?: string;
   title: string;
   subtitle?: ReactNode;
   icon?: ReactNode;
+  /** Render the icon on its own (no tinted square backer). */
+  iconBare?: boolean;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -48,7 +51,7 @@ export function SheetBandHeader({
             height: 38,
             borderRadius: 11,
             flexShrink: 0,
-            background: "rgba(255,255,255,0.18)",
+            background: iconBare ? "transparent" : "rgba(255,255,255,0.18)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

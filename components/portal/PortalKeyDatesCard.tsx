@@ -39,26 +39,15 @@ export function PortalKeyDatesCard({
           never moves). Right = either a firm PLANNED date, or the soft,
           month-level ESTIMATE. Keeping both visible stops the estimate
           being read as a broken promise when it shifts. */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-        gap: 0,
-      }}>
+      <div className="portal-keydates-grid">
         {/* Left: 12-week target */}
-        <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: P.primaryBg, color: P.primary,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8"  y1="2" x2="8"  y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
+        <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 13 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={P.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8"  y1="2" x2="8"  y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 11, color: P.textSecondary, fontWeight: 500 }}>
               12-week target
@@ -69,25 +58,17 @@ export function PortalKeyDatesCard({
           </div>
         </div>
         {/* Right: firm planned date, else the soft month-level estimate */}
-        <div style={{
+        <div className="portal-keydates-col2" style={{
           padding: "16px 18px",
-          display: "flex", alignItems: "center", gap: 12,
+          display: "flex", alignItems: "center", gap: 13,
           borderLeft: `0.5px solid ${P.border}`,
         }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: plannedDate ? P.primaryBg : "rgba(15,23,42,0.06)",
-            color: plannedDate ? P.primary : P.textMuted,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8"  y1="2" x2="8"  y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={plannedDate ? P.primary : P.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8"  y1="2" x2="8"  y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 11, color: P.textSecondary, fontWeight: 500 }}>
               {plannedDate ? "Planned exchange" : "Estimated exchange"}
@@ -118,14 +99,7 @@ export function PortalKeyDatesCard({
         background: P.successBg,
         borderTop: `0.5px solid ${P.border}`,
       }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: "rgba(16,185,129,0.15)", color: P.success,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          <Shield size={18} weight="regular" />
-        </div>
+        <Shield size={24} weight="regular" color={P.success} style={{ flexShrink: 0 }} />
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#065F46", lineHeight: 1.2 }}>
             You&apos;re in good hands
