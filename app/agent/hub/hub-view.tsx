@@ -22,7 +22,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import type { AgentVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubPipelineHealth, getHubAttentionItems, getHubWins,
-  getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
+  getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivityFeed, getHubDiary,
   getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm, getStalledEnquiries,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
@@ -39,6 +39,7 @@ import {
 import { WinsCard } from "@/components/hub/WinsCard";
 import { PipelineAtAGlance } from "@/components/hub/PipelineAtAGlance";
 import { AttentionCard } from "@/components/hub/AttentionCard";
+import { ExchangeSparkline } from "@/components/hub/ExchangeSparkline";
 import { ExchangeOverdueCard } from "@/components/hub/ExchangeOverdueCard";
 import { FirstSaleHero } from "@/components/hub/FirstSaleHero";
 import { HubListCard, type HubRowData, type HubRowTone } from "@/components/hub/HubListCard";
@@ -53,8 +54,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
-import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, Lightbulb, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
-import { LinkArrow } from "@/components/ui/LinkArrow";
+import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -504,14 +504,9 @@ function FullHubBody({
         )}
       </div>
 
-      {/* Recent activity ribbon */}
+      {/* Recent activity feed */}
       <Suspense fallback={null}>
         <ActivityRibbonSlot vis={ctx.vis} />
-      </Suspense>
-
-      {/* Pro tip banner */}
-      <Suspense fallback={null}>
-        <ProTipSlot ctx={ctx} />
       </Suspense>
     </>
   );
@@ -870,14 +865,11 @@ async function PipelineHealthCard({
   const showHealthStrip =
     health.medianDaysToExchange != null || health.within12WeekPct != null || health.exchangesLast30 > 0;
 
-  // Sparkline geometry from the last-8-weeks exchange series.
+  // 8-week exchange series — drawn by <ExchangeSparkline/> (real-pixel, hover +
+  // touch-scrub). Only the "has any data" check stays here.
   const spark = health.weeklyExchanges ?? [];
-  const sparkMax = Math.max(1, ...spark);
   const sparkHasData = spark.some((v) => v > 0);
-  const sparkPts = spark
-    .map((v, i) => `${(spark.length > 1 ? i / (spark.length - 1) : 0) * 94 + 3},${27 - (v / sparkMax) * 22}`)
-    .join(" ");
-  const sparkLastY = spark.length ? 27 - (spark[spark.length - 1] / sparkMax) * 22 : 27;
+  const hasHealthStats = health.medianDaysToExchange != null || health.within12WeekPct != null;
 
   return (
     <SectionReveal order={3}>
@@ -975,42 +967,51 @@ async function PipelineHealthCard({
           })}
         </div>
 
-        {/* Health strip — speed, SLA, momentum + an 8-week exchange sparkline.
-            Both roles (an agency sees its own performance). Hidden until there's
-            at least one exchange to read. */}
+        {/* Health strip — speed + SLA as supporting stats, then the 30-day
+            exchange count paired with its own 8-week trend as one unit. The
+            trend draws to real pixels (never stretches) and reads each week on
+            hover / touch-scrub. Reflows across three widths via the container
+            query on .hub-health-cq. Hidden until there's an exchange to read. */}
         {showHealthStrip && (
-          <div style={{
-            borderTop: "1px solid var(--agent-border-subtle)",
-            marginTop: 14, paddingTop: 12,
-            display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap",
-          }}>
-            {health.medianDaysToExchange != null && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>{health.medianDaysToExchange}d</span>
-                <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Median to exch.</span>
-              </div>
-            )}
-            {health.within12WeekPct != null && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: slaColor, letterSpacing: "-0.01em" }}>{health.within12WeekPct}%</span>
-                <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Within 12 wks</span>
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
-                {health.exchangesLast30}
-                {momText && (
-                  <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 4, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>{momText}</span>
+          <div className="hub-health-cq">
+            <div className="hub-health">
+              {hasHealthStats && (
+                <>
+                  <div className="hub-health-stats">
+                    {health.medianDaysToExchange != null && (
+                      <div className="hub-health-stat">
+                        <span className="hub-health-stat-n">{health.medianDaysToExchange}d</span>
+                        <span className="hub-health-stat-l">Median to exch.</span>
+                      </div>
+                    )}
+                    {health.within12WeekPct != null && (
+                      <div className="hub-health-stat">
+                        <span className="hub-health-stat-n" style={{ color: slaColor }}>{health.within12WeekPct}%</span>
+                        <span className="hub-health-stat-l">Within 12 wks</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="hub-health-divider" aria-hidden />
+                </>
+              )}
+              <div className="hub-health-hero">
+                <div className="hub-health-hero-head">
+                  <span className="hub-health-stat-l">Exchanges · last 30 days</span>
+                  <span className="hub-health-hero-n">
+                    {health.exchangesLast30}
+                    {momText && (
+                      <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 5, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>{momText}</span>
+                    )}
+                  </span>
+                </div>
+                {sparkHasData && (
+                  <div className="hub-health-trend">
+                    <ExchangeSparkline weeks={spark} />
+                    <span className="hub-health-trend-tag">8-week<br />trend</span>
+                  </div>
                 )}
-              </span>
-              <span style={{ fontSize: 9, fontFamily: "var(--agent-font-mono, ui-monospace)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Exchanges · 30d</span>
+              </div>
             </div>
-            {sparkHasData && (
-              <svg width="96" height="30" viewBox="0 0 100 30" aria-hidden style={{ marginLeft: "auto" }}>
-                <polyline points={sparkPts} fill="none" stroke="var(--agent-coral)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx={97} cy={sparkLastY} r="2.6" fill="var(--agent-coral)" />
-              </svg>
-            )}
           </div>
         )}
 
@@ -1340,204 +1341,59 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
 }
 
 async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
-  const recentActivity = await getHubRecentActivity(vis);
-  if (!recentActivity) return null;
-  const { Icon, bg, color } = pickActivityGlyph(recentActivity.kind, recentActivity.description);
+  const feed = await getHubRecentActivityFeed(vis, 5);
+  if (feed.length === 0) return null;
   return (
     <SectionReveal order={7}>
       <GlassCard
         glassId="hub-activity-ribbon"
-        label="Hub · Activity ribbon"
+        label="Hub · Recent activity"
         defaultVariant="v05"
-        className="hub-activity-ribbon"
-        style={{ padding: "12px 20px", borderRadius: "var(--agent-radius-xl)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+        style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-xl)" }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-            background: bg, color,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "0.5px solid rgba(15,23,42,0.06)",
-          }}>
-            <Icon size={14} weight="fill" />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{
-              margin: 0, fontSize: 12, fontWeight: 500,
-              color: "var(--agent-text-primary)",
-            }}>
-              Last activity: {recentActivity.description}
-            </p>
-            <p style={{
-              margin: 0, fontSize: 11, color: "var(--agent-text-muted)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {timeAgo(recentActivity.at)} · {recentActivity.context}
-            </p>
-          </div>
+        <div className="agent-card-hdr-internal" style={{ marginBottom: 10 }}>
+          <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Recent activity</p>
+          <p className="agent-card-subtitle">The latest across your files.</p>
         </div>
-        <Link
-          href={`/agent/transactions/${recentActivity.transactionId}`}
-          className="agent-link"
-          style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
-        >
-          View file
-          <LinkArrow />
-        </Link>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {feed.map((a, i) => {
+            const { Icon, bg, color } = pickActivityGlyph(a.kind, a.description);
+            return (
+              <Link
+                key={`${a.transactionId}-${i}`}
+                href={`/agent/transactions/${a.transactionId}`}
+                className="agent-hover-row"
+                style={{
+                  display: "flex", alignItems: "center", gap: 11,
+                  padding: "9px 8px", borderRadius: 10, textDecoration: "none",
+                  borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                }}
+              >
+                <div style={{
+                  width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+                  background: bg, color,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "0.5px solid rgba(15,23,42,0.06)",
+                }}>
+                  <Icon size={15} weight="fill" />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {a.description}
+                  </p>
+                  <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {a.context}
+                  </p>
+                </div>
+                <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {timeAgo(a.at)}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </GlassCard>
     </SectionReveal>
   );
 }
 
-async function ProTipSlot({ ctx }: { ctx: Ctx }) {
-  const [pipelineStats, attentionItems, weeklyForecast] = await Promise.all([
-    getHubPipelineStats(ctx.vis),
-    getHubAttentionItems(ctx.vis),
-    getHubWeeklyForecast(ctx.vis),
-  ]);
-  const escalatedCount = attentionItems.filter((i) => i.urgency === "escalated").length;
-  const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
-  const next7Days = weeklyForecast[0]?.count ?? 0;
-  const { isAdmin, isProgressor, canCreateSale } = ctx;
-  const stalledCount = pipelineStats.stalled.count;
-
-  type Tip = { copy: React.ReactNode; href: string | null };
-  let tip: Tip | null = null;
-  if (stalledCount > 0) {
-    tip = {
-      copy: (
-        <>
-          <strong style={{ color: "var(--agent-text-primary)" }}>
-            {stalledCount} {stalledCount === 1 ? "file hasn't" : "files haven't"} had an update in 14+ days.
-          </strong>{" "}
-          A quick chase now could keep your pipeline moving.
-        </>
-      ),
-      href: "/agent/work-queue",
-    };
-  } else if (escalatedCount > 0) {
-    tip = {
-      copy: (
-        <>
-          <strong style={{ color: "var(--agent-text-primary)" }}>
-            {escalatedCount} {escalatedCount === 1 ? "reminder" : "reminders"} escalated.
-          </strong>{" "}
-          Clearing these first keeps everything downstream on track.
-        </>
-      ),
-      href: "/agent/work-queue",
-    };
-  } else if (next7Days > 0) {
-    tip = {
-      copy: (
-        <>
-          <strong style={{ color: "var(--agent-text-primary)" }}>
-            {next7Days} {next7Days === 1 ? "file exchanging" : "files exchanging"} this week.
-          </strong>{" "}
-          Give each one a final ready-check before Friday.
-        </>
-      ),
-      href: "/agent/transactions?filter=exchanging-this-week",
-    };
-  } else if (attentionFileCount > 0) {
-    tip = {
-      copy: (
-        <>
-          <strong style={{ color: "var(--agent-text-primary)" }}>
-            {attentionFileCount} {attentionFileCount === 1 ? "file needs" : "files need"} a bit of attention today.
-          </strong>{" "}
-          Clearing these before end-of-day is the fastest win.
-        </>
-      ),
-      href: "/agent/work-queue",
-    };
-  } else if (pipelineStats.activeFiles > 0) {
-    if (isAdmin) {
-      tip = {
-        copy: (
-          <>
-            <strong style={{ color: "var(--agent-text-primary)" }}>Platform is ticking along nicely.</strong>{" "}
-            A good moment to spot-check risk trends or review the analytics view.
-          </>
-        ),
-        href: "/agent/analytics",
-      };
-    } else if (isProgressor) {
-      tip = {
-        copy: (
-          <>
-            <strong style={{ color: "var(--agent-text-primary)" }}>All your assigned files are healthy.</strong>{" "}
-            A great moment to spot-check the trickier ones or catch up on notes.
-          </>
-        ),
-        href: "/agent/transactions",
-      };
-    } else {
-      tip = {
-        copy: (
-          <>
-            <strong style={{ color: "var(--agent-text-primary)" }}>Pipeline is looking healthy.</strong>{" "}
-            A great moment to add your next sale or nudge a chain forward.
-          </>
-        ),
-        href: canCreateSale ? "/agent/transactions/new" : null,
-      };
-    }
-  }
-
-  if (!tip) return null;
-
-  const inner = (
-    <>
-      <div style={{
-        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-        background: "rgba(245, 158, 11, 0.10)",
-        color: "var(--agent-warning)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        border: "0.5px solid rgba(245, 158, 11, 0.30)",
-      }}>
-        <Lightbulb size={16} weight="fill" />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          margin: 0,
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "var(--agent-warning)",
-        }}>
-          Pro tip
-        </p>
-        <p style={{
-          margin: "2px 0 0", fontSize: 13,
-          color: "var(--agent-text-secondary)", lineHeight: 1.5,
-        }}>
-          {tip.copy}
-        </p>
-      </div>
-      {tip.href && (
-        <LinkArrow size={16} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-      )}
-    </>
-  );
-
-  const wrapperStyle: React.CSSProperties = {
-    display: "flex", alignItems: "center", gap: 12,
-    padding: "12px 16px",
-    background: "var(--agent-protip-bg)",
-    border: "0.5px solid rgba(245, 158, 11, 0.22)",
-    borderRadius: "var(--agent-radius-xl)",
-    textDecoration: "none",
-  };
-
-  return (
-    <SectionReveal order={8}>
-      {tip.href ? (
-        <Link href={tip.href} className="agent-hover-row" style={wrapperStyle} data-testid="hub-pro-tip">
-          {inner}
-        </Link>
-      ) : (
-        <div style={wrapperStyle} data-testid="hub-pro-tip">{inner}</div>
-      )}
-    </SectionReveal>
-  );
-}

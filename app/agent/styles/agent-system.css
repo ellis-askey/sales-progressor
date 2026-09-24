@@ -4339,6 +4339,120 @@ body[data-demo-file] [data-onboarding-checklist] {
   .attn-link-footer { display: flex; }
 }
 
+/* ── Hub pipeline-health strip ──────────────────────────────────────────────
+ * Median + 12-week % as supporting stats, then the 30-day exchange count
+ * paired with its own 8-week trend as ONE unit (the trend draws to real pixels
+ * via <ExchangeSparkline/> so it never stretches). Container query on the strip
+ * reflows to the CARD width, not the viewport: one row on desktop, stats over a
+ * full-width trend on tablet, a 2-up stat pair + headline + trend on mobile. */
+.hub-health-cq { container-type: inline-size; }
+.hub-health {
+  border-top: 1px solid var(--agent-border-subtle);
+  margin-top: 14px;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.hub-health-stats { display: flex; gap: 22px; flex: 0 0 auto; }
+.hub-health-stat { display: flex; flex-direction: column; gap: 1px; }
+.hub-health-stat-n { font-size: 15px; font-weight: 800; color: var(--agent-text-primary); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.hub-health-stat-l { font-size: 9px; font-family: var(--agent-font-mono, ui-monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); }
+.hub-health-divider { width: 1px; align-self: stretch; background: var(--agent-border-subtle); flex: 0 0 auto; }
+.hub-health-hero { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.hub-health-hero-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.hub-health-hero-n { font-size: 22px; font-weight: 800; color: var(--agent-coral-deep); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.hub-health-trend { display: flex; align-items: center; gap: 12px; }
+.hub-health-trend > :first-child { flex: 1 1 auto; min-width: 0; }
+.hub-health-trend-tag { font-size: 8.5px; font-family: var(--agent-font-mono, ui-monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); text-align: right; flex: 0 0 auto; line-height: 1.2; }
+
+@container (max-width: 640px) {
+  .hub-health { flex-direction: column; align-items: stretch; gap: 12px; }
+  .hub-health-divider { display: none; }
+}
+@container (max-width: 420px) {
+  .hub-health-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+}
+
+/* ── Hub attention rows ─────────────────────────────────────────────────────
+ * Wide layouts: [thumb | address+pill / status | actions] — the long-standing
+ * row. At ≤500px it reflows: photo + address are the tap-to-file target; the
+ * pill drops under the photo and the status "thing" + actions collapse behind
+ * the chevron. The container query keys off the CARD width, not the viewport. */
+.attn-rows { container-type: inline-size; container-name: attnrow; }
+
+.attn-row {
+  display: grid;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 12px 20px 12px 17px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "thumb addr   actions"
+    "thumb status actions";
+}
+.attn-thumb { grid-area: thumb; align-self: center; }
+.attn-addr {
+  grid-area: addr; display: flex; align-items: center; gap: 8px; min-width: 0;
+}
+.attn-addr-link {
+  min-width: 0; text-decoration: none;
+  font-size: 13px; font-weight: 600; color: var(--agent-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.attn-addr-street, .attn-addr-loc { display: none; }
+.attn-status {
+  grid-area: status; margin: 0; min-width: 0;
+  font-size: 11px; color: var(--agent-text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.attn-actions { grid-area: actions; display: flex; align-items: center; gap: 6px; justify-self: end; }
+.attn-chev { display: none; }
+.attn-pill-m { display: none; }
+
+/* Chevron button chrome (only visible ≤500px). */
+.attn-chev {
+  grid-area: chev; align-self: start; justify-self: end;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--agent-border-subtle); background: transparent;
+  color: var(--agent-text-muted); cursor: pointer;
+  align-items: center; justify-content: center;
+  transition: background 120ms ease;
+}
+.attn-chev:hover { background: var(--agent-hover-tint, rgba(255,107,74,0.06)); }
+
+@container attnrow (max-width: 500px) {
+  .attn-row {
+    align-items: start;
+    column-gap: 11px;
+    row-gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "thumb  addr    chev"
+      "pill   pill    pill"
+      "status status  actions";
+  }
+  .attn-thumb { align-self: start; }
+  /* Address stacks: street on line 1, town/postcode smaller beneath. */
+  .attn-addr { flex-direction: column; align-items: flex-start; gap: 1px; padding-top: 1px; }
+  .attn-addr-full { display: none; }
+  .attn-addr-street { display: block; font-size: 14px; font-weight: 700; color: var(--agent-text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .attn-addr-loc { display: block; font-size: 12px; font-weight: 400; color: var(--agent-text-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .attn-pill-d { display: none; }
+  .attn-pill-m { grid-area: pill; display: inline-flex; justify-self: start; align-self: start; }
+  .attn-chev { display: inline-flex; }
+  .attn-status { grid-area: status; align-self: center; }
+  .attn-actions { grid-area: actions; align-self: center; }
+  /* Collapsed: only photo + address (+ chevron) show; the rest hides. The left
+     accent bar still signals urgency at a glance. */
+  .attn-row.attn-collapsed .attn-pill-m,
+  .attn-row.attn-collapsed .attn-status,
+  .attn-row.attn-collapsed .attn-actions { display: none; }
+}
+
 /* Auto-emails toolbar: once the filter row has wrapped there is no "right
  * edge of the row" for Export to align to — drop the auto margin so it sits
  * inline with the other controls (audit D4). !important beats the inline

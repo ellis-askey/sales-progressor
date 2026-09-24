@@ -140,6 +140,18 @@ function TypePill({ label, tone, title }: { label: string; tone: Tone; title?: s
   );
 }
 
+// Split a UK address into "first line" + "town/postcode" (last two comma
+// parts), mirroring the reminders list / transactions list. Kept inline to
+// match the grandfathered pattern already used across those surfaces. Only the
+// ≤500px attention layout renders the split; wider layouts show the full line.
+function splitAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length <= 1) return { line: address, location: "" };
+  const line = parts.slice(0, -2).join(", ") || parts[0];
+  const location = parts.slice(-2).join(", ");
+  return { line, location };
+}
+
 // ── Chase split-button (reminder rows, Ellis 2026-09-18) ───────────────
 // [Chase | ⌄] on every reminder row. Chase opens the real chase drawer
 // right here on the hub (same composer as the file page / work queue) —
@@ -687,7 +699,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
               </p>
             </div>
           ) : (
-            <div ref={listRef}>
+            <div ref={listRef} className="attn-rows">
               {shownRows.map((row, i) => (
                 <AttentionRow
                   key={row.key}
@@ -915,78 +927,71 @@ function AttentionRow({
 
   const t = TONE[tone];
 
-  // Whole reminder rows stay pure links (their action lives in the file).
-  // All other rows are divs with inline action buttons; the address links.
-  const rowStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-    padding: "12px 20px 12px 17px",
-    borderLeft: `3px solid ${t.accent}`,
-    borderTop: topBorder ? "0.5px solid var(--agent-border-subtle)" : undefined,
-  };
+  const [expanded, setExpanded] = useState(false);
+  const { line: addrLine, location: addrLoc } = splitAddress(address);
+  const isReminder = row.kind === "reminder";
 
-  const body = (
-    <>
-      {row.kind === "unassigned" ? (
-        // Needs-assigning rows: the thumb doubles as the photo uploader —
-        // hover blurs the picture and shows the camera (2026-09-18).
+  // The row is a grid. On wide layouts: [thumb | address+pill / status | actions].
+  // At ≤500px it reflows (see .attn-row in agent-system.css): photo + address
+  // are the tap target to the file; the pill sits under the photo and the status
+  // "thing" + actions collapse behind the chevron. `attn-collapsed` only bites
+  // inside the ≤500px container query, so wider layouts always show everything.
+  const thumbNode =
+    row.kind === "unassigned" ? (
+      // Needs-assigning rows: the thumb doubles as the photo uploader — hover
+      // blurs the picture and shows the camera (2026-09-18) — so it stays inert.
+      <div className="attn-thumb">
         <UploadablePropertyThumb transactionId={row.item.id} photoUrl={row.item.photoUrl} />
-      ) : (
+      </div>
+    ) : (
+      <Link href={href} className="attn-thumb" aria-label={address} style={{ display: "block", lineHeight: 0, textDecoration: "none" }}>
         <PropertyThumb photoUrl={row.item.photoUrl} />
-      )}
-      <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          {/* Every row's address is a link — reminder rows stopped being
-              whole-row links when the Chase split button arrived (nested
-              interactive elements), so the address carries the navigation. */}
-          <Link
-            href={href}
-            style={{
-              fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
-              textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}
-            className="hover:underline"
-          >
-            {address}
-          </Link>
-          <TypePill label={pill.label} tone={tone} title={pill.title} />
-        </div>
-        <p
-          title={secondaryTitle}
-          style={{
-            margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}
-        >
-          {secondary}
-        </p>
-      </div>
-    </>
-  );
-
-  if (row.kind === "reminder") {
-    // Reminder rows (exchange-overdue items now live on their own card):
-    // address links into the Reminders tab; the [Chase | ⌄] split button
-    // carries the in-place actions.
-    return (
-      <div style={rowStyle} className="agent-hover-row">
-        {body}
-        <ChaseSplitButton
-          item={row.item}
-          onResolved={() => onReminderResolved(row.item.id)}
-          toastSuccess={toastSuccess}
-          toastError={toastError}
-        />
-      </div>
+      </Link>
     );
-  }
+
+  // Rendered in two slots (inline-with-address on desktop, under-photo on
+  // mobile); only one is visible per breakpoint. A pill is a plain span, so
+  // rendering it twice is free.
+  const pillNode = <TypePill label={pill.label} tone={tone} title={pill.title} />;
 
   return (
-    <div style={rowStyle}>
-      {body}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}>
+    <div
+      className={`attn-row${isReminder ? " agent-hover-row" : ""}${expanded ? "" : " attn-collapsed"}`}
+      style={{
+        borderLeft: `3px solid ${t.accent}`,
+        borderTop: topBorder ? "0.5px solid var(--agent-border-subtle)" : undefined,
+      }}
+    >
+      {thumbNode}
+      <div className="attn-addr">
+        {/* Reminder rows link into the Reminders tab; all others into the file. */}
+        <Link href={href} className="attn-addr-link hover:underline">
+          <span className="attn-addr-full">{address}</span>
+          <span className="attn-addr-street">{addrLine}</span>
+          {addrLoc && <span className="attn-addr-loc">{addrLoc}</span>}
+        </Link>
+        <span className="attn-pill-d">{pillNode}</span>
+      </div>
+      <button
+        type="button"
+        className="attn-chev"
+        aria-expanded={expanded}
+        aria-label={expanded ? "Hide details" : "Show details"}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <CaretDown size={15} weight="bold" style={{ transition: "transform 180ms ease", transform: expanded ? "rotate(180deg)" : "none" }} />
+      </button>
+      <span className="attn-pill-m">{pillNode}</span>
+      <p className="attn-status" title={secondaryTitle}>{secondary}</p>
+      <div className="attn-actions">
+        {isReminder && (
+          <ChaseSplitButton
+            item={row.item}
+            onResolved={() => onReminderResolved(row.item.id)}
+            toastSuccess={toastSuccess}
+            toastError={toastError}
+          />
+        )}
         {row.kind === "hold" && (
           showExtenderFor === txId ? (
             <div data-testid="hub-expired-holds-extender" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>

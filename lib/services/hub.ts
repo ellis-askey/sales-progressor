@@ -2877,13 +2877,14 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
 
 // ── Recent activity ───────────────────────────────────────────────────────────
 
-export type RecentActivity = {
+export type RecentActivityItem = {
   kind: "comm" | "milestone";
   description: string;
   context: string;
   transactionId: string;
   at: Date;
-} | null;
+};
+export type RecentActivity = RecentActivityItem | null;
 
 function commDescription(type: string, method: string | null, content: string | null): string {
   if (type === "inbound") return "Update received from party";
@@ -2896,25 +2897,28 @@ function commDescription(type: string, method: string | null, content: string | 
   return "Communication logged";
 }
 
-export async function getHubRecentActivity(
-  vis: AgentVisibility
-): Promise<RecentActivity> {
+// The last few events across the viewer's files — recent comms + completed
+// milestones, merged newest-first. Powers the Hub "Recent activity" feed.
+export async function getHubRecentActivityFeed(
+  vis: AgentVisibility,
+  limit = 5,
+): Promise<RecentActivityItem[]> {
   const txWhere = buildTxWhere(vis);
   const txFilter = { ...txWhere, status: { not: "draft" as never } };
-  // Phase-3: scope the cross-tx OutboundMessage + MilestoneCompletion
-  // reads below to active round + file-level. Pre-Phase-3 the latest
-  // archived-buyer comm or PM could win as "most recent activity" on a
-  // relisted file.
+  // Phase-3: scope the cross-tx OutboundMessage + MilestoneCompletion reads to
+  // active round + file-level. Pre-Phase-3 a relisted file's archived-buyer
+  // comm or PM could surface as recent activity.
   const activeRoundIds = await loadActiveRoundIds(txFilter);
 
-  const [recentComm, recentMilestone] = await Promise.all([
-    prisma.outboundMessage.findFirst({
+  const [comms, milestones] = await Promise.all([
+    prisma.outboundMessage.findMany({
       where: {
         transaction: txFilter,
         type: { in: ["outbound", "inbound"] },
         OR: roundScopedOR(activeRoundIds),
       },
       orderBy: { createdAt: "desc" },
+      take: limit,
       select: {
         type: true,
         method: true,
@@ -2923,14 +2927,14 @@ export async function getHubRecentActivity(
         transaction: { select: { id: true, propertyAddress: true } },
       },
     }),
-    // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
-    prisma.milestoneCompletion.findFirst({
+    prisma.milestoneCompletion.findMany({
       where: {
         transaction: txFilter,
         state: "complete",
         OR: roundScopedOR(activeRoundIds),
       },
       orderBy: { completedAt: "desc" },
+      take: limit,
       select: {
         completedAt: true,
         summaryText: true,
@@ -2940,32 +2944,38 @@ export async function getHubRecentActivity(
     }),
   ]);
 
-  const commTime = recentComm ? new Date(recentComm.createdAt).getTime() : 0;
-  const msTime = recentMilestone?.completedAt ? new Date(recentMilestone.completedAt).getTime() : 0;
-
-  if (commTime === 0 && msTime === 0) return null;
-
-  if (commTime >= msTime && recentComm) {
-    return {
+  const items: RecentActivityItem[] = [];
+  for (const c of comms) {
+    if (!c.transaction) continue;
+    items.push({
       kind: "comm",
-      description: commDescription(recentComm.type, recentComm.method, recentComm.content),
-      context: recentComm.transaction!.propertyAddress,
-      transactionId: recentComm.transaction!.id,
-      at: recentComm.createdAt,
-    };
+      description: commDescription(c.type, c.method, c.content),
+      context: c.transaction.propertyAddress,
+      transactionId: c.transaction.id,
+      at: c.createdAt,
+    });
   }
-
-  if (recentMilestone) {
-    return {
+  for (const m of milestones) {
+    if (!m.completedAt || !m.transaction) continue;
+    items.push({
       kind: "milestone",
-      description: recentMilestone.summaryText ?? recentMilestone.milestoneDefinition.name,
-      context: recentMilestone.transaction.propertyAddress,
-      transactionId: recentMilestone.transaction.id,
-      at: recentMilestone.completedAt ?? new Date(),
-    };
+      description: m.summaryText ?? m.milestoneDefinition.name,
+      context: m.transaction.propertyAddress,
+      transactionId: m.transaction.id,
+      at: m.completedAt,
+    });
   }
 
-  return null;
+  items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  return items.slice(0, limit);
+}
+
+// Single most-recent event — thin wrapper over the feed, kept for the hub
+// preview page which still renders one ribbon.
+export async function getHubRecentActivity(
+  vis: AgentVisibility,
+): Promise<RecentActivity> {
+  return (await getHubRecentActivityFeed(vis, 1))[0] ?? null;
 }
 
 // ─── Unassigned outsourced files ─────────────────────────────────────────────
