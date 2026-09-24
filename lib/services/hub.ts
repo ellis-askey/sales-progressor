@@ -6,6 +6,7 @@ import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
@@ -1147,6 +1148,13 @@ export type StalledEnquiryItem = {
   currentlyWith: "seller_solicitor" | "buyer_solicitor";
   quietDays: number;
   solicitorName: string | null;
+  // For the send-a-chase drawer (opened straight from the card): the clients on
+  // the court's side to CC by default, and how many times we've already chased
+  // (drives the default tone). Everything else the drawer needs is resolved
+  // server-side by the generate/send actions.
+  ccCandidates: { contactId: string; name: string; email: string | null }[];
+  solicitorEmail: string | null;
+  chaseCount: number;
 };
 
 // Enquiry loops that have gone quiet past the escalation threshold (13 working
@@ -1173,6 +1181,7 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       lastMovementAt: true,
       escalatedAt: true,
       snoozedUntil: true,
+      chaseCount: true,
       transaction: {
         select: {
           id: true,
@@ -1180,6 +1189,9 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
           photoStoragePath: true,
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorFirm: { select: { name: true } },
+          vendorSolicitorContact: { select: { email: true } },
+          purchaserSolicitorContact: { select: { email: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true } },
         },
       },
     },
@@ -1195,6 +1207,9 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
     const stalled = !!r.escalatedAt || now >= addWorkingDays(anchor, ENQUIRY_ESCALATE_WORKING_DAYS);
     if (!stalled) continue;
     const seller = r.currentlyWith === "seller_solicitor";
+    const ccCandidates = tx.contacts
+      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && !!c.name)
+      .map((c) => ({ contactId: c.id, name: c.name as string, email: c.email ?? null }));
     out.push({
       transactionId: tx.id,
       address: tx.propertyAddress,
@@ -1202,6 +1217,9 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       currentlyWith: r.currentlyWith as "seller_solicitor" | "buyer_solicitor",
       quietDays: Math.max(0, Math.floor((now.getTime() - anchor.getTime()) / 86400000)),
       solicitorName: seller ? (tx.vendorSolicitorFirm?.name ?? null) : (tx.purchaserSolicitorFirm?.name ?? null),
+      ccCandidates,
+      solicitorEmail: seller ? (tx.vendorSolicitorContact?.email ?? null) : (tx.purchaserSolicitorContact?.email ?? null),
+      chaseCount: r.chaseCount,
     });
   }
   out.sort((a, b) => b.quietDays - a.quietDays); // longest-quiet first
@@ -2390,6 +2408,11 @@ export async function getHubAttentionItems(
         select: {
           id: true, // hub chase split-button: mark-chased / done / snooze act on this task
           status: true, priority: true, chaseCount: true,
+          // resolveAutopilot: a row the agent has hand-chased (manualChaseCount > 0)
+          // is "manual" — over to them — so it must NOT read as still-on-autopilot
+          // and get dropped from the hub. This mirrors getAgentReminderLogs; without
+          // it, manually-chased needs-you reminders vanished from Needs-attention.
+          manualChaseCount: true,
           // Agent's last chase (Mark chased / drawer send) — resets the
           // hand-over clock below, mirroring the work queue.
           lastChasedAt: true,
@@ -2428,6 +2451,47 @@ export async function getHubAttentionItems(
       }
     }
   }
+  // Solicitor hand-over (compute-on-read) — the missing half. A solicitor chase
+  // whose auto-chases have run out (escalated OR chased to its cap) and is now due
+  // must land on the agent's desk, exactly as the Reminders work queue surfaces it
+  // (getAgentReminderLogs). Without this the hub kept those rows on phantom
+  // autopilot and dropped them, so the "flag it to you in the hub" promise never
+  // fired here. resolveAutopilot reads solicitorCapped / solicitorHandoverDue below.
+  const todayUKStr = toUKDateStr(now);
+  const solHandoverById = new Map<string, Date>();
+  const solCappedIds = new Set<string>();
+  const hasSolCodes = logs.some((l) => {
+    const c = l.reminderRule.targetMilestoneCode;
+    return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
+  });
+  if (txIdsForChase.length > 0 && hasSolCodes) {
+    const [solStates, solRules] = await Promise.all([
+      prisma.solicitorChaseState.findMany({
+        where: { transactionId: { in: txIdsForChase }, resolvedAt: null },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+      }),
+      prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+    ]);
+    const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    for (const l of logs) {
+      const code = l.reminderRule.targetMilestoneCode;
+      if (!code) continue;
+      const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";
+      if (!solicitorCodesForSide(side).has(code)) continue;
+      const st = solStateByKey.get(`${l.transaction.id}:${side}:${code}`);
+      if (!st) continue;
+      // A solicitor-given expected date parks it (a snooze, not "run out").
+      if (st.snoozeUntil && st.snoozeUntil > now) continue;
+      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      if (!ranOut) continue;
+      solCappedIds.add(l.id); // never "on autopilot" — the cron is done with it
+      // Hand over to Needs-attention only when it's actually due (a human chase
+      // advances nextDueDate, so a just-chased capped row isn't boomeranged back).
+      if (toUKDateStr(l.nextDueDate) <= todayUKStr) solHandoverById.set(l.id, now);
+    }
+  }
+
   const enrichedLogs = logs.map((l) => {
     const code = l.reminderRule.targetMilestoneCode;
     const snap = code ? chaseByTxCode.get(`${l.transaction.id}:${code}`) : undefined;
@@ -2438,8 +2502,10 @@ export async function getHubAttentionItems(
       null,
     );
     const handoverDate = snap ? chaseHandoverDate({ ...snap, lastManualChaseAt }, l.reminderRule.repeatEveryDays, now) : null;
-    const due = handoverDate && chaseHandoverPhase(handoverDate, now) ? handoverDate : null;
-    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!due };
+    const clientDue = handoverDate && chaseHandoverPhase(handoverDate, now) ? handoverDate : null;
+    const solDue = solHandoverById.get(l.id) ?? null;
+    const due = clientDue ?? solDue;
+    return { ...l, nextDueDate: due ?? l.nextDueDate, handoverDue: !!clientDue, solicitorHandoverDue: !!solDue, solicitorCapped: solCappedIds.has(l.id) };
   });
 
   // "With the system, not yet raised to a person" doesn't count: resolve each
