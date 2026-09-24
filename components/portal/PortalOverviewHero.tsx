@@ -45,6 +45,9 @@ type Props = {
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
   /** 0-100. Drives the ring arc. */
   percent: number;
+  /** When false, the ring's numeric "N of 6" figure is hidden (agency setting
+   *  "show progress"). The ring arc still shows. Defaults to shown. */
+  showProgressNumber?: boolean;
   /** Position of the currently-active step (1..6). Matches the mock's
    *  "3 of 6" when Searches is active, not the count of completed
    *  stages. If everything is complete → 6. */
@@ -111,7 +114,7 @@ function formatStatus(s: string): { label: string; tone: PortalPillTone } {
 
 // Small circular progress ring for the hero. SVG stroke-dasharray trick.
 // 96px outer diameter to match the mock's proportion.
-function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number }) {
+function HeroRing({ percent, stepNumber, showNumber = true }: { percent: number; stepNumber: number; showNumber?: boolean }) {
   const size = 96;
   const stroke = 6;
   const r = (size - stroke) / 2;
@@ -144,15 +147,17 @@ function HeroRing({ percent, stepNumber }: { percent: number; stepNumber: number
           style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         />
       </svg>
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        color: P.textPrimary,
-      }}>
-        <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary, textShadow: "0 1px 4px rgba(255,255,255,0.75)" }}>{stepNumber}</span>
-        <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500, textShadow: "0 1px 3px rgba(255,255,255,0.75)" }}>of 6</span>
-      </div>
+      {showNumber && (
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          color: P.textPrimary,
+        }}>
+          <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary, textShadow: "0 1px 4px rgba(255,255,255,0.75)" }}>{stepNumber}</span>
+          <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500, textShadow: "0 1px 3px rgba(255,255,255,0.75)" }}>of 6</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -406,6 +411,7 @@ export function PortalOverviewHero({
   tenure,
   purchaseType,
   percent,
+  showProgressNumber = true,
   currentStepNumber,
   currentStage4,
   currentStageSubLabel,
@@ -559,7 +565,7 @@ export function PortalOverviewHero({
             gap: 10,
             flexShrink: 0,
           }}>
-            <HeroRing percent={percent} stepNumber={currentStepNumber} />
+            <HeroRing percent={percent} stepNumber={currentStepNumber} showNumber={showProgressNumber} />
             <div style={{ textAlign: "center" }}>
               <p style={{
                 margin: 0,

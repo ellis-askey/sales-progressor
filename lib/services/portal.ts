@@ -310,10 +310,29 @@ async function getPortalDataInner(token: string) {
       photoStoragePath: true,
       photoUploadedAt: true,
       bookedSurveyorName: true,
-      agency: { select: { name: true } },
+      portalKeyDatesOverride: true,
+      agency: {
+        select: {
+          name: true,
+          showPortalKeyDates: true,
+          showPortalCosts: true,
+          showPortalProgressPercent: true,
+          showPortalWelcomeSheet: true,
+        },
+      },
     },
   });
   if (!tx) return null;
+
+  // "What the client sees" display settings. Agency-wide defaults, with a
+  // per-file override for key dates only (null = follow the agency default).
+  // All fall back to true (today's behaviour) when unset.
+  const portalDisplay = {
+    keyDates: tx.portalKeyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true,
+    costs: tx.agency?.showPortalCosts ?? true,
+    progressPercent: tx.agency?.showPortalProgressPercent ?? true,
+    welcomeSheet: tx.agency?.showPortalWelcomeSheet ?? true,
+  };
 
   const postcode = extractPostcode(tx.propertyAddress);
 
@@ -354,6 +373,7 @@ async function getPortalDataInner(token: string) {
       activeBuyerRoundId: tx.activeBuyerRoundId,
       bookedSurveyorName: tx.bookedSurveyorName,
       photoUrl,
+      portalDisplay,
     },
   };
 }

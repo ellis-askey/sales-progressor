@@ -163,8 +163,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const taskPrompt: TaskPromptKind | null =
       (nextAction && nextAction.who === "you") ? null
     : (!hasExchanged && !hasCompleted && moveInfoRow == null) ? "information"
-    : (side === "purchaser" && !hasExchanged && !hasCompleted && priceKnown && !sdltConfirmed) ? "stamp_duty"
-    : (side === "purchaser" && hasExchanged && !hasCompleted && priceKnown && !costsFilled) ? "costs"
+    : (side === "purchaser" && !hasExchanged && !hasCompleted && priceKnown && !sdltConfirmed && transaction.portalDisplay.costs) ? "stamp_duty"
+    : (side === "purchaser" && hasExchanged && !hasCompleted && priceKnown && !costsFilled && transaction.portalDisplay.costs) ? "costs"
     : null;
 
   const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
@@ -513,17 +513,25 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   //                  computed prediction). Shown soft (month-level) in the card.
   // "Days to go" counts against the headline when: planned date if set, else
   // the estimate.
-  const targetDate: Date | null = transaction.twelveWeekTarget
+  // "What the client sees" — key dates can be hidden agency-wide or per file
+  // (Account → Client portal / the file's Client settings). When off, the whole
+  // pre-exchange "Expected exchange" card disappears (nulling all three dates)
+  // and the add-to-calendar button below is dropped. The firm completion date
+  // after exchange is unaffected (a separate banner).
+  const showKeyDates = transaction.portalDisplay.keyDates;
+  const targetDate: Date | null = showKeyDates && transaction.twelveWeekTarget
     ? new Date(transaction.twelveWeekTarget)
     : null;
-  const plannedDate: Date | null = transaction.overridePredictedDate
+  const plannedDate: Date | null = showKeyDates && transaction.overridePredictedDate
     ? new Date(transaction.overridePredictedDate)
     : null;
-  const estimateDate: Date | null = transaction.expectedExchangeDate
-    ? new Date(transaction.expectedExchangeDate)
-    : progress.predictedExchangeDate
-      ? new Date(progress.predictedExchangeDate)
-      : null;
+  const estimateDate: Date | null = !showKeyDates
+    ? null
+    : transaction.expectedExchangeDate
+      ? new Date(transaction.expectedExchangeDate)
+      : progress.predictedExchangeDate
+        ? new Date(progress.predictedExchangeDate)
+        : null;
 
   // Days until the headline "when" (UK-timezone comparison, whole days only).
   const headlineWhen = plannedDate ?? estimateDate;
@@ -549,6 +557,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       tenure={transaction.tenure}
       purchaseType={transaction.purchaseType}
       percent={percent}
+      showProgressNumber={transaction.portalDisplay.progressPercent}
       currentStepNumber={currentStepNumber}
       currentStage4={currentStage4}
       currentStageSubLabel={currentStageSubLabel}
@@ -636,7 +645,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
     return `${joined.charAt(0).toUpperCase()}${joined.slice(1)} and more, from trusted local firms.`;
   })();
-  const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null;
+  const showCosts          = side === "purchaser" && !hasCompleted && transaction.purchasePrice != null && transaction.portalDisplay.costs;
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
   const showGuidance       = stage === "completed" ? true : tips.length > 0;
@@ -689,7 +698,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   else if (hasExchanged) customizeFixed.push("Completion countdown");
   else customizeFixed.push("Your progress");
   if (nextAction && !hasCompleted) customizeFixed.push("Your next step");
-  if (!hasExchanged && !hasCompleted && transaction.expectedExchangeDate) customizeFixed.push("Add to calendar");
+  if (!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && showKeyDates) customizeFixed.push("Add to calendar");
 
   return (
     <div className="space-y-4 portal-reveal-stack">
@@ -743,7 +752,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       {taskPrompt && <PortalTaskPrompt token={token} side={side} prompt={taskPrompt} />}
 
       {/* ── Add the expected exchange date to your calendar (pre-exchange) ── */}
-      {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && (
+      {!hasExchanged && !hasCompleted && transaction.expectedExchangeDate && showKeyDates && (
         <a
           href={`/api/portal/calendar-export/${token}?event=exchange`}
           download="exchange-target.ics"

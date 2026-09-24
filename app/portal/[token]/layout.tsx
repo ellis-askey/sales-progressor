@@ -195,7 +195,7 @@ export default async function PortalLayout({
             propertyAddress={transaction.propertyAddress}
             agencyName={transaction.agencyName}
             vapidPublicKey={vapidPublicKey}
-            welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt}
+            welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt || !transaction.portalDisplay.welcomeSheet}
             photoUrl={transaction.photoUrl ?? null}
             unreadCount={unreadCount}
             hasConfirmedStep={hasConfirmedStep}

@@ -44,6 +44,14 @@ model Agency {
   enquiryReplyChaseEnabled Boolean @default(false)
   enquiryRaiseChaseEnabled Boolean @default(false)
 
+  // Director-set "what clients see on the portal" display defaults (Account →
+  // Client portal). Agency-wide; all default true = today's behaviour. Only
+  // key-dates can be overridden per file (PropertyTransaction.portalKeyDatesOverride).
+  showPortalKeyDates        Boolean @default(true) // 12-week target + estimated exchange card
+  showPortalCosts           Boolean @default(true) // buyer SDLT estimate + "Your costs" card
+  showPortalProgressPercent Boolean @default(true) // the % progress figure in the overview
+  showPortalWelcomeSheet    Boolean @default(true) // the first-visit welcome sheet
+
   // Director-set monthly fees goal (in pence) for this agency. Drives the
   // "ahead / short" line on the All Files → Forecast tab: each month's forecast
   // fees are compared against this figure. Null = no target set. Set/edited
@@ -605,6 +613,15 @@ model PropertyTransaction {
   suppressPortalConfirmEmails        Boolean   @default(false)
   suppressPortalConfirmEmailsSetAt   DateTime?
   suppressPortalConfirmEmailsSetById String?
+
+  // Per-file override of the agency's "show key dates on portal" default
+  // (Agency.showPortalKeyDates). null = follow the agency default; true = force
+  // show for this sale; false = force hide. Only key-dates is overridable per
+  // file. Audit fields let us SQL-audit who changed it. Set in the file's Client
+  // settings drawer.
+  portalKeyDatesOverride        Boolean?
+  portalKeyDatesOverrideSetAt   DateTime?
+  portalKeyDatesOverrideSetById String?
 
   // Per-transaction snapshot of chase rule values at creation time. JSON
   // map keyed by milestone code: { graceDays, repeatEveryDays,
