@@ -641,7 +641,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     <span><span style={{ color: "var(--agent-text-muted)" }}>Surveyor </span>{def.bookedSurveyorName}</span>
                   )}
                   {def.completion.outOfOrderCompletion && (
-                    <span style={{ color: "var(--agent-warning)" }}>Confirmed out of order</span>
+                    <span style={{ color: "var(--agent-warning)" }}>An earlier step was reopened</span>
                   )}
                   {def.completion.confirmedByPortal && (
                     <Pill glass tone="info" size="sm">
