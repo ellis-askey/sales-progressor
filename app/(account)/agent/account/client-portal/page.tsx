@@ -32,13 +32,13 @@ export default async function AccountClientPortalPage() {
     <>
       <AccountPageHeader
         title="Client portal"
-        subtitle="Choose what your buyers and sellers see on their portal. Applies to every sale unless a colleague overrides it on a specific file."
+        subtitle="Choose what buyers and sellers can see in their portal. These settings apply to every sale unless they're changed on an individual file."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard
           icon={<Browser size={18} weight="bold" />}
           title="What clients see"
-          subtitle="Turn any of these off to hide them from every client's portal."
+          subtitle="Switch any of these off to hide them from all client portals."
         >
           <ClientPortalSettings
             initial={{

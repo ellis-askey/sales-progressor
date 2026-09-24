@@ -53,10 +53,13 @@ type Props = {
   savedAdditional: boolean | null;
   savedFundsSent: boolean;
   token: string;
+  // Preview mode (director "Client portal" settings): identical calculation,
+  // strings and interactive states, but never persists (no real token/file).
+  previewMode?: boolean;
 };
 
 export function PortalCostsCard({
-  priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token,
+  priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token, previewMode = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   // Item B: the "See your stamp duty" task prompt opens this card's sheet.
@@ -136,6 +139,7 @@ export function PortalCostsCard({
   // One write path for everything on the card. The Save button persists the
   // figures; the "funds sent" affordance calls it straight away with the new flag.
   async function persist(override?: { fundsSent?: boolean }) {
+    if (previewMode) { setSaved(true); return; } // settings preview: never write
     const sentVal = override?.fundsSent ?? fundsSent;
     setSaving(true); setSaved(false);
     try {
