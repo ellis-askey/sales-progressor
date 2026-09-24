@@ -550,6 +550,7 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
             suppressPortalConfirmEmails: false,
             status: onHold ? "on_hold" : "active",
             clientEmailsPaused: onHold,
+            enquiryChasePaused: false,
             serviceType: null,
             contacts: [
               { id: "seed-vendor", name: "Joe Court", roleType: "vendor", paused: false, stepConfirmPaused: false },

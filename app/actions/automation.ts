@@ -651,7 +651,7 @@ export async function setAgencyEnquiryChaseEnabled(enabled: boolean): Promise<Ac
     where: { id: agencyId },
     data: { enquiryReplyChaseEnabled: enabled, enquiryRaiseChaseEnabled: enabled },
   });
-  revalidatePath("/agent/settings/automation");
+  revalidatePath("/agent/account/emails");
   return { ok: true };
 }
 

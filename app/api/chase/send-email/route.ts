@@ -8,7 +8,7 @@ import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { deriveChaseTargetSide } from "@/lib/services/comms";
 import { resolveEmailSignature } from "@/lib/email/signature";
-import { sanitizeSignatureHtml } from "@/lib/email/sanitize-signature";
+import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import type { EmailAttachment } from "@/lib/email";
 
 // SendGrid caps a message at ~30MB; keep the base64 total well under that.
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   // Rich-text body from the composer (sanitised) when provided; otherwise the
   // legacy plain-text-to-HTML path. The plain-text part is always the plain body.
   const renderedBody = typeof bodyHtml === "string" && bodyHtml.trim()
-    ? sanitizeSignatureHtml(bodyHtml)
+    ? sanitizeChaseBodyHtml(bodyHtml)
     : escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
   const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${sig.html}</div>`;
 

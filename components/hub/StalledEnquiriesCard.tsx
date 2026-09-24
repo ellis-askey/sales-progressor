@@ -3,16 +3,17 @@
 // Hub card: enquiry loops that have gone quiet past the escalation threshold
 // (13 working days of silence). The safety net for the enquiries stage — it
 // surfaces stalled loops whether or not auto-chasing is on for the agency, so a
-// file can never sit silent for weeks unseen. Read-only surfacing + a jump to the
-// file / the enquiries desk to act; a one-tap "Chase now" slots in here once the
-// send-chase drawer lands. Empty list → renders nothing.
+// file can never sit silent for weeks unseen. Each row's "Chase" button opens the
+// EnquiryChaseDrawer — a real send to the court's solicitor — right here on the
+// hub; a sent loop drops off the list immediately. Empty list → renders nothing.
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChatCircleDots, CaretDown, ArrowRight } from "@phosphor-icons/react";
+import { ChatCircleDots, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
+import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import type { StalledEnquiryItem } from "@/lib/services/hub";
 
 const INITIAL_VISIBLE = 6;
@@ -27,13 +28,21 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
+  // Send-a-chase drawer, opened from a row's Chase button. On a successful send
+  // the loop's quiet clock resets server-side (revalidatePath refreshes the hub);
+  // we also drop it locally so it disappears the instant it's chased.
+  const [chase, setChase] = useState<StalledEnquiryItem | null>(null);
+  const [chaseOpen, setChaseOpen] = useState(false);
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
 
-  if (rows.length === 0) return null;
+  const visible = rows.filter((r) => !sentIds.has(r.transactionId));
+  if (visible.length === 0) return null;
 
-  const shown = showAll ? rows : rows.slice(0, INITIAL_VISIBLE);
-  const hiddenCount = rows.length - shown.length;
+  const shown = showAll ? visible : visible.slice(0, INITIAL_VISIBLE);
+  const hiddenCount = visible.length - shown.length;
 
   return (
+    <>
     <GlassCard glassId="hub-stalled-enquiries" label="Hub · Enquiries gone quiet" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       <button
         type="button"
@@ -50,7 +59,7 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
             <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Enquiries gone quiet</span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            {rows.length === 1 ? "1 loop" : `${rows.length} loops`} silent for 3+ weeks. Worth a direct call or a chase.
+            {visible.length === 1 ? "1 loop" : `${visible.length} loops`} silent for 3+ weeks. Worth a direct call or a chase.
           </span>
         </span>
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
@@ -79,20 +88,33 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
                       {withText}
                     </p>
                   </div>
-                  <Link href="/agent/enquiries" className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", flexShrink: 0, textDecoration: "none" }}>
-                    Chase <ArrowRight size={13} weight="bold" />
-                  </Link>
+                  <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginLeft: "auto", flexShrink: 0 }}>
+                    <PaperPlaneTilt size={13} weight="bold" /> Chase
+                  </button>
                 </div>
               </div>
             );
           })}
           {hiddenCount > 0 && (
             <button type="button" onClick={() => setShowAll(true)} className="agent-link" style={{ width: "100%", padding: "10px 20px", fontSize: 12, fontWeight: 600, textAlign: "center", background: "transparent", border: "none", borderTop: "0.5px solid var(--agent-border-subtle)", cursor: "pointer" }}>
-              Show all ({rows.length})
+              Show all ({visible.length})
             </button>
           )}
         </div>
       </div>
     </GlassCard>
+    <EnquiryChaseDrawer
+      open={chaseOpen}
+      transactionId={chase?.transactionId ?? ""}
+      address={chase?.address ?? ""}
+      court={chase?.currentlyWith ?? "seller_solicitor"}
+      solicitorName={chase?.solicitorName ?? null}
+      solicitorEmail={chase?.solicitorEmail ?? null}
+      ccCandidates={chase?.ccCandidates ?? []}
+      chaseCount={chase?.chaseCount ?? 0}
+      onClose={() => setChaseOpen(false)}
+      onSent={() => { if (chase) setSentIds((s) => new Set(s).add(chase.transactionId)); }}
+    />
+    </>
   );
 }

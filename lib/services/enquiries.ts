@@ -25,6 +25,7 @@ export type EnquiryParty = {
   side: "vendor" | "purchaser";
   kind: "solicitor" | "client";
   contactId?: string; // set for clients (a real Contact row) so the activity log can link the chip
+  email?: string | null; // client email, for the send-a-chase drawer's default CC
 };
 
 export type OpenEnquiryRow = {
@@ -53,6 +54,10 @@ export type OpenEnquiryRow = {
   clientNames: string; // for search
   vendorSolicitor: string | null;
   purchaserSolicitor: string | null;
+  // The court solicitors' emails, so the send-a-chase drawer can show the "To"
+  // line + hand off to the agent's own mail app without a round-trip.
+  vendorSolicitorEmail: string | null;
+  purchaserSolicitorEmail: string | null;
   parties: EnquiryParty[];
 };
 
@@ -107,11 +112,11 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
           photoStoragePath: true,
           purchasePrice: true,
           tenure: true,
-          contacts: { select: { id: true, name: true, roleType: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true } },
           vendorSolicitorFirm: { select: { name: true } },
-          vendorSolicitorContact: { select: { name: true } },
+          vendorSolicitorContact: { select: { name: true, email: true } },
           purchaserSolicitorFirm: { select: { name: true } },
-          purchaserSolicitorContact: { select: { name: true } },
+          purchaserSolicitorContact: { select: { name: true, email: true } },
         },
       },
       movements: {
@@ -173,11 +178,11 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const parties: EnquiryParty[] = [];
     if (vendorSol) parties.push({ id: "vsol", label: vendorSol, side: "vendor", kind: "solicitor" });
     for (const c of tx.contacts) {
-      if (c.roleType === "vendor" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "vendor", kind: "client", contactId: c.id });
+      if (c.roleType === "vendor" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "vendor", kind: "client", contactId: c.id, email: c.email });
     }
     if (purchaserSol) parties.push({ id: "psol", label: purchaserSol, side: "purchaser", kind: "solicitor" });
     for (const c of tx.contacts) {
-      if (c.roleType === "purchaser" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "purchaser", kind: "client", contactId: c.id });
+      if (c.roleType === "purchaser" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "purchaser", kind: "client", contactId: c.id, email: c.email });
     }
 
     return {
@@ -207,6 +212,8 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
         .join(", "),
       vendorSolicitor: vendorSol,
       purchaserSolicitor: purchaserSol,
+      vendorSolicitorEmail: tx.vendorSolicitorContact?.email ?? null,
+      purchaserSolicitorEmail: tx.purchaserSolicitorContact?.email ?? null,
       parties,
     };
   });

@@ -20,7 +20,7 @@ import { getOnwardTrackerView } from "@/lib/services/onward";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveSenderForTransaction } from "@/lib/email";
 import { resolveEmailSignature } from "@/lib/email/signature";
-import { sanitizeSignatureHtml } from "@/lib/email/sanitize-signature";
+import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { greetingName } from "@/lib/contacts/displayName";
 import {
   TONE_KEY_MAP,
@@ -435,7 +435,7 @@ export async function sendNeighbourChase(input: {
   });
 
   const renderedBody = input.bodyHtml.trim()
-    ? sanitizeSignatureHtml(input.bodyHtml)
+    ? sanitizeChaseBodyHtml(input.bodyHtml)
     : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
   const html = wrapEmailHtml(renderedBody, sig.html);
   const subject = input.subject.trim() || `Quick update on ${target.neighbourAddress ?? "the chain"}?`;

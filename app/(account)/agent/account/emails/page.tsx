@@ -11,18 +11,25 @@
 
 import { notFound } from "next/navigation";
 import { resolveAgentSession } from "@/lib/agent-session";
+import { prisma } from "@/lib/prisma";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
 import { AutomatedEmailsList } from "@/components/account/emails/AutomatedEmailsList";
+import { EnquiryChaseToggle } from "@/components/automation/EnquiryChaseToggle";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
-import { ShareNetwork, EnvelopeSimple, Info } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, EnvelopeSimple, ChatCircleText, Info } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountEmailsPage() {
   const { session } = await resolveAgentSession();
   if (session.user.role !== "director" || !session.user.agencyId) notFound();
+
+  const agency = await prisma.agency.findUnique({
+    where: { id: session.user.agencyId },
+    select: { enquiryReplyChaseEnabled: true },
+  });
 
   // Client-facing steps only (buyer/seller copy); strip agent/internal sides.
   const steps = buildStepList()
@@ -50,6 +57,14 @@ export default async function AccountEmailsPage() {
           subtitle="Longer emails that go out at key moments."
         >
           <AutomatedEmailsList />
+        </AccountCard>
+
+        <AccountCard
+          icon={<ChatCircleText size={18} weight="bold" />}
+          title="Chasing solicitors on enquiries"
+          subtitle="Keep the enquiry stage moving without chasing by hand. Solicitors only, never your clients."
+        >
+          <EnquiryChaseToggle initialEnabled={agency?.enquiryReplyChaseEnabled ?? false} bare />
         </AccountCard>
 
         <AccountCard style={{ background: "rgba(37,99,235,0.04)" }}>

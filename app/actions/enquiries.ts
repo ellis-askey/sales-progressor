@@ -17,6 +17,12 @@ import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
+import { logChaseSend, logEnquiryChaseComm } from "@/lib/enquiries/chase-log";
+import { sendChainEmail, buildOutboundMessageId, type EmailAttachment } from "@/lib/email";
+import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
+import { resolveEmailSignature } from "@/lib/email/signature";
+import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
+import { resolveEnquiryChaseContext, enquiryChaseTextToHtml } from "@/lib/enquiries/manual-chase";
 import {
   logEnquiryMovement,
   setEnquiryOutstandingNote,
@@ -368,5 +374,148 @@ export async function setEnquirySnoozeAction(input: {
   await setEnquirySnooze(input.transactionId, input.workingDays);
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
+  return { ok: true };
+}
+
+// ── Manual enquiry chase: compose + send ──────────────────────────────────────
+// The send drawer (opened from the enquiries row's send icon and the hub's
+// "gone quiet" card) is the human-driven twin of the auto-chase cron. It reuses
+// the SAME send path (buildEnquiryChaseEmail → sendChainEmail → logChaseSend +
+// logEnquiryChaseComm), but lets the agent edit the copy first. The recipient is
+// fixed to whoever holds the ball (the tracker's court) — we already know it, so
+// there's no picker — and the recipient-side clients are CC'd by default. Sending
+// resets the quiet clock (lastMovementAt) and clears the stalled flag, so the loop
+// drops off the hub card just like logging a manual chase does. See chase.ts for
+// the cron twin and docs/active/enquiries-triage/00-spec.md.
+
+// The drawer opens instantly from props and resolves nothing up-front; the
+// recipient, sender, /s/ token and CC emails are all re-resolved server-side here
+// (and in the generate route) from the transactionId.
+
+// Send a hand-composed enquiry chase to the court's solicitor, CC the chosen
+// clients, log it to the file's internal timeline, and reset the quiet clock so
+// the loop settles for the cadence window (and drops off the hub card).
+//
+// The body is the rich-text HTML from the composer; the sender's own selected
+// signature (BASIC / IMAGE / CUSTOM — same resolver + preview as the milestone
+// chase drawer) is appended on send, with the enquiry "Provide an update" button +
+// reply line slotted between the body and the sign-off. logOnly=true skips the
+// send (the agent hands off to their own mail app via "Open in my email") but
+// still logs + resets, and returns the mailto payload so the client can open it.
+const CHASE_BTN = "display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;";
+const CHASE_REPLY_LINE = "Alternatively, simply reply to this email and it will come directly to me.";
+
+export async function sendEnquiryChaseAction(input: {
+  transactionId: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  ccContactIds: string[];
+  attachments?: EmailAttachment[];
+  logOnly?: boolean;
+}): Promise<{ ok: boolean; error?: string; mailto?: { to: string; cc: string[]; subject: string; body: string } }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return { ok: false, error: "Unauthorised" };
+  const scope = getAccessScope(session);
+  const owned = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!owned) return { ok: false, error: "Not found." };
+  const userId = session.user.id;
+
+  const ctx = await resolveEnquiryChaseContext(input.transactionId);
+  if (!ctx) return { ok: false, error: "This enquiry loop is no longer open." };
+
+  const solEmail = ctx.solContact?.email;
+  if (!solEmail) {
+    return { ok: false, error: `No ${ctx.seller ? "seller's" : "buyer's"} solicitor email on file yet.` };
+  }
+  const subject = (input.subject || ctx.mail.subject).trim();
+  const bodyText = (input.bodyText ?? "").trim();
+  if (!bodyText) return { ok: false, error: "Add a message before sending." };
+
+  // CC = the chosen recipient-side clients (validated against the file) + the
+  // solicitor's own assistant / the agency CC (always, as the cron does).
+  const chosen = new Set(input.ccContactIds ?? []);
+  const clientCc = ctx.clients.filter((c) => chosen.has(c.contactId)).map((c) => c.email);
+  const solCc = (await solicitorCcForAgency(ctx.solContact, ctx.agencyId)) ?? [];
+  const cc = [...new Set([...clientCc, ...solCc])];
+
+  // The enquiry tail: the tokenised "Provide an update" button + the reply line.
+  const escUrl = (u: string) => u.replace(/"/g, "&quot;");
+  const tailHtml = `<p style="margin:16px 0;"><a href="${escUrl(ctx.updateUrl)}" style="${CHASE_BTN}">Provide an update</a></p><p style="margin:0 0 16px;">${CHASE_REPLY_LINE}</p>`;
+  const tailText = `\n\n${ctx.updateUrl}\n\n${CHASE_REPLY_LINE}`;
+
+  // Log-only (Open in my email): log a faithful plain record + reset, hand back
+  // the mailto payload. The agent's own mail app adds their client-side signature.
+  if (input.logOnly) {
+    const now = new Date();
+    const loggedText = `${bodyText}${tailText}`;
+    await prisma.enquiryTracker.update({
+      where: { transactionId: ctx.tx.id },
+      data: { lastChasedAt: now, chaseCount: { increment: 1 }, lastMovementAt: now, escalatedAt: null },
+    });
+    await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
+    await logEnquiryChaseComm({
+      transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: loggedText, html: enquiryChaseTextToHtml(loggedText),
+      recipientEmail: solEmail, recipientName: ctx.solFirm?.name ?? ctx.solContact?.name ?? null,
+      createdById: userId, sentAt: now,
+    }).catch(() => {});
+    revalidatePath("/agent/enquiries");
+    revalidatePath("/agent/hub");
+    revalidatePath(`/agent/transactions/${ctx.tx.id}`);
+    revalidatePath(`/transactions/${ctx.tx.id}`);
+    return { ok: true, mailto: { to: solEmail, cc, subject, body: loggedText } };
+  }
+
+  // Sender's own selected signature — same resolver + preview the chase drawer uses.
+  const agency = ctx.agencyId
+    ? await prisma.agency.findUnique({
+        where: { id: ctx.agencyId },
+        select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true },
+      })
+    : null;
+  const sig = await resolveEmailSignature({ userId, agency, fallbackName: session.user.name });
+
+  const renderedBody = sanitizeChaseBodyHtml(input.bodyHtml ?? "");
+  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${tailHtml}${sig.html}</div>`;
+  const text = `${bodyText}${tailText}\n\n${sig.text}`;
+
+  const now = new Date();
+  const outboundMessageId = buildOutboundMessageId(`enq-${ctx.tx.id}-${ctx.seller ? "v" : "p"}-${now.getTime()}`);
+  try {
+    await sendChainEmail({
+      to: solEmail,
+      cc: cc.length ? cc : undefined,
+      subject,
+      text,
+      html,
+      from: ctx.from,
+      replyTo: ctx.replyTo,
+      messageId: outboundMessageId,
+      ...(input.attachments && input.attachments.length ? { attachments: input.attachments } : {}),
+    });
+  } catch (err) {
+    console.error(`[enquiry-chase] manual send failed for ${ctx.tx.id}:`, err);
+    return { ok: false, error: "Couldn't send. Try again." };
+  }
+
+  // Reset the quiet clock + schedule the next auto-chase + clear the stalled flag.
+  await prisma.enquiryTracker.update({
+    where: { transactionId: ctx.tx.id },
+    data: { lastChasedAt: now, chaseCount: { increment: 1 }, lastMovementAt: now, escalatedAt: null },
+  });
+  await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
+  await logEnquiryChaseComm({
+    transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: text, html,
+    recipientEmail: solEmail, recipientName: ctx.solFirm?.name ?? ctx.solContact?.name ?? null,
+    createdById: userId, sentAt: now, internetMessageId: outboundMessageId,
+  }).catch(() => {});
+
+  revalidatePath("/agent/enquiries");
+  revalidatePath("/agent/hub");
+  revalidatePath(`/agent/transactions/${ctx.tx.id}`);
+  revalidatePath(`/transactions/${ctx.tx.id}`);
   return { ok: true };
 }

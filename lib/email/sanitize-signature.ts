@@ -114,8 +114,22 @@ function normalizeBlockSpacing(html: string): string {
   return normalizeImageSizing(out);
 }
 
-export function sanitizeSignatureHtml(dirty: string): string {
-  if (!dirty || !dirty.trim()) return "";
+// Message BODIES (chase composer text), unlike signatures, must KEEP paragraph
+// spacing: an AI draft is one <p> per paragraph, and zeroing their margins (as the
+// signature path does) crams the whole email into a single block. Bake a bottom
+// margin onto paragraphs so the gaps survive in the inbox and match the composer.
+// Lists keep their natural spacing; <br> line breaks are untouched.
+function normalizeBodySpacing(html: string): string {
+  const out = html.replace(
+    /<(p|h[1-4]|blockquote)\b([^>]*)>/gi,
+    (_m, tag, attrs) => `<${tag}${injectStyle(attrs, "margin:0 0 16px")}>`,
+  );
+  return normalizeImageSizing(out);
+}
+
+// Shared safety pass: XSS allowlist filter + tracking-pixel removal + link
+// hardening. Block-spacing is applied by the caller (signature vs body differ).
+function cleanChaseHtml(dirty: string): string {
   let clean = filter.process(dirty);
   // Drop tracking pixels (1x1 / 0-sized images). The value must be EXACTLY 0 or
   // 1 (quoted, or unquoted at a value boundary) so width="120" isn't caught.
@@ -126,6 +140,19 @@ export function sanitizeSignatureHtml(dirty: string): string {
   // Harden every remaining link (target/rel are not whitelisted, so any pasted
   // ones were stripped — we add our own).
   clean = clean.replace(/<a\s+(?=[^>]*\bhref=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
-  clean = normalizeBlockSpacing(clean);
-  return clean.trim();
+  return clean;
+}
+
+export function sanitizeSignatureHtml(dirty: string): string {
+  if (!dirty || !dirty.trim()) return "";
+  return normalizeBlockSpacing(cleanChaseHtml(dirty)).trim();
+}
+
+// Sanitiser for chase MESSAGE bodies (the composer's rich text). Identical safety
+// to sanitizeSignatureHtml, but PRESERVES paragraph spacing instead of zeroing it,
+// so AI-generated <p>-per-paragraph drafts arrive with gaps rather than crammed
+// into one block. Used by the milestone + enquiry chase send paths.
+export function sanitizeChaseBodyHtml(dirty: string): string {
+  if (!dirty || !dirty.trim()) return "";
+  return normalizeBodySpacing(cleanChaseHtml(dirty)).trim();
 }

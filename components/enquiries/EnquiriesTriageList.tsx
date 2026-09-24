@@ -24,6 +24,7 @@ import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/l
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
+import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import { GlassCard } from "@/components/glass/GlassCard";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -140,6 +141,12 @@ export function EnquiriesTriageList({
   // Log-a-chase sheet (critique #5/#6): phone always, email when ingest isn't
   // connected. Opened from a row; renders once at the list root so it overlays.
   const [logSheet, setLogSheet] = useState<{ row: OpenEnquiryRow; mode: "phone" | "email" } | null>(null);
+  // Send-a-chase drawer: composes + sends a real chase to the court's solicitor.
+  // Kept mounted (open toggled) so it plays its slide-out; the row is retained
+  // during the exit. The send action revalidates /agent/enquiries, so the list
+  // reflects the reset clock without extra plumbing here.
+  const [chaseRow, setChaseRow] = useState<OpenEnquiryRow | null>(null);
+  const [chaseOpen, setChaseOpen] = useState(false);
 
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
@@ -364,6 +371,7 @@ export function EnquiriesTriageList({
                   onMenuOpenChange={(open) => setMenuRowId(open ? r.transactionId : (id) => (id === r.transactionId ? null : id))}
                   move={(opts, msg) => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, ...opts }), msg)}
                   onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
+                  onSendChase={() => { setChaseRow(r); setChaseOpen(true); }}
                 />
               </div>
 
@@ -432,6 +440,22 @@ export function EnquiriesTriageList({
           onClose={() => setLogSheet(null)}
         />
       )}
+
+      <EnquiryChaseDrawer
+        open={chaseOpen}
+        transactionId={chaseRow?.transactionId ?? ""}
+        address={chaseRow?.address ?? ""}
+        court={chaseRow?.currentlyWith ?? "seller_solicitor"}
+        solicitorName={chaseRow ? (chaseRow.currentlyWith === "seller_solicitor" ? chaseRow.vendorSolicitor : chaseRow.purchaserSolicitor) : null}
+        solicitorEmail={chaseRow ? (chaseRow.currentlyWith === "seller_solicitor" ? chaseRow.vendorSolicitorEmail : chaseRow.purchaserSolicitorEmail) : null}
+        ccCandidates={chaseRow
+          ? chaseRow.parties
+              .filter((p) => p.kind === "client" && p.side === (chaseRow.currentlyWith === "seller_solicitor" ? "vendor" : "purchaser") && !!p.contactId)
+              .map((p) => ({ contactId: p.contactId as string, name: p.label, email: p.email ?? null }))
+          : []}
+        chaseCount={chaseRow?.chaseCount ?? 0}
+        onClose={() => setChaseOpen(false)}
+      />
     </div>
   );
 }
@@ -470,7 +494,7 @@ function fmtBd(iso: string): string {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 function RowActions({
-  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy,
+  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy, onSendChase,
 }: {
   row: OpenEnquiryRow;
   busy: boolean;
@@ -480,6 +504,7 @@ function RowActions({
   onMenuOpenChange: (open: boolean) => void;
   move: (opts: MoveOpts, msg: string) => void;
   onSatisfy: () => void;
+  onSendChase: () => void;
 }) {
   const other = otherCourt(row.currentlyWith);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -570,7 +595,10 @@ function RowActions({
 
   return (
     <div className="enq-actions2" ref={wrapRef}>
-      {/* Desktop: calendar + split button */}
+      {/* Desktop: send-a-chase + calendar + split button */}
+      <button type="button" className="enq-iconbtn enq-a-desktop" title="Send a chase" aria-label="Send a chase to the solicitor" onClick={onSendChase}>
+        <PaperPlaneTilt size={15} />
+      </button>
       <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" aria-expanded={bdOpen} onClick={() => (bdOpen ? closeBackdate() : openBackdate())}>
         <CalendarBlank size={15} />
       </button>
@@ -584,6 +612,11 @@ function RowActions({
 
       {menuOpen && (
         <div className="enq-menu" role="menu">
+          <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onSendChase)}>
+            <span className="enq-mi-ico"><PaperPlaneTilt size={16} /></span>
+            <span className="enq-mi-txt">Send a chase<small>Email the solicitor now</small></span>
+          </button>
+          <div className="enq-mi-div" />
           {items.map((mi, i) => (
             <button key={i} type="button" role="menuitem" className="enq-mi" onClick={() => pick(mi.onClick)}>
               <span className="enq-mi-ico">{mi.icon}</span>
