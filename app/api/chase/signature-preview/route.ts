@@ -24,12 +24,19 @@ export async function GET(req: NextRequest) {
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
+  // Per-message style toggle from the drawer (basic / logo / default). The
+  // sign-off phrase itself is rendered client-side above this signature, so it
+  // isn't a param here.
+  const styleParam = req.nextUrl.searchParams.get("style");
+  const signatureStyle = styleParam === "basic" || styleParam === "logo" ? styleParam : "default";
+
   // Same resolver the real send uses, so the drawer preview matches the send
   // exactly (BASIC / IMAGE / CUSTOM).
   const sig = await resolveEmailSignature({
     userId: session.user.id,
     agency: tx.agency,
     fallbackName: session.user.name,
+    signatureStyle,
   });
 
   return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null });

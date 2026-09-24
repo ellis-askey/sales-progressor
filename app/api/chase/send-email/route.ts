@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
   }
 
-  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails, bodyHtml, attachments } = await req.json();
+  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails, bodyHtml, attachments, signatureStyle, signOff } = await req.json();
   if (!transactionId || !toEmail || !messageText) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -69,23 +69,34 @@ export async function POST(req: NextRequest) {
   const { from, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
 
   // Signature — resolved once by the single resolver (BASIC / IMAGE / CUSTOM),
-  // following the sending agent. Body stays the agent's text; the signature is
-  // appended. The preview (/api/chase/signature-preview) uses the same resolver,
-  // so what the agent sees is what goes out.
+  // following the sending agent. The AI no longer writes a closing sign-off in
+  // the body; the app owns it now. Body stays the agent's text; then the chosen
+  // sign-off phrase (BASIC-family only — an image/custom signature carries its
+  // own), then the signature. The preview (/api/chase/signature-preview) mirrors
+  // this so what the agent sees is what goes out.
+  const resolvedStyle = signatureStyle === "basic" || signatureStyle === "logo" ? signatureStyle : "default";
   const sig = await resolveEmailSignature({
     userId: session.user.id,
     agency: tx.agency,
     fallbackName: session.user.name,
+    signatureStyle: resolvedStyle,
   });
   // Rich-text body from the composer (sanitised) when provided; otherwise the
   // legacy plain-text-to-HTML path. The plain-text part is always the plain body.
   const renderedBody = typeof bodyHtml === "string" && bodyHtml.trim()
     ? sanitizeChaseBodyHtml(bodyHtml)
     : escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
-  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${sig.html}</div>`;
+  // Sign-off phrase sits above the signature block, for BASIC-family signatures
+  // only (an image/custom signature already includes its own valediction).
+  const signOffPhrase = typeof signOff === "string" && signOff.trim() ? signOff.trim() : "Kind regards,";
+  const signOffHtml = sig.mode === "BASIC"
+    ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">${escapeHtmlBody(signOffPhrase)}</p>`
+    : "";
+  const signOffText = sig.mode === "BASIC" ? `\n\n${signOffPhrase}` : "";
+  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${signOffHtml}${sig.html}</div>`;
 
   try {
-    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + sig.text, html, from, replyTo, ...(validAttachments.length ? { attachments: validAttachments } : {}) });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + signOffText + sig.text, html, from, replyTo, ...(validAttachments.length ? { attachments: validAttachments } : {}) });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     // Phase 1 commit 4d post-fix — buyerRoundId stamping at the send-

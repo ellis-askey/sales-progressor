@@ -437,13 +437,20 @@ export async function sendNeighbourChase(input: {
   const renderedBody = input.bodyHtml.trim()
     ? sanitizeChaseBodyHtml(input.bodyHtml)
     : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
-  const html = wrapEmailHtml(renderedBody, sig.html);
+  // The AI no longer writes a sign-off (shared chase guidance), so the app adds
+  // one for BASIC-family signatures — the neighbour drawer has no phrase editor,
+  // so it uses the default. Image/custom signatures carry their own valediction.
+  const signOffHtml = sig.mode === "BASIC"
+    ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">Kind regards,</p>`
+    : "";
+  const signOffText = sig.mode === "BASIC" ? `\n\nKind regards,` : "";
+  const html = wrapEmailHtml(renderedBody + signOffHtml, sig.html);
   const subject = input.subject.trim() || `Quick update on ${target.neighbourAddress ?? "the chain"}?`;
 
   await sendAgentEmail({
     to: target.neighbourAgentEmail,
     subject,
-    text: bodyText + sig.text,
+    text: bodyText + signOffText + sig.text,
     html,
     from,
     replyTo,

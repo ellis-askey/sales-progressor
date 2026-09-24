@@ -4453,6 +4453,10 @@ body[data-demo-file] [data-onboarding-checklist] {
   .attn-row.attn-collapsed .attn-actions { display: none; }
 }
 
+/* Chase drawer — signature-style menu options lift on hover (note 4). */
+.chase-sig-opt { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.chase-sig-opt:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -10px rgba(0,0,0,.35); }
+
 /* Auto-emails toolbar: once the filter row has wrapped there is no "right
  * edge of the row" for Export to align to — drop the auto margin so it sits
  * inline with the other controls (audit D4). !important beats the inline

@@ -6,7 +6,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
-import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
+import { ChaseComposer, type ChaseAttachment, type SigStyle } from "@/components/chase/ChaseComposer";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { ChaseSentOffers, type SentOffersCtx } from "@/components/chase/ChaseSentOffers";
 import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
@@ -307,6 +307,12 @@ export function ChaseDrawer({
   // message holds the composer's HTML body; plain-text forms are derived on send.
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState<ChaseAttachment[]>([]);
+  // Note 4: the app owns the sign-off + signature. `signOff` is the editable
+  // valediction (default "Kind regards,"); `sigStyle` is the per-message
+  // Basic/Logo/Default toggle. Both ride the send payload; the preview mirrors
+  // exactly what goes out.
+  const [signOff, setSignOff] = useState("Kind regards,");
+  const [sigStyle, setSigStyle] = useState<SigStyle>("default");
   // Scroll anchor — after Generate we bring the subject to the top so the whole
   // draft (subject, message, sign-off) is in view at once.
   const composeTopRef = useRef<HTMLDivElement | null>(null);
@@ -704,6 +710,8 @@ export function ChaseDrawer({
               messageText: effectiveContent,
               bodyHtml: message,
               ccEmails: effectiveCc,
+              signatureStyle: sigStyle,
+              signOff,
               ...(emailAttachments ? { attachments: emailAttachments } : {}),
             }),
           });
@@ -1271,6 +1279,8 @@ export function ChaseDrawer({
               attachments={attachments}
               onAttachmentsChange={setAttachments}
               charCount={htmlToText(message).length}
+              sigStyle={sigStyle}
+              onSigStyleChange={channel === "email" ? setSigStyle : undefined}
             />
 
             {channel === "whatsapp" && attachments.length > 0 && (
@@ -1288,7 +1298,13 @@ export function ChaseDrawer({
             {/* Rendered sign-off, shown inline once there's a message so the
                 compose reads like the email that actually goes out. Shared with
                 the neighbour-chase drawer so the preview is identical. */}
-            <ChaseSignaturePreview transactionId={transactionId} visible={channel === "email" && !isHtmlEmpty(message)} />
+            <ChaseSignaturePreview
+              transactionId={transactionId}
+              visible={channel === "email" && !isHtmlEmpty(message)}
+              sigStyle={sigStyle}
+              signOff={signOff}
+              onSignOffChange={setSignOff}
+            />
           </div>
 
           {/* Scroll-fade — the compose area is often taller than the drawer, so

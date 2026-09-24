@@ -170,7 +170,7 @@ The model must never produce these. The system prompt lists them as forbidden:
 - Length: 80–150 words typical. Three to five short paragraphs.
 - Opener: "Good morning," or "Hi [Name],". Follow with "Hope you're well" or context variant.
 - Multiple parties: use `@Name` mentions to direct specific questions.
-- Sign-off: "Best regards, [Sender Name] @ [Firm]" or "Kind regards" — appropriate for the tone band.
+- Sign-off: none in the model output. The app appends the sign-off phrase (editable, defaults "Kind regards") and the signature after the message, so the model ends on the open-door line and never writes a valediction or the sender's name on email.
 
 ### 4.6 Tone bands — what each one means
 
@@ -183,7 +183,7 @@ The user picks one of six tones in the UI. Each is a modulation of *firmness*, n
 | Polite Yet Firm | Milestone has slipped past expected date but is recoverable; one prior chase | Names the slippage with a date, acknowledges possible reasons, restates the ask plainly |
 | Chase Up | Previous message unanswered for several days; fresh nudge needed | References prior correspondence, keeps it short, asks one clear question |
 | Urgent | Exchange date or hard deadline genuinely at risk | Surfaces the shared deadline first, states what's outstanding factually, asks plainly, volunteers help. No emoji, no exclamation marks. |
-| Final Reminder | Multiple chases over sustained period unanswered; transaction at material risk | Lists the dates of attempted contact factually. States the consequence as a shared outcome, not a threat. Still no blame. Sign off with full name and firm. |
+| Final Reminder | Multiple chases over sustained period unanswered; transaction at material risk | Lists the dates of attempted contact factually. States the consequence as a shared outcome, not a threat. Still no blame. |
 
 ### 4.7 Multi-item message structure
 
@@ -301,7 +301,7 @@ This is a WhatsApp message. Keep it brief: 50–80 words is the target, three sh
 When `channel = "email"`, substitute `{channelGuidance}` with:
 
 ```
-This is an email. Length: 80–150 words, three to five short paragraphs. Opener is more structured than WhatsApp: "Good morning," or "Hi [Name],". Follow with "Hope you're well" or a context-aware variant. If multiple parties are addressed, use @Name mentions to direct specific questions. Sign off with "Best regards, {senderFirstName}" or "Kind regards, {senderFirstName}" — choose to fit the tone band.
+This is an email. Length: 80–150 words, three to five short paragraphs. Opener is more structured than WhatsApp: "Good morning," or "Hi [Name],". Follow with "Hope you're well" or a context-aware variant. If multiple parties are addressed, use @Name mentions to direct specific questions. Do NOT write a closing sign-off or the sender's name; the app appends the sign-off and signature after your message. End on the open-door line.
 ```
 
 ### 5.2 Tone guidance — substitution values
@@ -333,13 +333,13 @@ Chase-up tone. Use this when a previous message has gone unanswered for several 
 When `tone = "urgent"`:
 
 ```
-Urgent tone. No emoji whatsoever — not even one. No exclamation marks. Use this when the exchange date or another hard deadline is genuinely at risk. Open by surfacing the SHARED goal ("we're aiming for exchange on {expectedExchangeDate}, so I'm just trying to tie up the last few bits this week"). Then explain factually what's outstanding. Then ask plainly for the action. Then volunteer to do your part: "once X is in I can push everything through with the solicitor." Tone stays warm — urgency comes from the deadline, not pressure on the recipient. Sign off with name and firm.
+Urgent tone. No emoji whatsoever — not even one. No exclamation marks. Use this when the exchange date or another hard deadline is genuinely at risk. Open by surfacing the SHARED goal ("we're aiming for exchange on {expectedExchangeDate}, so I'm just trying to tie up the last few bits this week"). Then explain factually what's outstanding. Then ask plainly for the action. Then volunteer to do your part: "once X is in I can push everything through with the solicitor." Tone stays warm — urgency comes from the deadline, not pressure on the recipient.
 ```
 
 When `tone = "final_reminder"`:
 
 ```
-Final-reminder tone. Use this when multiple chases over a sustained period have gone unanswered and the transaction is at material risk. Name the timeline of attempted contact factually and without accusation ("I've sent messages on the 14th, 21st and 28th"). State the consequence plainly and as a SHARED outcome ("if I don't hear back this week, I'll need to update the chain that we may not make exchange on the {expectedExchangeDate}"). Still no blame — the message is "I want to avoid this together." Sign off professionally with full name and firm.
+Final-reminder tone. Use this when multiple chases over a sustained period have gone unanswered and the transaction is at material risk. Name the timeline of attempted contact factually and without accusation ("I've sent messages on the 14th, 21st and 28th"). State the consequence plainly and as a SHARED outcome ("if I don't hear back this week, I'll need to update the chain that we may not make exchange on the {expectedExchangeDate}"). Still no blame — the message is "I want to avoid this together."
 ```
 
 ---
@@ -458,7 +458,7 @@ To verify the new prompt works, regenerate the message that prompted this rewrit
 6. Not contain any of the forbidden phrases listed in §4.4.
 7. Stay under 100 words.
 8. Have no emoji (Urgent tone).
-9. Sign off appropriately for the channel — WhatsApp messages do not require a formal sign-off; email messages should sign off with the sender's first name per §5.1.
+9. Not write a closing sign-off on email — the app appends the sign-off phrase and signature after the message. WhatsApp messages do not require a formal sign-off either.
 10. Preserve the voice's characteristic phrasing — contractions intact ("I'll" not "I will"), no clause reads as if it was reworded to sound more formal, and any informal British phrasing is kept as-is.
 
 **Failing output looks like the original "Rachel Whitfield" message in §2.** If the new prompt produces anything resembling that, the spec has been mis-implemented.

@@ -98,6 +98,10 @@ export async function resolveEmailSignature(opts: {
   agency?: SignatureAgencyContext | null;
   fallbackName?: string | null;
   override?: { mode?: EmailSignatureMode; customHtml?: string | null };
+  // Per-message chase style (chase drawer toggle). "default" respects the
+  // sender's saved signature; "logo"/"basic" force the assembled block WITH or
+  // WITHOUT the agency logo band. Independent of `override` (settings preview).
+  signatureStyle?: "default" | "basic" | "logo";
 }): Promise<ResolvedSignature> {
   const user = await prisma.user.findUnique({
     where: { id: opts.userId },
@@ -113,12 +117,17 @@ export async function resolveEmailSignature(opts: {
     },
   });
   const agency = opts.agency ?? null;
-  const agencyLogoBandHtml = agencyLogoHeaderHtml({
-    logoUrl: getAgencyLogoUrl(agency?.logoPath),
-    tileColor: agency?.logoTileColor,
-    scale: (agency?.logoScale ?? null) as LogoScale | null,
-    align: (agency?.logoAlign ?? null) as LogoAlign | null,
-  });
+  const style = opts.signatureStyle ?? "default";
+  // "basic"/"logo" force the assembled block; "basic" drops the logo band.
+  const forceBasic = style === "basic" || style === "logo";
+  const agencyLogoBandHtml = style === "basic"
+    ? ""
+    : agencyLogoHeaderHtml({
+        logoUrl: getAgencyLogoUrl(agency?.logoPath),
+        tileColor: agency?.logoTileColor,
+        scale: (agency?.logoScale ?? null) as LogoScale | null,
+        align: (agency?.logoAlign ?? null) as LogoAlign | null,
+      });
   const sigInput: ChaseSignatureInput = {
     agentName: user?.name ?? opts.fallbackName ?? "",
     agentImageUrl: user?.image ?? null,
@@ -129,7 +138,7 @@ export async function resolveEmailSignature(opts: {
     agencyLogoBandHtml,
   };
   return renderResolvedSignature({
-    mode: opts.override?.mode ?? user?.emailSignatureMode ?? "BASIC",
+    mode: forceBasic ? "BASIC" : (opts.override?.mode ?? user?.emailSignatureMode ?? "BASIC"),
     sigInput,
     imageUrl: getSignatureImageUrl(user?.emailSignatureImagePath),
     customHtml:

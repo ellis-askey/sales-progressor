@@ -390,13 +390,11 @@ ${voiceProfile}
 `
     : "";
 
-  // When the sender uses an IMAGE or CUSTOM signature, their signature block is
-  // appended on send and already carries their name/sign-off. Tell the model NOT
-  // to write its own closing sign-off, or the message would sign off twice.
-  const senderSig = await prisma.user
-    .findUnique({ where: { id: session.user.id }, select: { emailSignatureMode: true } })
-    .catch(() => null);
-  const suppressSignoff = !!senderSig && senderSig.emailSignatureMode !== "BASIC";
+  // The app now renders the sign-off phrase + signature after the message (see
+  // /api/chase/send-email + the chase drawer), so the model must NEVER write its
+  // own closing sign-off on email, or it would duplicate. WhatsApp has no
+  // appended signature; its channel guidance handles the informal close.
+  const suppressSignoff = channel === "email";
   const signoffSection = suppressSignoff
     ? `# Sign-off
 
