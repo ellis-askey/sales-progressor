@@ -354,13 +354,16 @@ function SecondaryLink({ link }: { link: SourceRef }) {
 }
 
 function DesignationRow({ label, d }: { label: string; d: Designation }) {
+  // .intel-desig-row: label + value side by side on desktop, stacked under 500px
+  // so a long value ("None found in available data") never runs off a narrow
+  // card (critique #20). Layout lives in agent-system.css; colours stay inline.
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+    <div className="intel-desig-row">
       <span style={{ fontSize: 12.5, color: "var(--agent-text-muted)" }}>{label}</span>
       {d.found ? (
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-coral-deep)", textAlign: "right", minWidth: 0 }}>Yes{d.grade ? ` · Grade ${d.grade}` : d.label ? ` · ${d.label}` : ""}</span>
+        <span className="intel-desig-val" style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-coral-deep)", minWidth: 0 }}>Yes{d.grade ? ` · Grade ${d.grade}` : d.label ? ` · ${d.label}` : ""}</span>
       ) : (
-        <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", textAlign: "right" }}>None found in available data</span>
+        <span className="intel-desig-val" style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>None found in available data</span>
       )}
     </div>
   );

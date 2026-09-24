@@ -394,9 +394,18 @@ export function MilestonePanel({
                         // learned median, so it's safe to show without
                         // MEDIANS_READY. Same eligibility gate as slowness
                         // (available + not done + not NR).
-                        const stalenessSignal = showSlowness
-                          ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code])
-                          : null;
+                        // VM16 (seller's contract issued to them) becomes available
+                        // as soon as the contract pack is issued (VM7), but the
+                        // seller's solicitor usually only sends the contract once
+                        // the buyer's enquiries are satisfied. Don't flag it as
+                        // "Awaiting X days" until then, or it reads as overdue when
+                        // it legitimately isn't yet (critique #22).
+                        const enquiriesSatisfied =
+                          completionLookup.has("PM20") || completionLookup.has("VM21");
+                        const stalenessSignal =
+                          showSlowness && !(def.code === "VM16" && !enquiriesSatisfied)
+                            ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code])
+                            : null;
                         // Client-chase chip: same eligibility gate (avail-
                         // able + not done + not NR). Renders only when the
                         // map supplies a non-null entry for this code.

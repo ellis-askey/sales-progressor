@@ -519,10 +519,11 @@ export function TransactionRowView({
             </div>
           </div>
 
-          {/* Verb chip + status on mobile */}
+          {/* Verb chip + status on mobile. Status pill only on the All tab —
+              redundant on a single-status tab, the tab already says it (critique #24). */}
           <div className="flex items-center gap-2 flex-wrap">
             <ActivityVerbChip tx={tx} mobile />
-            <StatusBadge status={tx.status} />
+            {cols.includes("status") && <StatusBadge status={tx.status} />}
           </div>
 
           <div>{isDead ? <WithdrawnCell tx={tx} /> : targetContent}</div>

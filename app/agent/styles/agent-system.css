@@ -2229,6 +2229,13 @@
     .enq-summary-cell:nth-child(odd) { border-left: none; }
     .enq-summary-cell:nth-child(n+3) { border-top: 1px solid var(--agent-border-subtle); }
   }
+  /* "In enquiries" sub: "X with sellers · Y with buyers" inline on desktop, but
+     stacked (dot dropped) on phones so the buyer count never wraps mid-line
+     (critique #23). */
+  @media (max-width: 640px) {
+    .enq-sub-split { display: inline-flex; flex-direction: column; }
+    .enq-sub-split .enq-sub-dot { display: none; }
+  }
 
   /* Toolbar */
   .enq-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -4457,6 +4464,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .chase-sig-opt { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
 .chase-sig-opt:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -10px rgba(0,0,0,.35); }
 
+
 /* Auto-emails toolbar: once the filter row has wrapped there is no "right
  * edge of the row" for Export to align to — drop the auto margin so it sits
  * inline with the other controls (audit D4). !important beats the inline
@@ -4957,3 +4965,13 @@ body[data-demo-file] [data-onboarding-checklist] {
 .map-sv-off { height: 120px; display: grid; place-items: center; text-align: center; padding: 0 24px; font-size: 12.5px; color: var(--agent-text-muted); }
 .map-modal-cta { display: block; text-align: center; padding: 12px; font-size: 13px; font-weight: 650; color: var(--agent-coral-deep); text-decoration: none; border-top: 0.5px solid var(--agent-border-subtle); }
 .map-modal-cta:hover { background: rgba(var(--agent-coral-rgb), 0.06); }
+
+/* Property intel — planning designation rows (PropertyIntelCard). Label + value
+   side by side on desktop; stacked under 500px so a long value never runs off a
+   narrow card (critique #20). */
+.intel-desig-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.intel-desig-row .intel-desig-val { text-align: right; }
+@media (max-width: 500px) {
+  .intel-desig-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .intel-desig-row .intel-desig-val { text-align: left; }
+}

@@ -270,7 +270,7 @@ export function EnquiriesTriageList({
       {/* Summary overview — same family as Chains / Completions */}
       <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
         <div className="enq-summary-grid">
-          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={`${tiles.withSellers} with sellers · ${tiles.withBuyers} with buyers`} />
+          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={<span className="enq-sub-split"><span>{tiles.withSellers} with sellers</span><span className="enq-sub-dot"> · </span><span>{tiles.withBuyers} with buyers</span></span>} />
           <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
           <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
           <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
@@ -676,7 +676,7 @@ function RowActions({
 }
 
 type TileTone = "coral" | "info" | "warning" | "success" | "neutral";
-function Tile({ icon, value, label, sub, tone }: { icon: React.ReactNode; value: number; label: string; sub: string; tone: TileTone }) {
+function Tile({ icon, value, label, sub, tone }: { icon: React.ReactNode; value: number; label: string; sub: React.ReactNode; tone: TileTone }) {
   return (
     <div className="enq-summary-cell">
       <span aria-hidden className={`stat-circle stat-circle--${tone}`}>{icon}</span>

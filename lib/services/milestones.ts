@@ -2415,6 +2415,21 @@ export async function executeUndoMilestone(input: {
         data: { closedAt: null, escalatedAt: null, lastChasedAt: new Date() },
       });
     }
+    // Undoing "enquiries raised" (PM14/VM10) means the loop never opened, so it
+    // should drop off the enquiries page. CLOSE the tracker (closedAt) rather than
+    // delete it — every logged call/email + sent chase (enquiryMovement rows +
+    // isEnquiryChase comms) is preserved, so the full chase history is intact when
+    // it comes back. Re-confirming PM14 reopens it via syncEnquiryTracker: ball
+    // back with the seller's solicitor, timers reset to a clean start, history kept.
+    // Placed AFTER the reopen block so a cascade that reverses both PM14 and PM20
+    // nets out closed (correct — enquiries are no longer raised). Critique #13.
+    const closesEnquiries = Array.from(allReverseCodes).some((c) => ENQUIRY_OPEN_CODES.has(c));
+    if (closesEnquiries) {
+      await ptx.enquiryTracker.updateMany({
+        where: { transactionId, closedAt: null },
+        data: { closedAt: new Date() },
+      });
+    }
 
     // Cancel active reminder logs + pending chase tasks where EITHER the
     // rule's target OR its anchor is one of the reversed codes.
