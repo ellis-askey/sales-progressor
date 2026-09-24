@@ -276,9 +276,10 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
 
   const body = [
     `<tr><td style="padding:22px 2px 0;font-family:${FONT_STACK};font-size:15.5px;line-height:1.6;color:#374151;">
-      <p style="margin:0 0 16px;">Hi ${firstName},</p>
-      <p style="margin:0 0 16px;">Self-progress is free, and if you’d like us to run a sale for you, your first outsourced one is on us.</p>
-      <p style="margin:0;">Either way, you’re in the right place. We’ll help you keep things moving, from offer to exchange.</p>
+      <p style="margin:0 0 16px;">Welcome to TSP ${firstName} 👋</p>
+      <p style="margin:0 0 16px;">Whether you’re here to manage your own sales or you’d like a hand with the progression, it’s great to have you with us.</p>
+      <p style="margin:0 0 16px;">The platform is free to use, and if you’d like us to take care of a sale for you, your first one is on us.</p>
+      <p style="margin:0;">We’re always working to make TSP better, so if there’s something you’d love to see, just let us know. We’d genuinely love to hear from you.</p>
     </td></tr>`,
     `<tr><td style="padding:24px 0 0;">${wfeatures}</td></tr>`,
     `<tr><td style="padding:28px 0 0;">
@@ -315,11 +316,13 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   </body></html>`;
 
   const text = [
-    `Hi ${firstName},`,
+    `Welcome to TSP ${firstName} 👋`,
     ``,
-    `Welcome to Sales Progressor. Your account is ready. Add your first sale to start using the platform.`,
+    `Whether you’re here to manage your own sales or you’d like a hand with the progression, it’s great to have you with us.`,
     ``,
-    `Self-progress is free, and if you’d like us to run a sale for you, your first outsourced one is on us. Either way, you’re in the right place. We’ll help you keep things moving, from offer to exchange.`,
+    `The platform is free to use, and if you’d like us to take care of a sale for you, your first one is on us.`,
+    ``,
+    `We’re always working to make TSP better, so if there’s something you’d love to see, just let us know. We’d genuinely love to hear from you.`,
     ``,
     `Add a sale: ${ctaUrl}`,
     ``,
