@@ -329,7 +329,7 @@ export async function getReminderLogsForTransaction(
   return visible;
 }
 
-export async function getAgentReminderLogs(vis: AgentVisibility) {
+export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transactionId?: string }) {
   // Internal staff paths: no agencyId filter; serviceType filter reversed (their files are outsourced).
   // Agent paths: existing agencyId + serviceType (self_managed only) logic unchanged.
   //
@@ -357,6 +357,13 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
         : baseTxWhere
       : { ...baseTxWhere, agentUserId: vis.userId };
   }
+
+  // File-scoped (the Reminders TAB on a property file): one already-authorised
+  // file, shown regardless of the agency / on-hold / demo filters above — the file
+  // page gated access, and its tab must surface that file's reminders even when
+  // it's on hold or the demo. Everything downstream (hand-over, autopilot) is
+  // unchanged, so the tab is the Reminders page scoped to one property.
+  if (opts?.transactionId) txWhere = { id: opts.transactionId };
 
   // PHASE 1 (b)-CLASS — drives chase decisions, restructured as
   // two-step. The orphan filter below removes stale logs whose target
@@ -532,7 +539,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
         createPendingChaseTaskSafe({ transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0, buyerRoundId: l.buyerRoundId, assignedToId: l.transaction.assignedUserId })
       )
     );
-    return getAgentReminderLogs(vis);
+    return getAgentReminderLogs(vis, opts);
   }
 
   // Solicitor hand-over (compute-on-read, mirrors the client backstop above).
