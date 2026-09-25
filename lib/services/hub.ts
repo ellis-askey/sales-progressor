@@ -2334,6 +2334,9 @@ export type HubAttentionItem = {
   // Both null on the synthetic exchange-overdue ("xovr-") items.
   taskId: string | null;
   targetMilestoneCode: string | null;
+  // Manual-handoff marker on the pending chase task (e.g. no_contact_on_side:
+  // there's no client on this side to chase). Drives the handback chip.
+  fallbackKind: string | null;
   // Inline chase drawer on the hub (2026-09-18): everything the ChaseDrawer
   // needs so Chase opens right there instead of navigating to the file.
   // Empty/null on the synthetic exchange-overdue items (no Chase button).
@@ -2551,6 +2554,7 @@ export async function getHubAttentionItems(
         // indexed access, but is undefined at runtime when no task is open.
         taskId: (task?.id ?? null) as string | null,
         targetMilestoneCode: (log.reminderRule.targetMilestoneCode ?? null) as string | null,
+        fallbackKind: (task?.fallbackKind ?? null) as string | null,
         chaseCount: task?.chaseCount ?? 0,
         // Project down to the client-safe ChaseContact shape (drops
         // portalToken/unsubscribedAt, which only resolveAutopilot needs).
@@ -2642,6 +2646,7 @@ export async function getHubAttentionItems(
       escalatedByName: null,
       taskId: null,
       targetMilestoneCode: null,
+      fallbackKind: null,
       chaseCount: 0,
       contacts: [],
       vendorSolicitor: null,

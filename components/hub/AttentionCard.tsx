@@ -31,6 +31,7 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
+import { FallbackPill } from "@/components/reminders/status-pills";
 import { usePathname } from "next/navigation";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -985,12 +986,21 @@ function AttentionRow({
       <p className="attn-status" title={secondaryTitle}>{secondary}</p>
       <div className="attn-actions">
         {isReminder && (
-          <ChaseSplitButton
-            item={row.item}
-            onResolved={() => onReminderResolved(row.item.id)}
-            toastSuccess={toastSuccess}
-            toastError={toastError}
-          />
+          row.item.fallbackKind === "no_contact_on_side" ? (
+            // No client on this side to chase: swap the (misleading) Chase
+            // button for the handback chip, linking to the file's contacts so
+            // the client can be added.
+            <Link href={`/agent/transactions/${row.item.transaction.id}`} style={{ textDecoration: "none" }}>
+              <FallbackPill kind="no_contact_on_side" />
+            </Link>
+          ) : (
+            <ChaseSplitButton
+              item={row.item}
+              onResolved={() => onReminderResolved(row.item.id)}
+              toastSuccess={toastSuccess}
+              toastError={toastError}
+            />
+          )
         )}
         {row.kind === "hold" && (
           showExtenderFor === txId ? (
