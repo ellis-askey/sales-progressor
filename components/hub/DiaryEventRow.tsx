@@ -167,7 +167,7 @@ export function DiaryEventRow({
               type="button"
               onClick={() => { setGateMsg(null); setOpen(true); }}
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ color: c.accent, fontWeight: 700, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+              style={{ color: c.accent, fontWeight: 600, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
               Confirm {c.verb}
             </button>
