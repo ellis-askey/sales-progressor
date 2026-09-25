@@ -17,6 +17,35 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { getChaseOverridesForTimeline } from "@/lib/services/chase-overrides";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
+import { resolveConfirmer } from "@/lib/updates-copy";
+
+// Short "who confirmed this step" label for the timeline's resolved event —
+// reuses the canonical resolveConfirmer so it names the agent, the solicitor
+// firm, a helper, or the client(s), consistent with the updates feed. Null when
+// nobody is attributed (an automatic/system close).
+function confirmerLabel(
+  completion:
+    | {
+        confirmedByPortal: boolean;
+        confirmedByContactId: string | null;
+        confirmedBySolicitorFirmId: string | null;
+        confirmedBySolicitorFirm?: { name: string } | null;
+        completedBy?: { name: string | null } | null;
+      }
+    | null
+    | undefined,
+  sideContacts: { id: string; name: string; isPrincipal: boolean }[],
+  side: "vendor" | "purchaser",
+): string | null {
+  if (!completion) return null;
+  const { confirmer, principals } = resolveConfirmer(completion, sideContacts);
+  if (!confirmer) return null;
+  if (confirmer.kind === "agent") return confirmer.name;
+  if (confirmer.kind === "solicitor") return confirmer.firm;
+  if (confirmer.kind === "helper") return confirmer.name;
+  const names = principals.map((p) => p.name).filter(Boolean);
+  return names.length ? names.join(" & ") : side === "vendor" ? "The seller" : "The buyer";
+}
 
 // Add N London working days (Mon-Fri) to a date. Mirrors the solicitor-chase
 // sender's cadence unit so predicted solicitor dates match what actually sends.
@@ -214,7 +243,7 @@ export async function getChaseTimeline(
     }),
     prisma.contact.findMany({
       where: { propertyTransactionId: transactionId },
-      select: { id: true, name: true, roleType: true, exchangeAuthorityGivenAt: true },
+      select: { id: true, name: true, roleType: true, isPrincipal: true, exchangeAuthorityGivenAt: true },
     }),
     prisma.clientChaseState.findMany({
       where: { transactionId },
@@ -245,7 +274,13 @@ export async function getChaseTimeline(
     // (expectedDate), plus the step name for the thread title.
     prisma.milestoneCompletion.findMany({
       where: { transactionId, ...milestoneScopeWhere(forRound(tx.activeBuyerRoundId ?? null, transactionId)) },
-      select: { state: true, expectedDate: true, completedAt: true, eventDate: true, milestoneDefinition: { select: { code: true, side: true, name: true } } },
+      select: {
+        state: true, expectedDate: true, completedAt: true, eventDate: true,
+        confirmedByPortal: true, confirmedByContactId: true, confirmedBySolicitorFirmId: true,
+        confirmedBySolicitorFirm: { select: { name: true } },
+        completedBy: { select: { name: true } },
+        milestoneDefinition: { select: { code: true, side: true, name: true } },
+      },
     }),
     // Per-code solicitor cadence (grace/repeat/cap) so we can predict the next —
     // and the FIRST — solicitor chase date, mirroring the sender.
@@ -340,7 +375,22 @@ export async function getChaseTimeline(
   const todayStr = toUKDateStr(new Date());
   const nowMs = Date.now();
 
-  const threads: ChaseThread[] = logs.map((log) => {
+  // Guard against phantom chases: an ACTIVE reminder log only represents a real,
+  // live chase if the step it targets is actually OPEN (available). An active log
+  // against a locked / already-complete / missing step is a phantom — e.g. a
+  // straggler from before the VM7↔PM7 contract-pack auto-complete shipped
+  // (2026-09-17) — and must not show as "scheduled / autopilot will send". It
+  // reappears automatically once the step opens. Completed/cancelled logs are
+  // history and always shown.
+  const chaseableLogs = logs.filter((log) => {
+    if (log.status !== "active") return true;
+    const c = log.reminderRule.targetMilestoneCode;
+    if (!c) return true;
+    const comp = completionByKey.get(`${sideForCode(c)}|${c}`);
+    return comp?.state === "available";
+  });
+
+  const threads: ChaseThread[] = chaseableLogs.map((log) => {
     const rule = log.reminderRule;
     const code = rule.targetMilestoneCode;
     const side = sideForCode(code);
@@ -398,7 +448,9 @@ export async function getChaseTimeline(
       at: log.createdAt.toISOString(),
       kind: "scheduled",
       title: "Chase scheduled",
-      detail: rule.graceDays ? `Grace period of ${rule.graceDays} day${rule.graceDays === 1 ? "" : "s"} after the previous step.` : undefined,
+      detail: rule.graceDays
+        ? `Waiting on ${waitingOn}. If we don't hear back, we'll follow up in ${rule.graceDays} day${rule.graceDays === 1 ? "" : "s"}.`
+        : `Waiting on ${waitingOn}.`,
       actor: "System",
     });
 
@@ -452,7 +504,18 @@ export async function getChaseTimeline(
       });
     }
     if (state === "completed") {
-      events.push({ at: log.updatedAt.toISOString(), kind: "resolved", title: "Confirmed", detail: "Milestone confirmed. Chase closed.", actor: "System" });
+      const comp = completionByKey.get(`${side}|${code}`);
+      const sideContacts = contacts
+        .filter((c) => (side === "vendor" ? c.roleType === "vendor" : c.roleType === "purchaser"))
+        .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
+      const who = confirmerLabel(comp, sideContacts, side);
+      events.push({
+        at: (comp?.completedAt ?? log.updatedAt).toISOString(),
+        kind: "resolved",
+        title: "Confirmed",
+        detail: who ? `Confirmed by ${who}. Chase closed.` : "Confirmed. Chase closed.",
+        actor: who ? undefined : "System",
+      });
     }
     if (state === "cancelled") {
       events.push({ at: log.updatedAt.toISOString(), kind: "cancelled", title: "Stopped", detail: log.statusReason ?? "Chase no longer needed.", actor: "System" });
