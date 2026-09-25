@@ -246,7 +246,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                       <span style={LBL}>Sold history</span>
                       {pricePerM2 && (
                         <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>
-                          {poundsFmt(pricePerM2)}/m²{growthPct !== null && firstPriced ? ` · ${growthPct >= 0 ? "+" : ""}${growthPct}% since ${yearOf(firstPriced.date)}` : ""}
+                          {poundsFmt(pricePerM2)} per m²{growthPct !== null && firstPriced ? ` · ${growthPct >= 0 ? "+" : ""}${growthPct}% since ${yearOf(firstPriced.date)}` : ""}
                         </span>
                       )}
                     </div>
