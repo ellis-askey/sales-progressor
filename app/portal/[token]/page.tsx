@@ -557,7 +557,6 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
       tenure={transaction.tenure}
       purchaseType={transaction.purchaseType}
       percent={percent}
-      showProgressNumber={transaction.portalDisplay.progressPercent}
       currentStepNumber={currentStepNumber}
       currentStage4={currentStage4}
       currentStageSubLabel={currentStageSubLabel}

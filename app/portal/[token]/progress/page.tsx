@@ -7,8 +7,7 @@ import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
 import { getOnwardTrackerView, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { prisma } from "@/lib/prisma";
-import { P } from "@/components/portal/portal-ui";
-import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
 import { recordPortalEvent } from "@/lib/services/portal-events";
 
 const POST_EXCHANGE_PORTAL = new Set(["VM19", "VM20", "PM26", "PM27"]);
@@ -124,30 +123,16 @@ export default async function PortalProgressPage({
   return (
     <div className="space-y-4 portal-reveal-stack">
       {/* ── Progress header ─────────────────────────────────── */}
-      <PortalGlassCard glassId="progress-header" label="Progress: steps-done header" defaultVariant="v25" className="px-5 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>
-            {completed.length} of {preExchange.length} steps done
-          </p>
-          <p className="text-[15px] font-bold" style={{ color: P.accent }}>{percent}%</p>
-        </div>
-        <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: P.border }}>
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${percent}%`,
-              background: percent >= 80 ? P.success : P.accent,
-            }}
-          />
-        </div>
-        {hasExchanged ? (
-          <p className="text-[12px] mt-3 font-semibold" style={{ color: P.success }}>Contracts exchanged</p>
-        ) : nextUp ? (
-          <p className="text-[12px] mt-3" style={{ color: P.textMuted }}>
-            Next: <span style={{ color: P.textSecondary }}>{nextUp.label}</span>
-          </p>
-        ) : null}
-      </PortalGlassCard>
+      {/* The completion percentage + bar are gated by the agency's "Progress
+          figure" display setting; the step count stays either way. */}
+      <PortalProgressHeader
+        completed={completed.length}
+        total={preExchange.length}
+        percent={percent}
+        showPercent={transaction.portalDisplay.progressPercent}
+        hasExchanged={hasExchanged}
+        nextLabel={nextUp?.label ?? null}
+      />
 
       {/* ── Grouped milestone sections ───────────────────────── */}
       <PortalMilestoneList

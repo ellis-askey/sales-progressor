@@ -11,6 +11,7 @@ import { useState, useTransition } from "react";
 import { setAgencyPortalDisplay, type PortalDisplayField } from "@/app/actions/portal-display";
 import { PortalKeyDatesCard } from "@/components/portal/PortalKeyDatesCard";
 import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
+import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
 import { PortalSheet } from "@/components/portal/PortalSheet";
 import { PortalWelcomeSheet } from "@/components/portal/PortalWelcomeSheet";
 import { PortalSettingsPreviewProvider } from "@/components/portal/PortalSettingsProvider";
@@ -39,8 +40,8 @@ const ROWS: { field: PortalDisplayField; label: string; sub: string; note?: stri
   {
     field: "showPortalProgressPercent",
     label: "Progress figure",
-    sub: "Show the percentage progress figure on the overview.",
-    hidden: "The number is hidden; the ring itself stays.",
+    sub: "Show a completion percentage on the progress page. Buyers and sellers still see which steps are done either way.",
+    hidden: "The percentage and bar are hidden; the step count stays.",
   },
   {
     field: "showPortalWelcomeSheet",
@@ -77,25 +78,6 @@ function HiddenPreview({ text }: { text: string }) {
 }
 
 // The overview progress ring (portal), reproduced at preview scale.
-function MiniRing() {
-  const size = 84, stroke = 6, r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, justifyContent: "center" }}>
-      <div style={{ position: "relative", width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(15,23,42,0.16)" strokeWidth={stroke} />
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#FF6B4A" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${c * 0.5} ${c}`} />
-        </svg>
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>3</span>
-          <span style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>of 6</span>
-        </div>
-      </div>
-      <div style={{ fontSize: 12, color: "#475569" }}>Current stage<br /><b style={{ color: "#0f172a" }}>Conveyancing</b></div>
-    </div>
-  );
-}
 
 // Stamp duty & costs preview: the REAL portal card (previewMode = no saving),
 // plus a director-only "example price" control so figures can be checked across
@@ -247,16 +229,26 @@ function WelcomePreview() {
 }
 
 function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
+  // Progress is a PARTIAL hide: the percentage + bar disappear but "X of Y steps
+  // done" stays. So we always render the real header and let the toggle drive
+  // just the percentage — the preview matches the client's page in both states.
+  if (field === "showPortalProgressPercent") {
+    return (
+      <PreviewShell>
+        <PortalProgressHeader completed={3} total={6} percent={47} showPercent={on} nextLabel="Searches ordered" />
+      </PreviewShell>
+    );
+  }
   if (!on) return <HiddenPreview text={hidden} />;
   switch (field) {
     case "showPortalKeyDates":
       return <PreviewShell><PortalKeyDatesCard targetDate={KD.targetDate} estimateDate={KD.estimateDate} plannedDate={KD.plannedDate} daysUntilPredicted={KD.daysUntilPredicted} /></PreviewShell>;
     case "showPortalCosts":
       return <CostsPreview />;
-    case "showPortalProgressPercent":
-      return <PreviewShell><MiniRing /></PreviewShell>;
     case "showPortalWelcomeSheet":
       return <WelcomePreview />;
+    default:
+      return null;
   }
 }
 
