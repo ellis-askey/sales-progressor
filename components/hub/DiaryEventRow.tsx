@@ -76,7 +76,7 @@ export function DiaryEventRow({
       const res = await confirmDiaryEventAction({ transactionId: item.transactionId, kind: item.type });
       if (res && "ok" in res && res.ok === false) {
         const missing = (res.missing ?? []).map((m) => m.name).filter(Boolean).join(", ");
-        setGateMsg(missing ? `Not ready yet. Confirm ${missing} first, then this can ${c.verb}.` : `This file isn't ready to ${c.verb} yet.`);
+        setGateMsg(missing ? `Not ready yet. Confirm ${missing} first.` : `This file isn't ready yet.`);
         setBusy(false);
         return;
       }
@@ -125,11 +125,20 @@ export function DiaryEventRow({
     menuItems.push({ key: "setdate", icon: <CalendarPlus size={16} weight="bold" />, title: "Set a new date", sub: "Change the completion day.", onClick: () => setCompDateOpen(true) });
   }
   menuItems.push({ key: "snooze", icon: <Clock size={16} weight="bold" />, title: "Snooze for today", sub: "Hide it from today's diary.", onClick: () => onSnooze(item.transactionId) });
-  if (item.status === "not_ready") {
+  // The confirm lives in the menu ONLY for a not-ready EXCHANGE (which shows a
+  // "Not ready" button, not a confirm one). Completions always get a real
+  // "Confirm completion" button below, so it isn't duplicated in their menu.
+  if (item.status === "not_ready" && item.type === "exchange") {
     menuItems.push({ key: "confirm", icon: <Check size={16} weight="bold" />, title: `Confirm ${c.verb}`, sub: "If it's actually done.", onClick: () => { setGateMsg(null); setOpen(true); } });
   }
 
   const isCompletion = item.type === "completion";
+  // Show the primary confirm split-button when the row is genuinely actionable
+  // (an exchange with both gates in) AND for every completion — a completion is
+  // a "complete it" action, so a passive "Not ready" reads wrong there; the
+  // server gate still guards it if the file hasn't exchanged yet. An exchange
+  // that isn't gate-ready keeps a "Not ready" button that opens its options.
+  const showConfirmButton = item.status === "ready" || (item.status === "not_ready" && isCompletion);
   const rowVars = {
     "--diary-accent": isCompletion ? "var(--agent-success)" : "var(--agent-coral)",
     "--diary-bg": isCompletion ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
@@ -152,7 +161,7 @@ export function DiaryEventRow({
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-success)", display: "inline-flex", alignItems: "center", gap: 4 }}>
             <Check size={13} weight="bold" /> {c.doneLabel}
           </span>
-        ) : item.status === "ready" ? (
+        ) : showConfirmButton ? (
           <span style={{ display: "inline-flex", alignItems: "stretch" }}>
             <button
               type="button"
@@ -165,13 +174,10 @@ export function DiaryEventRow({
             <RowActionMenu joined items={menuItems} disabled={busy} />
           </span>
         ) : (
-          <>
-            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Not ready</span>
-            {/* Caret-only menu (no "Options" label): the chevron is self-evident
-                and dropping the word gives the address the width back so it stops
-                catching on the right-hand text on narrow rows (critique). */}
-            <RowActionMenu items={menuItems} disabled={busy} ariaLabel="Diary event options" />
-          </>
+          // Exchange not yet gate-ready: a "Not ready" button (not bare text) that
+          // opens the options menu, so the row keeps the button footprint of the
+          // actionable rows instead of a lone chevron beside plain text.
+          <RowActionMenu label="Not ready" items={menuItems} disabled={busy} ariaLabel="Not ready — options" />
         )}
       </div>
 
