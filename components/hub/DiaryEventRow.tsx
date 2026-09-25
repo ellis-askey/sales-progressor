@@ -177,7 +177,7 @@ export function DiaryEventRow({
           // Exchange not yet gate-ready: a "Not ready" button (not bare text) that
           // opens the options menu, so the row keeps the button footprint of the
           // actionable rows instead of a lone chevron beside plain text.
-          <RowActionMenu label="Not ready" items={menuItems} disabled={busy} ariaLabel="Not ready — options" />
+          <RowActionMenu label="Not ready" items={menuItems} disabled={busy} />
         )}
       </div>
 
