@@ -85,7 +85,7 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes — number, phrase or page"
+            placeholder="Search notes by number, phrase or page"
             aria-label="Search critique notes"
             className="w-full rounded-md border border-[#262626] bg-[#141414] py-1.5 pl-8 pr-8 text-[12px] text-[#e5e5e5] placeholder:text-[#525252] focus:border-[#2563eb] focus:outline-none"
           />
