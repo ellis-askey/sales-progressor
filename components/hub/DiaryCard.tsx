@@ -31,7 +31,15 @@ const DIARY_STYLES = `
   /* Buttons are solid white here only — the row background is coloured, so the
      transparent ghost buttons would otherwise disappear into it. */
   .diary-row .agent-btn-ghost-bordered { background: var(--agent-surface-elevated); }
-  .diary-row .agent-btn-ghost-bordered:hover:not(:disabled) { background: var(--agent-surface-elevated); border-color: var(--agent-coral); }
+  /* Match the standard ghost-button hover used across the other hub groups
+     (Chase button, row chevrons): deepen the border + glyph to coral-darker and
+     lay the neutral hover shade over the opaque white base, so these darken like
+     the rest instead of only swapping the border colour. */
+  .diary-row .agent-btn-ghost-bordered:hover:not(:disabled) {
+    background: linear-gradient(var(--agent-hover-shade), var(--agent-hover-shade)), var(--agent-surface-elevated);
+    border-color: var(--agent-coral-darker);
+    color: var(--agent-coral-darker);
+  }
 `;
 
 export function DiaryCard({ items }: { items: Item[] }) {
