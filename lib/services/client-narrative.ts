@@ -27,10 +27,11 @@ function currentStageLabel(stages: ResolvedStage[]): string {
 
 const SYSTEM = `You write one short, warm weekly update from a UK estate agency to a client about their property purchase or sale.
 
-You are given the client's first name, whether it is a purchase or a sale, the property, the current stage, whether anything progressed this week, and any target exchange date. Write 2 or 3 short sentences in plain English, no jargon. Say where things are and reassure them it is in hand.
+You are given the client's first name, whether it is a purchase or a sale, the property, the current stage, and whether anything progressed this week. Write 2 or 3 short sentences in plain English, no jargon. Say where things are and reassure them it is in hand.
 
 Hard rules:
 - Use ONLY the facts you are given. Never invent specific steps, dates, documents, names, or anything about the other side of the chain.
+- Never mention an exchange date, a completion date, a timescale, or any target or estimate for when things will happen. Talk only about where things stand now.
 - Never mention numbers of "steps" or internal progress counts.
 - If nothing progressed this week, reassure that these stages naturally take time and you are watching it closely and chasing where needed. Do not imply a problem.
 - Address the client by first name. Do not add a sign-off or signature.
@@ -68,17 +69,11 @@ export async function buildClientNarrative(input: {
       }),
     );
 
-    const exch = input.overridePredictedDate ?? input.expectedExchangeDate ?? null;
-    const exchStr = exch && exch.getTime() > Date.now()
-      ? exch.toLocaleDateString("en-GB", { day: "numeric", month: "long" })
-      : null;
-
     const facts = [
       `Client first name: ${input.clientFirstName}`,
       `This is their ${input.side === "purchaser" ? "purchase" : "sale"} at ${input.address}.`,
       `Current stage: ${stageLabel}.`,
       movedThisWeek ? `Something progressed this week.` : `Nothing has completed in the last week.`,
-      exchStr ? `Target exchange date on record: ${exchStr}.` : `No exchange date set yet.`,
     ].join("\n");
 
     // Layer the agency's tone steer on top, but keep the hard rules supreme.
