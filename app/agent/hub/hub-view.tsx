@@ -996,13 +996,13 @@ async function PipelineHealthCard({
               )}
               <div className="hub-health-hero">
                 <div className="hub-health-hero-head">
-                  <span className="hub-health-stat-l">Exchanges · last 30 days</span>
                   <span className="hub-health-hero-n">
                     {health.exchangesLast30}
                     {momText && (
                       <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 5, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>{momText}</span>
                     )}
                   </span>
+                  <span className="hub-health-stat-l">Exchanges · last 30 days</span>
                 </div>
                 {sparkHasData && (
                   <div className="hub-health-trend">
