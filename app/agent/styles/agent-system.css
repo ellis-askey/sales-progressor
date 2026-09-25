@@ -4457,7 +4457,17 @@ body[data-demo-file] [data-onboarding-checklist] {
   .attn-pill-d { display: none; }
   .attn-pill-m { grid-area: pill; display: inline-flex; justify-self: start; align-self: start; }
   .attn-chev { display: inline-flex; }
-  .attn-status { grid-area: status; align-self: center; }
+  /* Step name: wrap to two lines then ellipsis (the terse name can run long on a
+     phone). -3px pulls it a touch closer to the pill sitting on the row above,
+     without tightening the address↔pill gap (row-gap stays 8px). */
+  .attn-status {
+    grid-area: status; align-self: center;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin-top: -3px;
+  }
   .attn-actions { grid-area: actions; align-self: center; }
   /* Collapsed: only photo + address (+ chevron) show; the rest hides. The left
      accent bar still signals urgency at a glance. */
