@@ -161,6 +161,19 @@ export async function POST(req: NextRequest) {
       })
     : [];
   const targetDefByCode = new Map(targetDefs.map((d) => [d.code, d]));
+
+  // Exchange-readiness (critique #24): exchange can only happen once BOTH sides
+  // have separately confirmed they are ready (VM18 seller gate + PM25 buyer
+  // gate). Until both are complete, chase copy must never imply we are "ready to
+  // exchange" or "in a position to exchange" - only that we're working toward it.
+  const exchangeGates = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: tx.id, milestoneDefinition: { code: { in: ["VM18", "PM25"] } } },
+    select: { state: true, milestoneDefinition: { select: { code: true } } },
+  });
+  const gateComplete = (code: string) =>
+    exchangeGates.some((g) => g.milestoneDefinition?.code === code && g.state === "complete");
+  const bothReadyToExchange = gateComplete("VM18") && gateComplete("PM25");
+
   type MsIdentity = { code: string; name: string; side: string; blocksExchange: boolean };
   // The milestone a chase task is actually about. Prefer the rule's target;
   // fall back to the anchor only for legacy rules with no targetMilestoneCode.
@@ -597,7 +610,21 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     userMessageParts.push(
       `This is an early step. Do not mention exchange, completion, or moving toward exchange. Keep to the milestone(s) above.`,
     );
+  } else if (!bothReadyToExchange) {
+    // Late enough that exchange is a fair shared goal, but the sale is NOT yet
+    // ready to exchange: that needs BOTH sides to separately confirm readiness,
+    // which hasn't happened (critique #24).
+    userMessageParts.push(``);
+    userMessageParts.push(
+      `The sale is NOT ready to exchange, and exchange is still several steps away even once enquiries are satisfied (the buyer's solicitor's final report, contracts issued, signed and returned, the deposit transferred, and a completion date agreed all come first). Never state or imply we are ready to exchange, in a position to exchange or to "move toward exchange", that exchange is imminent, or that it is the next step. If you mention exchange at all, frame it honestly as a later goal the solicitors are still working toward, with more to do first.`,
+    );
   }
+
+  // Timing context (critique #24): giving the day of the week lets the message
+  // reference timeframes naturally ("by the end of the week") without inventing a
+  // specific date. Never turn this into a hard deadline.
+  userMessageParts.push(``);
+  userMessageParts.push(`For timing context only, today is ${new Date().toLocaleDateString("en-GB", { weekday: "long" })}.`);
 
   userMessageParts.push(``);
   userMessageParts.push(`Write the message now.`);

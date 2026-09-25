@@ -130,6 +130,16 @@ export async function POST(req: NextRequest) {
     ? await prisma.milestoneDefinition.findMany({ where: { code: { in: codes } }, select: { code: true, name: true } })
     : [];
   const exchangeAllowed = exchangeTalkAllowed(codes);
+  // Exchange-readiness (critique #24): even when exchange talk is allowed, never
+  // imply we are ready to exchange until BOTH sides have confirmed readiness
+  // (VM18 seller gate + PM25 buyer gate).
+  const exGates = await prisma.milestoneCompletion.findMany({
+    where: { transactionId, milestoneDefinition: { code: { in: ["VM18", "PM25"] } } },
+    select: { state: true, milestoneDefinition: { select: { code: true } } },
+  });
+  const bothReadyToExchange = ["VM18", "PM25"].every((c) =>
+    exGates.some((g) => g.milestoneDefinition?.code === c && g.state === "complete"),
+  );
   const nameByCode = new Map(defs.map((d) => [d.code, d.name]));
   const steps = Array.from(
     new Set(
@@ -186,7 +196,9 @@ export async function POST(req: NextRequest) {
     `"""`,
     ``,
     ...(exchangeAllowed
-      ? []
+      ? (bothReadyToExchange
+          ? []
+          : [`The sale is NOT ready to exchange, and exchange is still several steps away even once enquiries are satisfied (the buyer's solicitor's final report, contracts issued, signed and returned, the deposit transferred, and a completion date agreed all come first). Never state or imply we are ready to exchange, in a position to exchange or to "move toward exchange", that exchange is imminent, or that it is the next step. If you mention exchange at all, frame it honestly as a later goal the solicitors are still working toward, with more to do first.`, ``])
       : [`This is an early step. Do NOT mention exchange, completion, or moving toward exchange anywhere in the updates. Keep strictly to this step.`, ``]),
     `Write exactly these versions and no others: ${wanted.join(", ")}`,
     `- sameSide is for the ${sideWord}, the side we chased.`,
