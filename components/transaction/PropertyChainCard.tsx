@@ -335,7 +335,7 @@ export function PropertyChainCard({
         {/* Footer */}
         <div className="cx2-foot">
           <div className="cx2-foot-row">
-            <span className="cx2-foot-left">
+            <span className="cx2-foot-left" data-open={learnOpen ? "true" : undefined}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="4.5" y="11" width="15" height="9" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
               </svg>
@@ -416,14 +416,16 @@ export function PropertyChainCard({
         /* Footer */
         .cx2-foot{border-top:0.5px solid var(--agent-border-default);padding:13px 22px 16px;margin-top:8px}
         .cx2-foot-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-        .cx2-foot-left{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;color:var(--agent-text-secondary);min-width:0}
-        .cx2-foot-left svg{flex-shrink:0;color:var(--agent-text-muted)}
+        .cx2-foot-left{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;color:var(--agent-text-secondary);min-width:0;transition:color 220ms ease,font-weight 220ms ease}
+        .cx2-foot-left svg{flex-shrink:0;color:var(--agent-text-muted);transition:color 220ms ease}
+        .cx2-foot-left[data-open="true"]{color:var(--agent-text-primary);font-weight:600}
+        .cx2-foot-left[data-open="true"] svg{color:var(--agent-text-primary)}
         .cx2-learn{font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
         .cx2-learn-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows 260ms cubic-bezier(0.22,1,0.36,1)}
         .cx2-learn-wrap[data-open="true"]{grid-template-rows:1fr}
         .cx2-learn-inner{overflow:hidden;min-height:0}
-        .cx2-learn-body{margin:0;padding-top:10px;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:640px}
-        @media (prefers-reduced-motion:reduce){.cx2-learn-wrap,.cx2-link,.cx2-ring circle{transition:none}}
+        .cx2-learn-body{margin:0;padding-top:10px;font-size:13px;color:var(--agent-text-secondary);line-height:1.5;max-width:760px}
+        @media (prefers-reduced-motion:reduce){.cx2-learn-wrap,.cx2-link,.cx2-ring circle,.cx2-foot-left,.cx2-foot-left svg{transition:none}}
 
         /* Stack when the CARD (not the viewport) is too narrow for three across —
            onward on top, then this sale, then related, all full width. */
