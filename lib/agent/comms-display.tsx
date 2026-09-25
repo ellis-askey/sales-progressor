@@ -10,6 +10,10 @@ export type CommBadgeInput = {
   type: string;
   method: string | null;
   isAutomated: boolean;
+  // Delivery channel — "in_app" marks a portal-only note (no email was sent), so
+  // an automated one badges as "Portal update" rather than "System email".
+  // Optional: callers that don't pass it keep the pre-existing email badge.
+  channel?: string | null;
   // Set on solicitor-left updates (firm name). Distinguishes an "Update" from a
   // plain internal note — both share type internal_note.
   senderLabel?: string | null;
@@ -45,6 +49,10 @@ const CHANNEL_ICONS: Record<string, string> = {
 
 export function getCommBadge(entry: CommBadgeInput): BadgeInfo {
   if (entry.isAutomated) {
+    // A portal-only note (in_app) never sent an email, so don't badge it as one.
+    if (entry.channel === "in_app") {
+      return { label: "Portal update", icon: "🌐", bg: "rgba(37,99,235,0.10)", color: "#2563eb", tone: "info" };
+    }
     return { label: "System email", icon: "✉", bg: "rgba(99,102,241,0.1)", color: "#4f46e5", tone: "info" };
   }
   if (entry.type === "internal_note") {

@@ -61,6 +61,10 @@ export type ActivityEntry =
       at: Date;
       type: CommType;
       method: CommMethod | null;
+      // Delivery channel (e.g. "in_app" for a portal note vs "email" for a real
+      // email) — lets the activity badge tell a Portal update apart from a
+      // "System email". Optional so optimistic client-side rows can omit it.
+      channel?: string;
       content: string;
       createdById: string | null;
       createdByName: string | null;
@@ -444,6 +448,7 @@ export async function getActivityTimeline(
     at: c.sentAt ?? c.createdAt,
     type: c.type,
     method: c.method,
+    channel: c.channel,
     content: stripPortalViewSide(c.content),
     createdById: c.createdById ?? null,
     createdByName: c.createdBy?.name ?? null,
