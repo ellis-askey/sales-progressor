@@ -166,7 +166,7 @@ export function DiaryEventRow({
           </span>
         ) : (
           <>
-            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Due today · not ready</span>
+            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Not ready</span>
             <RowActionMenu label="Options" items={menuItems} disabled={busy} />
           </>
         )}

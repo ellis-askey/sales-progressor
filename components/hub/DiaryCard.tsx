@@ -69,9 +69,9 @@ export function DiaryCard({ items }: { items: Item[] }) {
     <GlassCard glassId="hub-diary" label="Hub · Today's diary" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
       <style>{DIARY_STYLES}</style>
       <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <p className="agent-card-title-emphasis">Today&apos;s diary</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>Exchanges and completions scheduled for today</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textWrap: "balance" }}>Exchanges and completions scheduled for today</p>
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", flexShrink: 0, whiteSpace: "nowrap",
