@@ -1331,8 +1331,9 @@ select {
 @media (max-width: 1000px) {
   .chain-view-inline .chain-dbody { grid-template-columns: 1fr; }
 }
-/* Inline tab: less horizontal inset so the chain uses the tab's width. */
-.chain-body-inline { padding-left: 8px; padding-right: 8px; }
+/* Inline tab: modest horizontal inset — enough that the cards' hover shadow has
+   room to render instead of being clipped flat at the scroll container edge. */
+.chain-body-inline { padding-left: 20px; padding-right: 20px; }
 .chain-viewswitch--inline { margin-left: 8px; margin-right: 8px; }
 /* Inline tab: the cards need a solid surface — the page behind is glass /
    iridescent, unlike the opaque drawer, so transparent cards showed through. */
@@ -1340,7 +1341,9 @@ select {
 .chain-view-inline .cmp-rowwrap--branch {
   background: var(--agent-surface-elevated);
   border-color: var(--agent-border-default);
-  box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.08);
+  /* Match the drawer's resting shadow so the inline cards aren't flat either.
+     Hover (coral border + lift) inherits from the base .cmp-rowwrap rule. */
+  box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.06), 0 3px 10px rgba(var(--agent-shadow-rgb), 0.07);
 }
 /* Inline Map: fills the full chain content width below the switcher — its own
    rounded, bordered panel. */
@@ -1584,9 +1587,11 @@ select {
 .chn-pin.onward { width: 21px; height: 21px; font-size: 12px; }
 
 /* Compact chain list (map mode left panel). See ChainMapPanel. */
-.cmp-scroll { padding: 8px 12px 16px; overflow-x: hidden; }
-/* Compact panel rendered inside the drawer/tab body, which already pads. */
-.cmp-scroll--flush { padding: 0; }
+.cmp-scroll { padding: 8px 16px 16px; overflow-x: hidden; }
+/* Compact panel rendered inside the drawer/tab body, which already pads. Keep
+   overflow-x visible so each card's shadow spills into that body padding rather
+   than being clipped flat at the card edge. */
+.cmp-scroll--flush { padding: 0; overflow-x: visible; }
 .cmp-empty { padding: 24px 20px; font-size: 13px; color: var(--agent-text-muted); text-align: center; }
 /* No gap between rows — spacing comes from each tree-body's padding, so the rail
    guide lines run continuously across rows instead of breaking in the gaps. */
@@ -1632,10 +1637,14 @@ select {
   display: flex; flex-direction: column; box-sizing: border-box;
   border: 1px solid var(--agent-border-subtle); border-radius: 13px;
   background: var(--agent-surface);
+  /* Soft resting shadow so a white card doesn't read flat on the white body. */
+  box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.06), 0 3px 10px rgba(var(--agent-shadow-rgb), 0.07);
   transition: border-color 140ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
-/* Lift on hover (rather than a shade) — the card rises with a soft shadow. */
-.cmp-rowwrap:not(.on):hover { border-color: var(--agent-border-default); transform: translateY(-2px); box-shadow: 0 5px 16px rgba(var(--agent-shadow-rgb), 0.12); }
+/* Lift on hover — the card rises with a stronger shadow AND a coral border,
+   matching the selected (clicked) card's coral edge. */
+.cmp-rowwrap:not(.on):hover { border-color: rgba(var(--agent-coral-rgb), 0.5); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(var(--agent-shadow-rgb), 0.13); }
+@media (prefers-reduced-motion: reduce) { .cmp-rowwrap:not(.on):hover { transform: none; } }
 .cmp-rowwrap.on {
   border-color: rgba(var(--agent-coral-rgb), 0.5);
   box-shadow: 0 2px 10px rgba(var(--agent-shadow-rgb), 0.10);

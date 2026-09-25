@@ -359,7 +359,30 @@ export function ChainsWorkspace({
         .chains-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
         .chains-summary-cell:first-child { border-left: none; }
         .chains-summary-cell-hot:hover { background: var(--agent-hover-tint) !important; }
-        .chains-card-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
+        /* gap widened 14->20 so each card's shadow has room to render instead of
+           being painted over by its neighbour (the left/right "clipping"). */
+        .chains-card-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
+        /* Property cards carry a soft resting shadow (were flat until hovered),
+           and lift on hover. Scoped selector beats the glass variant's own
+           box-shadow without !important. */
+        .chains-card-grid .chain-prop-card {
+          box-shadow: 0 2px 8px rgba(15,26,46,0.10), 0 1px 2px rgba(15,26,46,0.05);
+          transition: transform .16s ease, box-shadow .16s ease;
+        }
+        .chains-card-grid .chain-prop-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 22px rgba(15,26,46,0.15), 0 2px 6px rgba(15,26,46,0.08);
+        }
+        :root[data-theme="dark"] .chains-card-grid .chain-prop-card {
+          box-shadow: 0 2px 8px rgba(0,0,0,0.40), 0 1px 2px rgba(0,0,0,0.28);
+        }
+        :root[data-theme="dark"] .chains-card-grid .chain-prop-card:hover {
+          box-shadow: 0 10px 24px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.35);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .chains-card-grid .chain-prop-card { transition: box-shadow .16s ease; }
+          .chains-card-grid .chain-prop-card:hover { transform: none; }
+        }
         /* Container-driven 4 -> 2 tiles: the old 760px viewport query flipped
            to 2-col exactly when the sidebar disappears and room INCREASES —
            tiles crushed through 768-900 (audit E1). The card's own width now

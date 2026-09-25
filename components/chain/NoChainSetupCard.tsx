@@ -68,7 +68,7 @@ export function NoChainSetupCard({
   const showAge = !confirmed && months >= 3;
 
   return (
-    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" style={{ padding: 14, borderRadius: 14 }}>
+    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" className="chain-prop-card" style={{ padding: 14, borderRadius: 14 }}>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <PropertyThumb photoUrl={sale.photoUrl} size={52} />
 

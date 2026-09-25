@@ -115,7 +115,7 @@ export function ChainCard({
   }
 
   return (
-    <GlassCard glassId="chains-card" label="Chains · chain card" defaultVariant="v05" style={{ padding: 16, borderRadius: 14 }}>
+    <GlassCard glassId="chains-card" label="Chains · chain card" defaultVariant="v05" className="chain-prop-card" style={{ padding: 16, borderRadius: 14 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Header: photo + address, and the open-chain action */}
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
