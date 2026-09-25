@@ -4364,7 +4364,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .hub-health-stats { display: flex; gap: 22px; flex: 0 0 auto; }
 .hub-health-stat { display: flex; flex-direction: column; gap: 1px; }
 .hub-health-stat-n { font-size: 15px; font-weight: 800; color: var(--agent-text-primary); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-.hub-health-stat-l { font-size: 9px; font-family: var(--agent-font-mono, ui-monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); }
+.hub-health-stat-l { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); }
 .hub-health-divider { width: 1px; align-self: stretch; background: var(--agent-border-subtle); flex: 0 0 auto; }
 .hub-health-hero { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 18px; }
 /* Number + label as a compact block on the LEFT, so the trend fills the space
@@ -4373,7 +4373,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .hub-health-hero-n { font-size: 22px; font-weight: 800; color: var(--agent-coral-deep); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .hub-health-trend { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; }
 .hub-health-trend > :first-child { flex: 1 1 auto; min-width: 0; }
-.hub-health-trend-tag { font-size: 8.5px; font-family: var(--agent-font-mono, ui-monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); text-align: right; flex: 0 0 auto; line-height: 1.2; }
+.hub-health-trend-tag { font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); text-align: right; flex: 0 0 auto; line-height: 1.2; }
 
 @container (max-width: 640px) {
   .hub-health { flex-direction: column; align-items: stretch; gap: 12px; }
