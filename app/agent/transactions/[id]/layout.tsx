@@ -42,6 +42,7 @@ import { RelistBanner } from "@/components/transaction/RelistBanner";
 import { RoundChip } from "@/components/transaction/RoundChip";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
+import { ScrollTopOnFileChange } from "@/components/transaction/ScrollTopOnFileChange";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
 import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
@@ -306,6 +307,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
+      <ScrollTopOnFileChange id={transaction.id} />
       {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} items={_mark} />}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
