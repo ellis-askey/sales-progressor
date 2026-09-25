@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
@@ -268,7 +268,33 @@ export function PropertyHero({
   // Fade the photo in only once its pixels are actually decoded (not merely when
   // hasPhoto flips), so it never fades in a half-loaded image and "pops".
   const [photoLoaded, setPhotoLoaded] = useState(false);
-  useEffect(() => { setPhotoLoaded(false); }, [photo.displayUrl]);
+  // A photo that fails to load (weak signal, an expired link) used to leave the
+  // hero totally blank: the <img> had no onError, so it stayed invisible while
+  // the location map was suppressed (hasPhoto is still true). Now a failed load
+  // retries a few times with backoff, and if it still won't come we fall back to
+  // the postcode map — the same visual the no-photo state already shows.
+  const MAX_PHOTO_RETRIES = 3;
+  const [photoAttempt, setPhotoAttempt] = useState(0);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const photoRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    setPhotoLoaded(false);
+    setPhotoAttempt(0);
+    setPhotoFailed(false);
+    return () => { if (photoRetryTimer.current) clearTimeout(photoRetryTimer.current); };
+  }, [photo.displayUrl]);
+  // Regained connection → give a given-up photo a fresh set of tries.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onOnline = () => { setPhotoFailed(false); setPhotoAttempt(0); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, []);
+  function handlePhotoError() {
+    if (photoAttempt >= MAX_PHOTO_RETRIES) { setPhotoFailed(true); return; }
+    if (photoRetryTimer.current) clearTimeout(photoRetryTimer.current);
+    photoRetryTimer.current = setTimeout(() => setPhotoAttempt((x) => x + 1), 400 * 2 ** photoAttempt);
+  }
   // Which breakpoint is live, so the location map mounts in exactly ONE of the
   // two responsive layers (both are in the DOM via CSS; two maplibre instances
   // would fight). null until measured → neither renders for a tick.
@@ -282,8 +308,9 @@ export function PropertyHero({
   }, []);
   const postcode = extractPostcode(address);
   // Empty state shows the location map when we can place it; otherwise the
-  // branded add-photo circle (foreign/missing postcode).
-  const showMap = !photo.hasPhoto && !!postcode;
+  // branded add-photo circle (foreign/missing postcode). A photo that failed to
+  // load falls back to the same map, so the hero is never blank.
+  const showMap = (!photo.hasPhoto || photoFailed) && !!postcode;
   const canSwitchService = (isAdminViewer || canAgentHandOver) && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
@@ -386,7 +413,7 @@ export function PropertyHero({
         )}
         {photo.displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} style={{
+          <img key={photoAttempt} src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} onError={handlePhotoError} style={{
             position: "absolute", left: 0, top: 0, height: "100%", width: "100%",
             objectFit: "cover",
             opacity: photo.hasPhoto && photoLoaded ? 1 : 0,
@@ -425,7 +452,7 @@ export function PropertyHero({
         )}
         {photo.displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} style={{
+          <img key={photoAttempt} src={photo.displayUrl} alt="" onLoad={() => setPhotoLoaded(true)} onError={handlePhotoError} style={{
             position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
             opacity: photo.hasPhoto && photoLoaded ? 1 : 0,
             maskImage: "linear-gradient(to bottom, #000 50%, transparent 100%)",
