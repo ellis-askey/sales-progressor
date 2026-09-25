@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
-import { sendEmail, parseEmailMessage, resolveSenderForTransaction } from "@/lib/email";
+import { sendEmail, parseEmailMessage, resolveSenderForTransaction, buildOutboundMessageId } from "@/lib/email";
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { deriveChaseTargetSide } from "@/lib/services/comms";
@@ -95,8 +95,14 @@ export async function POST(req: NextRequest) {
   const signOffText = sig.mode === "BASIC" ? `\n\n${signOffPhrase}` : "";
   const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${signOffHtml}${sig.html}</div>`;
 
+  // Stable RFC Message-ID + full recipient/subject/time on the log row so the
+  // mailbox ingestion can dedup this send instead of double-logging it when the
+  // sent copy is re-ingested from the Sent folder (critique: chase-drawer dup).
+  const outboundMessageId = buildOutboundMessageId(`chase-${transactionId}-${Date.now()}`);
+  const sentAt = new Date();
+
   try {
-    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + signOffText + sig.text, html, from, replyTo, ...(validAttachments.length ? { attachments: validAttachments } : {}) });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body + signOffText + sig.text, html, from, replyTo, messageId: outboundMessageId, ...(validAttachments.length ? { attachments: validAttachments } : {}) });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     // Phase 1 commit 4d post-fix — buyerRoundId stamping at the send-
@@ -116,6 +122,10 @@ export async function POST(req: NextRequest) {
         method: "email",
         contactIds: [],
         content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}${ccSuffix}: ${messageText}`,
+        subject: fullSubject,
+        recipientEmail: toEmail,
+        sentAt,
+        internetMessageId: outboundMessageId,
         createdById: session.user.id,
         buyerRoundId: stampBuyerRoundId,
       },

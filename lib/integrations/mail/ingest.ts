@@ -64,13 +64,23 @@ async function logMessage(
 
   const received = new Date(msg.receivedDateTime);
   // Dedup on the provider id, the RFC Message-ID, AND the real message (same file
-  // + sender + subject + received time to the minute). The same email filed in
-  // both the Inbox and a property folder has a different provider id per folder,
-  // so the id check alone let it in twice; the extra arms collapse those copies
-  // to one — and catch the same email arriving via two connectors. The
-  // internetMessageId arm is null-safe (only added when the incoming id is set,
-  // and it can never match a stored NULL), giving cheap defence-in-depth without
-  // relying on the fuzzy arm.
+  // + counterparty + subject + time). The same email filed in both the Inbox and
+  // a property folder has a different provider id per folder, so the id check
+  // alone let it in twice; the extra arms collapse those copies to one — and
+  // catch the same email arriving via two connectors. The internetMessageId arm
+  // is null-safe (only added when the incoming id is set, and it can never match
+  // a stored NULL), giving cheap defence-in-depth without relying on the fuzzy arm.
+  //
+  // The fuzzy arm is side-aware. Both send-time rows and ingested rows store the
+  // COUNTERPARTY in recipientEmail — the sender for inbound, the recipient for
+  // outbound (see the create below, line ~137). So for an ingested outbound copy
+  // we must match on who we sent TO (msg.to[0]), not the mailbox owner (msg.from).
+  // This is what collapses an app-sent chase against its Sent-folder re-ingest
+  // even when the mailbox provider rewrote our Message-ID (so the id arms miss).
+  // The window is wider for outbound: send-click time and the provider's Sent
+  // timestamp can drift by minutes.
+  const fuzzyCounterparty = outbound ? (msg.to[0] ?? msg.from) : msg.from;
+  const fuzzyWindowMs = outbound ? 15 * 60_000 : 60_000;
   const existing = await prisma.outboundMessage.findFirst({
     where: {
       transactionId: txId,
@@ -79,9 +89,10 @@ async function logMessage(
         ...(msg.internetMessageId ? [{ internetMessageId: msg.internetMessageId }] : []),
         {
           method: "email",
-          recipientEmail: msg.from,
+          type: outbound ? "outbound" : "inbound",
+          recipientEmail: fuzzyCounterparty,
           subject: msg.subject || "(no subject)",
-          sentAt: { gte: new Date(received.getTime() - 60_000), lte: new Date(received.getTime() + 60_000) },
+          sentAt: { gte: new Date(received.getTime() - fuzzyWindowMs), lte: new Date(received.getTime() + fuzzyWindowMs) },
         },
       ],
     },
