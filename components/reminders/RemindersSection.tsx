@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { classifyReminder, chaseBadgeLabel } from "@/lib/reminders/classify";
 import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
@@ -268,7 +269,17 @@ function PriorityList({
                 })()}
                 {task?.fallbackKind && (
                   <div style={{ marginTop: 3 }}>
-                    <FallbackPill kind={task.fallbackKind} />
+                    {task.fallbackKind === "no_contact_on_side" ? (
+                      // No client on file to chase: the chip links to the file's
+                      // overview where the contacts card lives, so the agent can
+                      // add the client's details (there's no contact to edit
+                      // in-place, so a deep-link beats a popup).
+                      <Link href={`/agent/transactions/${transactionId}`} style={{ textDecoration: "none" }}>
+                        <FallbackPill kind={task.fallbackKind} />
+                      </Link>
+                    ) : (
+                      <FallbackPill kind={task.fallbackKind} />
+                    )}
                   </div>
                 )}
               </div>

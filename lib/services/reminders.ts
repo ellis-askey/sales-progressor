@@ -1637,7 +1637,11 @@ export type FallbackKind =
   // A chase email was actually attempted but the provider rejected it
   // permanently (bad/bounced address, etc.) — the send never happened, so the
   // chase is handed to a person to fix the address or reach out another way.
-  | "chase_send_failed";
+  | "chase_send_failed"
+  // The chase is due but there is NO client on the relevant side of the file at
+  // all (no seller/buyer contact record) — nobody to send to. Handed to the
+  // agent to add the client's details or follow up manually.
+  | "no_contact_on_side";
 
 // Structured statusReason text written to ReminderLog.statusReason. Locked
 // at user sign-off — do not edit without the corresponding chip-text + audit-
@@ -1650,6 +1654,7 @@ const FALLBACK_REASON: Record<FallbackKind, string> = {
   no_portalToken_on_contact:    "Client contact missing portal access, handed to agent",
   client_emails_paused:         "Client emails paused on this file, handed to agent",
   chase_send_failed:            "Couldn't email the client (address failed). Handed to agent.",
+  no_contact_on_side:           "No client on file to chase, handed to agent",
 };
 
 // Common input fields every kind requires.
@@ -1668,7 +1673,8 @@ export type FallbackInput =
   | (FallbackInputBase & { kind: "no_email_on_contact" })
   | (FallbackInputBase & { kind: "no_portalToken_on_contact" })
   | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" | "contact" })
-  | (FallbackInputBase & { kind: "chase_send_failed" });
+  | (FallbackInputBase & { kind: "chase_send_failed" })
+  | (FallbackInputBase & { kind: "no_contact_on_side";        side: "vendor" | "purchaser" });
 
 // Human-readable activity-feed note. Each kind gets a kind-specific
 // rendering using its required context. Date formatting matches the rest of
@@ -1688,6 +1694,8 @@ function fallbackActivityNote(input: FallbackInput): string {
       return `Automated client chase couldn't fire: ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
     case "chase_send_failed":
       return `Automated client chase couldn't reach ${input.contactName}, the email address failed to send. Reminder handed back to agent.`;
+    case "no_contact_on_side":
+      return `Automated client chase couldn't fire: there is no ${input.side === "vendor" ? "seller" : "buyer"} on file to chase. Add the client's details to switch chasing on, or follow up manually.`;
     case "client_emails_paused":
       if (input.pausedScope === "contact") {
         return `Automated client chase paused. Chase emails are paused for ${input.contactName} on this file. Reminder handed back to agent.`;

@@ -141,7 +141,7 @@ export type DueChaseTuple = {
   // matching chip so the agent sees "add buyer email to enable updates"
   // instead of the client being silently never chased. Mutually exclusive
   // with a normal (reachable) tuple: blocked tuples carry no contactEmail.
-  blockedKind?: "no_email_on_contact" | "no_portalToken_on_contact" | "client_opted_out" | "chase_send_failed";
+  blockedKind?: "no_email_on_contact" | "no_portalToken_on_contact" | "client_opted_out" | "chase_send_failed" | "no_contact_on_side";
   // The opted-out date, carried only for the "client_opted_out" block reason
   // so the handback's activity note can render "opted out on <date>".
   blockedOptedOutAt?: Date | null;
@@ -424,10 +424,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
 
     const txContacts = contactsByTx.get(transaction.id) ?? [];
     const txBlocked = blockedByTx.get(transaction.id) ?? [];
-    // Skip only when there is NO ONE to consider on this file — neither a
-    // reachable contact (digest) nor a blocked one (handback). A file with
-    // only blocked contacts still needs walking so its due chases hand back.
-    if (txContacts.length === 0 && txBlocked.length === 0) continue;
+    // NOTE: we deliberately DON'T skip files with zero contacts. A file with a
+    // due chase but no client on the relevant side to send to must still hand
+    // back to the agent ("add the client's details") rather than silently
+    // vanish — see the no_contact_on_side branch in the per-side block below.
 
     for (const rule of chaseableRules) {
       const targetCode = rule.targetMilestoneCode!;
@@ -519,6 +519,22 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
             reason: "first_chase",
             blockedKind,
             blockedOptedOutAt: blockedKind === "client_opted_out" ? picked.unsubscribedAt : null,
+          });
+        } else {
+          // No reachable AND no blocked contact on this side = there is no
+          // client of this side on the file at all. The chase is due but there
+          // is nobody to send to, so hand it to the agent ("add the client's
+          // details") rather than let it vanish. No contact id/email exists.
+          due.push({
+            transactionId: transaction.id,
+            contactId: "",
+            contactEmail: "",
+            contactName: side === "vendor" ? "the seller" : "the buyer",
+            milestoneCode: targetCode,
+            anchorDate,
+            firstDueDate,
+            reason: "first_chase",
+            blockedKind: "no_contact_on_side",
           });
         }
         continue; // nothing reachable to iterate for this side
@@ -929,7 +945,9 @@ export async function runClientChaseCron(now: Date = new Date()): Promise<{
             ? { ...base, kind: "no_portalToken_on_contact" as const }
             : b.blockedKind === "chase_send_failed"
               ? { ...base, kind: "chase_send_failed" as const }
-              : { ...base, kind: "no_email_on_contact" as const };
+              : b.blockedKind === "no_contact_on_side"
+                ? { ...base, kind: "no_contact_on_side" as const, side: (b.milestoneCode.startsWith("VM") ? "vendor" : "purchaser") as "vendor" | "purchaser" }
+                : { ...base, kind: "no_email_on_contact" as const };
       const result = await createAgentChaseTaskForMilestone(input);
       if (result) blockedFallbacks += 1;
     } catch (err) {
