@@ -24,6 +24,7 @@ import { FloatingThoughtCapture } from "@/components/command/content/FloatingTho
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
+import { PullToRefresh } from "@/components/agent/PullToRefresh";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
@@ -577,6 +578,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </div>
         </div>
       </aside>
+
+      {/* Pull-to-refresh (touch mobile/tablet) — a home-screen PWA has no
+          browser refresh, so drag-down-from-top reloads the page. */}
+      <PullToRefresh />
 
       {/* Main content */}
       <main className="agent-main-content" style={{ flex: 1, minWidth: 0 }}>
