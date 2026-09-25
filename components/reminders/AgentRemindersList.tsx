@@ -19,7 +19,7 @@ import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Button } from "@/components/ui/Button";
 import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UrgencyPill, SidePill, type UrgencyBucket } from "@/components/reminders/status-pills";
+import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
 import { AutoChasePreviewModal } from "@/components/reminders/AutoChasePreviewModal";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
@@ -769,6 +769,14 @@ function SplitFileCard({
                 >
                   Add an email to chase them <LinkArrow />
                 </button>
+              )}
+              {/* No client on this side of the file at all: the chase couldn't
+                  fire because there's nobody to send to. Show the handback chip
+                  linking to the file's contacts so the client can be added. */}
+              {task.fallbackKind === "no_contact_on_side" && tx0?.id && (
+                <Link href={`/agent/transactions/${tx0.id}`} style={{ margin: "8px 0 0", display: "inline-block", textDecoration: "none" }}>
+                  <FallbackPill kind="no_contact_on_side" />
+                </Link>
               )}
               {/* Info reasons (paused / off / opted-out) render in the right
                   action column instead — centred under the date (see below). */}
