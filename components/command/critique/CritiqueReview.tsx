@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, RotateCcw, ExternalLink } from "lucide-react";
+import { Check, RotateCcw, ExternalLink, Search, X } from "lucide-react";
 import { setCritiqueResolvedAction } from "@/app/actions/critique";
 
 type Note = {
   id: string;
+  seq: number;
   createdAt: string;
   body: string;
   pageUrl: string | null;
@@ -23,12 +24,27 @@ type Note = {
 export function CritiqueReview({ notes }: { notes: Note[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<"open" | "done">("open");
+  const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const openCount = notes.filter((n) => !n.resolvedAt).length;
   const doneCount = notes.length - openCount;
-  const shown = notes.filter((n) => (filter === "open" ? !n.resolvedAt : !!n.resolvedAt));
+
+  // Search matches the note text, the page/route it came from, or the note's
+  // reference number (so "14", "#14", "chains" or "portal access" all work).
+  const q = query.trim().toLowerCase();
+  const route = (n: Note) => (n.pageUrl ? n.pageUrl.replace(/^https?:\/\/[^/]+/, "").toLowerCase() : "");
+  const matchesQuery = (n: Note) =>
+    !q ||
+    n.body.toLowerCase().includes(q) ||
+    route(n).includes(q) ||
+    String(n.seq) === q.replace(/^#/, "") ||
+    `#${n.seq}`.includes(q);
+
+  const shown = notes
+    .filter((n) => (filter === "open" ? !n.resolvedAt : !!n.resolvedAt))
+    .filter(matchesQuery);
 
   function toggle(note: Note) {
     setBusyId(note.id);
@@ -47,24 +63,57 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Open / Done filter */}
-      <div className="inline-flex gap-0.5 rounded-md bg-[#1a1a1a] p-0.5">
-        {(["open", "done"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded px-3 py-1 text-[12px] font-semibold transition-colors ${
-              filter === f ? "bg-[#2563eb] text-white" : "text-[#737373] hover:text-[#d4d4d4]"
-            }`}
-          >
-            {f === "open" ? `Open · ${openCount}` : `Done · ${doneCount}`}
-          </button>
-        ))}
+      {/* Open / Done filter + search by number, phrase, or page */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex gap-0.5 rounded-md bg-[#1a1a1a] p-0.5">
+          {(["open", "done"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded px-3 py-1 text-[12px] font-semibold transition-colors ${
+                filter === f ? "bg-[#2563eb] text-white" : "text-[#737373] hover:text-[#d4d4d4]"
+              }`}
+            >
+              {f === "open" ? `Open · ${openCount}` : `Done · ${doneCount}`}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#525252]" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search notes — number, phrase or page"
+            aria-label="Search critique notes"
+            className="w-full rounded-md border border-[#262626] bg-[#141414] py-1.5 pl-8 pr-8 text-[12px] text-[#e5e5e5] placeholder:text-[#525252] focus:border-[#2563eb] focus:outline-none"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#525252] hover:text-[#d4d4d4]"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {q && (
+          <span className="text-[11px] text-[#525252]">
+            {shown.length} {shown.length === 1 ? "match" : "matches"}
+          </span>
+        )}
       </div>
 
       {shown.length === 0 ? (
         <p className="rounded-lg border border-[#262626] bg-[#141414] px-4 py-8 text-center text-[13px] text-[#525252]">
-          {filter === "open" ? "No open critique notes." : "Nothing marked done yet."}
+          {q
+            ? "No notes match your search."
+            : filter === "open"
+              ? "No open critique notes."
+              : "Nothing marked done yet."}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -96,6 +145,7 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#e5e5e5]">{n.body}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#525252]">
+                    <span className="rounded bg-[#1f2937] px-1.5 py-0.5 font-semibold text-[#93c5fd]">#{n.seq}</span>
                     <span>{fmt(n.createdAt)}</span>
                     {n.pageUrl && (
                       <>

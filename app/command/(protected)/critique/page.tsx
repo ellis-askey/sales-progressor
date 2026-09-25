@@ -15,9 +15,13 @@ export default async function CritiquePage() {
     take: 300,
   });
 
+  // Stable reference number per note: oldest = #1, ascending by creation. Since
+  // `notes` is newest-first, seq = (count - index). New notes append higher
+  // numbers, so an existing note keeps its number — safe to say "do #14".
   const rows = await Promise.all(
-    notes.map(async (n) => ({
+    notes.map(async (n, i) => ({
       id: n.id,
+      seq: notes.length - i,
       createdAt: n.createdAt.toISOString(),
       body: n.body,
       pageUrl: n.pageUrl,
