@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { CheckCircle, CaretDown } from "@phosphor-icons/react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
+import type { PartyNameContext } from "@/lib/milestones/step-name";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 import { Card } from "@/components/ui/Card";
@@ -58,6 +59,8 @@ type Props = {
   purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
   // Buyer name(s) for the "re-open mortgage steps" modal's subtitle.
   buyerNames?: string[];
+  // Real party names for personalising the step labels (firm + seller/buyer).
+  partyNames?: PartyNameContext;
 };
 
 export function MilestonePanel({
@@ -72,6 +75,7 @@ export function MilestonePanel({
   clientChaseByCode,
   purchaseType,
   buyerNames,
+  partyNames,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
 
@@ -428,6 +432,7 @@ export function MilestonePanel({
                             stalenessSignal={stalenessSignal}
                             clientChase={clientChase}
                             purchaseType={purchaseType}
+                            partyNames={partyNames}
                           />
                         );
                       })
@@ -473,7 +478,7 @@ export function MilestonePanel({
               <div className={`agent-acc${!nrCollapsed ? " open" : ""}`}>
                 <div className="agent-acc-in">
                   {nrMilestones.map((def) => (
-                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} buyerNames={buyerNames} />
+                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} buyerNames={buyerNames} partyNames={partyNames} />
                   ))}
                 </div>
               </div>

@@ -24,6 +24,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
+import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -69,6 +70,9 @@ type Props = {
   // N/R-able too — searches aren't needed for cash. Cascades to PM13 via
   // NR_CASCADE.
   purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
+  // Real party names for personalising the step label (firm + seller/buyer),
+  // Steps-tab only. Absent → the plain stored label is shown unchanged.
+  partyNames?: PartyNameContext;
 };
 
 // Codes that can be manually marked N/R regardless of purchaseType.
@@ -113,8 +117,11 @@ function formatRelative(d: Date | null): string {
   return `${weeks}w ago`;
 }
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames }: Props) {
   const { toast } = useAgentToast();
+  // Steps-tab label with the real names filled in (firm + seller/buyer), falling
+  // back per slot to the stored generic wording. Used for the row label + toasts.
+  const displayName = partyNames ? personaliseStepName(def.name, def.code, partyNames) : def.name;
   // Phase 2 (2026-09-17): the transition exists so useOptimistic persists
   // until canonical server data lands, but the row's CONTROLS are gated on
   // the ack-scoped `loading` flag below, not on isPending — isPending stays
@@ -317,7 +324,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           const description = notified.length > 0
             ? `${notified.length === 1 ? "Client" : "Clients"} notified: ${notified.join(" / ")}`
             : undefined;
-          toast.success(def.name, description ? { description } : undefined);
+          toast.success(displayName, description ? { description } : undefined);
         }
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
@@ -359,7 +366,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           }, 200);
         } else {
           const count = outstandingIds.length;
-          toast.success(def.name, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} marked done` } : undefined);
+          toast.success(displayName, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} marked done` } : undefined);
         }
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
@@ -394,7 +401,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
         await executeUndoMilestoneAction({ transactionId, milestoneDefinitionId: def.id, mode });
         const count = mode === "cascade" ? undoData.cascade.length : 0;
         toast.info("Step undone", {
-          description: count > 0 ? `+${count} linked step${count > 1 ? "s" : ""} also undone` : def.name,
+          description: count > 0 ? `+${count} linked step${count > 1 ? "s" : ""} also undone` : displayName,
         });
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not undo this step."));
@@ -451,7 +458,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           return;
         }
         await recordSurveyBooking({ transactionId, choice }).catch(() => {});
-        toast.success(def.name);
+        toast.success(displayName);
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
       } finally {
@@ -540,7 +547,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           style={isDone ? { cursor: "pointer" } : undefined}
         >
           <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
-            {def.name}
+            {displayName}
             {/* Chips wrapper — see .ms-pills-row in agent-system.css.
              * Desktop: display:inline (chips render after name as today).
              * Mobile (<=640px): display:flex flex-wrap, becomes a block-
@@ -862,7 +869,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
       {/* Undo milestone modal — target_only or cascade */}
       {showUndoModal && undoData && (
         <UndoMilestoneModal
-          milestoneName={def.name}
+          milestoneName={displayName}
           milestoneId={def.id}
           undoData={undoData}
           isPending={loading}

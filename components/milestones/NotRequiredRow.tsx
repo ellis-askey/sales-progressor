@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/utils";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { reverseMilestoneAction, reinstateAsMortgageBuyerAction } from "@/app/actions/milestones";
 import { MortgageModal, type MortgageChoice } from "@/components/milestones/MortgageModal";
+import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
 
 // The three purchase-type steps a cash buyer has auto-marked not-required.
 // Reinstating any of them asks whether the buyer's switched to a mortgage.
@@ -24,11 +25,14 @@ type Props = {
   // Buyer name(s) for the mortgage modal's subtitle. Only used by the mortgage
   // steps; harmless elsewhere.
   buyerNames?: string[];
+  // Real party names for personalising the (skipped) step label.
+  partyNames?: PartyNameContext;
 };
 
-export function NotRequiredRow({ def, transactionId, buyerNames = [] }: Props) {
+export function NotRequiredRow({ def, transactionId, buyerNames = [], partyNames }: Props) {
   const [loading, setLoading] = useState(false);
   const [showMortgageModal, setShowMortgageModal] = useState(false);
+  const displayName = partyNames ? personaliseStepName(def.name, def.code, partyNames) : def.name;
 
   const isMortgageStep = MORTGAGE_NR_CODES.has(def.code);
 
@@ -88,7 +92,7 @@ export function NotRequiredRow({ def, transactionId, buyerNames = [] }: Props) {
       <div className="flex items-center gap-3 px-4 border-b last:border-0" style={{ paddingTop: 10, paddingBottom: 10, borderColor: "var(--agent-border-default)" }}>
         <div className="ms-dot ms-dot-nr flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "line-through" }}>{def.name}</p>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "line-through" }}>{displayName}</p>
           {def.completion?.notRequiredReason && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2, fontStyle: "italic" }}>{def.completion.notRequiredReason}</p>
           )}

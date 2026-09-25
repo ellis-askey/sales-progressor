@@ -6,6 +6,7 @@
 import type { PurchaseType } from "@prisma/client";
 import { getMilestonesCached, getGraceDaysCached, getClientChaseStatesCached } from "@/lib/services/cached-fetchers";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
+import type { PartyNameContext } from "@/lib/milestones/step-name";
 
 type Props = {
   transactionId: string;
@@ -13,9 +14,11 @@ type Props = {
   purchaseType: PurchaseType | null;
   // Buyer name(s) for the "re-open mortgage steps" modal's subtitle.
   buyerNames?: string[];
+  // Real party names for personalising the step labels (firm + seller/buyer).
+  partyNames?: PartyNameContext;
 };
 
-export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerNames }: Props) {
+export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerNames, partyNames }: Props) {
   const [milestoneData, graceDaysMap, clientChaseByCode] = await Promise.all([
     getMilestonesCached(transactionId, agencyId).catch(() => null),
     getGraceDaysCached().catch(() => new Map<string, number>()),
@@ -50,6 +53,7 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerN
         clientChaseByCode={clientChaseByCode}
         purchaseType={purchaseType}
         buyerNames={buyerNames}
+        partyNames={partyNames}
       />
     </>
   );
