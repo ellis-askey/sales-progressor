@@ -22,7 +22,14 @@ function todayKey(): string {
 const DIARY_STYLES = `
   /* The whole row lifts on hover (like the other hub row groups), but keeps its
      purposely-coloured background rather than washing to a neutral tint. */
-  .diary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 10px 13px; border-left: 3px solid var(--diary-accent); background: var(--diary-bg); transition: background-color .15s ease, box-shadow .15s ease; }
+  .diary-row { container-type: inline-size; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 10px 13px; border-left: 3px solid var(--diary-accent); background: var(--diary-bg); transition: background-color .15s ease, box-shadow .15s ease; }
+  /* Confirm-button label swap: full label by default, one-word once the row is
+     narrow enough that the address would otherwise lose room to truncation. */
+  .diary-cta-short { display: none; }
+  @container (max-width: 480px) {
+    .diary-cta-full { display: none; }
+    .diary-cta-short { display: inline; }
+  }
   .diary-row:hover { background: var(--diary-bg-hover); box-shadow: var(--agent-hover-lift); position: relative; z-index: 1; }
   .diary-idlink { text-decoration: none; }
   .diary-addr-l1 { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .14s ease; }

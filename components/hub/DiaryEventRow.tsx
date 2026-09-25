@@ -30,12 +30,12 @@ type Item = DiaryItem & { photoUrl: string | null };
 
 const COPY = {
   exchange: {
-    verb: "exchange", doneLabel: "Exchanged", title: "Confirm exchange",
+    verb: "exchange", verbShort: "Exchange", doneLabel: "Exchanged", title: "Confirm exchange",
     body: (address: string) => `This marks ${address} as exchanged and lets the buyer and seller know. Ready to confirm?`,
     cta: "Confirm exchange", toast: "Exchange confirmed", accent: "var(--agent-coral-deep)",
   },
   completion: {
-    verb: "completion", doneLabel: "Completed", title: "Confirm completion",
+    verb: "completion", verbShort: "Complete", doneLabel: "Completed", title: "Confirm completion",
     body: (address: string) => `This marks ${address} as completed and lets the buyer and seller know. Ready to confirm?`,
     cta: "Confirm completion", toast: "Completion confirmed", accent: "var(--agent-success)",
   },
@@ -169,7 +169,10 @@ export function DiaryEventRow({
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
               style={{ color: c.accent, fontWeight: 600, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
-              Confirm {c.verb}
+              {/* Narrow rows drop to the one-word label so the address keeps its
+                  room — swapped by row width (container query), not viewport. */}
+              <span className="diary-cta-full">Confirm {c.verb}</span>
+              <span className="diary-cta-short">{c.verbShort}</span>
             </button>
             <RowActionMenu joined items={menuItems} disabled={busy} />
           </span>
