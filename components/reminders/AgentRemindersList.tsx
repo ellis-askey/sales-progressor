@@ -7,7 +7,8 @@ import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { toUKDateStr, formatDate } from "@/lib/utils";
-import { classifyReminder } from "@/lib/reminders/classify";
+import { classifyReminder, countActionable } from "@/lib/reminders/classify";
+import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction, advanceManyChaseTasksAction } from "@/app/actions/tasks";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
@@ -1025,6 +1026,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, chased: true, autopilot: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  // Optimistic bell-tab count (file Reminders tab). null off the file surface.
+  const updateTabBadge = useTabBadge();
   // Exchange/completion date prompt — open when a VM19/PM26/VM20/PM27 "Done"
   // is clicked, so the real event date is captured before confirming.
   const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
@@ -1071,6 +1074,17 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
 
   const now = new Date();
   const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
+
+  // Bell-tab count clears instantly (critique #46): mirror the server's
+  // countActionable, minus rows the agent just completed/snoozed (hiddenIds),
+  // and push it to the tab badge the moment they act instead of waiting for the
+  // refresh round-trip. Only fires once something's been hidden, so it never
+  // overrides the server's authoritative initial count. No-op off the file
+  // surface (useTabBadge is null on the work-queue).
+  const reminderBadgeCount = countActionable(logs.filter((l) => !hiddenIds.has(l.id)), now);
+  useEffect(() => {
+    if (updateTabBadge && hiddenIds.size > 0) updateTabBadge("reminders", reminderBadgeCount);
+  }, [reminderBadgeCount, hiddenIds.size, updateTabBadge]);
 
   const snoozedLogs    = logs.filter((l) => !hiddenIds.has(l.id) && l.snoozedUntil && new Date(l.snoozedUntil) > now);
   const nonSnoozedLogs = logs.filter((l) => !hiddenIds.has(l.id) && !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
