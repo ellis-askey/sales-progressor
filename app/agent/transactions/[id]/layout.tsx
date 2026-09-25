@@ -127,8 +127,8 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     _timed("photo", (async (): Promise<string | null> => {
       if (!transaction.photoStoragePath) return null;
       try {
-        const { getSignedUrl } = await import("@/lib/supabase-storage");
-        return await getSignedUrl(transaction.photoStoragePath, 3600);
+        const { getSignedUrl, PROPERTY_PHOTO_URL_TTL } = await import("@/lib/supabase-storage");
+        return await getSignedUrl(transaction.photoStoragePath, PROPERTY_PHOTO_URL_TTL);
       } catch (err) {
         console.warn("[file-detail] failed to sign property-photo URL", err);
         return null;

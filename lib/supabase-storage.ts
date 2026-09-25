@@ -8,6 +8,12 @@ const BUCKET = "transaction-documents";
 // See docs/active/ELLIS_MANUAL_TODO.md for the bucket creation step.
 export const PROVIDER_LOGOS_BUCKET = "provider-logos";
 
+// Property-photo signed-URL lifetime. Photos are low-sensitivity and re-signed
+// on every page load, so this only needs to outlast a long-open tab. It used to
+// be 1h, which meant a page left open longer than an hour could no longer reload
+// its photos (they'd 403 and go blank). A day covers any realistic session.
+export const PROPERTY_PHOTO_URL_TTL = 60 * 60 * 24; // 24h
+
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -119,7 +125,9 @@ export async function deleteFromStorage(path: string): Promise<void> {
 // rows from five different queries with property-photo thumbnails.
 export async function getSignedUrlMap(
   paths: Array<string | null | undefined>,
-  expiresInSeconds = 3600,
+  // Photo-only helper (every caller signs a property photo), so it defaults to
+  // the longer property-photo lifetime rather than the 1h doc default.
+  expiresInSeconds = PROPERTY_PHOTO_URL_TTL,
 ): Promise<Map<string, string>> {
   const unique = [...new Set(paths.filter((p): p is string => !!p))];
   if (unique.length === 0) return new Map();
