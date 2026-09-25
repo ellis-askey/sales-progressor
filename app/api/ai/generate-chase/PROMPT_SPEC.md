@@ -80,7 +80,6 @@ The current route ignores several fields that would meaningfully improve calibra
 | Field | Source | Why it matters |
 |---|---|---|
 | `daysOutstanding` | computed: `now - milestone.targetDate` (or last activity on milestone) | Lets the model distinguish a 2-day nudge from a 2-week chase |
-| `daysToExpectedExchange` | computed: `expectedExchangeDate - now` | Lets `URGENT` calibrate: only genuinely urgent when this is small |
 | `chaseCount` | already fetched | Tells model how many prior nudges have been sent |
 | `recipientRole` | derived from contact | Solicitor vs lay client changes register |
 | `recipientFirstName` | from contact | Used in opener |
@@ -102,16 +101,17 @@ The following are NOT allowed in the prompt under any circumstance, regardless o
 
 These exclusions are enforced at the data-fetch layer, not the prompt layer. The model cannot redact what it never sees.
 
-### 3.5 Exchange date gating
+### 3.5 No exchange or completion date in chase drafts (absolute)
 
-The expected exchange date (`expectedExchangeDate`) is **only included in the user message when both solicitor exchange-gate milestones are confirmed complete** for this transaction:
+The expected exchange date (`expectedExchangeDate`) is **never** surfaced to the recipient in a chase draft, at any stage. The stored value is our own prediction / manual estimate (the 12-week model or an agent override), not a date the solicitors have agreed. Stating it to a client or a solicitor commits us to a target we cannot stand behind.
 
-- VM18 — "Solicitor confirms readiness to exchange" (vendor side)
-- PM25 — "Solicitor confirms readiness to exchange" (purchaser side)
+Concretely:
 
-If either gate is not yet `complete`, the exchange date line is omitted from the user message entirely. The tone guidance `{expectedExchangeDate}` placeholder is also replaced with the generic phrase "our exchange target" so the model cannot reference a specific date it was never given.
+- The user message carries **no** "Expected exchange date" line.
+- The tone guidance carries **no** `{expectedExchangeDate}` placeholder. The Urgent and Final-Reminder tones convey urgency through the shared stake, phrased date-free ("we're working towards exchange", "our planned exchange is at risk").
+- No completion date is surfaced either, for the same reason.
 
-**Why:** Mentioning the exchange date before both solicitors have confirmed readiness is premature — the date is not yet locked in from both sides, and surfacing it creates false urgency or misleads the recipient.
+**Why:** the earlier design gated the date behind the two solicitor readiness milestones (VM18 + PM25). Even there the value is still our estimate rather than a bilaterally-agreed date, so the founder policy (2026-09-25) is simpler and absolute: chase drafts talk about *where things stand*, never about *when they will happen*.
 
 ---
 
@@ -356,9 +356,6 @@ Generate a {channel} chase message for the following situation.
 - Tenure: {tenure}
 - Purchase type: {purchaseType}
 - Sale price: £{salePrice}
-{{If exchange gates confirmed (VM18 + PM25 both complete):
-- Expected exchange date: {expectedExchangeDate} ({daysToExpectedExchange} days away)
-}}
 
 # Milestone(s) being chased
 {{For each milestone (repeat block below once per milestone):}}
@@ -408,8 +405,6 @@ Write the message now.
 | `tenure` | "freehold" \| "leasehold" | |
 | `purchaseType` | string | "residential" / "BTL" / "cash" etc. |
 | `salePrice` | string | Already converted from pence and formatted with commas |
-| `expectedExchangeDate` | string | Formatted human-readable, e.g. "22 July 2026" |
-| `daysToExpectedExchange` | number | Negative if past |
 | `milestoneName` | string | e.g. "Mortgage offer received" — loop-scoped when multi-milestone |
 | `side` | "vendor" \| "purchaser" \| "agent" | Loop-scoped when multi-milestone |
 | `daysOutstanding` | number | Days since milestone target or last activity — loop-scoped when multi-milestone |
@@ -444,14 +439,13 @@ To verify the new prompt works, regenerate the message that prompted this rewrit
 - Tone: Urgent
 - Milestone: "Vendor confirms receipt of MOS" — agent has sent the MOS, waiting on Deborah to confirm receipt and instruct her solicitor
 - Days outstanding: 7
-- Days to expected exchange: 14 (target 22 July 2026)
 - Chase count: 2 (this is the third nudge)
 - Sender: Rachel Whitfield
 
 **Acceptance criteria. The output must:**
 
 1. Open with "Hi Deborah," or similar warm opener.
-2. Surface the shared goal of the 22 July exchange date *first*, before describing what's outstanding.
+2. Surface the shared goal of moving towards exchange *first*, before describing what's outstanding, without stating a specific target date.
 3. Frame the MOS receipt and solicitor instruction as the bits *Deborah* can move (factual), not as Deborah failing.
 4. Volunteer help on the progressor's side ("once you've sent the MOS back I can push the solicitor side through").
 5. Use "just" at least once.

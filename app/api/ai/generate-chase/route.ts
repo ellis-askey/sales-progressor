@@ -9,7 +9,6 @@ import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
 import { getVoiceProfile, maybeRefreshVoiceProfile } from "@/lib/chase/voice-profile";
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
 import { greetingName } from "@/lib/utils";
-import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { deriveChaseAsk, partyLabel } from "@/lib/chase/derive-chase-ask";
 import type { Party } from "@/lib/chase/action-holders";
 import { timeGreeting } from "@/lib/emails/greeting";
@@ -84,18 +83,6 @@ export async function POST(req: NextRequest) {
             where: { type: "outbound" },
             orderBy: { createdAt: "desc" },
             take: 3,
-          },
-          // PHASE 1 4e — exchange-ready gates VM18/PM25; the nested
-          // where can't reference the parent's activeBuyerRoundId, so
-          // the gate read is round-resolved in a separate fetch below
-          // after primaryTask resolves. Keeping the empty include for
-          // type compatibility with downstream consumers.
-          milestoneCompletions: {
-            where: {
-              milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
-              state: "complete",
-            },
-            select: { milestoneDefinition: { select: { code: true } } },
           },
         },
       },
@@ -186,11 +173,6 @@ export async function POST(req: NextRequest) {
     const a = rule.anchorMilestone;
     return a ? { code: a.code, name: a.name, side: a.side, blocksExchange: a.blocksExchange } : null;
   };
-
-  const formatDate = (d: Date | null | undefined) =>
-    d
-      ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-      : "Not provided";
 
   // PII minimisation — send a shortened property reference (street line only)
   // instead of the full address with postcode. The AI doesn't reproduce the
@@ -335,45 +317,18 @@ export async function POST(req: NextRequest) {
           .join("\n")
       : null;
 
-  // PHASE 1 4e — Exchange date is only surfaced when both gates VM18
-  // (vendor) + PM25 (purchaser) are confirmed. Round-scope the gate
-  // read so a relisted file doesn't surface the OLD buyer's PM25 as
-  // "exchange ready" — that would generate misleading AI wording the
-  // agent might not catch. Replaces the unscoped nested include result
-  // (which kept the original include for type compatibility).
-  const aiGateTxRow = await prisma.propertyTransaction.findUnique({
-    where: { id: tx.id },
-    select: { activeBuyerRoundId: true },
-  });
-  const aiGateScope = forRound(aiGateTxRow?.activeBuyerRoundId ?? null, tx.id);
-  const aiGateCompletions = await prisma.milestoneCompletion.findMany({
-    where: {
-      transactionId: tx.id,
-      milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
-      state: "complete",
-      ...milestoneScopeWhere(aiGateScope),
-    },
-    select: { milestoneDefinition: { select: { code: true } } },
-  });
-  const gateCodes = aiGateCompletions.map((c) => c.milestoneDefinition.code);
-  const exchangeGatesConfirmed = gateCodes.includes("VM18") && gateCodes.includes("PM25");
-  const expectedExchangeDateStr = formatDate(tx.expectedExchangeDate);
-  const daysToExpectedExchange = tx.expectedExchangeDate
-    ? Math.ceil((new Date(tx.expectedExchangeDate).getTime() - Date.now()) / 86400000)
-    : null;
-  const daysToExchangeStr =
-    daysToExpectedExchange !== null ? `${daysToExpectedExchange} days away` : "unknown";
-
   // Resolved guidance strings (substitutions applied)
   const toneKey = TONE_KEY_MAP[tone] ?? "friendly";
   const channelGuidance = CHANNEL_GUIDANCE[channel]
     .replace(/\{senderFirstName\}/g, senderFirstName)
     // Keep the opener example consistent with the code-decided greeting.
     .replace(/Good morning/g, greeting);
-  const toneGuidance = (TONE_GUIDANCE[toneKey] ?? TONE_GUIDANCE.friendly).replace(
-    /\{expectedExchangeDate\}/g,
-    exchangeGatesConfirmed && tx.expectedExchangeDate ? expectedExchangeDateStr : "our exchange target"
-  );
+  // No exchange/completion date is ever injected into chase drafts: the stored
+  // expectedExchangeDate is our own prediction / manual estimate, not a date the
+  // solicitors have agreed, so surfacing it to a client or solicitor would state
+  // a target we can't stand behind. Urgency comes from the shared stake, phrased
+  // date-free in the tone guidance itself.
+  const toneGuidance = TONE_GUIDANCE[toneKey] ?? TONE_GUIDANCE.friendly;
 
   // Terser + no process-explaining for solicitors; warmer + light "why" for clients.
   const recipientGuidance = recipientIsSolicitor ? RECIPIENT_GUIDANCE.solicitor : RECIPIENT_GUIDANCE.client;
@@ -564,12 +519,14 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   //   - Full name of CC'd solicitor (role label only)
   //   - Verbatim previous-message text (timing-only continuity signal)
   //   - Email addresses, phone numbers, internal notes (never sent — were not in prior version either)
+  //   - Expected/predicted exchange or completion date (never surfaced in chase
+  //     drafts: it's our own estimate, not a solicitor-agreed date)
   //
   // Fields that DO go (each load-bearing for output quality):
   //   - Recipient's first name (opener pattern requires it)
   //   - Sending agent's first name + agency name (sign-off attribution)
   //   - Property reference (first line only)
-  //   - Tenure / purchase type / expected exchange date (transaction framing)
+  //   - Tenure / purchase type (transaction framing)
   //   - Milestone names / codes / days outstanding / blocks-exchange flag
   //   - Milestone glossary text (from lib/chase/milestone-glossary.ts)
   //   - Chase counts + days since last contact (structured continuity)
@@ -593,9 +550,6 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
     `- Property reference: ${recipientShortAddress}`,
     `- Tenure: ${tx.tenure ?? "Not provided"}`,
     `- Purchase type: ${tx.purchaseType ?? "Not provided"}`,
-    ...(exchangeGatesConfirmed && tx.expectedExchangeDate
-      ? [`- Expected exchange date: ${expectedExchangeDateStr} (${daysToExchangeStr})`]
-      : []),
     ``,
     `# Milestone(s) being chased`,
     milestonesBlock,
