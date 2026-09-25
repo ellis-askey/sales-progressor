@@ -139,7 +139,10 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         onClick={() => {
           if (!open && ref.current) {
             const r = ref.current.getBoundingClientRect();
-            const above = r.top > 250;
+            // Open upward when there isn't room below for the menu (e.g. a single
+            // chase sits high on a short page), as long as there's more room above.
+            const spaceBelow = window.innerHeight - r.bottom;
+            const above = spaceBelow < 240 && r.top > spaceBelow;
             setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
           }
           setOpen((p) => !p);
@@ -230,7 +233,10 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
         onClick={() => {
           if (!open && ref.current) {
             const r = ref.current.getBoundingClientRect();
-            const above = r.top > 250;
+            // Open upward when there isn't room below for the menu (e.g. a single
+            // chase sits high on a short page), as long as there's more room above.
+            const spaceBelow = window.innerHeight - r.bottom;
+            const above = spaceBelow < 240 && r.top > spaceBelow;
             setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
           }
           setOpen((p) => !p);
