@@ -965,7 +965,7 @@ function AttentionRow({
       {thumbNode}
       <div className="attn-addr">
         {/* Reminder rows link into the Reminders tab; all others into the file. */}
-        <Link href={href} className="attn-addr-link hover:underline">
+        <Link href={href} className="attn-addr-link hub-addr">
           <span className="attn-addr-full">{address}</span>
           <span className="attn-addr-street">{addrLine}</span>
           {addrLoc && <span className="attn-addr-loc">{addrLoc}</span>}

@@ -164,10 +164,12 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                   style={{ borderLeft: `3px solid ${ACCENT}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
                   <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
-                    <PropertyThumb photoUrl={row.photoUrl} />
+                    <Link href={row.href} className="hub-thumb-link" aria-label={`Open ${row.address}`}>
+                      <PropertyThumb photoUrl={row.photoUrl} />
+                    </Link>
                     <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        <Link href={row.href} className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <Link href={row.href} className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {row.address}
                         </Link>
                         <Pill glass tone="brand" size="md" style={{ flexShrink: 0 }}>

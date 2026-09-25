@@ -81,12 +81,14 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
                 style={{ borderLeft: "3px solid var(--agent-warning)", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
               >
                 <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
-                  <PropertyThumb photoUrl={item.photoUrl} />
+                  <Link href={`/agent/transactions/${item.transaction.id}`} className="hub-thumb-link" aria-label={`Open ${item.transaction.propertyAddress}`}>
+                    <PropertyThumb photoUrl={item.photoUrl} />
+                  </Link>
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <Link
                       href={`/agent/transactions/${item.transaction.id}`}
-                      className="hover:underline"
-                      style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      className="hub-addr"
+                      style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                     >
                       {item.transaction.propertyAddress}
                     </Link>

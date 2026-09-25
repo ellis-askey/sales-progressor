@@ -262,11 +262,11 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                 <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                   <Link
                     href={`/agent/transactions/${item.transactionId}`}
+                    className="hub-addr"
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
                       color: "var(--agent-text-primary)",
-                      textDecoration: "none",
                     }}
                   >
                     {item.propertyAddress}

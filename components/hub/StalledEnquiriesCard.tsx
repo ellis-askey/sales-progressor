@@ -12,7 +12,6 @@ import Link from "next/link";
 import { ChatCircleDots, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
 import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import type { StalledEnquiryItem } from "@/lib/services/hub";
 
@@ -70,19 +69,20 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
       <div className={`agent-acc${collapsed ? "" : " open"}`}>
         <div className="agent-acc-in">
           {shown.map((row, i) => {
-            const line1 = row.address.split(",")[0].trim();
+            const href = `/agent/transactions/${row.transactionId}`;
             const photoUrl = row.photoStoragePath ? signedPhotos[row.photoStoragePath] ?? null : null;
             const withText = `With ${courtLabel(row.currentlyWith)}${row.solicitorName ? ` (${row.solicitorName})` : ""} · quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`;
             return (
               <div key={row.transactionId} style={{ borderLeft: `3px solid ${ACCENT}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
                 <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
-                  <PropertyThumb photoUrl={photoUrl} />
+                  <Link href={href} className="hub-thumb-link" aria-label={`Open ${row.address}`}>
+                    <PropertyThumb photoUrl={photoUrl} />
+                  </Link>
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Link href={`/agent/transactions/${row.transactionId}`} className="hover:underline" data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {line1}
+                      <Link href={href} className="hub-addr" data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {row.address}
                       </Link>
-                      <Pill glass tone="danger" size="md" style={{ flexShrink: 0 }}>Stalled</Pill>
                     </div>
                     <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-sensitive="true">
                       {withText}

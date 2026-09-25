@@ -138,10 +138,12 @@ export function HubListCard({
                   // accent bar + pill carry the tone, and the lift hover lands.
                   style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
-                  <PropertyThumb photoUrl={row.photoUrl} />
+                  <Link href={row.href} unstable_dynamicOnHover className="hub-thumb-link" aria-label={`Open ${row.address}`}>
+                    <PropertyThumb photoUrl={row.photoUrl} />
+                  </Link>
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Link href={row.href} unstable_dynamicOnHover className="hover:underline" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <Link href={row.href} unstable_dynamicOnHover className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.address}
                       </Link>
                       {row.pillLabel && (

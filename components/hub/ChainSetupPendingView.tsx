@@ -78,10 +78,9 @@ export function ChainSetupPendingView({ initialFiles }: { initialFiles: HubChain
                 margin: 0, fontSize: 12, fontWeight: 500,
                 color: "var(--agent-text-primary)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                textDecoration: "none",
                 display: "block",
               }}
-              className="hover:underline"
+              className="hub-addr"
             >
               {f.propertyAddress}
             </Link2>
