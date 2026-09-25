@@ -167,7 +167,10 @@ export function DiaryEventRow({
         ) : (
           <>
             <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Not ready</span>
-            <RowActionMenu label="Options" items={menuItems} disabled={busy} />
+            {/* Caret-only menu (no "Options" label): the chevron is self-evident
+                and dropping the word gives the address the width back so it stops
+                catching on the right-hand text on narrow rows (critique). */}
+            <RowActionMenu items={menuItems} disabled={busy} ariaLabel="Diary event options" />
           </>
         )}
       </div>
