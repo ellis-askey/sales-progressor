@@ -117,7 +117,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
          <td valign="middle" width="116"><img src="${qrUrl}" alt="Scan to open on your phone" width="104" height="104" style="display:block;border:1px solid #e3e9f0;border-radius:10px;" /></td>
          <td valign="middle" style="padding-left:16px;">
            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-             <td valign="top" width="36">${icon("phone.png", 36)}</td>
+             <td valign="middle" width="40">${icon("phone.png", 40)}</td>
              <td valign="middle" style="padding-left:12px;">
                <p style="margin:0;font-size:14px;font-weight:700;color:${NAVY};line-height:1.4;">On your phone?</p>
                <p style="margin:2px 0 0;font-size:13px;color:${MUTED};line-height:1.4;">Scan to update instead.</p>
