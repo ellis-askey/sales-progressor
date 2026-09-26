@@ -78,8 +78,8 @@ function SystemAvatar({ size = 22 }: { size?: number }) {
 // Shared row footer: who it's from (photo/initials + name + optional role
 // sub-label) on the left, timestamp bottom-right. Used by comm + milestone rows.
 function ActorFooter({
-  role, name, image, sublabel, at, isEdited, placement = "bottom",
-}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; placement?: "top" | "bottom" }) {
+  role, name, image, sublabel, at, isEdited, placement = "bottom", hideDate = false,
+}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; placement?: "top" | "bottom"; hideDate?: boolean }) {
   // System rows read as "TSP" (The Sales Progressor), not the internal "System".
   const displayName = role === "system" ? "TSP" : name;
   return (
@@ -91,10 +91,14 @@ function ActorFooter({
         </span>
         {sublabel && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>· {sublabel}</span>}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
-        <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{at ? formatTimestamp(at) : ""}</span>
-      </div>
+      {/* Date can be suppressed here (moved to the foot row) so it doesn't collide
+          with the hover edit/delete controls pinned top-right. */}
+      {!hideDate && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
+          <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{at ? formatTimestamp(at) : ""}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -586,7 +590,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
               // "viewed portal" row), so the contact-name pill is pure noise on
               // them. Email/message rows keep it — there it says who it went to.
               const showContactPills = !isEditing && entry.type !== "internal_note" && displayContactNames.length > 0;
-              const hasFootChips = showBadge || showContactPills || showRecipientPill;
               return (
                 <GlassCard
                   glassId="activity-timeline-entry"
@@ -604,6 +607,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     at={entry.at}
                     isEdited={isEdited}
                     placement="top"
+                    hideDate
                   />
 
                   {/* Content — either static paragraph or editable form */}
@@ -778,28 +782,37 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     <EmailContactSuggestion transactionId={transactionId} messageId={entry.id} suggestion={entry.contactSuggestion} />
                   )}
 
-                  {/* Foot chips — channel badge (non-email only) + contact pills. */}
-                  {hasFootChips && (
-                    <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      {showBadge && (
-                        <Pill glass tone={badge.tone} size="sm">
-                          <span aria-hidden>{badge.icon}</span>
-                          {badge.label}
-                        </Pill>
-                      )}
-                      {showContactPills && displayContactNames.map((name) => (
-                        <ContactPill key={name} name={name} />
-                      ))}
-                      {showRecipientPill && entry.recipientName && (
-                        <ContactPill name={entry.recipientName} />
-                      )}
+                  {/* Foot row — channel badge / contact pills on the left, and the
+                      date on the right (moved off the top row so it can't collide
+                      with the hover edit/delete controls). Always rendered (outside
+                      the edit form) so the date has a consistent home. */}
+                  {!isEditing && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
+                        {showBadge && (
+                          <Pill glass tone={badge.tone} size="sm">
+                            <span aria-hidden>{badge.icon}</span>
+                            {badge.label}
+                          </Pill>
+                        )}
+                        {showContactPills && displayContactNames.map((name) => (
+                          <ContactPill key={name} name={name} />
+                        ))}
+                        {showRecipientPill && entry.recipientName && (
+                          <ContactPill name={entry.recipientName} />
+                        )}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
+                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{entry.at ? formatTimestamp(entry.at) : ""}</span>
+                      </div>
                     </div>
                   )}
 
                   {/* Action buttons — hidden during edit to keep the form clean */}
                   {!isEditing && (
                     <div
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity act-row-actions"
                       style={{ position: "absolute", top: 8, right: 10, display: "flex", gap: 2 }}
                     >
                       {canEdit && (
@@ -864,6 +877,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
       {/* Filter bar — one full-width search that also holds the view scope
           (left) and the portal-visits toggle (right). */}
       <style>{`
+        /* Touch devices (no hover): reveal the per-row edit/delete controls
+           permanently (there's no hover to trigger them), and never paint the
+           icon-button circle background — on mobile/tablet it just reads as a
+           stray blob behind the ✎ / ×. */
+        @media (hover: none) {
+          .act-row-actions { opacity: 1 !important; }
+          .act-row-actions .agent-icon-btn,
+          .act-row-actions .agent-icon-btn:hover,
+          .act-row-actions .agent-icon-btn:active { background: none !important; box-shadow: none !important; }
+        }
         /* z-index must beat the compose card below it (activity-comms-entry sits
            at z-index:30 as a later sibling), or the open scope menu renders
            behind it. */
