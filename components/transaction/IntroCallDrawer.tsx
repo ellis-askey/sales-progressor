@@ -284,7 +284,6 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
         breakChainConditions: next.breakChainConditions,
         expectedTimescale: next.expectedTimescale,
         chainNotes: next.chainNotes,
-        lastChainCheckAt: next.lastChainCheckAt,
       }));
     }
   };

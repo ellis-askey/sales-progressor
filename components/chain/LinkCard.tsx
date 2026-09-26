@@ -15,7 +15,7 @@ import { parseAddressForEdit } from "@/components/transactions-v2/form/AddressFi
 import { prepareImageForUpload } from "@/lib/images/prepare-upload";
 import type { ChainLinkV2, ChainNodeIntel, ChainSideSummary } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
-import { DateField } from "@/components/ui/DateField";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 function relativeTime(date: Date | string | null): string {
   if (!date) return "";
@@ -237,22 +237,14 @@ function formatCheckDate(d: Date | string | null): string {
   if (isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
-function toDateInput(d: Date | string | null): string {
-  if (!d) return "";
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
 
 const intelLabelStyle: CSSProperties = { display: "grid", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" };
+// Composes with className="agent-field" (border, hover/focus coral, bg) so the
+// chain-detail + chase-log inputs match every other field in the app.
 const intelInputStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 400,
-  padding: "6px 8px",
-  borderRadius: 6,
-  border: "0.5px solid var(--agent-border-subtle)",
-  background: "var(--agent-surface)",
-  color: "var(--agent-text)",
+  padding: "7px 10px",
   width: "100%",
   fontFamily: "inherit",
 };
@@ -263,9 +255,6 @@ function intelToForm(intel: ChainNodeIntel | null): ChainNodeIntelInput {
     breakChainConditions: intel?.breakChainConditions ?? null,
     expectedTimescale: intel?.expectedTimescale ?? null,
     chainNotes: intel?.chainNotes ?? null,
-    // Default the last-check date to today when none is set (first entry). When a
-    // date already exists, keep it (editable).
-    lastChainCheckAt: toDateInput(intel?.lastChainCheckAt ?? null) || new Date().toISOString().slice(0, 10),
   };
 }
 
@@ -276,7 +265,7 @@ function IntelReadRows({ intel }: { intel: ChainNodeIntel }) {
   if (intel.breakChainConditions) rows.push({ label: "Conditions", value: intel.breakChainConditions });
   if (intel.expectedTimescale) rows.push({ label: "Timescale", value: intel.expectedTimescale });
   // Notes are rendered once via the unified NotesBlock (see unifiedNotes), not here.
-  if (intel.lastChainCheckAt) rows.push({ label: "Last checked", value: formatCheckDate(intel.lastChainCheckAt) });
+  // "Last updated" is shown in the section header (ChainIntelBody), not as a row.
   return (
     <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px", margin: 0, fontSize: 12 }}>
       {rows.map((r) => (
@@ -419,9 +408,26 @@ function ChainIntelBody({
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<ChainNodeIntelInput>(() => intelToForm(intel));
 
-  // Non-editors: read-only rows (or nothing when empty). No reveal button.
+  // "Last updated {date}" = when the chain DETAILS were last saved (stamped on
+  // Save). Chase-log entries have their own dates and don't touch this.
+  const lastUpdated = intel?.lastChainCheckAt ? formatCheckDate(intel.lastChainCheckAt) : null;
+  const header = (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+        Chain details
+      </span>
+      {lastUpdated && (
+        <span style={{ fontSize: 10.5, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
+          Last updated {lastUpdated}
+        </span>
+      )}
+    </div>
+  );
+
+  // Non-editors: read-only rows under the same header (or nothing when empty).
   if (!canEdit) {
-    return hasAny && intel ? <IntelReadRows intel={intel} /> : null;
+    if (!hasAny || !intel) return null;
+    return <div style={{ display: "grid", gap: 8 }}>{header}<IntelReadRows intel={intel} /></div>;
   }
 
   async function save() {
@@ -438,13 +444,11 @@ function ChainIntelBody({
   }
 
   // b1ey9l: the editable fields are shown directly when the node is expanded —
-  // no "Add/edit details" button to click first. Notes moved to the chase log
-  // (ChainChaseLog), so this is the standing chain-detail facts + a Save.
+  // no "Add/edit details" button first. Notes moved to the chase log; the manual
+  // last-check picker is retired (replaced by the passive "Last updated" above).
   return (
     <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
-        Chain details
-      </div>
+      {header}
 
       <label style={intelLabelStyle}>
         Breaking the chain
@@ -453,6 +457,7 @@ function ChainIntelBody({
           onChange={(e) =>
             setForm((f) => ({ ...f, breakChainStance: (e.target.value || null) as ChainNodeIntelInput["breakChainStance"] }))
           }
+          className="agent-field"
           style={intelInputStyle}
           disabled={saving}
         >
@@ -471,7 +476,8 @@ function ChainIntelBody({
           value={form.breakChainConditions ?? ""}
           onChange={(e) => setForm((f) => ({ ...f, breakChainConditions: e.target.value }))}
           rows={2}
-          style={intelInputStyle}
+          className="agent-field"
+          style={{ ...intelInputStyle, resize: "vertical", lineHeight: 1.5 }}
           disabled={saving}
         />
       </label>
@@ -481,29 +487,10 @@ function ChainIntelBody({
         <input
           value={form.expectedTimescale ?? ""}
           onChange={(e) => setForm((f) => ({ ...f, expectedTimescale: e.target.value }))}
+          className="agent-field"
           style={intelInputStyle}
           disabled={saving}
         />
-      </label>
-
-      <label style={intelLabelStyle}>
-        Last chain check
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <DateField
-            value={form.lastChainCheckAt ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, lastChainCheckAt: e.target.value || null }))}
-            style={{ ...intelInputStyle, flex: 1 }}
-            disabled={saving}
-          />
-          <button
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, lastChainCheckAt: new Date().toISOString().slice(0, 10) }))}
-            className="chain-act-link"
-            disabled={saving}
-          >
-            Today
-          </button>
-        </div>
       </label>
 
       {error && (
@@ -574,7 +561,8 @@ function ChainChaseLog({
             onChange={(e) => setDraft(e.target.value)}
             rows={2}
             placeholder="What did you do? e.g. Called the branch, waiting on a call back about the draft pack."
-            style={intelInputStyle}
+            className="agent-field"
+            style={{ ...intelInputStyle, resize: "vertical", lineHeight: 1.5 }}
             disabled={saving}
           />
           {error && <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>{error}</p>}
@@ -593,16 +581,23 @@ function ChainChaseLog({
       )}
 
       {entries.length > 0 ? (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-          {entries.map((e) => (
-            <li key={e.id} style={{ display: "grid", gap: 2, paddingLeft: 10, borderLeft: "2px solid var(--agent-border-subtle)" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>
-                {formatEntryDate(e.createdAt)}
-                {e.authorName ? ` · ${e.authorName}` : ""}
-              </div>
-              <div style={{ fontSize: 12.5, color: "var(--agent-text)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{e.body}</div>
-            </li>
-          ))}
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
+          {entries.map((e) => {
+            const who = e.authorName?.trim() || "Progression team";
+            return (
+              <li key={e.id} style={{ display: "grid", gap: 5 }}>
+                {/* Author (avatar + full name) left; date right, same row. */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <UserAvatar user={{ name: who, image: e.authorImage }} size={22} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{who}</span>
+                  </div>
+                  <span style={{ fontSize: 10.5, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>{formatEntryDate(e.createdAt)}</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: "var(--agent-text)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{e.body}</div>
+              </li>
+            );
+          })}
         </ul>
       ) : canEdit ? (
         <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>No entries yet. Log your first update above.</p>

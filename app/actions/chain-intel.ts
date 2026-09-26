@@ -66,22 +66,17 @@ export async function saveChainIntelAction(linkId: string, input: ChainNodeIntel
     return t.length ? t : null;
   };
 
-  const lastChainCheckAt = input.markCheckedNow
-    ? new Date()
-    : input.lastChainCheckAt
-      ? new Date(input.lastChainCheckAt)
-      : null;
-
   await prisma.chainLink.update({
     where: { id: linkId },
     data: {
       breakChainStance: input.breakChainStance,
       breakChainConditions: trimOrNull(input.breakChainConditions),
       expectedTimescale: trimOrNull(input.expectedTimescale),
-      // chainNotes is no longer edited here (b1ey9l) — the chase log (ChainLinkEntry)
-      // replaces it. Left untouched so any legacy note survives until the one-off
-      // migration folds it into entries.
-      lastChainCheckAt,
+      // chainNotes is no longer edited here (b1ey9l) — the chase log replaces it.
+      // lastChainCheckAt is repurposed as the "Last updated" stamp for the chain
+      // details: set to now on every save (the manual date picker is retired,
+      // and chase-log entries carry their own dates — they don't touch this).
+      lastChainCheckAt: new Date(),
     },
   });
 
@@ -127,9 +122,6 @@ export async function addChainEntryAction(
     },
     select: { id: true, body: true, authorName: true, createdAt: true },
   });
-
-  // Logging an update IS a chain check — keep the "chased X ago" hint fresh.
-  await prisma.chainLink.update({ where: { id: linkId }, data: { lastChainCheckAt: new Date() } });
 
   // Mirror onto the working file's Activity tab (own-side, never client-visible).
   // Prefer the context file the user is viewing (access-checked); fall back to

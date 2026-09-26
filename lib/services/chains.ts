@@ -96,6 +96,7 @@ export type ChainLinkEntryView = {
   id: string;
   body: string;
   authorName: string | null;
+  authorImage: string | null; // resolved avatar URL, null → branded fallback art
   createdAt: Date;
 };
 
@@ -364,7 +365,7 @@ const LINK_V2_SELECT = {
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
     orderBy: { createdAt: "desc" as const },
-    select: { id: true, body: true, authorName: true, createdAt: true },
+    select: { id: true, body: true, authorName: true, authorId: true, createdAt: true },
   },
   transaction: {
     select: {
@@ -617,11 +618,21 @@ export async function getChainV2(
   // Batch-sign every claimed link's property photo in a single round trip so
   // the wide drawer can render real thumbnails (own file + others' claimed
   // links). Unsigned/absent paths simply fall back to the house illustration.
-  const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+  const { getSignedUrlMap, getAvatarPublicUrl } = await import("@/lib/supabase-storage");
   const photoMap = await getSignedUrlMap(
     chain.links.flatMap((l) => [l.transaction?.photoStoragePath, l.stubPhotoStoragePath]),
     3600,
   ).catch(() => new Map<string, string>());
+
+  // Resolve chase-log entry authors' avatars (their User.image) in one query so
+  // each entry can show the author's photo (branded fallback when none). authorId
+  // is a standalone id (no FK), so we look them up explicitly.
+  const authorIds = [...new Set(chain.links.flatMap((l) => l.entries.map((e) => e.authorId).filter((x): x is string => !!x)))];
+  const authorImageById = new Map<string, string | null>();
+  if (authorIds.length > 0) {
+    const authors = await prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, image: true } }).catch(() => []);
+    for (const a of authors) authorImageById.set(a.id, a.image ? getAvatarPublicUrl(a.image) : null);
+  }
 
   // Combined chain value computed from the RAW rows (before individual prices
   // are stripped below). pricedCount powers the "across N priced sales" line.
@@ -767,7 +778,7 @@ export async function getChainV2(
         : null;
       // Chase-log entries — same own-side gate as intel; [] for another agency.
       const entries: ChainLinkEntryView[] = intelVisible
-        ? (rawEntries ?? []).map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, createdAt: e.createdAt }))
+        ? (rawEntries ?? []).map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null, createdAt: e.createdAt }))
         : [];
       // Private stub contact + notes: same trust tier as intel (owning agency +
       // internal staff only). Re-added to the wire only when visible; null for

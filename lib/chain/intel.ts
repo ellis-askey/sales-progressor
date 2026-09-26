@@ -44,9 +44,6 @@ export type ChainNodeIntelInput = {
   breakChainConditions: string | null;
   expectedTimescale: string | null;
   chainNotes: string | null;
-  lastChainCheckAt: string | null;
-  // Convenience: set true to stamp last-checked to now regardless of the date field.
-  markCheckedNow?: boolean;
 };
 
 export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
