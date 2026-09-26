@@ -249,7 +249,11 @@ function PanelRow({
   return (
     <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${selected ? " on" : ""}`}>
       <div className="cmp-rowline">
-        <button type="button" className="cmp-row" onClick={() => onSelect(item.id)}>
+        <button
+          type="button"
+          className="cmp-row"
+          onClick={() => { onSelect(item.id); if (item.expand) setExpanded((v) => !v); }}
+        >
           <span className="cmp-num" style={{ background: CHAIN_STATUS_COLOR[item.status] }}>{item.label}</span>
           <PropertyThumb photoUrl={item.photoUrl} size={40} />
           <span className="cmp-txt">
