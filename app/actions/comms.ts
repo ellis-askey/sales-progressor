@@ -58,7 +58,7 @@ export async function logPortalLinkCopiedAction(transactionId: string, contactId
 
 export async function deleteCommAction(id: string, transactionId: string) {
   const session = await requireSession();
-  await deleteCommunicationRecord(id, getAccessScope(session));
+  await deleteCommunicationRecord(id, getAccessScope(session), session.user.id);
   revalidateTx(transactionId);
 }
 
@@ -80,6 +80,7 @@ export async function editCommAction(input: {
     contactIds: input.contactIds,
     visibleToClient: input.visibleToClient,
     scope: getAccessScope(session),
+    userId: session.user.id,
   });
   revalidateTx(input.transactionId);
 }

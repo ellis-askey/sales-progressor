@@ -1202,14 +1202,22 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
-export async function deleteCommunicationRecord(id: string, scope: AccessScope) {
+export async function deleteCommunicationRecord(id: string, scope: AccessScope, userId: string) {
   // Verify the comm's transaction is in scope before deleting.
   const where =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
-  const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true } });
+  const comm = await prisma.outboundMessage.findFirst({
+    where,
+    select: { id: true, type: true, isAutomated: true, createdById: true },
+  });
   if (!comm) throw new Error("Not found");
+  // Only a NOTE you typed yourself can be removed. Sent/received comms, automated
+  // sends, and anything another user (incl. TSP) entered are immutable records.
+  if (comm.type !== "internal_note" || comm.isAutomated || comm.createdById !== userId) {
+    throw new Error("You can only remove notes you added yourself.");
+  }
   return prisma.outboundMessage.delete({ where: { id } });
 }
 
@@ -1219,6 +1227,7 @@ export type UpdateCommInput = {
   contactIds: string[];
   visibleToClient: boolean;
   scope: AccessScope;
+  userId: string;
 };
 
 // Edits a manually-logged comms entry (phone / WhatsApp / note / etc.).
@@ -1235,17 +1244,21 @@ export type UpdateCommInput = {
 // trail of individual edits in v1 — updatedAt + the flag is enough).
 // Returns the updated row.
 export async function updateCommunicationRecord(input: UpdateCommInput) {
-  const { id, content, contactIds, visibleToClient, scope } = input;
+  const { id, content, contactIds, visibleToClient, scope, userId } = input;
   const where =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const comm = await prisma.outboundMessage.findFirst({
     where,
-    select: { id: true, isAutomated: true, transactionId: true },
+    select: { id: true, type: true, isAutomated: true, createdById: true, transactionId: true },
   });
   if (!comm) throw new Error("Not found");
-  if (comm.isAutomated) throw new Error("Automated comms cannot be edited");
+  // Only a NOTE you typed yourself is editable. Sent/received comms, automated
+  // sends, and anything another user (incl. TSP) entered are immutable records.
+  if (comm.type !== "internal_note" || comm.isAutomated || comm.createdById !== userId) {
+    throw new Error("You can only edit notes you added yourself.");
+  }
   const updated = await prisma.outboundMessage.update({
     where: { id },
     data: {

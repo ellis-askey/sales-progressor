@@ -575,7 +575,14 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                 : entry.contactNames;
               const isEdited = override?.wasEdited || entry.wasEdited;
               const isEditing = editingId === entry.id;
-              const canEdit = !entry.isAutomated
+              // You can only ever touch a NOTE you typed yourself. Everything that
+              // was sent or received (emails, calls, messages), anything the system
+              // sent automatically, and anything another user — including TSP —
+              // entered stays view-only. (Ellis, 2026-09-26.)
+              const isOwnNote = entry.type === "internal_note"
+                && !entry.isAutomated
+                && (!currentUserId || entry.createdById === currentUserId);
+              const canEdit = isOwnNote
                 && !entry.id.startsWith("optimistic-")
                 && contacts !== undefined;
               const email = isEmailComm(entry);
@@ -826,7 +833,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           ✎
                         </button>
                       )}
-                      {(!currentUserId || entry.createdById === currentUserId) && (
+                      {isOwnNote && (
                         <button
                           onClick={() => deleteComm(entry.id)}
                           disabled={deletingId === entry.id || isPending || exitingId === entry.id}

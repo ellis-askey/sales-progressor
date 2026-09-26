@@ -74,7 +74,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   try {
-    await deleteCommunicationRecord(id, getAccessScope(session));
+    await deleteCommunicationRecord(id, getAccessScope(session), session.user.id);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
