@@ -17,6 +17,7 @@ import type { PillColor } from "@/components/layout/StatPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 // Bespoke composer per Skeleton.tsx's contract — encodes empty-state
 // ghost layout. Inner rows wrap the canonical Skeleton primitive
@@ -172,6 +173,7 @@ export default async function WorkQueuePage() {
         ))}
       </PageHeader>
 
+      <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
           <>
@@ -223,6 +225,7 @@ export default async function WorkQueuePage() {
           <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
         )}
       </div>
+      </PageReveal>
     </>
   );
 }

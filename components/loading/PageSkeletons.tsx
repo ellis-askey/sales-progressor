@@ -70,7 +70,9 @@ export function RailPageSkeleton({
   return (
     <>
       <PageHeader title={title} subtitle={subtitle ?? " "} />
-      <div className="px-4 md:px-8 py-2 md:py-4" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Body carries the same entrance as the real content (PageReveal) so the
+          skeleton→content swap reads as one continuous fade. Header stays put. */}
+      <div className="px-4 md:px-8 py-2 md:py-4 page-fade-up" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {variant === "cards" ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
             {Array.from({ length: Math.min(rows, 6) }).map((_, i) => (

@@ -9,6 +9,7 @@ import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient"
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
 import { AnalyticsEmptyState } from "@/components/analytics/AnalyticsEmptyState";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -204,7 +205,7 @@ export default async function AgentAnalyticsPage({
       </PageHeader>
 
       {/* ── Client shell — manages period state, all stats ────────────────── */}
-      <div>
+      <PageReveal>
       <AnalyticsClientShell
         transactions={transactions.map(t => ({ ...t, agentFeePercent: t.agentFeePercent != null ? Number(t.agentFeePercent) : null }))}
         team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
@@ -221,7 +222,7 @@ export default async function AgentAnalyticsPage({
         selectedName={selectedName}
         initialPeriod={period}
       />
-      </div>
+      </PageReveal>
 
     </div>
   );

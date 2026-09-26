@@ -7,6 +7,7 @@ import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
 import { EnquiriesEmptyState } from "@/components/enquiries/EnquiriesEmptyState";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 // Enquiries triage. Internal staff plus customer agency staff (director /
 // negotiator) who progress their own files. The read is agency-scoped via
@@ -43,6 +44,7 @@ export default async function EnquiriesPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing." />
+      <PageReveal>
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
         {rows.length === 0 ? (
           <EnquiriesEmptyState />
@@ -50,6 +52,7 @@ export default async function EnquiriesPage() {
           <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} emailConnected={emailConnected} />
         )}
       </div>
+      </PageReveal>
     </div>
   );
 }

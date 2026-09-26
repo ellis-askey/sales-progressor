@@ -19,6 +19,7 @@ import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import { X } from "lucide-react";
 import type { TransactionStatus } from "@prisma/client";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 export const metadata: Metadata = {
   title: "All Files · Sales Progressor",
@@ -215,6 +216,7 @@ export default async function AllTransactionsPage({
         )}
       </PageHeader>
 
+      <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
 
         {/* Hub filter indicator — data-first phrasing (Stage 3 voice fix).
@@ -404,6 +406,7 @@ export default async function AllTransactionsPage({
           </div>
         )}
       </div>
+      </PageReveal>
     </>
   );
 }

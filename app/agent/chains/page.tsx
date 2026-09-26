@@ -6,6 +6,7 @@ import { canSeeChains } from "@/lib/chain/chains-access";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function AgentChainsPage() {
   return (
     <>
       <PageHeader title="Chains" subtitle={subtitle} />
+      <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4">
         <ChainsWorkspace
           chains={chains}
@@ -55,6 +57,7 @@ export default async function AgentChainsPage() {
           currentUserRole={session.user.role}
         />
       </div>
+      </PageReveal>
     </>
   );
 }

@@ -31,6 +31,7 @@ import { PreferredBrokerSettings } from "@/components/agent/PreferredBrokerSetti
 import { PartnersDirectory } from "@/components/agent/PartnersDirectory";
 import type { DirectoryFirm, FirmIntel } from "@/components/agent/PartnersDirectory";
 import { PartnersEmptyState } from "@/components/agent/partners/PartnersEmptyState";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -192,6 +193,7 @@ export default async function AgentPartnersPage() {
   return (
     <>
       <PageHeader title="Partners" subtitle="Solicitors, brokers, and preferred professional partners." />
+      <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
         {showOnboarding ? (
@@ -264,6 +266,7 @@ export default async function AgentPartnersPage() {
         </>
         )}
       </div>
+      </PageReveal>
     </>
   );
 }

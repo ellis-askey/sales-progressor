@@ -186,10 +186,12 @@
   .file-tab-enter { animation: none; }
 }
 
-/* Consistent page entrance for every agent-app page (PageTransition). Same
-   keyframe + feel as the file-tab entrance, keyed on the top-level route so it
-   replays on page changes but not on file-page tab switches. Pure CSS, runs
-   after paint — never delays a load. */
+/* Consistent page entrance for agent-app pages. Applied by PageReveal (wraps the
+   page BODY, below the Suspense boundary, so it plays when real content mounts)
+   and by the shared route skeletons (components/loading/PageSkeletons) — same
+   keyframe + feel as the file-tab entrance. As the skeleton unmounts, the
+   content rises in with the same motion. Pure CSS, runs after paint — never
+   delays a load. */
 .page-fade-up { animation: agent-fade-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) {
   .page-fade-up { animation: none; }

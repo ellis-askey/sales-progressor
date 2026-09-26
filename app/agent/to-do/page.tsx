@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { toUKDateStr } from "@/lib/utils";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 export default async function AgentTodoPage() {
   const session = await requireSession();
@@ -113,6 +114,7 @@ export default async function AgentTodoPage() {
         ))}
       </PageHeader>
 
+      <PageReveal>
       {tasks.length === 0 && !hasReviews && !isInternal && noCommsItems.length === 0 ? (
         // Brand-new agency user: the onboarding empty state (full width, mock).
         <div className="px-4 md:px-8 py-2 md:py-4">
@@ -133,6 +135,7 @@ export default async function AgentTodoPage() {
           )}
         </div>
       )}
+      </PageReveal>
     </>
   );
 }

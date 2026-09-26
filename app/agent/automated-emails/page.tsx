@@ -28,6 +28,7 @@ import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentio
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
 import { SendingTodayPanel } from "@/components/automated-emails/SendingTodayPanel";
+import { PageReveal } from "@/components/agent/PageReveal";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files", "chase-performance", "email-health"] as const;
 type PageTab = (typeof VALID_TABS)[number];
@@ -146,6 +147,7 @@ export default async function AutomatedEmailsPage({
         subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       />
 
+      <PageReveal>
       {overview && (
         <AutomationBanner
           banner={overview.banner}
@@ -182,6 +184,7 @@ export default async function AutomatedEmailsPage({
         chasePerformance={chasePerformance}
         emailHealth={emailHealth}
       />
+      </PageReveal>
     </div>
   );
 }
