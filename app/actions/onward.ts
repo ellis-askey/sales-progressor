@@ -26,6 +26,11 @@ import {
   type ConfirmOnwardResult,
   type UndoOnwardResult,
 } from "@/lib/services/onward";
+import { sendEmail } from "@/lib/email";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { buildGreeting } from "@/lib/portal-copy";
+import { buildOnwardNudgeEmail, type OnwardNudgeDirection, type OnwardNudgeMode } from "@/lib/emails/onward-nudge";
 
 function revalidateTx(id: string) {
   revalidatePath(`/transactions/${id}`, "page");
@@ -319,4 +324,90 @@ export async function undoRelatedBuyerStepAction(input: {
   revalidateTx(input.transactionId);
   const view = await getOnwardTrackerView(input.transactionId, "related_sale_buyer");
   return { result, view };
+}
+
+// Nudge a client to set up, or update, the tracking of their OTHER move in their
+// portal (critique h3xwf6). Agent-initiated (manual-only for now) — the agent
+// picks the client, we render the branded email and deep-link them to the onward
+// panel they already have. "onward" = the SELLER's onward purchase (contact is a
+// vendor); "related" = the BUYER's own sale (contact is a purchaser). The send is
+// logged to the file activity like every other client email.
+export async function sendOnwardNudgeAction(input: {
+  transactionId: string;
+  contactId: string;
+  direction: OnwardNudgeDirection;
+  mode: OnwardNudgeMode;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true, agencyId: true, agency: { select: { name: true } } },
+  });
+  if (!tx) return { ok: false, error: "File not found." };
+
+  // The client must be on the correct side for the direction: an onward-purchase
+  // nudge goes to the seller; a related-sale nudge goes to the buyer.
+  const expectedRole = input.direction === "onward" ? "vendor" : "purchaser";
+  const contact = await prisma.contact.findFirst({
+    where: { id: input.contactId, propertyTransactionId: input.transactionId, roleType: expectedRole },
+    select: { id: true, name: true, email: true, portalToken: true, unsubscribedAt: true },
+  });
+  if (!contact) return { ok: false, error: "We couldn't find that client on this file." };
+  if (!contact.email) return { ok: false, error: "This client has no email on file." };
+  if (contact.unsubscribedAt) return { ok: false, error: "This client has opted out of emails." };
+  if (!contact.portalToken) return { ok: false, error: "This client has no portal access yet." };
+
+  // The onward/related property's address, when the agent has recorded it.
+  const kind: OnwardTrackerKind = input.direction === "onward" ? "onward_purchase" : "related_sale";
+  const tracker = await prisma.onwardTracker.findUnique({
+    where: { transactionId_kind: { transactionId: tx.id, kind } },
+    select: { relatedPropertyAddress: true },
+  });
+
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const portalUrl = `${base}/portal/${contact.portalToken}`;
+  const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id);
+  const emailTheme = theme ?? resolveEmailTheme(null);
+
+  const { subject, text, html } = buildOnwardNudgeEmail({
+    agencyName: tx.agency?.name ?? "your agent",
+    greeting: buildGreeting(contact.name),
+    direction: input.direction,
+    mode: input.mode,
+    propertyAddress: tracker?.relatedPropertyAddress ?? null,
+    portalUrl,
+    theme: { buttonBg: emailTheme.buttonBg, buttonText: emailTheme.buttonText },
+  });
+
+  try {
+    await sendEmail({ to: contact.email, subject, text, html, from, replyTo });
+  } catch {
+    return { ok: false, error: "We couldn't send that email just now. Please try again." };
+  }
+
+  // Log the send so it appears on the file's activity feed and in Outbound — a
+  // client is never emailed without a record. Manual send, so it's attributed to
+  // the agent (isAutomated: false) rather than a scheduled job.
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: tx.id,
+      agencyId: tx.agencyId,
+      type: "outbound",
+      method: "email",
+      channel: "email",
+      purpose: "notification",
+      status: "sent",
+      subject,
+      content: text,
+      contactIds: [contact.id],
+      recipientEmail: contact.email,
+      isAutomated: false,
+      visibleToClient: true,
+      sentAt: new Date(),
+    },
+  }).catch(() => {});
+
+  revalidateTx(input.transactionId);
+  return { ok: true };
 }
