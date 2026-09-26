@@ -45,7 +45,6 @@ import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { ScrollTopOnFileChange } from "@/components/transaction/ScrollTopOnFileChange";
 
 import { SidebarPanel } from "@/components/transaction/SidebarPanel";
-import { EnquiryCourtChipSection } from "@/components/transaction/EnquiryCourtChipSection";
 import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
 import { ExchangeDayReadyBanner } from "@/components/transaction/ExchangeDayReadyBanner";
 import { getExchangeDayState, getExchangeDayAuthority } from "@/lib/services/exchange-day";
@@ -381,7 +380,6 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             topRightSlot={heroTopRightSlot}
             exchanged={transaction.exchangedAt !== null}
             isShareOfFreehold={transaction.isShareOfFreehold}
-            enquiryChipSlot={<EnquiryCourtChipSection transactionId={transaction.id} />}
             roundChipSlot={
               <RoundChip
                 transactionId={transaction.id}
