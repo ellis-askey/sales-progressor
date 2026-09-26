@@ -299,6 +299,31 @@ function escapeHtml(s: string): string {
 //
 // Pre-condition: rows.length >= 2. Pre-condition violated → throws (this
 // is the digest path; N=1 must not route through here).
+// Same-day exchange AND completion landing in one recipient's window → a single
+// "exchanged and completed" email instead of two separate celebratory bullets.
+// Buyer and seller get their own wording; reuses the branded shell. (Ellis #60.)
+function buildExchangeAndCompletedEmail(args: {
+  recipientSide: "vendor" | "purchaser";
+  firstName: string;
+  address: string;
+  portalUrl: string;
+  logoBand: string;
+  theme: EmailTheme;
+}): { subject: string; text: string; html: string } {
+  const { recipientSide, firstName, address, portalUrl, logoBand, theme } = args;
+  const isSeller = recipientSide === "vendor";
+  const subject = `Exchanged and completed: ${address}`;
+  const opening = isSeller
+    ? `Congratulations. Today your sale of ${address} both exchanged and completed. It's legally done and ownership has transferred to the buyer.`
+    : `Congratulations. Today your purchase of ${address} both exchanged and completed. It's legally done and the keys are yours.`;
+  const next = isSeller
+    ? `Your solicitor will send your completion statement with the final figures. Keep it safe for your records.`
+    : `Your solicitor will now register your ownership with HM Land Registry, which can take a few months. Keep your completion statement safe.`;
+  const text = [`Hi ${firstName},`, "", opening, "", next, "", `→ View your portal: ${portalUrl}`].join("\n");
+  const html = renderEditedEmailHtml({ address, heading: "Exchanged and completed", text, portalUrl, logoBand, theme });
+  return { subject, text, html };
+}
+
 export function assembleMilestoneDigest(
   rows: MilestoneDigestPayload[],
   logoBand = "",
@@ -313,6 +338,24 @@ export function assembleMilestoneDigest(
   const address = first.address;
   const firstName = first.firstName;
   const portalUrl = first.portalUrl;
+
+  // Same-day exchange + completion → one combined email (Ellis #60). When both an
+  // exchange code and a completion code are in this recipient's window, replace
+  // the generic multi-bullet digest with the bespoke "exchanged and completed"
+  // message. Sections are left empty (the combined email is self-contained).
+  const codeSet = new Set(rows.map((r) => r.milestoneCode));
+  const hasExchange = codeSet.has("VM19") || codeSet.has("PM26");
+  const hasCompletion = codeSet.has("VM20") || codeSet.has("PM27");
+  if (hasExchange && hasCompletion) {
+    const combined = buildExchangeAndCompletedEmail({ recipientSide, firstName, address, portalUrl, logoBand, theme });
+    return {
+      subject: combined.subject,
+      text: combined.text,
+      html: combined.html,
+      acted: { heading: "", items: [] },
+      counterpart: { heading: "", items: [] },
+    };
+  }
 
   // Collapse bilateral pairs first (both halves present → the counterpart
   // half sheds, see collapseBilateralPairs above), then split the kept

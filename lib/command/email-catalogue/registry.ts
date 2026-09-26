@@ -343,6 +343,31 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
     },
   },
   {
+    id: "exchange-and-completed",
+    category: "client",
+    name: "Exchanged and completed (same day)",
+    description: "One combined email when a sale exchanges and completes on the same day, instead of separate exchange + completion notes.",
+    trigger: "Exchange and completion are confirmed close together for the same client.",
+    axes: ["side", "theme"],
+    senderKind: "client_automated",
+    signatureBehaviour: "none",
+    render: (s) => {
+      const codes = s.side === "vendor" ? ["VM19", "VM20"] : ["PM26", "PM27"];
+      const payloads: MilestoneDigestPayload[] = codes.map((code) => ({
+        subject: "",
+        text: "",
+        html: "",
+        milestoneCode: code,
+        recipientSide: s.side,
+        address: FIXTURE_PROPERTY.address,
+        firstName: firstName(s.side),
+        portalUrl: PORTAL,
+      }));
+      const a = assembleMilestoneDigest(payloads, logoBand(), catalogueTheme(s.theme));
+      return { subject: a.subject, html: a.html };
+    },
+  },
+  {
     id: "client-chase-digest",
     category: "client",
     name: "Client chase (nudge)",

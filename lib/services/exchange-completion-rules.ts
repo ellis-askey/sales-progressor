@@ -8,19 +8,16 @@
 //
 //   2. isExchangeCompletionStale — given (code, tx.expectedExchangeDate,
 //      tx.completionDate), decide whether the customer-facing email
-//      should be suppressed because the agent is catching up well after
-//      the event already happened.
-//        VM19 / PM26 (exchange): suppress if ticked > 72h after the
-//        recorded exchange date.
-//        VM20 / PM27 (completion): suppress if ticked > 24h after the
-//        recorded completion date.
-//      No recorded date → not stale → send normally.
+//      should be suppressed because the agent is catching up on an event
+//      that already happened. Both exchange (VM19/PM26) and completion
+//      (VM20/PM27): suppress if the recorded date is BEFORE today (any
+//      prior calendar day = a backfill). No recorded date → send normally.
 //
 //   3. decideCompletionPackTiming — given tx.completionDate, decide
 //      whether the "what to expect on completion day" pack should be
 //      sent now, scheduled, or suppressed entirely.
-//        completion date in the past → suppress (customer already
-//          completed, prep content is moot)
+//        completion date today or in the past → skip (too late to prep;
+//          a same-day exchange+completion is carried by the combined email)
 //        completion date <= 3 days from now → send now
 //        no completion date → send now (tick is source of truth)
 //        completion date > 3 days from now → schedule for
@@ -59,22 +56,23 @@ export function isExchangeCompletionStale(
   recordedDates: { expectedExchangeDate: Date | null; completionDate: Date | null },
   now: number = Date.now(),
 ): boolean {
-  let staleHours: number;
   let recordedDate: Date | null;
 
   if (EXCHANGE_CODES.has(code)) {
-    staleHours = 72;
     recordedDate = recordedDates.expectedExchangeDate;
   } else if (COMPLETION_CODES.has(code)) {
-    staleHours = 24;
     recordedDate = recordedDates.completionDate;
   } else {
     return false; // not in scope — never stale
   }
 
   if (!recordedDate) return false; // no date → tick is source of truth → send
-  const ageMs = now - recordedDate.getTime();
-  return ageMs > staleHours * HOUR_MS;
+  // "Before today" (Ellis, 2026-09-26): any prior calendar day is a catch-up /
+  // backfill, so the celebratory client comms are silenced. Same cutoff for
+  // exchange and completion — a date entered for today or the future still sends.
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  return recordedDate.getTime() < startOfToday.getTime();
 }
 
 // ── Completion pack timing ───────────────────────────────────────────────
@@ -90,7 +88,13 @@ export function decideCompletionPackTiming(
 ): CompletionPackDecision {
   if (!completionDate) return { action: "send-now" };
   const completionMs = completionDate.getTime();
-  if (completionMs < now) return { action: "skip" };
+  // Completion today or in the past → too late to prep "what to expect on
+  // completion day", so skip. A same-day exchange+completion is carried by the
+  // combined email instead; a backfill needs nothing. (Was: only past skipped.)
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTomorrow = startOfToday.getTime() + DAY_MS;
+  if (completionMs < startOfTomorrow) return { action: "skip" };
   if (completionMs - now <= THREE_DAYS_MS) return { action: "send-now" };
   return { action: "schedule", scheduledFor: new Date(completionMs - THREE_DAYS_MS) };
 }

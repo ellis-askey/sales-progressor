@@ -32,6 +32,7 @@ import {
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
+import { EXCHANGE_COMPLETION_CODES } from "@/lib/services/exchange-completion-rules";
 
 export async function sendMilestoneConfirmationNotifications(input: {
   transactionId: string;
@@ -95,7 +96,18 @@ export async function sendMilestoneConfirmationNotifications(input: {
     body = `${label} booked for ${fmtDate}`;
   }
 
-  pushToTransaction(transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+  // Backfill guard (Ellis #60): a past-dated exchange/completion is a catch-up,
+  // so we stay silent — no celebratory push, matching the email suppression.
+  const eventBeforeToday = (() => {
+    if (!eventDate || !EXCHANGE_COMPLETION_CODES.has(code)) return false;
+    const d = new Date(eventDate);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return d.getTime() < startOfToday.getTime();
+  })();
+  if (!eventBeforeToday) {
+    pushToTransaction(transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+  }
 
   // Ready-to-exchange email: fires only when BOTH gates are now cleared (the
   // helper re-checks and dedups).

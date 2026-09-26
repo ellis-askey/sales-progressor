@@ -65,39 +65,32 @@ describe("isExchangeCompletionStale", () => {
     });
   });
 
-  describe("VM19/PM26 exchange — 72h window", () => {
-    test("not stale when no recorded exchange date (rule: tick is source of truth)", () => {
+  describe("exchange (VM19/PM26) — silenced before today", () => {
+    test("not stale when no recorded exchange date (tick is source of truth)", () => {
       const dates = { expectedExchangeDate: null, completionDate: null };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(false);
     });
 
-    test("not stale when ticked exactly at the exchange date", () => {
+    test("not stale when the exchange date is today", () => {
       const dates = { expectedExchangeDate: new Date(NOW), completionDate: null };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(false);
     });
 
-    test("not stale at 71h after exchange date", () => {
-      const dates = { expectedExchangeDate: new Date(NOW - 71 * HOUR_MS), completionDate: null };
+    test("not stale earlier the same day", () => {
+      const dates = { expectedExchangeDate: new Date(NOW - 2 * HOUR_MS), completionDate: null };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(false);
     });
 
-    test("not stale at exactly 72h after exchange date", () => {
-      const dates = { expectedExchangeDate: new Date(NOW - 72 * HOUR_MS), completionDate: null };
-      // > 72h, not >= 72h
-      expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(false);
-      expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(false);
-    });
-
-    test("stale at 72h + 1ms after exchange date", () => {
-      const dates = { expectedExchangeDate: new Date(NOW - 72 * HOUR_MS - 1), completionDate: null };
+    test("stale when the exchange date is yesterday", () => {
+      const dates = { expectedExchangeDate: new Date(NOW - 1 * DAY_MS), completionDate: null };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(true);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(true);
     });
 
-    test("stale at 7 days after exchange date", () => {
+    test("stale several days back", () => {
       const dates = { expectedExchangeDate: new Date(NOW - 7 * DAY_MS), completionDate: null };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(true);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(true);
@@ -105,42 +98,29 @@ describe("isExchangeCompletionStale", () => {
 
     test("exchange staleness uses expectedExchangeDate, NOT completionDate", () => {
       const dates = {
-        expectedExchangeDate: new Date(NOW - 1 * HOUR_MS), // fresh
-        completionDate: new Date(NOW - 100 * DAY_MS),       // ancient
+        expectedExchangeDate: new Date(NOW),                 // today
+        completionDate: new Date(NOW - 100 * DAY_MS),        // ancient
       };
       expect(isExchangeCompletionStale("VM19", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM26", dates, NOW)).toBe(false);
     });
   });
 
-  describe("VM20/PM27 completion — 24h window", () => {
+  describe("completion (VM20/PM27) — silenced before today", () => {
     test("not stale when no recorded completion date", () => {
       const dates = { expectedExchangeDate: null, completionDate: null };
       expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(false);
     });
 
-    test("not stale at 23h after completion date", () => {
-      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 23 * HOUR_MS) };
+    test("not stale when the completion date is earlier today", () => {
+      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 2 * HOUR_MS) };
       expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(false);
     });
 
-    test("not stale at exactly 24h after completion date", () => {
-      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 24 * HOUR_MS) };
-      // > 24h, not >= 24h
-      expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(false);
-      expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(false);
-    });
-
-    test("stale at 24h + 1ms after completion date", () => {
-      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 24 * HOUR_MS - 1) };
-      expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(true);
-      expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(true);
-    });
-
-    test("stale at 3 days after completion date", () => {
-      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 3 * DAY_MS) };
+    test("stale when the completion date is yesterday", () => {
+      const dates = { expectedExchangeDate: null, completionDate: new Date(NOW - 1 * DAY_MS) };
       expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(true);
       expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(true);
     });
@@ -148,7 +128,7 @@ describe("isExchangeCompletionStale", () => {
     test("completion staleness uses completionDate, NOT expectedExchangeDate", () => {
       const dates = {
         expectedExchangeDate: new Date(NOW - 100 * DAY_MS), // ancient
-        completionDate: new Date(NOW - 1 * HOUR_MS),         // fresh
+        completionDate: new Date(NOW),                       // today
       };
       expect(isExchangeCompletionStale("VM20", dates, NOW)).toBe(false);
       expect(isExchangeCompletionStale("PM27", dates, NOW)).toBe(false);
@@ -174,9 +154,8 @@ describe("decideCompletionPackTiming", () => {
     expect(decideCompletionPackTiming(new Date(NOW - 1), NOW)).toEqual({ action: "skip" });
   });
 
-  test("E2: completion date exactly now → send-now (treat as ≤3 days)", () => {
-    // completionMs >= now, completionMs - now = 0 ≤ 3 days → send-now
-    expect(decideCompletionPackTiming(new Date(NOW), NOW)).toEqual({ action: "send-now" });
+  test("completion date today → skip (too late to prep; combined email covers same-day)", () => {
+    expect(decideCompletionPackTiming(new Date(NOW), NOW)).toEqual({ action: "skip" });
   });
 
   test("E2: completion 1 day from now → send-now", () => {
