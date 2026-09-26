@@ -228,6 +228,12 @@ export async function uploadAvatar(
 
 export function getAvatarPublicUrl(path: string | null | undefined): string | null {
   if (!path) return null;
+  // Some User.image values are stored as an already-complete URL (an OAuth avatar,
+  // or a value imported/saved as an absolute URL) rather than a bucket path.
+  // Prepending the bucket base to those doubled the URL (…/avatars/https://…/avatars/…),
+  // which 404'd and broke the avatar in emails — so pass an absolute URL straight
+  // through. Bucket paths (the upload routes' return value) still get the base.
+  if (/^https?:\/\//i.test(path)) return path;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) return null;
   return `${url}/storage/v1/object/public/${AVATARS_BUCKET}/${path}`;
