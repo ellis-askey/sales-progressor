@@ -146,7 +146,11 @@ export function ChainCard({
                 <LinkSimpleHorizontal size={13} weight="bold" aria-hidden style={{ color: "var(--agent-coral-deep)" }} />
                 {length} {length === 1 ? "link" : "links"}
               </span>
-              <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+              {/* Desktop: open-chain sits under the links chip. On mobile it moves
+                  to a bottom-right footer (chain-open-bottom) for room. */}
+              <span className="chain-open-top">
+                <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+              </span>
             </div>
           </div>
         </div>
@@ -162,6 +166,11 @@ export function ChainCard({
               {m}
             </Fragment>
           ))}
+        </div>
+
+        {/* Mobile-only open-chain, bottom-right (hidden on desktop). */}
+        <div className="chain-open-bottom">
+          <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         </div>
       </div>
     </GlassCard>

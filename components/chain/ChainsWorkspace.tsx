@@ -397,6 +397,13 @@ export function ChainsWorkspace({
           .chains-summary-cell:nth-child(odd) { border-left: none; }
           .chains-summary-cell:nth-child(n+3) { border-top: 1px solid var(--agent-border-subtle); }
         }
+        /* Open-chain action: under the links chip on desktop, moved to a
+           bottom-right footer on narrow screens for breathing room. */
+        .chain-prop-card .chain-open-bottom { display: none; }
+        @media (max-width: 560px) {
+          .chain-prop-card .chain-open-top { display: none; }
+          .chain-prop-card .chain-open-bottom { display: flex; justify-content: flex-end; }
+        }
       `}</style>
 
       {/* Summary overview */}
