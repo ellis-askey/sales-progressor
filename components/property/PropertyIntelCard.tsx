@@ -114,7 +114,10 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
   const growthPct = lastPriced && firstPriced && firstPriced !== lastPriced && firstPriced.amount > 0 ? Math.round(((lastPriced.amount - firstPriced.amount) / firstPriced.amount) * 100) : null;
 
   const line1 = (data?.address ?? "").split(",")[0]?.trim() || (data?.address ?? "");
-  const propType = epc?.propertyType ? tidy(epc.propertyType) : (last?.propertyType ? tidy(last.propertyType) : null);
+  const rawPropType = epc?.propertyType ? tidy(epc.propertyType) : (last?.propertyType ? tidy(last.propertyType) : null);
+  // Some EPC records return junk (e.g. "0") in property_type. Only keep it when
+  // it reads like a real type — otherwise drop it so we just show the postcode.
+  const propType = rawPropType && /[a-z]/i.test(rawPropType) ? rawPropType : null;
   const floorArea = epc?.floorArea ? `${Math.round(epc.floorArea)} m²` : null;
   const localAuthority = data?.identity.localAuthority ?? null;
   const worth = data?.worthKnowing ?? [];
