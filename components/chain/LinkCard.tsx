@@ -123,6 +123,9 @@ type LinkCardProps = {
   /** Save this node's private chain intel. Present only where the viewer may
    *  edit; the card also gates on link.canEditIntel. */
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
+  /** Add a dated chase-log entry to this node (b1ey9l). Present only where the
+   *  viewer may edit; the card also gates on link.canEditIntel. */
+  onAddEntry?: (linkId: string, body: string) => Promise<void>;
   /** Upload an internal property photo for this (unclaimed) link. Present only
    *  where the viewer may edit the stub; the tile becomes a hover-camera dropzone.
    *  Resolves once the chain has refreshed with the new photo. */
@@ -412,15 +415,13 @@ function ChainIntelBody({
   const canEdit = (link.canEditIntel ?? false) && !!onSaveIntel;
   const hasAny = hasIntelValues(intel);
 
-  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<ChainNodeIntelInput>(() => intelToForm(intel));
 
-  function startEditing() {
-    setForm(intelToForm(intel));
-    setError(null);
-    setEditing(true);
+  // Non-editors: read-only rows (or nothing when empty). No reveal button.
+  if (!canEdit) {
+    return hasAny && intel ? <IntelReadRows intel={intel} /> : null;
   }
 
   async function save() {
@@ -429,7 +430,6 @@ function ChainIntelBody({
     setError(null);
     try {
       await onSaveIntel(link.id, form);
-      setEditing(false);
     } catch {
       setError("Couldn't save. Please try again.");
     } finally {
@@ -437,31 +437,15 @@ function ChainIntelBody({
     }
   }
 
-  const readView = (
-    <>
-      {hasAny && intel ? (
-        <IntelReadRows intel={intel} />
-      ) : (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>No chain details recorded yet.</p>
-      )}
-      {canEdit && (
-        <button
-          type="button"
-          onClick={startEditing}
-          className="chain-act-link chain-act-primary"
-          style={{ marginTop: 6, fontWeight: 600 }}
-        >
-          {hasAny ? "Edit details" : "Add details"}
-        </button>
-      )}
-    </>
-  );
-
-  // Nothing to edit → just the read view, no reveal machinery.
-  if (!canEdit) return readView;
-
-  const editForm = (
+  // b1ey9l: the editable fields are shown directly when the node is expanded —
+  // no "Add/edit details" button to click first. Notes moved to the chase log
+  // (ChainChaseLog), so this is the standing chain-detail facts + a Save.
+  return (
     <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+        Chain details
+      </div>
+
       <label style={intelLabelStyle}>
         Breaking the chain
         <select
@@ -503,17 +487,6 @@ function ChainIntelBody({
       </label>
 
       <label style={intelLabelStyle}>
-        Notes
-        <textarea
-          value={form.chainNotes ?? ""}
-          onChange={(e) => setForm((f) => ({ ...f, chainNotes: e.target.value }))}
-          rows={3}
-          style={intelInputStyle}
-          disabled={saving}
-        />
-      </label>
-
-      <label style={intelLabelStyle}>
         Last chain check
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <DateField
@@ -539,7 +512,7 @@ function ChainIntelBody({
         </p>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+      <div>
         <button
           type="button"
           onClick={() => void save()}
@@ -547,37 +520,102 @@ function ChainIntelBody({
           disabled={saving}
           style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
         >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(false);
-            setError(null);
-          }}
-          className="agent-btn-ghost-bordered"
-          disabled={saving}
-          style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600 }}
-        >
-          Cancel
+          {saving ? "Saving…" : "Save details"}
         </button>
       </div>
     </div>
   );
+}
 
-  // Cross-fade read view ↔ edit form by height (grid 0fr/1fr), so opening the
-  // editor from "Add details" / closing it on Save/Cancel animates rather than
-  // jumping. Both stay mounted; only one is expanded at a time.
+// b1ey9l — the per-node chase log. Replaces the single overwrite Notes box: an
+// agent types what they did and saves it as a dated entry (newest first), with
+// who wrote it. Own-side only (entries are gated in getChainV2). Legacy notes
+// still render via NotesBlock until the one-off migration folds them in here.
+function ChainChaseLog({
+  link,
+  onAddEntry,
+}: {
+  link: ChainLinkV2;
+  onAddEntry?: (linkId: string, body: string) => Promise<void>;
+}) {
+  const canEdit = (link.canEditIntel ?? false) && !!onAddEntry;
+  const entries = link.entries ?? [];
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!canEdit && entries.length === 0) return null;
+
+  async function save() {
+    const text = draft.trim();
+    if (!text || !onAddEntry || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAddEntry(link.id, text);
+      setDraft("");
+    } catch {
+      setError("Couldn't save that entry. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div>
-      <div style={{ display: "grid", gridTemplateRows: editing ? "0fr" : "1fr", transition: "grid-template-rows 0.24s ease" }}>
-        <div style={{ overflow: "hidden", minHeight: 0 }}>{readView}</div>
+    <div style={{ display: "grid", gap: 8, paddingTop: 8, marginTop: 2, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+        Chase log
       </div>
-      <div style={{ display: "grid", gridTemplateRows: editing ? "1fr" : "0fr", transition: "grid-template-rows 0.24s ease" }}>
-        <div style={{ overflow: "hidden", minHeight: 0 }}>{editForm}</div>
-      </div>
+
+      {canEdit && (
+        <div style={{ display: "grid", gap: 6 }}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={2}
+            placeholder="What did you do? e.g. Called the branch, waiting on a call back about the draft pack."
+            style={intelInputStyle}
+            disabled={saving}
+          />
+          {error && <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>{error}</p>}
+          <div>
+            <button
+              type="button"
+              onClick={() => void save()}
+              className="agent-btn-color-primary"
+              disabled={saving || draft.trim().length === 0}
+              style={{ padding: "6px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving || draft.trim().length === 0 ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
+            >
+              {saving ? "Saving…" : "Save entry"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {entries.length > 0 ? (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+          {entries.map((e) => (
+            <li key={e.id} style={{ display: "grid", gap: 2, paddingLeft: 10, borderLeft: "2px solid var(--agent-border-subtle)" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>
+                {formatEntryDate(e.createdAt)}
+                {e.authorName ? ` · ${e.authorName}` : ""}
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--agent-text)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{e.body}</div>
+            </li>
+          ))}
+        </ul>
+      ) : canEdit ? (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>No entries yet. Log your first update above.</p>
+      ) : null}
     </div>
   );
+}
+
+// Entry timestamps arrive as ISO strings over the wire (Date type is nominal).
+function formatEntryDate(v: string | Date): string {
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 // Whether a link has any expandable detail (onward summary, stub contact rows,
@@ -588,7 +626,9 @@ export function isChainCardExpandable(link: ChainLinkV2): boolean {
   const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
   const notesText = unifiedNotes(link);
   const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
-  return showIntel || !!link.onwardSummary || !!link.relatedSummary || showStubDetails || showNotes;
+  // A chase log to read or add to (b1ey9l) also makes the node expandable.
+  const showLog = (link.canEditIntel ?? false) || (link.entries?.length ?? 0) > 0;
+  return showIntel || !!link.onwardSummary || !!link.relatedSummary || showStubDetails || showNotes || showLog;
 }
 
 // The card's expandable detail body: onward summary, stub contact rows, notes,
@@ -598,9 +638,11 @@ export function isChainCardExpandable(link: ChainLinkV2): boolean {
 export function ChainCardExpand({
   link,
   onSaveIntel,
+  onAddEntry,
 }: {
   link: ChainLinkV2;
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
+  onAddEntry?: (linkId: string, body: string) => Promise<void>;
 }) {
   const intelForCard = link.intel ?? null;
   const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
@@ -609,6 +651,7 @@ export function ChainCardExpand({
   const showStubDetails = (link.canEditStub ?? false) && hasStubContactValues(link);
   const notesText = unifiedNotes(link);
   const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
+  const showLog = (link.canEditIntel ?? false) || (link.entries?.length ?? 0) > 0;
   return (
     <div style={{ display: "grid", gap: 10, paddingTop: 8, marginTop: 4, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
       {onwardForCard && <SideSummaryLine kind="onward" summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
@@ -616,6 +659,7 @@ export function ChainCardExpand({
       {showStubDetails && <StubDetailsRows link={link} />}
       {showNotes && <NotesBlock text={notesText} />}
       {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
+      {showLog && <ChainChaseLog link={link} onAddEntry={onAddEntry} />}
     </div>
   );
 }
@@ -725,6 +769,7 @@ export function LinkCard({
   onCopyShareLink,
   onRevokeShareLink,
   onSaveIntel,
+  onAddEntry,
   onMoveUp,
   onMoveDown,
   onAddOnward,
@@ -1093,7 +1138,7 @@ export function LinkCard({
               }}
             >
               <div style={{ overflow: "hidden", minHeight: 0 }}>
-                <ChainCardExpand link={link} onSaveIntel={onSaveIntel} />
+                <ChainCardExpand link={link} onSaveIntel={onSaveIntel} onAddEntry={onAddEntry} />
               </div>
             </div>
           </div>

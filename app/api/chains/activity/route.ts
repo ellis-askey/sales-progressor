@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getChainActivity } from "@/lib/services/chains";
 import { canViewChain } from "@/lib/chain/permissions";
+import { getAccessScope } from "@/lib/security/access-scope";
+import type { IntelViewer } from "@/lib/chain/intel";
 
 // Fetches the chain's participant list for the permission gate. Returns null
 // when the chain doesn't exist or the viewer isn't allowed to see it.
@@ -42,7 +44,15 @@ export async function GET(req: NextRequest) {
   });
   const optedIn = me?.chainActivityOptIn ?? false;
 
-  const events = optedIn ? await getChainActivity(chainId, session.user.id) : [];
+  // Own-side viewer context so getChainActivity can fold in chase-log entries
+  // the viewer is allowed to see (gated by canViewNodeIntel), never another agency.
+  const viewer: IntelViewer = {
+    userId: session.user.id,
+    role: session.user.role,
+    agencyId: session.user.agencyId ?? null,
+    scope: getAccessScope(session),
+  };
+  const events = optedIn ? await getChainActivity(chainId, session.user.id, 12, viewer) : [];
   return NextResponse.json({ optedIn, events });
 }
 

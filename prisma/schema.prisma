@@ -2370,12 +2370,33 @@ model ChainLink {
   receivedNotifications  ChainNotificationQueue[] @relation("CascadeRecipient")
   neighbourUpdates       ChainNeighbourUpdate[]
   prospects              Prospect[] // acquisition prospects sourced from this chain invite (Command Centre → Prospects)
+  entries                ChainLinkEntry[] // own-side chase-log entries on this node (b1ey9l)
 
   @@unique([chainId, branchKey, position])
   @@index([forkFromLinkId])
   @@index([transactionId])
   @@index([claimedByUserId])
   @@index([stubAgentEmail])
+}
+
+// ─── ChainLinkEntry ───────────────────────────────────────────────────────────
+// A dated chase-log entry on a chain node (b1ey9l). Replaces the single
+// free-text chainNotes blob with a running diary: an agent types what they did
+// ("Only got through to the concierge team…") and saves it as a timestamped
+// line. SAME privacy as chainNotes — own-side only (owning agency + internal
+// staff), never another agency in the chain, never the client. Surfaced via
+// lib/chain/intel.ts trust gating and folded into the chain activity feed.
+model ChainLinkEntry {
+  id          String   @id @default(cuid())
+  chainLinkId String
+  body        String   @db.Text // what the agent did/found, their own words
+  authorId    String? // internal/agency user who wrote it (id, no FK — standalone)
+  authorName  String? // display name captured at write time
+  createdAt   DateTime @default(now())
+
+  chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
+
+  @@index([chainLinkId, createdAt])
 }
 
 // ─── ChainNeighbourUpdate ─────────────────────────────────────────────────────

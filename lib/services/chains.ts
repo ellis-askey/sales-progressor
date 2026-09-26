@@ -90,6 +90,14 @@ export type ChainNodeIntel = {
   lastChainCheckAt: Date | null;
 };
 
+// One own-side chase-log entry on a chain node (b1ey9l).
+export type ChainLinkEntryView = {
+  id: string;
+  body: string;
+  authorName: string | null;
+  createdAt: Date;
+};
+
 // Compact pointer to the (already-built) onward tracker, shown only on the
 // viewer's OWN sale node and only while the onward is still ours to report
 // (hidden once superseded = the agent above claimed, or abandoned). The full
@@ -198,6 +206,9 @@ export type ChainLinkV2 = {
   // it (lib/chain/intel.ts); null otherwise. Optional so demo/dev callers that
   // build links by hand and callers that pass no viewer are unaffected.
   intel?: ChainNodeIntel | null;
+  // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel:
+  // populated only for viewers allowed to see the node; [] otherwise.
+  entries?: ChainLinkEntryView[];
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
@@ -348,6 +359,12 @@ const LINK_V2_SELECT = {
   expectedTimescale: true,
   chainNotes: true,
   lastChainCheckAt: true,
+  // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel;
+  // gated per viewer in getChainV2 (nulled to [] for another agency).
+  entries: {
+    orderBy: { createdAt: "desc" as const },
+    select: { id: true, body: true, authorName: true, createdAt: true },
+  },
   transaction: {
     select: {
       id: true,
@@ -698,6 +715,7 @@ export async function getChainV2(
         expectedTimescale,
         chainNotes,
         lastChainCheckAt,
+        entries: rawEntries,
         stubPhotoStoragePath,
         shareToken,
         // Private stub fields (contact + notes) — pulled off here so they never
@@ -746,6 +764,10 @@ export async function getChainV2(
             lastChainCheckAt: lastChainCheckAt ?? null,
           }
         : null;
+      // Chase-log entries — same own-side gate as intel; [] for another agency.
+      const entries: ChainLinkEntryView[] = intelVisible
+        ? (rawEntries ?? []).map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, createdAt: e.createdAt }))
+        : [];
       // Private stub contact + notes: same trust tier as intel (owning agency +
       // internal staff only). Re-added to the wire only when visible; null for
       // every other agency. Nulling has no visible status effect — an uninvited
@@ -771,6 +793,7 @@ export async function getChainV2(
           isEarlyEstimate: false,
           stuckMilestoneLabel: null,
           intel,
+          entries,
           canEditIntel,
           canEditStub,
           hasShareLink,
@@ -832,6 +855,7 @@ export async function getChainV2(
         isEarlyEstimate: prediction.isEarlyEstimate,
         stuckMilestoneLabel,
         intel,
+        entries,
         canEditIntel,
         canEditStub,
         hasShareLink,
@@ -964,6 +988,9 @@ export async function getChainActivity(
   chainId: string,
   viewerUserId: string,
   limit = 12,
+  // When provided, own-side chase-log entries the viewer may see are folded in
+  // (b1ey9l), gated by canViewNodeIntel — never another agency. Absent = skipped.
+  viewer?: IntelViewer,
 ): Promise<ChainActivityEvent[]> {
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
@@ -978,11 +1005,22 @@ export async function getChainActivity(
           inviteDeclinedAt: true,
           stubPropertyAddress: true,
           withdrawalRespondedAt: true,
+          // Ownership facts + chase-log entries (b1ey9l) for the own-side gate.
+          createdByUserId: true,
+          createdBy: { select: { agencyId: true } },
+          entries: {
+            orderBy: { createdAt: "desc" as const },
+            take: 6,
+            select: { id: true, body: true, authorId: true, authorName: true, createdAt: true },
+          },
           claimedBy: { select: { name: true, firmName: true, chainActivityOptIn: true } },
           transaction: {
             select: {
               propertyAddress: true,
               status: true,
+              agencyId: true,
+              assignedUserId: true,
+              agentUserId: true,
               milestoneCompletions: {
                 where: { state: "complete", completedAt: { not: null } },
                 select: {
@@ -1054,6 +1092,34 @@ export async function getChainActivity(
         at: l.claimedAt.toISOString(),
         tone: "info",
       });
+    }
+
+    // Own-side chase-log entries (b1ey9l). Gated by canViewNodeIntel so they
+    // reach the owning agency + internal staff only, never another agency in the
+    // chain — regardless of anyone's activity opt-in.
+    if (viewer && l.entries.length > 0) {
+      const ownership: ChainNodeOwnership = {
+        transactionId: l.transactionId,
+        linkCreatedByUserId: l.createdByUserId,
+        linkCreatedByAgencyId: l.createdBy?.agencyId ?? null,
+        txAgencyId: l.transaction?.agencyId ?? null,
+        txAssignedUserId: l.transaction?.assignedUserId ?? null,
+        txAgentUserId: l.transaction?.agentUserId ?? null,
+      };
+      if (canViewNodeIntel(viewer, ownership)) {
+        for (const e of l.entries) {
+          const mine = e.authorId === viewerUserId;
+          const preview = e.body.length > 200 ? `${e.body.slice(0, 200)}…` : e.body;
+          const noter = mine ? "You" : e.authorName?.trim() || "A colleague";
+          events.push({
+            id: `entry_${e.id}`,
+            linkAddress: addr,
+            message: `${noter} noted: ${preview}`,
+            at: e.createdAt.toISOString(),
+            tone: "info",
+          });
+        }
+      }
     }
   }
 

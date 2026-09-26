@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
-import { saveChainIntelAction } from "@/app/actions/chain-intel";
+import { saveChainIntelAction, addChainEntryAction } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2 } from "@/lib/services/chains";
@@ -434,6 +434,14 @@ export function ChainView({
     await fetchChainAndRefresh();
   }
 
+  async function handleAddEntry(linkId: string, body: string) {
+    // Server action re-checks edit permission + stamps lastChainCheckAt; throws
+    // on failure so the log surfaces the inline error. Refetch to pull the new
+    // entry (and the refreshed check date + activity feed).
+    await addChainEntryAction(linkId, body);
+    await fetchChainAndRefresh();
+  }
+
   async function doDeleteConfirmed(linkId: string) {
     if (!chain) return;
     setConfirmingDeleteId(null);
@@ -737,7 +745,7 @@ export function ChainView({
       canAddOnward: (isInternal || canAddAbove(l, currentUserId, currentUserRole)) && onwardsAbove(l).length < MAX_ONWARDS,
       canUploadPhoto: l.transactionId == null && canEdit,
       chaseDir: chaseDirForLink(l),
-      expand: isChainCardExpandable(l) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} /> : null,
+      expand: isChainCardExpandable(l) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} onAddEntry={handleAddEntry} /> : null,
       // Hover "+" in the gap ABOVE this card: only where there's a sale directly
       // above in the SAME ladder (a real adjacent pair — a fork boundary isn't an
       // insertion point). Anchors to this (lower) card, placement "above".
@@ -856,6 +864,7 @@ export function ChainView({
             : undefined
         }
         onSaveIntel={handleSaveIntel}
+        onAddEntry={handleAddEntry}
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
