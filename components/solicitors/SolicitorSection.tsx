@@ -268,7 +268,7 @@ function SolicitorTile({
   if (!info.firm && !editing && !exiting) {
     return (
       <div className="people-item">
-        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 16px" }}>
           {briefcaseIcon ? (
             <span aria-hidden style={{ width: 40, height: 40, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--agent-text-secondary)" }}>
               <Briefcase size={24} weight="regular" />
@@ -297,7 +297,7 @@ function SolicitorTile({
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
-          <div className="people-row" style={{ padding: "10px 12px" }}>
+          <div className="people-row" style={{ padding: "10px 16px" }}>
             <button
               type="button"
               onClick={() => setExpanded((x) => !x)}
@@ -349,7 +349,7 @@ function SolicitorTile({
               the old always-open card's content lives here now. */}
           <div className={`agent-acc${expanded ? " open" : ""}`}>
             <div className="agent-acc-in">
-              <div style={{ padding: "0 12px 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ padding: "0 16px 14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                 <SolicitorIntelChips firmId={info.firm.id} isInternalStaff={isInternalStaff} />
                 {showReferralFee && referralFee != null && (
                   <span style={{ alignSelf: "flex-start", fontSize: 10, fontWeight: 500, borderRadius: 4, padding: "2px 7px", background: "rgba(16,185,129,0.12)", color: "#059669" }}>
