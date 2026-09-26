@@ -948,7 +948,7 @@ export function ContactsSection({
       {/* Contact cards, stacked full-width. .people-rows makes this wrapper a
           size container so the rows can restack on narrow cards (phones). */}
       {sortedContacts.length > 0 && (
-        <div className="people-rows" style={{ padding: "4px 12px 12px" }}>
+        <div className="people-rows" style={{ padding: "4px 0 12px" }}>
           {sortedContacts.map((contact, idx) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
@@ -980,7 +980,7 @@ export function ContactsSection({
                         Layout via .people-row (agent-system.css): one line on
                         desktop; on narrow cards the identity takes the full
                         first line and the chevron + buttons drop beneath. */}
-                    <div className="people-row" style={{ padding: "10px 12px" }}>
+                    <div className="people-row" style={{ padding: "10px 16px" }}>
                       <button
                         type="button"
                         onClick={() => toggleExpand(contact.id)}
@@ -1058,7 +1058,7 @@ export function ContactsSection({
                     {/* Expanded detail — everything the old card showed */}
                     <div className={`agent-acc${expanded ? " open" : ""}`}>
                       <div className="agent-acc-in">
-                      <div style={{ padding: "0 12px 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ padding: "0 16px 14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                         {(lastContactedByContactId[contact.id] || autoTone || optedOut) && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
