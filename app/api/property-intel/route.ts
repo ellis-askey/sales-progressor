@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { propertyAddress: true },
+    select: { propertyAddress: true, purchasePrice: true },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -34,6 +34,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ...enrichment,
+    // The file's agreed sale price (pence), so the History tab can show what the
+    // current seller is making since they bought (last-sold → current price).
+    purchasePrice: tx.purchasePrice,
     links: postcode
       ? {
           rightmove: buildRightmoveUrl(tx.propertyAddress, postcode),

@@ -24,6 +24,9 @@ type IntelData = {
   identity: { uprn: string | null; lat: number | null; lng: number | null; localAuthority: string | null };
   epc: { status: "ok" | "none" | "error" | "unconfigured"; data: Epc | null };
   sold: { status: "ok" | "none" | "error"; entries: PricePaid[] };
+  // The file's agreed sale price (pence) — powers the "since they bought" delta
+  // on the most-recent sold row. Null when not set.
+  purchasePrice: number | null;
   planning: { status: "ok" | "error" | "no-coords"; conservationArea: Designation; article4: Designation; listedBuilding: Designation; coverageNote: string };
   councilTax: { status: "link"; link: SourceRef };
   connectivity: { status: "parked" };
@@ -254,13 +257,22 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                       {sales.slice(0, 6).map((entry, i) => {
                         const newer = sales[sales.indexOf(entry) - 1];
                         const delta = entry.amount > 0 && newer?.amount > 0 ? Math.round(((newer.amount - entry.amount) / entry.amount) * 100) : null;
+                        // Most-recent row only: the change from what the current owner
+                        // paid to this file's agreed sale price (pence → pounds), so we
+                        // can see what the seller is making since they bought.
+                        const currentPrice = data.purchasePrice != null && data.purchasePrice > 0 ? Math.round(data.purchasePrice / 100) : null;
+                        const currentDelta = i === 0 && entry.amount > 0 && currentPrice ? Math.round(((currentPrice - entry.amount) / entry.amount) * 100) : null;
                         return (
                           <div key={i} className="agent-hover-row rounded-md px-1 -mx-1" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
                             <div style={{ minWidth: 0 }}>
                               <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{entry.amount > 0 ? poundsFmt(entry.amount) : "Price withheld"}</span>
                               <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: 8 }}>{fmtMonthYear(entry.date)}{i === 0 && entry.date ? ` · ${yearsAgo(entry.date)}` : ""}</span>
                             </div>
-                            {delta !== null && newer && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{delta >= 0 ? "+" : ""}{delta}% → {yearOf(newer.date)}</span>}
+                            {delta !== null && newer ? (
+                              <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{delta >= 0 ? "+" : ""}{delta}% → {yearOf(newer.date)}</span>
+                            ) : currentDelta !== null ? (
+                              <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{currentDelta >= 0 ? "+" : ""}{currentDelta}% → <strong style={{ fontWeight: 700, color: "var(--agent-text-secondary)" }}>{new Date().getFullYear()}</strong></span>
+                            ) : null}
                           </div>
                         );
                       })}
