@@ -95,49 +95,19 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
     [router, basePath, tabs],
   );
 
-  // ── Tab prefetch warming (perf: instant, skeleton-free tab switches) ───────
-  // Tabs are dynamic route segments that each declare a 300s client-cache window
-  // (unstable_dynamicStaleTime), so once a tab's payload is fetched it's reused
-  // instantly for 5 minutes. The links stay prefetch={false} so Next doesn't
-  // fire every tab at once when they hit the viewport (that was the old "9
-  // queries on open" load the route-split removed). Instead we warm them
-  // deliberately: a staggered background sweep after the Overview has painted,
-  // plus an on-hover / on-touch top-up for whatever you're reaching for. Net:
-  // clicking any tab swaps in instantly with no skeleton, the initial file open
-  // is untouched (this runs post-paint, spaced out), and the DB isn't saturated.
-  const prefetched = useRef<Set<string>>(new Set());
-  const warm = useCallback(
-    (key: string) => {
-      const href = hrefFor(basePath, key);
-      if (prefetched.current.has(href)) return;
-      prefetched.current.add(href);
-      router.prefetch(href);
-    },
-    [router, basePath],
-  );
-
-  useEffect(() => {
-    // Re-runs on EVERY navigation (active changes), not just mount. A mutation's
-    // revalidatePath invalidates the whole file subtree in the client router
-    // cache, cooling every warmed tab — the reason warm tabs didn't stay warm in
-    // real use. Re-warming once you land on a tab refetches the others' payloads
-    // so the next switch is instant again. We skip the current tab (already here)
-    // and reset the dedup set so previously-warmed-but-now-cold tabs re-warm.
-    prefetched.current = new Set([hrefFor(basePath, active)]);
-    const keys = tabs.map((t) => t.key).filter((k) => k !== active);
-    let i = 0;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const kick = () => {
-      if (i >= keys.length) return;
-      warm(keys[i]);
-      i += 1;
-      timers.push(setTimeout(kick, 150)); // spaced so tabs warm one at a time
-    };
-    // Let the landed tab settle first, then warm the rest off the critical path.
-    const start = setTimeout(kick, 300);
-    return () => { clearTimeout(start); timers.forEach(clearTimeout); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basePath, active, warm]);
+  // ── Tab prefetch (perf: instant, skeleton-free tab switches) ───────────────
+  // The tab links use prefetch={true} (below). Each tab is a dynamic route
+  // segment with a 300s client-cache window (unstable_dynamicStaleTime), so
+  // Next prefetches the full payload — DATA included, not just the loading
+  // skeleton — when a link is in the viewport, and reuses it instantly for 5
+  // minutes. This replaces the old prefetch={false} + manual router.prefetch
+  // warm sweep: that only warmed the loading boundary (measured: tab switches
+  // still cost 2.6-5.9s server round-trips on prod), because router.prefetch
+  // doesn't fetch dynamic content. The original "9 queries on open" worry no
+  // longer applies — the route-split made each tab its own light request and
+  // the trunk/tab queries are single-digit-ms co-located (Contact is 339 rows,
+  // its scan 2ms), so prefetching all tabs on open is cheap and warms the
+  // serverless functions too.
 
   // Live badge overrides — a mounted panel can still bump its own count after an
   // action (e.g. dismissing a reminder). Seeded from the server-provided counts.
@@ -284,11 +254,8 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                   <Link
                     key={tab.key}
                     href={hrefFor(basePath, tab.key)}
-                    prefetch={false}
+                    prefetch={true}
                     scroll={false}
-                    onMouseEnter={() => warm(tab.key)}
-                    onFocus={() => warm(tab.key)}
-                    onTouchStart={() => warm(tab.key)}
                     onClick={markNavStart}
                     ref={(el) => { btnRefs.current[i] = el as unknown as HTMLButtonElement | null; }}
                     data-active={isActive ? "true" : undefined}
