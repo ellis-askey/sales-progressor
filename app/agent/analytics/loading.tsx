@@ -1,10 +1,18 @@
-// Instant-shell route fallback (2026-09-18): navigation commits to this
-// page immediately and its silhouette appears in place; real content swaps
-// in as it arrives. Most rail clicks never show this at all - the rail
-// fully prefetches its destinations - so this covers cold visits, hard
-// refreshes and deep links.
-import { RailPageSkeleton } from "@/components/loading/PageSkeletons";
+// Analytics route fallback (branded-loader trial, replacing the skeleton).
+// Navigation commits immediately, the header appears in place, and the branded
+// loader (mark + ambient glow + progression dots) fills the wait. When the data
+// lands, BrandedReveal in page.tsx dissolves this exact loader while the content
+// blurs up. Trialled on Analytics only before any universal rollout.
+import { PageHeader } from "@/components/layout/PageHeader";
+import { BrandedLoader } from "@/components/agent/BrandedLoader";
 
 export default function Loading() {
-  return <RailPageSkeleton title={"Analytics"} variant={"cards"} rows={4} />;
+  return (
+    <>
+      <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
+      <div className="brand-loader-hold">
+        <BrandedLoader />
+      </div>
+    </>
+  );
 }

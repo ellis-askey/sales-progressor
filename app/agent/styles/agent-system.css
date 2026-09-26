@@ -197,6 +197,54 @@
   .page-fade-up { animation: none; }
 }
 
+/* ── Branded route loader + crossfade reveal (Analytics trial) ─────────────
+   The Sales Progressor mark breathing over an ambient glow with the three
+   progression dots. Shown as the Analytics route fallback (BrandedLoader) and,
+   identically, inside BrandedReveal's overlay so the loader dissolves as the
+   content blurs up. Being trialled on Analytics only before any universal
+   rollout. */
+.brand-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.brand-loader-badge { position: relative; display: grid; place-items: center; width: 96px; height: 96px; }
+.brand-loader-glow {
+  position: absolute; width: 96px; height: 96px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,107,74,0.34) 0%, rgba(255,107,74,0.12) 42%, transparent 70%);
+  animation: brand-glow-pulse 1.9s ease-in-out infinite;
+}
+.brand-loader-logo {
+  position: relative; width: 58px; height: 58px; display: block;
+  filter: drop-shadow(0 6px 14px rgba(255,107,74,0.28));
+  animation: brand-logo-breathe 1.9s ease-in-out infinite;
+}
+.brand-loader-dots { display: flex; gap: 8px; }
+.brand-loader-dots span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--agent-coral, #FF6B4A); opacity: 0.3;
+  animation: brand-dot-pulse 1.35s ease-in-out infinite;
+}
+.brand-loader-dots span:nth-child(2) { animation-delay: 0.18s; }
+.brand-loader-dots span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes brand-glow-pulse { 0%,100% { opacity: 0.45; transform: scale(0.82); } 50% { opacity: 1; transform: scale(1.08); } }
+@keyframes brand-logo-breathe { 0%,100% { transform: scale(0.93); } 50% { transform: scale(1); } }
+@keyframes brand-dot-pulse { 0%,100% { opacity: 0.22; transform: scale(0.7); } 45% { opacity: 1; transform: scale(1); } }
+
+/* Vertical hold so the loader sits in the same place in the route fallback and
+   in the reveal overlay (keeps the swap seamless). */
+.brand-loader-hold { min-height: 420px; display: grid; place-items: center; }
+
+.brand-reveal { position: relative; }
+.brand-blur-in { animation: brand-blur-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes brand-blur-in { from { opacity: 0; filter: blur(12px); } to { opacity: 1; filter: blur(0); } }
+.brand-reveal-overlay { position: absolute; inset: 0; pointer-events: none; animation: brand-overlay-out 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes brand-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-glow, .brand-loader-logo, .brand-loader-dots span,
+  .brand-blur-in, .brand-reveal-overlay { animation: none !important; }
+  .brand-blur-in { opacity: 1 !important; filter: none !important; }
+  .brand-reveal-overlay { display: none !important; }
+  .brand-loader-dots span { opacity: 0.7; }
+}
+
 /* Typewriter caret (components/agent/TypedText.tsx) — blinks while typing. */
 .tsp-type-caret {
   display: inline-block;
