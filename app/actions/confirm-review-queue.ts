@@ -33,6 +33,8 @@ import {
   collapseBilateralPairs,
   type MilestoneDigestPayload,
 } from "@/lib/email/milestone-digest";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import type { UserRole } from "@prisma/client";
 
 type ActionResult<T = void> =
@@ -68,10 +70,16 @@ export type PendingQueueItem = {
   milestoneCode: string;
   subject: string;
   bodyText: string;
+  portalUrl: string;          // per-recipient portal link (the CTA button target)
   scheduledFor: string;       // ISO string
   editedAt: string | null;
   isExchangeCompletion: boolean;
 };
+
+// The resolved brand button colours for this file's client emails — agency
+// theme when they've set one, coral default otherwise. The review preview
+// renders the "View your portal" CTA in these so it matches the sent email.
+export type ReviewButtonTheme = { bg: string; text: string };
 
 const EXCHANGE_COMPLETION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
@@ -84,6 +92,7 @@ export type RecipientDigest = {
   recipientContactId: string;
   subject: string;
   bodyText: string;          // full plain-text body as it will send
+  portalUrl: string;         // per-recipient portal link (the CTA button target)
   overridden: boolean;       // agent has edited the merged email
   editedAt: string | null;   // ISO, latest edit across the group
   sections: Array<{
@@ -94,9 +103,26 @@ export type RecipientDigest = {
 
 export async function getPendingConfirmQueueForFile(
   transactionId: string,
-): Promise<{ ok: true; items: PendingQueueItem[]; digests: RecipientDigest[] } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; items: PendingQueueItem[]; digests: RecipientDigest[]; button: ReviewButtonTheme }
+  | { ok: false; error: string }
+> {
   const auth = await requireFileViewer(transactionId);
   if (!auth) return { ok: false, error: "Not found" };
+
+  // The file's client-email button colours (agency theme → coral default), so
+  // the review preview renders the CTA exactly as it will send.
+  let button: ReviewButtonTheme = (() => {
+    const t = resolveEmailTheme(null);
+    return { bg: t.buttonBg, text: t.buttonText };
+  })();
+  try {
+    const sender = await resolveAgencySenderForTransaction(transactionId);
+    const theme = sender.theme ?? resolveEmailTheme(null);
+    button = { bg: theme.buttonBg, text: theme.buttonText };
+  } catch {
+    // Keep the coral default if the agency sender can't be resolved.
+  }
 
   const rows = await prisma.outboundEmailQueue.findMany({
     where: {
@@ -127,6 +153,7 @@ export async function getPendingConfirmQueueForFile(
         subject?: string;
         text?: string;
         milestoneCode?: string;
+        portalUrl?: string;
       };
       const milestoneCode = p.milestoneCode ?? (r.sourceId?.split(":")[1] ?? "");
       return {
@@ -138,6 +165,7 @@ export async function getPendingConfirmQueueForFile(
         milestoneCode,
         subject: p.subject ?? "",
         bodyText: p.text ?? "",
+        portalUrl: p.portalUrl ?? "",
         scheduledFor: r.scheduledFor.toISOString(),
         editedAt: r.editedAt?.toISOString() ?? null,
         isExchangeCompletion: EXCHANGE_COMPLETION_CODES.has(milestoneCode),
@@ -197,6 +225,7 @@ export async function getPendingConfirmQueueForFile(
         recipientContactId: contactId,
         subject: override?.subject ?? assembled.subject,
         bodyText: override?.text ?? assembled.text,
+        portalUrl: payloads[0]?.portalUrl ?? "",
         overridden: override !== null,
         editedAt: latestEdit ? latestEdit.toISOString() : null,
         sections: [toSection(assembled.acted), toSection(assembled.counterpart)]
@@ -207,7 +236,7 @@ export async function getPendingConfirmQueueForFile(
     }
   }
 
-  return { ok: true, items, digests };
+  return { ok: true, items, digests, button };
 }
 
 // ─── Cancel: silently drop queued emails ────────────────────────────

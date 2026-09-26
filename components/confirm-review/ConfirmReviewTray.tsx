@@ -20,8 +20,12 @@ import {
   getPendingConfirmQueueForFile,
   type PendingQueueItem,
   type RecipientDigest,
+  type ReviewButtonTheme,
 } from "@/app/actions/confirm-review-queue";
 import { ConfirmReviewModal } from "./ConfirmReviewModal";
+
+// Coral default until the file's real button colours load.
+const DEFAULT_BUTTON: ReviewButtonTheme = { bg: "#FF6B4A", text: "#ffffff" };
 
 type Props = {
   transactionId: string;
@@ -32,6 +36,7 @@ const POLL_MS = 15_000;
 export function ConfirmReviewTray({ transactionId }: Props) {
   const [items, setItems] = useState<PendingQueueItem[]>([]);
   const [digests, setDigests] = useState<RecipientDigest[]>([]);
+  const [button, setButton] = useState<ReviewButtonTheme>(DEFAULT_BUTTON);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,6 +49,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
       if (res.ok) {
         setItems(res.items);
         setDigests(res.digests);
+        setButton(res.button);
       }
     } finally {
       setLoading(false);
@@ -189,6 +195,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
         transactionId={transactionId}
         items={items}
         digests={digests}
+        button={button}
         loading={loading}
         onChange={() => { void load(); }}
       />

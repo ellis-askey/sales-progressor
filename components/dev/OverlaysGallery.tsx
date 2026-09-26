@@ -156,8 +156,8 @@ const MOCK_ROUND_RESPONSE = {
 };
 
 const MOCK_QUEUE_ITEMS: PendingQueueItem[] = [
-  { id: "q1", recipientContactId: "c3", recipientName: "Emily Thornton", recipientRole: "vendor", recipientEmail: "emily@email.com", milestoneCode: "VM07", subject: "Your searches are back", bodyText: "Hi Emily, good news — the property searches have returned with no issues. The next step is…", scheduledFor: D1, editedAt: null, isExchangeCompletion: false },
-  { id: "q2", recipientContactId: "c2", recipientName: "James Cooper", recipientRole: "purchaser", recipientEmail: "j.cooper@cooperlegal.co.uk", milestoneCode: "PM08", subject: "Mortgage offer received", bodyText: "Dear James, we're pleased to confirm the mortgage offer has come through…", scheduledFor: D2, editedAt: null, isExchangeCompletion: false },
+  { id: "q1", recipientContactId: "c3", recipientName: "Emily Thornton", recipientRole: "vendor", recipientEmail: "emily@email.com", milestoneCode: "VM07", subject: "Your searches are back", bodyText: "Hi Emily, good news, the property searches have returned with no issues. The next step is…", portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D1, editedAt: null, isExchangeCompletion: false },
+  { id: "q2", recipientContactId: "c2", recipientName: "James Cooper", recipientRole: "purchaser", recipientEmail: "j.cooper@cooperlegal.co.uk", milestoneCode: "PM08", subject: "Mortgage offer received", bodyText: "Dear James, we're pleased to confirm the mortgage offer has come through…", portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D2, editedAt: null, isExchangeCompletion: false },
 ];
 const MOCK_TERMS: TermsSection[] = [
   { heading: "When you're charged", body: "We charge £59 per completed sale, taken only when the sale exchanges. Nothing before that." },

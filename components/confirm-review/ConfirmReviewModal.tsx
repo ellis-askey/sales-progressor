@@ -25,10 +25,50 @@ import {
   updateDigestForRecipient,
   type PendingQueueItem,
   type RecipientDigest,
+  type ReviewButtonTheme,
 } from "@/app/actions/confirm-review-queue";
 import { updateEmailPayload } from "@/app/actions/automation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+
+// Coral fallback so mock consumers (dev gallery) render without a live theme.
+const CORAL_BUTTON: ReviewButtonTheme = { bg: "#FF6B4A", text: "#ffffff" };
+
+// The plain-text milestone body carries the portal link as its own line(s).
+// The sent HTML drops those lines and puts the link on the CTA button instead
+// (renderEditedEmailHtml), so the preview mirrors that: strip the URL line(s)
+// here and render the button below. Falls back to the untouched text when we
+// don't have a portal URL to match on.
+function stripPortalUrlLines(text: string, portalUrl: string): string {
+  if (!portalUrl) return text;
+  return text
+    .split(/\r?\n/)
+    .filter((line) => !line.includes(portalUrl))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// The "View your portal" CTA, rendered exactly as the email sends it — in the
+// agency's button colours (coral by default).
+function PortalPreviewButton({ button }: { button: ReviewButtonTheme }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        marginTop: 12,
+        padding: "10px 22px",
+        borderRadius: 10,
+        background: button.bg,
+        color: button.text,
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+    >
+      View your portal
+    </span>
+  );
+}
 
 type Props = {
   open: boolean;
@@ -39,6 +79,8 @@ type Props = {
    *  so mock consumers (dev gallery) keep working; without it those
    *  recipients fall back to per-row cards. */
   digests?: RecipientDigest[];
+  /** Brand button colours for the previewed CTA. Coral default when omitted. */
+  button?: ReviewButtonTheme;
   loading: boolean;
   /** Called after any mutation so the tray + list refresh. */
   onChange: () => void;
@@ -75,7 +117,7 @@ function groupByRecipient(items: PendingQueueItem[]): RecipientGroup[] {
   });
 }
 
-export function ConfirmReviewModal({ open, onClose, transactionId, items, digests, loading, onChange }: Props) {
+export function ConfirmReviewModal({ open, onClose, transactionId, items, digests, button = CORAL_BUTTON, loading, onChange }: Props) {
   const { theme, isNight } = usePortalTheme();
   const groups = useMemo(() => groupByRecipient(items), [items]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -258,6 +300,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
               key={activeGroup.contactId}
               group={activeGroup}
               digest={digests?.find((d) => d.recipientContactId === activeGroup.contactId) ?? null}
+              button={button}
               transactionId={transactionId}
               onEdited={onChange}
               onCancelRecipient={() => setConfirmingCancel(activeGroup.contactId)}
@@ -378,10 +421,11 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
 // email as before. Fallback: if the merged preview couldn't be
 // assembled server-side, show the per-row cards with a note.
 function RecipientBody({
-  group, digest, transactionId, onEdited, onCancelRecipient,
+  group, digest, button, transactionId, onEdited, onCancelRecipient,
 }: {
   group: RecipientGroup;
   digest: RecipientDigest | null;
+  button: ReviewButtonTheme;
   transactionId: string;
   onEdited: () => void;
   onCancelRecipient: () => void;
@@ -394,6 +438,7 @@ function RecipientBody({
           digest={digest}
           recipientEmail={group.email}
           updateCount={group.items.length}
+          button={button}
           transactionId={transactionId}
           onEdited={onEdited}
         />
@@ -412,7 +457,7 @@ function RecipientBody({
             </div>
           )}
           {group.items.map((item) => (
-            <EditableEmailCard key={item.id} item={item} onEdited={onEdited} />
+            <EditableEmailCard key={item.id} item={item} button={button} onEdited={onEdited} />
           ))}
         </>
       )}
@@ -446,11 +491,12 @@ function RecipientBody({
 // bullet after an edit reverts to the auto-composed version (the server
 // clears the edit so it can't mention a removed update).
 function DigestEmailCard({
-  digest, recipientEmail, updateCount, transactionId, onEdited,
+  digest, recipientEmail, updateCount, button, transactionId, onEdited,
 }: {
   digest: RecipientDigest;
   recipientEmail: string;
   updateCount: number;
+  button: ReviewButtonTheme;
   transactionId: string;
   onEdited: () => void;
 }) {
@@ -615,7 +661,8 @@ function DigestEmailCard({
         ) : digest.overridden ? (
           <>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{digest.subject}</p>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{digest.bodyText}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{stripPortalUrlLines(digest.bodyText, digest.portalUrl)}</p>
+            <div><PortalPreviewButton button={button} /></div>
             <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
               Edited version. Sends exactly as written.
             </p>
@@ -685,6 +732,7 @@ function DigestEmailCard({
                 </ul>
               </div>
             ))}
+            <div><PortalPreviewButton button={button} /></div>
             {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
           </>
         )}
@@ -695,9 +743,10 @@ function DigestEmailCard({
 
 // ─── Single email — subject + text with inline edit ─────────────────
 function EditableEmailCard({
-  item, onEdited,
+  item, button, onEdited,
 }: {
   item: PendingQueueItem;
+  button: ReviewButtonTheme;
   onEdited: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -834,7 +883,8 @@ function EditableEmailCard({
         ) : (
           <>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{item.subject}</p>
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{item.bodyText}</p>
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{stripPortalUrlLines(item.bodyText, item.portalUrl)}</p>
+            <div><PortalPreviewButton button={button} /></div>
           </>
         )}
       </div>
