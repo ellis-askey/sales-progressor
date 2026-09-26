@@ -307,7 +307,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   {
     id: "onward-nudge-setup",
     category: "client",
-    name: "Onward / related nudge — set up",
+    name: "Onward / related nudge (set up)",
     description: "Asks a client to set up tracking of their other move in their portal. Onward for a seller buying on; related for a buyer who is also selling.",
     trigger: "An agent presses \"Ask [client] to set it up\" on the chain card.",
     axes: ["side", "theme"],
@@ -327,7 +327,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   {
     id: "onward-nudge-update",
     category: "client",
-    name: "Onward / related nudge — update",
+    name: "Onward / related nudge (update)",
     description: "Asks a client to update where their other move is up to, once tracking is live.",
     trigger: "An agent presses \"Ask [client] to update it\" in the tracker menu.",
     axes: ["side", "theme"],
