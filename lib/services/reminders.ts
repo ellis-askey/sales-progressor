@@ -753,7 +753,13 @@ export async function evaluateTransactionReminders(
   const enquiryGate: EnquirySatisfiedGate | null = await (async () => {
     const t = await prisma.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, closedAt: true },
+      select: {
+        currentlyWith: true, openedAt: true, lastMovementAt: true, closedAt: true,
+        // Movement count decides hands-off (0 → 4-week fallback) vs engaged flow.
+        // Tracker creation logs none and system chases don't log movements, so 0
+        // genuinely means "no human has worked the back-and-forth yet".
+        _count: { select: { movements: true } },
+      },
     });
     if (!t || t.closedAt) return null;
     const flip = await prisma.enquiryMovement.findFirst({
@@ -765,6 +771,7 @@ export async function evaluateTransactionReminders(
       currentlyWith: t.currentlyWith as EnquirySatisfiedGate["currentlyWith"],
       openedAt: t.openedAt,
       flipToBuyerAt: flip?.occurredAt ?? t.lastMovementAt ?? null,
+      movementCount: t._count.movements,
     };
   })();
   const enquirySatisfiedAllowed = enquirySatisfiedChaseAllowed(enquiryGate, today);
