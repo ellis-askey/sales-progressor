@@ -166,12 +166,32 @@ export function MilestonePanel({
   // trip. MilestoneRow already handles its OWN optimistic NR via
   // useOptimistic; this set propagates to the cascade siblings.
   const [optimisticallyNotRequiredIds, setOptimisticallyNotRequiredIds] = useState<Set<string>>(new Set());
+  // Steps flipped to complete on the client the instant a row commits, BEFORE
+  // the server refresh lands — so the X/Y count and (for exchange/completion)
+  // the paired step on the OTHER side update immediately instead of waiting on
+  // the heaviest write in the app (xkn7gn). Spans both sides.
+  const [optimisticallyCompletedIds, setOptimisticallyCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setOptimisticallyUnlockedIds(new Set());
     setOptimisticallyRelockedIds(new Set());
     setOptimisticallyNotRequiredIds(new Set());
+    setOptimisticallyCompletedIds(new Set());
   }, [vendor, purchaser]);
+
+  // Exchange + completion confirms write BOTH sides in one atomic action, but a
+  // row only flips itself and the count reads raw server data — so mark the
+  // paired step + the clicked step optimistically the moment the row commits.
+  const BILATERAL_COUNTERPART: Record<string, string> = { VM19: "PM26", PM26: "VM19", VM20: "PM27", PM27: "VM20" };
+  function handleOptimisticComplete(completedId: string, completedCode: string) {
+    const ids = new Set<string>([completedId]);
+    const counterpartCode = BILATERAL_COUNTERPART[completedCode];
+    if (counterpartCode) {
+      const counterpart = [...vendor, ...purchaser].find((m) => m.code === counterpartCode);
+      if (counterpart) ids.add(counterpart.id);
+    }
+    setOptimisticallyCompletedIds((prev) => new Set([...prev, ...ids]));
+  }
 
   function handleTabChange(side: "vendor" | "purchaser") {
     setActiveTab(side);
@@ -224,7 +244,7 @@ export function MilestonePanel({
   // downstream steps are available. Pure set subtraction against the same
   // client-side DIRECT_PREREQUISITES mirror; the server gate stays the
   // authority either way.
-  function handleConfirmFailed(_failedId: string, failedCode: string) {
+  function handleConfirmFailed(failedId: string, failedCode: string) {
     setOptimisticallyUnlockedIds((prev) => {
       const next = new Set(prev);
       for (const m of milestones) {
@@ -232,6 +252,18 @@ export function MilestonePanel({
         if (prereqs.includes(failedCode)) next.delete(m.id);
       }
       return next.size === prev.size ? prev : next;
+    });
+    // Roll back the optimistic completion (and its bilateral partner) too.
+    setOptimisticallyCompletedIds((prev) => {
+      if (!prev.has(failedId)) return prev;
+      const next = new Set(prev);
+      next.delete(failedId);
+      const cp = BILATERAL_COUNTERPART[failedCode];
+      if (cp) {
+        const counterpart = [...vendor, ...purchaser].find((m) => m.code === cp);
+        if (counterpart) next.delete(counterpart.id);
+      }
+      return next;
     });
   }
 
@@ -270,11 +302,14 @@ export function MilestonePanel({
     });
   }
 
+  // A step reads as done when the server says so OR we just optimistically
+  // completed it (xkn7gn) — so the count + progress bar move on the click.
+  const isDoneNow = (m: { id: string; isComplete: boolean }) => m.isComplete || optimisticallyCompletedIds.has(m.id);
   const applicableMs = milestones.filter((m) => !m.isNotRequired);
   const totalAll = applicableMs.length;
-  const doneAll = applicableMs.filter((m) => m.isComplete).length;
+  const doneAll = applicableMs.filter(isDoneNow).length;
   const applicableWeight = applicableMs.reduce((s, m) => s + Number(m.weight), 0);
-  const completedWeight = applicableMs.filter((m) => m.isComplete).reduce((s, m) => s + Number(m.weight), 0);
+  const completedWeight = applicableMs.filter(isDoneNow).reduce((s, m) => s + Number(m.weight), 0);
   const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
 
   return (
@@ -423,8 +458,10 @@ export function MilestonePanel({
                             transactionId={transactionId}
                             onConfirmStart={() => handleConfirmStart(def.id, def.code)}
                             onConfirmFailed={() => handleConfirmFailed(def.id, def.code)}
+                            onOptimisticComplete={handleOptimisticComplete}
                             optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
                             optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                            optimisticallyComplete={optimisticallyCompletedIds.has(def.id)}
                             onNRStart={() => handleNRStart(def.id, def.code)}
                             onUndoStart={() => handleUndoStart(def.id, def.code)}
                             counterpartNotice={getCounterpartNotice(def.code)}

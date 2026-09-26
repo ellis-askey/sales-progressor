@@ -50,8 +50,15 @@ type Props = {
   onConfirmFailed?: () => void;
   onNRStart?: () => void;
   onUndoStart?: () => void;
+  // Fired the instant this row commits its optimistic "complete" — lets the
+  // panel flip the paired step (exchange/completion write both sides) and the
+  // X/Y count without waiting on the heavy server refresh (xkn7gn).
+  onOptimisticComplete?: (defId: string, defCode: string) => void;
   optimisticallyAvailable?: boolean;
   optimisticallyRelocked?: boolean;
+  // Panel-driven "this step is complete" — used to flip the paired completion
+  // step on the other side even though it wasn't the row that was clicked.
+  optimisticallyComplete?: boolean;
   counterpartNotice?: string;
   // Slowness signal computed by the parent panel from the platform-wide
   // median (MILESTONE_DURATION_MEDIANS in lib/services/fees.ts). Null = no
@@ -132,7 +139,7 @@ function fmtDateTime(d: Date | string | null): string {
   return `${formatDate(d)} at ${time}`;
 }
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, onOptimisticComplete, optimisticallyAvailable, optimisticallyRelocked, optimisticallyComplete, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames }: Props) {
   const { toast } = useAgentToast();
   // Steps-tab label with the real names filled in (firm + seller/buyer), falling
   // back per slot to the stored generic wording. Used for the row label + toasts.
@@ -233,7 +240,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   const [celebrationExchangeDate, setCelebrationExchangeDate] = useState<string | undefined>(undefined);
   const [celebrationCompletionDate, setCelebrationCompletionDate] = useState<string | undefined>(undefined);
 
-  const isCompleted = optimisticState.isComplete;
+  const isCompleted = optimisticState.isComplete || (optimisticallyComplete ?? false);
   const isNotRequired = optimisticState.isNotRequired;
   const isDone = isCompleted || isNotRequired;
   const isGate = def.code === "VM18" || def.code === "PM25";
@@ -313,6 +320,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setLoading(true);
     startTransition(async () => {
       addOptimistic("complete");
+      onOptimisticComplete?.(def.id, def.code);
       try {
         const result = await confirmMilestoneAction({
           transactionId,
@@ -373,6 +381,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setLoading(true);
     startTransition(async () => {
       addOptimistic("complete");
+      onOptimisticComplete?.(def.id, def.code);
       try {
         const result = await confirmExchangeReconciliationAction({
           transactionId,
@@ -469,6 +478,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setSurveyBookingSaving(true);
     startTransition(async () => {
       addOptimistic("complete");
+      onOptimisticComplete?.(def.id, def.code);
       try {
         const result = await confirmMilestoneAction({
           transactionId,
