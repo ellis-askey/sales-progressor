@@ -354,3 +354,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway).
 - **Author/date:** Claude, 2026-09-17.
 - **Deletion criteria:** delete this script + this entry once run on staging + prod and confirmed.
+
+### migrate-chain-notes-to-entries.mjs
+- **Purpose:** one-shot data migration for b1ey9l. Converts the legacy single `ChainLink.chainNotes` blob into dated `ChainLinkEntry` rows: splits on newlines, extracts a leading UK-format date (DD.MM.YYYY / DD/MM/YYYY / DD:MM:YYYY) as the entry timestamp and strips it from the body; undated lines fall back to the link's `lastChainCheckAt` (else `createdAt`). Nulls `chainNotes` after creating entries so the note isn't shown twice. Idempotent (skips links that already have entries; tolerates the entries table not existing yet for a pre-deploy dry-run). Dry-run by default; `--apply` writes; `--prod` targets PROD_DATABASE_URL. Validated against the 17 live prod notes (→ 21 entries) 2026-09-26.
+- **Lifetime:** one-shot (throwaway).
+- **Author/date:** Claude, 2026-09-26.
+- **Deletion criteria:** delete this script + this entry once run on prod (post-deploy) and confirmed.
