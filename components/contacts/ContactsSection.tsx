@@ -971,6 +971,7 @@ export function ContactsSection({
             return (
               <div
                 key={contact.id}
+                className="agent-hover-row"
                 style={{ borderTop: idx > 0 ? "0.5px solid var(--agent-border-default)" : undefined }}
               >
                 {!isEditing && !isExiting && (
@@ -979,7 +980,7 @@ export function ContactsSection({
                         Layout via .people-row (agent-system.css): one line on
                         desktop; on narrow cards the identity takes the full
                         first line and the chevron + buttons drop beneath. */}
-                    <div className="people-row agent-hover-row" style={{ padding: "10px 2px" }}>
+                    <div className="people-row" style={{ padding: "10px 12px" }}>
                       <button
                         type="button"
                         onClick={() => toggleExpand(contact.id)}
@@ -1057,7 +1058,7 @@ export function ContactsSection({
                     {/* Expanded detail — everything the old card showed */}
                     <div className={`agent-acc${expanded ? " open" : ""}`}>
                       <div className="agent-acc-in">
-                      <div style={{ padding: "0 2px 12px 52px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ padding: "0 12px 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
                         {(lastContactedByContactId[contact.id] || autoTone || optedOut) && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
