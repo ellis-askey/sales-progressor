@@ -72,6 +72,9 @@ export async function confirmMilestoneAction(input: {
   // captured inline on confirm (no modal). Saved to bookedSurveyorName so the
   // completed-step panel can show it. Ignored for other steps.
   surveyorName?: string | null;
+  // PM6: the valuer / lender's surveyor firm, captured inline the same way.
+  // Saved to bookedValuerName. Ignored for other steps.
+  valuerName?: string | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -155,6 +158,12 @@ export async function confirmMilestoneAction(input: {
       await ptx.propertyTransaction.update({
         where: { id: input.transactionId },
         data: { bookedSurveyorName: input.surveyorName },
+      });
+    }
+    if (def?.code === "PM6" && input.valuerName) {
+      await ptx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { bookedValuerName: input.valuerName },
       });
     }
 

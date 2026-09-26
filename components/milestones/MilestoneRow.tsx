@@ -37,6 +37,7 @@ type Props = {
     isAvailable: boolean;
     confirmedBySolicitorFirmName?: string | null;
     bookedSurveyorName?: string | null;
+    bookedValuerName?: string | null;
     completedByName?: string | null;
     confirmedByClientName?: string | null;
     completedByImage?: string | null;
@@ -319,6 +320,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           eventDate: eventDate || null,
           keyCollectionRequired: (isPM6 || isPM9) ? keyCollection : undefined,
           surveyorName: isPM9 && surveyorName.trim() ? surveyorName.trim() : undefined,
+          valuerName: isPM6 && surveyorName.trim() ? surveyorName.trim() : undefined,
         });
         // Prereq gate (2026-06-05): the action returns a structured failure
         // when the user clicks Confirm before a prereq has been committed
@@ -620,6 +622,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               {isDone && isPM9 && def.bookedSurveyorName && (
                 <Pill glass tone="info" size="md" className="ml-2">Booked with {def.bookedSurveyorName}</Pill>
               )}
+              {isDone && isPM6 && def.bookedValuerName && (
+                <Pill glass tone="info" size="md" className="ml-2">Valued by {def.bookedValuerName}</Pill>
+              )}
             </span>
           </p>
           {isDone && detailsOpen && (def.completion || isCompleted) && (
@@ -669,7 +674,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 );
               })()}
               {/* Fact grid — only what this step actually captured. */}
-              {def.completion && ((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName) && (
+              {def.completion && ((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName || def.bookedValuerName) && (
                 <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", margin: "13px 0 0", paddingTop: 12, borderTop: "0.5px solid var(--agent-border-default)" }}>
                   {def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt) && (
                     <>
@@ -681,6 +686,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     <>
                       <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Surveyor</dt>
                       <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.bookedSurveyorName}</dd>
+                    </>
+                  )}
+                  {def.bookedValuerName && (
+                    <>
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Valuer</dt>
+                      <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.bookedValuerName}</dd>
                     </>
                   )}
                 </dl>
@@ -742,18 +753,18 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   wrapperStyle={{ display: "inline-block" }}
                 />
               </div>
-              {/* No-quote survey route: name the surveyor inline (optional), so
-                  it lands on the file without a modal. */}
-              {isPM9 && (
+              {/* No-quote route: name the surveyor (PM9) / valuer (PM6) inline
+                  (optional), so it lands on the file without a modal. */}
+              {(isPM9 || isPM6) && (
                 <div>
                   <label className="block text-xs text-slate-900/50 mb-1">
-                    Surveyor / firm <span className="text-slate-900/35">(optional)</span>
+                    {isPM6 ? "Valuer / lender's surveyor" : "Surveyor / firm"} <span className="text-slate-900/35">(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={surveyorName}
                     onChange={(e) => setSurveyorName(e.target.value)}
-                    placeholder="e.g. RICS Surveyors Ltd"
+                    placeholder={isPM6 ? "e.g. Connells Survey & Valuation" : "e.g. RICS Surveyors Ltd"}
                     className="glass-input w-full px-2 py-1.5 text-sm"
                   />
                 </div>

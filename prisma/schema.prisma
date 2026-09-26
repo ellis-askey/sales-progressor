@@ -448,6 +448,10 @@ model PropertyTransaction {
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
   // no surveyor is recorded.
   bookedSurveyorName          String?
+  // Free-text valuer / lender's-surveyor firm captured inline on the lender-
+  // valuation step (PM6) when the buyer arranged it outside our network. Mirrors
+  // bookedSurveyorName for the survey step. Null when none is recorded.
+  bookedValuerName            String?
   twelveWeekTarget            DateTime?
   predictedExchangeDate       DateTime?
   overridePredictedDate       DateTime?
