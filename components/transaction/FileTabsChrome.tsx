@@ -86,6 +86,44 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
     [router, basePath, tabs],
   );
 
+  // ── Tab prefetch warming (perf: instant, skeleton-free tab switches) ───────
+  // Tabs are dynamic route segments that each declare a 300s client-cache window
+  // (unstable_dynamicStaleTime), so once a tab's payload is fetched it's reused
+  // instantly for 5 minutes. The links stay prefetch={false} so Next doesn't
+  // fire every tab at once when they hit the viewport (that was the old "9
+  // queries on open" load the route-split removed). Instead we warm them
+  // deliberately: a staggered background sweep after the Overview has painted,
+  // plus an on-hover / on-touch top-up for whatever you're reaching for. Net:
+  // clicking any tab swaps in instantly with no skeleton, the initial file open
+  // is untouched (this runs post-paint, spaced out), and the DB isn't saturated.
+  const prefetched = useRef<Set<string>>(new Set());
+  const warm = useCallback(
+    (key: string) => {
+      const href = hrefFor(basePath, key);
+      if (prefetched.current.has(href)) return;
+      prefetched.current.add(href);
+      router.prefetch(href);
+    },
+    [router, basePath],
+  );
+
+  useEffect(() => {
+    prefetched.current = new Set();
+    const keys = tabs.map((t) => t.key);
+    let i = 0;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const kick = () => {
+      if (i >= keys.length) return;
+      warm(keys[i]);
+      i += 1;
+      timers.push(setTimeout(kick, 180)); // spaced so tabs warm one at a time
+    };
+    // Let the Overview settle first, then warm the rest off the critical path.
+    const start = setTimeout(kick, 400);
+    return () => { clearTimeout(start); timers.forEach(clearTimeout); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basePath, warm]);
+
   // Live badge overrides — a mounted panel can still bump its own count after an
   // action (e.g. dismissing a reminder). Seeded from the server-provided counts.
   const [badgeOverrides, setBadgeOverrides] = useState<Record<string, number>>({});
@@ -233,6 +271,9 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                     href={hrefFor(basePath, tab.key)}
                     prefetch={false}
                     scroll={false}
+                    onMouseEnter={() => warm(tab.key)}
+                    onFocus={() => warm(tab.key)}
+                    onTouchStart={() => warm(tab.key)}
                     ref={(el) => { btnRefs.current[i] = el as unknown as HTMLButtonElement | null; }}
                     data-active={isActive ? "true" : undefined}
                     aria-selected={isActive}
