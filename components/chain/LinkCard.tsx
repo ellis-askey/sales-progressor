@@ -374,21 +374,25 @@ function SideSummaryLine({
   return (
     <div style={{ fontSize: 12 }}>
       <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>{heading}</div>
-      {detail && (
-        <div style={{ color: "var(--agent-text)", marginTop: 2 }}>{detail}</div>
-      )}
-      {fileId && (
-        // Land on the chain card on the file overview (focus this sub-card), the
-        // same "take me straight to it" move as the Add-email flow.
-        <Link
-          href={`/agent/transactions/${fileId}?focus=${kind}`}
-          className="chain-act-link chain-act-primary"
-          style={{ display: "inline-block", marginTop: 4, fontWeight: 600 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {cta} <LinkArrow />
-        </Link>
-      )}
+      {/* Detail (address · steps) on the left, the View/Set-up link on the right of
+          the same row. When the row is too narrow the link wraps underneath (to
+          where it used to sit); the column gap keeps a gap between them at all
+          widths, the row gap spaces them when stacked. */}
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: "4px 16px", marginTop: 2 }}>
+        {detail && <span style={{ color: "var(--agent-text)", minWidth: 0 }}>{detail}</span>}
+        {fileId && (
+          // Land on the chain card on the file overview (focus this sub-card), the
+          // same "take me straight to it" move as the Add-email flow.
+          <Link
+            href={`/agent/transactions/${fileId}?focus=${kind}`}
+            className="chain-act-link chain-act-primary"
+            style={{ fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {cta} <LinkArrow />
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
@@ -504,13 +508,13 @@ function ChainIntelBody({
         </p>
       )}
 
-      <div>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button
           type="button"
           onClick={() => void save()}
-          className="agent-btn-color-primary"
+          className="chain-act-link chain-act-primary"
           disabled={saving}
-          style={{ padding: "7px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
+          style={{ fontWeight: 600, opacity: saving ? 0.55 : undefined, cursor: saving ? "wait" : "pointer" }}
         >
           {saving ? "Saving…" : "Save details"}
         </button>
@@ -571,13 +575,13 @@ function ChainChaseLog({
             disabled={saving}
           />
           {error && <p role="alert" style={{ color: "var(--agent-danger)", fontSize: 12, margin: 0 }}>{error}</p>}
-          <div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
               onClick={() => void save()}
-              className="agent-btn-color-primary"
+              className="chain-act-link chain-act-primary"
               disabled={saving || draft.trim().length === 0}
-              style={{ padding: "6px 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, opacity: saving || draft.trim().length === 0 ? 0.6 : 1, cursor: saving ? "wait" : "pointer" }}
+              style={{ fontWeight: 600, opacity: saving || draft.trim().length === 0 ? 0.45 : undefined, cursor: saving ? "wait" : "pointer" }}
             >
               {saving ? "Saving…" : "Save entry"}
             </button>
