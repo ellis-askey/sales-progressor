@@ -19,9 +19,11 @@
 // Everything is labelled "reported" and never leaves our side.
 // Spec: docs/active/onward-visibility/00-discovery.md + docs/active/related-sale/00-spec.md.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import {
   openOnwardTrackerAction,
@@ -41,6 +43,7 @@ import {
   confirmRelatedBuyerStepAction,
   undoRelatedBuyerStepAction,
   setOnwardRelatedAddressAction,
+  sendOnwardNudgeAction,
 } from "@/app/actions/onward";
 import type { OnwardTrackerKind } from "@prisma/client";
 import type {
@@ -329,12 +332,17 @@ export function OnwardPurchaseCard({
   seedTenure = null,
   seedShareOfFreehold = false,
   defaultStepsOpen = false,
+  nudgeClients = [],
 }: {
   transactionId: string;
   initialView: OnwardTrackerView;
   signalActive?: boolean;
   onwardAddress?: string | null;
   direction?: Direction;
+  // Clients we can nudge to set up / update this move in their portal (h3xwf6).
+  // Near sides only (onward = the vendors; related = the purchasers). Empty on
+  // far/agent-only sides — the nudge control then never renders.
+  nudgeClients?: { id: string; name: string }[];
   // When true, drops the Card + title and renders a compact action area for the
   // chain spine (PropertyChainCard). The step list collapses by default.
   embedded?: boolean;
@@ -540,6 +548,105 @@ export function OnwardPurchaseCard({
   // Per-step chase: the far-side step we're chasing the neighbour agent about.
   const [chaseStep, setChaseStep] = useState<{ code: string; name: string } | null>(null);
 
+  // ── Nudge the client (h3xwf6) ────────────────────────────────────────────────
+  // Ask a near-side client to set up / update this move in their portal. Never on
+  // far/agent-only sides — nudgeClients is empty there. One client → a direct
+  // button; several → a chevron menu that targets each person (own portal token).
+  const canNudge = (direction === "onward" || direction === "related") && nudgeClients.length > 0;
+  const nudgeNoun = direction === "related" ? "buyer" : "seller";
+  const [nudgeSendingId, setNudgeSendingId] = useState<string | null>(null);
+  const [nudgeSent, setNudgeSent] = useState<Record<string, boolean>>({});
+  const [nudgeError, setNudgeError] = useState<string | null>(null);
+
+  async function sendNudge(contactId: string, mode: "setup" | "update") {
+    if (nudgeSendingId) return;
+    setNudgeError(null);
+    setNudgeSendingId(contactId);
+    try {
+      const res = await sendOnwardNudgeAction({
+        transactionId,
+        contactId,
+        direction: direction as "onward" | "related",
+        mode,
+      });
+      if (res.ok) setNudgeSent((p) => ({ ...p, [contactId]: true }));
+      else setNudgeError(res.error ?? "Couldn't send that just now.");
+    } catch {
+      setNudgeError("Something went wrong. Try again.");
+    } finally {
+      setNudgeSendingId(null);
+    }
+  }
+
+  // Setup-state control: a secondary button (one client) or a chevron menu
+  // (several). Sits beside the "Set it up" CTA on the not-tracked state.
+  function renderNudgeSetup(): React.ReactNode {
+    if (!canNudge) return null;
+    if (nudgeClients.length === 1) {
+      const c = nudgeClients[0];
+      const first = extractFirstName(c.name);
+      if (nudgeSent[c.id]) return <span style={{ fontSize: 12, color: MUTED }}>Link sent to {first}</span>;
+      return (
+        <Button variant="secondary" size="sm" loading={nudgeSendingId === c.id} onClick={() => sendNudge(c.id, "setup")}>
+          <MailGlyph /> Ask {first} to set it up
+        </Button>
+      );
+    }
+    return (
+      <Dropdown
+        align="left"
+        panelWidth={264}
+        trigger={(open) => (
+          <span style={secondaryBtnStyle}>
+            <MailGlyph /> Ask a {nudgeNoun} to set it up <Chevron open={open} />
+          </span>
+        )}
+      >
+        {() => <NudgeMenuRows clients={nudgeClients} mode="setup" sent={nudgeSent} sendingId={nudgeSendingId} onSend={sendNudge} />}
+      </Dropdown>
+    );
+  }
+
+  // Tracked-state control: a "⋯" kebab holding the low-use actions (Edit type +
+  // "Ask {name} to update it") so the card face stays calm.
+  function renderKebab(): React.ReactNode {
+    return (
+      <Dropdown
+        align="right"
+        panelWidth={264}
+        trigger={() => <KebabGlyph />}
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              first
+              icon={<PencilGlyph />}
+              title="Edit type"
+              sub={factsSummary || undefined}
+              onClick={() => {
+                close();
+                setEditingFacts(true);
+                setTenure(view.tenure);
+                setPurchaseType(view.purchaseType);
+                setShareOfFreehold(view.isShareOfFreehold);
+              }}
+            />
+            {canNudge && (
+              <NudgeMenuRows clients={nudgeClients} mode="update" sent={nudgeSent} sendingId={nudgeSendingId} onSend={sendNudge} firstIsTop={false} />
+            )}
+          </>
+        )}
+      </Dropdown>
+    );
+  }
+
+  // Short trust label for the chips row (declutters the long "as reported by"
+  // line into a quiet chip; the full caveat still sits under the expanded steps).
+  const reportedByChip =
+    direction === "onward" || direction === "onward_seller" ? "Reported by the seller"
+      : direction === "related" || direction === "related_buyer" ? "Reported by the buyer"
+        : "Reported";
+
   function run(fn: () => Promise<OnwardTrackerView>) {
     setError(null);
     setPending(true);
@@ -634,14 +741,18 @@ export function OnwardPurchaseCard({
   if (!view.exists) {
     const cta = (
       <>
-        <Button
-          variant={signalActive ? "primary" : "secondary"}
-          size="sm"
-          loading={pending}
-          onClick={() => run(() => actions.open(transactionId))}
-        >
-          {txt.setupCta}
-        </Button>
+        <div style={{ display: "flex", gap: 9, flexWrap: "wrap", alignItems: "center" }}>
+          <Button
+            variant={signalActive ? "primary" : "secondary"}
+            size="sm"
+            loading={pending}
+            onClick={() => run(() => actions.open(transactionId))}
+          >
+            {txt.setupCta}
+          </Button>
+          {renderNudgeSetup()}
+        </div>
+        {nudgeError && <p style={errStyle}>{nudgeError}</p>}
         {error && <p style={errStyle}>{error}</p>}
       </>
     );
@@ -760,16 +871,6 @@ export function OnwardPurchaseCard({
     .filter(Boolean)
     .join(" ");
 
-  const editTypeBtn = (
-    <button
-      type="button"
-      onClick={() => { setEditingFacts(true); setTenure(view.tenure); setPurchaseType(view.purchaseType); setShareOfFreehold(view.isShareOfFreehold); }}
-      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: SECONDARY, textDecoration: "underline" }}
-    >
-      Edit type
-    </button>
-  );
-
   // Reported-count display includes in-flight optimistic completes so the
   // summary chip moves with the click (the canonical view replaces it at ack).
   const optExtraCompletes = [...optCompletedCodes].filter((c) => {
@@ -866,6 +967,14 @@ export function OnwardPurchaseCard({
     const pct = view.applicableCount > 0 ? Math.round((shownCompleteCount / view.applicableCount) * 100) : 0;
     return (
       <div style={{ padding: "0 4px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
+            {view.tenure && <Chip>{tenureLabel(view.tenure)}{view.isShareOfFreehold ? " · share of freehold" : ""}</Chip>}
+            {needsPurchaseType && view.purchaseType && <Chip>{purchaseLabel(view.purchaseType)}</Chip>}
+            <Chip trust>{reportedByChip}</Chip>
+          </div>
+          <div style={{ marginLeft: "auto", flexShrink: 0 }}>{renderKebab()}</div>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: SECONDARY, fontVariantNumeric: "tabular-nums" }}>
             Reported {shownCompleteCount}/{view.applicableCount}
@@ -881,10 +990,6 @@ export function OnwardPurchaseCard({
             {stepsOpen ? "Hide steps" : "View steps"}
           </button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: MUTED }}>{factsSummary}</span>
-          {editTypeBtn}
-        </div>
         {stepsOpen && (
           <>
             <p style={{ margin: "6px 0 0", fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
@@ -892,6 +997,7 @@ export function OnwardPurchaseCard({
             {chaseDrawer}
           </>
         )}
+        {nudgeError && <p style={errStyle}>{nudgeError}</p>}
         {error && <p style={errStyle}>{error}</p>}
       </div>
     );
@@ -901,22 +1007,27 @@ export function OnwardPurchaseCard({
     <Card id={sectionId} padding="none">
       <div style={cardHeaderStyle}>
         <h3 style={titleStyle}>{txt.title}</h3>
-        <span style={{ fontSize: 11, color: MUTED }}>
-          Reported · {shownCompleteCount}/{view.applicableCount}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 11, color: MUTED }}>
+            Reported · {shownCompleteCount}/{view.applicableCount}
+          </span>
+          {renderKebab()}
+        </div>
       </div>
 
-      <div style={{ padding: "0 16px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 12, color: MUTED }}>{factsSummary}</span>
-        {editTypeBtn}
+      <div style={{ padding: "0 16px 10px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {view.tenure && <Chip>{tenureLabel(view.tenure)}{view.isShareOfFreehold ? " · share of freehold" : ""}</Chip>}
+        {needsPurchaseType && view.purchaseType && <Chip>{purchaseLabel(view.purchaseType)}</Chip>}
+        <Chip trust>{reportedByChip}</Chip>
       </div>
-
-      <p style={{ padding: "0 16px 8px", margin: 0, fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
 
       {stepList}
 
+      <p style={{ padding: "8px 16px 12px", margin: 0, fontSize: 11, color: MUTED }}>{txt.reportedBy}</p>
+
       {chaseDrawer}
 
+      {nudgeError && <p style={{ padding: "0 16px 12px", margin: 0, color: "var(--agent-danger, #c0392b)", fontSize: 12 }}>{nudgeError}</p>}
       {error && <p style={{ padding: "0 16px 12px", margin: 0, color: "var(--agent-danger, #c0392b)", fontSize: 12 }}>{error}</p>}
     </Card>
   );
@@ -949,5 +1060,292 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     >
       {children}
     </button>
+  );
+}
+
+// A quiet fact chip for the tracker face — type + "reported by" become chips
+// rather than stacked grey lines (h3xwf6 declutter). Renders in-place, so it can
+// use the agent theme vars.
+function Chip({ trust, children }: { trust?: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        fontSize: 11.5,
+        fontWeight: trust ? 500 : 600,
+        lineHeight: 1.4,
+        whiteSpace: "nowrap",
+        color: "var(--agent-text-secondary)",
+        borderRadius: 999,
+        padding: "3px 10px",
+        background: trust ? "transparent" : "var(--agent-surface-nested, rgba(15,23,42,0.05))",
+        border: trust ? "1px solid var(--agent-border, rgba(0,0,0,0.12))" : "1px solid transparent",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+const secondaryBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 7,
+  fontSize: 13,
+  fontWeight: 600,
+  padding: "7px 13px",
+  borderRadius: 9,
+  whiteSpace: "nowrap",
+  border: "1px solid var(--agent-border, rgba(0,0,0,0.15))",
+  background: "var(--agent-surface-elevated, #fff)",
+  color: "var(--agent-text-primary, #111)",
+};
+
+// Anchored dropdown. Portalled to document.body with fixed positioning so it is
+// never clipped by the Card's overflow:hidden. Being outside the AgentShell
+// subtree, the menu can't rely on --agent-* vars — the panel + MenuItem below
+// use concrete colours (white surface, dark text) in both themes, matching the
+// app's other body-portalled popups (see AGENT_APP_INTERNALS §2).
+function Dropdown({
+  trigger,
+  align = "right",
+  panelWidth = 250,
+  children,
+}: {
+  trigger: (open: boolean) => React.ReactNode;
+  align?: "left" | "right";
+  panelWidth?: number;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  function openMenu() {
+    const r = anchorRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const rawLeft = align === "right" ? r.right - panelWidth : r.left;
+    const left = Math.max(8, Math.min(rawLeft, window.innerWidth - panelWidth - 8));
+    setPos({ top: r.bottom + 6, left });
+    setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (anchorRef.current?.contains(e.target as Node)) return;
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    }
+    function onClose() { setOpen(false); }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("resize", onClose);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("resize", onClose);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={anchorRef} style={{ display: "inline-flex" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open ? setOpen(false) : openMenu(); }
+        }}
+        style={{ display: "inline-flex", cursor: "pointer" }}
+      >
+        {trigger(open)}
+      </div>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            width: panelWidth,
+            maxWidth: "calc(100vw - 16px)",
+            zIndex: 1000,
+            background: "#fff",
+            border: "1px solid rgba(0,0,0,0.12)",
+            borderRadius: 10,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+            overflow: "hidden",
+            color: "#111",
+          }}
+        >
+          {children(() => setOpen(false))}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+// One row in a Dropdown menu. Concrete colours (portalled — see Dropdown).
+function MenuItem({
+  first,
+  icon,
+  title,
+  sub,
+  tone,
+  disabled,
+  onClick,
+}: {
+  first?: boolean;
+  icon: React.ReactNode;
+  title: string;
+  sub?: string;
+  tone?: "hot";
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const [active, setActive] = useState(false);
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+      style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+        width: "100%",
+        textAlign: "left",
+        padding: "9px 12px",
+        background: active && !disabled ? "rgba(15,23,42,0.05)" : "transparent",
+        border: "none",
+        borderTop: first ? "none" : "1px solid rgba(0,0,0,0.07)",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.65 : 1,
+        transition: "background .12s ease",
+      }}
+    >
+      <span style={{ width: 16, flexShrink: 0, marginTop: 1, color: "#6b7280", display: "inline-flex", justifyContent: "center" }}>{icon}</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: tone === "hot" ? "#E8542F" : "#111" }}>{title}</span>
+        {sub && <span style={{ display: "block", fontSize: 11.5, color: "#6b7280", marginTop: 1, lineHeight: 1.35 }}>{sub}</span>}
+      </span>
+    </button>
+  );
+}
+
+// The per-client nudge rows shared by the setup chevron menu and the tracked
+// kebab. Each buyer/seller has their own portal token, so every row targets that
+// specific person. Once sent this session the row reads "Link sent to {first}".
+function NudgeMenuRows({
+  clients,
+  mode,
+  sent,
+  sendingId,
+  onSend,
+  firstIsTop = true,
+}: {
+  clients: { id: string; name: string }[];
+  mode: "setup" | "update";
+  sent: Record<string, boolean>;
+  sendingId: string | null;
+  onSend: (contactId: string, mode: "setup" | "update") => void;
+  firstIsTop?: boolean;
+}) {
+  return (
+    <>
+      {clients.map((c, i) => {
+        const first = extractFirstName(c.name);
+        const done = !!sent[c.id];
+        return (
+          <MenuItem
+            key={c.id}
+            first={firstIsTop && i === 0}
+            icon={done ? <CheckGlyph /> : <UserGlyph />}
+            title={done ? `Link sent to ${first}` : `Ask ${c.name}`}
+            sub={done ? undefined : "Sends a link to their portal"}
+            disabled={done || sendingId === c.id}
+            onClick={() => onSend(c.id, mode)}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function MailGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+      <rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transition: "transform .15s ease", transform: open ? "rotate(180deg)" : "none" }}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function KebabGlyph() {
+  const [h, setH] = useState(false);
+  return (
+    <span
+      onMouseEnter={() => setH(true)}
+      onMouseLeave={() => setH(false)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        color: "var(--agent-text-secondary)",
+        background: h ? "var(--agent-surface-nested, rgba(15,23,42,0.06))" : "transparent",
+        transition: "background .12s ease",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+      </svg>
+    </span>
+  );
+}
+
+function UserGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+
+function PencilGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1f8a4a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
   );
 }

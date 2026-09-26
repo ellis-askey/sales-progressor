@@ -382,6 +382,19 @@ export async function OverviewPanel({
   const onwardSellerView = await getOnwardTrackerView(transaction.id, "onward_purchase_seller");
   const relatedBuyerView = await getOnwardTrackerView(transaction.id, "related_sale_buyer");
 
+  // Clients we can nudge to set up / update their OTHER move in their portal
+  // (critique h3xwf6). Onward = the seller buying on, so the vendors; related =
+  // the buyer selling, so the purchasers. Only those with a live portal + email
+  // and not opted out — the send action re-checks all of this (Law 7).
+  const canNudgeContact = (c: Contact) =>
+    !!c.email && !!c.portalToken && !c.unsubscribedAt && c.portalEligible !== false;
+  const onwardNudgeClients = transaction.contacts
+    .filter((c) => c.roleType === "vendor" && canNudgeContact(c))
+    .map((c) => ({ id: c.id, name: c.name }));
+  const relatedNudgeClients = transaction.contacts
+    .filter((c) => c.roleType === "purchaser" && canNudgeContact(c))
+    .map((c) => ({ id: c.id, name: c.name }));
+
   // Current-sale status + a short "what's happening now" line for the chain
   // card's middle node. Status from the file status; the sub-line is the live
   // display stage (so it self-updates as the file moves).
@@ -552,8 +565,8 @@ export async function OverviewPanel({
         currentStatus={chainCurrentStatus}
         currentSubtext={chainCurrentSubtext}
         currentPercent={progress.percent}
-        onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress }}
-        related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress }}
+        onward={{ view: onwardView, farView: onwardSellerView, signalActive: onwardSignal.buyingOnward, address: onwardSignal.onwardAddress, nudgeClients: onwardNudgeClients }}
+        related={{ view: relatedView, farView: relatedBuyerView, signalActive: relatedSignal.selling, address: relatedSignal.relatedAddress, nudgeClients: relatedNudgeClients }}
         showRelated={relatedView.exists || relatedSignal.selling}
         noChainConfirmed={transaction.noChainNeededAt != null}
       />

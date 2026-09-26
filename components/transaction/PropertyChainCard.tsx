@@ -31,6 +31,9 @@ type Side = {
   address: string | null;
   // Optional property photo for the link card. Absent → the universal fallback.
   photoUrl?: string | null;
+  // The clients on this side we can nudge to set up / update their move in the
+  // portal (onward → the vendors; related → the purchasers). Near side only.
+  nudgeClients?: { id: string; name: string }[];
 };
 type CurrentStatus = { label: string; tone: "active" | "hold" | "done" | "off" };
 type FocusKey = "onward" | "current" | "related";
@@ -297,6 +300,7 @@ export function PropertyChainCard({
           direction={far ? farDirection : which}
           seedTenure={far ? side.view.tenure : null}
           seedShareOfFreehold={far ? side.view.isShareOfFreehold : false}
+          nudgeClients={far ? [] : (side.nudgeClients ?? [])}
         />
       </div>
     );
