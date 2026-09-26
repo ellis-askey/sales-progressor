@@ -448,9 +448,10 @@ export function ChainView({
 
   async function handleAddEntry(linkId: string, body: string) {
     // Server action re-checks edit permission + stamps lastChainCheckAt; throws
-    // on failure so the log surfaces the inline error. Refetch to pull the new
-    // entry (and the refreshed check date + activity feed).
-    await addChainEntryAction(linkId, body);
+    // on failure so the log surfaces the inline error. Pass the file we're
+    // viewing so the Activity-tab mirror lands on THIS file, not the node's own
+    // file. Refetch to pull the new entry (and the refreshed check date).
+    await addChainEntryAction(linkId, body, transactionId);
     await fetchChainAndRefresh();
   }
 

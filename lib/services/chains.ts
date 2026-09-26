@@ -1041,9 +1041,6 @@ export async function getChainActivity(
   chainId: string,
   viewerUserId: string,
   limit = 12,
-  // When provided, own-side chase-log entries the viewer may see are folded in
-  // (b1ey9l), gated by canViewNodeIntel — never another agency. Absent = skipped.
-  viewer?: IntelViewer,
 ): Promise<ChainActivityEvent[]> {
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
@@ -1058,22 +1055,11 @@ export async function getChainActivity(
           inviteDeclinedAt: true,
           stubPropertyAddress: true,
           withdrawalRespondedAt: true,
-          // Ownership facts + chase-log entries (b1ey9l) for the own-side gate.
-          createdByUserId: true,
-          createdBy: { select: { agencyId: true } },
-          entries: {
-            orderBy: { createdAt: "desc" as const },
-            take: 6,
-            select: { id: true, body: true, authorId: true, authorName: true, createdAt: true },
-          },
           claimedBy: { select: { name: true, firmName: true, chainActivityOptIn: true } },
           transaction: {
             select: {
               propertyAddress: true,
               status: true,
-              agencyId: true,
-              assignedUserId: true,
-              agentUserId: true,
               milestoneCompletions: {
                 where: { state: "complete", completedAt: { not: null } },
                 select: {
@@ -1146,34 +1132,9 @@ export async function getChainActivity(
         tone: "info",
       });
     }
-
-    // Own-side chase-log entries (b1ey9l). Gated by canViewNodeIntel so they
-    // reach the owning agency + internal staff only, never another agency in the
-    // chain — regardless of anyone's activity opt-in.
-    if (viewer && l.entries.length > 0) {
-      const ownership: ChainNodeOwnership = {
-        transactionId: l.transactionId,
-        linkCreatedByUserId: l.createdByUserId,
-        linkCreatedByAgencyId: l.createdBy?.agencyId ?? null,
-        txAgencyId: l.transaction?.agencyId ?? null,
-        txAssignedUserId: l.transaction?.assignedUserId ?? null,
-        txAgentUserId: l.transaction?.agentUserId ?? null,
-      };
-      if (canViewNodeIntel(viewer, ownership)) {
-        for (const e of l.entries) {
-          const mine = e.authorId === viewerUserId;
-          const preview = e.body.length > 200 ? `${e.body.slice(0, 200)}…` : e.body;
-          const noter = mine ? "You" : e.authorName?.trim() || "A colleague";
-          events.push({
-            id: `entry_${e.id}`,
-            linkAddress: addr,
-            message: `${noter} noted: ${preview}`,
-            at: e.createdAt.toISOString(),
-            tone: "info",
-          });
-        }
-      }
-    }
+    // Chase-log entries are deliberately NOT surfaced in this cross-agent chain
+    // feed — they're private per-file notes and live on the file's own Activity
+    // tab (addChainEntryAction writes an internal_note there). See b1ey9l.
   }
 
   events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));

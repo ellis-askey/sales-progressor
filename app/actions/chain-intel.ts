@@ -1,7 +1,7 @@
 "use server";
 
 import { requireSession } from "@/lib/session";
-import { getAccessScope } from "@/lib/security/access-scope";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import {
   canEditNodeIntel,
@@ -106,6 +106,10 @@ export async function saveChainIntelAction(linkId: string, input: ChainNodeIntel
 export async function addChainEntryAction(
   linkId: string,
   body: string,
+  // The file the user is working on (the file whose chain is open). The entry's
+  // Activity-tab mirror lands HERE — on your own file — not on the node's own
+  // file (which could be another agency) and never in the shared chain feed.
+  contextTransactionId?: string,
 ): Promise<{ id: string; body: string; authorName: string | null; createdAt: string }> {
   const session = await requireSession();
   const link = await requireChainNodeEdit(session, linkId);
@@ -127,12 +131,25 @@ export async function addChainEntryAction(
   // Logging an update IS a chain check — keep the "chased X ago" hint fresh.
   await prisma.chainLink.update({ where: { id: linkId }, data: { lastChainCheckAt: new Date() } });
 
-  // Mirror onto the file's internal timeline (claimed nodes only, never client-visible).
-  if (link.transactionId) {
+  // Mirror onto the working file's Activity tab (own-side, never client-visible).
+  // Prefer the context file the user is viewing (access-checked); fall back to
+  // the node's own claimed file only when no context is supplied.
+  let activityTxId: string | null = null;
+  if (contextTransactionId) {
+    const scope = getAccessScope(session);
+    const ctx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, contextTransactionId),
+      select: { id: true },
+    });
+    if (ctx) activityTxId = ctx.id;
+  }
+  if (!activityTxId) activityTxId = link.transactionId;
+
+  if (activityTxId) {
     const preview = text.length > 140 ? `${text.slice(0, 140)}…` : text;
     await prisma.outboundMessage.create({
       data: {
-        transactionId: link.transactionId,
+        transactionId: activityTxId,
         type: "internal_note",
         contactIds: [],
         content: `${session.user.name} logged a chain update: "${preview}"`,
