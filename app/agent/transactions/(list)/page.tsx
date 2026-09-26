@@ -333,7 +333,7 @@ export default async function AllTransactionsPage({
           </div>
           )
         ) : (
-          <div className="space-y-5 agent-fade-up">
+          <div className="space-y-5">
             {/* The exchange forecast lives inside the workspace now (its own
              * view tab), replacing the standalone month-pill strip. The month
              * filter (?exchanging=YYYY-MM) is still reachable from the Forecast

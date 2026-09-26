@@ -201,7 +201,7 @@ export default async function AgentCompletionsPage() {
       </PageHeader>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7 agent-stagger">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7">
 
         {/* Empty state — brand-new agency users get the onboarding layout. */}
         {files.length === 0 && isBrandNew && (

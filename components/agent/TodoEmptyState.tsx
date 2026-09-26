@@ -48,7 +48,7 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
   }
 
   return (
-    <div className="agent-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{

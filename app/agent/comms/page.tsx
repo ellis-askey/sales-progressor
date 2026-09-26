@@ -172,7 +172,7 @@ export default async function AgentCommsPage() {
           </>
         )}
 
-        {days.length > 0 && <div className="agent-fade-up"><CommsActivityFeed days={days} /></div>}
+        {days.length > 0 && <CommsActivityFeed days={days} />}
 
       </div>
     </>

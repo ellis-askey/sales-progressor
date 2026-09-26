@@ -21,6 +21,7 @@ import {
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { FloatingThoughtCapture } from "@/components/command/content/FloatingThoughtCapture";
+import { PageTransition } from "@/components/layout/PageTransition";
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
@@ -583,9 +584,9 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           browser refresh, so drag-down-from-top reloads the page. */}
       <PullToRefresh />
 
-      {/* Main content */}
+      {/* Main content — PageTransition fades each page in + up on navigation. */}
       <main className="agent-main-content" style={{ flex: 1, minWidth: 0 }}>
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
 
       {showWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} />}

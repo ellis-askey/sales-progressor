@@ -119,7 +119,7 @@ export default async function AgentTodoPage() {
           <TodoEmptyState canUseProgressor={hasOutsourced} />
         </div>
       ) : (
-        <div className="px-4 md:px-8 py-2 md:py-4 agent-fade-up todo-cols">
+        <div className="px-4 md:px-8 py-2 md:py-4 todo-cols">
           <div className="todo-col-main space-y-8">
             {hasReviews && (
               <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />

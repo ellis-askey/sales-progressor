@@ -204,7 +204,7 @@ export default async function AgentAnalyticsPage({
       </PageHeader>
 
       {/* ── Client shell — manages period state, all stats ────────────────── */}
-      <div className="agent-fade-up">
+      <div>
       <AnalyticsClientShell
         transactions={transactions.map(t => ({ ...t, agentFeePercent: t.agentFeePercent != null ? Number(t.agentFeePercent) : null }))}
         team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}

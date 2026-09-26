@@ -11,7 +11,7 @@ import { Pill } from "@/components/ui/Pill";
 // that creates an enquiry, so the cards carry no CTA.
 export function EnquiriesEmptyState() {
   return (
-    <div className="agent-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
