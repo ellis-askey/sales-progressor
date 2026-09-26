@@ -1187,10 +1187,10 @@ export function ChainView({
               larger hero treatment than the icon+EmptyState used elsewhere. */}
           {!loading && !chain && !notAParticipant && (
             <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-              <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+              <h3 className={`text-2xl font-bold tracking-tight ${isNight ? "text-white" : "text-slate-900"}`}>
                 Build this sale&rsquo;s chain
               </h3>
-              <p className="text-sm text-slate-900/50 mt-2 max-w-sm leading-relaxed">
+              <p className={`text-sm mt-2 max-w-sm leading-relaxed ${isNight ? "text-white/60" : "text-slate-900/50"}`}>
                 Add the properties above and below this sale to see the full chain and keep track of progress across it.
               </p>
               <button
@@ -1200,7 +1200,7 @@ export function ChainView({
                 <Plus weight="bold" className="w-4 h-4" />
                 Create chain
               </button>
-              <p className="text-xs text-slate-900/35 mt-4">
+              <p className={`text-xs mt-4 ${isNight ? "text-white/40" : "text-slate-900/35"}`}>
                 You can add or change links at any time.
               </p>
             </div>
