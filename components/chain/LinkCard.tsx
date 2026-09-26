@@ -16,6 +16,7 @@ import { prepareImageForUpload } from "@/lib/images/prepare-upload";
 import type { ChainLinkV2, ChainNodeIntel, ChainSideSummary } from "@/lib/services/chains";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { ChainNodeSteps } from "@/components/chain/ChainNodeSteps";
 
 function relativeTime(date: Date | string | null): string {
   if (!date) return "";
@@ -126,6 +127,10 @@ type LinkCardProps = {
   /** Add a dated chase-log entry to this node (b1ey9l). Present only where the
    *  viewer may edit; the card also gates on link.canEditIntel. */
   onAddEntry?: (linkId: string, body: string) => Promise<void>;
+  /** When this node is our onward purchase (above) or related sale (below), its
+   *  reported-steps tracker can be ticked inline (gqu39v). Keyed to OUR file. */
+  stepsDirection?: "onward" | "related";
+  stepsTransactionId?: string;
   /** Upload an internal property photo for this (unclaimed) link. Present only
    *  where the viewer may edit the stub; the tile becomes a hover-camera dropzone.
    *  Resolves once the chain has refreshed with the new photo. */
@@ -634,11 +639,21 @@ export function ChainCardExpand({
   link,
   onSaveIntel,
   onAddEntry,
+  stepsDirection,
+  stepsTransactionId,
 }: {
   link: ChainLinkV2;
   onSaveIntel?: (linkId: string, input: ChainNodeIntelInput) => Promise<void>;
   onAddEntry?: (linkId: string, body: string) => Promise<void>;
+  // When this node is our onward purchase (above) or related sale (below), the
+  // reported-steps tracker can be shown inline (gqu39v) so an agent can tick
+  // steps while chasing. Keyed to OUR file (stepsTransactionId).
+  stepsDirection?: "onward" | "related";
+  stepsTransactionId?: string;
 }) {
+  const [mode, setMode] = useState<"details" | "steps">("details");
+  const canShowSteps = !!stepsDirection && !!stepsTransactionId;
+
   const intelForCard = link.intel ?? null;
   const showIntel = (link.canEditIntel ?? false) || hasIntelValues(intelForCard);
   const onwardForCard = link.onwardSummary ?? null;
@@ -647,13 +662,51 @@ export function ChainCardExpand({
   const notesText = unifiedNotes(link);
   const showNotes = notesText.length > 0 && ((link.canEditStub ?? false) || (link.canEditIntel ?? false));
   const showLog = (link.canEditIntel ?? false) || (link.entries?.length ?? 0) > 0;
+  const showingSteps = canShowSteps && mode === "steps";
+
   return (
     <div style={{ display: "grid", gap: 10, paddingTop: 8, marginTop: 4, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-      {onwardForCard && <SideSummaryLine kind="onward" summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
-      {relatedForCard && <SideSummaryLine kind="related" summary={relatedForCard} fileId={link.transaction?.id ?? null} />}
-      {showStubDetails && <StubDetailsRows link={link} />}
-      {showNotes && <NotesBlock text={notesText} />}
-      {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
+      {/* Details / Their-steps toggle — only on the onward/related neighbour. */}
+      {canShowSteps && (
+        <div style={{ display: "inline-flex", width: "fit-content", padding: 3, borderRadius: 9, gap: 2, background: "var(--agent-surface-nested, rgba(15,23,42,0.05))", border: "1px solid var(--agent-border-subtle)" }} role="tablist" aria-label="Node view">
+          {(["details", "steps"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => setMode(m)}
+              style={{
+                fontSize: 11.5, fontWeight: 600, padding: "4px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+                background: mode === m ? "var(--agent-surface-elevated, #fff)" : "transparent",
+                color: mode === m ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
+                boxShadow: mode === m ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                transition: "background .12s ease, color .12s ease",
+              }}
+            >
+              {m === "details" ? "Details" : "Their steps"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showingSteps ? (
+        <ChainNodeSteps
+          transactionId={stepsTransactionId!}
+          direction={stepsDirection!}
+          address={link.stubPropertyAddress ?? link.transaction?.propertyAddress ?? null}
+        />
+      ) : (
+        <>
+          {onwardForCard && <SideSummaryLine kind="onward" summary={onwardForCard} fileId={link.transaction?.id ?? null} />}
+          {relatedForCard && <SideSummaryLine kind="related" summary={relatedForCard} fileId={link.transaction?.id ?? null} />}
+          {showStubDetails && <StubDetailsRows link={link} />}
+          {showNotes && <NotesBlock text={notesText} />}
+          {showIntel && <ChainIntelBody link={link} onSaveIntel={onSaveIntel} />}
+        </>
+      )}
+
+      {/* Chase log always sits at the bottom — log + tick in one place (gqu39v). */}
       {showLog && <ChainChaseLog link={link} onAddEntry={onAddEntry} />}
     </div>
   );
@@ -765,6 +818,8 @@ export function LinkCard({
   onRevokeShareLink,
   onSaveIntel,
   onAddEntry,
+  stepsDirection,
+  stepsTransactionId,
   onMoveUp,
   onMoveDown,
   onAddOnward,
@@ -794,7 +849,7 @@ export function LinkCard({
   // The card's expand: onward summary + stub contact + notes + own-side chain
   // intel. Only offered when there's something to show. The body itself is the
   // shared ChainCardExpand (also used by the compact Map card).
-  const expandable = isChainCardExpandable(link);
+  const expandable = isChainCardExpandable(link) || !!stepsDirection;
   const [expanded, setExpanded] = useState(false);
 
   // Whole card toggles, but never when the tap lands on an interactive control
@@ -1133,7 +1188,7 @@ export function LinkCard({
               }}
             >
               <div style={{ overflow: "hidden", minHeight: 0 }}>
-                <ChainCardExpand link={link} onSaveIntel={onSaveIntel} onAddEntry={onAddEntry} />
+                <ChainCardExpand link={link} onSaveIntel={onSaveIntel} onAddEntry={onAddEntry} stepsDirection={stepsDirection} stepsTransactionId={stepsTransactionId} />
               </div>
             </div>
           </div>

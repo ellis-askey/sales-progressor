@@ -690,6 +690,17 @@ export function ChainView({
     if (link.position === ownChainLink.position + 1) return "related";
     return null;
   };
+  // Which node carries OUR onward/related step tracker (gqu39v) — the sale
+  // directly above (onward purchase) or below (related sale) our own, in our
+  // ladder. Unlike chaseDirForLink this isn't gated to stubs-with-email: the
+  // tracker exists keyed to our file regardless of how the neighbour is held.
+  const stepsDirForLink = (link: ChainV2["links"][number]): "onward" | "related" | null => {
+    if (!ownChainLink) return null;
+    if ((link.branchKey ?? "") !== (ownChainLink.branchKey ?? "")) return null;
+    if (link.position === ownChainLink.position - 1) return "onward";
+    if (link.position === ownChainLink.position + 1) return "related";
+    return null;
+  };
   const [chaseNeighbour, setChaseNeighbour] = useState<{ direction: NeighbourChaseDirection; address: string | null } | null>(null);
 
   // Panel rows with per-row capabilities (edit / remove / reorder / chase /
@@ -758,7 +769,7 @@ export function ChainView({
       canAddOnward: (isInternal || canAddAbove(l, currentUserId, currentUserRole)) && onwardsAbove(l).length < MAX_ONWARDS,
       canUploadPhoto: l.transactionId == null && canEdit,
       chaseDir: chaseDirForLink(l),
-      expand: isChainCardExpandable(l) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} onAddEntry={handleAddEntry} /> : null,
+      expand: (isChainCardExpandable(l) || stepsDirForLink(l)) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} onAddEntry={handleAddEntry} stepsDirection={stepsDirForLink(l) ?? undefined} stepsTransactionId={transactionId} /> : null,
       // Hover "+" in the gap ABOVE this card: only where there's a sale directly
       // above in the SAME ladder (a real adjacent pair — a fork boundary isn't an
       // insertion point). Anchors to this (lower) card, placement "above".
@@ -878,6 +889,8 @@ export function ChainView({
         }
         onSaveIntel={handleSaveIntel}
         onAddEntry={handleAddEntry}
+        stepsDirection={stepsDirForLink(link) ?? undefined}
+        stepsTransactionId={transactionId}
         onMoveUp={opts.onMoveUp}
         onMoveDown={opts.onMoveDown}
         onAddOnward={opts.onAddOnward}
