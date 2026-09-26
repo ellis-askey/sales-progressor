@@ -247,6 +247,16 @@ export async function logEnquiryMovement(args: {
           },
     }),
   ]);
+
+  // A court flip changes whether the PM20 "enquiries satisfied" chase may run
+  // (#63): defers it while the ball is with the seller, un-defers it once full
+  // replies land with the buyer. Recompute this file's reminders so the change
+  // lands immediately. Dynamic import avoids a static cycle with the engine.
+  if (flips) {
+    import("@/lib/services/reminders")
+      .then((m) => m.evaluateTransactionReminders(args.transactionId))
+      .catch(() => {});
+  }
   return true;
 }
 

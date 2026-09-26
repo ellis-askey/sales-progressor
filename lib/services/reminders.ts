@@ -13,6 +13,7 @@ import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confi
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { ENQUIRY_SATISFIED_CODE, enquirySatisfiedChaseAllowed, enquirySatisfiedDeferUntil, type EnquirySatisfiedGate } from "@/lib/enquiries/satisfied-gate";
 
 // Pass 3 B7 — vendor milestone codes whose state is reset to "incomplete"
 // at relist (see RELIST_RESET_VM_CODES in app/actions/transactions.ts —
@@ -744,6 +745,30 @@ export async function evaluateTransactionReminders(
   today.setUTCHours(0, 0, 0, 0);
   const todayUKStr = toUKDateStr(today);
 
+  // Enquiry-satisfied gate (#63): the PM20 "all enquiries satisfied" chase must
+  // never come due while the ball is in the seller's court. Load the tracker
+  // once; used below to defer PM20's nextDueDate until the gate opens. A court
+  // flip re-triggers this engine (logEnquiryMovement), so the defer recomputes
+  // the moment the seller's full replies land.
+  const enquiryGate: EnquirySatisfiedGate | null = await (async () => {
+    const t = await prisma.enquiryTracker.findUnique({
+      where: { transactionId },
+      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, closedAt: true },
+    });
+    if (!t || t.closedAt) return null;
+    const flip = await prisma.enquiryMovement.findFirst({
+      where: { tracker: { transactionId }, flipsCourtTo: "buyer_solicitor" },
+      orderBy: { occurredAt: "desc" },
+      select: { occurredAt: true },
+    });
+    return {
+      currentlyWith: t.currentlyWith as EnquirySatisfiedGate["currentlyWith"],
+      openedAt: t.openedAt,
+      flipToBuyerAt: flip?.occurredAt ?? t.lastMovementAt ?? null,
+    };
+  })();
+  const enquirySatisfiedAllowed = enquirySatisfiedChaseAllowed(enquiryGate, today);
+
   // ── Phase 4 perceived-performance (2026-09-18, PERF-08) ──────────────────
   // Per-rule read batching. The loop below used to issue up to three
   // findFirst reads per rule across two key families — "this rule's active
@@ -968,6 +993,15 @@ export async function evaluateTransactionReminders(
     const createdFloor = existingLog?.createdAt ?? new Date();
     if (firstDueDate.getTime() < createdFloor.getTime()) {
       firstDueDate = setUkChaseTime(createdFloor);
+    }
+
+    // #63: hold the "enquiries satisfied" (PM20) chase until the tracker says the
+    // ball is with the buyer's solicitor AND the timeframes have passed (3 weeks
+    // since raised, 5 working days since full replies landed). Defer nextDueDate
+    // so every surface + the client-chase cron keep it out of the "due" bucket;
+    // the court-flip trigger recomputes this the moment replies come in.
+    if (rule.targetMilestoneCode === ENQUIRY_SATISFIED_CODE && !enquirySatisfiedAllowed) {
+      firstDueDate = setUkChaseTime(enquirySatisfiedDeferUntil(enquiryGate, today));
     }
 
     // Wake snoozed-but-elapsed logs in-line. Previously a snoozed log only
