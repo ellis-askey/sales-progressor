@@ -31,6 +31,7 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildOnwardNudgeEmail, type OnwardNudgeDirection, type OnwardNudgeMode } from "@/lib/emails/onward-nudge";
+import { resolveOnwardNudgeContent } from "@/lib/agency-email/templates";
 
 function revalidateTx(id: string) {
   revalidatePath(`/transactions/${id}`, "page");
@@ -369,6 +370,8 @@ export async function sendOnwardNudgeAction(input: {
   const portalUrl = `${base}/portal/${contact.portalToken}`;
   const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id);
   const emailTheme = theme ?? resolveEmailTheme(null);
+  // Agency-editable copy (onward_nudge family) → built-in default per field.
+  const copy = await resolveOnwardNudgeContent(tx.agencyId, input.direction, input.mode);
 
   const { subject, text, html } = buildOnwardNudgeEmail({
     agencyName: tx.agency?.name ?? "your agent",
@@ -378,6 +381,7 @@ export async function sendOnwardNudgeAction(input: {
     propertyAddress: tracker?.relatedPropertyAddress ?? null,
     portalUrl,
     theme: { buttonBg: emailTheme.buttonBg, buttonText: emailTheme.buttonText },
+    copy,
   });
 
   try {

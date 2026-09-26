@@ -18,6 +18,12 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import {
+  onwardNudgeDefaultCopy,
+  type OnwardNudgeCopy,
+  type OnwardNudgeDirection,
+  type OnwardNudgeMode,
+} from "@/lib/emails/onward-nudge";
 
 export type Editor = { id: string; name: string; email: string };
 
@@ -254,6 +260,66 @@ export async function resolveWeeklyUpdateContent(agencyId: string | null): Promi
   return platform ? coalesceWeeklyUpdate(platform) : WEEKLY_UPDATE_DEFAULT;
 }
 
+// ─── Onward / related nudge (h3xwf6) ──────────────────────────────────────────
+// One family, four variants: {onward,related} × {setup,update}. Editable pieces
+// are subject/lead/body/cta (the noun is woven in code-side). Defaults come from
+// the built-in builder copy so a file with no override renders identically.
+
+export type OnwardNudgeContent = OnwardNudgeCopy;
+
+const ONWARD_NUDGE_VARIANTS = ["onward_setup", "onward_update", "related_setup", "related_update"] as const;
+type OnwardNudgeVariant = (typeof ONWARD_NUDGE_VARIANTS)[number];
+
+function parseNudgeVariant(variant: string): { direction: OnwardNudgeDirection; mode: OnwardNudgeMode } {
+  const direction: OnwardNudgeDirection = variant.startsWith("related") ? "related" : "onward";
+  const mode: OnwardNudgeMode = variant.endsWith("update") ? "update" : "setup";
+  return { direction, mode };
+}
+
+function onwardNudgeDefaultFor(variant: string): OnwardNudgeContent {
+  const { direction, mode } = parseNudgeVariant(variant);
+  return onwardNudgeDefaultCopy(direction, mode);
+}
+
+function coalesceOnwardNudge(raw: unknown): OnwardNudgeContent {
+  const c = (raw ?? {}) as Partial<OnwardNudgeContent>;
+  return {
+    subject: typeof c.subject === "string" ? c.subject : "",
+    lead: typeof c.lead === "string" ? c.lead : "",
+    body: typeof c.body === "string" ? c.body : "",
+    cta: typeof c.cta === "string" ? c.cta : "",
+  };
+}
+
+function validateOnwardNudge(raw: unknown): OnwardNudgeContent | null {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  for (const k of ["subject", "lead", "body", "cta"]) {
+    if (c[k] !== undefined && typeof c[k] !== "string") return null;
+  }
+  return {
+    subject: typeof c.subject === "string" ? c.subject.trim() : "",
+    lead: typeof c.lead === "string" ? c.lead.trim() : "",
+    body: typeof c.body === "string" ? c.body.trim() : "",
+    cta: typeof c.cta === "string" ? c.cta.trim() : "",
+  };
+}
+
+// Send-path resolver: agency override → platform default → built-in copy.
+// Returns the editable pieces; the builder falls back per-field for empty ones.
+export async function resolveOnwardNudgeContent(
+  agencyId: string | null,
+  direction: OnwardNudgeDirection,
+  mode: OnwardNudgeMode,
+): Promise<OnwardNudgeContent> {
+  const variant = `${direction}_${mode}`;
+  if (agencyId) {
+    const raw = await getRow(agencyId, "onward_nudge", variant);
+    if (raw) return coalesceOnwardNudge(raw);
+  }
+  const platform = await getPlatformRow("onward_nudge", variant);
+  return platform ? coalesceOnwardNudge(platform) : onwardNudgeDefaultFor(variant);
+}
+
 // ─── Generic storage ──────────────────────────────────────────────────────────
 
 async function getRow(agencyId: string, templateKey: string, variant: string): Promise<unknown | null> {
@@ -348,6 +414,12 @@ export const TEMPLATE_FAMILIES: Record<string, FamilyDef> = {
     defaultFor: () => WEEKLY_UPDATE_DEFAULT,
     coalesce: (_v, raw) => coalesceWeeklyUpdate(raw),
     validate: (_v, raw) => validateWeeklyUpdate(raw),
+  },
+  onward_nudge: {
+    variants: [...ONWARD_NUDGE_VARIANTS],
+    defaultFor: (v) => onwardNudgeDefaultFor(v),
+    coalesce: (_v, raw) => coalesceOnwardNudge(raw),
+    validate: (_v, raw) => validateOnwardNudge(raw),
   },
 };
 

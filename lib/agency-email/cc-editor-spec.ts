@@ -15,6 +15,13 @@ const COMPLETION_FIELDS: TemplateFieldSpec[] = [
   { key: "bullets", label: "What to expect on completion day", kind: "list" },
 ];
 
+const ONWARD_NUDGE_FIELDS: TemplateFieldSpec[] = [
+  { key: "subject", label: "Subject", kind: "text", hint: "Leave blank to use the default subject." },
+  { key: "lead", label: "Opening line", kind: "textarea", hint: "The first line under the greeting. The property address is woven in when we have it." },
+  { key: "body", label: "Body", kind: "textarea", hint: "The paragraph above the button." },
+  { key: "cta", label: "Button label", kind: "text", hint: "e.g. Set up my onward purchase." },
+];
+
 export const CC_EMAIL_TEMPLATES: CcTemplateSpec[] = [
   {
     key: "completion_pack",
@@ -93,6 +100,17 @@ export const CC_EMAIL_TEMPLATES: CcTemplateSpec[] = [
           { key: "closing", label: "Closing line", kind: "textarea", hint: "Optional." },
         ],
       },
+    ],
+  },
+  {
+    key: "onward_nudge",
+    label: "Onward / related nudge",
+    blurb: "Sent when you ask a client to set up or update their other move in their portal. Onward is for a seller buying on; related is for a buyer who is also selling.",
+    variants: [
+      { templateKey: "onward_nudge", variant: "onward_setup", label: "Onward purchase, set up", fields: ONWARD_NUDGE_FIELDS },
+      { templateKey: "onward_nudge", variant: "onward_update", label: "Onward purchase, update", fields: ONWARD_NUDGE_FIELDS },
+      { templateKey: "onward_nudge", variant: "related_setup", label: "Related sale, set up", fields: ONWARD_NUDGE_FIELDS },
+      { templateKey: "onward_nudge", variant: "related_update", label: "Related sale, update", fields: ONWARD_NUDGE_FIELDS },
     ],
   },
 ];

@@ -8,12 +8,13 @@
 // "not sending yet" note (its send trigger lands in a follow-up).
 
 import { useState } from "react";
-import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, CaretRight } from "@phosphor-icons/react";
+import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight } from "@phosphor-icons/react";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { CompletionPackEditor } from "./CompletionPackEditor";
 import { ExchangeDayClientEditor } from "./ExchangeDayClientEditor";
 import { ClientChaseEditor } from "./ClientChaseEditor";
 import { WeeklyUpdateEditor } from "./WeeklyUpdateEditor";
+import { OnwardNudgeEditor } from "./OnwardNudgeEditor";
 
 type Row = {
   key: string;
@@ -55,6 +56,14 @@ const ROWS: Row[] = [
     title: "Weekly update",
     subtitle: "Keeps clients informed when a sale has been quiet.",
     render: () => <WeeklyUpdateEditor />,
+  },
+  {
+    key: "onward_nudge",
+    Icon: LinkSimple,
+    title: "Onward / related nudge",
+    subtitle: "Asks a client to set up or update their other move in their portal.",
+    pills: ["Onward", "Related"],
+    render: () => <OnwardNudgeEditor />,
   },
   {
     key: "post_completion",

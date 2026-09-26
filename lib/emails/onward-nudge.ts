@@ -12,7 +12,12 @@
 export type OnwardNudgeDirection = "onward" | "related";
 export type OnwardNudgeMode = "setup" | "update";
 
-type Copy = { subject: string; lead: string; body: string; cta: string; noun: string };
+// The agency-editable pieces of a nudge (noun stays code-side — it's woven into
+// prose, not free text). Matches the onward_nudge template family in
+// lib/agency-email/templates.ts.
+export type OnwardNudgeCopy = { subject: string; lead: string; body: string; cta: string };
+
+type Copy = OnwardNudgeCopy & { noun: string };
 
 // noun = how we name their other move in prose ("onward purchase" / "sale").
 const COPY: Record<`${OnwardNudgeDirection}_${OnwardNudgeMode}`, Copy> = {
@@ -46,6 +51,13 @@ const COPY: Record<`${OnwardNudgeDirection}_${OnwardNudgeMode}`, Copy> = {
   },
 };
 
+// The built-in default copy for a variant (noun dropped — see OnwardNudgeCopy).
+// The onward_nudge template family seeds its platform defaults from here.
+export function onwardNudgeDefaultCopy(direction: OnwardNudgeDirection, mode: OnwardNudgeMode): OnwardNudgeCopy {
+  const { subject, lead, body, cta } = COPY[`${direction}_${mode}`];
+  return { subject, lead, body, cta };
+}
+
 export function buildOnwardNudgeEmail(opts: {
   agencyName: string;
   greeting: string; // e.g. "Good morning Neil,"
@@ -54,9 +66,19 @@ export function buildOnwardNudgeEmail(opts: {
   propertyAddress?: string | null; // the onward/related property, when known
   portalUrl: string; // deep-link to the portal onward panel
   theme: { buttonBg: string; buttonText: string };
+  // Agency override (from resolveOnwardNudgeContent). Each field wins only when
+  // non-empty, else the built-in default for the variant applies.
+  copy?: Partial<OnwardNudgeCopy>;
 }): { subject: string; text: string; html: string } {
-  const { agencyName, greeting, direction, mode, propertyAddress, portalUrl, theme } = opts;
-  const c = COPY[`${direction}_${mode}`];
+  const { agencyName, greeting, direction, mode, propertyAddress, portalUrl, theme, copy } = opts;
+  const base = COPY[`${direction}_${mode}`];
+  const c: Copy = {
+    noun: base.noun,
+    subject: copy?.subject?.trim() || base.subject,
+    lead: copy?.lead?.trim() || base.lead,
+    body: copy?.body?.trim() || base.body,
+    cta: copy?.cta?.trim() || base.cta,
+  };
   const nounWithAddr = propertyAddress ? `${c.noun} at ${propertyAddress}` : c.noun;
   // Weave the address into the lead's first mention of the noun, when we have it.
   const lead = propertyAddress ? c.lead.replace(c.noun, nounWithAddr) : c.lead;

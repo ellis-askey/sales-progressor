@@ -44,6 +44,7 @@ import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "@/lib/enquiries/
 import { buildExchangeDayClientMorningEmail, buildExchangeDayClientAuthorityEmail } from "@/lib/exchange-day/emails";
 import { buildPortalMessage } from "@/lib/emails/portal-message";
 import { buildClientUpdateEmail } from "@/lib/emails/client-update-email";
+import { buildOnwardNudgeEmail } from "@/lib/emails/onward-nudge";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { buildChaseSignatureHtml, buildChaseSignatureText } from "@/lib/email/chase-signature";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
@@ -302,6 +303,46 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
         theme: catalogueTheme(s.theme),
       }),
     }),
+  },
+  {
+    id: "onward-nudge-setup",
+    category: "client",
+    name: "Onward / related nudge — set up",
+    description: "Asks a client to set up tracking of their other move in their portal. Onward for a seller buying on; related for a buyer who is also selling.",
+    trigger: "An agent presses \"Ask [client] to set it up\" on the chain card.",
+    axes: ["side", "theme"],
+    senderKind: "client_personal",
+    signatureBehaviour: "none",
+    render: (s) =>
+      buildOnwardNudgeEmail({
+        agencyName: FIXTURE_AGENCY.name,
+        greeting: greeting(s.side),
+        direction: s.side === "vendor" ? "onward" : "related",
+        mode: "setup",
+        propertyAddress: FIXTURE_PROPERTY.address,
+        portalUrl: PORTAL,
+        theme: catalogueTheme(s.theme),
+      }),
+  },
+  {
+    id: "onward-nudge-update",
+    category: "client",
+    name: "Onward / related nudge — update",
+    description: "Asks a client to update where their other move is up to, once tracking is live.",
+    trigger: "An agent presses \"Ask [client] to update it\" in the tracker menu.",
+    axes: ["side", "theme"],
+    senderKind: "client_personal",
+    signatureBehaviour: "none",
+    render: (s) =>
+      buildOnwardNudgeEmail({
+        agencyName: FIXTURE_AGENCY.name,
+        greeting: greeting(s.side),
+        direction: s.side === "vendor" ? "onward" : "related",
+        mode: "update",
+        propertyAddress: FIXTURE_PROPERTY.address,
+        portalUrl: PORTAL,
+        theme: catalogueTheme(s.theme),
+      }),
   },
   {
     id: "ready-to-exchange",
