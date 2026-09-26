@@ -264,19 +264,10 @@ function SolicitorTile({
       ? `mailto:${info.contact.email}${ccParam ? `?${ccParam.replace(/&$/, "")}` : ""}`
       : null;
 
-  const tileWrapperStyle: React.CSSProperties = {
-    border: "0.5px solid var(--agent-border-default)",
-    borderRadius: 12,
-    background: "var(--agent-surface-nested)",
-    overflow: "hidden",
-    // Expand to full width when editing so the picker + save row fit.
-    gridColumn: editing || exiting ? "1 / -1" : "auto",
-  };
-
   // Empty row - no firm assigned yet (roster-style, matches ContactsSection)
   if (!info.firm && !editing && !exiting) {
     return (
-      <div style={tileWrapperStyle}>
+      <div className="people-item">
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px" }}>
           {briefcaseIcon ? (
             <span aria-hidden style={{ width: 40, height: 40, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--agent-text-secondary)" }}>
@@ -302,7 +293,7 @@ function SolicitorTile({
   }
 
   return (
-    <div className="agent-hover-row" style={tileWrapperStyle}>
+    <div className="agent-hover-row people-item">
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
@@ -594,12 +585,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           Clients and Professionals read identically in the People card. When
           onlySide is set, only that side's tile renders. .people-rows makes
           this a size container so tiles restack on narrow cards (phones). */}
-      <div className="people-rows" style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        padding: hideHeader ? "0" : 12,
-      }}>
+      <div className="people-rows" style={hideHeader ? { padding: 0 } : undefined}>
         {onlySide !== "purchaser" && (
         <SolicitorTile
           transactionId={transactionId}

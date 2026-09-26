@@ -1334,7 +1334,7 @@
    * anywhere the card renders), the identity takes the full first line (name +
    * pill wrap free, the number shows in full) and the chevron + comms buttons
    * drop to a bottom row: chevron left, buttons right. */
-  .people-rows { container-type: inline-size; }
+  .people-rows { container-type: inline-size; display: flex; flex-direction: column; }
   .people-row { display: flex; align-items: center; gap: 10px; }
   .people-row-main {
     display: flex; align-items: center; gap: 11px; flex: 1 1 0; min-width: 0;
@@ -1356,6 +1356,26 @@
     /* Identity + dot + chevron stay together on the first line; only the
        comms buttons drop to a bottom row, right-aligned. */
     .people-row-actions { flex-basis: 100%; justify-content: flex-end; }
+  }
+
+  /* People list — Clients (ContactsSection) + Professionals (SolicitorSection)
+   * share these so they read identically. Tablet/mobile: flush full-bleed rows
+   * with hairline separators. Desktop: separate cards with gaps. Keyed on the
+   * VIEWPORT (not the container): when the file's right rail drops below at
+   * tablet the card actually gets WIDER, so a container query would invert this.
+   * .people-item is each row/tile wrapper (also carries agent-hover-row). */
+  @media (max-width: 1023px) {
+    .people-rows { padding: 4px 0 12px; }
+    .people-item + .people-item { border-top: 0.5px solid var(--agent-border-default); }
+  }
+  @media (min-width: 1024px) {
+    .people-rows { padding: 12px; gap: 10px; }
+    .people-item {
+      border: 0.5px solid var(--agent-border-default);
+      border-radius: 12px;
+      background: var(--agent-surface-nested);
+      overflow: hidden;
+    }
   }
 
   /* MilestoneTimelineStrip — stage circles + action buttons.

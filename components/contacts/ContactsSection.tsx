@@ -948,8 +948,8 @@ export function ContactsSection({
       {/* Contact cards, stacked full-width. .people-rows makes this wrapper a
           size container so the rows can restack on narrow cards (phones). */}
       {sortedContacts.length > 0 && (
-        <div className="people-rows" style={{ padding: "4px 0 12px" }}>
-          {sortedContacts.map((contact, idx) => {
+        <div className="people-rows">
+          {sortedContacts.map((contact) => {
             const role = contact.roleType as ContactRole;
             const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
@@ -971,8 +971,7 @@ export function ContactsSection({
             return (
               <div
                 key={contact.id}
-                className="agent-hover-row"
-                style={{ borderTop: idx > 0 ? "0.5px solid var(--agent-border-default)" : undefined }}
+                className="agent-hover-row people-item"
               >
                 {!isEditing && !isExiting && (
                   <>
