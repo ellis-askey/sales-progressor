@@ -778,7 +778,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             iconName="bank"
             headerTone="warning"
             title="Mortgage offers expiring"
-            subtitle={mortgage.length === 1 ? "1 client mortgage offer is nearing its expiry." : `${mortgage.length} client mortgage offers are nearing their expiry.`}
+            subtitle="Client mortgage offers nearing their expiry."
             rows={buildMortgageRows(mortgage, photoMap)}
             defaultCollapsed={startCollapsed}
           />
@@ -786,7 +786,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
       )}
       {needsFiling.length > 0 && (
         <SectionReveal order={1}>
-          <NeedsFilingCard rows={needsFiling} />
+          <NeedsFilingCard rows={needsFiling} defaultCollapsed={startCollapsed} />
         </SectionReveal>
       )}
       {reviewsDue.length > 0 && (
@@ -801,7 +801,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             iconName="clock"
             headerTone="muted"
             title="Gone quiet"
-            subtitle={goneQuiet.length === 1 ? "1 file has gone quiet and may need a personal nudge." : `${goneQuiet.length} files have gone quiet and may need a personal nudge.`}
+            subtitle="Quiet for a while and may need a personal nudge."
             rows={buildGoneQuietRows(goneQuiet, photoMap)}
             defaultCollapsed={startCollapsed}
           />

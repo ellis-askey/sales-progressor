@@ -591,6 +591,12 @@ body {
 .hub-addr:hover { color: var(--agent-coral, #FF6B4A) !important; }
 .hub-thumb-link { display: inline-flex; flex-shrink: 0; border-radius: 10px; transition: opacity 150ms ease; }
 .hub-thumb-link:hover { opacity: 0.88; }
+/* Hovering the property picture warms the address's first line too, matching the
+   hover you get on the address itself. Thumb + address are separate sibling
+   links per row; .attn-thumb is the AttentionCard's picture link, .hub-thumb-link
+   every other hub card's. !important beats the inline base colour on the link. */
+.hub-thumb-link:hover ~ div .hub-addr,
+.attn-thumb:hover ~ .attn-addr .hub-addr { color: var(--agent-coral, #FF6B4A) !important; }
 
 /* Client-portal settings preview: card lifts on hover (opens the real modal).
    !important so it wins over agent-app button:hover resets (agent-system.css

@@ -29,10 +29,22 @@ function fmtShortDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function passedLine(item: Item): string {
-  if (!item.exchangeDate) return "The expected exchange date has passed.";
+// Split into the two halves so the mobile relayout can stack them (no dot)
+// beside the button; desktop rejoins them with the dot under the address.
+function passedParts(item: Item): { date: string | null; past: string } {
+  if (!item.exchangeDate) return { date: null, past: "The expected exchange date has passed." };
   const days = Math.max(1, Math.floor((Date.now() - new Date(item.exchangeDate).getTime()) / 86400000));
-  return `Expected to exchange ${fmtShortDate(item.exchangeDate)} · ${days} ${days === 1 ? "day" : "days"} past`;
+  return { date: `Expected to exchange ${fmtShortDate(item.exchangeDate)}`, past: `${days} ${days === 1 ? "day" : "days"} past` };
+}
+
+// First line + town/postcode (last two comma parts), matching the hub's other
+// address splits. Kept inline per the grandfathered per-component pattern.
+function splitAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length <= 1) return { line: address, location: "" };
+  const line = parts.slice(0, -2).join(", ") || parts[0];
+  const location = parts.slice(-2).join(", ");
+  return { line, location };
 }
 
 export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) {
@@ -60,10 +72,14 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
           <NotePencil size={24} weight="bold" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          {/* No count badge: the subtitle already opens with the number. */}
-          <span className="agent-card-title-emphasis" style={{ display: "block", margin: 0 }}>Exchange dates passed</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Exchange dates passed</span>
+            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(var(--agent-warning-rgb),0.14)", color: "var(--agent-warning)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {items.length}
+            </span>
+          </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            {items.length === 1 ? "1 file is past its expected exchange date" : `${items.length} files are past their expected exchange dates`}. Set a new date, recalibrate the estimate, or snooze while you chase.
+            Past their expected exchange date. Set a new date, recalibrate the estimate, or snooze while you chase.
           </span>
         </span>
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
@@ -88,20 +104,37 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
                     <Link
                       href={`/agent/transactions/${item.transaction.id}`}
                       className="hub-addr"
-                      style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
                     >
-                      {item.transaction.propertyAddress}
+                      {/* Desktop: full address on one line. Mobile (≤450px): first
+                          line + town/postcode stacked (CSS toggles the spans). */}
+                      <span className="hub-addr-full">{item.transaction.propertyAddress}</span>
+                      {(() => { const a = splitAddress(item.transaction.propertyAddress); return (<>
+                        <span className="hub-addr-line">{a.line}</span>
+                        {a.location && <span className="hub-addr-loc">{a.location}</span>}
+                      </>); })()}
                     </Link>
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {passedLine(item)}
+                    {/* Desktop meta: under the address, dot-joined. */}
+                    <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {(() => { const m = passedParts(item); return m.date ? `${m.date} · ${m.past}` : m.past; })()}
                     </p>
                   </div>
-                  <div style={{ marginLeft: "auto", flexShrink: 0 }}>
-                    <ExchangeOverdueActions
-                      transactionId={item.transaction.id}
-                      address={item.transaction.propertyAddress}
-                      onDone={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
-                    />
+                  <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* Mobile meta: the displaced context line, stacked (no dot),
+                        sitting to the left of the button. Hidden on desktop. */}
+                    {(() => { const m = passedParts(item); return (
+                      <span className="hub-r-meta-m" style={{ fontSize: 11, color: "var(--agent-text-secondary)", minWidth: 0 }}>
+                        {m.date && <span>{m.date}</span>}
+                        <span>{m.past}</span>
+                      </span>
+                    ); })()}
+                    <div className="hub-r-actions" style={{ flexShrink: 0 }}>
+                      <ExchangeOverdueActions
+                        transactionId={item.transaction.id}
+                        address={item.transaction.propertyAddress}
+                        onDone={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

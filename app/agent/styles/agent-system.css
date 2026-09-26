@@ -4476,6 +4476,29 @@ body[data-demo-file] [data-onboarding-checklist] {
   .attn-row.attn-collapsed .attn-actions { display: none; }
 }
 
+/* Hub property-row cards — mobile relayout (≤450px). The single-line address
+   splits into first-line + town/postcode subtext; the context line the
+   town/postcode displaces drops beneath it, stacked (no dot), beside the action
+   button. Desktop keeps the one-line address with the context line under it.
+   Shared classes so the same treatment applies across the property-row cards
+   (Exchange dates passed / Surveys / Mortgage / Gone quiet / Files to review /
+   Enquiries gone quiet). The first line inherits the address link's hover coral;
+   the town/postcode carries its own muted colour so it stays muted on hover. */
+.hub-addr-full { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-addr-line, .hub-addr-loc, .hub-r-meta-m { display: none; }
+@media (max-width: 450px) {
+  .hub-addr-full, .hub-r-meta-d { display: none; }
+  .hub-addr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hub-addr-loc { display: block; font-size: 11px; font-weight: 400; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+  .hub-r-tail { width: 100%; margin-left: 0 !important; }
+  .hub-r-meta-m { display: flex; flex-direction: column; line-height: 1.35; flex: 1; min-width: 0; }
+  .hub-r-meta-m > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hub-r-tail > .hub-r-actions { margin-left: auto; }
+  /* Secondary context line (e.g. HubListCard's "Near exchange" chip): the pill +
+     relocated primary line already carry the urgency on a phone, so hide it. */
+  .hub-r-hide-m { display: none; }
+}
+
 /* Chase drawer — signature-style menu options lift on hover (note 4). */
 .chase-sig-opt { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
 .chase-sig-opt:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -10px rgba(0,0,0,.35); }

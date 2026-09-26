@@ -13,7 +13,7 @@
 // email in one tap. Single emails render exactly as before.
 
 import { useState, useTransition } from "react";
-import { EnvelopeSimple, ArrowDown, ArrowUp, Check, X, Envelope } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Check, X, Envelope, CaretDown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
@@ -94,11 +94,14 @@ function groupThreads(rows: PendingInboundRow[]): Thread[] {
   });
 }
 
-export function NeedsFilingCard({ rows }: { rows: PendingInboundRow[] }) {
+export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: PendingInboundRow[]; defaultCollapsed?: boolean }) {
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  // Matches the other triage cards' clutter rule: start collapsed when more than
+  // one card is on show (header + count stay visible). See hub-view TriageCardsSlot.
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const visible = rows.filter((r) => !removed.has(r.id));
   if (visible.length === 0) return null;
@@ -155,16 +158,39 @@ export function NeedsFilingCard({ rows }: { rows: PendingInboundRow[] }) {
   };
 
   return (
-    <GlassCard glassId="hub-needs-filing" label="Hub · Needs filing" defaultVariant="v05" style={{ padding: "14px 16px", borderRadius: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <EnvelopeSimple size={16} weight="fill" style={{ color: "var(--agent-coral-deep)" }} />
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Needs filing</h3>
-        <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-          {visible.length} email{visible.length === 1 ? "" : "s"} to place on a file
+    <GlassCard glassId="hub-attention" label="Hub · Needs filing" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      {/* Header — full-width toggle, matching the other hub cards: icon at 24/bold,
+          title with the count as a subtitle beneath, chevron, click-anywhere collapse. */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
+        className="agent-hover-ctl"
+        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
+      >
+        <span aria-hidden style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Envelope size={24} weight="bold" />
         </span>
-      </div>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Needs filing</span>
+            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {visible.length}
+            </span>
+          </span>
+          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
+            Emails to place on a file.
+          </span>
+        </span>
+        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
+          <CaretDown size={14} weight="bold" />
+        </span>
+      </button>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Collapsible body — same accordion as the other hub cards */}
+      <div className={`agent-acc${collapsed ? "" : " open"}`}>
+        <div className="agent-acc-in">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 16px 14px" }}>
         {threads.map((t) => {
           const multi = t.rows.length > 1;
           const r = t.latest;
@@ -264,6 +290,8 @@ export function NeedsFilingCard({ rows }: { rows: PendingInboundRow[] }) {
             </div>
           );
         })}
+          </div>
+        </div>
       </div>
     </GlassCard>
   );

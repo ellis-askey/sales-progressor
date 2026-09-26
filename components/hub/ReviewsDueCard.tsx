@@ -36,6 +36,23 @@ type Item = ReviewItem & { photoUrl: string | null };
 
 const INITIAL_VISIBLE = 6;
 
+// First line + town/postcode (last two comma parts). Inline per the grandfathered
+// per-component pattern shared across the hub cards.
+function splitAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length <= 1) return { line: address, location: "" };
+  const line = parts.slice(0, -2).join(", ") || parts[0];
+  const location = parts.slice(-2).join(", ");
+  return { line, location };
+}
+
+// Split a "X · Y" context line into halves for the mobile stack; no separator
+// stays a single part.
+function splitOnDot(s: string): string[] {
+  const i = s.indexOf(" · ");
+  return i === -1 ? [s] : [s.slice(0, i), s.slice(i + 3)];
+}
+
 const ORIGIN_PILL: Record<ReviewOrigin, { label: string; tone: "warning" | "info" | "brand" }> = {
   hold: { label: "On hold", tone: "warning" },
   chain_wait: { label: "Chain wait", tone: "info" },
@@ -168,6 +185,8 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
               const isHold = item.kind === "hold";
               const pill = isHold ? ORIGIN_PILL[item.origin] : { label: "Review", tone: "info" as const };
               const headline = item.address ?? (item.kind === "manual" ? item.title : "");
+              // Only split real addresses — a manual task's title isn't comma-structured.
+              const addr = item.address ? splitAddress(item.address) : null;
               const sub = isHold
                 ? `${dueBackLabel(item.reviewDate)}${item.reason ? ` · ${item.reason}` : ""}${item.placedByName ? ` · Placed by ${item.placedByName}` : ""}`
                 : `${dueBackLabel(item.reviewDate)}${item.address ? ` · ${item.title}` : ""}${item.kind === "manual" && item.notes ? ` · ${item.notes}` : ""}`;
@@ -190,9 +209,13 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                           <Link
                             href={`/agent/transactions/${item.transactionId}`}
                             className="hub-addr"
-                            style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
                           >
-                            {headline}
+                            {addr ? (<>
+                              <span className="hub-addr-full">{headline}</span>
+                              <span className="hub-addr-line">{addr.line}</span>
+                              {addr.location && <span className="hub-addr-loc">{addr.location}</span>}
+                            </>) : headline}
                           </Link>
                         ) : (
                           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -201,13 +224,17 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                         )}
                         <Pill glass tone={pill.tone} size="md" style={{ flexShrink: 0 }}>{pill.label}</Pill>
                       </div>
-                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {sub}
                       </p>
                     </div>
 
+                    <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="hub-r-meta-m" style={{ fontSize: 11, color: "var(--agent-text-secondary)" }}>
+                      {splitOnDot(sub).map((p, k) => <span key={k}>{p}</span>)}
+                    </span>
                     {dateFor === item.key ? (
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginLeft: "auto", flexShrink: 0 }}>
+                      <div className="hub-r-actions" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flexShrink: 0 }}>
                         <DateField
                           value={dateDraft}
                           onChange={(e) => setDateDraft(e.target.value)}
@@ -235,7 +262,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                         <button onClick={() => setDateFor(null)} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
                       </div>
                     ) : (
-                      <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
+                      <div className="hub-r-actions" style={{ display: "inline-flex", flexShrink: 0 }}>
                         {isHold ? (
                           <button
                             type="button"
@@ -336,6 +363,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                         />
                       </div>
                     )}
+                    </div>
                   </div>
                 </div>
               );

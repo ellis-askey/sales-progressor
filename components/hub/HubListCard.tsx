@@ -49,6 +49,23 @@ const TONE: Record<HubRowTone, { accent: string; bg: string; iconBg: string; col
 
 const ICONS = { clock: Clock, bank: Bank } as const;
 
+// First line + town/postcode (last two comma parts). Inline per the grandfathered
+// per-component pattern shared across the hub cards.
+function splitAddress(address: string): { line: string; location: string } {
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length <= 1) return { line: address, location: "" };
+  const line = parts.slice(0, -2).join(", ") || parts[0];
+  const location = parts.slice(-2).join(", ");
+  return { line, location };
+}
+
+// Split a "X · Y" context line into its halves for the mobile stack; a line
+// without the separator stays a single part.
+function splitOnDot(s: string): string[] {
+  const i = s.indexOf(" · ");
+  return i === -1 ? [s] : [s.slice(0, i), s.slice(i + 3)];
+}
+
 const INITIAL_VISIBLE = 6;
 
 export function HubListCard({
@@ -116,6 +133,9 @@ export function HubListCard({
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="agent-card-title-emphasis" style={{ margin: 0 }}>{title}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: ht.iconBg, color: ht.color, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {rows.length}
+            </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{subtitle}</span>
         </span>
@@ -143,8 +163,12 @@ export function HubListCard({
                   </Link>
                   <div style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Link href={row.href} unstable_dynamicOnHover className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {row.address}
+                      <Link href={row.href} unstable_dynamicOnHover className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}>
+                        <span className="hub-addr-full">{row.address}</span>
+                        {(() => { const a = splitAddress(row.address); return (<>
+                          <span className="hub-addr-line">{a.line}</span>
+                          {a.location && <span className="hub-addr-loc">{a.location}</span>}
+                        </>); })()}
                       </Link>
                       {row.pillLabel && (
                         <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
@@ -152,26 +176,31 @@ export function HubListCard({
                         </Pill>
                       )}
                     </div>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {row.subtext}
                     </p>
                     {row.meta && (
-                      <p style={{ margin: "3px 0 0", fontSize: 11, color: row.metaTone === "warning" ? "var(--agent-warning)" : "var(--agent-text-muted)", fontWeight: row.metaTone === "warning" ? 600 : 400 }}>
+                      <p className="hub-r-hide-m" style={{ margin: "3px 0 0", fontSize: 11, color: row.metaTone === "warning" ? "var(--agent-warning)" : "var(--agent-text-muted)", fontWeight: row.metaTone === "warning" ? 600 : 400 }}>
                         {row.meta}
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => dismiss(row)}
-                    disabled={busyId === row.transactionId}
-                    className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: "auto" }}
-                    title="Hide this for 2 weeks. It comes back if it still applies."
-                  >
-                    <X size={12} weight="bold" />
-                    Dismiss
-                  </button>
+                  <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
+                      {splitOnDot(row.subtext).map((part, k) => <span key={k}>{part}</span>)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => dismiss(row)}
+                      disabled={busyId === row.transactionId}
+                      className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+                      title="Hide this for 2 weeks. It comes back if it still applies."
+                    >
+                      <X size={12} weight="bold" />
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
               );
             })}
