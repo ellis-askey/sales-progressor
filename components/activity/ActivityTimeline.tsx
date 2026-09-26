@@ -910,6 +910,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-eye { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; font-family:inherit; font-size:12px; font-weight:600; color:var(--agent-text-muted); background:none; border:1px solid var(--agent-border-default); border-radius:999px; padding:5px 11px; cursor:pointer; transition:border-color .14s ease, color .14s ease; }
         .act-eye:hover { border-color:var(--agent-coral); color:var(--agent-text-primary); }
         .act-eye[data-on="true"] { border-color:var(--agent-coral-deep); color:var(--agent-coral-deep); }
+        .act-eye-short { display:none; }
+        @media (max-width: 560px) {
+          .act-eye-full { display:none; }
+          .act-eye-short { display:inline; }
+        }
         .act-scope-menu { position:absolute; top:calc(100% + 8px); left:0; z-index:60; min-width:196px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; }
         .act-mi { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:8px 9px; border-radius:9px; border:none; background:none; font-family:inherit; font-size:13.5px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
         .act-mi:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
@@ -958,7 +963,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
             aria-pressed={showPortalVisits}
           >
             {showPortalVisits ? <Eye size={14} weight="regular" /> : <EyeSlash size={14} weight="regular" />}
-            Portal visits{showPortalVisits ? "" : ` · ${portalViewCount}`}
+            {/* Short labels on narrow screens free up the search bar. */}
+            <span className="act-eye-full">Portal visits</span>
+            <span className="act-eye-short">{showPortalVisits ? "Portal" : "Visits"}</span>
+            {showPortalVisits ? "" : ` · ${portalViewCount}`}
           </button>
         )}
       </div>
