@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   getChainForTransactionV2,
+  getChainTabPayload,
   createChainV2,
   // Legacy functions kept for _legacy/ widget backward compat
   getChainForTransaction,
@@ -11,7 +12,6 @@ import {
   upsertChainLink,
 } from "@/lib/services/chains";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { canViewChain } from "@/lib/chain/permissions";
 
 // GET /api/chains?transactionId=... — fetch chain for a transaction (v2)
 export async function GET(req: NextRequest) {
@@ -28,93 +28,23 @@ export async function GET(req: NextRequest) {
   });
   if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Try v2 chain first (canonical chainLinkId); fall back to legacy.
-  // session.user.id flows through so stuckMilestoneLabel is populated only
-  // on the viewer's own link (privacy: full detail for self, summary only
-  // for other links).
-  // Viewer context for the own-side chain-node intel gate (lib/chain/intel.ts):
-  // intel is surfaced only to internal staff + the node's owning agency, and the
-  // per-link canEditIntel flag drives the card's edit affordance.
-  const chain = await getChainForTransactionV2(transactionId, session.user.id, {
+  // Try v2 chain first (canonical chainLinkId); fall back to legacy. The whole
+  // payload (chain + notAParticipant gate + pending notifications + per-link
+  // directional badge state) is built by getChainTabPayload — shared with the
+  // Chain tab's server-side seed so the two can't drift. Viewer context flows
+  // through for the own-side intel gate + self-only stuckMilestoneLabel.
+  const payload = await getChainTabPayload(transactionId, {
     userId: session.user.id,
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
     scope,
   });
-  if (chain) {
-    const allLinks = chain.links.map((l) => ({
-      claimedByUserId: l.claimedByUserId,
-      createdByUserId: l.createdByUserId,
-      txAgencyId: l.transaction?.agencyId ?? null,
-    }));
-    // 2026-07-14: pass role so internal staff (admin / superadmin /
-    // sales_progressor) bypass the participant check. Everyone else stays
-    // gated by membership.
-    //
-    // 2026-09-14: pass the viewer's agencyId so the whole owning agency
-    // (director + negotiators) sees the chain, not only the individual who
-    // built or claimed the link.
-    //
-    // When gated out we now surface an explicit flag so the drawer can
-    // render "This file is in a chain" honest copy instead of the "No
-    // chain yet + Create" empty state — the latter was misleading (chain
-    // does exist) AND set up a double-create trap that immediately errored
-    // with "Transaction already in a chain".
-    if (!canViewChain(allLinks, session.user.id, session.user.role, session.user.agencyId ?? null)) {
-      return NextResponse.json({ chain: null, notAParticipant: true });
-    }
-
-    // Cascade-notification augmentation: per-link directional state for badges
-    // + this user's pending notifications for the respond UI.
-    const allNotifications = await prisma.chainNotificationQueue.findMany({
-      where: { chainId: chain.id },
-      select: {
-        id: true,
-        recipientLinkId: true,
-        recipientUserId: true,
-        type: true,
-        direction: true,
-        triggeringLinkId: true,
-        response: true,
-        respondedAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // For each link, find the most-recent responded notification per direction.
-    // The link's existing `withdrawalStatus = 'WITHDRAWN'` is terminal and
-    // overrides per-direction state.
-    const directional: Record<string, { upward: string | null; downward: string | null }> = {};
-    for (const link of chain.links) {
-      const upward = allNotifications.find(
-        (n) => n.recipientLinkId === link.id && n.direction === "UPWARD" && n.response,
-      );
-      const downward = allNotifications.find(
-        (n) => n.recipientLinkId === link.id && n.direction === "DOWNWARD" && n.response,
-      );
-      directional[link.id] = {
-        upward: upward?.response ?? null,
-        downward: downward?.response ?? null,
-      };
-    }
-
-    const pendingNotifications = allNotifications
-      .filter((n) => n.recipientUserId === session.user.id && !n.response)
-      .map((n) => ({
-        id: n.id,
-        type: n.type,
-        direction: n.direction,
-        triggeringLinkId: n.triggeringLinkId,
-        createdAt: n.createdAt,
-      }));
-
-    return NextResponse.json({ chain, pendingNotifications, directional });
+  // chain=null + not gated out → no v2 chain: fall back to a legacy chain.
+  if (!payload.chain && !payload.notAParticipant) {
+    const legacyChain = await getChainForTransaction(transactionId);
+    return NextResponse.json({ chain: legacyChain });
   }
-
-  // Fallback: legacy chain (no permission check required — same agency)
-  const legacyChain = await getChainForTransaction(transactionId);
-  return NextResponse.json({ chain: legacyChain });
+  return NextResponse.json(payload);
 }
 
 // POST /api/chains — create a new chain for the current transaction

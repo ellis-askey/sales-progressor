@@ -22,6 +22,7 @@ import {
   type ChainNodeOwnership,
 } from "@/lib/chain/intel";
 import { getChainLinkStatus, type ChainLinkStatusKind } from "@/lib/chain/status";
+import { canViewChain } from "@/lib/chain/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 1 commit 4d — chains.ts disposition.
@@ -887,6 +888,58 @@ export async function getChainForTransactionV2(
   });
   if (!txn?.chainLink) return null;
   return getChainV2(txn.chainLink.chainId, viewerUserId, viewer);
+}
+
+// The full payload the Chain tab needs on first render: the chain, whether the
+// viewer is gated out (notAParticipant), this viewer's pending cascade
+// notifications, and per-link directional response state for badges. This is
+// exactly what GET /api/chains returns for the v2 path — extracted so the Chain
+// tab can render it SERVER-side on navigation (no client fetch + second
+// skeleton, ij13f6) while the API route and ChainView's live refetch reuse the
+// same logic. chain=null with notAParticipant=false means "no v2 chain" (the
+// caller may fall back to a legacy chain).
+export type ChainTabPayload = {
+  chain: ChainV2 | null;
+  notAParticipant: boolean;
+  pendingNotifications: { id: string; type: string; direction: string; triggeringLinkId: string | null; createdAt: Date }[];
+  directional: Record<string, { upward: string | null; downward: string | null }>;
+};
+
+export async function getChainTabPayload(transactionId: string, viewer: IntelViewer): Promise<ChainTabPayload> {
+  const empty = { pendingNotifications: [] as ChainTabPayload["pendingNotifications"], directional: {} as ChainTabPayload["directional"] };
+  const chain = await getChainForTransactionV2(transactionId, viewer.userId, viewer);
+  if (!chain) return { chain: null, notAParticipant: false, ...empty };
+
+  const allLinks = chain.links.map((l) => ({
+    claimedByUserId: l.claimedByUserId,
+    createdByUserId: l.createdByUserId,
+    txAgencyId: l.transaction?.agencyId ?? null,
+  }));
+  if (!canViewChain(allLinks, viewer.userId, viewer.role, viewer.agencyId)) {
+    return { chain: null, notAParticipant: true, ...empty };
+  }
+
+  const allNotifications = await prisma.chainNotificationQueue.findMany({
+    where: { chainId: chain.id },
+    select: {
+      id: true, recipientLinkId: true, recipientUserId: true, type: true,
+      direction: true, triggeringLinkId: true, response: true, respondedAt: true, createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const directional: ChainTabPayload["directional"] = {};
+  for (const link of chain.links) {
+    const upward = allNotifications.find((n) => n.recipientLinkId === link.id && n.direction === "UPWARD" && n.response);
+    const downward = allNotifications.find((n) => n.recipientLinkId === link.id && n.direction === "DOWNWARD" && n.response);
+    directional[link.id] = { upward: upward?.response ?? null, downward: downward?.response ?? null };
+  }
+
+  const pendingNotifications = allNotifications
+    .filter((n) => n.recipientUserId === viewer.userId && !n.response)
+    .map((n) => ({ id: n.id, type: n.type, direction: n.direction, triggeringLinkId: n.triggeringLinkId, createdAt: n.createdAt }));
+
+  return { chain, notAParticipant: false, pendingNotifications, directional };
 }
 
 // Count of neighbours in this file's chain that could be invited but haven't

@@ -11,7 +11,7 @@ import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { saveChainIntelAction, addChainEntryAction } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
-import type { ChainV2 } from "@/lib/services/chains";
+import type { ChainV2, ChainTabPayload } from "@/lib/services/chains";
 import { computeChainSummary, formatChainValueShort, formatChainPriceFull } from "@/lib/chain/summary";
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
@@ -69,6 +69,11 @@ type ChainViewProps = {
   ) => void;
   declineNotification?: { address: string; at: string } | null;
   refreshKey?: number;
+  // Server-rendered first payload (ij13f6). When present, the chain renders
+  // immediately with no client fetch + second skeleton; live refetches (after a
+  // mutation, via refreshKey) still hit /api/chains. Absent in drawer mode,
+  // which fetches on open as before.
+  initialChainData?: ChainTabPayload | null;
 };
 
 function ChainIcon() {
@@ -216,6 +221,7 @@ export function ChainView({
   onOpenAddNode,
   declineNotification,
   refreshKey = 0,
+  initialChainData = null,
 }: ChainViewProps) {
   const inline = variant === "inline";
   const { theme, isNight } = usePortalTheme();
@@ -233,14 +239,15 @@ export function ChainView({
   }
   // Inline (tab) mode must not scroll-lock the page or hijack Escape.
   useOverlayChrome(doClose, !inline);
-  const [chain, setChain] = useState<ChainV2 | null>(null);
+  const [chain, setChain] = useState<ChainV2 | null>(initialChainData?.chain ?? null);
   // Timeline (the cards) vs Map (the geographic command centre). Drawer-only.
   const [view, setView] = useState<"timeline" | "map" | "activity">("timeline");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // Mobile: the panel is a bottom sheet — peek by default, tap the handle to open.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [notAParticipant, setNotAParticipant] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [notAParticipant, setNotAParticipant] = useState(initialChainData?.notAParticipant ?? false);
+  // Seeded server-side (inline tab) → not loading; drawer opens with a fetch.
+  const [loading, setLoading] = useState(initialChainData == null);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [declineDismissed, setDeclineDismissed] = useState(false);
   const [pendingNotifications, setPendingNotifications] = useState<Array<{
@@ -291,8 +298,11 @@ export function ChainView({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { toast } = useAgentToast();
 
-  const seenLinkIds = useRef<Set<string>>(new Set());
-  const firstLoad = useRef(true);
+  // Seeded server-side (inline tab): pre-fill the seen-link set + mark past the
+  // first load so the background reconcile fetch neither shows a skeleton nor
+  // flags the seeded links as "new".
+  const seenLinkIds = useRef<Set<string>>(new Set(initialChainData?.chain?.links.map((l) => l.id) ?? []));
+  const firstLoad = useRef(initialChainData?.chain == null);
   const [newLinkIds, setNewLinkIds] = useState<Set<string>>(new Set());
   // Local bump for the activity feed (added to the parent's refreshKey) so a
   // neighbour chase refetches the feed in place without needing a reopen.
@@ -301,7 +311,9 @@ export function ChainView({
   const router = useRouter();
 
   const fetchChain = useCallback(async () => {
-    setLoading(true);
+    // Only show the skeleton when we have nothing yet (first load, drawer mode).
+    // Seeded inline tabs + refetches after a mutation reconcile silently.
+    if (firstLoad.current) setLoading(true);
     try {
       const res = await fetch(`/api/chains?transactionId=${transactionId}`);
       const data = await res.json();

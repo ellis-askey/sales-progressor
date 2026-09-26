@@ -5,12 +5,18 @@
 // mounts, and because each tab is its own route segment the content remounts on
 // navigation, so it replays every time you switch tabs. Respects reduced-motion.
 //
-// It also closes the tab-switch timing loop: FileTabsChrome stamps the click
-// moment on window.__tspTabNavStart; on mount here (content painted) we report
-// the delta to the Ellis-only TabTimingBadge so we can see the REAL click→
-// content time on prod, not a guess.
+// It also closes the tab-switch timing loop (Ellis-only TabTimingBadge):
+//   - a tab SWITCH: FileTabsChrome stamps the click on window.__tspTabNavStart;
+//     on mount here we report the delta (click → content painted).
+//   - the INITIAL landing (hard load into a file): the first TabEnter mount in a
+//     fresh page context reports performance.now() (~ms since navigation start),
+//     so the Overview/landing time is measurable too, not just swaps.
 
 import { useEffect } from "react";
+
+// Module scope: persists across SPA navigations, resets on a hard load. Ensures
+// the "initial load" number is reported once, for the tab you actually land on.
+let reportedInitial = false;
 
 export function TabEnter({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -19,7 +25,10 @@ export function TabEnter({ children }: { children: React.ReactNode }) {
     const start = w.__tspTabNavStart;
     if (start) {
       w.__tspTabNavStart = 0;
-      window.dispatchEvent(new CustomEvent("tsp-tab-painted", { detail: Math.round(performance.now() - start) }));
+      window.dispatchEvent(new CustomEvent("tsp-tab-painted", { detail: { ms: Math.round(performance.now() - start), kind: "switch" } }));
+    } else if (!reportedInitial) {
+      reportedInitial = true;
+      window.dispatchEvent(new CustomEvent("tsp-tab-painted", { detail: { ms: Math.round(performance.now()), kind: "load" } }));
     }
   }, []);
 

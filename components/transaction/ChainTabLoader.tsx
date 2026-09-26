@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ChainTabPanel } from "@/components/chain/ChainTabPanel";
+import type { ChainTabPayload } from "@/lib/services/chains";
 
 // Async server wrapper for the property-file Chain tab. Streams under Suspense
 // like the other tab bodies. Its only server-side data is the viewer's chain
@@ -10,10 +11,12 @@ export async function ChainTabLoader({
   transactionId,
   currentUserId,
   currentUserRole,
+  initialChainData,
 }: {
   transactionId: string;
   currentUserId: string;
   currentUserRole?: string | null;
+  initialChainData?: ChainTabPayload | null;
 }) {
   const user = await prisma.user.findUnique({
     where: { id: currentUserId },
@@ -34,6 +37,7 @@ export async function ChainTabLoader({
       currentUserId={currentUserId}
       currentUserRole={currentUserRole}
       declineNotification={declineNotification}
+      initialChainData={initialChainData ?? null}
     />
   );
 }

@@ -9,15 +9,16 @@
 import { useEffect, useState } from "react";
 
 export function TabTimingBadge({ enabled }: { enabled: boolean }) {
-  const [ms, setMs] = useState<number | null>(null);
+  const [state, setState] = useState<{ ms: number; kind: "switch" | "load" } | null>(null);
   useEffect(() => {
     if (!enabled) return;
-    const handler = (e: Event) => setMs((e as CustomEvent).detail as number);
+    const handler = (e: Event) => setState((e as CustomEvent).detail as { ms: number; kind: "switch" | "load" });
     window.addEventListener("tsp-tab-painted", handler);
     return () => window.removeEventListener("tsp-tab-painted", handler);
   }, [enabled]);
 
-  if (!enabled || ms == null) return null;
+  if (!enabled || state == null) return null;
+  const { ms, kind } = state;
   const color = ms > 800 ? "#f87171" : ms > 300 ? "#fbbf24" : "#4ade80";
   return (
     <div
@@ -29,7 +30,7 @@ export function TabTimingBadge({ enabled }: { enabled: boolean }) {
         display: "flex", gap: 8, alignItems: "baseline", boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
       }}
     >
-      <span style={{ opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>tab switch</span>
+      <span style={{ opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{kind === "load" ? "file load" : "tab switch"}</span>
       <b style={{ color, fontVariantNumeric: "tabular-nums" }}>{ms}ms</b>
     </div>
   );
