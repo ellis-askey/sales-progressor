@@ -21,6 +21,8 @@ import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-s
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
+import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
+import { useSession } from "next-auth/react";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
@@ -37,6 +39,8 @@ type Props = {
     bookedSurveyorName?: string | null;
     completedByName?: string | null;
     confirmedByClientName?: string | null;
+    completedByImage?: string | null;
+    confirmedByClientImage?: string | null;
   };
   transactionId: string;
   onConfirmStart?: () => void;
@@ -117,6 +121,16 @@ function formatRelative(d: Date | null): string {
   return `${weeks}w ago`;
 }
 
+// "24 Sep 2026 at 9:52am" — date (shared formatter) + a compact 12h time.
+function fmtDateTime(d: Date | string | null): string {
+  if (!d) return "";
+  const time = new Date(d)
+    .toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true })
+    .replace(/\s/g, "")
+    .toLowerCase();
+  return `${formatDate(d)} at ${time}`;
+}
+
 export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames }: Props) {
   const { toast } = useAgentToast();
   // Steps-tab label with the real names filled in (firm + seller/buyer), falling
@@ -137,6 +151,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     }
   );
   const [loading, setLoading] = useState(false);
+  // Current user — for the instant an agent confirms, so the panel shows
+  // "Confirmed by {you}" straight away instead of waiting for the server refresh
+  // (killed the brief wrong-name flash). Server data reconciles it on refresh.
+  const { data: sessionData } = useSession();
+  const currentUserName = sessionData?.user?.name ?? null;
   const [error, setError] = useState<string | null>(null);
   const [showEventDate, setShowEventDate] = useState(false);
   const [eventDate, setEventDate] = useState("");
@@ -145,6 +164,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // from the branch? Ticked = keys from us; left unticked = straight to the
   // property. Drives the keys line and whether the diary email sends.
   const [keyCollection, setKeyCollection] = useState(false);
+  // PM9 no-quote route: capture the surveyor firm inline (no modal). Saved to
+  // transaction.bookedSurveyorName, which the completed panel then shows.
+  const [surveyorName, setSurveyorName] = useState("");
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
@@ -267,6 +289,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     if (loading) return; // double-submit guard — ack-scoped
     setShowEventDate(false);
     setDesktopValuation(false);
+    setSurveyorName("");
     setError(null);
 
     if (RECONCILIATION_CODES.has(def.code)) {
@@ -295,6 +318,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           milestoneDefinitionId: def.id,
           eventDate: eventDate || null,
           keyCollectionRequired: (isPM6 || isPM9) ? keyCollection : undefined,
+          surveyorName: isPM9 && surveyorName.trim() ? surveyorName.trim() : undefined,
         });
         // Prereq gate (2026-06-05): the action returns a structured failure
         // when the user clicks Confirm before a prereq has been committed
@@ -598,70 +622,75 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               )}
             </span>
           </p>
-          {isDone && detailsOpen && def.completion && (
+          {isDone && detailsOpen && (def.completion || isCompleted) && (
             <div
               className="agent-reveal-in"
               onClick={(e) => e.stopPropagation()}
               style={{ marginTop: 8, paddingTop: 8, borderTop: "0.5px solid var(--agent-border-default)" }}
             >
-              {/* Clean completed bar (mock): calendar · when · who, Undo right. */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <CalendarBlank size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "var(--agent-text-secondary)", minWidth: 0 }}>
-                  <span style={{ color: "var(--agent-text-muted)" }}>Completed </span>
-                  {formatDate(def.completion.completedAt)}
-                  <span style={{ color: "var(--agent-text-muted)" }}> · Confirmed by </span>
-                  {def.completion.confirmedByPortal
-                    ? (def.confirmedByClientName ?? "Client")
-                    : def.confirmedBySolicitorFirmName ?? def.completedByName ?? "Unknown"}
-                </span>
-                <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                  {(isPM6 || isPM9) && def.completion?.eventDate && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setError(null); setShowChangeDate(true); }}
-                      disabled={loading}
-                      className="agent-link agent-link-muted"
-                      style={{ fontSize: 11 }}
-                    >
-                      Change date
-                    </button>
-                  )}
-                  <button
-                    onClick={handleUndoClick}
-                    disabled={loading}
-                    className="agent-link agent-link-muted"
-                    style={{ fontSize: 11 }}
-                  >
-                    {loading ? "…" : "Undo"}
-                  </button>
-                </span>
-              </div>
-              {/* Extra detail kept below the bar only when it adds something
-                  (backdated event date, surveyor, out-of-order, or a portal /
-                  solicitor confirmation) — nothing lost, just not repeated. */}
-              {((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName || def.completion.outOfOrderCompletion || def.completion.confirmedByPortal || def.completion.confirmedBySolicitorFirmId) && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 7, fontSize: 11, color: "var(--agent-text-secondary)" }}>
+              {/* Confirmed-by header: avatar (photo, else role-coloured art) +
+                  full name, date & time beneath, channel pill + actions in a
+                  right column. Attribution resolves client → solicitor → agent,
+                  never "Unknown". With no server completion yet (the instant of
+                  confirm) it shows the current user, so there's no wrong-name flash. */}
+              {(() => {
+                const comp = def.completion;
+                const confirmer: { name: string; role: ActorRole; image: string | null; channel: "app" | "portal" | "sol" } =
+                  comp?.confirmedByPortal
+                    ? { name: def.confirmedByClientName ?? "the client", role: def.side === "vendor" ? "seller" : "buyer", image: def.confirmedByClientImage ?? null, channel: "portal" }
+                    : comp?.confirmedBySolicitorFirmId
+                    ? { name: def.confirmedBySolicitorFirmName ?? "the solicitor", role: "solicitor", image: null, channel: "sol" }
+                    : { name: def.completedByName ?? currentUserName ?? "your agency", role: "agent", image: def.completedByImage ?? null, channel: "app" };
+                const channelLabel = confirmer.channel === "portal" ? "Client portal" : confirmer.channel === "sol" ? "Solicitor" : "In-app";
+                const channelTone: "info" | "success" | "brand" = confirmer.channel === "portal" ? "info" : confirmer.channel === "sol" ? "success" : "brand";
+                return (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+                    <ActorAvatar name={confirmer.name} role={confirmer.role} image={confirmer.image} size={34} />
+                    <div style={{ minWidth: 0, flex: 1, paddingTop: 1 }}>
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
+                        <span style={{ color: "var(--agent-text-secondary)" }}>Confirmed by </span>
+                        <span style={{ fontWeight: 650 }}>{confirmer.name}</span>
+                      </p>
+                      <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-secondary)", display: "flex", alignItems: "center", gap: 5, fontVariantNumeric: "tabular-nums" }}>
+                        <CalendarBlank size={12} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+                        {comp?.completedAt ? fmtDateTime(comp.completedAt) : "just now"}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                      <Pill glass tone={channelTone} size="sm">{channelLabel}</Pill>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+                        {(isPM6 || isPM9) && comp?.eventDate && (
+                          <button onClick={(e) => { e.stopPropagation(); setError(null); setShowChangeDate(true); }} disabled={loading} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Change date</button>
+                        )}
+                        <button onClick={handleUndoClick} disabled={loading} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>{loading ? "…" : "Undo"}</button>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Fact grid — only what this step actually captured. */}
+              {def.completion && ((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName) && (
+                <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", margin: "13px 0 0", paddingTop: 12, borderTop: "0.5px solid var(--agent-border-default)" }}>
                   {def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt) && (
-                    <span><span style={{ color: "var(--agent-text-muted)" }}>Event date </span>{formatDate(def.completion.eventDate)}</span>
+                    <>
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{isPM9 ? "Survey date" : isPM6 ? "Valuation date" : "Event date"}</dt>
+                      <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{formatDate(def.completion.eventDate)}</dd>
+                    </>
                   )}
                   {def.bookedSurveyorName && (
-                    <span><span style={{ color: "var(--agent-text-muted)" }}>Surveyor </span>{def.bookedSurveyorName}</span>
+                    <>
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Surveyor</dt>
+                      <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.bookedSurveyorName}</dd>
+                    </>
                   )}
-                  {def.completion.outOfOrderCompletion && (
-                    <span style={{ color: "var(--agent-warning)" }}>An earlier step was reopened</span>
-                  )}
-                  {def.completion.confirmedByPortal && (
-                    <Pill glass tone="info" size="sm">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      Client confirmed
-                    </Pill>
-                  )}
-                  {def.completion.confirmedBySolicitorFirmId && (
-                    <Pill glass tone="success" size="sm">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      {def.confirmedBySolicitorFirmName ? `Confirmed by ${def.confirmedBySolicitorFirmName}` : "Solicitor confirmed"}
-                    </Pill>
-                  )}
+                </dl>
+              )}
+              {def.completion?.outOfOrderCompletion && (
+                <div style={{ marginTop: 12 }}>
+                  <Pill glass tone="warning" size="sm">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                    An earlier step was reopened
+                  </Pill>
                 </div>
               )}
             </div>
@@ -713,6 +742,22 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   wrapperStyle={{ display: "inline-block" }}
                 />
               </div>
+              {/* No-quote survey route: name the surveyor inline (optional), so
+                  it lands on the file without a modal. */}
+              {isPM9 && (
+                <div>
+                  <label className="block text-xs text-slate-900/50 mb-1">
+                    Surveyor / firm <span className="text-slate-900/35">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={surveyorName}
+                    onChange={(e) => setSurveyorName(e.target.value)}
+                    placeholder="e.g. RICS Surveyors Ltd"
+                    className="glass-input w-full px-2 py-1.5 text-sm"
+                  />
+                </div>
+              )}
               {!def.eventDateRequired && (
                 <p className="text-[10px] text-slate-900/50">
                   Defaults to today. Change it only if this step happened earlier.
@@ -742,7 +787,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     onChange={(e) => setKeyCollection(e.target.checked)}
                     className="rounded"
                   />
-                  {isPM6 ? "Valuer collecting keys from us" : "Surveyor collecting keys from us"}
+                  {isPM6 ? "Valuer collecting keys from the branch" : "Surveyor collecting keys from the branch"}
                 </label>
               )}
             </div>
@@ -776,7 +821,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   instead of dropping below it. Same handler. */}
               {showEventDate && (
                 <button
-                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); setKeyCollection(false); }}
+                  onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); setKeyCollection(false); setSurveyorName(""); }}
                   className="agent-link agent-link-muted"
                   style={{ fontSize: 12 }}
                 >

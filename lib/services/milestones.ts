@@ -231,6 +231,11 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // The side's client name(s) when the client confirmed via the portal. The
   // specific contact isn't stored, so this names the milestone's side.
   confirmedByClientName?: string | null;
+  // Avatar photos for the completed-step panel (null → role-coloured fallback
+  // art). Agent photo from the confirming User; client photo from the confirming
+  // Contact. Solicitor confirms have no photo (they render the id-card art).
+  completedByImage?: string | null;
+  confirmedByClientImage?: string | null;
 };
 
 export type MilestonesByTransaction = {
@@ -761,7 +766,7 @@ export async function getMilestonesForTransaction(
         activeBuyerRoundId: true,
         bookedSurveyorName: true,
         completionDate: true,
-        contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true } },
+        contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true, image: true } },
       },
     }),
     getMilestoneDefinitionsCached(),
@@ -822,13 +827,18 @@ export async function getMilestonesForTransaction(
       ? prisma.solicitorFirm.findMany({ where: { id: { in: firmIds } }, select: { id: true, name: true } })
       : Promise.resolve([] as { id: string; name: string }[]),
     userIds.length > 0
-      ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
-      : Promise.resolve([] as { id: string; name: string | null }[]),
+      ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, image: true } })
+      : Promise.resolve([] as { id: string; name: string | null; image: string | null }[]),
   ]);
   const firmNameById = new Map<string, string>();
   firms.forEach((f) => firmNameById.set(f.id, f.name));
   const userNameById = new Map<string, string>();
   users.forEach((u) => { if (u.name) userNameById.set(u.id, u.name); });
+  // Avatar photos for the completed-step panel — the confirming agent's User
+  // photo and the confirming client's Contact photo (null → the role-coloured
+  // fallback art renders instead). Solicitor firms have no photo.
+  const userImageById = new Map<string, string | null>();
+  users.forEach((u) => userImageById.set(u.id, u.image ?? null));
 
   // The surveyor the buyer booked (survey-booking loop) — fetched in Wave 1.
   const bookedSurveyorName = bookedSurveyorRow?.provider.name ?? transaction.bookedSurveyorName ?? null;
@@ -853,6 +863,9 @@ export async function getMilestonesForTransaction(
         completedByName: completion?.completedById
           ? userNameById.get(completion.completedById) ?? null
           : null,
+        completedByImage: completion?.completedById
+          ? userImageById.get(completion.completedById) ?? null
+          : null,
         confirmedByClientName: completion?.confirmedByPortal
           ? (() => {
               const fallback = def.side === "vendor" ? vendorClientName : purchaserClientName;
@@ -861,6 +874,9 @@ export async function getMilestonesForTransaction(
               if (c && !c.isPrincipal) return fallback ? `${c.name} on behalf of ${fallback}` : c.name;
               return c?.name ?? fallback;
             })()
+          : null,
+        confirmedByClientImage: completion?.confirmedByPortal && completion.confirmedByContactId
+          ? contactById.get(completion.confirmedByContactId)?.image ?? null
           : null,
         bookedSurveyorName: def.code === "PM9" ? bookedSurveyorName : null,
       };

@@ -68,6 +68,10 @@ export async function confirmMilestoneAction(input: {
   // the branch, false = straight to property. Left undefined for every other
   // step. Set by the agent/progressor confirming a booking directly.
   keyCollectionRequired?: boolean | null;
+  // PM9 no-quote route: the surveyor firm the buyer booked outside our network,
+  // captured inline on confirm (no modal). Saved to bookedSurveyorName so the
+  // completed-step panel can show it. Ignored for other steps.
+  surveyorName?: string | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -144,6 +148,15 @@ export async function confirmMilestoneAction(input: {
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
       keyCollectionRequired: input.keyCollectionRequired,
     }, ptx, { def: def ?? undefined, activeBuyerRoundId });
+
+    // PM9 no-quote route: persist the inline surveyor firm so the completed
+    // panel shows it (bookedSurveyorName is the "booked outside our network" slot).
+    if (def?.code === "PM9" && input.surveyorName) {
+      await ptx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { bookedSurveyorName: input.surveyorName },
+      });
+    }
 
     if (counterDefId) {
       const scope = forRound(activeBuyerRoundId, input.transactionId);
