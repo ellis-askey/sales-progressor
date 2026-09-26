@@ -2,6 +2,7 @@
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { FileSetupChecklist } from "@/components/transaction/FileSetupChecklist";
 import { getFileSetup } from "@/lib/services/file-setup";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -9,5 +10,5 @@ export default async function FileSetupTabPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const { transaction } = await loadFilePageContext(id);
   const fileSetup = await getFileSetup(transaction.id).catch(() => null);
-  return <FileSetupChecklist summary={fileSetup} />;
+  return <TabEnter><FileSetupChecklist summary={fileSetup} /></TabEnter>;
 }

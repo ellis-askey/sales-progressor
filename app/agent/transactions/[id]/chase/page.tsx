@@ -4,6 +4,7 @@
 import { notFound } from "next/navigation";
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { ChaseTimelinePanel } from "@/components/transaction/ChaseTimelinePanel";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -12,5 +13,5 @@ export default async function ChaseTabPage({ params }: { params: Promise<{ id: s
   const { session, transaction, isEllis } = await loadFilePageContext(id);
   const showChaseTimeline = isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
   if (!showChaseTimeline) notFound();
-  return <ChaseTimelinePanel transactionId={transaction.id} agencyId={session.user.agencyId} />;
+  return <TabEnter><ChaseTimelinePanel transactionId={transaction.id} agencyId={session.user.agencyId} /></TabEnter>;
 }

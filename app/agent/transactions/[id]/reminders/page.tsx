@@ -15,6 +15,7 @@ import { classifyReminder, countActionable } from "@/lib/reminders/classify";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -106,6 +107,7 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
   const hideChase = session.user.role === "admin";
 
   return (
+    <TabEnter>
     <div className="space-y-4">
       <TabBadgeReporter tabKey="reminders" count={actionable} />
       {statSegments.length > 0 && (
@@ -124,5 +126,6 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
         currentUserId={session.user.id}
       />
     </div>
+    </TabEnter>
   );
 }

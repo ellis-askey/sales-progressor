@@ -10,6 +10,7 @@ import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
 import { ClientMortgageExpiryCard } from "@/components/transaction/ClientMortgageExpiryCard";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -35,7 +36,7 @@ export default async function AgentTransactionOverviewPage({
   const { session, transaction, isInternalStaff, isDirectorRole, isEllis } = ctx;
 
   return (
-    <>
+    <TabEnter>
       <OverviewPanel
         transaction={transaction}
         agencyId={session.user.agencyId}
@@ -53,6 +54,6 @@ export default async function AgentTransactionOverviewPage({
       <div className="mt-5">
         <ClientMortgageExpiryCard transactionId={transaction.id} />
       </div>
-    </>
+    </TabEnter>
   );
 }

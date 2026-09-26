@@ -4,6 +4,7 @@
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { prisma } from "@/lib/prisma";
 import { ActivityPanel } from "@/components/transaction/ActivityPanel";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -35,20 +36,22 @@ export default async function ActivityTabPage({ params }: { params: Promise<{ id
   })();
 
   return (
-    <ActivityPanel
-      transactionId={transaction.id}
-      agencyId={session.user.agencyId}
-      isInternal={isInternalStaff}
-      isInternalStaff={isInternalStaff}
-      isProgressor={isProgressor}
-      isAdminRole={isAdminRole}
-      currentUserId={session.user.id}
-      currentUserName={session.user.name ?? ""}
-      currentUserRole={session.user.role ?? ""}
-      spSenderIdentity={spSenderIdentity}
-      contacts={transaction.contacts}
-      vendorSolicitor={transaction.vendorSolicitorContact ?? null}
-      purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
-    />
+    <TabEnter>
+      <ActivityPanel
+        transactionId={transaction.id}
+        agencyId={session.user.agencyId}
+        isInternal={isInternalStaff}
+        isInternalStaff={isInternalStaff}
+        isProgressor={isProgressor}
+        isAdminRole={isAdminRole}
+        currentUserId={session.user.id}
+        currentUserName={session.user.name ?? ""}
+        currentUserRole={session.user.role ?? ""}
+        spSenderIdentity={spSenderIdentity}
+        contacts={transaction.contacts}
+        vendorSolicitor={transaction.vendorSolicitorContact ?? null}
+        purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
+      />
+    </TabEnter>
   );
 }

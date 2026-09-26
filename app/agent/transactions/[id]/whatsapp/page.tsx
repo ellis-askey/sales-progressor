@@ -3,6 +3,7 @@
 import { notFound } from "next/navigation";
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { WhatsAppPanel } from "@/components/transaction/WhatsAppPanel";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -10,5 +11,5 @@ export default async function WhatsAppTabPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { session, transaction, isInternalTeam } = await loadFilePageContext(id);
   if (!isInternalTeam) notFound();
-  return <WhatsAppPanel transactionId={transaction.id} agencyId={session.user.agencyId} />;
+  return <TabEnter><WhatsAppPanel transactionId={transaction.id} agencyId={session.user.agencyId} /></TabEnter>;
 }

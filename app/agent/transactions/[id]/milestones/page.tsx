@@ -2,6 +2,7 @@
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
 import { buildPartyNameContext } from "@/lib/milestones/step-name";
+import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -17,12 +18,14 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
     transaction.activeBuyerRound?.id ?? null,
   );
   return (
-    <StepsPanel
-      transactionId={transaction.id}
-      agencyId={session.user.agencyId}
-      purchaseType={transaction.purchaseType ?? null}
-      buyerNames={transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)}
-      partyNames={partyNames}
-    />
+    <TabEnter>
+      <StepsPanel
+        transactionId={transaction.id}
+        agencyId={session.user.agencyId}
+        purchaseType={transaction.purchaseType ?? null}
+        buyerNames={transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)}
+        partyNames={partyNames}
+      />
+    </TabEnter>
   );
 }
