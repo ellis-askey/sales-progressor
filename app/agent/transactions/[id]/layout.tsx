@@ -59,6 +59,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
 import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
 import { ShellTimingBadge } from "@/components/transaction/ShellTimingBadge";
+import { TabTimingBadge } from "@/components/transaction/TabTimingBadge";
 
 // Note: unstable_dynamicStaleTime is a page-only segment config (Next rejects it
 // on layouts at build), so the 5-minute client-router reuse is set on each tab
@@ -309,6 +310,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       <ScrollTopOnFileChange id={transaction.id} />
       {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} items={_mark} />}
+      {isEllis && <TabTimingBadge enabled />}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
       <Suspense><MosConfirmedNotice /></Suspense>

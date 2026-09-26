@@ -56,6 +56,14 @@ type Props = {
 // The tab key that corresponds to the base (index) route.
 const OVERVIEW_KEY = "overview";
 
+// Tab-switch timing (ij13f6, Ellis-only badge). Stamp the click moment; the
+// destination's TabEnter reads it on mount to report click→content-painted ms.
+function markNavStart() {
+  if (typeof window !== "undefined") {
+    (window as unknown as { __tspTabNavStart?: number }).__tspTabNavStart = performance.now();
+  }
+}
+
 function hrefFor(basePath: string, key: string) {
   return key === OVERVIEW_KEY ? basePath : `${basePath}/${key}`;
 }
@@ -81,6 +89,7 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
   const setActiveTab = useCallback(
     (key: string) => {
       const target = tabs.find((t) => t.key === key) ? key : OVERVIEW_KEY;
+      markNavStart();
       router.push(hrefFor(basePath, target), { scroll: false });
     },
     [router, basePath, tabs],
@@ -108,21 +117,27 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
   );
 
   useEffect(() => {
-    prefetched.current = new Set();
-    const keys = tabs.map((t) => t.key);
+    // Re-runs on EVERY navigation (active changes), not just mount. A mutation's
+    // revalidatePath invalidates the whole file subtree in the client router
+    // cache, cooling every warmed tab — the reason warm tabs didn't stay warm in
+    // real use. Re-warming once you land on a tab refetches the others' payloads
+    // so the next switch is instant again. We skip the current tab (already here)
+    // and reset the dedup set so previously-warmed-but-now-cold tabs re-warm.
+    prefetched.current = new Set([hrefFor(basePath, active)]);
+    const keys = tabs.map((t) => t.key).filter((k) => k !== active);
     let i = 0;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const kick = () => {
       if (i >= keys.length) return;
       warm(keys[i]);
       i += 1;
-      timers.push(setTimeout(kick, 180)); // spaced so tabs warm one at a time
+      timers.push(setTimeout(kick, 150)); // spaced so tabs warm one at a time
     };
-    // Let the Overview settle first, then warm the rest off the critical path.
-    const start = setTimeout(kick, 400);
+    // Let the landed tab settle first, then warm the rest off the critical path.
+    const start = setTimeout(kick, 300);
     return () => { clearTimeout(start); timers.forEach(clearTimeout); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basePath, warm]);
+  }, [basePath, active, warm]);
 
   // Live badge overrides — a mounted panel can still bump its own count after an
   // action (e.g. dismissing a reminder). Seeded from the server-provided counts.
@@ -274,6 +289,7 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                     onMouseEnter={() => warm(tab.key)}
                     onFocus={() => warm(tab.key)}
                     onTouchStart={() => warm(tab.key)}
+                    onClick={markNavStart}
                     ref={(el) => { btnRefs.current[i] = el as unknown as HTMLButtonElement | null; }}
                     data-active={isActive ? "true" : undefined}
                     aria-selected={isActive}
