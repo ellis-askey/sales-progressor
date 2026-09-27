@@ -2,17 +2,19 @@
 //
 // Director-facing banner shown on /agent/hub when the agency has a failed
 // payment. Two visible states, mirroring lib/billing/payment-block.ts:
-//   - warning: payment failed, grace period still open. Soft amber.
-//   - blocked: 7 days elapsed, new file creation refused server-side. Red.
+//   - warning: payment failed, grace period still open (amber).
+//   - blocked: 7 days elapsed, new file creation refused server-side (red).
 //
 // Negotiators never see this — the parent page restricts rendering to
 // directors. (Negotiators don't see prices or billing at all per the locked
 // model.)
 //
-// Server component (no client state). On the hub it sits below the page
-// header, above the existing content.
+// Server component (no client state). Uses the shared "grouped inset" banner
+// material (critique #13) so it reads as one system with AgentBanner; it can't
+// use AgentBanner directly because its CTA is a navigation Link, not an onClick.
 
 import Link from "next/link";
+import { WarningOctagon, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { getPaymentBlockState } from "@/lib/billing/payment-block";
 
@@ -20,82 +22,55 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
   const state = await getPaymentBlockState(agencyId);
   if (state.kind === "ok") return null;
 
-  const isBlocked = state.kind === "blocked";
   const failedDate = state.paymentFailedAt.toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
   });
 
-  if (isBlocked) {
-    return (
-      <div
-        role="alert"
-        style={{
-          background: "#fef2f2",
-          border: "1px solid #fecaca",
-          borderLeft: "4px solid #dc2626",
-          borderRadius: 8,
-          padding: "14px 18px",
-          margin: "12px 0",
-          display: "flex",
-          gap: 16,
-          alignItems: "flex-start",
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "#991b1b" }}>
-            New file creation paused. Update your card.
-          </div>
-          <div style={{ fontSize: 13, color: "#7f1d1d", marginTop: 4, lineHeight: 1.5 }}>
-            A payment from {failedDate} hasn't been collected. Existing files keep running, but you can't add new sales until the card is updated.
-          </div>
-        </div>
-        <Link
-          href="/agent/account/billing#payment-method"
-          style={{
-            background: "#dc2626", color: "white", padding: "8px 14px",
-            borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none",
-            alignSelf: "center", whiteSpace: "nowrap",
-          }}
-        >
-          Update card <LinkArrow />
-        </Link>
-      </div>
-    );
-  }
+  const blocked = state.kind === "blocked";
+  const tint = blocked ? "var(--agent-danger)" : "var(--agent-warning)";
+  const title = blocked
+    ? "New file creation paused. Update your card."
+    : "A payment failed. Please update your card.";
+  const body = state.kind === "blocked"
+    ? `A payment from ${failedDate} hasn't been collected. Existing files keep running, but you can't add new sales until the card is updated.`
+    : `A payment from ${failedDate} didn't go through. We'll keep retrying. If it's not resolved by ${state.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, new file creation will be paused.`;
 
-  // warning state
-  const graceEndDate = state.gracePeriodEndsAt.toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "numeric",
-  });
   return (
     <div
       role="alert"
+      className="agent-reveal-in"
       style={{
-        background: "#fffbeb",
-        border: "1px solid #fde68a",
-        borderLeft: "4px solid #d97706",
-        borderRadius: 8,
-        padding: "14px 18px",
+        background: "var(--agent-banner-mat-bg, rgba(255,255,255,0.55))",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        border: "1px solid var(--agent-banner-mat-border, rgba(255,255,255,0.7))",
+        borderRadius: 18,
+        boxShadow:
+          "var(--agent-banner-mat-shadow, 0 10px 30px rgba(15,26,46,0.12)), inset 0 1px 0 var(--agent-banner-mat-highlight, rgba(255,255,255,0.4))",
+        padding: "15px 17px",
         margin: "12px 0",
         display: "flex",
-        gap: 16,
+        gap: 12,
         alignItems: "flex-start",
       }}
     >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: "#92400e" }}>
-          A payment failed. Please update your card.
-        </div>
-        <div style={{ fontSize: 13, color: "#78350f", marginTop: 4, lineHeight: 1.5 }}>
-          A payment from {failedDate} didn't go through. We'll keep retrying. If it's not resolved by {graceEndDate}, new file creation will be paused.
-        </div>
+      <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: tint, display: "flex" }}>
+        {blocked ? <WarningOctagon size={19} weight="fill" /> : <WarningCircle size={19} weight="fill" />}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+          {title}
+        </p>
+        <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
+          {body}
+        </p>
       </div>
       <Link
         href="/agent/account/billing#payment-method"
         style={{
-          background: "#d97706", color: "white", padding: "8px 14px",
-          borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none",
-          alignSelf: "center", whiteSpace: "nowrap",
+          flexShrink: 0, alignSelf: "center", whiteSpace: "nowrap",
+          fontSize: 12, fontWeight: 600, color: tint, textDecoration: "none",
+          display: "inline-flex", alignItems: "center", gap: 4,
         }}
       >
         Update card <LinkArrow />

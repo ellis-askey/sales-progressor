@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { WarningCircle } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/Button";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 
 function formatDate(iso: string): string {
@@ -33,32 +33,15 @@ export function ReviseExchangeBanner({
 
   return (
     <>
-      <div
-        role="status"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          marginBottom: 16,
-          borderRadius: 12,
-          border: "1px solid var(--agent-warning, #b45309)",
-          background: "rgba(245, 158, 11, 0.10)",
-        }}
-      >
-        <WarningCircle size={20} weight="fill" color="var(--agent-warning, #b45309)" style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-            The exchange date passed and this file has gone quiet
-          </p>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>
-            Expected {formatDate(passedDateIso)}. Give it a realistic new date.
-          </p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
-          Set a new date
-        </Button>
-      </div>
+      <AgentBanner
+        kind="warning"
+        icon={<WarningCircle size={19} weight="fill" />}
+        title="The exchange date passed and this file has gone quiet"
+        body={`Expected ${formatDate(passedDateIso)}. Give it a realistic new date.`}
+        action={{ label: "Set a new date →", onClick: () => setOpen(true) }}
+        actionPlacement="inline-responsive"
+        className="mb-4"
+      />
 
       {open && (
         <ReviseExchangeDateModal

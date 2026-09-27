@@ -6,12 +6,12 @@
 // so this is a soft, self-clearing heads-up rather than a gate: the moment both
 // ready-codes land, the parent stops rendering it.
 //
-// Deliberately glossier than the flat AgentBanner (founder ask). The elevated
-// chrome lives in .agent-xd-ready-* (app/agent/styles/agent-system.css) so it
-// stays theme-correct in light and dark. Copy grades to whichever side is
-// outstanding. See docs/active/exchange-day-SPEC.md (Decision A — gated).
+// Renders through the shared AgentBanner "grouped inset" material (critique #13)
+// so it reads as one system with every other alert. Copy grades to whichever
+// side is outstanding. See docs/active/exchange-day-SPEC.md (Decision A — gated).
 
 import { Handshake } from "@phosphor-icons/react/dist/ssr";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export function ExchangeDayReadyBanner({
   sellerReady,
@@ -40,14 +40,11 @@ export function ExchangeDayReadyBanner({
   }
 
   return (
-    <div className="agent-xd-ready-banner agent-reveal-in" role="status">
-      <span className="agent-xd-ready-icon" aria-hidden>
-        <Handshake size={17} weight="fill" />
-      </span>
-      <div className="agent-xd-ready-text">
-        <p className="agent-xd-ready-title">{title}</p>
-        <p className="agent-xd-ready-body">{body}</p>
-      </div>
-    </div>
+    <AgentBanner
+      kind="warning"
+      icon={<Handshake size={19} weight="fill" />}
+      title={title}
+      body={body}
+    />
   );
 }
