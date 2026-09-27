@@ -52,6 +52,21 @@ import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { MissingFeeRow } from "@/components/analytics/MissingFeeRow";
+// Completeness sweep additions (2026-09-19)
+import { ConfirmMilestoneDateModal } from "@/components/milestones/ConfirmMilestoneDateModal";
+import { ChangeBookingDateModal } from "@/components/milestones/ChangeBookingDateModal";
+import { AutoChasePreviewModal } from "@/components/reminders/AutoChasePreviewModal";
+import { AddClientEmailModal } from "@/components/reminders/AddClientEmailModal";
+import { ReachOutModal } from "@/components/todos/ReachOutModal";
+import { WhatsappGroupModal } from "@/components/contacts/WhatsappGroupModal";
+import { AddSolicitorModal } from "@/components/enquiries/AddSolicitorModal";
+import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
+import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
+import { AgentDocumentUpload } from "@/components/transaction/AgentDocumentUpload";
+import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
+import { WithdrawFileModal } from "@/components/transaction/WithdrawFileModal";
+import { ResumeFileModal } from "@/components/transaction/ResumeFileModal";
+import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 
 // ── Component prop-shape types (imported so fixtures match precisely) ─────────
 import type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
@@ -781,5 +796,346 @@ export const MODAL_ENTRIES: SheetEntry[] = [
     preview: "overlay",
     states: [{ id: "default", label: "Default" }],
     render: () => <FeedbackWidget />,
+  },
+
+  // ───────────────── Completeness sweep additions (2026-09-19) ─────────────────
+
+  {
+    id: "modal-confirm-milestone-date",
+    name: "Confirm milestone date",
+    type: "modal",
+    area: "Milestones",
+    usedIn: "Hub + reminders · confirm-step date prompt",
+    file: "components/milestones/ConfirmMilestoneDateModal.tsx",
+    componentName: "ConfirmMilestoneDateModal",
+    note: "The when-did-this-happen prompt for date-bearing steps. Confirm closes the inspector.",
+    preview: "overlay",
+    states: [
+      { id: "exchange", label: "Exchange (VM19)" },
+      { id: "completion", label: "Completion (PM27)" },
+    ],
+    render: (ctx) => (
+      <ConfirmMilestoneDateModal
+        open={ctx.open}
+        milestoneCode={ctx.stateId === "exchange" ? "VM19" : "PM27"}
+        milestoneName={ctx.stateId === "exchange" ? "Contracts exchanged" : "Purchase completed"}
+        onConfirm={() => ctx.onClose()}
+        onClose={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-change-booking-date",
+    name: "Change booking date",
+    type: "modal",
+    area: "Milestones",
+    usedIn: "Survey / valuation cards · move the date",
+    file: "components/milestones/ChangeBookingDateModal.tsx",
+    componentName: "ChangeBookingDateModal",
+    note: "Always-open date mover; states cover both nouns.",
+    preview: "overlay",
+    states: [
+      { id: "survey", label: "Survey" },
+      { id: "valuation", label: "Lender valuation" },
+    ],
+    render: (ctx) => (
+      <ChangeBookingDateModal
+        currentDate={DATE_TODAY}
+        noun={ctx.stateId === "valuation" ? "lender valuation" : "survey"}
+        saving={false}
+        onConfirm={() => ctx.onClose()}
+        onCancel={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-auto-chase-preview",
+    name: "Auto-chase email preview",
+    type: "modal",
+    area: "Reminders",
+    usedIn: "Work queue · View on an autopilot row",
+    file: "components/reminders/AutoChasePreviewModal.tsx",
+    componentName: "AutoChasePreviewModal",
+    note: "Loads its preview via a server action — the demo id surfaces the loading → error state (valid to inspect).",
+    preview: "overlay",
+    states: [
+      { id: "client", label: "Client pipeline" },
+      { id: "solicitor", label: "Solicitor pipeline" },
+    ],
+    render: (ctx) => (
+      <AutoChasePreviewModal
+        open={ctx.open}
+        onClose={ctx.onClose}
+        logId="demo-log-0000"
+        pipeline={ctx.stateId === "solicitor" ? "solicitor" : "client"}
+        transactionId={DEMO_TX_ID}
+        sendLabel="tomorrow at 10:30am"
+      />
+    ),
+  },
+  {
+    id: "modal-add-client-email",
+    name: "Add client email",
+    type: "modal",
+    area: "Reminders",
+    usedIn: "Work queue · chase blocked on a missing email",
+    file: "components/reminders/AddClientEmailModal.tsx",
+    componentName: "AddClientEmailModal",
+    note: "Save writes to a demo contact id and no-ops.",
+    preview: "overlay",
+    states: [
+      { id: "missing", label: "One contact missing an email" },
+      { id: "couple", label: "Couple, both missing" },
+    ],
+    render: (ctx) => (
+      <AddClientEmailModal
+        contacts={
+          ctx.stateId === "couple"
+            ? [
+                { id: "demo-c1", name: "Tom Whitfield", roleType: "purchaser", email: null },
+                { id: "demo-c2", name: "Rebecca Whitfield", roleType: "purchaser", email: null },
+              ]
+            : [
+                { id: "demo-c1", name: NAME, roleType: "purchaser", email: null },
+                { id: "demo-c2", name: "Tom Whitfield", roleType: "purchaser", email: "t.whitfield@example.com" },
+              ]
+        }
+        isBuyer
+        onClose={ctx.onClose}
+        onSaved={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-reach-out",
+    name: "Reach out to a quiet client",
+    type: "modal",
+    area: "To-do",
+    usedIn: "To-do · no-comms nudge",
+    file: "components/todos/ReachOutModal.tsx",
+    componentName: "ReachOutModal",
+    note: "Send targets a demo file and no-ops. States cover each channel's compose.",
+    preview: "overlay",
+    states: [
+      { id: "email", label: "Email" },
+      { id: "whatsapp", label: "WhatsApp" },
+      { id: "phone", label: "Phone log" },
+      { id: "portal", label: "Portal update" },
+    ],
+    render: (ctx) => (
+      <ReachOutModal
+        txId={DEMO_TX_ID}
+        address={ADDRESS}
+        side={{
+          side: "vendor",
+          name: NAME,
+          contactIds: ["demo-c1"],
+          primaryContactId: "demo-c1",
+          email: "priya.c@gmail.com",
+          phone: "07700 900111",
+          lastContactAt: null,
+          daysSince: 18,
+          drifting: true,
+        }}
+        initialChannel={(ctx.stateId as "email" | "whatsapp" | "phone" | "portal") ?? "email"}
+        onClose={ctx.onClose}
+        onSent={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-whatsapp-group",
+    name: "WhatsApp group",
+    type: "modal",
+    area: "Solicitors & contacts",
+    usedIn: "Contacts · WhatsApp group setup",
+    file: "components/contacts/WhatsappGroupModal.tsx",
+    componentName: "WhatsappGroupModal",
+    note: "Save writes the invite link to a demo file and no-ops.",
+    preview: "overlay",
+    states: [
+      { id: "empty", label: "No link yet" },
+      { id: "linked", label: "Link saved" },
+    ],
+    render: (ctx) => (
+      <WhatsappGroupModal
+        open={ctx.open}
+        onClose={ctx.onClose}
+        transactionId={DEMO_TX_ID}
+        address={ADDRESS}
+        contacts={[
+          { id: "demo-c1", name: NAME, phone: "07700 900111", roleType: "vendor" },
+          { id: "demo-c2", name: "Tom Whitfield", phone: "07700 900222", roleType: "purchaser" },
+          { id: "demo-c3", name: "Rebecca Whitfield", phone: null, roleType: "purchaser" },
+        ]}
+        currentInviteUrl={ctx.stateId === "linked" ? "https://chat.whatsapp.com/DemoInviteCode123" : null}
+      />
+    ),
+  },
+  {
+    id: "modal-add-solicitor",
+    name: "Add solicitor (enquiries)",
+    type: "modal",
+    area: "Enquiries",
+    usedIn: "Enquiries triage · add the missing solicitor",
+    file: "components/enquiries/AddSolicitorModal.tsx",
+    componentName: "AddSolicitorModal",
+    note: "Firm search reads live data (read-only); save targets a demo file and no-ops.",
+    preview: "overlay",
+    states: [
+      { id: "vendor", label: "Seller's side" },
+      { id: "purchaser", label: "Buyer's side" },
+    ],
+    render: (ctx) => (
+      <AddSolicitorModal
+        transactionId={DEMO_TX_ID}
+        side={ctx.stateId === "purchaser" ? "purchaser" : "vendor"}
+        onAdded={() => ctx.onClose()}
+        onClose={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-enquiry-log-sheet",
+    name: "Enquiry chase log sheet",
+    type: "modal",
+    area: "Enquiries",
+    usedIn: "Enquiries triage · log a call / email",
+    file: "components/enquiries/EnquiryLogSheet.tsx",
+    componentName: "EnquiryLogSheet",
+    note: "Centred popup on desktop, sheet on mobile. Submit hands back to the parent — wired to close.",
+    preview: "overlay",
+    states: [
+      { id: "phone", label: "Log a call" },
+      { id: "email", label: "Log an email" },
+    ],
+    render: (ctx) => (
+      <EnquiryLogSheet
+        mode={ctx.stateId === "email" ? "email" : "phone"}
+        transactionId={DEMO_TX_ID}
+        address={ADDRESS}
+        parties={[
+          { id: "vsol", label: FIRM, side: "vendor", kind: "solicitor" },
+          { id: "psol", label: LONG_FIRM, side: "purchaser", kind: "solicitor" },
+          { id: "demo-c1", label: NAME, side: "purchaser", kind: "client", contactId: "demo-c1", email: EMAIL },
+        ]}
+        defaultPartyId="vsol"
+        busy={false}
+        onSubmit={() => ctx.onClose()}
+        onClose={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-enquiry-email-preview",
+    name: "Enquiry email preview",
+    type: "modal",
+    area: "Enquiries",
+    usedIn: "Enquiries triage · sent-chase preview",
+    file: "components/enquiries/EnquiryEmailPreview.tsx",
+    componentName: "EnquiryEmailPreview",
+    note: "Fetches the sent message by id — the demo id surfaces the loading → error state (valid to inspect).",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default" }],
+    render: (ctx) => <EnquiryEmailPreview messageId="demo-msg-0000" onClose={ctx.onClose} />,
+  },
+  {
+    id: "modal-agent-document-upload",
+    name: "Add document",
+    type: "modal",
+    area: "Documents",
+    usedIn: "Property file · Documents tab",
+    file: "components/transaction/AgentDocumentUpload.tsx",
+    componentName: "AgentDocumentUpload",
+    note: "Renders the real Add-document trigger; click it to open the category → type → file modal. Upload posts to a demo file and no-ops.",
+    preview: "inline",
+    states: [{ id: "default", label: "Default" }],
+    render: () => <AgentDocumentUpload transactionId={DEMO_TX_ID} />,
+  },
+  {
+    id: "modal-trial-expired",
+    name: "Trial expired (add a card)",
+    type: "modal",
+    area: "Billing",
+    usedIn: "Hub + new sale · card-on-file guard",
+    file: "components/billing/TrialExpiredModal.tsx",
+    componentName: "TrialExpiredModal",
+    note: "Multi-step: intro → terms → card → success. The card step will error against the demo Stripe key — inspect intro/terms.",
+    preview: "overlay",
+    states: [
+      { id: "new-sale", label: "From new sale (intro first)" },
+      { id: "hub", label: "From hub (straight to terms)" },
+    ],
+    render: (ctx) => (
+      <TrialExpiredModal
+        publishableKey="pk_test_demo_0000000000000000"
+        source={ctx.stateId === "hub" ? "hub" : "new-sale"}
+        onClose={ctx.onClose}
+        termsAcknowledged={false}
+        termsVersionId="demo-terms-0000"
+        termsVersionTag="2026-08-payments-v6"
+        termsSections={[
+          { heading: "The fee", body: "£59 per self-managed sale, charged on exchange. Outsourced files are charged on the published sliding scale." },
+          { heading: "When you're charged", body: "Nothing is taken until a sale exchanges. Withdrawn and fallen-through files are never charged." },
+        ]}
+      />
+    ),
+  },
+  {
+    id: "modal-withdraw-file",
+    name: "Withdraw file",
+    type: "modal",
+    area: "Property file",
+    usedIn: "File status control + hub Files-to-review",
+    file: "components/transaction/WithdrawFileModal.tsx",
+    componentName: "WithdrawFileModal",
+    note: "The shared structured withdraw flow (reason cards + optional detail). Confirm closes the inspector.",
+    preview: "overlay",
+    states: [
+      { id: "solo", label: "Not in a chain" },
+      { id: "chain", label: "In a chain", hint: "shows the cascade explainer" },
+    ],
+    render: (ctx) => (
+      <WithdrawFileModal
+        inChain={ctx.stateId === "chain"}
+        onCancel={ctx.onClose}
+        onConfirm={() => ctx.onClose()}
+      />
+    ),
+  },
+  {
+    id: "modal-resume-file",
+    name: "Take off hold (resume chooser)",
+    type: "modal",
+    area: "Property file",
+    usedIn: "Hub Files-to-review · Take off hold",
+    file: "components/transaction/ResumeFileModal.tsx",
+    componentName: "ResumeFileModal",
+    note: "Two-option chooser: resume automation vs reactivate with emails paused.",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default" }],
+    render: (ctx) => (
+      <ResumeFileModal address={ADDRESS} onCancel={ctx.onClose} onResume={() => ctx.onClose()} />
+    ),
+  },
+  {
+    id: "modal-revise-exchange-date",
+    name: "Revise exchange date",
+    type: "modal",
+    area: "Property file",
+    usedIn: "File banner + hub Exchange-dates-passed",
+    file: "components/transaction/ReviseExchangeDateModal.tsx",
+    componentName: "ReviseExchangeDateModal",
+    note: "The shared revise modal with the spoken-to-both-parties hard gate. Save targets a demo file and no-ops.",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default" }],
+    render: (ctx) => (
+      <ReviseExchangeDateModal
+        transactionId={DEMO_TX_ID}
+        address={ADDRESS}
+        onClose={ctx.onClose}
+        onSaved={ctx.onClose}
+      />
+    ),
   },
 ];

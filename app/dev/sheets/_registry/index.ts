@@ -7,12 +7,16 @@ import { DESIGN_BENCH_ENTRIES } from "./design-bench";
 import { DRAWER_ENTRIES } from "./drawers";
 import { MODAL_ENTRIES } from "./modals";
 import { NOTIFICATION_ENTRIES } from "./notifications";
+import { MENU_ENTRIES } from "./menus";
+import { PORTAL_ENTRIES } from "./portal";
 
 export const REGISTRY: SheetEntry[] = [
   ...DESIGN_BENCH_ENTRIES,
   ...DRAWER_ENTRIES,
   ...MODAL_ENTRIES,
   ...NOTIFICATION_ENTRIES,
+  ...MENU_ENTRIES,
+  ...PORTAL_ENTRIES,
 ];
 
 // Fail loud in dev if two entries share an id (would corrupt verification).

@@ -25,6 +25,8 @@ const TYPE_LABEL: Record<SheetEntry["type"], string> = {
   drawer: "Drawer",
   modal: "Modal",
   notification: "Notification",
+  menu: "Menu",
+  portal: "Portal",
 };
 
 export function InspectHost({

@@ -19,6 +19,8 @@ import {
   LONG_ADDRESS,
   NAME,
   LONG_NAME,
+  FIRM,
+  EMAIL,
   LONG_EMAIL,
   LONG_NOTE,
   SHORT_NOTE,
@@ -40,6 +42,10 @@ import { ReconciliationDrawer, type ReconciliationItem } from "@/components/mile
 import { EmailDetailDrawer, type PreviewData } from "@/components/automated-emails/EmailDetailDrawer";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { MemberManageDrawer, type ManageableMember } from "@/components/account/v2/MemberManageDrawer";
+// Completeness sweep additions (2026-09-19)
+import { NextChaseEmailDrawer } from "@/components/transaction/NextChaseEmailDrawer";
+import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
+import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { IntroCallData } from "@/app/actions/intro-call";
 import type { MoveInfo } from "@/lib/services/portal-info";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -745,6 +751,96 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
         member={ctx.stateId === "long-values" ? MEMBER_LONG : MEMBER}
         onClose={ctx.onClose}
         onSaved={ctx.onClose}
+      />
+    ),
+  },
+
+  // ───────────────── Completeness sweep additions (2026-09-19) ─────────────────
+
+  {
+    id: "drawer-next-chase-email",
+    name: "Next chase email",
+    type: "drawer",
+    area: "Auto emails",
+    usedIn: "Chase timeline · Next email control",
+    file: "components/transaction/NextChaseEmailDrawer.tsx",
+    componentName: "NextChaseEmailDrawer",
+    note: "Loads the rendered upcoming email via a server action — the demo id surfaces the loading → error state (valid to inspect).",
+    preview: "overlay",
+    states: [
+      { id: "client", label: "Client chase" },
+      { id: "solicitor", label: "Solicitor chase" },
+    ],
+    render: (ctx) => (
+      <NextChaseEmailDrawer
+        open={ctx.open}
+        onClose={ctx.onClose}
+        transactionId={DEMO_TX_ID}
+        target={
+          ctx.stateId === "solicitor"
+            ? { kind: "solicitor", side: "vendor", milestoneCode: "VM5" }
+            : { kind: "client", contactId: "demo-contact-0000", milestoneCode: "VM5" }
+        }
+        edited={false}
+      />
+    ),
+  },
+  {
+    id: "drawer-enquiry-chase",
+    name: "Enquiry chase",
+    type: "drawer",
+    area: "Enquiries",
+    usedIn: "Enquiries triage · Send a chase",
+    file: "components/enquiries/EnquiryChaseDrawer.tsx",
+    componentName: "EnquiryChaseDrawer",
+    note: "Send targets a demo file and no-ops. Missing-solicitor state shows the add-first path.",
+    preview: "overlay",
+    states: [
+      { id: "seller", label: "Seller's solicitor" },
+      { id: "buyer", label: "Buyer's solicitor" },
+      { id: "no-solicitor", label: "No solicitor on file" },
+    ],
+    render: (ctx) => (
+      <EnquiryChaseDrawer
+        open={ctx.open}
+        transactionId={DEMO_TX_ID}
+        address={ADDRESS}
+        court={ctx.stateId === "buyer" ? "buyer_solicitor" : "seller_solicitor"}
+        solicitorName={ctx.stateId === "no-solicitor" ? null : FIRM}
+        solicitorEmail={ctx.stateId === "no-solicitor" ? null : EMAIL}
+        ccCandidates={[
+          { contactId: "demo-c1", name: NAME, email: "priya.c@gmail.com" },
+          { contactId: "demo-c2", name: "Tom Whitfield", email: null },
+        ]}
+        chaseCount={ctx.stateId === "buyer" ? 2 : 0}
+        onClose={ctx.onClose}
+        onSent={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "drawer-chase-neighbour",
+    name: "Chase a neighbouring agent",
+    type: "drawer",
+    area: "Chains",
+    usedIn: "Chain tab · onward / related trackers",
+    file: "components/chase/ChaseNeighbourDrawer.tsx",
+    componentName: "ChaseNeighbourDrawer",
+    note: "Drafts via a server action on open — the demo id surfaces the loading → error state (valid to inspect).",
+    preview: "overlay",
+    states: [
+      { id: "onward", label: "Onward purchase (seller side)" },
+      { id: "related", label: "Related sale (buyer side)" },
+    ],
+    render: (ctx) => (
+      <ChaseNeighbourDrawer
+        transactionId={DEMO_TX_ID}
+        direction={ctx.stateId === "related" ? "related" : "onward"}
+        neighbourName="Hartley & Co"
+        neighbourAddress="9 Elmfield Terrace, Harrogate"
+        onClose={ctx.onClose}
+        onSent={ctx.onClose}
+        targetStepName="Searches ordered"
       />
     ),
   },

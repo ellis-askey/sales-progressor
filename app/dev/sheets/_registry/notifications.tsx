@@ -57,6 +57,14 @@ import { AutomationBanner } from "@/components/automated-emails/AutomationBanner
 import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentionPanel";
 import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
 
+// ── Completeness sweep additions (2026-09-19) ───────────────────────────────
+import { TrialBannerWithModal } from "@/components/billing/TrialBannerWithModal";
+import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
+import { ExchangeDayReadyBanner } from "@/components/transaction/ExchangeDayReadyBanner";
+import { OutsourcedBanner } from "@/components/transactions-v2/form/OutsourcedBanner";
+import { NewTransactionToast } from "@/components/transaction/NewTransactionToast";
+import { CookieConsentBanner } from "@/components/analytics/CookieConsentBanner";
+
 // ── Full-page empty states ──────────────────────────────────────────────────
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
@@ -1036,4 +1044,124 @@ export const NOTIFICATION_ENTRIES: SheetEntry[] = [
     states: [{ id: "default", label: "Default" }],
     render: () => <HubEmptyWelcomeCard />,
   },
+
+  // ───────────────── Completeness sweep additions (2026-09-19) ─────────────────
+  // Not registrable from this sweep: PaymentBlockBanner is an async SERVER
+  // component (fetches its own billing state by agencyId) — it can't mount in
+  // this client harness without a refactor; inspect on /agent/hub with a
+  // failed-payment test agency. ClaimedToast only fires off a ?claimed=1 URL
+  // param; its visual is the standard toast (see notice-toasts).
+
+  {
+    id: "notice-trial-banner",
+    name: "Trial banner (with add-card modal)",
+    type: "notification",
+    area: "Billing",
+    usedIn: "Hub · trial-elapsed nudge",
+    file: "components/billing/TrialBannerWithModal.tsx",
+    componentName: "TrialBannerWithModal",
+    note: "The banner is live; its button opens the real TrialExpiredModal (card step errors on the demo Stripe key).",
+    preview: "inline",
+    states: [{ id: "default", label: "Default" }],
+    render: () => (
+      <TrialBannerWithModal
+        publishableKey="pk_test_demo_0000000000000000"
+        termsAcknowledged={false}
+        termsVersionId="demo-terms-0000"
+        termsVersionTag="2026-08-payments-v6"
+        termsSections={[
+          { heading: "The fee", body: "£59 per self-managed sale, charged on exchange." },
+          { heading: "When you're charged", body: "Nothing is taken until a sale exchanges." },
+        ]}
+      />
+    ),
+  },
+  {
+    id: "notice-chain-setup-failed",
+    name: "Chain setup failed banner",
+    type: "notification",
+    area: "Chains",
+    usedIn: "Property file · chain link couldn't be created",
+    file: "components/transaction/ChainSetupFailedBanner.tsx",
+    componentName: "ChainSetupFailedBanner",
+    preview: "inline",
+    states: [{ id: "default", label: "Default" }],
+    render: () => <ChainSetupFailedBanner />,
+  },
+  {
+    id: "notice-exchange-day-ready",
+    name: "Exchange day readiness banner",
+    type: "notification",
+    area: "Property file",
+    usedIn: "Property file · exchange day started",
+    file: "components/transaction/ExchangeDayReadyBanner.tsx",
+    componentName: "ExchangeDayReadyBanner",
+    note: "Which solicitors haven't confirmed ready. Both-ready renders nothing by design.",
+    preview: "inline",
+    states: [
+      { id: "neither", label: "Neither confirmed" },
+      { id: "seller", label: "Seller's outstanding" },
+      { id: "buyer", label: "Buyer's outstanding" },
+    ],
+    render: (ctx) => (
+      <ExchangeDayReadyBanner
+        sellerReady={ctx.stateId === "buyer"}
+        buyerReady={ctx.stateId === "seller"}
+      />
+    ),
+  },
+  {
+    id: "notice-outsourced-banner",
+    name: "Outsourced new-sale banner",
+    type: "notification",
+    area: "My Files",
+    usedIn: "New sale · sent-to-us service note",
+    file: "components/transactions-v2/form/OutsourcedBanner.tsx",
+    componentName: "OutsourcedBanner",
+    preview: "inline",
+    states: [{ id: "default", label: "Default" }],
+    render: () => <OutsourcedBanner />,
+  },
+  {
+    id: "notice-new-transaction-toast",
+    name: "File-created toast",
+    type: "notification",
+    area: "Property file",
+    usedIn: "Property file · after New Sale submit",
+    file: "components/transaction/NewTransactionToast.tsx",
+    componentName: "NewTransactionToast",
+    note: "Fires the real toast on mount (this fixture pre-arms the sessionStorage flag it reads). Re-open the state to replay.",
+    preview: "inline",
+    states: [{ id: "default", label: "Default" }],
+    render: () => <NewTransactionToastFixture />,
+  },
+  {
+    id: "notice-cookie-consent",
+    name: "Cookie consent banner",
+    type: "notification",
+    area: "Global chrome",
+    usedIn: "App-wide · first visit before analytics",
+    file: "components/analytics/CookieConsentBanner.tsx",
+    componentName: "CookieConsentBanner",
+    note: "Self-gating: hides once a choice is stored. If it doesn't appear, clear the consent key in localStorage and re-open.",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default (self-gating)" }],
+    render: () => <CookieConsentBanner />,
+  },
 ];
+
+// Pre-arms the sessionStorage flag NewTransactionToast reads, then mounts the
+// real component so its real mount effect fires the real toast.
+function NewTransactionToastFixture() {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem("newTransaction", ADDRESS);
+  }
+  return (
+    <>
+      <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: 0 }}>
+        The component renders nothing itself — watch for the File created toast.
+      </p>
+      <NewTransactionToast />
+    </>
+  );
+}

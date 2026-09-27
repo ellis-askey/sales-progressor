@@ -25,8 +25,10 @@ export type DesignSelection = {
   headerStyleId?: string;
 };
 
-// The three top-level catalogue sections.
-export type SheetType = "drawer" | "modal" | "notification";
+// The top-level catalogue sections. "menu" = floating dropdown menus /
+// popovers / pickers; "portal" = the client-facing portal's overlays
+// (2026-09-19 completeness sweep — Command Centre is deliberately excluded).
+export type SheetType = "drawer" | "modal" | "notification" | "menu" | "portal";
 
 // App-area grouping. Kept as a string union so a typo is a type error, but
 // broad enough to cover the whole internal surface. Add areas here as the
@@ -48,7 +50,9 @@ export type SheetArea =
   | "Billing"
   | "Onboarding & account"
   | "Admin & command"
-  | "Global chrome";
+  | "Global chrome"
+  | "Enquiries"
+  | "Client portal";
 
 // One inspectable visual state of a component. `id` is stable and feeds the
 // remount key, so switching state re-runs the component's mount effects with
@@ -94,6 +98,12 @@ export type SheetEntry = {
   componentName?: string;
   // One-line reviewer note: quirks, what to look at, known caveats.
   note?: string;
+  // Set when the component is NOT actually used anywhere in the app (stale /
+  // superseded code kept for reference). The card renders a loud "Not used in
+  // app" badge with this reason. 2026-09-19 sweep: no current entry qualifies
+  // (the suspects turned out to be aliases/shims of registered components) —
+  // the field exists so future finds are marked instead of silently mixed in.
+  stale?: string;
   // How the host presents it:
   //   "overlay" — the component portals itself over the live /sheets page
   //     (drawers, modals, celebrations). Judge it against the real background.

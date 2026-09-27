@@ -24,6 +24,8 @@ const TYPE_FILTERS: { id: TypeFilter; label: string }[] = [
   { id: "drawer", label: "Drawers" },
   { id: "modal", label: "Modals" },
   { id: "notification", label: "Notifications" },
+  { id: "menu", label: "Menus" },
+  { id: "portal", label: "Portal" },
 ];
 
 const VERIFY_FILTERS: { id: VerifyFilter; label: string }[] = [
@@ -36,9 +38,11 @@ const TYPE_SECTION_TITLE: Record<SheetType, string> = {
   drawer: "Drawers",
   modal: "Modals & dialogs",
   notification: "Notifications & in-page states",
+  menu: "Menus & popovers",
+  portal: "Client portal",
 };
 
-const TYPE_ORDER: SheetType[] = ["drawer", "modal", "notification"];
+const TYPE_ORDER: SheetType[] = ["drawer", "modal", "notification", "menu", "portal"];
 
 export function SheetsCatalogue() {
   const verification = useVerification();
@@ -87,7 +91,7 @@ export function SheetsCatalogue() {
 
   // Counts (whole registry, independent of filters).
   const counts = useMemo(() => {
-    const byType = { drawer: 0, modal: 0, notification: 0 } as Record<SheetType, number>;
+    const byType = { drawer: 0, modal: 0, notification: 0, menu: 0, portal: 0 } as Record<SheetType, number>;
     for (const e of REGISTRY) byType[e.type] += 1;
     return {
       total: REGISTRY.length,
@@ -168,6 +172,8 @@ export function SheetsCatalogue() {
             <CountPill label="Drawers" value={counts.drawer} tone="muted" />
             <CountPill label="Modals" value={counts.modal} tone="muted" />
             <CountPill label="Notifications" value={counts.notification} tone="muted" />
+            <CountPill label="Menus" value={counts.menu} tone="muted" />
+            <CountPill label="Portal" value={counts.portal} tone="muted" />
           </div>
         </header>
 

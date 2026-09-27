@@ -13,6 +13,8 @@ const TYPE_CHIP: Record<SheetEntry["type"], string> = {
   drawer: "Drawer",
   modal: "Modal",
   notification: "Notification",
+  menu: "Menu",
+  portal: "Portal",
 };
 
 export function ComponentCard({
@@ -64,6 +66,16 @@ export function ComponentCard({
         </button>
       </div>
 
+      {entry.stale && (
+        <p style={{
+          margin: 0, fontSize: 10.5, fontWeight: 700, lineHeight: 1.4,
+          color: "var(--agent-warning)", background: "rgba(var(--agent-warning-rgb),0.12)",
+          border: "0.5px solid rgba(var(--agent-warning-rgb),0.35)",
+          borderRadius: 8, padding: "5px 8px",
+        }}>
+          NOT USED IN APP · {entry.stale}
+        </p>
+      )}
       {entry.note && (
         <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-secondary)", lineHeight: 1.5, flex: 1 }}>
           {entry.note}
