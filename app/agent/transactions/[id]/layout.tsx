@@ -207,16 +207,26 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // (exchangeDay / demoTourUser resolved in the single barrier above. The File
   // setup badge streams in via TabBadgeCounts — it starts at 0 here.)
 
+  // File setup is front-loaded work: it sits second (right after Overview) while a
+  // file is young, then demotes toward the end once the file is 14+ days old and
+  // setup is rarely revisited. Age is measured from when the file was created
+  // (agents add a file once the sale is agreed). Everything else keeps a fixed
+  // order that leads with the daily drivers: Overview, Steps, Reminders.
+  const SETUP_DEMOTE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
+  const setupMatured = Date.now() - transaction.createdAt.getTime() > SETUP_DEMOTE_AFTER_MS;
+  const setupTab = { key: "setup", label: "File setup", badge: 0, icon: "setup" };
+
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
-    { key: "setup",      label: "File setup", badge: 0, icon: "setup" },
+    ...(setupMatured ? [] : [setupTab]),
     { key: "milestones", label: "Steps", icon: "steps" },
-    { key: "chain",      label: "Chain", icon: "chain" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
+    { key: "chain",      label: "Chain", icon: "chain" },
     ...(showChaseTimeline ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
+    ...(setupMatured ? [setupTab] : []),
     ...(isInternalTeam ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
   ];
 
