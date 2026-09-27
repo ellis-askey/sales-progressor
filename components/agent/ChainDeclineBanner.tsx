@@ -27,7 +27,7 @@ export function ChainDeclineBanner({ address }: Props) {
       kind="danger"
       icon={<XCircle size={18} weight="fill" />}
       title="A chain invite was declined"
-      body={`An agent declined your invite for ${address}. Open their file to resend or update the contact.`}
+      body={`An agent declined your invite for ${address}. Open the file to resend the invite or update their details.`}
       dismissible={{ onDismiss: handleDismiss }}
     />
   );

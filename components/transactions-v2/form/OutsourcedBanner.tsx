@@ -56,7 +56,7 @@ export function OutsourcedBanner() {
             lineHeight: 1.35,
           }}
         >
-          Our team is handling this file
+          Our team is handling this sale
         </p>
         <p
           style={{
@@ -66,7 +66,7 @@ export function OutsourcedBanner() {
             lineHeight: 1.5,
           }}
         >
-          Add at least one seller and one buyer with a name and a phone number or email.
+          Add at least one seller and one buyer, with a name and either a phone number or email address.
         </p>
       </div>
     </div>

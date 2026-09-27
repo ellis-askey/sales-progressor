@@ -320,7 +320,7 @@ export function MilestonePanel({
           kind="success"
           icon={<CheckCircle size={18} weight="fill" />}
           title="Ready to exchange."
-          body="Everything blocking exchange is done on both sides. You can push for a date."
+          body="Everything needed for exchange is done on both sides. Time to push for a date."
           className="mb-5"
         />
       ) : (

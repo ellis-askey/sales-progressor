@@ -12,8 +12,8 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 // Action copy and focus param per alert type
 // Alert types that exist: missing_vendor_solicitor, missing_purchaser_solicitor, overdue_exchange, stale
 const ALERT_ACTIONS: Partial<Record<AlertType, { label: string; focus: string }>> = {
-  missing_vendor_solicitor:   { label: "Add vendor solicitor",     focus: "vendor-solicitor"    },
-  missing_purchaser_solicitor: { label: "Add purchaser solicitor", focus: "purchaser-solicitor" },
+  missing_vendor_solicitor:   { label: "Add seller's solicitor",   focus: "vendor-solicitor"    },
+  missing_purchaser_solicitor: { label: "Add buyer's solicitor",   focus: "purchaser-solicitor" },
   overdue_exchange:            { label: "Update exchange date",     focus: "exchange-date"       },
 };
 
@@ -59,7 +59,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             {items.length} file alert{items.length !== 1 ? "s" : ""}
           </span>
           {overdueCount > 0 && (
-            <Pill glass tone="danger" size="md">{overdueCount} overdue exchange</Pill>
+            <Pill glass tone="danger" size="md">{overdueCount} exchange dates overdue</Pill>
           )}
           {missingCount > 0 && (
             <Pill glass tone="warning" size="md">{missingCount} solicitor unreachable</Pill>

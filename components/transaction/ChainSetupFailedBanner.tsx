@@ -28,7 +28,7 @@ export function ChainSetupFailedBanner() {
       kind="warning"
       icon={<Warning size={18} weight="fill" />}
       title="Chain setup failed"
-      body="Your file was saved, but the chain wasn't linked."
+      body="Your file was saved, but we couldn't link the chain."
       action={{
         label: "Go to chain panel →",
         onClick: () => {

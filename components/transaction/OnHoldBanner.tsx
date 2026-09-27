@@ -14,7 +14,7 @@ export function OnHoldBanner({ show }: { show: boolean }) {
       kind="warning"
       icon={<Warning size={18} weight="fill" />}
       title="This file is on hold."
-      body="All automation is frozen: no client emails, no agent reminders, no escalations. Reactivate the file to resume."
+      body="Everything is paused: no client emails, agent reminders or escalations. Reactivate the file when you're ready to resume."
       className="mb-4"
     />
   );

@@ -36,8 +36,8 @@ export function ReviseExchangeBanner({
       <AgentBanner
         kind="warning"
         icon={<WarningCircle size={19} weight="fill" />}
-        title="The exchange date passed and this file has gone quiet"
-        body={`Expected ${formatDate(passedDateIso)}. Give it a realistic new date.`}
+        title="The exchange date has passed and this file has gone quiet"
+        body={`Expected ${formatDate(passedDateIso)}. Set a realistic new date to keep the file up to date.`}
         action={{ label: "Set a new date →", onClick: () => setOpen(true) }}
         actionPlacement="inline-responsive"
         className="mb-4"

@@ -176,8 +176,8 @@ export function ReconcileLaterBanner({
             <p className="rec-prompt-title">Where&rsquo;s this sale up to?</p>
             <p className="rec-prompt-body">
               {prefilled
-                ? "We’ve pre-ticked what the chain already reported for this sale. Review and adjust, and we’ll bring the timeline and predictions up to date."
-                : "Tick what’s already been done and we’ll bring the timeline and predictions up to date."}
+                ? "We’ve pre-ticked the steps already reported across the chain. Check everything looks right, make any changes, and we’ll update the timeline and predictions."
+                : "Tick anything that’s already been done and we’ll update the timeline and predictions."}
             </p>
           </div>
           <div className="rec-prompt-actions">

@@ -27,9 +27,9 @@ export type WorkQueueItem = {
 
 export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg: string; border: string }> = {
   overdue_exchange:          { label: "Exchange date overdue",       color: "var(--agent-danger)",  bg: "var(--agent-danger-bg)",  border: "var(--agent-danger-border)"  },
-  missing_vendor_solicitor:  { label: "Vendor solicitor unreachable",    color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
-  missing_purchaser_solicitor: { label: "Purchaser solicitor unreachable", color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
-  stale:                     { label: "No progress in 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
+  missing_vendor_solicitor:  { label: "Seller's solicitor unreachable",    color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
+  missing_purchaser_solicitor: { label: "Buyer's solicitor unreachable", color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
+  stale:                     { label: "No progress for 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
 };
 
 export function txWhereWorkQueue(vis: AgentVisibility) {

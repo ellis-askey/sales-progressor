@@ -63,8 +63,8 @@ export function AutomationBanner({
             </h2>
             <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
               {paused
-                ? "Chases aren't sending right now."
-                : `We're monitoring and chasing ${banner.activeFiles} active ${fileWord}.`}
+                ? "Chases are paused right now."
+                : `We're monitoring and chasing across ${banner.activeFiles} active ${fileWord}.`}
             </p>
           </div>
         </div>
