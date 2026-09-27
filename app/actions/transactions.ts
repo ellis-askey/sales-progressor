@@ -3383,6 +3383,14 @@ export async function relistTransactionImpl(
       onwardStubLinkId,
       onwardInviteTargetEmail,
     };
+  }, {
+    // Relist does a lot in one atomic step (reset every milestone, recreate the
+    // new buyer's steps, chain ops, notes, cancellations). Prisma's default 5s
+    // interactive-transaction limit is too tight — it trips on a big file, and
+    // reliably trips in local dev where every query pays cross-network latency
+    // to the remote DB. Give it real headroom; prod finishes in well under this.
+    timeout: 20_000,
+    maxWait: 10_000,
   });
 
   // ───── Post-commit reminder re-evaluation ──────────────────────────────
