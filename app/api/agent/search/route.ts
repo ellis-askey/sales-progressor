@@ -26,8 +26,9 @@ export type AgentSearchResult = {
     // doesn't match the transaction's activeBuyerRoundId belong to a
     // previous (fell-through) sale. The row is still returned so the agent
     // can find them, but the frontend renders the row muted with a
-    // "previous sale" sub-line. null = current/active contact.
-    previousSale: { roundNumber: number } | null;
+    // "previous sale" sub-line. null = current/active contact. roundId lets the
+    // frontend deep-link straight into that sale's archived-round drawer.
+    previousSale: { roundNumber: number; roundId: string } | null;
   }[];
   solicitors:   { id: string; name: string; fileCount: number }[];
 };
@@ -149,8 +150,8 @@ export async function GET(req: NextRequest) {
         avatarUrl: c.image ?? null,
         email: c.email ?? null,
         phone: c.phone ?? null,
-        previousSale: isPreviousPurchaser && c.buyerRound
-          ? { roundNumber: c.buyerRound.roundNumber }
+        previousSale: isPreviousPurchaser && c.buyerRound && c.buyerRoundId
+          ? { roundNumber: c.buyerRound.roundNumber, roundId: c.buyerRoundId }
           : null,
       };
     }),

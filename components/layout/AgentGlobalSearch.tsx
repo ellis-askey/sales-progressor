@@ -98,6 +98,14 @@ const DARK_SEARCH_TOKENS: Record<string, string> = {
   "--agent-coral-base-rgb": "255,107,74",
 };
 
+// A previous-buyer result deep-links to the file with ?round=<id> so the file's
+// Previous-sales card auto-opens that sale's archived-round drawer (their
+// details + the steps that were done). Current contacts just open the file.
+function contactHref(c: AgentSearchResult["contacts"][number]): string {
+  const base = `/agent/transactions/${c.transactionId}`;
+  return c.previousSale ? `${base}?round=${encodeURIComponent(c.previousSale.roundId)}` : base;
+}
+
 export function AgentGlobalSearch() {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen]         = useState(false);
@@ -169,7 +177,7 @@ export function AgentGlobalSearch() {
     NAV_ITEMS.forEach((n) => flat.push({ href: n.href }));
   } else if (results) {
     results.transactions.forEach((t) => flat.push({ href: `/agent/transactions/${t.id}` }));
-    results.contacts.forEach((c) => flat.push({ href: `/agent/transactions/${c.transactionId}` }));
+    results.contacts.forEach((c) => flat.push({ href: contactHref(c) }));
     results.solicitors.forEach(() => flat.push({ href: `/agent/solicitors` }));
   }
 
@@ -369,7 +377,7 @@ export function AgentGlobalSearch() {
                       subColor={subColor}
                       leftVisual={<ContactAvatar contact={{ name: c.name, roleType: c.role }} size={34} image={c.avatarUrl} />}
                       selected={selected === results!.transactions.length + i}
-                      onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
+                      onClick={() => navigate(contactHref(c))}
                       onMouseEnter={() => setSelected(results!.transactions.length + i)}
                     />
                   );

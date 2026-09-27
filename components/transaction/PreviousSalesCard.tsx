@@ -6,7 +6,8 @@
 // their names joined with "&" (no titles), and when/why it fell through.
 // Clicking a row opens the existing read-only ArchivedRoundDrawer.
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
@@ -20,6 +21,22 @@ function fmtDate(iso: string | null): string {
 
 export function PreviousSalesCard({ transactionId, sales }: { transactionId: string; sales: PreviousSale[] }) {
   const [open, setOpen] = useState<{ id: string; roundNumber: number } | null>(null);
+
+  // Deep link from global search: ?round=<id> on a previous buyer's result opens
+  // straight into that sale's archived drawer. One-shot so a manual close sticks.
+  const searchParams = useSearchParams();
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current) return;
+    const roundParam = searchParams.get("round");
+    if (!roundParam) return;
+    const match = sales.find((s) => s.roundId === roundParam);
+    if (match) {
+      setOpen({ id: match.roundId, roundNumber: match.roundNumber });
+      autoOpened.current = true;
+    }
+  }, [searchParams, sales]);
+
   if (sales.length === 0) return null;
 
   return (
