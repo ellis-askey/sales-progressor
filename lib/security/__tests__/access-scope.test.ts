@@ -60,6 +60,18 @@ describe("agency scope always restricts by agencyId (never unscoped)", () => {
   });
 });
 
+describe("internal staff never see demo files (agency users keep their own demo)", () => {
+  test("all scope (founder/admin) excludes demo files", () => {
+    expect(scopeTransactionWhere(allScope)).toEqual({ isDemo: false });
+  });
+  test("assigned scope (internal progressor) excludes demo files", () => {
+    expect(scopeTransactionWhere(assignedScope)).toEqual({ assignedUserId: "sp-user", isDemo: false });
+  });
+  test("agency scope is NOT demo-filtered — an agency still sees the demo it created", () => {
+    expect(scopeTransactionWhere(agencyScope)).toEqual({ agencyId: { in: [AGENCY_A] } });
+  });
+});
+
 describe("canReadTransaction denies cross-agency", () => {
   test("agency A cannot read an agency B transaction", () => {
     expect(canReadTransaction(agencyScope, { agencyId: AGENCY_B, assignedUserId: null })).toBe(false);

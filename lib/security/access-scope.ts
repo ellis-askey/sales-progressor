@@ -55,8 +55,13 @@ export function getAccessScope(session: Session): AccessScope {
 export function scopeTransactionWhere(
   scope: AccessScope
 ): Prisma.PropertyTransactionWhereInput {
-  if (scope.kind === "all")      return {};
-  if (scope.kind === "assigned") return { assignedUserId: scope.userId };
+  // Internal staff (founder / admin / superadmin = "all", internal progressor =
+  // "assigned") must NEVER see demo files. Any agency can spin up a demo sale to
+  // explore the product, and that data must not pollute our cross-platform lists,
+  // partner directories, or analytics. Agency users keep seeing their OWN demo
+  // (they created it to look through), so the "agency" branch stays unfiltered.
+  if (scope.kind === "all")      return { isDemo: false };
+  if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
   return { agencyId: { in: scope.agencyIds } };
 }
 

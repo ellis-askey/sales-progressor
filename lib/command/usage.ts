@@ -82,8 +82,10 @@ export async function getUsageOverview(): Promise<UsageOverview> {
 
   const users = await commandDb.user.findMany({
     // Exclude internal/test agencies (e.g. EXP-DB) so the activity view matches
-    // the fee/chase/weekly sections and the rest of the Command Centre.
-    where: { role: { in: AGENT_ROLES as never }, agencyId: { not: null }, agency: { isInternal: false } },
+    // the fee/chase/weekly sections and the rest of the Command Centre. Also
+    // exclude demo users (e.g. the seeded demo agent an agency creates to explore
+    // the product) — they are not real agents and must never pollute our views.
+    where: { role: { in: AGENT_ROLES as never }, agencyId: { not: null }, agency: { isInternal: false }, isDemo: false },
     select: {
       id: true, name: true, role: true, agencyId: true,
       image: true, imageFocusX: true, imageFocusY: true,
@@ -248,8 +250,10 @@ export type AgentDetail = {
 };
 
 export async function getAgentDetail(userId: string): Promise<AgentDetail | null> {
-  const user = await commandDb.user.findUnique({
-    where: { id: userId },
+  // findFirst (not findUnique) so we can also exclude demo users — a demo agent's
+  // detail page should read as not-found, same as it's hidden from the list.
+  const user = await commandDb.user.findFirst({
+    where: { id: userId, isDemo: false },
     select: {
       id: true, name: true, role: true, agencyId: true,
       image: true, imageFocusX: true, imageFocusY: true,
