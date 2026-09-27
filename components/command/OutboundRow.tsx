@@ -69,7 +69,15 @@ function fmtCost(cents: number | null): string {
   return `£${(cents / 100).toFixed(4)}`;
 }
 
-export function OutboundRow({ row }: { row: OutboundRowData }) {
+export function OutboundRow({
+  row,
+  transactionAddress,
+  agencyName,
+}: {
+  row: OutboundRowData;
+  transactionAddress?: string | null;
+  agencyName?: string | null;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [body, setBody] = useState<{ content: string; bodyFormat: string } | null>(null);
   const [bodyPending, startBodyFetch] = useTransition();
@@ -183,8 +191,8 @@ export function OutboundRow({ row }: { row: OutboundRowData }) {
               ["Purpose", row.purpose],
               ["Recipient email", row.recipientEmail],
               ["Recipient handle", row.recipientHandle],
-              ["Transaction", row.transactionId ?? "—"],
-              ["Agency", row.agencyId ? row.agencyId.slice(-8) : "—"],
+              ["Property", transactionAddress ?? (row.transactionId ? "—" : null)],
+              ["Agency", agencyName ?? (row.agencyId ? "—" : null)],
             ].map(([k, v]) => v && v !== "—" ? (
               <div key={k}>
                 <span className="text-neutral-600">{k} </span>

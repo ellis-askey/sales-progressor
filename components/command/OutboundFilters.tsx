@@ -22,6 +22,15 @@ export function OutboundFilters() {
 
   const [recVal, setRecVal] = useState(searchParams.get("rec") ?? "");
   const [qVal, setQVal] = useState(searchParams.get("q") ?? "");
+  // Filters are collapsed behind a single button so the page isn't a wall of
+  // pills; the active-count badge shows how many are on without opening it.
+  const [open, setOpen] = useState(false);
+
+  function resetFilters() {
+    const p = new URLSearchParams(searchParams.toString());
+    ["ch", "st", "ai", "from", "to", "rec", "q", "cursor", "pending"].forEach((k) => p.delete(k));
+    router.push(`${pathname}?${p.toString()}`);
+  }
 
   useEffect(() => {
     setRecVal(searchParams.get("rec") ?? "");
@@ -61,7 +70,34 @@ export function OutboundFilters() {
   ].filter(Boolean).length;
 
   return (
-    <div className="px-1 pb-2 space-y-3">
+    <div className="px-1 pb-2">
+      {/* Toggle bar — one button instead of a wall of pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M3 5h18l-7 8v6l-4-2v-4z" strokeLinejoin="round" /></svg>
+          Filters
+          {activeCount > 0 && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-600 text-white tabular-nums">{activeCount}</span>
+          )}
+          <span className={`text-[9px] transition-transform ${open ? "rotate-180" : ""}`} aria-hidden>▾</span>
+        </button>
+        {activeCount > 0 && (
+          <button
+            onClick={resetFilters}
+            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors underline underline-offset-2"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {open && (
+      <div className="mt-3 space-y-3 bg-neutral-900/40 border border-neutral-800 rounded-xl p-3">
       <div className="flex items-start gap-6 flex-wrap">
         {/* Channel */}
         <div>
@@ -171,25 +207,7 @@ export function OutboundFilters() {
           />
         </div>
       </div>
-
-      {activeCount > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-600">
-            {activeCount} filter{activeCount !== 1 ? "s" : ""} active
-          </span>
-          <button
-            onClick={() => {
-              const p = new URLSearchParams(searchParams.toString());
-              ["ch", "st", "ai", "from", "to", "rec", "q", "cursor", "pending"].forEach(
-                (k) => p.delete(k),
-              );
-              router.push(`${pathname}?${p.toString()}`);
-            }}
-            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors underline underline-offset-2"
-          >
-            Reset filters
-          </button>
-        </div>
+      </div>
       )}
     </div>
   );

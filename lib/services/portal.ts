@@ -854,6 +854,10 @@ export async function logPortalView(token: string): Promise<void> {
     data: {
       transactionId: contact.propertyTransactionId,
       type: "internal_note",
+      // A portal view is a notification, not a chase. Without this it inherited
+      // OutboundMessage.purpose's default (chase) and read as a sent chase in the
+      // Command Centre Messages view.
+      purpose: "notification",
       contactIds: [contact.id],
       content,
       createdById: userId,

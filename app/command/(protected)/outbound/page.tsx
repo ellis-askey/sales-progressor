@@ -103,6 +103,18 @@ export default async function OutboundPage({
   const messages = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
   const nextCursor = hasMore ? messages[messages.length - 1].id : null;
 
+  // Resolve the raw transaction / agency IDs on each row to the property address
+  // and agency name, so the expanded panel reads at a glance instead of showing
+  // codes. Batched: one query each.
+  const txIds = [...new Set(messages.map((m) => m.transactionId).filter((v): v is string => !!v))];
+  const agIds = [...new Set(messages.map((m) => m.agencyId).filter((v): v is string => !!v))];
+  const [txRows, agRows] = await Promise.all([
+    txIds.length ? commandDb.propertyTransaction.findMany({ where: { id: { in: txIds } }, select: { id: true, propertyAddress: true } }) : Promise.resolve([]),
+    agIds.length ? commandDb.agency.findMany({ where: { id: { in: agIds } }, select: { id: true, name: true } }) : Promise.resolve([]),
+  ]);
+  const txAddressById = new Map(txRows.map((t) => [t.id, t.propertyAddress]));
+  const agencyNameById = new Map(agRows.map((a) => [a.id, a.name]));
+
   function buildUrl(extra: Record<string, string | undefined>) {
     const p = new URLSearchParams();
     const forward = { mode: sp.mode, agency: sp.agency, ch: sp.ch, st: sp.st, ai: sp.ai, from: sp.from, to: sp.to, rec: sp.rec, q: sp.q, pending: sp.pending };
@@ -170,7 +182,12 @@ export default async function OutboundPage({
             </div>
 
             {messages.map((row) => (
-              <OutboundRow key={row.id} row={row as unknown as OutboundRowData} />
+              <OutboundRow
+                key={row.id}
+                row={row as unknown as OutboundRowData}
+                transactionAddress={row.transactionId ? txAddressById.get(row.transactionId) ?? null : null}
+                agencyName={row.agencyId ? agencyNameById.get(row.agencyId) ?? null : null}
+              />
             ))}
 
             {hasMore && nextCursor && (
