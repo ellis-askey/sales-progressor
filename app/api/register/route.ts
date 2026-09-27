@@ -9,6 +9,7 @@ import type { UserRole } from "@prisma/client";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
+import { convertProspectFromSignup } from "@/lib/prospects/signup-convert";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    const { userId } = await createDirectorWithAgency({
+    const { userId, agencyId } = await createDirectorWithAgency({
       name: toTitleCase(name),
       email,
       password: hashedPassword,
@@ -97,6 +98,12 @@ export async function POST(req: NextRequest) {
       agencyName,
       attribution,
     });
+
+    // If this exact email is one we've been outreaching to, mark that prospect
+    // converted and stop its flow. Best-effort: never let it fail the signup.
+    void convertProspectFromSignup(email, agencyId).catch((err) =>
+      console.error("[register] prospect signup-convert failed", err),
+    );
 
     console.log(`[AUDIT] user_registered userId=${userId}`);
     void trackServerEvent(userId, ANALYTICS_EVENTS.USER_SIGNED_UP, {

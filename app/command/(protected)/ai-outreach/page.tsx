@@ -20,7 +20,7 @@ import {
 import { getOutreachMetrics } from "@/lib/outreach/metrics";
 import { getAllSegmentFunnels } from "@/lib/outreach/metrics";
 import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segments";
-import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, type ExperimentListItem } from "@/lib/outreach/read";
+import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, getRecentlyStoppedSignups, type ExperimentListItem } from "@/lib/outreach/read";
 import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
 import { EmailSequence } from "@/components/command/ai-outreach/EmailSequence";
 import { FindAgentsPanel } from "@/components/command/ai-outreach/FindAgentsPanel";
@@ -109,12 +109,37 @@ export default async function AiOutreachPage({ searchParams }: { searchParams: P
         options={VIEW_OPTIONS.map((o) => ({ value: o.key, label: o.label, href: href(o.key) }))}
       />
 
+      <RecentlyStopped />
+
       {view === "overview" && <Overview />}
       {view === "segments" && <Segments />}
       {view === "experiments" && <Experiments />}
       {view === "learnings" && <Learnings />}
       {view === "cycles" && <Cycles />}
       {view === "activity" && <Activity />}
+    </div>
+  );
+}
+
+// ── Recently signed up (flow stopped) — the founder alert strip ───────────────
+async function RecentlyStopped() {
+  const rows = await getRecentlyStoppedSignups(8);
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-semibold mb-2">
+        Recently signed up · outreach stopped
+      </p>
+      <div className="flex flex-col gap-1">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 text-[12px]">
+            <span className="text-neutral-200">{r.agencyName}</span>
+            <span className="text-[11px] text-neutral-500 whitespace-nowrap">
+              {r.viaSignup ? "signed up on their own" : "converted"} · {fmtDate(r.at)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

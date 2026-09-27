@@ -221,6 +221,28 @@ export type AiActivity = {
   }[];
 };
 
+// Prospects whose outreach flow was recently stopped because they became a
+// customer (signed up on their own, or were marked converted). Drives the
+// "recently signed up (flow stopped)" strip on the AI Outreach page.
+export type StoppedSignup = { agencyName: string; at: Date; viaSignup: boolean };
+export async function getRecentlyStoppedSignups(limit = 8): Promise<StoppedSignup[]> {
+  const flows = await commandDb.prospectFlow.findMany({
+    where: {
+      status: "halted",
+      haltedReason: { in: ["signed_up", "converted"] },
+      completedAt: { gte: new Date(Date.now() - 30 * 86_400_000) },
+    },
+    orderBy: { completedAt: "desc" },
+    take: limit,
+    select: { haltedReason: true, completedAt: true, prospect: { select: { agencyName: true } } },
+  });
+  return flows.map((f) => ({
+    agencyName: f.prospect.agencyName,
+    at: f.completedAt as Date,
+    viaSignup: f.haltedReason === "signed_up",
+  }));
+}
+
 export async function getAiActivity(limit = 50): Promise<AiActivity> {
   const [agg, recent] = await Promise.all([
     commandDb.aiModelRun.aggregate({ _count: { _all: true }, _sum: { costPence: true, tokensIn: true, tokensOut: true } }),
