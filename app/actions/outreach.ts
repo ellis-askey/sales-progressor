@@ -10,6 +10,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { commandDb } from "@/lib/command/prisma";
+import { discoverAgencies } from "@/lib/outreach/discover";
 import { runStrategyCycle } from "@/lib/outreach/orchestrator";
 import { preflightExperiment, launchExperiment, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
 import {
@@ -45,6 +47,48 @@ export async function runStrategyCycleAction(): Promise<GenerateProposalResult> 
   if (!res.ok) return { ok: false, error: `${res.stage}: ${res.error}` };
   revalidatePath(REVALIDATE);
   return { ok: true, experimentId: res.experimentId, status: res.status, reviewOutcome: res.reviewOutcome, revisionRan: res.revisionRan };
+}
+
+// ── Find agents: discover UK estate agents we don't already hold, and feed them
+// into the existing prospect-import pipeline (research + dedupe + create). The
+// launch flow then sends the experiment to the newly-added prospects. Discovery
+// only skips names we already hold; enrichment + dedupe happen in the pipeline.
+export type FindAgentsResult =
+  | { ok: true; batchId: string; found: number; agencies: { name: string; location: string }[] }
+  | { ok: false; error: string };
+
+export async function findAgentsAction(area: string, count: number): Promise<FindAgentsResult> {
+  const session = await requireSuperAdmin();
+  const a = area.trim();
+  if (!a) return { ok: false, error: "Enter an area to search (for example Kent, or Leeds)." };
+  const n = Math.max(1, Math.min(50, Math.floor(count) || 25));
+
+  // Names we already hold, so discovery doesn't return duplicates.
+  const existing = await commandDb.prospect.findMany({ select: { agencyName: true } });
+  const excludeNames = existing.map((p) => p.agencyName).filter(Boolean);
+
+  let discovered: { name: string; location: string }[];
+  try {
+    discovered = await discoverAgencies(a, n, excludeNames);
+  } catch (err) {
+    console.error("[find-agents] discovery failed", err);
+    return { ok: false, error: "Could not search for agents just now. Try again." };
+  }
+  if (discovered.length === 0) return { ok: false, error: "No new agents found for that area. Try a broader area." };
+
+  // Feed them into the existing import batch pipeline. The enrichment step
+  // researches, dedupes and creates each prospect; the UI loop below drives it,
+  // and the prospect-import-drain cron finishes anything left.
+  const batch = await commandDb.prospectImportBatch.create({
+    data: {
+      createdById: session.user.id,
+      total: discovered.length,
+      status: "processing",
+      items: { create: discovered.map((d) => ({ inputAgency: d.name, inputLocation: d.location })) },
+    },
+  });
+  revalidatePath("/command/prospects");
+  return { ok: true, batchId: batch.id, found: discovered.length, agencies: discovered };
 }
 
 // ── G: approval workflow ─────────────────────────────────────────────────────

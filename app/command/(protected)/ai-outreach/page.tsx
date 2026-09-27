@@ -23,6 +23,7 @@ import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segmen
 import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, type ExperimentListItem } from "@/lib/outreach/read";
 import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
 import { EmailSequence } from "@/components/command/ai-outreach/EmailSequence";
+import { FindAgentsPanel } from "@/components/command/ai-outreach/FindAgentsPanel";
 import { FilterSelect } from "@/components/command/shared/FilterSelect";
 import { LaunchPanel } from "@/components/command/ai-outreach/LaunchPanel";
 import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
@@ -312,6 +313,7 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
         <FeasibilityBlock data={e.feasibility} />
         <ReviewerFindings data={e.reviewerResult} />
 
+        {e.status === "approved" && <FindAgentsPanel />}
         {(e.status === "approved" || e.status === "running") && (
           <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />
         )}
