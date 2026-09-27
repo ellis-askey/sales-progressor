@@ -52,7 +52,7 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
     {
       label: "Escalated chases",
       detail: escalatedTaskCount > 0
-        ? `${escalatedTaskCount} task${escalatedTaskCount > 1 ? "s" : ""} escalated after repeated chases went unanswered`
+        ? `${escalatedTaskCount} reminder${escalatedTaskCount > 1 ? "s" : ""} escalated after repeated chases went unanswered`
         : "No escalated chases",
       triggered: escalatedTaskCount > 0,
       impact: "high",
@@ -70,19 +70,19 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
       impact: "high",
     },
     {
-      label: "Multiple overdue tasks",
+      label: "Multiple overdue reminders",
       detail: overdueTaskCount >= 2
-        ? `${overdueTaskCount} overdue chase tasks, the other side is not responding`
+        ? `${overdueTaskCount} overdue chase reminders, the other side is not responding`
         : overdueTaskCount === 1
-        ? "1 overdue chase task"
-        : "No overdue tasks",
+        ? "1 overdue chase reminder"
+        : "No overdue reminders",
       triggered: overdueTaskCount >= 2,
       impact: "medium",
     },
     {
       label: "Slow progress pace",
       detail: onTrack === "at_risk"
-        ? "File is slightly behind the 12-week exchange target based on milestone velocity"
+        ? "Progress is slightly behind the 12-week exchange target"
         : "Progress is on track",
       triggered: onTrack === "at_risk",
       impact: "medium",
@@ -96,16 +96,16 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
       impact: "medium",
     },
     {
-      label: "Single overdue task",
-      detail: overdueTaskCount === 1 ? "1 chase task is overdue" : "No overdue tasks",
+      label: "Overdue reminder",
+      detail: overdueTaskCount === 1 ? "1 chase reminder is overdue" : "No overdue reminders",
       triggered: overdueTaskCount === 1,
       impact: "low",
     },
     {
-      label: "No recent milestone",
+      label: "No recent step completed",
       detail: daysStuckOnMilestone !== null
-        ? `No milestone completed in ${daysStuckOnMilestone} day${daysStuckOnMilestone !== 1 ? "s" : ""}`
-        : "Milestone data unavailable",
+        ? `No step completed in ${daysStuckOnMilestone} day${daysStuckOnMilestone !== 1 ? "s" : ""}`
+        : "Progress data unavailable",
       triggered: daysStuckOnMilestone !== null && daysStuckOnMilestone >= 14,
       impact: "low",
     },
@@ -117,7 +117,7 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
 
   // Only expose unique factors (hide "single overdue" if "multiple overdue" triggered)
   const visible = factors.filter((f) => {
-    if (f.label === "Single overdue task" && overdueTaskCount >= 2) return false;
+    if (f.label === "Overdue reminder" && overdueTaskCount >= 2) return false;
     if (f.label === "Slow progress pace" && onTrack === "off_track") return false;
     return true;
   });

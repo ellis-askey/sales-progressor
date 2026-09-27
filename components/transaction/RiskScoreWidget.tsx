@@ -71,7 +71,7 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-success)" }}>Nothing adding to the score right now</span>
                 </div>
                 <p style={{ fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 8, marginBottom: 0 }}>
-                  Chases and activity gaps show here as points if they appear.
+                  Chases, overdue reminders and gaps in activity will add points here if they appear.
                 </p>
               </>
             ) : (
