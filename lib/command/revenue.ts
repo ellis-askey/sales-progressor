@@ -34,6 +34,10 @@ import type {
 } from "@prisma/client";
 import type { CommandMode } from "@/lib/command/scope";
 
+// The flat per-exchange fee we may move to for free / in-house sales. Used only
+// to value what we're giving away ("would have earned"), never billed.
+const FREE_EXCHANGE_HYPOTHETICAL_FEE_PENCE = 5900; // £59
+
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type RevenueScope = {
@@ -533,17 +537,12 @@ export async function getRevenueDashboard(
   const bankedFileCount = feeLinesThisMonth.length + bankedFallbackCount;
   const bankedLastMonthPence = feeLinesLastMonth.reduce((s, l) => s + l.totalPence, 0);
 
-  // ── Trial value this month ──────────────────────────────────────────────────
-  let trialValuePence = 0;
-  for (const r of trialRows) {
-    const fee = computeFee(
-      r.serviceType,
-      r.priceAtExchange ?? r.purchasePrice,
-      vatOf(r.agency),
-      feeOverrideOf(r.agency),
-    );
-    trialValuePence += fee.totalPence;
-  }
+  // ── Given away this month ───────────────────────────────────────────────────
+  // Free / in-house sales are free today. This is what they WOULD have earned if
+  // charged at exchange, valued at the flat £59-per-exchange rate we may move to,
+  // so we can watch what going paid would be worth. One count of free exchanges
+  // times the hypothetical fee (not the old sliding-scale valuation).
+  const trialValuePence = trialRows.length * FREE_EXCHANGE_HYPOTHETICAL_FEE_PENCE;
 
   // ── Pipeline + at-risk (per-file prediction) ────────────────────────────────
   let pipelineThis = 0, pipelineNext = 0, pipelineAfter = 0, pipelineRisk = 0, pipelineLater = 0;

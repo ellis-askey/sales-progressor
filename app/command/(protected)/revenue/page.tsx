@@ -3,6 +3,7 @@ import { getRevenueDashboard, formatGBP, formatShortDate, formatMonthLabel } fro
 import { parseMode, parseAgencies } from "@/lib/command/scope";
 import type { AgencyRevenueRow, ExchangeRow, LegacyAgencyRef, PipelineBucket, SimpleAgencyRef } from "@/lib/command/revenue";
 import InfoTip from "@/components/command/shared/InfoTip";
+import { CollapsibleSection } from "@/components/command/revenue/CollapsibleSection";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ export default async function RevenuePage({
             value={formatGBP(data.banked.totalPence)}
             sub={`${data.banked.fileCount} file${data.banked.fileCount === 1 ? "" : "s"} · ${data.banked.agencyCount} agenc${data.banked.agencyCount === 1 ? "y" : "ies"}`}
             tone="primary"
-            tip="The amount actually invoiced this month (frozen at exchange), not a live recompute. Won't change if you edit a fee later."
+            tip="What's invoiced so far this month. This month's figure reflects fee edits until the invoice is issued at month-end; once a month is issued, it stays fixed."
             trend={(() => {
               const diff = data.banked.totalPence - data.bankedLastMonthPence;
               const cls = diff > 0 ? "text-emerald-400" : diff < 0 ? "text-red-400" : "text-neutral-600";
@@ -84,11 +85,11 @@ export default async function RevenuePage({
             tip="This month's banked (actual) plus this month's pipeline (estimate). The most this month could reach if every predicted exchange lands."
           />
           <Kpi
-            label="Trial given away"
+            label="Given away this month"
             value={formatGBP(data.trialValueThisMonth.totalPence)}
-            sub={`${data.trialValueThisMonth.fileCount} trial exchange${data.trialValueThisMonth.fileCount === 1 ? "" : "s"} this month`}
+            sub={`${data.trialValueThisMonth.fileCount} free exchange${data.trialValueThisMonth.fileCount === 1 ? "" : "s"} · would-be revenue`}
             tone="muted"
-            tip="What a trial file's first free exchange would have been worth at the normal fee. Given away, not banked."
+            tip="What free / in-house sales would have earned this month if charged at exchange, valued at £59 per exchange. Given away, not banked."
           />
         </div>
       </section>
@@ -169,9 +170,9 @@ export default async function RevenuePage({
           </InfoTip>
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <ReferralCell label="Earned (all time)" pence={data.referralIncome.earnedPence} sub={`${data.referralIncome.wonCount} won quote${data.referralIncome.wonCount === 1 ? "" : "s"}`} />
-          <ReferralCell label="Collected" pence={data.referralIncome.collectedPence} sub="marked paid" />
-          <ReferralCell label="Outstanding" pence={data.referralIncome.outstandingPence} sub="not yet collected" tone={data.referralIncome.outstandingPence > 0 ? "warn" : "default"} />
+          <ReferralCell label="Earned (all time)" pence={data.referralIncome.earnedPence} sub={`${data.referralIncome.wonCount} won quote${data.referralIncome.wonCount === 1 ? "" : "s"}`} href="/command/providers/quotes?status=won" />
+          <ReferralCell label="Collected" pence={data.referralIncome.collectedPence} sub="marked paid" href="/command/providers/quotes?status=won&collected=yes" />
+          <ReferralCell label="Outstanding" pence={data.referralIncome.outstandingPence} sub="not yet collected" tone={data.referralIncome.outstandingPence > 0 ? "warn" : "default"} href="/command/providers/quotes?status=won&collected=no" />
           <Link href="/command/providers/quotes?status=won" className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 hover:border-neutral-700 transition-colors flex flex-col justify-center">
             <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">Quote inbox</p>
             <p className="mt-1 text-sm text-blue-400">Manage referrals →</p>
@@ -180,37 +181,41 @@ export default async function RevenuePage({
       </section>
 
       {/* ── Per-agency bible ──────────────────────────────────────── */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          Per-agency revenue · fee tier check
+      <CollapsibleSection
+        title="Per-agency revenue · fee tier check"
+        tip={
           <InfoTip label="Reading the columns">
             Banked MTD and Lifetime are what was actually invoiced. Pipeline MTD is an estimate of what&rsquo;s predicted
             to exchange this month. Fee shows the agency&rsquo;s legacy flat fee, or the standard sliding scale.
           </InfoTip>
-        </h2>
+        }
+      >
         {data.perAgency.length === 0 ? (
           <p className="text-sm text-neutral-600">No agencies in scope.</p>
         ) : (
           <PerAgencyTable rows={data.perAgency} />
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* ── Two-up: Recent exchanges + Outstanding/risks ──────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            Recent exchanges
-            <InfoTip label="Fee charged">
-              The amount actually invoiced for each exchange (frozen at billing), not a live recompute.
-            </InfoTip>
-          </h2>
-          {data.recentExchanges.length === 0 ? (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
-              <p className="text-sm text-neutral-600">No exchanges yet in scope.</p>
-            </div>
-          ) : (
-            <RecentExchangesTable rows={data.recentExchanges} />
-          )}
+          <CollapsibleSection
+            title="Recent exchanges"
+            tip={
+              <InfoTip label="Fee charged">
+                The amount actually invoiced for each exchange (frozen once its month is issued).
+              </InfoTip>
+            }
+          >
+            {data.recentExchanges.length === 0 ? (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+                <p className="text-sm text-neutral-600">No exchanges yet in scope.</p>
+              </div>
+            ) : (
+              <RecentExchangesTable rows={data.recentExchanges} />
+            )}
+          </CollapsibleSection>
         </div>
         <div>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
@@ -315,14 +320,21 @@ function PipelineCell({
 
 // ─── Referral income cell ─────────────────────────────────────────────────────
 
-function ReferralCell({ label, pence, sub, tone = "default" }: { label: string; pence: number; sub: string; tone?: "default" | "warn" }) {
+function ReferralCell({ label, pence, sub, tone = "default", href }: { label: string; pence: number; sub: string; tone?: "default" | "warn"; href?: string }) {
   const valueClass = tone === "warn" && pence > 0 ? "text-amber-400" : "text-neutral-100";
-  return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
-      <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">{label}</p>
+  const inner = (
+    <>
+      <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider">
+        {label}{href && <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>}
+      </p>
       <p className={`mt-1.5 text-xl font-semibold tabular-nums ${valueClass}`}>{formatGBP(pence)}</p>
       <p className="text-[11px] text-neutral-600">{sub}</p>
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} className="group bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 hover:border-neutral-700 transition-colors block">{inner}</Link>
+  ) : (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">{inner}</div>
   );
 }
 

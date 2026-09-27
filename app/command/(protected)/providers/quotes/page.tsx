@@ -38,7 +38,7 @@ function isStatus(s: string): s is QuoteRequestStatus {
 export default async function QuoteInboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; firmId?: string }>;
+  searchParams: Promise<{ status?: string; firmId?: string; collected?: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user || !hasSuperAdminPowers(session)) redirect("/dashboard");
@@ -48,10 +48,13 @@ export default async function QuoteInboxPage({
     ? params.status
     : "pending";
   const firmId = params.firmId || undefined;
+  // Optional collected filter (drill-down from the Revenue page's referral cells).
+  const collectedFilter = params.collected === "yes" ? true : params.collected === "no" ? false : undefined;
 
   const where = {
     ...(activeStatus !== "all" && isStatus(activeStatus) ? { status: activeStatus } : {}),
     ...(firmId ? { providerId: firmId } : {}),
+    ...(collectedFilter !== undefined ? { referralFeeCollected: collectedFilter } : {}),
   };
 
   const firmScope = firmId ? { providerId: firmId } : {};
