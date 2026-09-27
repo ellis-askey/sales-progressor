@@ -6,6 +6,7 @@
 // verifies the content hash first.
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
@@ -153,6 +154,51 @@ export async function publishCampaignAction(experimentId: string, prospectIds: s
   const res = await launchExperimentToProspects({ experimentId, prospectIds, actorUserId: session.user.id });
   if ("ok" in res && res.ok) revalidatePath(REVALIDATE);
   return res;
+}
+
+// Correct a found agent's contact name / email inline on the review screen (e.g.
+// after sleuthing out the real address for a guessed or blank row). Writes to
+// the primary contact; a manually entered email is recorded as human-confirmed,
+// and the deliverability badge is recomputed and returned.
+export async function updateFoundProspectAction(
+  prospectId: string,
+  patch: { contactName: string | null; email: string | null },
+): Promise<{ ok: true; contactName: string | null; email: string | null; emailStatus: FoundRow["emailStatus"] } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const email = patch.email?.trim() || null;
+  const name = patch.contactName?.trim() || null;
+
+  const p = await commandDb.prospect.findUnique({
+    where: { id: prospectId },
+    select: { id: true, contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], take: 1, select: { id: true, name: true, research: true } } },
+  });
+  if (!p) return { ok: false, error: "Prospect not found." };
+  const primary = p.contacts[0] ?? null;
+
+  // A manually entered email is human-confirmed — record that in the provenance
+  // so the badge reflects it now and on any future review.
+  const confirmedResearch = {
+    ...((primary?.research as Record<string, unknown> | null) ?? {}),
+    email: { state: "confirmed", note: "manually entered", researchedAt: new Date().toISOString() },
+  } as Prisma.InputJsonValue;
+
+  if (primary) {
+    await commandDb.prospectContact.update({
+      where: { id: primary.id },
+      data: { name: name ?? primary.name, email, ...(email ? { research: confirmedResearch } : {}) },
+    });
+  } else {
+    await commandDb.prospectContact.create({
+      data: { prospectId, name: name ?? "Contact", email, isPrimary: true, ...(email ? { research: confirmedResearch } : {}) },
+    });
+  }
+
+  let emailStatus: FoundRow["emailStatus"] = "none";
+  if (email) {
+    const v = await verifyEmailDeliverable(email);
+    emailStatus = v.status === "invalid" ? "invalid" : "verified";
+  }
+  return { ok: true, contactName: name, email, emailStatus };
 }
 
 // ── G: approval workflow ─────────────────────────────────────────────────────

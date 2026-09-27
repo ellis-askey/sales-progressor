@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { findAgentsAction, getBatchProspectsAction, publishCampaignAction, type FoundRow } from "@/app/actions/outreach";
+import { findAgentsAction, getBatchProspectsAction, publishCampaignAction, updateFoundProspectAction, type FoundRow } from "@/app/actions/outreach";
 import { processNextImportItemAction } from "@/app/actions/prospects";
 
 // "Find agents" on an approved experiment, end to end on one screen:
@@ -10,7 +10,8 @@ import { processNextImportItemAction } from "@/app/actions/prospects";
 //   2. Enrich + add each to prospects (progress-tracked; the drain cron finishes
 //      anything left if the tab closes).
 //   3. REVIEW the found agents as rows — who, their email, and whether it's
-//      verified / a guess / undeliverable — and drop any you don't want.
+//      verified / a guess / undeliverable — edit a name or email inline where you
+//      need to, and drop any you don't want.
 //   4. PUBLISH to exactly the kept agents. Sending warms up automatically (a few
 //      a day at first, climbing over ~3 weeks); the rest send day by day.
 type Phase = "idle" | "searching" | "adding" | "review" | "publishing" | "error";
@@ -31,6 +32,8 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
   const [processed, setProcessed] = useState(0);
   const [rows, setRows] = useState<FoundRow[]>([]);
   const [kept, setKept] = useState<Set<string>>(new Set());
+  const [dirty, setDirty] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -40,6 +43,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
     setMsg(null);
     setFound(0);
     setProcessed(0);
+    setDirty(new Set());
     const res = await findAgentsAction(area, count);
     if (!res.ok) {
       setError(res.error);
@@ -76,6 +80,31 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
     });
   }
 
+  function editRow(id: string, field: "contactName" | "email", value: string) {
+    setRows((prev) => prev.map((r) => (r.prospectId === id ? { ...r, [field]: value } : r)));
+    setDirty((prev) => new Set(prev).add(id));
+  }
+
+  async function saveRow(id: string) {
+    const row = rows.find((r) => r.prospectId === id);
+    if (!row) return;
+    setSaving((prev) => new Set(prev).add(id));
+    const res = await updateFoundProspectAction(id, { contactName: row.contactName, email: row.email });
+    setSaving((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    if ("ok" in res && res.ok) {
+      setRows((prev) => prev.map((r) => (r.prospectId === id ? { ...r, contactName: res.contactName, email: res.email, emailStatus: res.emailStatus } : r)));
+      setDirty((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      setKept((prev) => {
+        const n = new Set(prev);
+        if (res.emailStatus === "verified" || res.emailStatus === "guessed") n.add(id);
+        else n.delete(id);
+        return n;
+      });
+    } else {
+      setError("error" in res ? res.error : "Could not save that change.");
+    }
+  }
+
   async function publish() {
     setPhase("publishing");
     setError(null);
@@ -91,6 +120,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
 
   const busy = phase === "searching" || phase === "adding" || phase === "publishing";
   const keptCount = kept.size;
+  const hasUnsaved = dirty.size > 0;
 
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3.5">
@@ -160,52 +190,70 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
                   <button onClick={() => setKept(new Set())} className="text-[11px] text-neutral-500 hover:text-neutral-300">Clear</button>
                 </div>
               </div>
-              <div className="rounded-lg border border-neutral-800 overflow-hidden max-h-72 overflow-y-auto">
-                <table className="w-full text-[11.5px]">
-                  <tbody>
-                    {rows.map((r) => {
-                      const on = kept.has(r.prospectId);
-                      const canPick = !!r.email;
-                      const badge = BADGE[r.emailStatus];
-                      return (
-                        <tr key={r.prospectId} className={`border-b border-neutral-800/70 last:border-0 ${on ? "" : "opacity-55"}`}>
-                          <td className="px-2 py-1.5 align-top">
-                            <input type="checkbox" checked={on} disabled={!canPick} onChange={() => toggle(r.prospectId)} className="accent-blue-500 disabled:opacity-40" />
-                          </td>
-                          <td className="px-2 py-1.5 align-top">
-                            <div className="text-neutral-200">{r.agencyName}</div>
-                            <div className="text-[10.5px] text-neutral-600">
-                              {r.contactName ?? "no named contact"}{r.jobTitle ? ` · ${r.jobTitle}` : ""}{r.location ? ` · ${r.location}` : ""}
-                            </div>
-                          </td>
-                          <td className="px-2 py-1.5 align-top">
-                            <div className="text-neutral-400 break-all">{r.email ?? "—"}</div>
-                          </td>
-                          <td className="px-2 py-1.5 align-top text-right whitespace-nowrap">
-                            <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>{badge.label}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+
+              <div className="rounded-lg border border-neutral-800 divide-y divide-neutral-800/70 max-h-80 overflow-y-auto">
+                {rows.map((r) => {
+                  const on = kept.has(r.prospectId);
+                  const canPick = !!(r.email && r.email.trim());
+                  const badge = BADGE[r.emailStatus];
+                  const isDirty = dirty.has(r.prospectId);
+                  const isSaving = saving.has(r.prospectId);
+                  return (
+                    <div key={r.prospectId} className={`flex items-start gap-2 px-2.5 py-2 ${on ? "" : "opacity-60"}`}>
+                      <input type="checkbox" checked={on} disabled={!canPick} onChange={() => toggle(r.prospectId)} className="mt-1 accent-blue-500 disabled:opacity-40" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] text-neutral-200">
+                          {r.agencyName}
+                          {r.location ? <span className="text-neutral-600"> · {r.location}</span> : null}
+                          {r.jobTitle ? <span className="text-neutral-600"> · {r.jobTitle}</span> : null}
+                        </div>
+                        <div className="mt-1 flex gap-1.5 flex-wrap">
+                          <input
+                            value={r.contactName ?? ""}
+                            onChange={(e) => editRow(r.prospectId, "contactName", e.target.value)}
+                            placeholder="Contact name"
+                            className="w-32 text-[11px] bg-neutral-900 border border-neutral-800 rounded px-1.5 py-1 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                          />
+                          <input
+                            value={r.email ?? ""}
+                            onChange={(e) => editRow(r.prospectId, "email", e.target.value)}
+                            placeholder="email@agency.co.uk"
+                            className="flex-1 min-w-[170px] text-[11px] bg-neutral-900 border border-neutral-800 rounded px-1.5 py-1 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>{badge.label}</span>
+                        {isDirty && (
+                          <button onClick={() => saveRow(r.prospectId)} disabled={isSaving} className="text-[10px] text-blue-400 hover:text-blue-300 disabled:opacity-50">
+                            {isSaving ? "saving…" : "save"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <p className="mt-2 text-[10.5px] text-neutral-600">
-                &ldquo;Guessed&rdquo; emails were inferred, not confirmed — worth a quick sleuth before you rely on them. &ldquo;Bad domain&rdquo; can&apos;t receive mail and won&apos;t send.
+                Edit a name or email inline and hit <span className="text-neutral-400">save</span> to fix it. &ldquo;Guessed&rdquo; emails were inferred, not confirmed — worth a quick sleuth. &ldquo;Bad domain&rdquo; can&apos;t receive mail and won&apos;t send.
               </p>
 
               <div className="mt-3 flex items-center gap-3 flex-wrap">
                 <button
                   onClick={publish}
-                  disabled={busy || keptCount === 0}
+                  disabled={busy || keptCount === 0 || hasUnsaved}
                   className="text-[12px] font-semibold px-3.5 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
                 >
                   {phase === "publishing" ? "Publishing…" : `Publish to ${keptCount} agent${keptCount === 1 ? "" : "s"}`}
                 </button>
-                <button onClick={() => { setPhase("idle"); setRows([]); setKept(new Set()); }} disabled={busy} className="text-[11px] text-neutral-500 hover:text-neutral-300 disabled:opacity-50">
+                <button onClick={() => { setPhase("idle"); setRows([]); setKept(new Set()); setDirty(new Set()); }} disabled={busy} className="text-[11px] text-neutral-500 hover:text-neutral-300 disabled:opacity-50">
                   Start over
                 </button>
-                <span className="text-[10.5px] text-neutral-600">Sends warm up automatically: a few a day at first, climbing over ~3 weeks.</span>
+                {hasUnsaved ? (
+                  <span className="text-[10.5px] text-amber-400">Save your edits before publishing.</span>
+                ) : (
+                  <span className="text-[10.5px] text-neutral-600">Sends warm up automatically: a few a day at first, climbing over ~3 weeks.</span>
+                )}
               </div>
             </>
           )}
@@ -213,8 +261,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
       )}
 
       {msg && <p className="mt-3 text-[12px] text-emerald-400">{msg}</p>}
-      {phase === "error" && error && <p className="mt-3 text-[12px] text-red-400">{error}</p>}
-      {phase !== "error" && error && <p className="mt-2 text-[12px] text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-[12px] text-red-400">{error}</p>}
     </div>
   );
 }
