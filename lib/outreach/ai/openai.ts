@@ -61,7 +61,23 @@ export class OpenAIProvider implements AIProvider {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      const text = res.choices?.[0]?.message?.content ?? "";
+      const choice = res.choices?.[0];
+      const text = choice?.message?.content ?? "";
+      // Empty content from a reasoning model almost always means the reasoning
+      // tokens consumed the whole max_completion_tokens budget (finish_reason
+      // "length") before any output was written, or the model refused. Surface a
+      // clear error instead of a downstream "no JSON object found".
+      if (!text.trim()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const refusal = (choice?.message as any)?.refusal as string | undefined;
+        const reason = choice?.finish_reason ?? "unknown";
+        throw new AIProviderError(
+          refusal
+            ? `model refused to respond: ${refusal}`
+            : `model returned no content (finish_reason: ${reason}); at reasoning_effort "${this.reasoningEffort}" the reasoning likely used the ${maxTokens}-token budget before writing output`,
+          this.name,
+        );
+      }
       return {
         text: text.trim(),
         usage: {

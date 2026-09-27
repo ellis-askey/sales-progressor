@@ -45,4 +45,6 @@ export interface AIProvider {
   structuredGenerate(input: StructuredInput): Promise<AIGenerateResult>;
 }
 
-export const DEFAULT_MAX_TOKENS = 4096;
+// Generous by design: on GPT-5.x reasoning models this budget covers reasoning
+// tokens too, so a small value can leave nothing for the actual JSON output.
+export const DEFAULT_MAX_TOKENS = 8192;

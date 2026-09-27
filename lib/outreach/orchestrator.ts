@@ -226,6 +226,9 @@ export async function runStrategyCycle(opts: {
       prompt: reviewerPrompt(contextJson, proposal),
       promptVersion: PROMPT_VERSIONS.reviewer,
       cycleId,
+      // Reasoning-model budget must cover reasoning + JSON on the full prompt
+      // (voice guide + context + proposal); 4k could be eaten by reasoning alone.
+      maxTokens: 16000,
     });
     modelCalls++;
     review = run.data;
