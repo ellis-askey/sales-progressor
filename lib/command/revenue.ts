@@ -161,7 +161,18 @@ export type RevenueDashboardData = {
   /** Provider referral income (surveyors/brokers) — a separate stream from our
    *  own sale fees. Earned on won quotes; collected when marked paid. */
   referralIncome: { earnedPence: number; collectedPence: number; outstandingPence: number; wonCount: number };
+  /** Per-line detail behind the headline numbers, for the Banked / Pipeline /
+   *  Forecast statement drill-downs. bankedLines sum to banked; pipeline lines
+   *  to pipelineThisMonth; referralLines are the separate referral stream. */
+  bankedLines: RevenueLine[];
+  pipelineThisMonthLines: RevenueLine[];
+  referralLines: ReferralLine[];
 };
+
+/** One sale's fee line in a breakdown statement. */
+export type RevenueLine = { address: string; agencyName: string; pence: number; date: Date | null };
+/** One referral fee line — which provider firm, which sale, collected or not. */
+export type ReferralLine = { providerName: string; address: string; agencyName: string; pence: number; collected: boolean };
 
 export type AgencyRevenueDetailData = {
   asOf: Date;
@@ -276,8 +287,8 @@ export async function getRevenueDashboard(
   const feeLineSelect = {
     totalPence: true,
     transactionId: true,
-    invoice: { select: { agencyId: true } },
-    transaction: { select: { serviceType: true, billedAtExchange: true } },
+    invoice: { select: { agencyId: true, agency: { select: { name: true } } } },
+    transaction: { select: { serviceType: true, billedAtExchange: true, propertyAddress: true } },
   } as const;
 
   // Single fan-out of all reads. Each is independent.
@@ -296,6 +307,7 @@ export async function getRevenueDashboard(
     feeLinesLastMonth,
     referralWonAgg,
     referralCollectedAgg,
+    referralLinesRaw,
   ] = await Promise.all([
     // All agencies in scope — drives the per-agency table.
     commandDb.agency.findMany({
@@ -385,6 +397,7 @@ export async function getRevenueDashboard(
         agency: {
           select: {
             id: true,
+            name: true,
             feeTier: true,
             modeProfile: true,
             legacyOutsourcedFeePence: true,
@@ -492,10 +505,31 @@ export async function getRevenueDashboard(
       where: { status: "won", referralFeeCollected: true, transaction: { agency: agencyWhere } },
       _sum: { referralFeePence: true },
     }),
+    // Per-line referral income (won quotes) for the breakdown statement — shows
+    // which provider firm and which sale each referral fee came from.
+    commandDb.quoteRequest.findMany({
+      where: { status: "won", transaction: { agency: agencyWhere } },
+      select: {
+        referralFeePence: true,
+        referralFeeCollected: true,
+        provider: { select: { name: true } },
+        transaction: { select: { propertyAddress: true, agency: { select: { name: true } } } },
+      },
+      orderBy: { statusChangedAt: "desc" },
+    }),
   ]);
 
   const referralEarnedPence = referralWonAgg._sum.referralFeePence ?? 0;
   const referralCollectedPence = referralCollectedAgg._sum.referralFeePence ?? 0;
+  const referralLines: ReferralLine[] = referralLinesRaw
+    .filter((q) => (q.referralFeePence ?? 0) > 0)
+    .map((q) => ({
+      providerName: q.provider?.name ?? "—",
+      address: q.transaction?.propertyAddress ?? "—",
+      agencyName: q.transaction?.agency?.name ?? "—",
+      pence: q.referralFeePence ?? 0,
+      collected: q.referralFeeCollected,
+    }));
 
   // ── Banked = ACTUAL invoiced amounts (frozen InvoiceLine), not a recompute ──
   // so it can never drift if a fee/VAT changes after a file exchanged. Matches
@@ -503,6 +537,7 @@ export async function getRevenueDashboard(
   let bankedTotalPence = 0;
   let bankedInHousePence = 0, bankedOutsourcedPence = 0;
   const bankedByAgency = new Map<string, { sum: number; count: number; lastExchange: Date | null }>();
+  const bankedLines: RevenueLine[] = [];
   const accruedTxIds = new Set<string>();
   for (const l of feeLinesThisMonth) {
     bankedTotalPence += l.totalPence;
@@ -516,6 +551,12 @@ export async function getRevenueDashboard(
     const bx = l.transaction?.billedAtExchange ?? null;
     if (bx && (!cur.lastExchange || bx > cur.lastExchange)) cur.lastExchange = bx;
     bankedByAgency.set(aId, cur);
+    bankedLines.push({
+      address: l.transaction?.propertyAddress ?? "—",
+      agencyName: l.invoice.agency?.name ?? "—",
+      pence: l.totalPence,
+      date: bx,
+    });
   }
   // Fallback: a file that exchanged this month but the nightly accrual cron
   // hasn't invoiced yet — recompute so it isn't missing until tomorrow.
@@ -532,6 +573,12 @@ export async function getRevenueDashboard(
     cur.count += 1;
     if (r.billedAtExchange && (!cur.lastExchange || r.billedAtExchange > cur.lastExchange)) cur.lastExchange = r.billedAtExchange;
     bankedByAgency.set(r.agencyId, cur);
+    bankedLines.push({
+      address: r.propertyAddress,
+      agencyName: r.agency?.name ?? "—",
+      pence: fee.totalPence,
+      date: r.billedAtExchange,
+    });
   }
   const bankedAgencyCount = bankedByAgency.size;
   const bankedFileCount = feeLinesThisMonth.length + bankedFallbackCount;
@@ -554,6 +601,7 @@ export async function getRevenueDashboard(
   let pipeTierLegacy = 0, pipeTierStandard = 0;
   let pipeModeSp = 0, pipeModePm = 0, pipeModeMixed = 0;
   const pipelineThisByAgency = new Map<string, { sum: number; count: number }>();
+  const pipelineThisMonthLines: RevenueLine[] = [];
   const activeCountByAgency = new Map<string, number>();
 
   for (const f of activeFiles) {
@@ -613,6 +661,12 @@ export async function getRevenueDashboard(
       cur.sum += fee.totalPence;
       cur.count += 1;
       pipelineThisByAgency.set(f.agencyId, cur);
+      pipelineThisMonthLines.push({
+        address: f.propertyAddress,
+        agencyName: f.agency?.name ?? "—",
+        pence: fee.totalPence,
+        date: predicted,
+      });
     } else if (bucket === "next") {
       pipelineNext += fee.totalPence;
       pipelineNextCount += 1;
@@ -746,6 +800,9 @@ export async function getRevenueDashboard(
       outstandingPence: referralEarnedPence - referralCollectedPence,
       wonCount: referralWonAgg._count._all,
     },
+    bankedLines,
+    pipelineThisMonthLines,
+    referralLines,
   };
 }
 

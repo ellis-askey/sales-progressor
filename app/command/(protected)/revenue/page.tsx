@@ -22,6 +22,16 @@ export default async function RevenuePage({
   const nextMonthLabel = formatMonthLabel(new Date(data.monthEnd.getTime() + 86_400_000));
   const monthAfterLabel = formatMonthLabel(new Date(data.monthEnd.getTime() + 35 * 86_400_000));
 
+  // Carry the current mode/agency filter through to the breakdown drill-downs.
+  const scopeQs = (() => {
+    const p = new URLSearchParams();
+    if (sp.mode) p.set("mode", sp.mode);
+    if (sp.agency) p.set("agency", sp.agency);
+    const s = p.toString();
+    return s ? `&${s}` : "";
+  })();
+  const breakdownHref = (metric: "banked" | "pipeline" | "forecast") => `/command/revenue/breakdown?metric=${metric}${scopeQs}`;
+
   return (
     <div className="space-y-10">
       <div className="flex items-baseline justify-between">
@@ -61,6 +71,7 @@ export default async function RevenuePage({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <Kpi
             label="Banked this month"
+            href={breakdownHref("banked")}
             value={formatGBP(data.banked.totalPence)}
             sub={`${data.banked.fileCount} file${data.banked.fileCount === 1 ? "" : "s"} · ${data.banked.agencyCount} agenc${data.banked.agencyCount === 1 ? "y" : "ies"}`}
             tone="primary"
@@ -73,12 +84,14 @@ export default async function RevenuePage({
           />
           <Kpi
             label="Pipeline this month"
+            href={breakdownHref("pipeline")}
             value={formatGBP(data.pipelineThisMonth.totalPence)}
             sub={`${data.pipelineThisMonth.fileCount} file${data.pipelineThisMonth.fileCount === 1 ? "" : "s"} predicted to exchange in ${monthLabel}`}
             tip="Estimated fees on active files whose predicted exchange date falls in this month. An estimate, not yet billed."
           />
           <Kpi
             label="Forecast total"
+            href={breakdownHref("forecast")}
             value={formatGBP(data.forecastTotalThisMonth.totalPence)}
             sub="Banked + pipeline, if everything predicted lands"
             tone="forecast"
@@ -263,6 +276,7 @@ function Kpi({
   tone = "default",
   tip,
   trend,
+  href,
 }: {
   label: string;
   value: string;
@@ -270,21 +284,36 @@ function Kpi({
   tone?: "default" | "primary" | "forecast" | "muted";
   tip?: ReactNode;
   trend?: ReactNode;
+  href?: string;
 }) {
   const valueClass =
     tone === "primary" ? "text-emerald-400" :
     tone === "forecast" ? "text-blue-400" :
     tone === "muted" ? "text-neutral-400" :
     "text-neutral-100";
+  // Value + sub are the clickable drill-down; the InfoTip stays outside the link
+  // (a button can't nest in an anchor), so opening the tip never navigates.
+  const body = (
+    <>
+      <p className={`mt-2 text-3xl font-semibold tabular-nums ${valueClass}`}>{value}</p>
+      <p className="mt-1 text-xs text-neutral-500">{sub}</p>
+      {trend && <p className="mt-1 text-[11px] tabular-nums">{trend}</p>}
+    </>
+  );
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
       <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
         {label}
+        {href && <span className="text-neutral-600">›</span>}
         {tip && <InfoTip label={label}>{tip}</InfoTip>}
       </p>
-      <p className={`mt-2 text-3xl font-semibold tabular-nums ${valueClass}`}>{value}</p>
-      <p className="mt-1 text-xs text-neutral-500">{sub}</p>
-      {trend && <p className="mt-1 text-[11px] tabular-nums">{trend}</p>}
+      {href ? (
+        <Link href={href} className="group block -mx-1 px-1 rounded-lg hover:bg-neutral-800/40 transition-colors">
+          {body}
+        </Link>
+      ) : (
+        body
+      )}
     </div>
   );
 }
