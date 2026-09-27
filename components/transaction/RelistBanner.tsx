@@ -31,7 +31,19 @@ export function RelistBanner({ show, transactionId, previousPurchasePrice, inCha
         icon={<ArrowsClockwise size={18} weight="fill" />}
         title="This sale fell through."
         body="When you find a new buyer, add them here. Their steps start fresh, while the seller keeps anything that doesn't depend on the buyer."
-        action={{ label: "Add a new buyer", onClick: () => setOpen(true) }}
+        rightSlot={
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            style={{
+              font: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 16px", borderRadius: 999,
+              border: "none", cursor: "pointer", whiteSpace: "nowrap",
+              background: "var(--agent-coral-deep, #e8542f)", color: "#fff",
+            }}
+          >
+            Add a new buyer
+          </button>
+        }
         className="mb-4"
       />
       <RelistFileModal
