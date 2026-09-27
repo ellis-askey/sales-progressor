@@ -27,7 +27,7 @@ export function ChainSetupFailedBanner() {
     <AgentBanner
       kind="warning"
       icon={<Warning size={18} weight="fill" />}
-      title="Chain setup failed"
+      title="Chain setup failed."
       body="Your file was saved, but we couldn't link the chain."
       action={{
         label: "Go to chain panel →",

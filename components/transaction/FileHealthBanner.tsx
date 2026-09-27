@@ -68,7 +68,7 @@ export function FileHealthBanner({ transactionId, actionableCount, overdueCount,
       <AgentBanner
         kind="danger"
         icon={<Warning size={18} weight="fill" />}
-        title="Exchange is running behind target"
+        title="Exchange is running behind target."
         body={`Our latest prediction puts exchange around ${slip.predictedDateLabel}, more than two weeks after the target.${slip.bottleneckName ? ` We're currently waiting on ${slip.bottleneckName}.` : ""} The prediction will update as the sale progresses.`}
         action={
           actionableCount > 0
@@ -93,9 +93,9 @@ export function FileHealthBanner({ transactionId, actionableCount, overdueCount,
   const title =
     actionableCount > 0
       ? overdueCount > 0
-        ? `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} overdue`
-        : `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} need${actionableCount === 1 ? "s" : ""} attention`
-      : "This sale may be falling behind";
+        ? `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} overdue.`
+        : `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} need${actionableCount === 1 ? "s" : ""} attention.`
+      : "This sale may be falling behind.";
   const body =
     actionableCount > 0 && isBehind
       ? "This sale may also be falling behind. See what's holding things up."

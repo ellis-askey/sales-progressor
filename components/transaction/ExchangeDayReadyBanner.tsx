@@ -26,15 +26,15 @@ export function ExchangeDayReadyBanner({
   let title: string;
   let body: string;
   if (!sellerReady && !buyerReady) {
-    title = "Exchange day has started, but neither solicitor has confirmed they're ready";
+    title = "Exchange day has started, but neither solicitor has confirmed they're ready.";
     body =
       "We haven't logged either solicitor as ready to exchange yet. This will clear once both have confirmed.";
   } else if (!sellerReady) {
-    title = "The seller's solicitor hasn't confirmed ready to exchange";
+    title = "The seller's solicitor hasn't confirmed ready to exchange.";
     body =
       "The buyer's solicitor is ready. This will clear once the seller's solicitor confirms they're ready too.";
   } else {
-    title = "The buyer's solicitor hasn't confirmed ready to exchange";
+    title = "The buyer's solicitor hasn't confirmed ready to exchange.";
     body =
       "The seller's solicitor is ready. This will clear once the buyer's solicitor confirms they're ready too.";
   }

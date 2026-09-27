@@ -61,7 +61,7 @@ export function TrialBannerWithModal({
       >
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary)" }}>
-            Add a card to send us more sales
+            Add a card to send us more sales.
           </div>
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary)", marginTop: 3, lineHeight: 1.5 }}>
             Your first sale with our team is free. To send us another, add a payment card. You&rsquo;ll only be charged when the sale exchanges.

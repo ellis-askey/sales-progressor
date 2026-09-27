@@ -27,7 +27,7 @@ export function DirectorJoinedBanner({ directorName, agencyName }: Props) {
     <AgentBanner
       kind="success"
       icon={<CheckCircle size={18} weight="fill" />}
-      title={`${directorName} has joined ${agencyName}`}
+      title={`${directorName} has joined ${agencyName}.`}
       body="They can now see all your active sales."
       dismissible={{ onDismiss: handleDismiss }}
     />

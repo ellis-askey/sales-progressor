@@ -56,7 +56,7 @@ export function OutsourcedBanner() {
             lineHeight: 1.35,
           }}
         >
-          Our team is handling this sale
+          Our team is handling this sale.
         </p>
         <p
           style={{
