@@ -19,6 +19,7 @@ import { performProspectSend } from "@/lib/prospects/perform-send";
 import { buildAgencyInvitation } from "@/lib/emails/agency-invitation";
 import { researchAgency, type ResearchResult } from "@/lib/prospects/research";
 import { parseImportLines, applyResearchToProspect, processNextItem } from "@/lib/prospects/import-core";
+import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import { randomUUID } from "crypto";
 import type { Prisma, ProspectStatus, ProspectSource, ProspectLostReason } from "@prisma/client";
 
@@ -444,7 +445,9 @@ export async function convertProspectAction(prospectId: string, agencyId: string
   if (!agency.signupSource) {
     await commandDb.agency.update({ where: { id: agencyId }, data: { signupSource: `prospect:${p.source}` } }).catch(() => {});
   }
-  await logActivity(prospectId, session.user.id, "converted", `Won: now the agency ${agency.name}`, null, { agencyId, agencyName: agency.name });
+  // They're now a customer, so stop any outreach flow still running to them.
+  await haltActiveFlows(prospectId, "converted").catch(() => {});
+  await logActivity(prospectId, session.user.id, "converted", `Won: now the agency ${agency.name}. Any active outreach flow stopped.`, null, { agencyId, agencyName: agency.name });
   revalidatePath("/command/prospects");
   return { ok: true };
 }
