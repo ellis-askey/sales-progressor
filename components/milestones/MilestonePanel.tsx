@@ -319,8 +319,8 @@ export function MilestonePanel({
         <AgentBanner
           kind="success"
           icon={<CheckCircle size={18} weight="fill" />}
-          title="Ready to exchange"
-          body="All blocking steps are complete on both sides"
+          title="Ready to exchange."
+          body="Everything blocking exchange is done on both sides. You can push for a date."
           className="mb-5"
         />
       ) : (
