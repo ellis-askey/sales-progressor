@@ -38,8 +38,14 @@ export async function GET(req: NextRequest) {
 
   const milestoneRows = milestones.map((m) => {
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
+    // Scope buyer names to the ACTIVE round so a relisted file never mixes the
+    // archived previous buyer with the new one (vendors are file-level; a null
+    // round is kept for legacy files).
+    const activeRoundId = m.transaction.activeBuyerRoundId ?? null;
+    const inRound = (c: { roleType: string; buyerRoundId: string | null }) =>
+      c.roleType !== "purchaser" || activeRoundId === null || c.buyerRoundId === null || c.buyerRoundId === activeRoundId;
     const sideContacts = (m.transaction.contacts ?? [])
-      .filter((c) => c.roleType === side)
+      .filter((c) => c.roleType === side && inRound(c))
       .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
     const resolved = resolveConfirmer(m, sideContacts);
     // No provenance at all = a twin close (the mirrored half of a paired
@@ -52,7 +58,7 @@ export async function GET(req: NextRequest) {
     const confirmingContact =
       confirmer?.kind === "client" || confirmer?.kind === "helper"
         ? (m.transaction.contacts ?? []).find((c) => c.id === m.confirmedByContactId)
-          ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side)
+          ?? (m.transaction.contacts ?? []).find((c) => c.roleType === side && inRound(c))
         : null;
     // A staff confirmation the viewer made themselves still shows in the
     // dropdown, but shouldn't drive the red unread badge — otherwise every

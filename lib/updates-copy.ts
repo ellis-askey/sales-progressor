@@ -14,7 +14,7 @@
 // Reviewed + approved by Ellis 2026-08-12.
 
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
-import { extractFirstName, getTitlePrefix } from "@/lib/contacts/displayName";
+import { extractFirstName, getTitlePrefix, nameWithoutTitle } from "@/lib/contacts/displayName";
 
 // Possessive client label from a side's contact names, first-names only, so a
 // notification reads with the real people rather than "the buyer". Handles one
@@ -248,14 +248,14 @@ function joinNames(names: string[]): string {
 }
 function clientPossessive(contacts: SideContact[], side: "vendor" | "purchaser"): string {
   if (contacts.length === 0) return side === "vendor" ? "the seller's" : "the buyer's";
-  return possessive(joinNames(contacts.map((c) => c.name)));
+  return possessive(joinNames(contacts.map((c) => nameWithoutTitle(c.name))));
 }
 // All clients on a side, joined ("Sarah and James Whitfield"), so a joint
 // buyer/seller reads correctly when they confirm a step. Falls back to the
 // generic party label when we have no named contacts.
 function allClientNames(contacts: SideContact[], side: "vendor" | "purchaser"): string {
   if (contacts.length === 0) return side === "vendor" ? "The seller" : "The buyer";
-  return joinNames(contacts.map((c) => c.name));
+  return joinNames(contacts.map((c) => nameWithoutTitle(c.name)));
 }
 function clientPronoun(contacts: SideContact[]): "his" | "her" | "their" {
   // Two or more clients -> always "their". One client -> his/her from a title

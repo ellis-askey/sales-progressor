@@ -177,7 +177,7 @@ export async function getActivityTimeline(
       agency: { select: { name: true } },
       // email added so an inbound email's sender can be resolved to the person
       // on the file (real sender identity, not "System"). (Email redesign P1.)
-      contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true, email: true } },
+      contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true, email: true, buyerRoundId: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
       // toggle either row when logging the comm). They must be in the
@@ -309,8 +309,11 @@ export async function getActivityTimeline(
   const milestoneEntries: ActivityEntry[] = completions.map((c) => {
     const confirmedByClient = c.confirmedByPortal;
     const side = c.milestoneDefinition.side as "vendor" | "purchaser";
+    // Scope buyer names to the ACTIVE round so a relisted file's timeline never
+    // names an archived previous buyer alongside the new one.
+    const activeRoundId = tx.activeBuyerRoundId ?? null;
     const sideContacts = tx.contacts
-      .filter((ct) => ct.roleType === side)
+      .filter((ct) => ct.roleType === side && (side !== "purchaser" || activeRoundId === null || ct.buyerRoundId === null || ct.buyerRoundId === activeRoundId))
       .map((ct) => ({ id: ct.id, name: ct.name, isPrincipal: ct.isPrincipal }));
 
     // Classify who confirmed (a helper reads "on behalf of ...") and get the

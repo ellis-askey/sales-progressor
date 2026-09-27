@@ -410,8 +410,10 @@ export async function getAgentMilestoneActivity(
       transaction: {
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, status: true,
+          activeBuyerRoundId: true,
           // id + image added for the client-confirmer avatar (audit #16 phase 2).
-          contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } },
+          // buyerRoundId so callers can scope buyer names to the active round.
+          contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true, buyerRoundId: true } },
         },
       },
       milestoneDefinition: { select: { code: true, name: true, side: true } },
@@ -508,7 +510,7 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       take: 120,
       include: {
         transaction: {
-          select: { ...FEED_TX_SELECT, contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true } } },
+          select: { ...FEED_TX_SELECT, activeBuyerRoundId: true, contacts: { select: { id: true, name: true, roleType: true, image: true, isPrincipal: true, buyerRoundId: true } } },
         },
         milestoneDefinition: { select: { code: true, name: true, side: true } },
         completedBy: { select: { name: true, image: true } },
@@ -562,7 +564,14 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
 
   for (const m of completions) {
     const side = m.milestoneDefinition.side as "vendor" | "purchaser";
-    const sideContacts = (m.transaction.contacts ?? []).filter((c) => c.roleType === side).map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
+    // Scope buyer names to the ACTIVE round — after a relist the file still holds
+    // the archived previous buyers, and naming them here mixed old + new (a
+    // buyer added to a relisted file showed "Old Buyer and New Buyer"). Vendors
+    // are file-level; a null round is kept (legacy / pre-rounds).
+    const activeRoundId = m.transaction.activeBuyerRoundId ?? null;
+    const sideContacts = (m.transaction.contacts ?? [])
+      .filter((c) => c.roleType === side && (side !== "purchaser" || activeRoundId === null || c.buyerRoundId === null || c.buyerRoundId === activeRoundId))
+      .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
     const resolved = resolveConfirmer(m, sideContacts);
     // A row with a completing user but no richer provenance attributes to that
     // user (or "A colleague" for a nameless legacy row). A row with NO

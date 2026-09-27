@@ -15,15 +15,24 @@ export async function resolveTemplateTokens(
   transactionId: string,
   agentName: string
 ): Promise<Record<string, string>> {
-  const contacts = await prisma.contact.findMany({
-    where: { propertyTransactionId: transactionId },
-    select: { name: true, roleType: true, isPrincipal: true },
-  });
+  const [tx, contacts] = await Promise.all([
+    prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { activeBuyerRoundId: true },
+    }),
+    prisma.contact.findMany({
+      where: { propertyTransactionId: transactionId },
+      select: { name: true, roleType: true, isPrincipal: true, buyerRoundId: true },
+    }),
+  ]);
+  // Scope purchasers to the active round so a relisted file's stored summary
+  // names only the current buyer, never an archived previous one.
+  const activeRoundId = tx?.activeBuyerRoundId ?? null;
 
   const byRole = (role: string) => {
     // Principals only — a helper is never named in the stored summary.
     const names = contacts
-      .filter((c) => c.roleType === role && c.isPrincipal)
+      .filter((c) => c.roleType === role && c.isPrincipal && (role !== "purchaser" || activeRoundId === null || c.buyerRoundId === null || c.buyerRoundId === activeRoundId))
       .map((c) => extractFirstName(c.name));
     if (names.length === 0) return role === "vendor" ? "the vendor" : role === "purchaser" ? "the purchaser" : "the solicitor";
     if (names.length === 1) return names[0];
