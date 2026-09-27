@@ -370,7 +370,7 @@ export async function drainOutboundQueue(): Promise<{
           const stampRoundId =
             recipientContact.roleType === "purchaser" ? recipientContact.buyerRoundId : null;
 
-          await prisma.outboundMessage.create({
+          const mirror = await prisma.outboundMessage.create({
             data: {
               transactionId,
               type: "outbound",
@@ -396,7 +396,19 @@ export async function drainOutboundQueue(): Promise<{
               `[OutboundMessage mirror] failed for queue id=${record.id}:`,
               mirrorErr,
             );
+            return null;
           });
+
+          // Link the queue row to its mirror so the SendGrid webhook can stamp
+          // deliveredAt / openedAt onto the Messages row too. Best-effort: the
+          // email is already sent, so a link failure never breaks the drain.
+          if (mirror) {
+            await prisma.outboundEmailQueue
+              .update({ where: { id: record.id }, data: { outboundMessageId: mirror.id } })
+              .catch((linkErr: unknown) =>
+                console.error(`[OutboundMessage link] failed for queue id=${record.id}:`, linkErr),
+              );
+          }
 
           // Send-time chase bookkeeping (D1, 2026-09-02): count the chase +
           // advance the cadence ONLY now the email has actually left. A chase

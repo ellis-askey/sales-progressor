@@ -2517,6 +2517,12 @@ model OutboundEmailQueue {
   editedAt   DateTime?
   editedById String?
 
+  // Link to the Command Centre Messages mirror (OutboundMessage) created for
+  // CLIENT_CHASE sends. Lets the SendGrid webhook mirror deliveredAt / openedAt
+  // onto that row so the Messages lifecycle populates. Capture-only: nothing
+  // about sending reads this. Nullable + no relation (avoids any cascade change).
+  outboundMessageId String?
+
   // Relations — back-refs added on the User and Contact models in their
   // sections of the schema. ON DELETE CASCADE so deleting a user or contact
   // clears any pending queued mail (orphan-prevention).

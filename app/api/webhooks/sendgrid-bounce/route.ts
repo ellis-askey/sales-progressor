@@ -102,6 +102,13 @@ export async function POST(req: NextRequest) {
         } catch (err) {
           console.error("[sendgrid-webhook] update failed", err);
         }
+        // Mirror delivery status onto the Command Centre Messages row (the
+        // OutboundMessage created for CLIENT_CHASE sends), so its lifecycle
+        // populates. Additive + best-effort: never affects the queue write
+        // above or any client-facing behaviour.
+        await mirrorToOutboundMessage(queueIds, update).catch((err) =>
+          console.error("[sendgrid-webhook] message mirror failed", err),
+        );
         // Broker call-back bounce bell (Ellis, 2026-08-21): a buyer who
         // requested a call is now waiting on an email that died. Tell the
         // file's owner so they can pass the request on by hand instead of
@@ -212,6 +219,51 @@ async function applyUpdate(queueIds: string[], update: QueueUpdate): Promise<num
       });
       return res.count;
     }
+  }
+}
+
+// Mirror a delivery update onto the linked Command Centre Messages row. Only
+// queue rows that carry an outboundMessageId (the CLIENT_CHASE mirror) are
+// touched; everything else is a no-op. Timestamps only (deliveredAt / openedAt
+// / failedAt) so the Messages lifecycle timeline fills in — status is left as
+// the send wrote it. Best-effort and read-nothing: no client-facing effect.
+async function mirrorToOutboundMessage(queueIds: string[], update: QueueUpdate): Promise<void> {
+  const rows = await prisma.outboundEmailQueue.findMany({
+    where: { id: { in: queueIds }, outboundMessageId: { not: null } },
+    select: { outboundMessageId: true },
+  });
+  const msgIds = rows.map((r) => r.outboundMessageId).filter((v): v is string => !!v);
+  if (msgIds.length === 0) return;
+
+  switch (update.kind) {
+    case "delivered":
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, deliveredAt: null },
+        data: { deliveredAt: update.deliveredAt },
+      });
+      return;
+    case "opened":
+      // First open only, mirroring the queue-side first-open rule.
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, openedAt: null },
+        data: { openedAt: update.openedAt },
+      });
+      return;
+    case "bounced":
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, failedAt: null },
+        data: { failedAt: update.bouncedAt, failureReason: update.bouncedReason },
+      });
+      return;
+    case "blocked":
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, failedAt: null },
+        data: { failedAt: update.blockedAt, failureReason: update.blockedReason },
+      });
+      return;
+    case "deferred":
+      // No matching field on OutboundMessage; the queue row tracks deferrals.
+      return;
   }
 }
 
