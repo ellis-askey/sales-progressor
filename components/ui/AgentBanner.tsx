@@ -41,6 +41,9 @@ type Props = {
   // "top-right" sits the action on the header row, immediately left of the
   // dismiss X, so there's no bottom action row and the banner tightens up.
   actionPlacement?: "inline" | "bottom-right" | "inline-responsive" | "top-right";
+  // Arbitrary right-aligned content (e.g. a small stack of buttons). When set it
+  // renders centre-right; use instead of `action` when one link isn't enough.
+  rightSlot?: ReactNode;
   dismissible?: { onDismiss: () => void };
   // Optional className for cases where a caller needs extra spacing (e.g.
   // mb-3). Container styling otherwise comes from this component.
@@ -54,7 +57,7 @@ const TOKEN_FOR_KIND: Record<BannerKind, { tint: string; border: string }> = {
   success: { tint: "var(--agent-success)", border: "var(--agent-success-border-strong)" },
 };
 
-export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", dismissible, className }: Props) {
+export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", rightSlot, dismissible, className }: Props) {
   const t = TOKEN_FOR_KIND[kind];
   // A label ending in "→" is a navigate action: render the arrow as a nudging
   // icon (.agent-arrow-i) with NO underline — the arrow is the affordance.
@@ -156,6 +159,8 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
       {actionBtn && actionPlacement === "top-right" && (
         <span style={{ alignSelf: "flex-start", marginTop: 1 }}>{actionBtn}</span>
       )}
+
+      {rightSlot && <span style={{ alignSelf: "center", flexShrink: 0 }}>{rightSlot}</span>}
 
       {dismissible && (
         <button

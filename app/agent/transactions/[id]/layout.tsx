@@ -327,7 +327,12 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
       <ClaimWelcomeAsync address={transaction.propertyAddress} transactionId={transaction.id} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
-      <OnHoldBanner show={transaction.status === "on_hold"} />
+      <OnHoldBanner
+        show={transaction.status === "on_hold"}
+        transactionId={transaction.id}
+        previousPurchasePrice={transaction.purchasePrice}
+        inChain={transaction.chainLinkId !== null}
+      />
       {exchangeDayActive && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
         <ExchangeDayReadyBanner sellerReady={exchangeDayGate.sellerReady} buyerReady={exchangeDayGate.buyerReady} />
       )}

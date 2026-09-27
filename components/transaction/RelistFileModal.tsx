@@ -283,8 +283,8 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
               </button>
             )}
             <SheetBandHeader
-              kicker="Relist"
-              title={stage === "form" ? "Relist this sale" : "Confirm relist"}
+              kicker="New buyer"
+              title={stage === "form" ? "Add a new buyer" : "Confirm the new buyer"}
             />
           </div>
           <button

@@ -50,10 +50,23 @@ export const WITHDRAWAL_REASONS: Array<{
 
 export function WithdrawFileModal({
   inChain = false,
+  // Copy + CTA overrides so this same reason-capture step can front the
+  // "add a new buyer" flow from an on-hold file (where it reads as step 1 of
+  // adding a buyer, not a bare withdrawal).
+  kicker = "Withdraw",
+  title = "Mark as withdrawn",
+  subtitle = "Record why this sale fell through",
+  confirmLabel = "Confirm withdrawal",
+  confirmTone = "danger",
   onCancel,
   onConfirm,
 }: {
   inChain?: boolean;
+  kicker?: string;
+  title?: string;
+  subtitle?: string;
+  confirmLabel?: string;
+  confirmTone?: "danger" | "primary";
   onCancel: () => void;
   // finalReason = the agent's free text, or the picked reason's human label
   // when no text was given (so the file history reads naturally).
@@ -89,7 +102,7 @@ export function WithdrawFileModal({
       >
         {/* Header — Ribbon coral band */}
         <div style={{ ...SHEET_BAND_STYLE, flexShrink: 0 }}>
-          <SheetBandHeader kicker="Withdraw" title="Mark as withdrawn" subtitle="Record why this sale fell through" />
+          <SheetBandHeader kicker={kicker} title={title} subtitle={subtitle} />
         </div>
 
         <div className="p-6" style={{ overflowY: "auto", minHeight: 0 }}>
@@ -184,7 +197,7 @@ export function WithdrawFileModal({
                 fontSize: 13,
                 fontWeight: 600,
                 color: "#fff",
-                background: "var(--agent-danger, #C73E3E)",
+                background: confirmTone === "primary" ? "var(--agent-coral-deep, #e8542f)" : "var(--agent-danger, #C73E3E)",
                 border: "none",
                 cursor: !pickedReason ? "default" : "pointer",
                 opacity: !pickedReason ? 0.5 : 1,
@@ -194,7 +207,7 @@ export function WithdrawFileModal({
                 justifyContent: "center",
               }}
             >
-              Confirm withdrawal
+              {confirmLabel}
             </button>
           </div>
         </div>
