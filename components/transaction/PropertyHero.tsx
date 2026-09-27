@@ -19,6 +19,7 @@ function extractPostcode(addr: string): string | null {
 }
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
+import { HeroSmallControls } from "./HeroSmallControls";
 import { useFileProgress } from "./FileProgressContext";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
@@ -303,6 +304,16 @@ export function PropertyHero({
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  // Mobile vs tablet, so the small-screen hero controls pick the kebab menu
+  // (mobile) or the icon-only cluster (tablet).
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
@@ -855,7 +866,12 @@ export function PropertyHero({
         {/* Role-gated header controls (AI summary + portal emails) —
             top-right, on a soft glass strip so they read over photo or
             surface alike. Hidden when the page passes nothing. */}
-        {topRightSlot && (
+        {/* Desktop: Settings pill pinned top-right (unchanged). On smaller
+            screens the settings + photo actions move into HeroSmallControls
+            (icon cluster on tablet, kebab menu on mobile) so they no longer
+            stack awkwardly. Branch by breakpoint so the settings drawer only
+            ever mounts once. */}
+        {topRightSlot && isDesktop !== false && (
           <div className="agent-hero-topright" style={{
             position: "absolute",
             top: 14,
@@ -867,6 +883,18 @@ export function PropertyHero({
           }}>
             {topRightSlot}
           </div>
+        )}
+        {isDesktop === false && (
+          <HeroSmallControls
+            settingsSlot={topRightSlot}
+            transactionId={transactionId}
+            hasPhoto={photo.hasPhoto}
+            showMap={showMap}
+            busy={photo.busy}
+            onRemove={photo.remove}
+            onAdd={photo.triggerUpload}
+            mobile={isMobile === true}
+          />
         )}
 
         {/* Single-instance service-type switch modal. */}

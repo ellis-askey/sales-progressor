@@ -769,6 +769,7 @@ export function EmailSettingsButton({
       >
         <Gear size={13} weight="regular" style={{ color: tone }} />
         <span
+          className="email-settings-label"
           style={{
             fontSize: 11,
             fontWeight: 600,
