@@ -81,7 +81,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
     setError(null);
     const res = await publishCampaignAction(experimentId, [...kept]);
     if ("ok" in res && res.ok) {
-      setMsg(`Published to ${res.actualSample} agent${res.actualSample === 1 ? "" : "s"}. First ${res.initial.sentThisRun} sent now${res.initial.withinHours ? "" : " (outside business hours — the first send waits for the next window)"}; the rest go out day by day as the domain warms up.`);
+      setMsg(`Published to ${res.actualSample} agent${res.actualSample === 1 ? "" : "s"}. First ${res.initial.sentThisRun} sent now${res.initial.withinHours ? "" : " (outside business hours, so the first send waits for the next window)"}; the rest go out day by day as the domain warms up.`);
       router.refresh();
       return;
     }
