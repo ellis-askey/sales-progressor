@@ -19,7 +19,7 @@ export const FOLLOWUP_TEMPLATES: FollowUpTemplate[] = [
     label: "Cold introduction",
     build: (c) => ({
       subject: `Progression for ${c.agencyName}`,
-      body: `${hi(c)}\n\nHope you're well.\n\nI'm Ellis, I started The Sales Progressor. I thought what we've built might be useful for you and the team at ${c.agencyName}.\n\nTSP is free for agents to use and looks after the progression side once a sale is agreed. It keeps buyers and sellers updated, chases the outstanding bits with the solicitors, and gives you a clear view of where every sale is up to. We also use real transaction data to predict when each one is likely to exchange.\n\nAnd if you ever get stretched, you can hand a sale over to us and we'll progress it for you, while you keep full visibility.\n\nIf you'd like a proper look, I'd be happy to show you around.\n\nBest,`,
+      body: `${hi(c)}\n\nHope you're well.\n\nI thought this might be useful for you and the team at ${c.agencyName}.\n\nThe Sales Progressor is free for agents to use and looks after the progression side once a sale is agreed. It keeps buyers and sellers updated, chases the outstanding bits with the solicitors, and gives you a clear view of where every sale is up to. We also use real transaction data to predict when each one is likely to exchange.\n\nAnd if you ever get stretched, you can hand a sale over to us and we'll progress it for you, while you keep full visibility.\n\nIf you'd like a proper look, I'd be happy to show you around.\n\nBest,`,
     }),
   },
   {

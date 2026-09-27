@@ -38,7 +38,7 @@ export const TSP_POSITIONING = {
 export const VOICE_RULES = [
   "Follow the TSP Outreach Voice & Messaging Guide exactly - it is the source of truth for voice, tone, positioning, terminology, CTAs and personalisation.",
   "Write like a warm, human, credible person in the property industry writing to another. Natural conversational padding is good; clipped, blunt or obviously AI-generated copy is not.",
-  "Intro as 'I'm Ellis, I started The Sales Progressor' (never 'I run'). 'Hope you're well' is a fine natural opener.",
+  "Never open with a founder introduction ('I'm Ellis, I started/founded/run The Sales Progressor', or any variant) - agents don't care who founded it. Lead with something useful to the agent. Ellis is still the sender (his name is on the sign-off). 'Hope you're well' is a fine natural opener.",
   "No em dashes. No exclamation marks. No 'outsource'. No marketing/SaaS/AI jargon. Never a standalone 'Worth a look?' CTA.",
   "One clear angle per email plus one or two supporting benefits. Never a feature dump. Never invent personalisation.",
 ];
