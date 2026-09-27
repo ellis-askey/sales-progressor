@@ -418,7 +418,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
           clientEmailsPaused: true,
           vendorSolicitorEmailsPaused: true,
           purchaserSolicitorEmailsPaused: true,
-          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, emailBouncedAt: true, chasesPausedUntil: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, emailBouncedAt: true, chasesPausedUntil: true, buyerRoundId: true } },
           // Real solicitors so the work-queue chase drawer can offer the
           // right-side solicitor as a recipient (they aren't Contact rows).
           vendorSolicitorFirm: { select: { id: true, name: true } },
@@ -804,7 +804,10 @@ export async function evaluateTransactionReminders(
   const activeLogIds = activeLogsSnapshot.map((l) => l.id);
   const chasedRows = activeLogIds.length > 0
     ? await prisma.chaseTask.findMany({
-        where: { reminderLogId: { in: activeLogIds }, chaseCount: { gt: 0 } },
+        // A CANCELLED chase (e.g. cancelled at relist) must not count as "still
+        // chased" — otherwise the relist clamp that re-anchors a reset step's due
+        // date is skipped and the step keeps its stale pre-relist date.
+        where: { reminderLogId: { in: activeLogIds }, chaseCount: { gt: 0 }, status: { not: "cancelled" } },
         select: { reminderLogId: true },
       })
     : [];

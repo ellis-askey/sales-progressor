@@ -3274,6 +3274,21 @@ export async function relistTransactionImpl(
       data: { status: "cancelled", statusReason: "sale fell through" },
     });
 
+    // Same for the reset SELLER-side (VM) steps: they re-anchor to the relist,
+    // so their old active logs (dated on the original sale) must be cancelled and
+    // recreated fresh by the post-commit re-evaluation. Without this a reset VM
+    // step (e.g. VM7 draft contract pack) surfaced on the reminders list "~100
+    // days overdue" from the first sale. Carried-over VMs (VM1/3-6/8-9) aren't in
+    // the reset set, so their logs are left alone.
+    await ptx.reminderLog.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "active",
+        reminderRule: { targetMilestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
+      },
+      data: { status: "cancelled", statusReason: "sale fell through" },
+    });
+
     // GAP-1 closure (Phase-2 PR 1, Ellis-locked: "if unsure: close"). Close
     // any open TransactionHoldPeriod rows at relist time, belt-and-braces
     // beyond the withdraw-side closure that changeStatusAction now does.

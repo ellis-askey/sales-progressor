@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder, countActionable } from "@/lib/reminders/classify";
 import { useTabBadge } from "@/components/transaction/TabBadgeContext";
@@ -432,7 +433,12 @@ function SplitFileCard({
   }
 
   const { line, location } = splitAddress(address);
-  const contacts = logs[0]?.transaction.contacts ?? [];
+  // Scope buyers to the active round so a relisted file's reminder rows (title,
+  // supporting line, "Chasing …", and the chase-drawer recipients) never name
+  // or target an archived previous buyer. One filter covers every consumer below.
+  const contacts = (logs[0]?.transaction.contacts ?? []).filter(
+    (c) => isActiveRoundContact(c, logs[0]?.transaction.activeBuyerRoundId ?? null),
+  );
   // The file's solicitors (from the vendor/purchaser solicitor FK columns) so the
   // chase drawer can offer the right-side solicitor as a recipient.
   const tx0 = logs[0]?.transaction;
