@@ -2711,19 +2711,16 @@ export async function toggleSuppressPortalConfirmEmailsAction(
 //   - vendorMilestoneSnapshot JSON written on outgoing round BEFORE in-place reset
 //   - Fire-and-forget intro email + reminder re-evaluation only AFTER commit
 //
-// ASSIGNMENT POLICY — CONTINUITY (Ellis decision, 2026-06-04, post-commit-8):
-//   `assignedUserId`, `agentUserId`, `serviceType`, `assignedAt` are NOT
-//   touched by relist. The SP (outsourced) or director (self-managed) who
-//   had the file before keeps it. Reasoning, on the record:
-//     Everything that persists through a relist is seller-side and
-//     chain-side — exactly the institutional knowledge the assigned SP
-//     holds. The assignment policy mirrors the reset map. Re-claim would
-//     orphan a progressed file in the "Needs SP assigning" queue
-//     overnight; a "send back to queue?" choice would surface a question
-//     that should be right by default. Manual reassignment via
-//     assignUserAction is still available for exceptions. A new bell
-//     notification (notifyTransactionRelisted, fired post-commit) gives
-//     the existing assignee the awareness re-claim was trying to buy.
+// ASSIGNMENT POLICY — RE-ASSIGN ON RELIST (Ellis decision, 2026-09-27,
+// superseding the 2026-06-04 continuity policy):
+//   Relist CLEARS `assignedUserId` / `assignedAt` for outsourced files (see
+//   STEP 9). A new buyer flips the file back to active with no SP assigned, so
+//   it re-enters the hub "Needs SP assigning" card and an admin must action it.
+//   Reasoning: the earlier continuity default risked a fresh sale quietly
+//   riding on the old assignment and getting lost; forcing a re-assignment
+//   guarantees someone picks it up. `agentUserId` / `serviceType` are still
+//   untouched. Manual reassignment via assignUserAction remains available, and
+//   notifyTransactionRelisted (post-commit) still fires for awareness.
 //
 // Preconditions (server-canonical — UI hides the CTA but the server is truth):
 //   - tx.status === "withdrawn"
@@ -3182,6 +3179,13 @@ export async function relistTransactionImpl(
         brokerContactId: input.newBrokerContactId ?? null,
         lastActivityAt: new Date(),
         clientEmailsPaused: false,
+        // Send the file back for assignment on relist (Ellis, 2026-09-27):
+        // clear the SP assignment so an outsourced file re-enters the hub
+        // "needs assigning" card and someone must action it. A fresh buyer
+        // shouldn't silently ride on the old assignment and risk getting lost.
+        // (Self-managed files carry no SP assignment, so this is a no-op there.)
+        assignedUserId: null,
+        assignedAt: null,
       },
     });
 
