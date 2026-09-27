@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { resolveBackTarget } from "@/lib/agent/back-nav";
 import dynamic from "next/dynamic";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft, Camera } from "@phosphor-icons/react/dist/ssr";
@@ -251,6 +253,9 @@ export function PropertyHero({
   // the provider isn't present.
   const livePercent = useFileProgress()?.percent;
   const shownPercent = livePercent ?? percent;
+  // Context-aware Back: the ?from= marker on the link that opened this file tells
+  // us where to return (hub, enquiries, another file…); no marker → all-files.
+  const back = resolveBackTarget(useSearchParams().get("from"));
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
   const barColor = TRACK_BAR[onTrack];
@@ -737,7 +742,7 @@ export function PropertyHero({
             card (which is position: relative), so its position is
             unaffected by the flex-row split above. */}
         <Link
-          href={backHref}
+          href={back.href}
           style={{
             position: "absolute",
             top: 14,
@@ -759,7 +764,7 @@ export function PropertyHero({
           }}
         >
           <ArrowLeft size={13} weight="bold" />
-          Back to files
+          {back.label}
         </Link>
 
         {/* Hidden file input — shared by the desktop + mobile add circles. */}

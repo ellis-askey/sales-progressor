@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { withFrom } from "@/lib/agent/back-nav";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { AutoAnimationPlugin } from "@formkit/auto-animate";
 import {
@@ -324,7 +325,7 @@ export function EnquiriesTriageList({
               >
                 {/* Photo + address are one link: hovering anywhere (photo or
                     town) highlights the address, clicking opens the file. */}
-                <Link href={`/agent/transactions/${r.transactionId}`} className="enq-idlink" aria-label={`Open ${line1.trim()}`}>
+                <Link href={withFrom(`/agent/transactions/${r.transactionId}`, "/agent/enquiries")} className="enq-idlink" aria-label={`Open ${line1.trim()}`}>
                   {signedPhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img className="enq-thumb" src={signedPhoto} alt="" aria-hidden />

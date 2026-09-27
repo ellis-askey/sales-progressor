@@ -17,7 +17,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { withFrom } from "@/lib/agent/back-nav";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -74,6 +75,14 @@ let _sessionSidebarOpen = false;
 export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnected, rightSlot, beforeContent, tourSlot }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  // Preserve the ?from= origin marker across in-file tab switches so the hero's
+  // context-aware Back still points where the user came from after they've
+  // clicked around the file's tabs.
+  const fromParam = useSearchParams().get("from");
+  const tabHref = (key: string) => {
+    const base = hrefFor(basePath, key);
+    return fromParam ? withFrom(base, fromParam) : base;
+  };
 
   // Active tab from the URL: the trailing segment after basePath, or Overview
   // when we're at the base itself.
@@ -90,9 +99,9 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
     (key: string) => {
       const target = tabs.find((t) => t.key === key) ? key : OVERVIEW_KEY;
       markNavStart();
-      router.push(hrefFor(basePath, target), { scroll: false });
+      router.push(tabHref(target), { scroll: false });
     },
-    [router, basePath, tabs],
+    [router, basePath, tabs, fromParam],
   );
 
   // ── Tab prefetch (perf: instant, skeleton-free tab switches) ───────────────
@@ -253,7 +262,7 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                 return (
                   <Link
                     key={tab.key}
-                    href={hrefFor(basePath, tab.key)}
+                    href={tabHref(tab.key)}
                     prefetch={true}
                     scroll={false}
                     onClick={markNavStart}

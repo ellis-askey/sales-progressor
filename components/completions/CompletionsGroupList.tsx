@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { completeFileAction } from "@/app/actions/completions";
+import { withFrom } from "@/lib/agent/back-nav";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { CaretDown } from "@phosphor-icons/react";
 import {
@@ -112,7 +113,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                           <CompletionFileRowView
                             file={f}
                             groupKey={key}
-                            href={`/agent/transactions/${f.id}`}
+                            href={withFrom(`/agent/transactions/${f.id}`, "/agent/completions")}
                             isOpen={!collapsedCards.has(f.id)}
                             onToggle={() => toggleCard(f.id)}
                             onComplete={() => { setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}

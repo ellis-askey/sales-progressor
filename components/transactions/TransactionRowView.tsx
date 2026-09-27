@@ -2,6 +2,7 @@
 
 import { useState, useRef, type ReactNode } from "react";
 import Link from "next/link";
+import { withFrom } from "@/lib/agent/back-nav";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
@@ -495,7 +496,7 @@ export function TransactionRowView({
       {/* ── Card row — shown until the list is wide enough for the grid
           (container-driven via .files-table / .files-switch-N, not viewport) */}
       <Link
-        href={`${basePath}/${tx.id}`}
+        href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
         className="files-row-card agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
@@ -549,7 +550,7 @@ export function TransactionRowView({
        * pointer-events:none so it does not intercept the row link.
        */}
       <Link
-        href={`${basePath}/${tx.id}`}
+        href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
         className="files-row-grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}

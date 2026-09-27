@@ -54,6 +54,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
+import { withFrom } from "@/lib/agent/back-nav";
 import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
@@ -636,7 +637,7 @@ function buildGoneQuietRows(
     const meta = goneQuietMeta(i);
     return {
       transactionId: i.transactionId,
-      href: `/agent/transactions/${i.transactionId}`,
+      href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
       photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
       address: i.propertyAddress,
       // No pill: the card is already titled "Gone quiet" and the subtext says
@@ -667,7 +668,7 @@ function buildMortgageRows(
     const meta = exchangeMeta(i.exchangeDate);
     return {
       transactionId: i.transactionId,
-      href: `/agent/transactions/${i.transactionId}`,
+      href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
       photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
       address: i.propertyAddress,
       pillLabel,
@@ -692,7 +693,7 @@ function buildBookingRows(
     return {
       transactionId: i.transactionId,
       milestoneDefinitionId: i.milestoneDefinitionId,
-      href: `/agent/transactions/${i.transactionId}`,
+      href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
       photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
       address: i.propertyAddress,
       kind: i.kind,
@@ -1361,7 +1362,7 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
             return (
               <Link
                 key={`${a.transactionId}-${i}`}
-                href={`/agent/transactions/${a.transactionId}`}
+                href={withFrom(`/agent/transactions/${a.transactionId}`, "/agent/hub")}
                 className="agent-hover-row"
                 style={{
                   display: "flex", alignItems: "center", gap: 11,
