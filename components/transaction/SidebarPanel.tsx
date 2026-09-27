@@ -21,6 +21,7 @@ import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { countOverdue } from "@/lib/reminders/classify";
 import { requireSession } from "@/lib/session";
+import { getPreviousSales } from "@/lib/services/previous-sales";
 import { AgentFileSidebar } from "@/components/transaction/AgentFileSidebar";
 import type { ClientType, PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
@@ -107,6 +108,7 @@ export async function SidebarPanel({
     activityEntries,
     contactPortal,
     checkInRow,
+    previousSales,
   ] = await Promise.all([
     prisma.propertyTransaction
       .findUnique({
@@ -208,6 +210,8 @@ export async function SidebarPanel({
         },
       })
       .catch(() => null),
+
+    getPreviousSales(transaction.id).catch(() => []),
   ]);
 
   const activeRoundCreatedAt = activeRound?.createdAt ?? null;
@@ -373,6 +377,7 @@ export async function SidebarPanel({
       currentUserId={session?.user?.id ?? null}
       primaryPortalHref={primaryPortalHref}
       lastActivityAt={transaction.lastActivityAt ?? null}
+      previousSales={previousSales}
     />
   );
   // isAgentRole reserved for future variants; explicit reference here keeps

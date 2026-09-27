@@ -30,6 +30,8 @@ import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
+import { PreviousSalesCard } from "@/components/transaction/PreviousSalesCard";
+import type { PreviousSale } from "@/lib/services/previous-sales";
 import { StampDutyQuickAction } from "@/components/transaction/StampDutyDrawer";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
@@ -110,6 +112,9 @@ type Props = {
   // 2026-07-06 mock: Last activity timestamp on the file, shown as a
   // relative-time row in the Sale health card.
   lastActivityAt?: Date | null;
+  // Fallen-through sales (critique #12) — renders the "Previous sales" card
+  // between Fees and Quick links. Empty → card hidden.
+  previousSales?: PreviousSale[];
   // 2026-08-19: WhatsApp check-in copy (quick links). Each side carries
   // its outstanding-step questions (firm name pre-interpolated) plus the
   // client headcount for the group greeting; the message itself is built
@@ -201,6 +206,7 @@ export function AgentFileSidebar({
   currentUserId,
   primaryPortalHref,
   lastActivityAt,
+  previousSales = [],
   checkIn,
 }: Props) {
   const { setActiveTab } = useTabContext();
@@ -603,6 +609,9 @@ export function AgentFileSidebar({
           </div>
         )}
       </GlassCard>
+
+      {/* ─── Previous sales (fallen-through buyers) ───────────────────── */}
+      <PreviousSalesCard transactionId={transaction.id} sales={previousSales} />
 
       {/* ─── 5. Quick links ──────────────────────────────────────────── */}
       <GlassCard glassId="sidebar-quick-links" label="Sidebar · Quick links" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 14 }}>

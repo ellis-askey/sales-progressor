@@ -39,7 +39,6 @@ import { ClaimedToast } from "@/components/transaction/ClaimedToast";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
 import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
 import { RelistBanner } from "@/components/transaction/RelistBanner";
-import { RoundChip } from "@/components/transaction/RoundChip";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { ScrollTopOnFileChange } from "@/components/transaction/ScrollTopOnFileChange";
@@ -395,17 +394,6 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             topRightSlot={heroTopRightSlot}
             exchanged={transaction.exchangedAt !== null}
             isShareOfFreehold={transaction.isShareOfFreehold}
-            roundChipSlot={
-              <RoundChip
-                transactionId={transaction.id}
-                status={transaction.status}
-                activeRoundNumber={transaction.activeBuyerRound?.roundNumber ?? null}
-                activeBuyerName={
-                  transaction.contacts.find((c) => c.roleType === "purchaser")?.name ?? null
-                }
-                buyerRounds={transaction.buyerRounds ?? []}
-              />
-            }
           />
         </div>
 
