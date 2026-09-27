@@ -3,7 +3,7 @@
 // Superadmin-only (Law 8) — uses commandDb, no agency scoping.
 
 import { commandDb } from "@/lib/command/prisma";
-import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
+import { listStoredPhotoTxIds, getSignedUrlMap } from "@/lib/supabase-storage";
 import { activitySecondsByFile } from "@/lib/command/activity-time";
 
 const INTERNAL_ROLES = new Set(["superadmin", "admin", "sales_progressor"]);
@@ -115,10 +115,15 @@ export type FileListRow = {
   agencyName: string;
   status: string;
   hasPhoto: boolean;
+  // Signed thumbnail URL for the list photo (null when there's no photoStoragePath).
+  photoUrl: string | null;
   lastTeamActivityAt: Date | null;
   teamSeconds: number;
   exchangeDate: Date | null;
   daysToExchange: number | null;
+  // Set once the file has exchanged, so the Exchange column can show "Exchanged"
+  // instead of a false "overdue" against a past expected date.
+  exchangedAt: Date | null;
   attention: FileAttention[];
   // Plain-English list of what's been left empty (empty when the file is complete).
   incompleteReasons: string[];
@@ -157,6 +162,7 @@ export async function getFilesList(opts: {
       photoStoragePath: true,
       expectedExchangeDate: true,
       overridePredictedDate: true,
+      exchangedAt: true,
       createdAt: true,
       purchasePrice: true,
       tenure: true,
@@ -196,6 +202,10 @@ export async function getFilesList(opts: {
   // Weighted comms effort (WhatsApp/email/calls/notes) added on top of measured time.
   const activityMap = await activitySecondsByFile(commandDb, ids);
 
+  // Batch-sign the list photos so the Property cell can show a thumbnail (like
+  // the rest of the app). Storage URLs expire, so this is signed on read.
+  const photoMap = await getSignedUrlMap(files.map((f) => f.photoStoragePath));
+
   const now = Date.now();
   let rows: FileListRow[] = files.map((f) => {
     const hasPhoto = !!f.photoStoragePath || stored.has(f.id);
@@ -231,10 +241,12 @@ export async function getFilesList(opts: {
       agencyName: f.agency?.name ?? "—",
       status: f.status,
       hasPhoto,
+      photoUrl: f.photoStoragePath ? photoMap.get(f.photoStoragePath) ?? null : null,
       lastTeamActivityAt,
       teamSeconds: (secMap.get(f.id) ?? 0) + (activityMap.get(f.id) ?? 0),
       exchangeDate,
       daysToExchange,
+      exchangedAt: f.exchangedAt ?? null,
       attention,
       incompleteReasons,
     };

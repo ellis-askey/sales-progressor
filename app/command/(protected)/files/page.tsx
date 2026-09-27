@@ -13,6 +13,7 @@ import {
 import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
 import { PhotoUploadButton } from "@/components/command/files/PhotoUploadButton";
 import InfoTip from "@/components/command/shared/InfoTip";
+import { FilterSelect } from "@/components/command/shared/FilterSelect";
 
 // ── formatters ───────────────────────────────────────────────────────────────
 function fmtDuration(seconds: number): string {
@@ -52,6 +53,13 @@ function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
+// Address → street on line one, town + postcode as subtext (like the app's file
+// cards). Splits on the first comma; everything after is the subtext.
+function splitAddress(a: string): { line1: string; rest: string } {
+  const i = a.indexOf(",");
+  if (i === -1) return { line1: a.trim(), rest: "" };
+  return { line1: a.slice(0, i).trim(), rest: a.slice(i + 1).trim() };
+}
 const AV_COLORS = ["#8b9dff", "#34d399", "#e0a44a", "#f0716f", "#c084fc", "#38bdf8"];
 function avColor(name: string): string {
   let h = 0;
@@ -59,8 +67,17 @@ function avColor(name: string): string {
   return AV_COLORS[h % AV_COLORS.length];
 }
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft", active: "In progress", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
+  draft: "Draft", active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
 };
+
+// Colour dot per status, matching the statuses shown on the files themselves.
+const STATUS_DOT: Record<string, string> = {
+  draft: "bg-neutral-500", active: "bg-emerald-400", on_hold: "bg-amber-400", completed: "bg-blue-400", withdrawn: "bg-red-400",
+};
+
+function fmtExchangedDate(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+}
 
 const ATTENTION_META: Record<FileAttention, { label: string; style: string }> = {
   no_photo:      { label: "No photo",      style: "text-amber-400 bg-amber-950/50 border-amber-900" },
@@ -282,7 +299,7 @@ function BrowsableList({
   ];
   const statusChips: Array<{ v: string; label: string }> = [
     { v: "", label: "All live" },
-    { v: "active", label: "In progress" },
+    { v: "active", label: "Active" },
     { v: "on_hold", label: "On hold" },
   ];
   const attChips: Array<{ v: string; label: string }> = [
@@ -295,35 +312,23 @@ function BrowsableList({
 
   return (
     <div className="space-y-3">
-      {/* filters */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Managed by</span>
-          {managedChips.map((c) => {
-            const on = (managedKey ?? "") === c.v;
-            return (
-              <Link key={c.v || "all"} href={listHref({ managed: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Status</span>
-          {statusChips.map((c) => {
-            const on = (statusFilter ?? "") === c.v;
-            return (
-              <Link key={c.v || "all"} href={listHref({ status: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Attention</span>
-          {attChips.map((c) => {
-            const on = (attFilter ?? "") === c.v;
-            return (
-              <Link key={c.v || "all"} href={listHref({ att: c.v })} className={`text-[12px] px-2.5 py-1 rounded-md transition-colors ${on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"}`}>{c.label}</Link>
-            );
-          })}
-        </div>
+      {/* filters — compact dropdowns on one line instead of three pill rows */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <FilterSelect
+          label="Managed by"
+          current={managedKey ?? ""}
+          options={managedChips.map((c) => ({ value: c.v, label: c.label, href: listHref({ managed: c.v }) }))}
+        />
+        <FilterSelect
+          label="Status"
+          current={statusFilter ?? ""}
+          options={statusChips.map((c) => ({ value: c.v, label: c.label, href: listHref({ status: c.v }) }))}
+        />
+        <FilterSelect
+          label="Attention"
+          current={attFilter ?? ""}
+          options={attChips.map((c) => ({ value: c.v, label: c.label, href: listHref({ att: c.v }) }))}
+        />
       </div>
 
       <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
@@ -331,7 +336,7 @@ function BrowsableList({
           <thead>
             <tr className="bg-neutral-950/60">
               {["Property", "Agency", "Status", "Last worked", "Team time", "Exchange", "Attention"].map((h, i) => (
-                <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 4 && i <= 5 ? "text-right" : "text-left"}`}>
+                <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 4 && i <= 5 ? "text-right" : "text-left"} ${h === "Property" ? "w-[38%]" : h === "Agency" ? "w-[15%]" : ""}`}>
                   <span className="inline-flex items-center gap-1">
                     {h}
                     {h === "Team time" && <InfoTip label="What Team time means">Measured engaged time from completed work sessions, plus weighted time for calls, emails and WhatsApp logged on the file.</InfoTip>}
@@ -348,13 +353,43 @@ function BrowsableList({
               rows.map((r) => (
                 <tr key={r.id} className="border-b border-neutral-800 last:border-b-0 hover:bg-neutral-800/30 transition-colors">
                   <td className="px-3.5 py-2.5">
-                    <Link href={`/command/files?tx=${r.id}`} className="font-medium text-neutral-100 hover:text-blue-300 transition-colors">{r.address}</Link>
+                    <Link href={`/command/files?tx=${r.id}`} className="group flex items-center gap-3 min-w-0">
+                      {r.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.photoUrl} alt="" className="w-9 h-9 rounded-md object-cover shrink-0 border border-neutral-800" />
+                      ) : (
+                        <span className="w-9 h-9 rounded-md shrink-0 border border-neutral-800 bg-neutral-950 flex items-center justify-center text-neutral-700" aria-hidden>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" strokeLinejoin="round"/></svg>
+                        </span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block font-medium text-neutral-100 group-hover:text-blue-300 transition-colors truncate">{splitAddress(r.address).line1}</span>
+                        {splitAddress(r.address).rest && (
+                          <span className="block text-[11.5px] text-neutral-500 truncate">{splitAddress(r.address).rest}</span>
+                        )}
+                      </span>
+                    </Link>
                   </td>
-                  <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{r.agencyName}</td>
-                  <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap text-[11px] uppercase tracking-wide">{STATUS_LABEL[r.status] ?? r.status}</td>
+                  <td className="px-3.5 py-2.5 text-neutral-400">
+                    <span className="block max-w-[160px] truncate" title={r.agencyName}>{r.agencyName}</span>
+                  </td>
+                  <td className="px-3.5 py-2.5 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-neutral-300">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[r.status] ?? "bg-neutral-500"}`} aria-hidden />
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </span>
+                  </td>
                   <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{fmtRelative(r.lastTeamActivityAt)}</td>
                   <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{fmtDuration(r.teamSeconds)}</td>
-                  <td className={`px-3.5 py-2.5 text-right tabular-nums ${r.daysToExchange != null && r.daysToExchange < 0 ? "text-red-400" : r.daysToExchange != null && r.daysToExchange <= 14 ? "text-amber-400" : "text-neutral-300"}`}>{fmtExchange(r.daysToExchange)}</td>
+                  {r.exchangedAt ? (
+                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap text-emerald-400">
+                      {/* Full date on tablet/desktop, just "Exchanged" on mobile */}
+                      <span className="sm:hidden">Exchanged</span>
+                      <span className="hidden sm:inline">Exchanged · {fmtExchangedDate(r.exchangedAt)}</span>
+                    </td>
+                  ) : (
+                    <td className={`px-3.5 py-2.5 text-right tabular-nums ${r.daysToExchange != null && r.daysToExchange < 0 ? "text-red-400" : r.daysToExchange != null && r.daysToExchange <= 14 ? "text-amber-400" : "text-neutral-300"}`}>{fmtExchange(r.daysToExchange)}</td>
+                  )}
                   <td className="px-3.5 py-2.5">
                     <div className="flex gap-1 flex-wrap">
                       {r.attention.map((a) => (
