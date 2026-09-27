@@ -21,7 +21,14 @@ type Connection = {
   qr: string | null;
   reachable: boolean;
 };
-type Status = { configured: boolean; connection: Connection | null };
+type Status = {
+  configured: boolean;
+  connection: Connection | null;
+  // Agency-level auto to-do (WhatsApp tasks). tasksEnabled is the current state;
+  // canManageTasks is true only for a director (agency-level setting).
+  tasksEnabled: boolean;
+  canManageTasks: boolean;
+};
 
 const CORAL = "var(--agent-coral, #FF6B4A)";
 
@@ -31,6 +38,8 @@ export function WhatsAppConnectionCard() {
   const [consent, setConsent] = useState(false);
   const [pairing, setPairing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [tasksEnabled, setTasksEnabled] = useState(false);
+  const [savingTasks, setSavingTasks] = useState(false);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
@@ -45,6 +54,28 @@ export function WhatsAppConnectionCard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Keep the local auto-todo state in step with the server (source of truth).
+  useEffect(() => {
+    if (status) setTasksEnabled(status.tasksEnabled);
+  }, [status]);
+
+  async function setAutoTasks(value: boolean) {
+    setSavingTasks(true);
+    setTasksEnabled(value); // optimistic
+    try {
+      const res = await fetch("/api/agent/whatsapp/auto-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      if (!res.ok) setTasksEnabled(!value); // revert on failure
+    } catch {
+      setTasksEnabled(!value);
+    } finally {
+      setSavingTasks(false);
+    }
+  }
 
   const connection = status?.connection ?? null;
   const pending = connection?.status === "pending_qr";
@@ -119,7 +150,15 @@ export function WhatsAppConnectionCard() {
                 WhatsApp linking isn&rsquo;t switched on yet. Please check back soon.
               </p>
             ) : connected ? (
-              <ConnectedView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
+              <>
+                <ConnectedView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
+                <AutoTasksRow
+                  enabled={tasksEnabled}
+                  canManage={status?.canManageTasks ?? false}
+                  saving={savingTasks}
+                  onChange={setAutoTasks}
+                />
+              </>
             ) : pending ? (
               <PairingView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
             ) : (
@@ -168,6 +207,62 @@ function ConnectedView({
         Messages from your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups will appear on the matching
         sale. Your one-to-one chats and other groups are never read. Disconnecting stops all access.
       </p>
+    </div>
+  );
+}
+
+// Auto to-do toggle, revealed only once WhatsApp is connected. Agency-level, so
+// a director gets the switch and everyone else sees the current state read-only.
+function AutoTasksRow({
+  enabled,
+  canManage,
+  saving,
+  onChange,
+}: {
+  enabled: boolean;
+  canManage: boolean;
+  saving: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-3">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-gray-800">Turn WhatsApp updates into to-dos</p>
+        <p className="mt-0.5 text-[11.5px] leading-relaxed text-gray-500">
+          {canManage
+            ? "When someone promises something in a property chat, we'll add it as a to-do on that sale."
+            : enabled
+              ? "On. Promises made in property chats are added as to-dos. Your director manages this."
+              : "Off. Your director can switch this on."}
+        </p>
+      </div>
+      {canManage ? (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Turn WhatsApp updates into to-dos"
+          disabled={saving}
+          onClick={() => onChange(!enabled)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+            enabled ? "bg-[color:var(--agent-coral,#FF6B4A)]" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              enabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      ) : (
+        <span
+          className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+            enabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-white text-gray-500"
+          }`}
+        >
+          {enabled ? "On" : "Off"}
+        </span>
+      )}
     </div>
   );
 }
