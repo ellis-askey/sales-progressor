@@ -1,6 +1,7 @@
 // lib/services/milestones.ts
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { solicitorConfirmationSentence, confirmationSentence } from "@/lib/updates-copy";
@@ -770,7 +771,7 @@ export async function getMilestonesForTransaction(
         bookedSurveyorName: true,
         bookedValuerName: true,
         completionDate: true,
-        contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true, image: true } },
+        contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true, image: true, buyerRoundId: true } },
       },
     }),
     getMilestoneDefinitionsCached(),
@@ -791,7 +792,7 @@ export async function getMilestonesForTransaction(
     names.length <= 1 ? (names[0] ?? "") : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   // Principal names only — helpers never appear in the "Confirmed by" fallback.
   const vendorClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "vendor" && c.isPrincipal).map((c) => c.name)) || null;
-  const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser" && c.isPrincipal).map((c) => c.name)) || null;
+  const purchaserClientName = joinContactNames(transaction.contacts.filter((c) => c.roleType === "purchaser" && c.isPrincipal && isActiveRoundContact(c, transaction.activeBuyerRoundId)).map((c) => c.name)) || null;
 
   // Retired enquiry sub-steps are hidden from every milestone list (enquiries
   // rework) — they no longer gate or carry weight, and are removed for good in

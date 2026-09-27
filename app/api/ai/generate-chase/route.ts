@@ -4,6 +4,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
 import { getVoiceProfile, maybeRefreshVoiceProfile } from "@/lib/chase/voice-profile";
@@ -211,7 +212,10 @@ export async function POST(req: NextRequest) {
     ? Math.max(...allTasks.map((t) => t.chaseCount))
     : primaryTask.chaseCount;
 
-  const { client } = getRecipientContext(recipientSide, tx.contacts);
+  // Chase-all fallback picks a side client off the file — scope to the active
+  // round so it never greets/addresses an archived previous buyer.
+  const scopedContacts = tx.contacts.filter((c) => isActiveRoundContact(c, tx.activeBuyerRoundId));
+  const { client } = getRecipientContext(recipientSide, scopedContacts);
   // Real solicitor for the milestone side comes from the FK columns, not from
   // contacts (solicitors aren't Contact rows).
   const sideSolicitor =

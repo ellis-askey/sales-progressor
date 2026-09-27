@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { getPortalMilestones } from "@/lib/services/portal";
@@ -74,7 +75,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
       agentUser: { select: { name: true, phone: true, email: true, image: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
-      contacts: { select: { name: true, roleType: true } },
+      contacts: { select: { name: true, roleType: true, buyerRoundId: true } },
     },
   });
   if (!tx) return null;
@@ -86,7 +87,8 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
 
   const brand = tx.agency?.name ?? "Sales Progression";
   const sellerNames = joinNames(tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name));
-  const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name));
+  // Active-round buyers only — never show a solicitor the archived previous buyer.
+  const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name));
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
   const otherFirmName = side === "vendor" ? tx.purchaserSolicitorFirm?.name ?? null : tx.vendorSolicitorFirm?.name ?? null;
 

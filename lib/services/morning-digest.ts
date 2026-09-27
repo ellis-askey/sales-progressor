@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { toUKDateStr } from "@/lib/utils";
@@ -294,8 +295,8 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
       onwardMortgageOfferExpiry: true,
       transaction: {
         select: {
-          id: true, propertyAddress: true, assignedUserId: true, agentUserId: true,
-          contacts: { select: { name: true, roleType: true } },
+          id: true, propertyAddress: true, assignedUserId: true, agentUserId: true, activeBuyerRoundId: true,
+          contacts: { select: { name: true, roleType: true, buyerRoundId: true } },
         },
       },
     },
@@ -320,7 +321,7 @@ export async function fireMortgageExpiryAlerts(agencyId: string): Promise<number
       if (!stage) continue;
 
       const contactRole = offer.side === "buyer" ? "purchaser" : "vendor";
-      const names = row.transaction.contacts.filter((c) => c.roleType === contactRole).map((c) => c.name);
+      const names = row.transaction.contacts.filter((c) => c.roleType === contactRole && isActiveRoundContact(c, row.transaction.activeBuyerRoundId)).map((c) => c.name);
       const clientLabel = possessiveClientLabel(names, offer.side === "buyer" ? "The buyer's" : "The seller's");
 
       const dateKey = offer.date.toISOString().slice(0, 10);

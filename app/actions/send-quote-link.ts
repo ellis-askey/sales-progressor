@@ -11,6 +11,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
@@ -33,6 +34,7 @@ export async function sendQuoteLinkToBuyerAction(
     select: {
       id: true,
       propertyAddress: true,
+      activeBuyerRoundId: true,
       contacts: {
         where: { roleType: "purchaser" },
         select: {
@@ -41,6 +43,8 @@ export async function sendQuoteLinkToBuyerAction(
           email: true,
           portalToken: true,
           unsubscribedAt: true,
+          roleType: true,
+          buyerRoundId: true,
         },
       },
     },
@@ -48,8 +52,9 @@ export async function sendQuoteLinkToBuyerAction(
 
   if (!tx) return { ok: false, error: "File not found or not in your scope." };
 
+  // Never send the quote link to an archived previous buyer — active round only.
   const buyer = tx.contacts.find(
-    (c) => c.email && c.portalToken && !c.unsubscribedAt,
+    (c) => c.email && c.portalToken && !c.unsubscribedAt && isActiveRoundContact(c, tx.activeBuyerRoundId),
   );
   if (!buyer) {
     return {

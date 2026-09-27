@@ -11,6 +11,7 @@
 // access (getTransactionByScope / agencyId), so this scopes by transactionId.
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -243,7 +244,7 @@ export async function getChaseTimeline(
     }),
     prisma.contact.findMany({
       where: { propertyTransactionId: transactionId },
-      select: { id: true, name: true, roleType: true, isPrincipal: true, exchangeAuthorityGivenAt: true },
+      select: { id: true, name: true, roleType: true, isPrincipal: true, exchangeAuthorityGivenAt: true, buyerRoundId: true },
     }),
     prisma.clientChaseState.findMany({
       where: { transactionId },
@@ -306,7 +307,7 @@ export async function getChaseTimeline(
     });
   }
 
-  const buyerName = contacts.find((c) => c.roleType === "purchaser")?.name ?? "the buyer";
+  const buyerName = contacts.find((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId))?.name ?? "the buyer";
   const sellerName = contacts.find((c) => c.roleType === "vendor")?.name ?? "the seller";
 
   // Index client-chase state + manual messages by the thread they belong to.
@@ -506,7 +507,7 @@ export async function getChaseTimeline(
     if (state === "completed") {
       const comp = completionByKey.get(`${side}|${code}`);
       const sideContacts = contacts
-        .filter((c) => (side === "vendor" ? c.roleType === "vendor" : c.roleType === "purchaser"))
+        .filter((c) => (side === "vendor" ? c.roleType === "vendor" : c.roleType === "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId))
         .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
       const who = confirmerLabel(comp, sideContacts, side);
       events.push({
@@ -527,7 +528,7 @@ export async function getChaseTimeline(
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
     // Override target for edit/skip-the-next-chase from the timeline.
-    const clientContactId = cs?.contactId ?? contacts.find((c) => c.roleType === side)?.id ?? null;
+    const clientContactId = cs?.contactId ?? contacts.find((c) => c.roleType === side && isActiveRoundContact(c, tx.activeBuyerRoundId))?.id ?? null;
     const overrideTarget: ChaseThread["overrideTarget"] =
       !code ? null
       : track === "solicitor" ? { kind: "solicitor", side, milestoneCode: code }

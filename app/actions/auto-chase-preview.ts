@@ -10,6 +10,7 @@
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
@@ -75,11 +76,11 @@ async function buildAutoChasePreview(
       reminderRule: { select: { targetMilestoneCode: true, anchorMilestone: { select: { name: true } } } },
       transaction: {
         select: {
-          id: true, propertyAddress: true, purchasePrice: true, agencyId: true,
+          id: true, propertyAddress: true, purchasePrice: true, agencyId: true, activeBuyerRoundId: true,
           agency: { select: { name: true } },
           agentUser: { select: { name: true, phone: true, image: true } },
           assignedUser: { select: { name: true, phone: true, image: true } },
-          contacts: { select: { id: true, name: true, roleType: true, portalToken: true } },
+          contacts: { select: { id: true, name: true, roleType: true, portalToken: true, buyerRoundId: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorContact: { select: { name: true, email: true } },
           purchaserSolicitorFirm: { select: { name: true } },
@@ -101,7 +102,7 @@ async function buildAutoChasePreview(
     const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
     const solContact = side === "vendor" ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
     const sellerNames = joinNames(tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name));
-    const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name));
+    const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name));
     const ownClientNames = (side === "vendor" ? sellerNames : buyerNames) || tx.propertyAddress;
     const person = tx.assignedUser ?? tx.agentUser;
     const token = signSolicitorToken(tx.id, side);

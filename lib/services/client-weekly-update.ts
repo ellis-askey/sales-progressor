@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
@@ -48,6 +49,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       expectedExchangeDate: true,
       overridePredictedDate: true,
       completionDate: true,
+      activeBuyerRoundId: true,
       agentUser: { select: { name: true } },
       assignedUser: { select: { name: true } },
       agency: { select: { name: true } },
@@ -59,7 +61,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       contacts: {
         // Never email a client who has unsubscribed (compliance).
         where: { email: { not: null }, unsubscribedAt: null, roleType: { in: ["purchaser", "vendor"] }, portalEligible: true },
-        select: { id: true, name: true, email: true, portalToken: true, roleType: true },
+        select: { id: true, name: true, email: true, portalToken: true, roleType: true, buyerRoundId: true },
       },
     },
   });
@@ -75,6 +77,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
 
     for (const contact of tx.contacts) {
       if (!contact.email) continue;
+      // Never email an archived previous buyer — scope purchasers to the active round.
+      if (!isActiveRoundContact(contact, tx.activeBuyerRoundId)) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
       const firstName = extractFirstName(contact.name);

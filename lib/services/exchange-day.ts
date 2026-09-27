@@ -11,6 +11,7 @@
 // the agent chip + chase suppression (Phase 5) all read/drive off this.
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { touchLastActivity } from "@/lib/services/activity";
 import { EXCHANGE_DAY_GATE_CODE, EXCHANGE_READY_CODES } from "@/lib/milestones/display-stages";
@@ -83,12 +84,15 @@ export async function getExchangeDayAuthority(transactionId: string): Promise<{ 
     where: { id: transactionId },
     select: {
       exchangeDayStartedAt: true,
-      contacts: { select: { roleType: true, exchangeAuthorityGivenAt: true } },
+      activeBuyerRoundId: true,
+      contacts: { select: { roleType: true, exchangeAuthorityGivenAt: true, buyerRoundId: true } },
     },
   });
   const startedAt = tx?.exchangeDayStartedAt ?? null;
   const forSide = (role: "vendor" | "purchaser"): SideAuthority => {
-    const cs = (tx?.contacts ?? []).filter((c) => c.roleType === role);
+    // Active-round buyers only — an archived previous buyer never gave authority
+    // for this exchange-day activation and would wrongly force "waiting".
+    const cs = (tx?.contacts ?? []).filter((c) => c.roleType === role && isActiveRoundContact(c, tx?.activeBuyerRoundId ?? null));
     if (cs.length === 0) return null;
     const allGiven = !!startedAt && cs.every((c) => c.exchangeAuthorityGivenAt && c.exchangeAuthorityGivenAt >= startedAt);
     return allGiven ? "given" : "waiting";

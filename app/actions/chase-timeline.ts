@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { setChaseOverride, clearChaseOverride } from "@/lib/services/chase-overrides";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
@@ -120,13 +121,13 @@ export async function previewChaseEmailAction(input: {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
     select: {
-      propertyAddress: true, purchasePrice: true, agencyId: true,
+      propertyAddress: true, purchasePrice: true, agencyId: true, activeBuyerRoundId: true,
       agency: { select: { name: true } },
       agentUser: { select: { name: true, phone: true } },
       assignedUser: { select: { name: true, phone: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
-      contacts: { select: { id: true, name: true, portalToken: true, roleType: true } },
+      contacts: { select: { id: true, name: true, portalToken: true, roleType: true, buyerRoundId: true } },
     },
   });
   if (!tx) return { ok: false, error: "Transaction not found" };
@@ -158,7 +159,7 @@ export async function previewChaseEmailAction(input: {
   // Solicitor preview.
   const side = target.side;
   const sellerNames = tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name).join(" & ") || "the seller";
-  const buyerNames = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name).join(" & ") || "the buyer";
+  const buyerNames = tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name).join(" & ") || "the buyer";
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
   const person = tx.assignedUser ?? tx.agentUser;
   const label = solicitorStepLabel(input.milestoneCode, getMilestoneCopy(input.milestoneCode).label);
