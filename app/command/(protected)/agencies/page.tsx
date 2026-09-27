@@ -9,6 +9,7 @@ import { AgencySetupReadiness } from "@/components/command/agencies/AgencySetupR
 import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { StatusFilterSelect } from "@/components/command/agencies/StatusFilterSelect";
+import { AgentHelpButton } from "@/components/command/agencies/AgentHelpButton";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -311,7 +312,7 @@ export default async function AgenciesPage({
           <table className="w-full border-collapse text-[13px] min-w-[720px]">
             <thead>
               <tr className="bg-neutral-950/60">
-                {["Agent", "Agency", "Last active", "Logins · 7d", "Hours · 7d", "Files", "Activity · 12wk", "Device", "Status"].map((h, i) => (
+                {["Agent", "Agency", "Last active", "Logins · 7d", "Hours · 7d", "Files", "Activity · 12wk", "Device", "Status", "Help"].map((h, i) => (
                   <th key={h} className={`text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-semibold px-3.5 py-2.5 border-b border-neutral-800 whitespace-nowrap ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}>
                     <span className="inline-flex items-center gap-1">
                       {h}
@@ -325,7 +326,7 @@ export default async function AgenciesPage({
             </thead>
             <tbody>
               {agentRows.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agents match this filter." : "No agent activity yet."}</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-sm text-neutral-500">{q || statusFilter ? "No agents match this filter." : "No agent activity yet."}</td></tr>
               ) : (
                 agentRows.map((a) => (
                   <tr key={a.userId} className="border-b border-neutral-800 last:border-b-0">
@@ -351,6 +352,7 @@ export default async function AgenciesPage({
                     <td className="px-3.5 py-2.5"><Sparkline weeks={a.weeks} /></td>
                     <td className="px-3.5 py-2.5"><DeviceSplit mobile={a.deviceMobile} desktop={a.deviceDesktop} /></td>
                     <td className="px-3.5 py-2.5"><StatusPill status={a.status} /></td>
+                    <td className="px-3.5 py-2.5"><AgentHelpButton userId={a.userId} name={a.name} /></td>
                   </tr>
                 ))
               )}
