@@ -4152,6 +4152,23 @@
 .agent-shell-root { --agent-banner-bg: rgba(255, 255, 255, 0.90); }
 :root[data-theme="dark"] .agent-shell-root { --agent-banner-bg: rgba(30, 41, 59, 0.92); }
 
+/* AgentBanner "grouped inset" material (critique #13, chosen 2026-09-27):
+ * a translucent frosted card, rounder, with a soft float + inner highlight —
+ * iOS Settings-style. Semantic meaning stays in the coloured icon; the surface
+ * is neutral so it reads over any photo/background in either theme. */
+.agent-shell-root {
+  --agent-banner-mat-bg: rgba(255, 255, 255, 0.55);
+  --agent-banner-mat-border: rgba(255, 255, 255, 0.70);
+  --agent-banner-mat-highlight: rgba(255, 255, 255, 0.40);
+  --agent-banner-mat-shadow: 0 10px 30px rgba(15, 26, 46, 0.12);
+}
+:root[data-theme="dark"] .agent-shell-root {
+  --agent-banner-mat-bg: rgba(44, 46, 54, 0.55);
+  --agent-banner-mat-border: rgba(255, 255, 255, 0.14);
+  --agent-banner-mat-highlight: rgba(255, 255, 255, 0.10);
+  --agent-banner-mat-shadow: 0 12px 30px rgba(0, 0, 0, 0.50);
+}
+
 /* Exchange-day "not both sides confirmed ready" notification (2026-09-06).
  * Sits in the file hero banner stack while exchange day is active but a
  * solicitor hasn't confirmed ready (VM18 / PM25). Deliberately glossier than

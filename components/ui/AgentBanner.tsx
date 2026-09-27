@@ -5,20 +5,20 @@
 // ReconcileLater, ChainSetupFailed, DirectorJoined, ChainDecline) that were
 // washing out on the warm peachy iridescent agent background.
 //
-// Recipe — neutral surface + blur + coloured accent:
-//   - Background: --agent-banner-bg (white at 90% in light, dark slate at 92%
-//     in dark) with backdrop-filter blur, so it reads as visually distinct
-//     from the app background AND from glass-card content below it. The token
-//     is defined in agent-system.css; dark mode is handled there, not here.
-//   - Border: 1px in the kind's "border-strong" token (45-55% opacity)
-//   - Icon: caller-supplied (Phosphor recommended), tinted with the kind colour
-//   - Heading: 13/600 in the kind colour
+// Recipe — "grouped inset" iOS material (critique #13, chosen 2026-09-27):
+//   - Background: a translucent frosted material (--agent-banner-mat-bg ~55%)
+//     with backdrop-filter blur + saturate, so the surface reads as glass and
+//     the content behind it shows through. Tokens live in agent-system.css;
+//     dark mode is handled there.
+//   - Border: 1px neutral material edge (--agent-banner-mat-border) + an inner
+//     top highlight, so it floats like an iOS Settings card. Rounder (18px).
+//   - Icon: caller-supplied (Phosphor recommended), tinted the kind colour —
+//     this is the ONLY thing that carries semantic meaning, so the surface
+//     stays neutral and reliable over any photo/background in either theme.
+//   - Heading: 13/600 in --agent-text-primary (neutral, not the kind colour)
 //   - Body:    12/normal in --agent-text-secondary
+//   - Action:  the kind colour
 //   - Mount animation: agent-reveal-in
-//
-// Designed so the same chrome works for any of the four kinds — semantic
-// meaning is carried by border + icon + heading colour, never by a tinted
-// background. That's what gives us cross-theme + cross-background reliability.
 
 import type { ReactNode } from "react";
 import { X, CaretRight } from "@phosphor-icons/react";
@@ -91,12 +91,14 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
       className={`agent-reveal-in ${className ?? ""}`.trim()}
       role={kind === "danger" || kind === "warning" ? "alert" : "status"}
       style={{
-        background: "var(--agent-banner-bg)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: `1px solid ${t.border}`,
-        borderRadius: 10,
-        padding: "12px 16px",
+        background: "var(--agent-banner-mat-bg, rgba(255,255,255,0.55))",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        border: "1px solid var(--agent-banner-mat-border, rgba(255,255,255,0.7))",
+        borderRadius: 18,
+        padding: "15px 17px",
+        boxShadow:
+          "var(--agent-banner-mat-shadow, 0 10px 30px rgba(15,26,46,0.12)), inset 0 1px 0 var(--agent-banner-mat-highlight, rgba(255,255,255,0.4))",
         display: "flex",
         alignItems: "flex-start",
         gap: 12,
@@ -116,7 +118,7 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
       </span>
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: t.tint, lineHeight: 1.35 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
           {title}
         </p>
         {body && (
