@@ -41,11 +41,24 @@ function fmtDay(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
+// Outreach only sends Mon-Fri, so a projected date must never land on a weekend.
+// Roll Sat/Sun forward to the next weekday (Europe/London).
+function rollToBusinessDay(d: Date): Date {
+  const r = new Date(d);
+  for (let i = 0; i < 3; i++) {
+    const wd = r.toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" });
+    if (wd !== "Sat" && wd !== "Sun") break;
+    r.setDate(r.getDate() + 1);
+  }
+  return r;
+}
+
 // When each step sends, projected from a base date (launch date if running, else
 // "if launched today"). Cumulative because gapDays is relative to the previous
-// email. Business-hours batching means the exact time varies, so we show the date.
+// email. Rolled off weekends and shown as a date (business-hours batching means
+// the exact time varies).
 function timing(cumulativeDays: number, first: boolean, base: Date): string {
-  const d = new Date(base.getTime() + cumulativeDays * 86_400_000);
+  const d = rollToBusinessDay(new Date(base.getTime() + cumulativeDays * 86_400_000));
   const when = fmtDay(d);
   if (first || cumulativeDays === 0) return `Sends ${when}`;
   return `${when} (+${cumulativeDays}d)`;
