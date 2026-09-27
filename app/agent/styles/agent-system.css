@@ -2337,11 +2337,14 @@
   .enq-select { height: 38px; padding: 0 10px; border-radius: 10px; background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-subtle); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--agent-text-secondary); cursor: pointer; transition: border-color var(--agent-transition-fast), box-shadow var(--agent-transition-fast); }
   .enq-select:hover { border-color: var(--agent-coral); }
   .enq-select:focus, .enq-select:focus-visible { outline: none; border-color: var(--agent-coral-deep); box-shadow: none; }
+  .enq-sort-label { font-size: 13px; font-weight: 600; color: var(--agent-text-muted); white-space: nowrap; }
   /* Phone: search takes its own line, then the two filters share the next row
-     50/50 instead of stacking full-width (critique). */
+     50/50 instead of stacking full-width (critique). The "Sort:" label is dropped
+     to save space — the options still read clearly on their own. */
   @media (max-width: 640px) {
     .enq-search { flex-basis: 100%; }
     .enq-select { flex: 1 1 0; min-width: 0; }
+    .enq-sort-label { display: none; }
   }
 
   /* Rows */
@@ -4229,6 +4232,20 @@
   }
 }
 
+/* ── WhatsApp group modal — copy control on phones ─────────────────────
+ * On mobile drop the "Copy"/"Copied" label and the outlined pill box; leave
+ * just the icon with a round ~36px tap target. The button's border/background/
+ * padding are inline styles, so these overrides need !important. */
+@media (max-width: 640px) {
+  .wa-copy-label { display: none; }
+  .wa-copy-btn {
+    border: none !important;
+    background: transparent !important;
+    padding: 8px !important;
+    border-radius: 999px !important;
+  }
+}
+
 /* ─── Glass pill treatment (Pill primitive, `glass` prop) ────────────────────
  * The curated milestone-chip look: a top sheen, an inner light edge and a
  * soft tone-tinted drop shadow. Colour/tint/border are set inline per tone;
@@ -4852,6 +4869,10 @@ body[data-demo-file] [data-onboarding-checklist] {
 .files-waiting b { color: var(--agent-coral-deep); font-weight: 650; }
 
 .jrn { display: block; margin-top: 7px; width: 210px; max-width: 100%; }
+/* Card/mobile layout: the journey bar spans the full card width (edge to edge,
+   clear of the thumbnail) instead of the fixed 210px desktop cap. Vertical rhythm
+   is handled by the card's space-y, so drop the bar's own top margin here. */
+.files-row-card .jrn { width: 100%; margin-top: 0; }
 .jrn-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
 .jrn-stage { font-size: 11px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-coral-deep); }
 .jrn-count { font-size: 10px; font-weight: 600; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; }

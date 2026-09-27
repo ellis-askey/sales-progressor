@@ -259,7 +259,7 @@ function JourneyStages({ stage }: { stage: DisplayStageKey }) {
 /* JourneyHover — wraps the row's journey bar. Hovering (or focusing) reveals a
  * glass popover of all six stages, current one marked. Glass + text colours
  * adapt to night mode; pointer-events:none so it never blocks the row link. */
-function JourneyHover({ stage, children }: { stage: DisplayStageKey; children: ReactNode }) {
+function JourneyHover({ stage, children, block = false }: { stage: DisplayStageKey; children: ReactNode; block?: boolean }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -287,7 +287,7 @@ function JourneyHover({ stage, children }: { stage: DisplayStageKey; children: R
   const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.55)"       : "0 12px 48px rgba(0,0,0,0.16)";
 
   return (
-    <div ref={ref} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} tabIndex={0} style={{ outline: "none", display: "inline-block", maxWidth: "100%", verticalAlign: "top" }}>
+    <div ref={ref} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} tabIndex={0} style={{ outline: "none", display: block ? "block" : "inline-block", width: block ? "100%" : undefined, maxWidth: "100%", verticalAlign: "top" }}>
       {children}
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
@@ -510,14 +510,17 @@ export function TransactionRowView({
               </div>
               {location && <span className="files-town">{location}</span>}
               {showAgencyColumn && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
-              {tx.boardStage && !isDone && !isDead && (
-                <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>
-              )}
-              {!isDone && !isDead && waitingLabel && (
-                <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
-              )}
             </div>
           </div>
+
+          {/* Journey bar + what the file's waiting on — full card width on the
+              card/mobile layout (edge to edge, clear of the thumbnail). */}
+          {tx.boardStage && !isDone && !isDead && (
+            <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover>
+          )}
+          {!isDone && !isDead && waitingLabel && (
+            <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
+          )}
 
           {/* Two columns: last-contact history (verb chip + status) on the left,
               the exchange target / completion date on the right. Sitting them side

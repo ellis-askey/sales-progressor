@@ -24,7 +24,7 @@ import {
   setWhatsappGroupInviteUrlAction,
   removeWhatsappGroupInviteUrlAction,
 } from "@/app/actions/property-extras";
-import { WhatsappLogo, Copy, ArrowSquareOut, Trash, PencilSimple, Lock, ShieldCheck, User, CaretDown } from "@phosphor-icons/react";
+import { WhatsappLogo, Copy, Check, ArrowSquareOut, Trash, PencilSimple, Lock, ShieldCheck, User, CaretDown } from "@phosphor-icons/react";
 
 type Contact = {
   id: string;
@@ -460,10 +460,12 @@ function PersonRow({ contact, action }: { contact: Contact; action: ReactNode })
 
 // ── Coral-outlined copy button (matches the mock's Copy pills) ──
 function CopyBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  const copied = label === "Copied";
   return (
     <button
       type="button"
       onClick={onClick}
+      className="wa-copy-btn"
       style={{
         display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
         padding: "7px 12px", borderRadius: 9, cursor: "pointer",
@@ -472,8 +474,10 @@ function CopyBtn({ label, onClick }: { label: string; onClick: () => void }) {
         fontSize: 12.5, fontWeight: 600,
       }}
     >
-      <Copy size={13} />
-      {label}
+      {/* Icon flips to a tick on copy — the only feedback left once the label is
+          hidden on mobile. */}
+      {copied ? <Check size={13} weight="bold" /> : <Copy size={13} />}
+      <span className="wa-copy-label">{label}</span>
     </button>
   );
 }

@@ -288,10 +288,11 @@ export function EnquiriesTriageList({
           <option value="seller_solicitor">With seller&apos;s solicitor</option>
           <option value="buyer_solicitor">With buyer&apos;s solicitor</option>
         </select>
-        <select className="enq-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
-          <option value="attention">Sort: Needs attention</option>
-          <option value="quietest">Sort: Quietest first</option>
-          <option value="recent">Sort: Recently updated</option>
+        <label className="enq-sort-label" htmlFor="enq-sort">Sort:</label>
+        <select id="enq-sort" className="enq-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
+          <option value="attention">Needs attention</option>
+          <option value="quietest">Quietest first</option>
+          <option value="recent">Recently updated</option>
         </select>
       </div>
 
