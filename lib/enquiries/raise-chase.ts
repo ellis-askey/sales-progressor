@@ -11,6 +11,7 @@
 // replyable per-agency / EXP sender. Gated OFF until the switch is flipped.
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendChainEmail } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -67,7 +68,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           contacts: {
             select: {
               name: true, roleType: true, email: true, portalToken: true,
-              unsubscribedAt: true, emailsPausedAt: true, chasesPausedUntil: true,
+              unsubscribedAt: true, emailsPausedAt: true, chasesPausedUntil: true, buyerRoundId: true,
             },
           },
           // PM14 ("enquiries raised"): its state closes the chase, its
@@ -189,6 +190,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           const buyers = tx.contacts.filter(
             (c) =>
               c.roleType === "purchaser" &&
+              isActiveRoundContact(c, tx.activeBuyerRoundId) &&
               c.email &&
               c.portalToken &&
               !c.unsubscribedAt &&
@@ -228,7 +230,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
         const psPaused = tx.purchaserSolicitorEmailsPaused || (tx.purchaserSolicitorEmailsPausedUntil != null && tx.purchaserSolicitorEmailsPausedUntil > new Date());
         if (email && !psPaused) {
           const token = signSolicitorToken(tx.id, "purchaser");
-          const clientNames = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name);
+          const clientNames = tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name);
           const mail = buildRaiseSolicitorEmail({
             address: tx.propertyAddress,
             clientNames,

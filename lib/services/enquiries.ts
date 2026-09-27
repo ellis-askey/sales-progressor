@@ -9,6 +9,7 @@
 // Spec: docs/active/enquiries-triage/00-spec.md.
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import type { Prisma } from "@prisma/client";
 import type { AccessScope } from "@/lib/security/access-scope";
 import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
@@ -112,7 +113,8 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
           photoStoragePath: true,
           purchasePrice: true,
           tenure: true,
-          contacts: { select: { id: true, name: true, roleType: true, email: true } },
+          activeBuyerRoundId: true,
+          contacts: { select: { id: true, name: true, roleType: true, email: true, buyerRoundId: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorContact: { select: { name: true, email: true } },
           purchaserSolicitorFirm: { select: { name: true } },
@@ -182,7 +184,9 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     }
     if (purchaserSol) parties.push({ id: "psol", label: purchaserSol, side: "purchaser", kind: "solicitor" });
     for (const c of tx.contacts) {
-      if (c.roleType === "purchaser" && c.name) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "purchaser", kind: "client", contactId: c.id, email: c.email });
+      // Active-round buyers only — a relisted file shouldn't offer an archived
+      // previous buyer as a selectable party.
+      if (c.roleType === "purchaser" && c.name && isActiveRoundContact(c, tx.activeBuyerRoundId)) parties.push({ id: c.id, label: nameWithoutTitle(c.name), side: "purchaser", kind: "client", contactId: c.id, email: c.email });
     }
 
     return {
@@ -206,7 +210,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
         ? { note: mv.note, kind: mv.kind as EnquiryMovementKind, occurredAt: mv.occurredAt, byName: mv.createdByUserId ? nameById.get(mv.createdByUserId) ?? null : null }
         : null,
       clientNames: tx.contacts
-        .filter((c) => c.roleType === "vendor" || c.roleType === "purchaser")
+        .filter((c) => (c.roleType === "vendor" || c.roleType === "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId))
         .map((c) => c.name)
         .filter((n): n is string => !!n)
         .join(", "),

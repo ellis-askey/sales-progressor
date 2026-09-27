@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
@@ -365,7 +366,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       purchaserSolicitorFirmId: true,
       purchaserSolicitorFirm: { select: { name: true } },
       purchaserSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
-      contacts: { select: { name: true, roleType: true } },
+      activeBuyerRoundId: true,
+      contacts: { select: { name: true, roleType: true, buyerRoundId: true } },
     },
   });
   if (!tx) return false;
@@ -376,8 +378,10 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   if (!email) return false;
 
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
+  // Scope buyers to the active round so a relisted file never names an archived
+  // previous buyer to the solicitor.
   const sellerNames = joinNames(tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name));
-  const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name));
+  const buyerNames = joinNames(tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name));
   const ownClientNames = side === "vendor" ? sellerNames : buyerNames;
   const brand = tx.agency?.name ?? "Sales Progression";
 

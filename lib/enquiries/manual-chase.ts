@@ -6,6 +6,7 @@
 // (compose + send) and app/api/ai/generate-enquiry-chase (the draft writer).
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { buildEnquiryChaseEmail } from "@/lib/enquiries/chase-email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
@@ -58,7 +59,8 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
-          contacts: { select: { id: true, name: true, email: true, roleType: true } },
+          activeBuyerRoundId: true,
+          contacts: { select: { id: true, name: true, email: true, roleType: true, buyerRoundId: true } },
         },
       },
     },
@@ -71,12 +73,13 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
   const solContact = seller ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
   const solFirm = seller ? tx.vendorSolicitorFirm : tx.purchaserSolicitorFirm;
 
-  // Clients on the RECIPIENT's side — the ones we CC by default.
+  // Clients on the RECIPIENT's side — the ones we CC by default. Scoped to the
+  // active round so a relisted file never CCs or names an archived buyer.
   const clients = tx.contacts
-    .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && !!c.email && !!c.name)
+    .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId) && !!c.email && !!c.name)
     .map((c) => ({ contactId: c.id, name: c.name as string, email: c.email as string }));
   const clientNames = tx.contacts
-    .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
+    .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId))
     .map((c) => c.name)
     .filter((n): n is string => !!n);
 

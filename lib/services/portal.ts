@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
@@ -2647,17 +2648,20 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
       propertyAddress: true,
       completionDate: true,
       agencyId: true,
+      activeBuyerRoundId: true,
       agentUser: { select: { name: true } },
       contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true, portalEligible: true, buyerRoundId: true },
       },
     },
   });
   if (!tx) return null;
   const narrow = (c: typeof tx.contacts[number]): CompletionPackContact | null =>
     c.email ? { id: c.id, name: c.name, email: c.email, portalToken: c.portalToken } : null;
+  // Scope purchasers to the active round so a relisted file never emails or names
+  // an archived previous buyer in the completion pack.
   const vendors    = tx.contacts.filter((c) => c.roleType === "vendor" && c.portalEligible)   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
-  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.portalEligible).map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.portalEligible && isActiveRoundContact(c, tx.activeBuyerRoundId)).map(narrow).filter((c): c is CompletionPackContact => c !== null);
   // Effective copy for each side — the agency's own version, else our default.
   const [vendorContent, purchaserContent] = await Promise.all([
     resolveCompletionPackContent(tx.agencyId, "vendor"),

@@ -18,6 +18,7 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -114,7 +115,8 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           purchaserSolicitorFirm: { select: { name: true } },
           purchaserSolicitorEmailsPaused: true,
           purchaserSolicitorEmailsPausedUntil: true,
-          contacts: { select: { name: true, roleType: true } },
+          activeBuyerRoundId: true,
+          contacts: { select: { name: true, roleType: true, buyerRoundId: true } },
         },
       },
     },
@@ -191,7 +193,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     // Clients on the recipient's side name the subject: seller's solicitor sees
     // the sellers, buyer's solicitor sees the buyers.
     const clientNames = tx.contacts
-      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser"))
+      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId))
       .map((c) => c.name);
     const handlerName = solicitorContact?.name ?? undefined;
     // Self-managed → the agent's own signature; outsourced (internal owner) →
