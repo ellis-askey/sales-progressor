@@ -60,7 +60,7 @@ export function OnHoldBanner({
   }
 
   const actions = canAct ? (
-    <span style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch" }}>
+    <span style={{ display: "flex", flexDirection: "row", gap: 8, alignItems: "center" }}>
       <button
         type="button"
         onClick={resume}
