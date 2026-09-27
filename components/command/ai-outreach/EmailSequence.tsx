@@ -37,26 +37,39 @@ function parseSteps(emails: unknown): Step[] {
     .sort((a, b) => a.index - b.index);
 }
 
-function timing(gapDays: number, first: boolean): string {
-  if (first || gapDays === 0) return "Sends first";
-  return `${gapDays} day${gapDays === 1 ? "" : "s"} after the previous email`;
+function fmtDay(d: Date): string {
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
-export function EmailSequence({ emails }: { emails: unknown }) {
+// When each step sends, projected from a base date (launch date if running, else
+// "if launched today"). Cumulative because gapDays is relative to the previous
+// email. Business-hours batching means the exact time varies, so we show the date.
+function timing(cumulativeDays: number, first: boolean, base: Date): string {
+  const d = new Date(base.getTime() + cumulativeDays * 86_400_000);
+  const when = fmtDay(d);
+  if (first || cumulativeDays === 0) return `Sends ${when}`;
+  return `${when} (+${cumulativeDays}d)`;
+}
+
+export function EmailSequence({ emails, baseDate }: { emails: unknown; baseDate?: Date }) {
   const steps = parseSteps(emails);
   if (steps.length === 0) {
     return <p className="text-[12px] text-neutral-600">No email copy on this variant.</p>;
   }
+  const base = baseDate ?? new Date();
+  let cumulative = 0;
   return (
     <div className="space-y-3">
-      {steps.map((s, i) => (
+      {steps.map((s, i) => {
+        cumulative += i === 0 ? 0 : s.gapDays;
+        return (
         <div key={s.index} className="rounded-lg border border-neutral-800 bg-neutral-950/50 overflow-hidden">
           <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-neutral-800 bg-neutral-900/40">
             <span className="text-[11px] font-semibold text-neutral-200">
               Email {i + 1} <span className="text-neutral-500 font-normal">· {s.label}</span>
             </span>
             <span className="text-[10px] font-mono uppercase tracking-wide text-neutral-500 whitespace-nowrap">
-              {timing(s.gapDays, i === 0)}
+              {timing(cumulative, i === 0, base)}
             </span>
           </div>
           <div className="px-3.5 py-3 space-y-2">
@@ -67,7 +80,8 @@ export function EmailSequence({ emails }: { emails: unknown }) {
             <p className="text-[12.5px] leading-relaxed text-neutral-300 whitespace-pre-line">{s.body}</p>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -320,7 +320,9 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
 
         {/* The emails, rendered as they'll send — one card per variant */}
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">The emails</p>
+          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">
+            The emails <span className="text-neutral-600 normal-case tracking-normal">· send dates projected from today, within business hours</span>
+          </p>
           <div className="grid lg:grid-cols-2 gap-4">
             {e.variants.map((v) => {
               const roll = e.rollup?.variants.find((rv) => rv.variantId === v.id);
