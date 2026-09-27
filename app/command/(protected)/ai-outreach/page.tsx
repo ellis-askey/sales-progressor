@@ -338,9 +338,15 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
         <FeasibilityBlock data={e.feasibility} />
         <ReviewerFindings data={e.reviewerResult} />
 
-        {e.status === "approved" && <FindAgentsPanel />}
-        {(e.status === "approved" || e.status === "running") && (
-          <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />
+        {e.status === "approved" && <FindAgentsPanel experimentId={e.id} />}
+        {e.status === "running" && <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />}
+        {e.status === "approved" && (
+          <details className="rounded-lg border border-neutral-800 bg-neutral-950/40">
+            <summary className="cursor-pointer px-3 py-2 text-[11px] text-neutral-500">Advanced: launch to your whole eligible list instead of a found batch</summary>
+            <div className="border-t border-neutral-800 px-3 py-3">
+              <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />
+            </div>
+          </details>
         )}
 
         {/* The emails, rendered as they'll send — one card per variant */}

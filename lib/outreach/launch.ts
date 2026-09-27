@@ -2,7 +2,12 @@
 // inert until a superadmin deliberately launches it. This module owns eligibility
 // resolution, deterministic cohort/allocation, content-hash verification, the
 // atomic launch lock, assignment + frozen-flow creation, the OutreachLaunch audit,
-// and the batched, business-hours-gated, capped, resumable send processor.
+// and the batched, business-hours-gated, warm-up-capped, resumable send processor.
+//
+// Two audiences: launchExperiment() sends to the experiment's approved targeting
+// (all-eligible / a segment); launchExperimentToProspects() sends to an explicit
+// set of prospect ids (the "Find agents" batch you reviewed). Both freeze the
+// same approved email content and run through the identical send machinery.
 //
 // The AI model has zero control here. Nothing sends outside the Europe/London
 // business window, even on a deliberate human Launch.
@@ -11,7 +16,7 @@ import { createHash } from "crypto";
 import { commandDb } from "@/lib/command/prisma";
 import { contentHash, type ApprovalSnapshot } from "./approval";
 import { segmentValue, type SegmentDimension } from "./segments";
-import { aiOutreachSender, isWithinBusinessHours, scheduleForBusinessHours, OUTREACH_SEND_LIMITS } from "./send-limits";
+import { aiOutreachSender, isWithinBusinessHours, scheduleForBusinessHours, warmupDailyCap, OUTREACH_SEND_LIMITS } from "./send-limits";
 import { sendExperimentStep, recoverStaleSending, type SendTransport, type StepSendOutcome } from "./experiment-send";
 
 const STATUS_ELIGIBLE = new Set(["new", "contacted"]);
@@ -57,6 +62,38 @@ export function verifyContentIntegrity(exp: ExperimentWithVariants): { ok: boole
 export type EligibilityRow = { id: string };
 export type EligibilityResult = { eligible: EligibilityRow[]; exclusionCounts: Record<ExclusionKey, number>; targetMatched: number };
 
+function emptyCounts(): Record<ExclusionKey, number> {
+  return Object.fromEntries(EXCLUSION_KEYS.map((k) => [k, 0])) as Record<ExclusionKey, number>;
+}
+
+// The per-prospect suppression check, shared by the all-eligible and the
+// explicit-ids paths. Returns the first-hit exclusion reason (priority order) or
+// null when the prospect is clear to email.
+type ExclRow = {
+  status: string;
+  optedOutAt: Date | null;
+  bouncedAt: Date | null;
+  convertedAgencyId: string | null;
+  archivedAt: Date | null;
+  generalEmail: string | null;
+  contacts: { email: string | null }[];
+  flows: { id: string }[];
+  outreachAssignments: { experiment: { status: string } }[];
+};
+
+function exclusionReasonFor(p: ExclRow): ExclusionKey | null {
+  const hasEmail = !!(p.contacts.find((c) => c.email)?.email ?? p.generalEmail);
+  if (p.optedOutAt) return "opted_out";
+  if (p.bouncedAt) return "bounced";
+  if (p.convertedAgencyId) return "converted";
+  if (p.archivedAt) return "archived";
+  if (!hasEmail) return "no_email";
+  if (p.flows.length > 0) return "active_flow";
+  if (p.outreachAssignments.some((a) => a.experiment.status === "running")) return "other_running_experiment";
+  if (!STATUS_ELIGIBLE.has(p.status)) return "status_excluded";
+  return null;
+}
+
 function matchesSeg(row: { source: string | null; groupId: string | null; followUpCount: number; lastContactedAt: Date | null; postcode: string | null }, f: SegFilter): boolean {
   return f.values.includes(segmentValue(f.dimension, row));
 }
@@ -72,7 +109,7 @@ export async function resolveEligibility(experimentId: string, target: Target | 
     },
   });
 
-  const counts: Record<ExclusionKey, number> = Object.fromEntries(EXCLUSION_KEYS.map((k) => [k, 0])) as Record<ExclusionKey, number>;
+  const counts = emptyCounts();
   const eligible: EligibilityRow[] = [];
   let targetMatched = 0;
 
@@ -83,22 +120,35 @@ export async function resolveEligibility(experimentId: string, target: Target | 
     if (exclusions.some((ex) => matchesSeg(p, ex))) continue; // targeting-level exclusion (not an audit "reason")
     targetMatched++;
 
-    // First-hit exclusion reason (priority order).
-    const hasEmail = !!(p.contacts.find((c) => c.email)?.email ?? p.generalEmail);
-    let reason: ExclusionKey | null = null;
-    if (p.optedOutAt) reason = "opted_out";
-    else if (p.bouncedAt) reason = "bounced";
-    else if (p.convertedAgencyId) reason = "converted";
-    else if (p.archivedAt) reason = "archived";
-    else if (!hasEmail) reason = "no_email";
-    else if (p.flows.length > 0) reason = "active_flow";
-    else if (p.outreachAssignments.some((a) => a.experiment.status === "running")) reason = "other_running_experiment";
-    else if (!STATUS_ELIGIBLE.has(p.status)) reason = "status_excluded";
-
+    const reason = exclusionReasonFor(p);
     if (reason) counts[reason]++;
     else eligible.push({ id: p.id });
   }
   return { eligible, exclusionCounts: counts, targetMatched };
+}
+
+// Eligibility over an explicit set of prospect ids (the reviewed "Find agents"
+// batch). Same suppression rules; no target/segment filter — the caller has
+// already chosen exactly who to send to.
+export async function resolveEligibilityForIds(ids: string[]): Promise<EligibilityResult> {
+  if (ids.length === 0) return { eligible: [], exclusionCounts: emptyCounts(), targetMatched: 0 };
+  const prospects = await commandDb.prospect.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, status: true, optedOutAt: true, bouncedAt: true, convertedAgencyId: true, archivedAt: true, generalEmail: true,
+      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { email: true } },
+      flows: { where: { status: "active" }, select: { id: true } },
+      outreachAssignments: { select: { experiment: { select: { status: true } } } },
+    },
+  });
+  const counts = emptyCounts();
+  const eligible: EligibilityRow[] = [];
+  for (const p of prospects) {
+    const reason = exclusionReasonFor(p);
+    if (reason) counts[reason]++;
+    else eligible.push({ id: p.id });
+  }
+  return { eligible, exclusionCounts: counts, targetMatched: prospects.length };
 }
 
 // ── Deterministic cohort + allocation ────────────────────────────────────────
@@ -243,40 +293,42 @@ function frozenStepsFor(role: "control" | "challenger", snap: ApprovalSnapshot):
   }));
 }
 
-export async function launchExperiment(params: {
-  experimentId: string;
-  actorUserId: string | null;
-  confirmUnderSample?: boolean;
-  transport?: SendTransport;
-  now?: Date;
-}): Promise<LaunchResult> {
-  const now = params.now ?? new Date();
-  const exp = await loadExperiment(params.experimentId);
+type LoadedExperiment = NonNullable<Awaited<ReturnType<typeof loadExperiment>>>;
+
+// Pre-launch gate shared by both launch paths: the experiment must exist, be
+// approved, not already launched, content-intact, and have a sender.
+function launchGate(exp: LoadedExperiment | null): { ok: true } | { ok: false; error: string } {
   if (!exp) return { ok: false, error: "Experiment not found." };
   if (exp.status !== "approved") return { ok: false, error: `Experiment is "${exp.status}", not approved.` };
   if (exp.launch) return { ok: false, error: "This experiment has already been launched." };
-
   const integrity = verifyContentIntegrity(exp);
   if (!integrity.ok) return { ok: false, error: `Content integrity check failed: ${integrity.reason}. Launch refused.` };
   if (!aiOutreachSender()) return { ok: false, error: "AI_OUTREACH_FROM_EMAIL is not set or invalid; launch blocked." };
+  return { ok: true };
+}
 
-  const target = parseTarget(exp.targetSegment);
-  const exclusions = parseExclusions(exp.exclusions);
-  const { eligible, exclusionCounts } = await resolveEligibility(params.experimentId, target, exclusions);
-  const requestedSample = exp.sampleSize ?? 0;
-  const allocationPct = exp.allocationPct ?? 50;
-  if (eligible.length === 0) return { ok: false, error: "Zero eligible prospects; launch blocked." };
-  if (eligible.length < requestedSample && !params.confirmUnderSample) {
-    return { ok: false, needsUnderSampleConfirm: true, eligibleCount: eligible.length, requestedSample };
-  }
-
-  const cohort = selectCohort(params.experimentId, eligible.map((e) => e.id), requestedSample, allocationPct);
-  const snap = exp.approvedSnapshot as ApprovalSnapshot;
+// Freeze the cohort and fire the initial (step-0) sends. Shared by both launch
+// paths: atomic launch lock, OutreachLaunch audit, assignment + frozen-flow
+// creation (from approvedSnapshot, never the live variants), then the batched,
+// warm-up-capped initial send.
+async function commitLaunchAndSend(args: {
+  experimentId: string;
+  actorUserId: string | null;
+  contentHash: string;
+  snap: ApprovalSnapshot;
+  cohort: Cohort;
+  requestedSample: number;
+  eligibleCount: number;
+  exclusionCounts: Record<ExclusionKey, number>;
+  transport?: SendTransport;
+  now: Date;
+}): Promise<LaunchResult> {
+  const { experimentId, actorUserId, cohort, snap, now } = args;
 
   // Atomic launch lock: only one caller flips approved -> running.
   const lock = await commandDb.outreachExperiment.updateMany({
-    where: { id: params.experimentId, status: "approved" },
-    data: { status: "running", launchedById: params.actorUserId, launchedAt: now },
+    where: { id: experimentId, status: "approved" },
+    data: { status: "running", launchedById: actorUserId, launchedAt: now },
   });
   if (lock.count === 0) return { ok: false, error: "Launch already in progress or completed (lost the lock)." };
 
@@ -284,16 +336,16 @@ export async function launchExperiment(params: {
   try {
     await commandDb.outreachLaunch.create({
       data: {
-        experimentId: params.experimentId,
-        launchedById: params.actorUserId,
+        experimentId,
+        launchedById: actorUserId,
         launchedAt: now,
-        contentHash: exp.contentHash!,
-        requestedSample,
-        eligibleCount: eligible.length,
+        contentHash: args.contentHash,
+        requestedSample: args.requestedSample,
+        eligibleCount: args.eligibleCount,
         actualSample: cohort.actualSample,
         assignedControl: cohort.controlCount,
         assignedChallenger: cohort.challengerCount,
-        exclusionCounts,
+        exclusionCounts: args.exclusionCounts,
         status: "armed",
       },
     });
@@ -301,12 +353,8 @@ export async function launchExperiment(params: {
     return { ok: false, error: "A launch record already exists for this experiment." };
   }
 
-  // Freeze the cohort: assignments (idempotent on unique) + one experiment flow per
-  // prospect carrying the FROZEN variant content (from approvedSnapshot, never the
-  // live variants or DEFAULT_SEQUENCE). Step 0 due now; later steps null.
-  const controlIds = new Set(cohort.controlIds);
   const byVariant: Record<"control" | "challenger", string[]> = { control: cohort.controlIds, challenger: cohort.challengerIds };
-  const variantRows = await commandDb.outreachVariant.findMany({ where: { experimentId: params.experimentId }, select: { id: true, role: true } });
+  const variantRows = await commandDb.outreachVariant.findMany({ where: { experimentId }, select: { id: true, role: true } });
   const variantId = (role: "control" | "challenger") => variantRows.find((v) => v.role === role)?.id ?? null;
 
   const contactByProspect = await commandDb.prospectContact.findMany({
@@ -325,19 +373,19 @@ export async function launchExperiment(params: {
       const contact = contactMap.get(prospectId);
       const to = contact?.email ?? genMap.get(prospectId) ?? null;
       // idempotency: skip if a flow already exists for this experiment+prospect
-      const already = await commandDb.prospectFlow.findFirst({ where: { experimentId: params.experimentId, prospectId }, select: { id: true } });
+      const already = await commandDb.prospectFlow.findFirst({ where: { experimentId, prospectId }, select: { id: true } });
       if (already) continue;
       await commandDb.outreachAssignment.upsert({
-        where: { experimentId_prospectId: { experimentId: params.experimentId, prospectId } },
-        create: { experimentId: params.experimentId, prospectId, variantId: variantId(role)! },
+        where: { experimentId_prospectId: { experimentId, prospectId } },
+        create: { experimentId, prospectId, variantId: variantId(role)! },
         update: {},
       });
       await commandDb.prospectFlow.create({
         data: {
           prospectId,
-          experimentId: params.experimentId,
+          experimentId,
           variantId: variantId(role),
-          startedById: params.actorUserId,
+          startedById: actorUserId,
           steps: {
             // Step 0 is due now (queued); later steps are "scheduled" (null until the
             // previous one sends) so advanceFlowAfterSend schedules them. They already
@@ -357,11 +405,10 @@ export async function launchExperiment(params: {
       });
     }
   }
-  void controlIds;
 
-  // Process the initial (step-0) sends: batched, business-hours-gated, capped.
-  const initial = await processExperimentSends({ experimentId: params.experimentId, transport: params.transport, now });
-  await refreshLaunchTally(params.experimentId, now);
+  // Process the initial (step-0) sends: batched, business-hours-gated, warm-up-capped.
+  const initial = await processExperimentSends({ experimentId, transport: args.transport, now });
+  await refreshLaunchTally(experimentId, now);
 
   return {
     ok: true,
@@ -371,6 +418,66 @@ export async function launchExperiment(params: {
     assignedChallenger: cohort.challengerCount,
     initial,
   };
+}
+
+export async function launchExperiment(params: {
+  experimentId: string;
+  actorUserId: string | null;
+  confirmUnderSample?: boolean;
+  transport?: SendTransport;
+  now?: Date;
+}): Promise<LaunchResult> {
+  const now = params.now ?? new Date();
+  const exp = await loadExperiment(params.experimentId);
+  const gate = launchGate(exp);
+  if (!gate.ok) return gate;
+
+  const target = parseTarget(exp!.targetSegment);
+  const exclusions = parseExclusions(exp!.exclusions);
+  const { eligible, exclusionCounts } = await resolveEligibility(params.experimentId, target, exclusions);
+  const requestedSample = exp!.sampleSize ?? 0;
+  const allocationPct = exp!.allocationPct ?? 50;
+  if (eligible.length === 0) return { ok: false, error: "Zero eligible prospects; launch blocked." };
+  if (eligible.length < requestedSample && !params.confirmUnderSample) {
+    return { ok: false, needsUnderSampleConfirm: true, eligibleCount: eligible.length, requestedSample };
+  }
+
+  const cohort = selectCohort(params.experimentId, eligible.map((e) => e.id), requestedSample, allocationPct);
+  return commitLaunchAndSend({
+    experimentId: params.experimentId, actorUserId: params.actorUserId, contentHash: exp!.contentHash!,
+    snap: exp!.approvedSnapshot as ApprovalSnapshot, cohort, requestedSample, eligibleCount: eligible.length,
+    exclusionCounts, transport: params.transport, now,
+  });
+}
+
+// Launch to an explicit, already-reviewed set of prospects (the "Find agents"
+// batch). Sends to every eligible one (no sub-sampling), split by the approved
+// allocation. This is the primary campaign path; launchExperiment() is the
+// whole-list / segment path kept for advanced use.
+export async function launchExperimentToProspects(params: {
+  experimentId: string;
+  prospectIds: string[];
+  actorUserId: string | null;
+  allocationPctOverride?: number;
+  transport?: SendTransport;
+  now?: Date;
+}): Promise<LaunchResult> {
+  const now = params.now ?? new Date();
+  const exp = await loadExperiment(params.experimentId);
+  const gate = launchGate(exp);
+  if (!gate.ok) return gate;
+
+  const { eligible, exclusionCounts } = await resolveEligibilityForIds(params.prospectIds);
+  if (eligible.length === 0) return { ok: false, error: "None of the selected agents are still eligible to email (already contacted, opted out, or no valid email)." };
+
+  const requestedSample = eligible.length; // send to all reviewed + eligible
+  const allocationPct = params.allocationPctOverride ?? exp!.allocationPct ?? 50;
+  const cohort = selectCohort(params.experimentId, eligible.map((e) => e.id), requestedSample, allocationPct);
+  return commitLaunchAndSend({
+    experimentId: params.experimentId, actorUserId: params.actorUserId, contentHash: exp!.contentHash!,
+    snap: exp!.approvedSnapshot as ApprovalSnapshot, cohort, requestedSample, eligibleCount: eligible.length,
+    exclusionCounts, transport: params.transport, now,
+  });
 }
 
 // ── Batched send processor (initial + follow-ups) ────────────────────────────
@@ -390,7 +497,21 @@ async function dailyAcceptedCount(now: Date): Promise<number> {
   });
 }
 
-// Recovery sweep, business-hours gate, daily + per-run caps, then send due steps.
+// The domain's sending age in days = days since the first accepted outreach send.
+// Drives the warm-up ramp. Zero (day one) until the first email is accepted.
+async function sendingAgeDays(now: Date): Promise<number> {
+  const first = await commandDb.prospectEmail.findFirst({
+    where: { experimentId: { not: null }, acceptedAt: { not: null } },
+    orderBy: { acceptedAt: "asc" },
+    select: { acceptedAt: true },
+  });
+  if (!first?.acceptedAt) return 0;
+  return Math.floor((now.getTime() - first.acceptedAt.getTime()) / 86_400_000);
+}
+
+// Recovery sweep, business-hours gate, warm-up daily cap + per-run cap, then send
+// due steps. Called by launch (initial), the recurring cron (drip + follow-ups),
+// and resume.
 export async function processExperimentSends(params: { experimentId?: string; transport?: SendTransport; now?: Date; perRunCap?: number }): Promise<SendTally> {
   const now = params.now ?? new Date();
   await recoverStaleSending(now);
@@ -398,7 +519,8 @@ export async function processExperimentSends(params: { experimentId?: string; tr
   const empty: SendTally = { accepted: 0, failed: 0, uncertain: 0, suppressed: 0, pending: 0, sentThisRun: 0, withinHours: isWithinBusinessHours(now) };
   if (!isWithinBusinessHours(now)) return empty; // outside window: send nothing, leave pending
 
-  const dailyRemaining = OUTREACH_SEND_LIMITS.EXPERIMENT_DAILY_CAP - (await dailyAcceptedCount(now));
+  const dailyCap = warmupDailyCap(await sendingAgeDays(now));
+  const dailyRemaining = dailyCap - (await dailyAcceptedCount(now));
   if (dailyRemaining <= 0) return empty;
 
   const perRunCap = params.perRunCap ?? OUTREACH_SEND_LIMITS.LAUNCH_PER_RUN_CAP;

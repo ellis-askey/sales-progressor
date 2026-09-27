@@ -12,8 +12,9 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { discoverAgencies } from "@/lib/outreach/discover";
+import { verifyEmailDeliverable } from "@/lib/prospects/email-verify";
 import { runStrategyCycle } from "@/lib/outreach/orchestrator";
-import { preflightExperiment, launchExperiment, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
+import { preflightExperiment, launchExperiment, launchExperimentToProspects, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
 import {
   approveExperiment,
   rejectExperiment,
@@ -89,6 +90,69 @@ export async function findAgentsAction(area: string, count: number): Promise<Fin
   });
   revalidatePath("/command/prospects");
   return { ok: true, batchId: batch.id, found: discovered.length, agencies: discovered };
+}
+
+// ── Review the found batch: the reviewable rows behind a Find agents run, with
+// a per-address deliverability badge so you can drop the guessed/dead ones
+// before publishing. Superadmin-only, read-only.
+export type FoundRow = {
+  prospectId: string;
+  agencyName: string;
+  location: string | null;
+  contactName: string | null;
+  jobTitle: string | null;
+  email: string | null;
+  emailStatus: "verified" | "guessed" | "invalid" | "none";
+};
+
+export async function getBatchProspectsAction(batchId: string): Promise<FoundRow[]> {
+  await requireSuperAdmin();
+  const items = await commandDb.prospectImportItem.findMany({
+    where: { batchId, prospectId: { not: null } },
+    select: { prospectId: true },
+  });
+  const ids = items.map((i) => i.prospectId).filter((v): v is string => !!v);
+  if (ids.length === 0) return [];
+
+  const prospects = await commandDb.prospect.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, agencyName: true, location: true, generalEmail: true,
+      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], take: 1, select: { name: true, jobTitle: true, email: true, research: true } },
+    },
+  });
+
+  const rows: FoundRow[] = [];
+  for (const p of prospects) {
+    const c = p.contacts[0];
+    const email = c?.email ?? p.generalEmail ?? null;
+    let emailStatus: FoundRow["emailStatus"] = "none";
+    if (email) {
+      const v = await verifyEmailDeliverable(email);
+      if (v.status === "invalid") emailStatus = "invalid";
+      else {
+        const state = (c?.research as { email?: { state?: string } } | null)?.email?.state;
+        emailStatus = state === "verified" || state === "confirmed" ? "verified" : "guessed";
+      }
+    }
+    rows.push({
+      prospectId: p.id, agencyName: p.agencyName, location: p.location,
+      contactName: c?.name ?? null, jobTitle: c?.jobTitle ?? null, email, emailStatus,
+    });
+  }
+  // Deliverable first, then guessed, then problems — so the good ones read at the top.
+  const order: Record<FoundRow["emailStatus"], number> = { verified: 0, guessed: 1, invalid: 2, none: 3 };
+  rows.sort((a, b) => order[a.emailStatus] - order[b.emailStatus] || a.agencyName.localeCompare(b.agencyName));
+  return rows;
+}
+
+// Publish an approved experiment to exactly the reviewed prospects (the kept
+// rows) — not the whole list. Split by the approved allocation (A/B).
+export async function publishCampaignAction(experimentId: string, prospectIds: string[]): Promise<LaunchResult> {
+  const session = await requireSuperAdmin();
+  const res = await launchExperimentToProspects({ experimentId, prospectIds, actorUserId: session.user.id });
+  if ("ok" in res && res.ok) revalidatePath(REVALIDATE);
+  return res;
 }
 
 // ── G: approval workflow ─────────────────────────────────────────────────────

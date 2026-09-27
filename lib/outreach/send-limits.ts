@@ -6,12 +6,31 @@
 export const OUTREACH_SEND_LIMITS = {
   INITIAL_SEND_BATCH: 25, // step-0 sends processed per pass
   LAUNCH_PER_RUN_CAP: 100, // max step-0 sends a single Launch/Resume run processes
-  EXPERIMENT_DAILY_CAP: 50, // per-day cap across ALL experiment sends (initial + follow-up)
+  EXPERIMENT_DAILY_CAP: 50, // absolute per-day ceiling; the warm-up ramp keeps the effective cap below this early on
+  CRON_PER_RUN_CAP: 5, // sends per recurring-cron tick — spaces sends out instead of bursting
   FOLLOWUP_SEND_BATCH: 25, // follow-up sends processed per tick pass
   BUSINESS_OPEN_HOUR: 8, // Europe/London
   BUSINESS_CLOSE_HOUR: 19,
   UNCERTAIN_THRESHOLD_MS: 120_000, // a `sending` row older than this becomes `uncertain`
 } as const;
+
+// Warm-up ramp for a fresh sending domain: daily volume climbs with the domain's
+// sending age (days since the first accepted outreach send) rather than starting
+// flat, which reads as a spam cannon to mailbox providers. Steady state never
+// exceeds EXPERIMENT_DAILY_CAP.
+export const OUTREACH_WARMUP_TIERS = [
+  { untilDay: 7, cap: 8 },
+  { untilDay: 14, cap: 15 },
+  { untilDay: 21, cap: 22 },
+] as const;
+export const OUTREACH_WARMUP_STEADY_CAP = 30;
+
+export function warmupDailyCap(sendingAgeDays: number): number {
+  const age = Number.isFinite(sendingAgeDays) && sendingAgeDays > 0 ? sendingAgeDays : 0;
+  const tier = OUTREACH_WARMUP_TIERS.find((t) => age < t.untilDay);
+  const cap = tier ? tier.cap : OUTREACH_WARMUP_STEADY_CAP;
+  return Math.min(cap, OUTREACH_SEND_LIMITS.EXPERIMENT_DAILY_CAP);
+}
 
 // The AI outreach identity. Experiment sends MUST use this. There is NO fallback
 // to the manual PROSPECT_FROM_EMAIL / ellis@ identity.

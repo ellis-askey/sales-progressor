@@ -41,6 +41,10 @@
       "schedule": "30 7 * * 1-5"
     },
     {
+      "path": "/api/cron/outreach-send",
+      "schedule": "*/20 7-18 * * 1-5"
+    },
+    {
       "path": "/api/cron/agent-weekly-brief",
       "schedule": "0 7 * * 1"
     },
