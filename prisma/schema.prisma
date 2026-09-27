@@ -36,13 +36,14 @@ model Agency {
   chaseEmailsEnabled Boolean @default(true)
 
   // Per-agency master switches for the three solicitor/enquiries chase streams.
-  // Default false so a NEW agency never auto-chases until it's switched on in the
-  // Command Centre. Existing agencies are migrated to true (preserving the prior
-  // global-on behaviour). Read per-file by the chase engines; the global
-  // SolicitorChaseSettings.enabledByDefault stays as the top-level kill switch.
-  solicitorChaseEnabled    Boolean @default(false)
-  enquiryReplyChaseEnabled Boolean @default(false)
-  enquiryRaiseChaseEnabled Boolean @default(false)
+  // Default TRUE: chasing is the core of what an agency signs up for, so a new
+  // agency chases out of the box. It still never fires without the required
+  // details (solicitor/client emails etc.), and the global
+  // SolicitorChaseSettings.enabledByDefault remains the top-level kill switch.
+  // (Changed from false + backfilled 2026-09-27 - they were meant to be on.)
+  solicitorChaseEnabled    Boolean @default(true)
+  enquiryReplyChaseEnabled Boolean @default(true)
+  enquiryRaiseChaseEnabled Boolean @default(true)
 
   // Director-set "what clients see on the portal" display defaults (Account →
   // Client portal). Agency-wide; all default true = today's behaviour. Only
