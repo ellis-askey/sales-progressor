@@ -8,6 +8,7 @@ import { WhatsAppControl, type WhatsAppRow } from "@/components/command/agencies
 import { AgencySetupReadiness } from "@/components/command/agencies/AgencySetupReadiness";
 import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
 import InfoTip from "@/components/command/shared/InfoTip";
+import { StatusFilterSelect } from "@/components/command/agencies/StatusFilterSelect";
 
 function fmtDuration(seconds: number): string {
   if (seconds <= 0) return "—";
@@ -281,20 +282,10 @@ export default async function AgenciesPage({
       {/* status filter */}
       <div className="flex items-center gap-2 flex-wrap -mt-1">
         <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 mr-1">Status</span>
-        {STATUS_FILTERS.map((f) => {
-          const on = (sp.status ?? "") === f.value;
-          return (
-            <Link
-              key={f.value || "all"}
-              href={statusHref(f.value)}
-              className={`text-[12px] font-medium px-2.5 py-1 rounded-md transition-colors ${
-                on ? "bg-neutral-700 text-white" : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200"
-              }`}
-            >
-              {f.label}
-            </Link>
-          );
-        })}
+        <StatusFilterSelect
+          current={statusFilter ?? ""}
+          options={STATUS_FILTERS.map((f) => ({ ...f, href: statusHref(f.value) }))}
+        />
         {statusFilter && (
           <span className="text-[11px] text-neutral-600">
             {view === "agent" ? `${agentRows.length} agent${agentRows.length === 1 ? "" : "s"}` : `${agencyRows.length} agenc${agencyRows.length === 1 ? "y" : "ies"}`}
