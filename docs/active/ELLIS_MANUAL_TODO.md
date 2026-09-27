@@ -4,7 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-21
+Last updated: 2026-09-27
+
+---
+
+## Enable spam-complaint events + confirm outreach opt-out (AI Outreach Phase 1, 2026-09-27)
+
+Phase 1 made cold outreach safe and lawful to send: every outreach email now carries an **unsubscribe link + one-click List-Unsubscribe header**, replies saying "unsubscribe/stop" auto-suppress, spam complaints auto-suppress, and addresses at dead domains are checked and skipped before sending. Two manual steps make the complaint half fully live, plus two optional niceties:
+
+1. **Enable the `spamreport` event in SendGrid** (required for auto-suppression on complaints). SendGrid → Settings → Mail Settings → **Event Webhook** → edit the existing webhook (URL `…/api/webhooks/sendgrid-bounce`) → tick **Spam Reports** (ideally also **Unsubscribes** / **Group Unsubscribes**) alongside the existing delivered/deferred/bounce/blocked/dropped → Save. Until this is ticked, a spam complaint never reaches us and won't suppress the prospect.
+2. **Confirm `UNSUBSCRIBE_SECRET` is set in Vercel production.** The outreach unsubscribe link reuses the same signed-token secret as the existing user/contact unsubscribe links, so if those already work in prod this is already set — just confirm. If missing, the unsubscribe links won't verify.
+3. **(Optional) Set `OUTREACH_POSTAL_ADDRESS` in Vercel** to add a postal-address line to the email footer (CAN-SPAM / PECR good practice). Without it, the unsubscribe line still shows; the address line is simply omitted.
+4. **(Optional, later) Paid email verifier** (ZeroBounce / NeverBounce) for mailbox-level verification. Phase 1 verifies the domain can receive mail (kills dead-domain guesses) but can't confirm a specific inbox exists. A paid verifier closes that gap and slots into `lib/prospects/email-verify.ts`. Not needed to start sending; revisit if bounce rate stays high.
 
 ---
 

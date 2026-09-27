@@ -16,7 +16,8 @@
 //
 // Configure in SendGrid: Settings → Mail Settings → Event Webhook.
 // Endpoint URL: https://portal.thesalesprogressor.co.uk/api/webhooks/sendgrid-bounce
-// Enabled events: delivered, deferred, bounce, blocked, dropped.
+// Enabled events: delivered, deferred, bounce, blocked, dropped, spamreport.
+// (spamreport drives prospect complaint-suppression — enable it in the dashboard.)
 // Signed Event Webhook: enabled. Public key in env as
 // SENDGRID_WEBHOOK_PUBLIC_KEY.
 
@@ -298,6 +299,21 @@ async function applyProspectEmailEvent(id: string, event: SendGridEvent): Promis
         await prisma.prospect.update({ where: { id: pe.prospectId }, data: { bouncedAt: at } }).catch(() => {});
         // A bounce halts any running outreach flow — the address is dead.
         await haltActiveFlows(pe.prospectId, "bounced").catch(() => {});
+      }
+      return;
+    }
+    case "spamreport": {
+      // A spam complaint is the strongest negative signal there is. Suppress the
+      // prospect (opt-out) and halt any running flow immediately, so we never
+      // send another cold email to someone who reported us.
+      await prisma.prospectEmail.updateMany({ where: { id }, data: { failReason: "spam complaint" } });
+      const pe = await prisma.prospectEmail.findUnique({ where: { id }, select: { prospectId: true } });
+      if (pe) {
+        await prisma.prospect.updateMany({ where: { id: pe.prospectId, optedOutAt: null }, data: { optedOutAt: at } }).catch(() => {});
+        await haltActiveFlows(pe.prospectId, "complained").catch(() => {});
+        await prisma.prospectActivity
+          .create({ data: { prospectId: pe.prospectId, type: "opted_out", summary: "Marked a message as spam. Suppressed." } })
+          .catch(() => {});
       }
       return;
     }

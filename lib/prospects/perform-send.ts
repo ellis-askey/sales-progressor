@@ -7,6 +7,8 @@
 import { randomUUID } from "crypto";
 import { commandDb } from "@/lib/command/prisma";
 import { sendProspectOutreach } from "./send";
+import { verifyEmailDeliverable } from "./email-verify";
+import { buildProspectUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import type { ProspectStatus } from "@prisma/client";
 
 export type PerformSendResult =
@@ -38,6 +40,13 @@ export async function performProspectSend(params: {
   if (p.optedOutAt) return { ok: false, error: "This prospect has opted out of email." };
   if (p.bouncedAt) return { ok: false, error: "A previous email to this prospect bounced." };
 
+  // Deliverability pre-check (domain-level): stop obviously-dead addresses
+  // before they bounce off a fresh sending domain.
+  const deliver = await verifyEmailDeliverable(to);
+  if (deliver.status === "invalid") {
+    return { ok: false, error: "That email address doesn't look deliverable (its domain has no mail server). Check the address before sending." };
+  }
+
   const replyToken = randomUUID().replace(/-/g, "");
   const pe = await commandDb.prospectEmail.create({
     data: {
@@ -56,6 +65,7 @@ export async function performProspectSend(params: {
   try {
     const { sgMessageId } = await sendProspectOutreach({
       to, subject, text: body, replyToken, prospectEmailId: pe.id, html: params.html,
+      unsubscribeUrl: params.html ? undefined : buildProspectUnsubscribeUrl(params.prospectId),
     });
     await commandDb.prospectEmail.update({ where: { id: pe.id }, data: { sgMessageId } });
   } catch (err) {

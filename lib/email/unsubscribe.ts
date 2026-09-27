@@ -3,6 +3,7 @@
 // Subject format:  "user:{userId}"      → sets User.emailUnsubscribedAt
 //                  "invite:{linkId}"    → sets ChainLink.inviteUnsubscribedAt
 //                  "contact:{contactId}" → sets Contact.unsubscribedAt (A3, client-chase arc)
+//                  "prospect:{prospectId}" → sets Prospect.optedOutAt + halts flow (AI Outreach)
 
 import { createHmac, timingSafeEqual } from "crypto";
 
@@ -63,6 +64,14 @@ export function buildInviteUnsubscribeUrl(chainLinkId: string): string {
 // the URL builder + endpoint handler.
 export function buildContactUnsubscribeUrl(contactId: string): string {
   const token = generateUnsubscribeToken(`contact:${contactId}`);
+  return `${portalBase()}/api/unsubscribe?t=${encodeURIComponent(token)}`;
+}
+
+// Cold-outreach prospects (AI Outreach engine). Clicking, or a one-click POST
+// from the List-Unsubscribe header, sets Prospect.optedOutAt and halts any
+// running flow so we stop cold-emailing them.
+export function buildProspectUnsubscribeUrl(prospectId: string): string {
+  const token = generateUnsubscribeToken(`prospect:${prospectId}`);
   return `${portalBase()}/api/unsubscribe?t=${encodeURIComponent(token)}`;
 }
 

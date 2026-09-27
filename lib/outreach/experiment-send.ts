@@ -21,8 +21,10 @@
 import { commandDb } from "@/lib/command/prisma";
 import { randomUUID } from "crypto";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { advanceFlowAfterSend } from "@/lib/prospects/flow-ops";
+import { advanceFlowAfterSend, haltActiveFlows } from "@/lib/prospects/flow-ops";
 import { sendProspectOutreach } from "@/lib/prospects/send";
+import { verifyEmailDeliverable } from "@/lib/prospects/email-verify";
+import { buildProspectUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { aiOutreachSender, OUTREACH_SEND_LIMITS } from "./send-limits";
 
 export class AISenderMissingError extends Error {
@@ -40,6 +42,7 @@ export type SendTransport = (args: {
   replyToken: string;
   prospectEmailId: string;
   from: { email: string; name: string };
+  unsubscribeUrl?: string;
 }) => Promise<{ sgMessageId: string | null }>;
 
 const defaultTransport: SendTransport = (a) => sendProspectOutreach(a);
@@ -114,6 +117,28 @@ export async function sendExperimentStep(params: {
     return "skipped_suppressed";
   }
 
+  // Deliverability gate: never send to an address whose domain can't receive
+  // mail — the top bounce driver on a fresh domain. A definitive miss skips the
+  // step and halts the flow (every later step would fail the same way); a
+  // transient DNS "unknown" is allowed through rather than block a real prospect.
+  const deliver = await verifyEmailDeliverable(step.toEmail);
+  if (deliver.status === "invalid") {
+    const failReason = `undeliverable: ${deliver.reason ?? "invalid email"}`;
+    const pe = existing
+      ? await commandDb.prospectEmail.update({ where: { id: existing.id }, data: { sendState: "skipped_suppressed", failReason } })
+      : await commandDb.prospectEmail.create({
+          data: {
+            prospectId, toEmail: step.toEmail, subject: step.subject, body: step.body,
+            experimentId, variantId: step.flow.variantId, contactId: step.contactId,
+            sendDedupeKey: dedupeKey, sendState: "skipped_suppressed", failReason,
+            replyToken: randomUUID().replace(/-/g, ""),
+          },
+        });
+    await commandDb.prospectFlowStep.update({ where: { id: step.id }, data: { status: "skipped", skippedAt: now, prospectEmailId: pe.id } });
+    await haltActiveFlows(prospectId, "invalid_email");
+    return "skipped_suppressed";
+  }
+
   const firstName = prospect.contacts[0]?.name ? extractFirstName(prospect.contacts[0].name) : "";
   const subject = personalise(step.subject, firstName, prospect.agencyName);
   const body = personalise(step.body, firstName, prospect.agencyName);
@@ -138,7 +163,7 @@ export async function sendExperimentStep(params: {
   if (claim.count === 0) return "in_flight"; // someone else claimed it
 
   try {
-    const { sgMessageId } = await transport({ to: step.toEmail, subject, text: body, replyToken: pe.replyToken!, prospectEmailId: pe.id, from: sender });
+    const { sgMessageId } = await transport({ to: step.toEmail, subject, text: body, replyToken: pe.replyToken!, prospectEmailId: pe.id, from: sender, unsubscribeUrl: buildProspectUnsubscribeUrl(prospectId) });
     await commandDb.prospectEmail.update({ where: { id: pe.id }, data: { sendState: "accepted", acceptedAt: new Date(), sgMessageId } });
     await commandDb.prospectFlowStep.update({ where: { id: step.id }, data: { status: "sent", sentAt: new Date(), prospectEmailId: pe.id } });
     await advanceFlowAfterSend(step.flowId, step.stepIndex);

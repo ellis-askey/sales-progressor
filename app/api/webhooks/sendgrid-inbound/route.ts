@@ -40,6 +40,20 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   await prisma.prospectEmail.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: now } });
+  const snippet = bodyText.replace(/\s+/g, " ").trim().slice(0, 400);
+
+  // A reply that asks to stop is an opt-out, not a lead. Detect the common
+  // phrasings (also how the List-Unsubscribe mailto lands here) and suppress +
+  // halt instead of advancing to "replied".
+  const optOut = /\b(unsubscribe|opt[\s-]?out|remove me|take me off|stop (emailing|contacting)|no longer wish|do not (contact|email))\b/i.test(bodyText);
+  if (optOut) {
+    await prisma.prospect.updateMany({ where: { id: email.prospectId, optedOutAt: null }, data: { optedOutAt: now } }).catch(() => {});
+    await haltActiveFlows(email.prospectId, "opted_out").catch(() => {});
+    await prisma.prospectActivity.create({
+      data: { prospectId: email.prospectId, type: "opted_out", summary: "Asked to unsubscribe (reply)", body: snippet || null },
+    }).catch(() => {});
+    return NextResponse.json({ ok: true, matched: true, optedOut: true });
+  }
 
   // A reply is a strong positive — advance an early-stage prospect to "replied".
   const prospect = await prisma.prospect.findUnique({ where: { id: email.prospectId }, select: { status: true } });
@@ -50,7 +64,6 @@ export async function POST(req: NextRequest) {
   // Stop any running outreach flow — we never chase someone who has replied.
   await haltActiveFlows(email.prospectId, "replied").catch(() => {});
 
-  const snippet = bodyText.replace(/\s+/g, " ").trim().slice(0, 400);
   await prisma.prospectActivity.create({
     data: { prospectId: email.prospectId, type: "email_received", summary: "Reply received", body: snippet || null },
   }).catch(() => {});
