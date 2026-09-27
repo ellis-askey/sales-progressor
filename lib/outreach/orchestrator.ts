@@ -14,6 +14,7 @@
 import { z } from "zod";
 import { getStrategist, getReviewer, runStructured, type AIProvider } from "./ai";
 import { buildOutreachContext, serializeContext } from "./context";
+import { OUTREACH_VOICE_GUIDE } from "./voice-guide";
 import { validateChallengerCopy, type CopyViolation } from "./guardrails";
 import { computeFeasibility, type Feasibility } from "./feasibility";
 import { outcomeForStage, type CycleStage } from "./approval";
@@ -102,6 +103,11 @@ const REVIEW_SHAPE = `Return a single JSON object with EXACTLY these keys:
 }
 Arrays may be empty; nullable fields must be null when not applicable. Every key is required.`;
 
+// The founder-authored voice guide is the authoritative spec for copy. It is
+// appended to every prompt that writes or reviews email copy, so the emails
+// match Ellis's real voice rather than generic (or blunt) AI cold-email copy.
+const VOICE_GUIDE_BLOCK = `\n\nAUTHORITATIVE VOICE & MESSAGING GUIDE — this is the source of truth for all copy you write. Follow it exactly for voice, tone, positioning, terminology, structure, CTAs and personalisation. Write the emails as a warm, human, credible person in the property industry, never as generic or clipped SaaS cold-email copy.\n\n${OUTREACH_VOICE_GUIDE}`;
+
 const STRATEGIST_SYSTEM = [
   "You are the growth strategist for The Sales Progressor, a UK estate-agency sales-progression product.",
   "Using ONLY the aggregated context provided (you never receive prospect identities), propose exactly ONE outbound experiment.",
@@ -109,23 +115,24 @@ const STRATEGIST_SYSTEM = [
   "Target either everyone eligible (targetSegment { kind: 'all_eligible' }) or ONE of the four available segment dimensions (targetSegment { kind: 'segment', dimension, values }). Never invent a segment; if the data does not support a specific segment, use all_eligible.",
   "Optimise toward the deepest reliable objective (an activated agency: a converted agency with at least one genuine sale). Opens and clicks are diagnostic only.",
   "Be honest about small samples. Personalise ONLY with {{firstName}} and {{agencyName}}, and never assert an unsupported fact about a prospect.",
-  "Follow the voice rules in the context. No em dashes. No exclamation marks. Do not use the word 'outsource'.",
+  "The copy is the most important part: it must read like a real email Ellis would personally send. Follow the voice guide below to the letter. No em dashes. No exclamation marks. Do not use the word 'outsource'.",
   "Write the COMPLETE challenger campaign: a subject and body for the initial email, follow-up 1, and follow-up 2 only if justified.",
   "Return output matching the required schema exactly.",
-].join(" ") + "\n\n" + PROPOSAL_SHAPE;
+].join(" ") + "\n\n" + PROPOSAL_SHAPE + VOICE_GUIDE_BLOCK;
 
 const REVIEWER_SYSTEM = [
   "You are an adversarial reviewer of an outbound-experiment proposal for The Sales Progressor.",
   "Your job is to DISPROVE or weaken the proposal, not to agree with it.",
-  "Assess: whether the data supports the conclusion; sample size; confounding variables; segmentation validity; whether the challenger actually tests the stated hypothesis; unsupported assumptions; invented or unsupported personalisation; wording risks; a more plausible alternative interpretation of the data; and whether the primary metric is the right one.",
+  "Assess experiment design: whether the data supports the conclusion; sample size; confounding variables; segmentation validity; whether the challenger actually tests the stated hypothesis; unsupported assumptions; invented or unsupported personalisation; a more plausible alternative interpretation; and whether the primary metric is the right one.",
+  "ALSO assess copy quality against the voice guide below. Raise an objection for: any marketing/SaaS/AI jargon or banned phrase; copy that reads blunt, robotic, clipped or obviously AI-generated; wrong intro ('I run' instead of 'I'm Ellis, I started'); a canned CTA like a standalone 'Worth a look?'; a feature dump instead of one clear angle; or anything that would not sound like a real email Ellis would send. Apply the guide's review test.",
   "Be specific and structured. Set overallAssessment to 'sound' only if there is genuinely nothing that needs changing.",
-].join(" ") + "\n\n" + REVIEW_SHAPE;
+].join(" ") + "\n\n" + REVIEW_SHAPE + VOICE_GUIDE_BLOCK;
 
 const REVISION_SYSTEM = [
   "You are the growth strategist for The Sales Progressor. A reviewer has critiqued your proposal.",
   "Produce ONE revised proposal that addresses the critique, in the same schema, plus a short responseToCritique explaining what you changed and why.",
-  "This is your only revision. Keep every rule from before (challenger only, allow-listed personalisation only, voice rules, no 'outsource').",
-].join(" ") + "\n\n" + PROPOSAL_SHAPE + '\nAlso include a "responseToCritique": string key explaining what you changed and why.';
+  "This is your only revision. Keep every rule from before (challenger only, allow-listed personalisation only, the voice guide below, no 'outsource'). Do not let fixing experiment-design points make the copy blunt or robotic - it must still read like a warm, human email Ellis would send.",
+].join(" ") + "\n\n" + PROPOSAL_SHAPE + '\nAlso include a "responseToCritique": string key explaining what you changed and why.' + VOICE_GUIDE_BLOCK;
 
 function reviewerPrompt(contextJson: string, proposal: Proposal): string {
   return `CONTEXT:\n${contextJson}\n\nSTRATEGIST PROPOSAL TO REVIEW:\n${JSON.stringify(proposal)}`;

@@ -32,17 +32,15 @@ export const TSP_POSITIONING = {
 };
 
 // Voice rules the model must follow when it writes copy (mirrors VOICE.md / Law 21).
+// Short reminders only. The authoritative spec is the TSP Outreach Voice &
+// Messaging Guide (lib/outreach/voice-guide.ts), injected into the strategist /
+// reviewer / revision prompts. Keep these aligned with it, never in conflict.
 export const VOICE_RULES = [
-  "Ellis writing personally: straightforward, informal but professional, concise.",
-  "No corporate waffle, no fake familiarity, no exaggerated claims.",
-  "Do not open with 'I hope you're well'.",
-  "Avoid sounding mass-generated; avoid gimmicky subject lines; avoid desperation.",
-  "No em dashes. No exclamation marks in client-facing copy.",
-  "No system self-references ('the system', 'the platform', 'automatically'); use 'we'll'.",
-  "No hedging ('kind of', 'perhaps', 'we think', 'should be').",
-  // The reader is an experienced estate agent who knows their trade inside out.
-  "The reader is an experienced estate agent. Never explain what causes sales to fall through, why progression matters, or how conveyancing works. They already know. Do not lecture, define industry terms, or set up the problem as if it's news to them.",
-  "Talk peer to peer. Lead with what we do and why it's worth a look, not a tutorial on their own job. Respect that they are the expert on their market.",
+  "Follow the TSP Outreach Voice & Messaging Guide exactly - it is the source of truth for voice, tone, positioning, terminology, CTAs and personalisation.",
+  "Write like a warm, human, credible person in the property industry writing to another. Natural conversational padding is good; clipped, blunt or obviously AI-generated copy is not.",
+  "Intro as 'I'm Ellis, I started The Sales Progressor' (never 'I run'). 'Hope you're well' is a fine natural opener.",
+  "No em dashes. No exclamation marks. No 'outsource'. No marketing/SaaS/AI jargon. Never a standalone 'Worth a look?' CTA.",
+  "One clear angle per email plus one or two supporting benefits. Never a feature dump. Never invent personalisation.",
 ];
 
 // Hard rules the model does NOT control — stated so it designs within them.
