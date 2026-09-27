@@ -40,6 +40,9 @@ export const VOICE_RULES = [
   "No em dashes. No exclamation marks in client-facing copy.",
   "No system self-references ('the system', 'the platform', 'automatically'); use 'we'll'.",
   "No hedging ('kind of', 'perhaps', 'we think', 'should be').",
+  // The reader is an experienced estate agent who knows their trade inside out.
+  "The reader is an experienced estate agent. Never explain what causes sales to fall through, why progression matters, or how conveyancing works. They already know. Do not lecture, define industry terms, or set up the problem as if it's news to them.",
+  "Talk peer to peer. Lead with what we do and why it's worth a look, not a tutorial on their own job. Respect that they are the expert on their market.",
 ];
 
 // Hard rules the model does NOT control — stated so it designs within them.

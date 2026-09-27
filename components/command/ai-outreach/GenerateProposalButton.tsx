@@ -15,6 +15,10 @@ export function GenerateProposalButton() {
 
   function run() {
     setResult(null);
+    // Take the user straight to Experiments where the proposal will land, without
+    // waiting for generation to finish (point 1). "Generating…" shows on the
+    // button; when the cycle returns we refresh so the new proposal appears.
+    router.push("/command/ai-outreach?view=experiments");
     startTransition(async () => {
       const res = await runStrategyCycleAction();
       setResult(res);

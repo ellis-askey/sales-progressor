@@ -8,7 +8,6 @@ import {
   Section,
   KpiCard,
   FunnelBars,
-  ParamTabs,
   TableShell,
   Tr,
   Td,
@@ -23,6 +22,8 @@ import { getAllSegmentFunnels } from "@/lib/outreach/metrics";
 import { SEGMENT_DIMENSIONS, type SegmentDimension } from "@/lib/outreach/segments";
 import { listExperimentsWithDetail, listLearnings, getAiActivity, getEligibilityCounts, listCycles, type ExperimentListItem } from "@/lib/outreach/read";
 import { GenerateProposalButton } from "@/components/command/ai-outreach/GenerateProposalButton";
+import { EmailSequence } from "@/components/command/ai-outreach/EmailSequence";
+import { FilterSelect } from "@/components/command/shared/FilterSelect";
 import { LaunchPanel } from "@/components/command/ai-outreach/LaunchPanel";
 import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
 
@@ -89,15 +90,23 @@ export default async function AiOutreachPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-neutral-100">AI Outreach</h1>
-        <p className="text-[13px] text-neutral-500 mt-0.5">
-          Outbound prospect experiments, measured on real business outcomes. Read-only for now: nothing here sends,
-          launches, or generates.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-lg font-semibold text-neutral-100">AI Outreach</h1>
+          <p className="text-[13px] text-neutral-500 mt-0.5 max-w-2xl">
+            Outbound prospect experiments, measured on real business outcomes. Nothing sends without your approval.
+          </p>
+        </div>
+        {/* Generate is always here in the header, so you never have to dig into a
+            tab first. It takes you straight to Experiments (point 1). */}
+        <GenerateProposalButton />
       </div>
 
-      <ParamTabs options={VIEW_OPTIONS} active={view} hrefFor={href} />
+      <FilterSelect
+        label="View"
+        current={view}
+        options={VIEW_OPTIONS.map((o) => ({ value: o.key, label: o.label, href: href(o.key) }))}
+      />
 
       {view === "overview" && <Overview />}
       {view === "segments" && <Segments />}
@@ -234,7 +243,6 @@ async function Experiments() {
     <Section
       title="Experiments"
       subtitle="Control vs challenger outreach experiments. Winners are only declared when the evidence supports it."
-      right={<GenerateProposalButton />}
     >
       {experiments.length === 0 ? (
         <CardEmpty>
@@ -308,26 +316,27 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
           <LaunchPanel experimentId={e.id} status={e.status} launch={e.launch} />
         )}
 
-        {/* Variants side by side */}
+        {/* The emails, rendered as they'll send — one card per variant */}
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">Variants</p>
-          <div className="grid md:grid-cols-2 gap-3">
+          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">The emails</p>
+          <div className="grid lg:grid-cols-2 gap-4">
             {e.variants.map((v) => {
               const roll = e.rollup?.variants.find((rv) => rv.variantId === v.id);
               return (
-                <div key={v.id} className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-neutral-200">{v.name}</span>
-                    <Badge tone={v.role === "control" ? "bg-neutral-800 text-neutral-300" : "bg-blue-950 text-blue-300 border border-blue-900"}>{v.role}</Badge>
+                <div key={v.id} className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-3.5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge tone={v.role === "control" ? "bg-neutral-800 text-neutral-300" : "bg-blue-950 text-blue-300 border border-blue-900"}>
+                        {v.role === "control" ? "Current (control)" : "New idea (challenger)"}
+                      </Badge>
+                    </div>
+                    {roll && (
+                      <p className="text-[11px] text-neutral-500 tabular-nums">
+                        {fmtInt(roll.successes)}/{fmtInt(roll.exposure)} ({fmtPct(roll.rate * 100)})
+                      </p>
+                    )}
                   </div>
-                  {roll && (
-                    <p className="text-[11px] text-neutral-500 mt-1 tabular-nums">
-                      {fmtInt(roll.successes)}/{fmtInt(roll.exposure)} ({fmtPct(roll.rate * 100)}) · {roll.maturity}
-                    </p>
-                  )}
-                  <pre className="mt-2 text-[11px] text-neutral-500 whitespace-pre-wrap break-words max-h-40 overflow-auto">
-                    {typeof v.emails === "string" ? v.emails : JSON.stringify(v.emails, null, 2)}
-                  </pre>
+                  <EmailSequence emails={v.emails} />
                 </div>
               );
             })}
@@ -470,11 +479,23 @@ function ReviewerFindings({ data }: { data: unknown }) {
     med: "bg-amber-950 text-amber-400 border border-amber-900",
     low: "bg-neutral-800 text-neutral-400",
   };
+  const objections = r.objections ?? [];
+  const highCount = objections.filter((o) => o.severity === "high").length;
   return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">Reviewer findings</p>
-      <div className="space-y-1.5">
-        {(r.objections ?? []).map((o, i) => (
+    <details className="rounded-lg border border-neutral-800 bg-neutral-950/40 group">
+      <summary className="cursor-pointer list-none px-3 py-2.5 flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
+          Reviewer findings
+          {objections.length > 0 && (
+            <span className="ml-1.5 text-neutral-400 normal-case tracking-normal">
+              {objections.length} point{objections.length === 1 ? "" : "s"}{highCount > 0 ? `, ${highCount} high` : ""}
+            </span>
+          )}
+        </span>
+        <span className="text-[11px] text-neutral-600 group-open:hidden">Show</span>
+      </summary>
+      <div className="border-t border-neutral-800 px-3 py-2.5 space-y-1.5">
+        {objections.map((o, i) => (
           <div key={i} className="rounded-lg border border-neutral-800 bg-neutral-950/40 px-3 py-2">
             <div className="flex items-center gap-2">
               <Badge tone={sevTone[o.severity] ?? sevTone.low}>{o.severity}</Badge>
@@ -491,7 +512,7 @@ function ReviewerFindings({ data }: { data: unknown }) {
         {r.suggestedBetterMetric && <p className="text-[11px] text-neutral-500">Suggested better metric: {r.suggestedBetterMetric}</p>}
         {r.alternativeInterpretation && <p className="text-[11px] text-neutral-500">Alternative interpretation: {r.alternativeInterpretation}</p>}
       </div>
-    </div>
+    </details>
   );
 }
 
