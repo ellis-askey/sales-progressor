@@ -377,14 +377,14 @@ export async function runMailboxSync(opts: {
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);
       summary.unmatched.push({ ...info, candidates: candidateRefs });
-      // Only surface an email in the "Needs filing" tray when it has at least one
-      // CANDIDATE file — i.e. a real party on it maps to a live file, we just
-      // couldn't pick which. An email with NO candidate has no evidence of
-      // belonging to any property (newsletters, billing, build alerts, a stranger
-      // emailing the mailbox) — drop it entirely, no tray row, no trace. Applies
-      // to inbound and outbound alike. (Before this, inbound dumped every
-      // unmatched inbox email into the tray — the noise this fixes.)
-      if (candidateRefs.length === 0) continue;
+      // Surface an email in the "Needs filing" tray when EITHER it has a candidate
+      // file (a named property we couldn't uniquely pick) OR a known party is on it
+      // (a real contact of ours emailed, we just can't place which file — the agent
+      // files it manually, with no misleading one-tap button). An email with
+      // neither has no evidence of belonging to any property (newsletters, billing,
+      // build alerts, a stranger emailing the mailbox) — drop it entirely, no tray
+      // row, no trace. Applies to inbound and outbound alike.
+      if (candidateRefs.length === 0 && !matched.knownParty) continue;
       // Persist to the agent-side "Needs filing" tray (Phase E2). Skip auto-replies
       // (noise), and only when we know whose mailbox it is. Unique (userId,
       // providerMessageId) via skipDuplicates → a filed/dismissed email won't

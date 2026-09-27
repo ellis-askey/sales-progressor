@@ -49,23 +49,37 @@ describe("matchMessage", () => {
     expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
-  it("REGRESSION: participant on ONE file, but email is about a DIFFERENT property → not filed", () => {
+  it("REGRESSION: participant on ONE file, but email is about a DIFFERENT property → not filed, no wrong button", () => {
     // The 2026-09 cross-file leak. buyer@x.com is a party on exactly one file
     // (txA), but this email is about a different property (a separate deal the
-    // same person is involved in). Old code filed it on txA purely because the
-    // party matched; now, since the email names none of that party's files, it
-    // goes to review instead of being silently misfiled.
+    // same person is involved in). It's never filed on txA — and we no longer
+    // OFFER txA as a filing button either (the party net is unreliable). It's
+    // still surfaced for manual filing (knownParty).
     const msg = baseMsg({ from: "buyer@x.com", subject: "Re: Lease of 45 High Street Hoddesdon" });
     const r = matchMessage(msg, MAILBOX, index, new Map());
     expect(r.txId).toBeNull();
-    expect(r.candidates).toEqual(["txA"]);
+    expect(r.candidates).toEqual([]);
+    expect(r.knownParty).toBe(true);
   });
 
-  it("REGRESSION: shared solicitor, email about a different property → review, not a guess", () => {
+  it("REGRESSION: shared solicitor, email about a different property → surfaced for manual filing, no party guesses", () => {
     const msg = baseMsg({ from: "sol@firm.com", subject: "Re: Assignment of Lease – 45 High Street" });
     const r = matchMessage(msg, MAILBOX, index, new Map());
     expect(r.txId).toBeNull();
-    expect(new Set(r.candidates)).toEqual(new Set(["txA", "txB"]));
+    expect(r.candidates).toEqual([]);
+    expect(r.knownParty).toBe(true);
+  });
+
+  it("shared party, but the email NAMES a different tracked property → matched by address to THAT file (the Enzo bug)", () => {
+    // sol@firm.com is on txA + txB. The email plainly names 22 Carnaby Street, a
+    // separate file we hold (txC). The party net must NOT drag it onto txA/txB;
+    // the address-reader places it on txC. Before the fix, the address-reader
+    // never ran when a party was on the email, so this misfiled/mis-suggested.
+    const addressIndex = [
+      { txId: "txC", firstLine: "22 carnaby street", postcodes: new Set(["HP23 9ZZ"]) },
+    ];
+    const msg = baseMsg({ from: "sol@firm.com", subject: "Re: 22 Carnaby Street — draft contract" });
+    expect(matchMessage(msg, MAILBOX, index, new Map(), addressIndex)).toEqual({ txId: "txC", candidates: ["txC"] });
   });
 
   it("chain-aware: an email naming the file's ONWARD purchase files onto the sale file", () => {
@@ -77,19 +91,20 @@ describe("matchMessage", () => {
     expect(matchMessage(msg, MAILBOX, chainIndex, new Map())).toEqual({ txId: "txA", candidates: ["txA"] });
   });
 
-  it("multiple participants, no folder — disambiguated by a subject postcode", () => {
+  it("shared party, email names one file by postcode → files it (only that file)", () => {
     const msg = baseMsg({ from: "sol@firm.com", subject: "Re: HP23 5UJ replies" });
-    expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txB", candidates: ["txA", "txB"] });
+    expect(matchMessage(msg, MAILBOX, index, new Map())).toEqual({ txId: "txB", candidates: ["txB"] });
   });
 
-  it("multiple participants, no folder, no postcode → review (null)", () => {
+  it("shared party, no folder, names no file → surfaced for manual filing, no party guesses", () => {
     const r = matchMessage(baseMsg({ from: "sol@firm.com" }), MAILBOX, index, new Map());
     expect(r.txId).toBeNull();
-    expect(new Set(r.candidates)).toEqual(new Set(["txA", "txB"]));
+    expect(r.candidates).toEqual([]);
+    expect(r.knownParty).toBe(true);
   });
 
-  it("nothing matches → null, no candidates", () => {
-    expect(matchMessage(baseMsg({ from: "stranger@x.com" }), MAILBOX, index, new Map())).toEqual({ txId: null, candidates: [] });
+  it("nothing matches → null, no candidates, not a known party", () => {
+    expect(matchMessage(baseMsg({ from: "stranger@x.com" }), MAILBOX, index, new Map())).toEqual({ txId: null, candidates: [], knownParty: false });
   });
 });
 

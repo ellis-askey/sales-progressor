@@ -317,7 +317,7 @@ export function matchMessage(
   index: Index,
   folderHints: Map<string, string>,
   addressIndex: AddressEntry[] = []
-): { txId: string | null; candidates: string[] } {
+): { txId: string | null; candidates: string[]; knownParty?: boolean } {
   const mailboxLc = mailbox.toLowerCase();
   const participants = [msg.from, ...msg.to, ...msg.cc]
     .map((e) => e.toLowerCase())
@@ -355,17 +355,20 @@ export function matchMessage(
   // unrelated commercial-lease thread onto a residential sale, because he was the
   // file's registered solicitor). Filing into a property folder is a deliberate
   // human signal and already returned above, so it stays exempt from this check.
-  if (candidateSet.size >= 1) {
-    const text = `${msg.subject}\n${msg.body}`;
+  const text = `${msg.subject}\n${msg.body}`;
+  const hasKnownParty = candidateSet.size >= 1;
+
+  if (hasKnownParty) {
     const named = candidates.filter(
       (txId) =>
         mentionsFile(text, index.txAddress.get(txId)) ||
         (index.txChainAddresses?.get(txId) ?? []).some((a) => mentionsFile(text, a)),
     );
-    if (named.length === 1) return { txId: named[0], candidates };
+    if (named.length === 1) return { txId: named[0], candidates: named };
     if (named.length > 1) {
       // More than one candidate file is named — disambiguate by a subject
-      // postcode, else send to review rather than guess.
+      // postcode, else send to review with ONLY the named files (never the
+      // party's other, unnamed files).
       const subjectPostcodes = extractPostcodes(msg.subject);
       if (subjectPostcodes.size > 0) {
         const byPostcode = named.filter((txId) => {
@@ -373,24 +376,31 @@ export function matchMessage(
           for (const pc of addrPostcodes) if (subjectPostcodes.has(pc)) return true;
           return false;
         });
-        if (byPostcode.length === 1) return { txId: byPostcode[0], candidates };
+        if (byPostcode.length === 1) return { txId: byPostcode[0], candidates: named };
       }
-      return { txId: null, candidates };
+      return { txId: null, candidates: named };
     }
-    // A party matched but the email names none of their files → don't silently
-    // file it (this was the cross-file leak). Offer the candidates for review.
-    return { txId: null, candidates };
+    // A party matched but the email names NONE of their files. The shared-party
+    // net is unreliable — agents (and solicitors) sit on many files, so "who's on
+    // the email" barely narrows anything. Do NOT offer their files as filing
+    // guesses. Fall through to the address-reader; if that can't place it either,
+    // the email is still surfaced for MANUAL filing (knownParty below) rather than
+    // being auto-filed onto the wrong property.
   }
 
-  // Nobody on the email matched a file. Last resort: does the email NAME a
-  // property we hold? Match by address (postcode + first line), skipping our own
-  // automated senders (their emails already exist on the file). One confident
-  // match → file it; several → offer them for review. (Address matching.)
+  // Does the email NAME a property we hold? Match by address (postcode + first
+  // line), skipping our own automated senders (their emails already exist on the
+  // file). This now runs EVEN when a known party is on the email, so an email
+  // that plainly names its property is matched to THAT file instead of the
+  // party's other files. One confident match → file it; several → offer for review.
   if (!isOwnSender(msg.from, mailboxLc) && addressIndex.length) {
-    const hits = matchByAddress(`${msg.subject}\n${msg.body}`, addressIndex);
+    const hits = matchByAddress(text, addressIndex);
     if (hits.length === 1) return { txId: hits[0], candidates: hits };
     if (hits.length > 1) return { txId: null, candidates: hits };
   }
 
-  return { txId: null, candidates: [] };
+  // Nothing confidently placed it. Surface known-party mail for manual filing
+  // (no misleading file buttons); genuine strangers/newsletters carry no party
+  // and are dropped by the caller.
+  return { txId: null, candidates: [], knownParty: hasKnownParty };
 }
