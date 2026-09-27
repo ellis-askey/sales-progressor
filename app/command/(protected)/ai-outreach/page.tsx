@@ -27,17 +27,33 @@ import { FindAgentsPanel } from "@/components/command/ai-outreach/FindAgentsPane
 import { FilterSelect } from "@/components/command/shared/FilterSelect";
 import { LaunchPanel } from "@/components/command/ai-outreach/LaunchPanel";
 import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
+import { SendsList, type SendDisplayRow } from "@/components/command/ai-outreach/SendsList";
+import { listOutreachSends, getOutreachSendsSummary, getCampaignFilterOptions, type OutreachSendStatus, type OutreachSendsScope } from "@/lib/outreach/sends";
 
 export const dynamic = "force-dynamic";
 
-type ViewKey = "overview" | "segments" | "experiments" | "learnings" | "cycles" | "activity";
+type ViewKey = "overview" | "segments" | "experiments" | "sends" | "learnings" | "cycles" | "activity";
 const VIEW_OPTIONS: { key: ViewKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "segments", label: "Segments" },
   { key: "experiments", label: "Experiments" },
+  { key: "sends", label: "Sends" },
   { key: "learnings", label: "Learnings" },
   { key: "cycles", label: "Cycle history" },
   { key: "activity", label: "AI activity" },
+];
+
+const STATUS_FILTER: { value: string; label: string }[] = [
+  { value: "", label: "All statuses" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "queued", label: "Sending soon" },
+  { value: "sent", label: "Sent" },
+  { value: "delivered", label: "Delivered" },
+  { value: "opened", label: "Opened" },
+  { value: "clicked", label: "Clicked" },
+  { value: "bounced", label: "Bounced" },
+  { value: "replied", label: "Replied" },
+  { value: "skipped", label: "Skipped" },
 ];
 
 const SEGMENT_LABEL: Record<SegmentDimension, string> = {
@@ -84,7 +100,7 @@ function fmtDate(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
 }
 
-export default async function AiOutreachPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function AiOutreachPage({ searchParams }: { searchParams: Promise<{ view?: string; scope?: string; status?: string; campaign?: string }> }) {
   const sp = await searchParams;
   const view = (VIEW_OPTIONS.some((v) => v.key === sp.view) ? sp.view : "overview") as ViewKey;
   const href = (k: string) => `/command/ai-outreach?view=${k}`;
@@ -114,6 +130,7 @@ export default async function AiOutreachPage({ searchParams }: { searchParams: P
       {view === "overview" && <Overview />}
       {view === "segments" && <Segments />}
       {view === "experiments" && <Experiments />}
+      {view === "sends" && <Sends scope={sp.scope === "campaign" ? "campaign" : "all"} status={sp.status ?? null} campaignId={sp.campaign ?? null} />}
       {view === "learnings" && <Learnings />}
       {view === "cycles" && <Cycles />}
       {view === "activity" && <Activity />}
@@ -220,6 +237,56 @@ function MiniStat({ label, value, rate, diagnostic = false }: { label: string; v
       </p>
       <p className="mt-0.5 text-base font-medium tabular-nums text-neutral-400">{value}</p>
       {rate && <p className="text-[10px] text-neutral-600 tabular-nums">{rate}</p>}
+    </div>
+  );
+}
+
+// ── Sends (results lab) ──────────────────────────────────────────────────────
+async function Sends({ scope, status, campaignId }: { scope: OutreachSendsScope; status: string | null; campaignId: string | null }) {
+  const [summary, rows, campaigns] = await Promise.all([
+    getOutreachSendsSummary(),
+    listOutreachSends({ scope, status: (status as OutreachSendStatus) || null, campaignId: campaignId || null }),
+    getCampaignFilterOptions(),
+  ]);
+  const display: SendDisplayRow[] = rows.map((r) => ({
+    key: r.key, emailId: r.emailId, stepId: r.stepId, agencyName: r.agencyName, contactName: r.contactName,
+    toEmail: r.toEmail, campaignTitle: r.campaignTitle, stepLabel: r.stepLabel, subject: r.subject,
+    status: r.status, upcoming: r.upcoming,
+    whenLabel: r.when ? new Date(r.when).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—",
+  }));
+  const href = (next: { scope?: string; status?: string; campaign?: string }) => {
+    const p = new URLSearchParams({ view: "sends" });
+    p.set("scope", next.scope ?? scope);
+    const st = next.status !== undefined ? next.status : status ?? "";
+    const cp = next.campaign !== undefined ? next.campaign : campaignId ?? "";
+    if (st) p.set("status", st);
+    if (cp) p.set("campaign", cp);
+    return `/command/ai-outreach?${p.toString()}`;
+  };
+  const rate = (n: number) => (summary.sent ? (n / summary.sent) * 100 : null);
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+        <KpiCard label="Queued" value={fmtInt(summary.queued)} sub={`sending ~${summary.todayCap}/day · ${summary.todaySent} today`} accent />
+        <KpiCard label="Sent" value={fmtInt(summary.sent)} sub="all time" />
+        <KpiCard label="Delivered" value={fmtInt(summary.delivered)} sub={fmtPct(rate(summary.delivered))} />
+        <KpiCard label="Bounced" value={fmtInt(summary.bounced)} sub={fmtPct(rate(summary.bounced))} />
+        <KpiCard label="Replied" value={fmtInt(summary.replied)} sub={fmtPct(rate(summary.replied))} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterSelect label="Show" current={scope} options={[
+          { value: "all", label: "All prospect emails", href: href({ scope: "all" }) },
+          { value: "campaign", label: "Campaigns only", href: href({ scope: "campaign" }) },
+        ]} />
+        <FilterSelect label="Status" current={status ?? ""} options={STATUS_FILTER.map((s) => ({ value: s.value, label: s.label, href: href({ status: s.value }) }))} />
+        {campaigns.length > 0 && (
+          <FilterSelect label="Campaign" current={campaignId ?? ""} options={[
+            { value: "", label: "All campaigns", href: href({ campaign: "" }) },
+            ...campaigns.map((c) => ({ value: c.id, label: c.title, href: href({ campaign: c.id }) })),
+          ]} />
+        )}
+      </div>
+      <SendsList rows={display} />
     </div>
   );
 }

@@ -52,6 +52,13 @@ export function renderProspectEmailHtml(text: string, footerHtml?: string): stri
   </div>`;
 }
 
+// Faithful "as sent" HTML for a plain-text outreach email (signature + footer),
+// used by the Sends results-lab preview so a sent email renders exactly as the
+// recipient saw it. Mirrors the non-html send path.
+export function previewProspectOutreachHtml(text: string, unsubscribeUrl?: string): string {
+  return renderProspectEmailHtml(text, unsubscribeUrl ? unsubFooterHtml(unsubscribeUrl) : undefined);
+}
+
 export async function sendProspectOutreach(args: {
   to: string;
   subject: string;

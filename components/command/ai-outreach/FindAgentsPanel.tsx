@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { findAgentsAction, getBatchProspectsAction, publishCampaignAction, updateFoundProspectAction, type FoundRow } from "@/app/actions/outreach";
+import { findAgentsAction, getBatchesProspectsAction, publishCampaignAction, updateFoundProspectAction, type FoundRow } from "@/app/actions/outreach";
 import { processNextImportItemAction } from "@/app/actions/prospects";
 
 // "Find agents" on an approved experiment, end to end on one screen:
@@ -36,6 +36,38 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [batchIds, setBatchIds] = useState<string[]>([]);
+  const [restoring, setRestoring] = useState(false);
+
+  const storageKey = `sp_outreach_batches_${experimentId}`;
+  function persistBatches(ids: string[]) {
+    setBatchIds(ids);
+    try {
+      if (ids.length) localStorage.setItem(storageKey, JSON.stringify(ids));
+      else localStorage.removeItem(storageKey);
+    } catch {}
+  }
+
+  // Rehydrate the review list on return: the found agents are saved as prospects
+  // and tied to this experiment's batches, so leaving and coming back re-shows
+  // them instead of losing the list.
+  useEffect(() => {
+    let saved: string[] = [];
+    try { saved = JSON.parse(localStorage.getItem(storageKey) ?? "[]"); } catch {}
+    if (!Array.isArray(saved) || saved.length === 0) return;
+    setBatchIds(saved);
+    setRestoring(true);
+    getBatchesProspectsAction(saved)
+      .then((foundRows) => {
+        setRestoring(false);
+        if (foundRows.length === 0) return;
+        setRows(foundRows);
+        setKept(new Set(foundRows.filter((r) => r.emailStatus === "verified" || r.emailStatus === "guessed").map((r) => r.prospectId)));
+        setPhase("review");
+      })
+      .catch(() => setRestoring(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function run() {
     setPhase("searching");
@@ -52,6 +84,8 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
     }
     setFound(res.found);
     setPhase("adding");
+    const nextBatches = [...batchIds, res.batchId];
+    persistBatches(nextBatches);
     let done = false;
     let guard = res.found + 5;
     while (!done && guard-- > 0) {
@@ -63,8 +97,8 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
         break; // the cron will finish the rest
       }
     }
-    // Reveal the reviewable rows.
-    const foundRows = await getBatchProspectsAction(res.batchId);
+    // Reveal the reviewable rows (this find plus anything already found for this experiment).
+    const foundRows = await getBatchesProspectsAction(nextBatches);
     setRows(foundRows);
     // Default: keep everything with a usable email; drop dead/absent addresses.
     setKept(new Set(foundRows.filter((r) => r.emailStatus === "verified" || r.emailStatus === "guessed").map((r) => r.prospectId)));
@@ -111,6 +145,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
     const res = await publishCampaignAction(experimentId, [...kept]);
     if ("ok" in res && res.ok) {
       setMsg(`Published to ${res.actualSample} agent${res.actualSample === 1 ? "" : "s"}. First ${res.initial.sentThisRun} sent now${res.initial.withinHours ? "" : " (outside business hours, so the first send waits for the next window)"}; the rest go out day by day as the domain warms up.`);
+      persistBatches([]);
       router.refresh();
       return;
     }
@@ -162,6 +197,10 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
             {phase === "searching" ? "Searching…" : phase === "adding" ? "Adding…" : "Find agents"}
           </button>
         </div>
+      )}
+
+      {restoring && phase !== "review" && (
+        <p className="mt-2 text-[11px] text-neutral-500">Loading the agents you found earlier…</p>
       )}
 
       {phase === "adding" && (
@@ -246,7 +285,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
                 >
                   {phase === "publishing" ? "Publishing…" : `Publish to ${keptCount} agent${keptCount === 1 ? "" : "s"}`}
                 </button>
-                <button onClick={() => { setPhase("idle"); setRows([]); setKept(new Set()); setDirty(new Set()); }} disabled={busy} className="text-[11px] text-neutral-500 hover:text-neutral-300 disabled:opacity-50">
+                <button onClick={() => { setPhase("idle"); setRows([]); setKept(new Set()); setDirty(new Set()); persistBatches([]); }} disabled={busy} className="text-[11px] text-neutral-500 hover:text-neutral-300 disabled:opacity-50">
                   Start over
                 </button>
                 {hasUnsaved ? (

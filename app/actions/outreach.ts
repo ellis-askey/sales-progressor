@@ -14,6 +14,8 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { discoverAgencies } from "@/lib/outreach/discover";
 import { verifyEmailDeliverable } from "@/lib/prospects/email-verify";
+import { previewProspectOutreachHtml } from "@/lib/prospects/send";
+import { buildProspectUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { runStrategyCycle } from "@/lib/outreach/orchestrator";
 import { preflightExperiment, launchExperiment, launchExperimentToProspects, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
 import {
@@ -106,15 +108,8 @@ export type FoundRow = {
   emailStatus: "verified" | "guessed" | "invalid" | "none";
 };
 
-export async function getBatchProspectsAction(batchId: string): Promise<FoundRow[]> {
-  await requireSuperAdmin();
-  const items = await commandDb.prospectImportItem.findMany({
-    where: { batchId, prospectId: { not: null } },
-    select: { prospectId: true },
-  });
-  const ids = items.map((i) => i.prospectId).filter((v): v is string => !!v);
+async function buildFoundRows(ids: string[]): Promise<FoundRow[]> {
   if (ids.length === 0) return [];
-
   const prospects = await commandDb.prospect.findMany({
     where: { id: { in: ids } },
     select: {
@@ -145,6 +140,49 @@ export async function getBatchProspectsAction(batchId: string): Promise<FoundRow
   const order: Record<FoundRow["emailStatus"], number> = { verified: 0, guessed: 1, invalid: 2, none: 3 };
   rows.sort((a, b) => order[a.emailStatus] - order[b.emailStatus] || a.agencyName.localeCompare(b.agencyName));
   return rows;
+}
+
+async function prospectIdsForBatches(batchIds: string[]): Promise<string[]> {
+  const items = await commandDb.prospectImportItem.findMany({
+    where: { batchId: { in: batchIds }, prospectId: { not: null } },
+    select: { prospectId: true },
+  });
+  return [...new Set(items.map((i) => i.prospectId).filter((v): v is string => !!v))];
+}
+
+export async function getBatchProspectsAction(batchId: string): Promise<FoundRow[]> {
+  await requireSuperAdmin();
+  return buildFoundRows(await prospectIdsForBatches([batchId]));
+}
+
+// Rebuild the review list for one or more found batches — drives persistence, so
+// leaving the page and returning re-shows the agents tied to the experiment.
+export async function getBatchesProspectsAction(batchIds: string[]): Promise<FoundRow[]> {
+  await requireSuperAdmin();
+  if (batchIds.length === 0) return [];
+  return buildFoundRows(await prospectIdsForBatches(batchIds));
+}
+
+// The exact HTML of one outreach email, for the Sends results-lab popup. A sent
+// email renders from its stored (personalised) body; a still-queued one from its
+// frozen copy. Faithful to what the recipient sees (signature + footer).
+export async function getSendEmailHtmlAction(
+  ref: { emailId?: string | null; stepId?: string | null },
+): Promise<{ ok: true; subject: string; html: string; toEmail: string | null } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  if (ref.emailId) {
+    const e = await commandDb.prospectEmail.findUnique({ where: { id: ref.emailId }, select: { subject: true, body: true, html: true, toEmail: true, prospectId: true } });
+    if (!e) return { ok: false, error: "Email not found." };
+    const html = e.html && e.html.trim() ? e.html : previewProspectOutreachHtml(e.body, buildProspectUnsubscribeUrl(e.prospectId));
+    return { ok: true, subject: e.subject, html, toEmail: e.toEmail };
+  }
+  if (ref.stepId) {
+    const s = await commandDb.prospectFlowStep.findUnique({ where: { id: ref.stepId }, select: { subject: true, body: true, toEmail: true, flow: { select: { prospectId: true } } } });
+    if (!s || !s.body) return { ok: false, error: "Email not found." };
+    const html = previewProspectOutreachHtml(s.body, buildProspectUnsubscribeUrl(s.flow.prospectId));
+    return { ok: true, subject: s.subject ?? "(no subject)", html, toEmail: s.toEmail };
+  }
+  return { ok: false, error: "Nothing to show." };
 }
 
 // Publish an approved experiment to exactly the reviewed prospects (the kept
