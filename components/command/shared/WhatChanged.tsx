@@ -81,8 +81,8 @@ export default async function WhatChanged({
           const summary = typeof payload.summary === "string" ? payload.summary : null;
           return (
             <div key={s.id} className="flex items-start gap-1.5">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 uppercase ${SEVERITY_COLORS[s.severity] ?? "bg-neutral-800 text-neutral-400"}`}>
-                {s.severity.slice(0, 4)}
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 capitalize ${SEVERITY_COLORS[s.severity] ?? "bg-neutral-800 text-neutral-400"}`}>
+                {s.severity}
               </span>
               <span className="text-[11px] text-neutral-400 leading-snug">
                 {summary ?? s.detectorName.replace(/_/g, " ")}
@@ -93,7 +93,7 @@ export default async function WhatChanged({
         {relExperiments.map((e) => (
           <div key={e.id} className="flex items-start gap-1.5">
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${STATUS_COLORS[e.status] ?? "bg-neutral-800 text-neutral-400"}`}>
-              EXP
+              Exp
             </span>
             <span className="text-[11px] text-neutral-400 leading-snug">{e.name}</span>
           </div>
@@ -101,7 +101,7 @@ export default async function WhatChanged({
         {deployments.map((d) => (
           <div key={d.id} className="flex items-start gap-1.5">
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-violet-950 text-violet-400">
-              DEP
+              Deploy
             </span>
             <span className="text-[11px] text-neutral-400 leading-snug font-mono">{d.version}</span>
           </div>

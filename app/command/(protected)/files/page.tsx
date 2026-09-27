@@ -82,12 +82,14 @@ async function dismissAction(formData: FormData) {
 export default async function FilesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tx?: string; status?: string; att?: string; managed?: string }>;
+  searchParams: Promise<{ q?: string; tx?: string; status?: string; att?: string; managed?: string; created?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const statusFilter = sp.status === "active" || sp.status === "on_hold" ? sp.status : undefined;
   const attFilter = (["no_photo", "incomplete", "exchange_soon", "idle"] as const).find((a) => a === sp.att);
+  // "Created this week" drill-down from the Command Centre Today page.
+  const createdAfter = sp.created === "7d" ? new Date(Date.now() - 7 * 86_400_000) : undefined;
   // Service-tier scope. "self" = self-progressed (the agency runs it, so upkeep
   // matters most); "outsourced" = our team runs it. Scopes both the list and the
   // photo queue so the whole page narrows to the chosen tier.
@@ -102,7 +104,7 @@ export default async function FilesPage({
     getPhotoQueue({ storedIds, serviceType }),
     q ? searchFiles(q, storedIds) : Promise.resolve([]),
     selectedId ? getFileOperational(selectedId) : Promise.resolve(null),
-    !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter, serviceType }) : Promise.resolve(null),
+    !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter, serviceType, createdAfter }) : Promise.resolve(null),
   ]);
 
   const qs = (extra: Record<string, string>) => {
@@ -114,6 +116,7 @@ export default async function FilesPage({
     if (statusFilter) base.status = statusFilter;
     if (attFilter) base.att = attFilter;
     if (managedKey) base.managed = managedKey;
+    if (sp.created === "7d") base.created = sp.created;
     const merged = { ...base, ...extra };
     for (const k of Object.keys(merged)) if (!merged[k]) delete merged[k];
     const p = new URLSearchParams(merged);
@@ -192,7 +195,15 @@ export default async function FilesPage({
               <p className="text-sm text-neutral-500">Pick a property above to open its operational view.</p>
             </div>
           ) : (
-            <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} managedKey={managedKey} listHref={listHref} />
+            <div className="space-y-3">
+              {createdAfter && (
+                <div className="flex items-center justify-between gap-3 bg-blue-950/30 border border-blue-900/60 rounded-lg px-4 py-2.5 text-xs">
+                  <span className="text-blue-200">Showing files created in the last 7 days.</span>
+                  <Link href={listHref({ created: "" })} className="text-blue-400 hover:text-blue-300 font-medium">Show all →</Link>
+                </div>
+              )}
+              <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} managedKey={managedKey} listHref={listHref} />
+            </div>
           )}
         </div>
 

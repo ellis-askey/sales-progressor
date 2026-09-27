@@ -102,10 +102,13 @@ function Sparkline({ weeks }: { weeks: number[] }) {
 export default async function AgenciesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ view?: string; q?: string; status?: string; since?: string }>;
 }) {
   const sp = await searchParams;
-  const view = sp.view === "agency" ? "agency" : "agent";
+  // "New signups this week" drill-down from the Command Centre Today page. It
+  // only makes sense against the by-agency view, so it forces that.
+  const sinceFilter = sp.since === "7d";
+  const view = sinceFilter ? "agency" : sp.view === "agency" ? "agency" : "agent";
   const q = (sp.q ?? "").trim().toLowerCase();
   const statusFilter = (["active", "quiet", "dormant", "never", "gonequiet"] as const).find((s) => s === sp.status);
   const matchesStatus = (s: UsageStatus): boolean => {
@@ -123,6 +126,7 @@ export default async function AgenciesPage({
     select: {
       id: true,
       name: true,
+      createdAt: true,
       feeTier: true,
       legacyOutsourcedFeePence: true,
       stripeCustomerId: true,
@@ -190,8 +194,15 @@ export default async function AgenciesPage({
       matchesStatus(a.status) &&
       (!q || a.name.toLowerCase().includes(q) || a.agencyName.toLowerCase().includes(q)),
   );
+  // Agencies created within the "new signups" window (drives the since=7d drill-down).
+  const recentAgencyIds = new Set(
+    feeAgencies.filter((a) => a.createdAt >= sevenDaysAgo).map((a) => a.id),
+  );
   const agencyRows: AgencyUsage[] = agencies.filter(
-    (a) => matchesStatus(a.status) && (!q || a.agencyName.toLowerCase().includes(q)),
+    (a) =>
+      matchesStatus(a.status) &&
+      (!q || a.agencyName.toLowerCase().includes(q)) &&
+      (!sinceFilter || recentAgencyIds.has(a.agencyId)),
   );
 
   const qsWith = (extra: Record<string, string>) => {
@@ -290,6 +301,18 @@ export default async function AgenciesPage({
           </span>
         )}
       </div>
+
+      {/* New-signups drill-down banner (from the Command Centre Today page). */}
+      {sinceFilter && (
+        <div className="flex items-center justify-between gap-3 bg-blue-950/30 border border-blue-900/60 rounded-lg px-4 py-2.5 text-xs -mt-1">
+          <span className="text-blue-200">
+            Showing {agencyRows.length} {agencyRows.length === 1 ? "agency" : "agencies"} that signed up in the last 7 days.
+          </span>
+          <Link href="/command/agencies?view=agency" className="text-blue-400 hover:text-blue-300 font-medium">
+            Show all &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* table */}
       <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">

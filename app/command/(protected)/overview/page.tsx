@@ -81,6 +81,10 @@ export default async function OverviewPage({
     isMigrated: false,
     agency: { isInternal: false },
     createdAt: { lt: stuckBefore },
+    // Exchanged-but-not-completed files sit in a normal 4-5 week gap before
+    // completion, so they aren't stuck. Leave them out of "no movement" (they
+    // read as a false alarm otherwise).
+    exchangedAt: null,
     milestoneCompletions: { none: { state: "complete" as const, completedAt: { gte: stuckBefore } } },
   };
 
@@ -262,9 +266,13 @@ export default async function OverviewPage({
   }
 
   // Current window = rolled-up history (last 7 days excl today) + today live.
-  const statRows = [
-    { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true },
-    { label: "Transactions created", metric: "transactions", curr: (currentTx._sum.transactionsCreated ?? 0)  + today.transactionsCreated, prev: previousTx._sum.transactionsCreated ?? 0,  good: true },
+  // "New signups" = new agencies; "Transactions created" = new files — both
+  // drill through to the matching list, filtered to the last 7 days.
+  const statRows: {
+    label: string; metric: string; curr: number; prev: number; good: boolean; href?: string;
+  }[] = [
+    { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true, href: "/command/agencies?view=agency&since=7d" },
+    { label: "Transactions created", metric: "transactions", curr: (currentTx._sum.transactionsCreated ?? 0)  + today.transactionsCreated, prev: previousTx._sum.transactionsCreated ?? 0,  good: true, href: "/command/files?created=7d" },
     { label: "Milestones confirmed", metric: "milestones",   curr: (currentTx._sum.milestonesConfirmed ?? 0)  + today.milestonesConfirmed, prev: previousTx._sum.milestonesConfirmed ?? 0,  good: true },
     { label: "Chases sent",          metric: "chases",       curr: (currentTx._sum.chasesSent ?? 0)           + today.chasesSent,          prev: previousTx._sum.chasesSent ?? 0,           good: true },
     { label: "AI drafts generated",  metric: "ai_drafts",    curr: (currentTx._sum.aiDraftsGenerated ?? 0)    + today.aiDraftsGenerated,   prev: previousTx._sum.aiDraftsGenerated ?? 0,    good: true },
@@ -317,13 +325,30 @@ export default async function OverviewPage({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {statRows.map((s) => {
             const d = pct(s.curr, s.prev);
-            return (
-              <div key={s.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
-                <p className="text-xs text-neutral-400 mb-1">{s.label}</p>
+            // Top of the tile (label + value + delta). When the metric drills
+            // through, this becomes a link; WhatChanged stays outside it so its
+            // expander never collides with the link.
+            const head = (
+              <>
+                <p className="text-xs text-neutral-400 mb-1">
+                  {s.label}
+                  {s.href && <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>}
+                </p>
                 <p className="text-2xl font-bold text-white tabular-nums">{s.curr.toLocaleString()}</p>
                 <p className={`text-xs tabular-nums mt-0.5 ${deltaColor(d, s.good)}`}>
                   {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
                 </p>
+              </>
+            );
+            return (
+              <div key={s.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
+                {s.href ? (
+                  <Link href={s.href} className="block group -m-1 p-1 rounded-lg hover:bg-neutral-800/40 transition-colors">
+                    {head}
+                  </Link>
+                ) : (
+                  head
+                )}
                 <WhatChanged windowStart={last7Start} windowEnd={now} metric={s.metric} />
               </div>
             );
@@ -406,7 +431,7 @@ export default async function OverviewPage({
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
             {[
               { label: "Milestones", today: today.milestonesConfirmed, avg: avgMilestones },
-              { label: "Txns created", today: today.transactionsCreated, avg: avgTxns },
+              { label: "Transactions created", today: today.transactionsCreated, avg: avgTxns },
               { label: "Signups", today: today.signups, avg: avgSignups },
             ].map((row) => {
               const diff = row.today - row.avg;
@@ -586,7 +611,7 @@ export default async function OverviewPage({
               </span>
               <div>
                 <p className="text-xs text-neutral-300 font-medium">
-                  unique {portalSkipUsers === 1 ? "agent has" : "agents have"} clicked &quot;I won&apos;t be using the portal&quot;
+                  unique {portalSkipUsers === 1 ? "agent has clicked" : "agents have clicked"} &quot;I won&apos;t be using the portal&quot;
                 </p>
                 <p className="text-[11px] text-neutral-500 mt-0.5">
                   on the new-sale form, when prompted to invite buyer or seller
@@ -650,10 +675,10 @@ export default async function OverviewPage({
               <div key={label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2.5">
                 <p className={`text-xs font-semibold ${color}`}>{label}</p>
                 {[
-                  { k: "Signups",    v: sums.signups ?? 0 },
-                  { k: "Txns",       v: sums.transactionsCreated ?? 0 },
-                  { k: "Milestones", v: sums.milestonesConfirmed ?? 0 },
-                  { k: "Chases",     v: sums.chasesSent ?? 0 },
+                  { k: "Signups",           v: sums.signups ?? 0 },
+                  { k: "Transactions",      v: sums.transactionsCreated ?? 0 },
+                  { k: "Milestones",        v: sums.milestonesConfirmed ?? 0 },
+                  { k: "Chases",            v: sums.chasesSent ?? 0 },
                 ].map(({ k, v }) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-xs text-neutral-400">{k}</span>
@@ -671,10 +696,14 @@ export default async function OverviewPage({
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal health — open now</h2>
         <div className="flex items-center gap-3 flex-wrap mb-5">
           {(["critical", "leak", "opportunity", "info"] as const).map((sev) => (
-            <div key={sev} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${SEVERITY_BADGE[sev]}`}>
+            <Link
+              key={sev}
+              href={`/command/insights?sev=${sev}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-opacity hover:opacity-80 ${SEVERITY_BADGE[sev]}`}
+            >
               <span className="tabular-nums font-bold">{signalByKey[sev] ?? 0}</span>
               <span className="opacity-70">{sev}</span>
-            </div>
+            </Link>
           ))}
         </div>
 

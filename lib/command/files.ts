@@ -136,6 +136,8 @@ export async function getFilesList(opts: {
   status?: "active" | "on_hold";
   attention?: FileAttention;
   serviceType?: ServiceScope;
+  /** Only files created on or after this instant (drill-down from "created this week"). */
+  createdAfter?: Date;
   limit?: number;
 }): Promise<{ rows: FileListRow[]; total: number }> {
   const stored = opts.storedIds ?? (await listStoredPhotoTxIds());
@@ -146,6 +148,7 @@ export async function getFilesList(opts: {
       ...LIVE_FILE_WHERE,
       ...(opts.serviceType ? { serviceType: opts.serviceType } : {}),
       ...(opts.status ? { status: opts.status } : {}),
+      ...(opts.createdAfter ? { createdAt: { gte: opts.createdAfter } } : {}),
     },
     select: {
       id: true,
