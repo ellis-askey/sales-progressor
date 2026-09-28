@@ -1297,7 +1297,7 @@ export async function releaseProvisionalBooking(input: {
         transactionId: input.transactionId,
         type: "internal_note",
         contactIds: [],
-        content: `${input.actingUserName || "Someone"} logged the ${getMilestoneCopy(def.code).label.toLowerCase()} without notifying clients.`,
+        content: `${input.actingUserName || "Someone"} marked this step as complete (${getMilestoneCopy(def.code).label.toLowerCase()}). No client update was sent.`,
         createdById: input.actingUserId ?? null,
       },
     }).catch(() => {});
