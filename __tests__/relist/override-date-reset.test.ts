@@ -27,6 +27,9 @@ jest.mock("@/lib/prisma", () => {
     chaseTask: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     reminderLog: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     clientChaseState: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    solicitorChaseState: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    chaseEmailOverride: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    quoteRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     transactionHoldPeriod: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     outboundMessage: { create: jest.fn().mockResolvedValue({}) },
     notification: { create: jest.fn().mockResolvedValue({}), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -70,5 +73,40 @@ describe("relist STEP 9 reset", () => {
     // The adjacent forecast resets are still present (regression guard).
     expect(step9.data.completionDate).toBeNull();
     expect(step9.data.expectedExchangeDate).toBeInstanceOf(Date);
+  });
+
+  it("clears the previous buyer's carried-over fields on relist (2026-09-28)", async () => {
+    await relistTransactionImpl(
+      { transactionId: "t1", newBuyer: { name: "New Buyer" }, onwardSale: null },
+      { scope: { kind: "all" }, userId: "u1", userName: "Agent" } as any,
+    );
+
+    const step9 = p.propertyTransaction.update.mock.calls
+      .map((c: any[]) => c[0])
+      .find((arg: any) => arg?.data?.status === "active");
+    expect(step9).toBeTruthy();
+
+    // Buyer money / circumstances no longer bleed into the new sale.
+    expect(step9.data.clientDepositGBP).toBeNull();
+    expect(step9.data.clientMortgageGBP).toBeNull();
+    expect(step9.data.clientFirstTimeBuyer).toBeNull();
+    expect(step9.data.clientAdditionalProperty).toBeNull();
+    expect(step9.data.clientCompletionFundsSent).toBeNull();
+    expect(step9.data.clientOtherFundsSentGBP).toBeNull();
+    // Surveyor/valuer names, buyer intro flag, WhatsApp link, enquiry pause.
+    expect(step9.data.bookedSurveyorName).toBeNull();
+    expect(step9.data.bookedValuerName).toBeNull();
+    expect(step9.data.introCallPurchaserCompletedAt).toBeNull();
+    expect(step9.data.whatsappGroupInviteUrl).toBeNull();
+    expect(step9.data.enquiryChasePaused).toBe(false);
+    // Seller's intro is NOT touched (seller carries across buyers).
+    expect(step9.data.introCallVendorCompletedAt).toBeUndefined();
+
+    // Solicitor-chase rows + solicitor chase-edits swept; open quotes expired.
+    expect(p.solicitorChaseState.deleteMany).toHaveBeenCalled();
+    expect(p.chaseEmailOverride.deleteMany).toHaveBeenCalled();
+    expect(p.quoteRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "expired" }) }),
+    );
   });
 });

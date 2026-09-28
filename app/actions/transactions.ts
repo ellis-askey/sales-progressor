@@ -2870,6 +2870,9 @@ export async function relistTransactionImpl(
       agentUserId: true,
       assignedUserId: true,
       chainLinkId: true,
+      // Read the received flag so the broker-referral reset below can be
+      // revenue-safe: only cleared when the fee was NOT already collected.
+      brokerReferralFeeReceived: true,
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -3210,6 +3213,14 @@ export async function relistTransactionImpl(
         whatsappGroupInviteUrl: null,
         // Enquiries auto-chase pause reflected a stance on the old buyer's file.
         enquiryChasePaused: false,
+        // Broker referral belonged to the outgoing buyer's arrangement. Reset it
+        // for the new sale — but revenue-safe: ONLY when the fee wasn't already
+        // received. A realised referral fee is left fully intact (never destroy
+        // earned revenue); that rare residue is surfaced to the founder to
+        // reconcile rather than auto-wiped. (2026-09-28)
+        ...(tx.brokerReferralFeeReceived === false
+          ? { brokerReferralFee: null, brokerReferralFeeVat: "plus" as const, purchaserBrokerReferral: false }
+          : {}),
         // Send the file back for assignment on relist (Ellis, 2026-09-27):
         // clear the SP assignment so an outsourced file re-enters the hub
         // "needs assigning" card and someone must action it. A fresh buyer
@@ -3217,20 +3228,6 @@ export async function relistTransactionImpl(
         // (Self-managed files carry no SP assignment, so this is a no-op there.)
         assignedUserId: null,
         assignedAt: null,
-      },
-    });
-
-    // Broker referral fields (2026-09-28): reset the OLD buyer's referral so the
-    // new sale doesn't inherit it. Revenue-safe — only cleared when the fee was
-    // NOT already collected. A realised (received) referral fee is left fully
-    // intact so we never destroy earned revenue; that rare residue is surfaced
-    // to the founder to reconcile rather than auto-wiped.
-    await ptx.propertyTransaction.updateMany({
-      where: { id: tx.id, brokerReferralFeeReceived: false },
-      data: {
-        brokerReferralFee: null,
-        brokerReferralFeeVat: "plus",
-        purchaserBrokerReferral: false,
       },
     });
 
