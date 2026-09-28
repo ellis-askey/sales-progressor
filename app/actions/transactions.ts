@@ -2870,9 +2870,6 @@ export async function relistTransactionImpl(
       agentUserId: true,
       assignedUserId: true,
       chainLinkId: true,
-      // Read the received flag so the broker-referral reset below can be
-      // revenue-safe: only cleared when the fee was NOT already collected.
-      brokerReferralFeeReceived: true,
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -3213,14 +3210,15 @@ export async function relistTransactionImpl(
         whatsappGroupInviteUrl: null,
         // Enquiries auto-chase pause reflected a stance on the old buyer's file.
         enquiryChasePaused: false,
-        // Broker referral belonged to the outgoing buyer's arrangement. Reset it
-        // for the new sale — but revenue-safe: ONLY when the fee wasn't already
-        // received. A realised referral fee is left fully intact (never destroy
-        // earned revenue); that rare residue is surfaced to the founder to
-        // reconcile rather than auto-wiped. (2026-09-28)
-        ...(tx.brokerReferralFeeReceived === false
-          ? { brokerReferralFee: null, brokerReferralFeeVat: "plus" as const, purchaserBrokerReferral: false }
-          : {}),
+        // Broker referral is deliberately LEFT UNTOUCHED on relist (Phase 0 of the
+        // referral-ledger arc, 2026-09-28). A broker fee is earned at mortgage
+        // submission (PM5), i.e. it can be real revenue BEFORE completion, so we
+        // must never wipe it on a fall-through. Preserving it here can leave the
+        // previous buyer's broker showing on the new sale until reconciled, but
+        // that's an attribution wrinkle, never lost money. The proper per-buyer
+        // keep/void rules land in Phase 4 on the Referral ledger. See
+        // docs/active/referral-ledger/00-spec.md. (Onward broker is the seller's,
+        // also untouched.)
         // Send the file back for assignment on relist (Ellis, 2026-09-27):
         // clear the SP assignment so an outsourced file re-enters the hub
         // "needs assigning" card and someone must action it. A fresh buyer
