@@ -981,10 +981,10 @@ function SplitFileCard({
           defaultAddRole={soleOpen ? (soleIsBuyer ? "purchaser" : "vendor") : undefined}
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
-          onSent={() => {
+          onChaseSent={() => {
             openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
-            setDrawerOpen(false);
           }}
+          onSent={() => setDrawerOpen(false)}
         />
       )}
 
@@ -1000,11 +1000,11 @@ function SplitFileCard({
           defaultAddRole={rowChase.isBuyer ? "purchaser" : "vendor"}
           preferRole={rowChase.responsible}
           onClose={() => setRowChase(null)}
-          onSent={() => {
+          onChaseSent={() => {
             const match = openTasks.find(({ task }) => task.id === rowChase.taskId);
             handleChased(rowChase.taskId, match?.log.id);
-            setRowChase(null);
           }}
+          onSent={() => setRowChase(null)}
         />
       )}
 

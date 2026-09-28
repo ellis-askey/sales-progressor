@@ -89,6 +89,10 @@ interface ChaseDrawerProps {
   preferRole?: "client" | "solicitor";
   onClose: () => void;
   onSent: () => void;
+  // Fired the moment the chase actually sends (before the "Sent" offers panel),
+  // so the caller can clear the item from its list immediately rather than
+  // waiting for the drawer to be dismissed. onSent then only handles dismissal.
+  onChaseSent?: () => void;
 }
 
 type SendResult = { ok: boolean; emailSent?: boolean; error?: string };
@@ -179,6 +183,7 @@ export function ChaseDrawer({
   preferRole = "client",
   onClose,
   onSent,
+  onChaseSent,
 }: ChaseDrawerProps) {
   const isMulti = Array.isArray(milestones) && milestones.length > 1;
   const effectiveChaseCount = isMulti
@@ -735,8 +740,10 @@ export function ChaseDrawer({
         }
       }
 
-      // Chase is away. Settle into the "Sent ✓" offers state rather than closing.
+      // Chase is away. Clear it from the caller's list NOW (don't wait for the
+      // drawer to be dismissed), then settle into the "Sent ✓" offers state.
       toast.success("Chase sent");
+      onChaseSent?.();
       enterSentState();
     } catch {
       setError("Couldn't send. Try again.");
