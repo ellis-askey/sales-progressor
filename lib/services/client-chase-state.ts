@@ -46,6 +46,16 @@ export type AggregatedClientChase = {
 export async function getClientChaseStatesForTransaction(
   transactionId: string,
 ): Promise<Record<string, AggregatedClientChase>> {
+  // Round scoping: a relisted file must not show the PREVIOUS buyer's chase count.
+  // Purchaser chase rows carry the buyerRoundId they were chased in; vendor rows
+  // are NULL (file-level). So keep NULL rows + the active round's rows, drop any
+  // archived-round purchaser rows. (Mirrors the activity-timeline scoping.)
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const activeRoundId = tx?.activeBuyerRoundId ?? null;
+
   const rows = await prisma.clientChaseState.findMany({
     where: {
       transactionId,
@@ -53,6 +63,7 @@ export async function getClientChaseStatesForTransaction(
       // status="active", "escalated", "opted_out" all surface a chip;
       // "completed" doesn't.
       status: { in: ["active", "escalated", "opted_out"] },
+      ...(activeRoundId ? { OR: [{ buyerRoundId: null }, { buyerRoundId: activeRoundId }] } : {}),
     },
     select: {
       milestoneCode: true,
