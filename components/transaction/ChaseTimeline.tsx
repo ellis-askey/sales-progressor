@@ -313,9 +313,11 @@ function FutureRow({ send }: { send: NextSend }) {
       <div style={{ flex: 1, paddingBottom: 18, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-            {held ? `${send.recipientLabel} · on hold` : send.handedToTeam ? `${send.recipientLabel} · with your team` : `Next: chase ${send.recipientLabel}`}
+            {held ? send.recipientLabel : send.handedToTeam ? `${send.recipientLabel} · with your team` : `Next: chase ${send.recipientLabel}`}
           </span>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>{held ? "On hold" : "Upcoming"}</span>
+          {held
+            ? <Pill glass dot size="sm" tone="muted">On hold</Pill>
+            : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>Upcoming</span>}
           {send.dueAt && !held && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
         </div>
         <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
