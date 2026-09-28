@@ -388,7 +388,11 @@ export async function getActivityTimeline(
     // recipientName for inbound) to the real person on the file — never "System".
     // (Email redesign Phase 1.) Deterministic: known contact → known solicitor →
     // raw sender metadata as a last resort.
-    if (c.type === "inbound") {
+    // Only a genuinely synced inbound email carries sender metadata
+    // (recipientEmail). A manually-logged inbound call/text has none — it should
+    // fall through to the createdById branch and show the agent who logged it,
+    // not "Unknown sender".
+    if (c.type === "inbound" && c.recipientEmail) {
       const from = normEmail(c.recipientEmail);
       const known = from ? contactByEmail.get(from) : undefined;
       if (known) {
