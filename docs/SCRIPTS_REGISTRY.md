@@ -360,3 +360,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway).
 - **Author/date:** Claude, 2026-09-26.
 - **Deletion criteria:** delete this script + this entry once run on prod (post-deploy) and confirmed.
+
+### backfill-referral-ledger.mjs
+- **Purpose:** one-shot data backfill for the referral-ledger arc (docs/active/referral-ledger/00-spec.md, Phase 2). Turns the legacy file-level referral columns into `Referral` rows: buyer-broker → `buyer_broker` on the active round; onward-broker → `onward_broker` (file-level); solicitor → `buyer_solicitor`/`seller_solicitor` with the side INFERRED by matching `referredFirmId` to the file's purchaser/vendor solicitor (genuine no-match defaults to `seller_solicitor` and is flagged in `notes` for manual classification). Idempotent (skips a transaction+kind that already has a row). Staging-only unless `ALLOW_PROD=1`. Ran on staging 2026-09-28: 21 files → 23 rows (16 buyer_broker, 3 onward_broker, 4 seller_solicitor, 0 flagged).
+- **Lifetime:** one-shot (throwaway).
+- **Author/date:** Claude, 2026-09-28.
+- **Deletion criteria:** delete this script + this entry once run on prod (post-deploy) and confirmed.
