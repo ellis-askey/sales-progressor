@@ -76,7 +76,10 @@ function fmtDateTime(iso: string): string {
 }
 
 // ── chips ──────────────────────────────────────────────────────────────────
-function StateChip({ state }: { state: ChaseThreadState }) {
+function StateChip({ state, held }: { state: ChaseThreadState; held?: boolean }) {
+  // A chase parked by the enquiries "satisfied" gate isn't scheduled — it's held
+  // until the ball comes back to the buyer's side. Label it honestly.
+  if (held) return <Pill glass dot size="sm" tone="muted">On hold</Pill>;
   return <Pill glass dot size="sm" tone={STATE_TONE[state]}>{STATE_META[state].label}</Pill>;
 }
 
@@ -149,7 +152,7 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {thread.title}
         </span>
-        <StateChip state={thread.state} />
+        <StateChip state={thread.state} held={isHeldFarOut(thread.nextDueAt)} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 14 }}>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{thread.trackLabel}</span>
@@ -164,6 +167,7 @@ function nextLabel(t: ChaseThread): string {
   if (t.state === "completed") return "Done";
   if (t.state === "cancelled") return "Stopped";
   if (t.state === "escalated") return "Urgent";
+  if (isHeldFarOut(t.nextDueAt)) return "On hold";
   if (t.snoozedUntil) return `Paused to ${fmtDate(t.snoozedUntil)}`;
   if (t.nextDueAt) return `${t.nextIsAutomated ? "Auto" : "Chase"} ${fmtDate(t.nextDueAt)}`;
   return "";
@@ -266,7 +270,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // Enquiry chases repeat until escalation (no numeric cap) — show "Next chase" +
   // an escalation deadline instead of the milestone "chase N of cap" line.
   const kicker = held
-    ? "Waiting on enquiries"
+    ? "Waiting on replies to enquiries"
     : send.untilEscalation
       ? send.handedToTeam ? "Escalated to you" : "Next chase"
       : send.handedToTeam
@@ -297,6 +301,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
 function FutureRow({ send }: { send: NextSend }) {
   const isSol = send.lane === "solicitor";
   const accent = isSol ? "#0E8C86" : "var(--agent-info)";
+  const held = isHeldFarOut(send.dueAt);
   return (
     <div style={{ display: "flex", gap: 12 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -308,13 +313,13 @@ function FutureRow({ send }: { send: NextSend }) {
       <div style={{ flex: 1, paddingBottom: 18, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-            {send.handedToTeam ? `${send.recipientLabel} — with your team` : `Next: chase ${send.recipientLabel}`}
+            {held ? `${send.recipientLabel} · on hold` : send.handedToTeam ? `${send.recipientLabel} · with your team` : `Next: chase ${send.recipientLabel}`}
           </span>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>Upcoming</span>
-          {send.dueAt && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>{held ? "On hold" : "Upcoming"}</span>
+          {send.dueAt && !held && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
         </div>
         <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
-          {send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
+          {held ? "Waiting on replies to enquiries before this can send." : send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
         </p>
       </div>
     </div>
@@ -342,7 +347,7 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)", margin: 0 }}>{thread.title}</h3>
-        <StateChip state={thread.state} />
+        <StateChip state={thread.state} held={isHeldFarOut(thread.nextDueAt)} />
       </div>
       <p style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", margin: "0 0 18px" }}>{subtitle}</p>
 
