@@ -434,7 +434,55 @@ export async function getActivityTimeline(
     return { role: "system" as ActorRole, name: "System", image: null, sub: null };
   };
 
-  const commEntries: ActivityEntry[] = comms
+  // Agent-sent portal messages/replies live in their own table (PortalMessage),
+  // so the activity timeline never saw them. Surface them here as outbound
+  // "in_app" comms (rendered exactly like any outbound), round-scoped like the
+  // rest of the feed. Client-sent portal messages (fromClient) are excluded —
+  // those belong to the two-way portal thread, not the agent activity feed.
+  const portalMsgs = await prisma.portalMessage.findMany({
+    where: {
+      transactionId,
+      fromClient: false,
+      ...(tx.activeBuyerRoundId ? { OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] } : {}),
+    },
+    select: { id: true, content: true, createdAt: true, contactId: true, sentById: true, generatedText: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const senderIds = [...new Set(portalMsgs.map((p) => p.sentById).filter((v): v is string => !!v))];
+  const senders = senderIds.length
+    ? await prisma.user.findMany({ where: { id: { in: senderIds } }, select: { id: true, name: true, image: true, role: true } })
+    : [];
+  const senderMap = new Map(senders.map((u) => [u.id, u]));
+  const portalAsComms = portalMsgs.map((p) => {
+    const u = p.sentById ? senderMap.get(p.sentById) : null;
+    return {
+      id: `pm_${p.id}`,
+      type: "outbound",
+      method: null,
+      channel: "in_app",
+      content: p.content,
+      createdById: p.sentById,
+      createdBy: u ? { name: u.name, image: u.image } : null,
+      createdByRole: u?.role ?? null,
+      contactIds: [p.contactId],
+      recipientName: null,
+      recipientEmail: null,
+      senderLabel: null,
+      visibleToClient: true,
+      wasEdited: false,
+      wasAiGenerated: !!p.generatedText,
+      isAutomated: false,
+      tone: null,
+      subject: null,
+      providerWebhookData: null,
+      conversationId: null,
+      sentAt: null,
+      createdAt: p.createdAt,
+      chaseTaskId: null,
+    } as unknown as (typeof comms)[number];
+  });
+
+  const commEntries: ActivityEntry[] = [...comms, ...portalAsComms]
     // Hide tagged auto-replies / out-of-office from the default feed (Phase A2).
     // The row is still stored (providerWebhookData.autoReply) so it's recoverable.
     .filter(
