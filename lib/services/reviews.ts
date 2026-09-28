@@ -75,8 +75,8 @@ function originFromReason(reason: string | null): ReviewOrigin {
 // scoping rule: agency viewers only see holds on files they progress themselves;
 // internal staff see their assigned / all files.
 function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
-  if (scope.kind === "all") return { status: "on_hold" };
-  if (scope.kind === "assigned") return { status: "on_hold", assignedUserId: scope.userId };
+  if (scope.kind === "all") return { status: "on_hold", serviceType: "outsourced" };
+  if (scope.kind === "assigned") return { status: "on_hold", serviceType: "outsourced", assignedUserId: scope.userId };
   return { status: "on_hold", serviceType: "self_managed", agencyId: { in: scope.agencyIds } };
 }
 
@@ -85,8 +85,10 @@ function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput 
 // to be non-null). No serviceType restriction here — a review the agent
 // deliberately set on any of their files is theirs to see.
 function reviewTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
-  if (scope.kind === "all") return {};
-  if (scope.kind === "assigned") return { assignedUserId: scope.userId };
+  // Internal staff (all / assigned) only handle OUTSOURCED files; self-managed
+  // files never appear on the internal side. Agency users keep their own.
+  if (scope.kind === "all") return { serviceType: "outsourced" };
+  if (scope.kind === "assigned") return { serviceType: "outsourced", assignedUserId: scope.userId };
   return { agencyId: { in: scope.agencyIds } };
 }
 
