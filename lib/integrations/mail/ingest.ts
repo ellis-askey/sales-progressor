@@ -377,14 +377,15 @@ export async function runMailboxSync(opts: {
     if (!txId) {
       const candidateRefs = candidates.map(fileRef);
       summary.unmatched.push({ ...info, candidates: candidateRefs });
-      // Surface an email in the "Needs filing" tray when EITHER it has a candidate
-      // file (a named property we couldn't uniquely pick) OR a known party is on it
-      // (a real contact of ours emailed, we just can't place which file — the agent
-      // files it manually, with no misleading one-tap button). An email with
-      // neither has no evidence of belonging to any property (newsletters, billing,
-      // build alerts, a stranger emailing the mailbox) — drop it entirely, no tray
-      // row, no trace. Applies to inbound and outbound alike.
-      if (candidateRefs.length === 0 && !matched.knownParty) continue;
+      // Surface an email in the "Needs filing" tray ONLY when it resolves to a
+      // candidate file (a named property we couldn't uniquely pick). A "known
+      // party" alone is not enough: the agent is on every file they add, and
+      // shared clients/solicitors act across unrelated matters, so party-only
+      // mail (e.g. a solicitor email about a property we don't hold, where our
+      // client happens to be the buyer) clutters the tray with things that belong
+      // to no sale on the system. If the email names no file we hold, drop it
+      // entirely — no tray row, no misleading one-tap button. (Founder, 2026-09-28.)
+      if (candidateRefs.length === 0) continue;
       // Persist to the agent-side "Needs filing" tray (Phase E2). Skip auto-replies
       // (noise), and only when we know whose mailbox it is. Unique (userId,
       // providerMessageId) via skipDuplicates → a filed/dismissed email won't
