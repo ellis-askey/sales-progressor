@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // Shared snooze popover for every reminder surface (Reminders page rows +
 // "Snooze all", and the property-file Reminders tab). Replaces the three
@@ -94,7 +95,7 @@ export function SnoozeMenu({
     const above = window.innerHeight - r.bottom < MENU_H;
     setPos({
       top: above ? r.top - 4 : r.bottom + 4,
-      right: window.innerWidth - r.right,
+      right: clampPopoverRight(r.right, 220),
       above,
     });
     reset();

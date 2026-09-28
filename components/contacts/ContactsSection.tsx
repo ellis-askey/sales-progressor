@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 // components/contacts/ContactsSection.tsx
 //
 // Premium SaaS-style contacts card. Rewritten 2026-07-08 from the previous
@@ -291,7 +292,7 @@ function RowKebab({
   function toggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+      setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
     }
     setOpen((o) => !o);
   }

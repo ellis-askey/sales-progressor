@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // The reminders "Deck" primary action: a Chase split-button. The main button
 // chases (opens the chase drawer); the attached chevron opens a small menu with
@@ -49,7 +50,7 @@ export function ChaseSplitButton({
     if (open) { close(); return; }
     if (caretRef.current) {
       const r = caretRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+      setPos({ top: r.bottom + 6, right: clampPopoverRight(r.right, 240) });
     }
     setClosing(false);
     setOpen(true);

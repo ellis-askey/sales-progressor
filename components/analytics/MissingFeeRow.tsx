@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -66,7 +67,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
   function handleOpen() {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setPopoverPos({ top: rect.top, right: window.innerWidth - rect.right });
+      setPopoverPos({ top: rect.top, right: clampPopoverRight(rect.right, 260) });
     }
     reset();
     setOpen(true);

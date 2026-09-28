@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 import Link from "next/link";
 import { useState, useEffect, useRef, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent, type ChangeEvent as ReactChangeEvent } from "react";
@@ -730,7 +731,7 @@ function CardMenu({ items }: { items: MenuItem[] }) {
     e.stopPropagation();
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+      setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
     }
     setOpen((v) => !v);
   }

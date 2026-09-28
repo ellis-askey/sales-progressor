@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // Director-only control in the Forecast header for the agency's monthly fees
 // target. Unset → "Set a monthly target"; set → "Target £X/mo · Edit". Opens
@@ -21,7 +22,7 @@ function useAnchoredPopover() {
   const popRef = useRef<HTMLDivElement>(null);
   const openPop = useCallback(() => {
     const r = triggerRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    if (r) setPos({ top: r.bottom + 6, right: clampPopoverRight(r.right, 240) });
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);

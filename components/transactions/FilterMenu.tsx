@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { Funnel, CaretDown } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { FilterKey } from "./segments";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 export type FilterItem = { key: FilterKey; label: string; dot?: string };
 export type FilterSection = { title: string; items: FilterItem[] };
@@ -25,17 +26,7 @@ function useAnchoredPopover() {
 
   const openPop = useCallback(() => {
     const r = triggerRef.current?.getBoundingClientRect();
-    if (r) {
-      // Right-anchor to the trigger, but never let the ~258px popover run off the
-      // left edge (on mobile the Filter button wraps + left-aligns, which pushed
-      // it off-screen). Clamp the right offset so its left edge stays >= 8px.
-      const POP_WIDTH = 258;
-      const right = Math.min(
-        Math.max(8, window.innerWidth - r.right),
-        Math.max(8, window.innerWidth - POP_WIDTH - 8),
-      );
-      setPos({ top: r.bottom + 6, right });
-    }
+    if (r) setPos({ top: r.bottom + 6, right: clampPopoverRight(r.right, 258) });
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);

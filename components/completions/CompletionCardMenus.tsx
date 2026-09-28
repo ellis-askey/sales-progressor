@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // The Completions card's little popup menus — "Change date" (a date field with
 // the CTA stacked below, à la the enquiries backdate popover) and "Add fee" (the
@@ -24,7 +25,7 @@ function useAnchoredPopover() {
 
   const openPop = useCallback(() => {
     const r = triggerRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    if (r) setPos({ top: r.bottom + 6, right: clampPopoverRight(r.right, 240) });
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);

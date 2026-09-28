@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 import { useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -143,7 +144,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
             // chase sits high on a short page), as long as there's more room above.
             const spaceBelow = window.innerHeight - r.bottom;
             const above = spaceBelow < 240 && r.top > spaceBelow;
-            setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
+            setPos({ top: above ? r.top : r.bottom + 4, right: clampPopoverRight(r.right, 260), above });
           }
           setOpen((p) => !p);
         }}
@@ -237,7 +238,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
             // chase sits high on a short page), as long as there's more room above.
             const spaceBelow = window.innerHeight - r.bottom;
             const above = spaceBelow < 240 && r.top > spaceBelow;
-            setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
+            setPos({ top: above ? r.top : r.bottom + 4, right: clampPopoverRight(r.right, 260), above });
           }
           setOpen((p) => !p);
         }}

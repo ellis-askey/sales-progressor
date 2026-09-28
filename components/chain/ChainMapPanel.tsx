@@ -1,4 +1,5 @@
 "use client";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // The compact ordered chain list shown in the left panel of the Map command
 // centre. One row per property in real chain order — numbered + status-coloured
@@ -126,7 +127,7 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
           e.stopPropagation();
           if (!open) {
             const r = btnRef.current?.getBoundingClientRect();
-            if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+            if (r) setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
           }
           setOpen((o) => !o);
         }}
