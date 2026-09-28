@@ -8,6 +8,7 @@ import {
   markQuoteExpired,
   reopenQuote,
   markReferralFeeCollected,
+  updateQuoteFee,
 } from "@/app/actions/quote-requests";
 import type { QuoteRequestStatus } from "@prisma/client";
 
@@ -91,6 +92,15 @@ export function StatusControls({
     startTransition(async () => {
       const r = await markReferralFeeCollected(id, !referralFeeCollected);
       if (r.ok) router.refresh();
+    });
+  }
+
+  function runSaveFee() {
+    setError(null);
+    startTransition(async () => {
+      const r = await updateQuoteFee(id, { saleFeePence: toPence(wonSaleFee), referralFeePence: toPence(wonReferralFee) });
+      if (r.ok) router.refresh();
+      else setError(r.error);
     });
   }
 
@@ -198,31 +208,59 @@ export function StatusControls({
           {statusReason}
         </p>
       )}
-      {status === "won" && saleFeePence !== null && (
-        <div className="grid grid-cols-2 gap-2 py-2 border-t border-b border-[#1f1f1f]">
-          <div>
-            <p className="text-[10px] text-[#525252] uppercase tracking-widest">Sale fee</p>
-            <p className="text-[15px] font-semibold text-[#fafafa] font-mono">£{(saleFeePence / 100).toFixed(2)}</p>
+      {status === "won" && (
+        <div className="py-2 border-t border-b border-[#1f1f1f] space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] text-[#525252] uppercase tracking-widest mb-1">Sale fee (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={wonSaleFee}
+                onChange={(e) => {
+                  setWonSaleFee(e.target.value);
+                  const p = toPence(e.target.value);
+                  if (p) setWonReferralFee(((p * 0.1) / 100).toFixed(2));
+                }}
+                placeholder="450.00"
+                className="w-full bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-[13px] text-[#fafafa] focus:outline-none focus:border-[#22c55e] font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-[#525252] uppercase tracking-widest mb-1">Our 10% (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={wonReferralFee}
+                onChange={(e) => setWonReferralFee(e.target.value)}
+                placeholder="45.00"
+                className="w-full bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-[13px] text-[#fafafa] focus:outline-none focus:border-[#22c55e] font-mono"
+              />
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] text-[#525252] uppercase tracking-widest">Our 10%</p>
-            <p className="text-[15px] font-semibold text-[#86efac] font-mono">
-              £{referralFeePence ? (referralFeePence / 100).toFixed(2) : "0.00"}
-            </p>
-          </div>
+          <button
+            onClick={runSaveFee}
+            disabled={pending}
+            className="w-full px-3 py-1.5 rounded text-[12px] font-semibold text-white transition-colors disabled:opacity-40"
+            style={{ background: pending ? "#404040" : "#16a34a" }}
+          >
+            {pending ? "Saving…" : saleFeePence !== null ? "Update fee" : "Add fee"}
+          </button>
         </div>
       )}
       {status === "won" && referralFeePence && referralFeePence > 0 && (
         <button
           onClick={runToggleReferralCollected}
           disabled={pending}
-          className={`w-full px-3 py-1.5 rounded text-[12px] font-semibold transition-colors disabled:opacity-40 ${
+          className={`w-full px-3 py-2.5 rounded-md text-[13px] font-semibold transition-colors disabled:opacity-40 ${
             referralFeeCollected
-              ? "bg-[#0c2418] text-[#86efac] border border-[#14532d]"
-              : "bg-[#1a1a1a] text-[#d4d4d4] border border-[#404040] hover:border-[#525252]"
+              ? "bg-[#0c2418] text-[#86efac] border border-[#14532d] hover:border-[#22c55e]"
+              : "bg-[#16a34a] text-white hover:bg-[#15803d]"
           }`}
         >
-          {referralFeeCollected ? "✓ Referral fee collected" : "Mark referral fee collected"}
+          {referralFeeCollected ? "✓ Referral fee collected (tap to undo)" : "Mark referral fee collected"}
         </button>
       )}
       <button

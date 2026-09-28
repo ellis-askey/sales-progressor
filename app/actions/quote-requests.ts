@@ -68,6 +68,41 @@ export async function markQuoteWon(
   return { ok: true };
 }
 
+// Add or correct the fee on an already-decided quote (e.g. you marked it won
+// before you knew the figure). Updates ONLY the fee fields — never the status or
+// the won date, so editing the fee later doesn't re-stamp when it was won.
+export async function updateQuoteFee(
+  id: string,
+  input: { saleFeePence: number | null; referralFeePence?: number | null },
+): Promise<ActionResult> {
+  const user = await requireSuperadmin();
+  const before = await commandDb.quoteRequest.findUnique({ where: { id } });
+  if (!before) return { ok: false, error: "Quote request not found." };
+
+  const sale = input.saleFeePence && input.saleFeePence > 0 ? Math.round(input.saleFeePence) : null;
+  const referral =
+    input.referralFeePence !== undefined && input.referralFeePence !== null
+      ? Math.round(input.referralFeePence)
+      : sale
+        ? Math.round((sale * REFERRAL_FEE_BPS) / 10000)
+        : null;
+
+  await commandDb.quoteRequest.update({ where: { id }, data: { saleFeePence: sale, referralFeePence: referral } });
+
+  await recordAdminAction({
+    adminUserId: user.id,
+    action: "quote_request.update_fee",
+    targetType: "QuoteRequest",
+    targetId: id,
+    beforeValue: { saleFeePence: before.saleFeePence, referralFeePence: before.referralFeePence },
+    afterValue: { saleFeePence: sale, referralFeePence: referral },
+  }).catch(() => {});
+
+  revalidatePath("/command/providers/quotes");
+  revalidatePath(`/command/providers/quotes/${id}`);
+  return { ok: true };
+}
+
 export async function markQuoteLost(
   id: string,
   input: { reason?: string | null },
