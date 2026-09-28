@@ -39,9 +39,12 @@ type Props = {
   // "Save" click on the outer card needed). For ordinary picks, only
   // onChange fires.
   onFirmCreated?: (v: SolicitorSelection) => void;
+  // The file id, so internal staff can set the assistant CC on outsourced files
+  // (the server keys the override to the file's outsourcing agency).
+  transactionId?: string;
 };
 
-export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props) {
+export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId }: Props) {
   const { isNight } = usePortalTheme();
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
@@ -232,7 +235,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       const res = await fetch(`/api/solicitor-handlers/${value.contactId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secondaryEmail: trimmed }),
+        body: JSON.stringify({ secondaryEmail: trimmed, transactionId }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => null);

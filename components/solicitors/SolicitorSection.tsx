@@ -434,6 +434,7 @@ function SolicitorTile({
           <SolicitorPicker
             label=""
             value={draft}
+            transactionId={transactionId}
             onChange={handlePickerChange}
             onFirmCreated={(sel) => {
               setDraft(sel);

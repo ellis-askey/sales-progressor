@@ -13,6 +13,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { setAgencySolicitorCc, resolveSolicitorCc, SOLICITOR_CC_GOSPEL_SET } from "@/lib/services/solicitor-cc";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
-  const { secondaryEmail } = await req.json();
+  const { secondaryEmail, transactionId } = await req.json();
 
   const trimmed = typeof secondaryEmail === "string" ? secondaryEmail.trim().toLowerCase() : "";
   if (trimmed && !EMAIL_RE.test(trimmed)) {
@@ -34,14 +35,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
   if (!handler) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // The per-agency override belongs to a specific agency. Only agency users
-  // (director / negotiator) set it; internal staff have no agency to attach it to.
-  const agencyId = session.user.agencyId;
+  // The per-agency override belongs to a specific agency. Agency users
+  // (director / negotiator) attach it to their own agency. Internal staff have no
+  // agency of their own, so for them we key it to the OUTSOURCING agency of the
+  // file they're working on — verified in-scope and outsourced.
+  let agencyId = session.user.agencyId;
   if (!agencyId) {
-    return NextResponse.json(
+    const forbidden = NextResponse.json(
       { error: "Only your agency's own team can set the assistant email here." },
       { status: 403 },
     );
+    const scope = getAccessScope(session);
+    if (scope.kind === "agency" || typeof transactionId !== "string" || !transactionId) return forbidden;
+    const tx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, transactionId),
+      select: { agencyId: true, serviceType: true },
+    });
+    if (!tx || tx.serviceType !== "outsourced" || !tx.agencyId) return forbidden;
+    agencyId = tx.agencyId;
   }
 
   try {
