@@ -12,6 +12,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
+import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { solicitorPairViolation, solicitorHandlerRequiredMessage } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
@@ -1718,6 +1719,42 @@ export async function saveContactEmailAction(contactId: string, email: string) {
 
   await logActivity(contact.propertyTransactionId, `${session.user.name} added a client email address`, session.user.id);
   revalidateTx(contact.propertyTransactionId);
+}
+
+// Relist reassurance (referral-ledger arc Phase 5c): the earned broker referral
+// on the OUTGOING buyer that the relist will preserve on the archived round. The
+// new-buyer modal shows a note so the agent knows the old fee stays on record.
+// Returns null when there's no earned/received broker referral to reassure about.
+export async function getPriorEarnedReferralAction(
+  transactionId: string,
+): Promise<{ amountPence: number | null; buyerName: string } | null> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: {
+      id: true,
+      activeBuyerRoundId: true,
+      contacts: { where: { roleType: "purchaser" }, select: { name: true, buyerRoundId: true } },
+    },
+  });
+  if (!tx || !tx.activeBuyerRoundId) return null;
+  const ref = await prisma.referral.findFirst({
+    where: {
+      transactionId,
+      kind: "buyer_broker",
+      buyerRoundId: tx.activeBuyerRoundId,
+      status: { in: ["earned", "received"] },
+    },
+    select: { feePence: true },
+  });
+  if (!ref) return null;
+  const buyerName =
+    tx.contacts
+      .filter((c) => c.buyerRoundId === tx.activeBuyerRoundId)
+      .map((c) => nameWithoutTitle(c.name))
+      .join(" & ") || "the current buyer";
+  return { amountPence: ref.feePence, buyerName };
 }
 
 export async function saveReferralAction(

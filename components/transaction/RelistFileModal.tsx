@@ -19,12 +19,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowLeft, CurrencyGbp } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
-import { relistTransactionAction } from "@/app/actions/transactions";
+import { relistTransactionAction, getPriorEarnedReferralAction } from "@/app/actions/transactions";
 import type { PurchaseType } from "@prisma/client";
 // Same input-hygiene helpers used in the new-sale ContactsSection so
 // the relist form behaves identically: name title-cased on blur, phone
@@ -72,6 +72,11 @@ function parsePriceInputToPence(s: string): number | null {
   return Math.round(pounds * 100);
 }
 
+// £-formatted, no decimals — matches formatPrice across the agent app.
+function formatPence(p: number): string {
+  return "£" + (p / 100).toLocaleString("en-GB", { maximumFractionDigits: 0 });
+}
+
 export function RelistFileModal({ open, transactionId, previousPurchasePrice, inChain, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [stage, setStage] = useState<Stage>("form");
@@ -90,6 +95,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
   const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(null);
   const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(null);
   const [broker, setBroker] = useState<BrokerSelection | null>(null);
+
+  // Reassurance note (referral-ledger arc): if the outgoing buyer had an earned
+  // broker referral, tell the agent it stays on record so adding a new buyer
+  // never reads as wiping it. Fetched on open; null = nothing to reassure about.
+  const [priorReferral, setPriorReferral] = useState<{ amountPence: number | null; buyerName: string } | null>(null);
 
   // Closed-loop chain arc (2026-06-05). Only collected when inChain=true.
   // Required step — no submission until the agent picks one. "unknown"
@@ -117,8 +127,19 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
       setOnwardExternalAgency("");
       setOnwardExternalAgent("");
       setOnwardExternalEmail("");
+      setPriorReferral(null);
     }
   }, [open, previousPurchasePrice]);
+
+  // Fetch the outgoing buyer's earned referral (if any) when the modal opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    getPriorEarnedReferralAction(transactionId)
+      .then((r) => { if (!cancelled) setPriorReferral(r); })
+      .catch(() => { /* reassurance only — a miss just hides the note */ });
+    return () => { cancelled = true; };
+  }, [open, transactionId]);
 
   // Escape to dismiss (only when not pending).
   useEffect(() => {
@@ -317,6 +338,34 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           * step pushed total height past ~700px on shorter monitors). */}
         {stage === "form" ? (
           <div className="px-5 py-5 space-y-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
+            {/* Reassurance: the outgoing buyer's earned broker referral is kept. */}
+            {priorReferral && (
+              <div
+                style={{
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "var(--agent-surface-glass)",
+                  border: "0.5px solid var(--agent-border-default)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <CurrencyGbp size={18} weight="regular" />
+                </span>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                  {priorReferral.amountPence != null ? (
+                    <>A <strong style={{ color: "var(--agent-text-primary)" }}>{formatPence(priorReferral.amountPence)}</strong> broker referral was already earned on {priorReferral.buyerName}&rsquo;s sale. It stays on record against that sale and won&rsquo;t be affected by adding a new buyer.</>
+                  ) : (
+                    <>A broker referral was already earned on {priorReferral.buyerName}&rsquo;s sale. It stays on record against that sale and won&rsquo;t be affected by adding a new buyer.</>
+                  )}
+                </p>
+              </div>
+            )}
             {/* Buyer details */}
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>

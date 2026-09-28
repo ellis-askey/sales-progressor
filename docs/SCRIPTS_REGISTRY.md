@@ -366,3 +366,9 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway).
 - **Author/date:** Claude, 2026-09-28.
 - **Deletion criteria:** delete this script + this entry once run on prod (post-deploy) and confirmed.
+
+### seed-emily-chen-referral.ts
+- **Purpose:** one-off STAGING demo seed for the referral-ledger arc. Creates an on-hold self-managed file (buyer "Emily Chen") with a £450 broker referral that is EARNED (PM5 complete), attached to the busiest non-internal agency's agent, so the founder can see the "Add new buyer" reassurance note and the preserved referral in the archived-sale drawer in practice. Idempotent (skips if the demo address already exists). Refuses PROD. Run via the demo:seed-style ts-node invocation.
+- **Lifetime:** one-shot (throwaway, staging demo).
+- **Author/date:** Claude, 2026-09-28.
+- **Deletion criteria:** delete this script + this entry once the referral-ledger demo has been reviewed and the seeded staging file is no longer needed.

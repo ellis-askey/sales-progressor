@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { rollToBusinessDay, calculateProgressionFeePence } from "@/lib/services/fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
+import { syncReferralRow } from "@/lib/services/referrals";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { toUKDateStr } from "@/lib/utils";
@@ -1160,6 +1161,44 @@ export async function createTransaction(input: CreateTransactionInput) {
         if (distinctId) void trackServerEvent(distinctId, ANALYTICS_EVENTS.ACTIVATED, { agencyId: input.agencyId });
       }
     }
+  }
+
+  // Referral ledger dual-write (referral-ledger arc): mirror any referral captured
+  // AT CREATION into a ledger row — the new-sale blind spot. The file's own broker/
+  // referral boxes already dual-write on save; this covers referrals entered on the
+  // new-sale form so they show in the archived history and survive a relist without
+  // needing a re-save. Fresh sales start "pending" (PM5 not reached). Best-effort —
+  // a ledger hiccup must never fail file creation.
+  try {
+    const roundId = newTx.activeBuyerRoundId;
+    if (input.referredFirmId || input.referralFee != null) {
+      const solKind = input.referredFirmId && input.referredFirmId === input.purchaserSolicitorFirmId
+        ? "buyer_solicitor" : "seller_solicitor";
+      await syncReferralRow(prisma, {
+        transactionId: newTx.id,
+        buyerRoundId: solKind === "buyer_solicitor" ? roundId : null,
+        kind: solKind, firmField: "solicitor",
+        firmId: input.referredFirmId ?? null,
+        feePence: input.referralFee ?? null,
+        vat: referralFeeVat, received: false, earned: false,
+      });
+    }
+    if (input.brokerFirmId || input.brokerReferralFee != null || input.purchaserBrokerReferral) {
+      await syncReferralRow(prisma, {
+        transactionId: newTx.id, buyerRoundId: roundId, kind: "buyer_broker",
+        firmField: "broker", firmId: input.brokerFirmId ?? null, contactId: input.brokerContactId ?? null,
+        feePence: input.brokerReferralFee ?? null, vat: brokerReferralFeeVat, received: false, earned: false,
+      });
+    }
+    if (input.onwardBrokerFirmId || input.onwardBrokerReferralFee != null || input.onwardBrokerReferral) {
+      await syncReferralRow(prisma, {
+        transactionId: newTx.id, buyerRoundId: null, kind: "onward_broker",
+        firmField: "broker", firmId: input.onwardBrokerFirmId ?? null, contactId: input.onwardBrokerContactId ?? null,
+        feePence: input.onwardBrokerReferralFee ?? null, vat: brokerReferralFeeVat, received: false, earned: false,
+      });
+    }
+  } catch (err) {
+    console.error("[createTransaction] referral ledger dual-write failed:", err);
   }
 
   return newTx;
