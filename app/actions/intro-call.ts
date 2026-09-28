@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { logActivity } from "@/lib/services/activity";
 import { getOnwardTrackerView } from "@/lib/services/onward";
 import type { MoveInfo } from "@/lib/services/portal-info";
@@ -113,6 +114,7 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       purchaseType: true,
       tenure: true,
       isShareOfFreehold: true,
+      activeBuyerRoundId: true,
       introCallCompletedAt: true,
       introCallVendorCompletedAt: true,
       introCallPurchaserCompletedAt: true,
@@ -129,7 +131,7 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       vendorSolicitorContact: solContactSelect,
       purchaserSolicitorFirm: solFirmSelect,
       purchaserSolicitorContact: solContactSelect,
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, isPrincipal: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, isPrincipal: true, buyerRoundId: true } },
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -137,10 +139,12 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
   const moveRows = await prisma.clientMoveInfo.findMany({ where: { transactionId } });
   const toPounds = (p: number | null) => (p != null ? Math.round(p / 100) : null);
 
+  // Active-round buyer only — on a relisted file an archived previous buyer
+  // must never be the one the agent is shown to phone/email (2026-09-28).
   const vendor = tx.contacts.find((c) => c.roleType === "vendor" && c.isPrincipal)
     ?? tx.contacts.find((c) => c.roleType === "vendor") ?? null;
-  const purchaser = tx.contacts.find((c) => c.roleType === "purchaser" && c.isPrincipal)
-    ?? tx.contacts.find((c) => c.roleType === "purchaser") ?? null;
+  const purchaser = tx.contacts.find((c) => c.roleType === "purchaser" && c.isPrincipal && isActiveRoundContact(c, tx.activeBuyerRoundId))
+    ?? tx.contacts.find((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)) ?? null;
 
   let chainIntel: IntroCallData["chainIntel"] = null;
   if (tx.chainLinkId) {

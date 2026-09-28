@@ -3179,6 +3179,37 @@ export async function relistTransactionImpl(
         brokerContactId: input.newBrokerContactId ?? null,
         lastActivityAt: new Date(),
         clientEmailsPaused: false,
+        // ── Previous-buyer field clears (2026-09-28) ──────────────────────────
+        // These file-level columns describe the OUTGOING buyer and were being
+        // carried silently into the new sale. Cleared so the new buyer starts
+        // from a clean slate.
+        //
+        // Buyer-entered money/circumstances (portal "Your costs" + SDLT card +
+        // funds-sent flag) — a different person's financial data would otherwise
+        // pre-fill the new buyer's portal and the internal completion estimate.
+        clientDepositGBP: null,
+        clientMortgageGBP: null,
+        clientFirstTimeBuyer: null,
+        clientAdditionalProperty: null,
+        clientCompletionFundsSent: null,
+        clientOtherFundsSentGBP: null,
+        // Surveyor/valuer firm names (shown on PM9/PM6 + portal via a tx-level
+        // fallback) belonged to the old buyer's booking.
+        bookedSurveyorName: null,
+        bookedValuerName: null,
+        // Buyer intro-call "done" — only the PURCHASER side (the seller's intro
+        // carries over, so introCallVendorCompletedAt is left intact). Without
+        // this the new buyer's "start intro call" prompt is suppressed even as
+        // a fresh intro email goes out to them. The legacy either-side aggregate
+        // self-corrects on the next intro action.
+        introCallPurchaserCompletedAt: null,
+        introCallPurchaserCompletedById: null,
+        // WhatsApp group was created with the old buyer + seller; clear so a
+        // fresh group/link is made rather than inviting the new buyer into the
+        // old group.
+        whatsappGroupInviteUrl: null,
+        // Enquiries auto-chase pause reflected a stance on the old buyer's file.
+        enquiryChasePaused: false,
         // Send the file back for assignment on relist (Ellis, 2026-09-27):
         // clear the SP assignment so an outsourced file re-enters the hub
         // "needs assigning" card and someone must action it. A fresh buyer
@@ -3186,6 +3217,20 @@ export async function relistTransactionImpl(
         // (Self-managed files carry no SP assignment, so this is a no-op there.)
         assignedUserId: null,
         assignedAt: null,
+      },
+    });
+
+    // Broker referral fields (2026-09-28): reset the OLD buyer's referral so the
+    // new sale doesn't inherit it. Revenue-safe — only cleared when the fee was
+    // NOT already collected. A realised (received) referral fee is left fully
+    // intact so we never destroy earned revenue; that rare residue is surfaced
+    // to the founder to reconcile rather than auto-wiped.
+    await ptx.propertyTransaction.updateMany({
+      where: { id: tx.id, brokerReferralFeeReceived: false },
+      data: {
+        brokerReferralFee: null,
+        brokerReferralFeeVat: "plus",
+        purchaserBrokerReferral: false,
       },
     });
 
@@ -3287,6 +3332,57 @@ export async function relistTransactionImpl(
         reminderRule: { targetMilestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
       },
       data: { status: "cancelled", statusReason: "sale fell through" },
+    });
+
+    // Solicitor-chase state reset (2026-09-28). SolicitorChaseState is keyed by
+    // (transactionId, side, milestoneCode) with NO round attribution, so the
+    // old buyer's rows survive relist untouched. That silently breaks the new
+    // buyer's solicitor chasing: a resolved/capped row means their solicitor is
+    // never chased for that step, and a mid-cadence row chases immediately from
+    // the old sale's clock (or falsely escalates "solicitor not responding").
+    // DELETE rather than cancel: an absent row is exactly the engine's "fresh,
+    // never chased" path, whereas status="cancelled" would be skipped forever.
+    // Purchaser rows (new buyer entirely) + vendor rows for the reset-VM codes
+    // (which re-anchor per buyer, e.g. VM7); carried-over vendor steps stay.
+    await ptx.solicitorChaseState.deleteMany({
+      where: {
+        transactionId: tx.id,
+        OR: [
+          { side: "purchaser" },
+          { side: "vendor", milestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
+        ],
+      },
+    });
+
+    // Solicitor-targeted chase edits (ChaseEmailOverride) reset (2026-09-28).
+    // Client overrides are contact-keyed so a new buyer's new contact starts
+    // fresh, but solicitor-side overrides are keyed sol:<side> and survive. A
+    // skip/body edit left on a purchaser-side (or reset-VM) solicitor chase
+    // would leak into the new buyer's chases. Clear those keys.
+    await ptx.chaseEmailOverride.deleteMany({
+      where: {
+        transactionId: tx.id,
+        OR: [
+          { targetKey: "sol:purchaser" },
+          {
+            targetKey: "sol:vendor",
+            milestoneCode: { in: [...RELIST_RESET_VM_CODES] },
+          },
+        ],
+      },
+    });
+
+    // Old buyer's still-open surveyor/broker quote requests → expired
+    // (2026-09-28). Raised for the previous buyer's sale; leaving them open
+    // keeps a dead request on the Command Centre quote board. Only "pending"
+    // is touched — "booked"/"won" represent a referral that actually happened
+    // (real fee state), so those are left intact regardless of the fall-through.
+    await ptx.quoteRequest.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "pending",
+      },
+      data: { status: "expired", statusReason: "sale fell through" },
     });
 
     // GAP-1 closure (Phase-2 PR 1, Ellis-locked: "if unsure: close"). Close

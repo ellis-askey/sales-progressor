@@ -169,9 +169,14 @@ function resolveAnchorDate(args: {
 
   if (anchorCode) {
     // Look up the anchor's completion. Cross-side anchors work naturally
-    // because we search allCompletions unrestricted by side.
+    // because we search allCompletions unrestricted by side. Round scope IS
+    // enforced though: a raw match could return an ARCHIVED previous buyer's
+    // completion on a relisted file, so the new buyer's grace clock would start
+    // from the old sale's date (chased with no grace). Keep vendor/file-level
+    // rows (buyerRoundId null) + the active round's purchaser rows only.
     const anchor = allCompletions.find(
-      (c) => c.milestoneCode === anchorCode && c.state === "complete",
+      (c) => c.milestoneCode === anchorCode && c.state === "complete"
+        && (c.buyerRoundId === null || c.buyerRoundId === activeBuyerRoundId),
     );
     if (!anchor) return null; // anchor not complete → don't chase yet
     if (rule.useAnchorEventDate && anchor.eventDate) {
