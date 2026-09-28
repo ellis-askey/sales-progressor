@@ -1802,7 +1802,7 @@ export async function logPortalMilestoneConfirm(
   }
 
   const otherPushContacts = tx.contacts.filter(
-    (c) => c.id !== contactId && (c.roleType === "vendor" || c.roleType === "purchaser") && c.portalToken
+    (c) => c.id !== contactId && (c.roleType === "vendor" || c.roleType === "purchaser") && c.portalToken && !isDeadRoundRecipient(c)
   );
   for (const other of otherPushContacts) {
     pushToContact(other.id, {

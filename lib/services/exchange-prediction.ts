@@ -26,6 +26,7 @@ import {
   computeEffectiveStartDate,
   type PhaseAwareInput,
 } from "@/lib/services/fees";
+import { milestoneScopeWhere, forRound } from "@/lib/services/milestone-scope";
 import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
 
 // Once either side's exchange is confirmed, expectedExchangeDate holds the REAL
@@ -56,28 +57,49 @@ export async function refreshExpectedExchangeDate(
       purchaseType: true,
       tenure: true,
       isShareOfFreehold: true,
-      milestoneCompletions: {
-        where: { state: "complete" },
-        select: {
-          eventDate: true,
-          reconciledAtClaim: true,
-          milestoneDefinition: { select: { code: true } },
-        },
-      },
+      // Anchor the forecast to when the CURRENT buyer took over, not the
+      // original file creation. On a relisted file tx.createdAt is the first
+      // sale's start — measuring from it would forecast an exchange date far
+      // too soon (often already in the past) for the new buyer, which then
+      // lights up the hub "exchange overdue" alert (2026-09-28).
+      activeBuyerRoundId: true,
+      activeBuyerRound: { select: { createdAt: true } },
     },
   });
   if (!txn) return null;
 
-  const completedCodes = txn.milestoneCompletions
+  // Round-scoped completions ONLY (privacy-load-bearing — see milestone-scope.ts).
+  // On a relisted file a raw {state:"complete"} read returns the previous buyer's
+  // finished steps too, which would shrink the new buyer's forecast as if their
+  // purchase were already part-done. forRound keeps vendor (file-level) rows +
+  // the active round's purchaser rows only.
+  const completions = await client.milestoneCompletion.findMany({
+    where: {
+      transactionId,
+      ...milestoneScopeWhere(forRound(txn.activeBuyerRoundId ?? null, transactionId)),
+      state: "complete",
+    },
+    select: {
+      eventDate: true,
+      reconciledAtClaim: true,
+      milestoneDefinition: { select: { code: true } },
+    },
+  });
+
+  const completedCodes = completions
     .map((c) => c.milestoneDefinition?.code)
     .filter((c): c is string => !!c);
 
   // File has exchanged → real date stands, don't overwrite with a forecast.
   if (completedCodes.some((c) => EXCHANGED_CODES.has(c))) return null;
 
+  // The new buyer's clock starts at their round; fall back to file creation for
+  // single-round (never-relisted) files, where round start ≈ tx.createdAt.
+  const startAnchor = txn.activeBuyerRound?.createdAt ?? txn.createdAt;
+
   const effectiveStartDate = computeEffectiveStartDate(
-    txn.createdAt,
-    txn.milestoneCompletions.map((c) => ({
+    startAnchor,
+    completions.map((c) => ({
       eventDate: c.eventDate,
       reconciledAtClaim: c.reconciledAtClaim,
     })),
@@ -94,7 +116,7 @@ export async function refreshExpectedExchangeDate(
   // null override: the stored column holds the pure system prediction;
   // overridePredictedDate remains the separate agent-set layer that wins on
   // every display surface.
-  const predicted = calculatePhaseAwarePrediction(phaseAware, txn.createdAt, null);
+  const predicted = calculatePhaseAwarePrediction(phaseAware, startAnchor, null);
 
   // Capture-only prediction history (PR4), change-only by calendar day. Written
   // BEFORE the stored-column update so a failed insert leaves the stored value
