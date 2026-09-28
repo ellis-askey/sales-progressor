@@ -195,7 +195,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         .ce-ghost[data-on="true"] { border-color:var(--agent-coral-deep); color:var(--agent-coral-deep); }
         .ce-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
         .ce-ghost[data-open="true"] .ce-caret, .ce-ghost[data-on="true"] .ce-caret { transform:rotate(180deg); }
-        .ce-menu { position:absolute; top:calc(100% + 6px); left:0; z-index:100; min-width:236px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:13px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; }
+        .ce-menu { position:absolute; top:calc(100% + 6px); right:0; left:auto; z-index:100; min-width:236px; max-width:calc(100vw - 32px); background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:13px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; }
         .ce-mi { display:flex; align-items:center; gap:11px; width:100%; text-align:left; padding:8px 9px; border-radius:9px; border:none; background:none; font-family:inherit; font-size:13px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
         .ce-mi:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
         .ce-ico { width:20px; display:grid; place-items:center; color:var(--agent-text-muted); flex-shrink:0; transition:color .14s ease; }

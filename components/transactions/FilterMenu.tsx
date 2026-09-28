@@ -25,7 +25,17 @@ function useAnchoredPopover() {
 
   const openPop = useCallback(() => {
     const r = triggerRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    if (r) {
+      // Right-anchor to the trigger, but never let the ~258px popover run off the
+      // left edge (on mobile the Filter button wraps + left-aligns, which pushed
+      // it off-screen). Clamp the right offset so its left edge stays >= 8px.
+      const POP_WIDTH = 258;
+      const right = Math.min(
+        Math.max(8, window.innerWidth - r.right),
+        Math.max(8, window.innerWidth - POP_WIDTH - 8),
+      );
+      setPos({ top: r.bottom + 6, right });
+    }
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
