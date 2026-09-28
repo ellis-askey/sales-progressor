@@ -13,8 +13,10 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { discoverAgencies } from "@/lib/outreach/discover";
+import { randomUUID } from "crypto";
 import { verifyEmailDeliverable } from "@/lib/prospects/email-verify";
-import { previewProspectOutreachHtml } from "@/lib/prospects/send";
+import { previewProspectOutreachHtml, sendProspectOutreach } from "@/lib/prospects/send";
+import { aiOutreachSender } from "@/lib/outreach/send-limits";
 import { buildProspectUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { runStrategyCycle } from "@/lib/outreach/orchestrator";
 import { preflightExperiment, launchExperiment, launchExperimentToProspects, resumeLaunch, type Preflight, type LaunchResult } from "@/lib/outreach/launch";
@@ -192,6 +194,52 @@ export async function publishCampaignAction(experimentId: string, prospectIds: s
   const res = await launchExperimentToProspects({ experimentId, prospectIds, actorUserId: session.user.id });
   if ("ok" in res && res.ok) revalidatePath(REVALIDATE);
   return res;
+}
+
+// Send the whole experiment (control + challenger, every step) to a test inbox,
+// rendered exactly as it will send. Personalised with a sample name/agency since
+// there's no real recipient. Superadmin only.
+export async function sendExperimentTestAction(
+  experimentId: string,
+  toEmail: string,
+): Promise<{ ok: true; sent: number } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const to = toEmail.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return { ok: false, error: "Enter a valid email address." };
+
+  const exp = await commandDb.outreachExperiment.findUnique({
+    where: { id: experimentId },
+    select: { variants: { select: { role: true, emails: true } } },
+  });
+  if (!exp) return { ok: false, error: "Experiment not found." };
+
+  const sender = aiOutreachSender() ?? undefined; // AI identity if set, else the default outreach sender
+  const personalise = (t: string) => t.replace(/\{\{\s*firstName\s*\}\}/g, "Sam").replace(/\{\{\s*agencyName\s*\}\}/g, "Bramley Estates");
+  const unsubscribeUrl = buildProspectUnsubscribeUrl(`test-${experimentId}`);
+
+  let sent = 0;
+  for (const v of exp.variants) {
+    const steps = Array.isArray(v.emails) ? (v.emails as { subject?: string; body?: string; stepIndex?: number }[]) : [];
+    for (const s of steps) {
+      const subject = personalise(String(s.subject ?? ""));
+      const body = personalise(String(s.body ?? ""));
+      if (!subject.trim() || !body.trim()) continue;
+      try {
+        await sendProspectOutreach({
+          to, subject, text: body,
+          replyToken: randomUUID().replace(/-/g, ""),
+          prospectEmailId: `test-${experimentId}-${v.role}-${s.stepIndex ?? 0}`,
+          from: sender,
+          unsubscribeUrl,
+        });
+        sent++;
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message.slice(0, 140) : "The test send failed." };
+      }
+    }
+  }
+  if (sent === 0) return { ok: false, error: "This experiment has no email copy to test yet." };
+  return { ok: true, sent };
 }
 
 // Correct a found agent's contact name / email inline on the review screen (e.g.

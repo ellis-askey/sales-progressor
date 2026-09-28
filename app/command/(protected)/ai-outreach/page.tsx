@@ -28,6 +28,7 @@ import { FilterSelect } from "@/components/command/shared/FilterSelect";
 import { LaunchPanel } from "@/components/command/ai-outreach/LaunchPanel";
 import { ExperimentReviewActions } from "@/components/command/ai-outreach/ExperimentReviewActions";
 import { SendsList, type SendDisplayRow } from "@/components/command/ai-outreach/SendsList";
+import { TestSendControl } from "@/components/command/ai-outreach/TestSendControl";
 import { listOutreachSends, getOutreachSendsSummary, getCampaignFilterOptions, type OutreachSendStatus, type OutreachSendsScope } from "@/lib/outreach/sends";
 
 export const dynamic = "force-dynamic";
@@ -418,9 +419,12 @@ function ExperimentRow({ e }: { e: ExperimentListItem }) {
 
         {/* The emails, rendered as they'll send — one card per variant */}
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">
-            The emails <span className="text-neutral-600 normal-case tracking-normal">· send dates projected from today, within business hours</span>
-          </p>
+          <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+            <p className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
+              The emails <span className="text-neutral-600 normal-case tracking-normal">· send dates projected from today, within business hours</span>
+            </p>
+            {(e.status === "approved" || e.status === "running") && <TestSendControl experimentId={e.id} />}
+          </div>
           <div className="grid lg:grid-cols-2 gap-4">
             {e.variants.map((v) => {
               const roll = e.rollup?.variants.find((rv) => rv.variantId === v.id);
