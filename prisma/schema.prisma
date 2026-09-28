@@ -760,6 +760,7 @@ model PropertyTransaction {
   hubCardDismissals HubCardDismissal[]
   milestoneProposals MilestoneProposal[]
   agentRuns AgentRun[]
+  referrals Referral[]
 
   @@index([serviceType, createdAt])
   // Phase 4 perceived-performance (2026-09-18, PERF-11). Every list, hub
@@ -855,6 +856,7 @@ model BuyerRound {
   chaseTasks           ChaseTask[]
   priceHistory         PriceHistory[]
   clientChaseStates    ClientChaseState[]
+  referrals            Referral[]
 
   // Inverse of PropertyTransaction.activeBuyerRoundId.
   activeForTransaction PropertyTransaction? @relation("ActiveBuyerRound")
@@ -1130,6 +1132,7 @@ model SolicitorFirm {
   referredForTransactions  PropertyTransaction[]        @relation("ReferredFirm")
   recommendations          AgencyRecommendedSolicitor[]
   milestoneConfirmations   MilestoneCompletion[]        @relation("MilestoneConfirmedByFirm")
+  referrals                Referral[]                   @relation("ReferralSolicitorFirm")
 
   @@unique([name])
 }
@@ -1210,6 +1213,7 @@ model BrokerFirm {
   transactions PropertyTransaction[] @relation("TxBuyerBroker")
   onwardTransactions PropertyTransaction[] @relation("TxOnwardBroker")
   preferences  AgencyPreferredBroker[]
+  referrals    Referral[]            @relation("ReferralBrokerFirm")
 }
 
 model BrokerContact {
@@ -1224,6 +1228,7 @@ model BrokerContact {
   firm         BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
   transactions PropertyTransaction[] @relation("TxBuyerBrokerContact")
   onwardTransactions PropertyTransaction[] @relation("TxOnwardBrokerContact")
+  referrals    Referral[]            @relation("ReferralBrokerContact")
 }
 
 model AgencyPreferredBroker {
@@ -1239,6 +1244,64 @@ model AgencyPreferredBroker {
 
   agency     Agency     @relation(fields: [agencyId], references: [id])
   brokerFirm BrokerFirm @relation(fields: [brokerFirmId], references: [id], onDelete: Cascade)
+}
+
+// ── Referral ledger (docs/active/referral-ledger/00-spec.md) ─────────────────
+//
+// One row per referral, so referral income is tracked against the specific
+// buyer/sale that earned it instead of a single fixed slot on the file. This is
+// what makes a relist safe: the previous buyer's earned broker fee stays on
+// their archived round (real revenue, correctly attributed) while the new buyer
+// starts clean.
+//
+// Attribution: buyer_* kinds carry the round's buyerRoundId; seller_solicitor
+// and onward_broker are file/seller-level (buyerRoundId null) and carry across
+// relist untouched. Firm/contact are typed nullable FKs (SolicitorFirm vs
+// BrokerFirm are separate tables) plus firmNameSnapshot so the row survives a
+// firm rename/delete (mirrors QuoteRequest's snapshot approach).
+//
+// Phase 1 = model only. No read path consumes it yet; Phase 2 backfills, Phase 3
+// cuts consumers over, Phase 4 wires the relist keep/void rules + PM5 earned-flip.
+model Referral {
+  id               String         @id @default(cuid())
+  transactionId    String
+  buyerRoundId     String?
+  kind             ReferralKind
+  solicitorFirmId  String?
+  brokerFirmId     String?
+  brokerContactId  String?
+  firmNameSnapshot String
+  feePence         Int?
+  vat              FeeVatTreatment @default(plus)
+  status           ReferralStatus  @default(pending)
+  earnedAt         DateTime?
+  receivedAt       DateTime?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  buyerRound    BuyerRound?         @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+  solicitorFirm SolicitorFirm?      @relation("ReferralSolicitorFirm", fields: [solicitorFirmId], references: [id])
+  brokerFirm    BrokerFirm?         @relation("ReferralBrokerFirm", fields: [brokerFirmId], references: [id])
+  brokerContact BrokerContact?      @relation("ReferralBrokerContact", fields: [brokerContactId], references: [id])
+
+  @@index([transactionId])
+  @@index([buyerRoundId])
+  @@index([kind, status])
+}
+
+enum ReferralKind {
+  buyer_solicitor // round-attributed; voided on relist if unearned
+  seller_solicitor // file-level; carries across relist (seller unchanged)
+  buyer_broker // round-attributed; kept if earned (PM5+), else voided
+  onward_broker // file-level; the seller's onward-purchase broker
+}
+
+enum ReferralStatus {
+  pending // recorded, not yet earned
+  earned // broker: PM5 reached. solicitor: completion reached
+  received // fee actually collected
 }
 
 // Recommended-services directory + client-submitted quote requests. Started
