@@ -974,9 +974,22 @@ export async function evaluateTransactionReminders(
     // live file's chase reads "47d overdue" the instant the new sale starts.
     // The archived drawer's Sale-1 record still captures the historical
     // truth (PR 1 cancellation stamped the old chase as cancelled).
+    //
+    // 2026-09-28: the SAME clamp must apply to EVERY buyer (PM) chase. A new
+    // buyer restarts the whole purchase journey, so a buyer chase can never
+    // legitimately be due before their round began. Four buyer rules anchor
+    // to tx.createdAt (no anchorMilestone): PM1, PM2, PM5, PM9 — on a relisted
+    // file that's the ORIGINAL file-creation date, so they were "born overdue"
+    // by (today − file creation − grace) for the incoming buyer (Old Oak
+    // Gardens PM9 read "96 days overdue"). Predecessor-anchored PM rules are
+    // unaffected: their anchor completes on the current round, always ≥ the
+    // round start, so the clamp is a no-op for them. Single-round files are
+    // unaffected too (round start ≈ tx.createdAt). Only ever moves forward.
+    const isResetVmTarget =
+      !!rule.targetMilestoneCode && RELIST_RESET_VM_CODE_SET.has(rule.targetMilestoneCode);
+    const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
     if (
-      rule.targetMilestoneCode
-      && RELIST_RESET_VM_CODE_SET.has(rule.targetMilestoneCode)
+      (isResetVmTarget || isPurchaserTarget)
       && transaction.activeBuyerRound?.createdAt
       && anchorDate.getTime() < transaction.activeBuyerRound.createdAt.getTime()
     ) {
