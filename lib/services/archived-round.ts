@@ -82,6 +82,19 @@ export type ArchivedRoundData = {
     visibleToClient: boolean;
     isAutomated: boolean;
   }[];
+  // Referral(s) attributed to this sale (referral-ledger arc). A relist keeps an
+  // EARNED buyer-broker referral on the archived round (real revenue), voids
+  // unearned/solicitor ones — so this is typically the preserved broker fee.
+  referrals: {
+    id: string;
+    kind: string;
+    firmNameSnapshot: string;
+    feePence: number | null;
+    vat: string;
+    status: string;
+    earnedAt: Date | null;
+    receivedAt: Date | null;
+  }[];
 };
 
 // Snapshot row shape — written by the relist action onto outgoing
@@ -159,6 +172,14 @@ export async function getArchivedRoundData(
   const buyerContacts = await prisma.contact.findMany({
     where: { propertyTransactionId: transactionId, buyerRoundId: roundId },
     select: { id: true, name: true, email: true, phone: true, roleType: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Referral(s) attributed to this sale — the earned buyer-broker fee kept on the
+  // archived round by the relist rules (referral-ledger arc).
+  const referrals = await prisma.referral.findMany({
+    where: { transactionId, buyerRoundId: roundId },
+    select: { id: true, kind: true, firmNameSnapshot: true, feePence: true, vat: true, status: true, earnedAt: true, receivedAt: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -394,6 +415,7 @@ export async function getArchivedRoundData(
     buyerContacts,
     pmCompletions,
     comms,
+    referrals,
   };
 }
 

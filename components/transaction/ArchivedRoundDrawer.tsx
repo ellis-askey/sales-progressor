@@ -124,6 +124,7 @@ export type ArchivedRoundPayload = {
   }>;
   comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; senderLabel: string | null; visibleToClient: boolean; isAutomated: boolean }>;
   fileDocuments: Array<{ id: string; filename: string; mimeType: string | null; fileSize: number; source: string | null; createdAt: string; signedUrl: string | null }>;
+  referrals: Array<{ id: string; kind: string; firmNameSnapshot: string; feePence: number | null; vat: string; status: string; earnedAt: string | null; receivedAt: string | null }>;
 };
 
 // ─── Helpers (verbatim from the audited components) ──────────────────
@@ -151,6 +152,21 @@ function fmtShortDate(d: string | null): string {
 function fmtSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─── Referral display helpers ────────────────────────────────────────
+
+const REFERRAL_KIND_LABELS: Record<string, string> = {
+  buyer_broker: "Buyer's mortgage broker",
+  buyer_solicitor: "Buyer's solicitor",
+  seller_solicitor: "Seller's solicitor",
+  onward_broker: "Seller's onward broker",
+};
+
+function referralStatusPill(status: string): { tone: "success" | "brand" | "muted"; label: string } {
+  if (status === "received") return { tone: "success", label: "Received" };
+  if (status === "earned") return { tone: "brand", label: "Earned" };
+  return { tone: "muted", label: "Pending" };
 }
 
 // ─── Status pill ─────────────────────────────────────────────────────
@@ -500,6 +516,46 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                         last
                       />
                     </div>
+
+                    {/* Referral income kept against this sale — the earned broker
+                        fee preserved on relist (referral-ledger arc). Only shown
+                        when this sale actually had a referral on record. */}
+                    {data.referrals.length > 0 && (
+                      <div style={{ marginTop: 22 }}>
+                        <p className="arch-panel-title">Referral income</p>
+                        <div>
+                          {data.referrals.map((r, i) => {
+                            const pill = referralStatusPill(r.status);
+                            return (
+                              <div
+                                key={r.id}
+                                style={{ display: "flex", gap: 14, alignItems: "center", padding: "14px 0", borderBottom: i === data.referrals.length - 1 ? "none" : "1px solid var(--agent-border-default)" }}
+                              >
+                                <div style={{ width: 44, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                                  <IconChip bg="#F1EFE8" color="#5A5750"><CurrencyGbp size={20} weight="regular" /></IconChip>
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+                                    {REFERRAL_KIND_LABELS[r.kind] ?? "Referral"}
+                                  </p>
+                                  <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", wordBreak: "break-word" }}>
+                                    {r.firmNameSnapshot}
+                                  </p>
+                                </div>
+                                <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+                                  {r.feePence != null && (
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                                      {formatPrice(r.feePence)}
+                                    </span>
+                                  )}
+                                  <Pill tone={pill.tone} size="sm" glass={pill.tone !== "muted"}>{pill.label}</Pill>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

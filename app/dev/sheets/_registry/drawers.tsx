@@ -369,6 +369,9 @@ function makeArchivedSeed(opts: {
       { id: "d1", filename: "Memorandum of Sale.pdf", mimeType: "application/pdf", fileSize: 184320, source: "agent upload", createdAt: "2026-03-03T09:30:00Z", signedUrl: "#" },
       { id: "d2", filename: "Buyer proof of funds.pdf", mimeType: "application/pdf", fileSize: 96256, source: "buyer upload", createdAt: "2026-03-11T15:00:00Z", signedUrl: null },
     ],
+    referrals: [
+      { id: "ref1", kind: "buyer_broker", firmNameSnapshot: "Southgate Mortgage Partners", feePence: 45000, vat: "plus", status: "received", earnedAt: "2026-03-18T10:00:00Z", receivedAt: "2026-03-25T10:00:00Z" },
+    ],
   };
 }
 
