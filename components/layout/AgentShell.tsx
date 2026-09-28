@@ -31,6 +31,7 @@ import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
+import { getNavBadgeCountsAction } from "@/app/actions/nav-badges";
 
 // Accounts that see the Design Lab flask in the topbar. Picks persist per-user,
 // so adding an email here is all that's needed to let that account use it.
@@ -49,7 +50,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number) {
+function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -63,16 +64,16 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
   // hidden for them. See docs/active/enquiries-triage/00-spec.md.
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
-    ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
+    ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray, badge: remindersCount > 0 ? remindersCount : undefined }] : []),
     ...(showSelfPages ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
-    { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
+    { href: "/agent/completions", label: "Completions", Icon: CalendarCheck, badge: completionsCount > 0 ? completionsCount : undefined },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
     ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     // Chains: internal staff + self-managing agencies (+ the named allowlist).
     // Same canSeeChains gate as the server route guard.
-    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple }] : []),
+    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined }] : []),
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];
@@ -257,7 +258,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; agentBellClearedAt?: string | null }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -267,7 +268,8 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const displayName     = userName ?? session.user.name ?? "";
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
-  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, todoDueCount, enquiriesOpenCount);
+  const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
+  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
@@ -294,6 +296,22 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
     }
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
+
+  // Keep badge counts in sync when the server layout re-renders (a hard load or
+  // the manual refresh updates the props).
+  useEffect(() => {
+    setBadges({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
+  }, [todoDueCount, enquiriesOpenCount, remindersCount, chainsCount, completionsCount]);
+
+  // Refetch the "needs attention" counts on client-side navigation, so a number
+  // drops the moment you clear the work rather than sticking until a reload.
+  const firstNavRef = useRef(true);
+  useEffect(() => {
+    if (firstNavRef.current) { firstNavRef.current = false; return; }
+    let live = true;
+    getNavBadgeCountsAction().then((c) => { if (live && c) setBadges(c); }).catch(() => {});
+    return () => { live = false; };
+  }, [pathname]);
 
   const [refreshing, setRefreshing] = useState(false);
   function handleRefresh() {

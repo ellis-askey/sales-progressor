@@ -93,6 +93,20 @@ export async function countOpenEnquiries(scope: AccessScope): Promise<number> {
   });
 }
 
+// "Needs you" enquiries for the nav badge: only loops autopilot has escalated to
+// a human (13 working days of silence), still open, and not currently snoozed.
+// This is the "your move" count — not every open loop.
+export async function countEscalatedEnquiries(scope: AccessScope, now: Date = new Date()): Promise<number> {
+  return prisma.enquiryTracker.count({
+    where: {
+      escalatedAt: { not: null },
+      closedAt: null,
+      OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+      transaction: enquiryTxWhere(scope),
+    },
+  });
+}
+
 export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryRow[]> {
   const trackers = await prisma.enquiryTracker.findMany({
     where: { closedAt: null, transaction: enquiryTxWhere(scope) },
@@ -234,16 +248,24 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
 export async function getEnquiryHistory(scope: AccessScope, transactionId: string): Promise<EnquiryHistoryEntry[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, activeBuyerRound: { select: { createdAt: true } } },
   });
   if (!tx) return [];
+
+  // On a relisted file the enquiry tracker is per-file and gets reopened for the
+  // new buyer, but the PREVIOUS buyer's movements + chases stay on it. Bound the
+  // history to the active round's start so the old buyer's enquiry activity never
+  // shows in the new buyer's timeline. Null (never-relisted) → no bound. Anchored
+  // on the round (not tracker.openedAt) so a legitimate same-buyer close/reopen
+  // keeps its earlier history. (2026-09-28)
+  const roundStart = tx.activeBuyerRound?.createdAt ?? null;
 
   const tracker = await prisma.enquiryTracker.findUnique({
     where: { transactionId },
     select: {
       openedAt: true,
       movements: {
-        where: { status: "accepted" },
+        where: { status: "accepted", ...(roundStart ? { occurredAt: { gte: roundStart } } : {}) },
         orderBy: { occurredAt: "desc" },
         select: { id: true, note: true, kind: true, occurredAt: true, createdByUserId: true },
       },
@@ -256,7 +278,7 @@ export async function getEnquiryHistory(scope: AccessScope, transactionId: strin
   // purpose:"chase") keeps milestone / solicitor chases and other notes out of the
   // enquiry timeline, which used to pollute it (critique #19b).
   const chaseComms = await prisma.outboundMessage.findMany({
-    where: { transactionId, isEnquiryChase: true },
+    where: { transactionId, isEnquiryChase: true, ...(roundStart ? { createdAt: { gte: roundStart } } : {}) },
     orderBy: { sentAt: "desc" },
     select: { id: true, sentAt: true, createdAt: true, recipientName: true, method: true },
     take: 30,

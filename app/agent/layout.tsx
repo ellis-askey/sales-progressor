@@ -6,10 +6,7 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
-import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
-import { countReviewsDue } from "@/lib/services/reviews";
-import { getAccessScope } from "@/lib/security/access-scope";
-import { countOpenEnquiries } from "@/lib/services/enquiries";
+import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -60,21 +57,11 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     session.user.agencyId,
   );
 
-  // To-Do nav badge: due-today + overdue to-dos, PLUS reviews due (files on
-  // hold past their return date + hand-typed reviews due). Admins don't get
-  // the To-Do nav item, so skip the queries for them.
-  const todoDueCount = session.user.role === "admin"
-    ? 0
-    : (await countAgentDueOrOverdue(session.user.id, session.user.agencyId, session.user.role))
-      + (await countReviewsDue(getAccessScope(session)).catch(() => 0));
-
-  // Enquiries nav badge — open enquiry loops to triage. Shown to whoever gets
-  // the nav item: internal staff, plus agencies that progress their own files
-  // (hasSelfManagedFiles is true for internal staff too, so it matches the
-  // nav's showSelfPages gate). getAccessScope keeps the count agency-scoped.
-  const enquiriesOpenCount = hasSelfManagedFiles
-    ? await countOpenEnquiries(getAccessScope(session)).catch(() => 0)
-    : 0;
+  // Nav "needs attention" badges (To-Do, Enquiries, Reminders, Chains,
+  // Completions) — each a "your move" count, computed once here for first paint
+  // and refetched client-side on navigation so they stay live. See
+  // lib/agent/nav-badges.ts.
+  const badges = await computeNavBadgeCounts(session, hasSelfManagedFiles);
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
@@ -97,7 +84,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={todoDueCount} enquiriesOpenCount={enquiriesOpenCount} agentBellClearedAt={agentBellClearedAt}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

@@ -2056,6 +2056,20 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
     .filter((c) => c.openTransactionId);
 }
 
+// Nav badge: live sales that still need chain setup — no chain linked and not
+// yet confirmed "no chain needed". (The stale-confirmation "resurfaced" edge is
+// omitted for the count; the queue itself handles it.)
+export async function countChainsNeedsSetup(scope: AccessScope): Promise<number> {
+  return prisma.propertyTransaction.count({
+    where: {
+      AND: [
+        scopeTransactionWhere(scope),
+        { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null, noChainNeededAt: null, ...serviceTypeFilter(scope) },
+      ],
+    },
+  });
+}
+
 export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoChainSale[]> {
   const rows = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null, ...serviceTypeFilter(scope) }] },

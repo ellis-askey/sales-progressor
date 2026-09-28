@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
-import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase, feeExVat } from "@/lib/services/fees";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
@@ -221,7 +221,9 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       clientMoveInfos: { where: { side: "purchaser" }, select: { mortgageOfferExpiry: true, sellingRelated: true, fundsInPlace: true } },
       agency:       { select: { name: true } },
       assignedUser: { select: { name: true } },
-      contacts: { select: { name: true, roleType: true } },
+      // Active-round contacts only — a relisted-then-completed file must not
+      // list the previous buyer alongside the new one (2026-09-28).
+      contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       chainLink: { select: { chainId: true } },
@@ -343,7 +345,29 @@ export async function getCompletionsMomentum(vis: AgentVisibility): Promise<{
 // were confirmed). Powers the collapsed "Completed" history on /agent/completions.
 // Newest completion first, capped — the page shows the 3 most recent and lets
 // the rest expand, so a busy agency never gets an endless page.
+// The UTC instants for the start and end of "today" in Europe/London.
+function londonDayBounds(now: Date): { start: Date; end: Date } {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const offset = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second")) - now.getTime();
+  const start = new Date(Date.UTC(get("year"), get("month") - 1, get("day"), 0, 0, 0) - offset);
+  return { start, end: new Date(start.getTime() + 86_400_000) };
+}
+
+// Nav badge: files whose completion date is TODAY and not yet confirmed complete
+// (still active). Drops to zero the moment completion is confirmed (status flips
+// to "completed").
+export async function countCompletionsToday(vis: AgentVisibility, now: Date = new Date()): Promise<number> {
+  const { start, end } = londonDayBounds(now);
+  return prisma.propertyTransaction.count({
+    where: { ...txWhere(vis), status: "active", completionDate: { gte: start, lt: end } },
+  });
+}
+
 export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
+  // Active-round scope for the purchaser-name array below — otherwise a
+  // relisted-then-completed file lists both the old and new buyer (2026-09-28).
+  const activeRoundIds = await loadActiveRoundIds({ ...txWhere(vis), status: "completed" });
   const rows = await prisma.propertyTransaction.findMany({
     where: { ...txWhere(vis), status: "completed" },
     select: {
@@ -360,7 +384,7 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
       photoStoragePath: true,
       agency:       { select: { name: true } },
       assignedUser: { select: { name: true } },
-      contacts: { select: { name: true, roleType: true } },
+      contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
     },
     orderBy: { completionDate: "desc" },
     take: limit,
