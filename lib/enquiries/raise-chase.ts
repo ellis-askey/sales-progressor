@@ -24,6 +24,8 @@ import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
+import { getEnquiryOverride, consumeEnquirySkip } from "@/lib/services/chase-overrides";
+import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
 
 function firstNameOf(full: string): string {
   return full.trim() ? extractFirstName(full) : "there";
@@ -140,6 +142,17 @@ export async function runRaiseChaseCron(now: Date): Promise<{
 
     if (!decision.nudgeDue || !decision.target) continue;
 
+    // Agent override from the chase timeline (edit the copy / skip the next nudge).
+    const override = await getEnquiryOverride(tx.id, "raise");
+    if (override?.skipNext) {
+      await consumeEnquirySkip(tx.id, "raise");
+      // Skip-semantics A: advance the clock without counting or changing the
+      // target, so the same nudge retries one cycle later.
+      await prisma.enquiryRaiseChase.update({ where: { id: ch.id }, data: { lastNudgedAt: now } }).catch(() => {});
+      continue;
+    }
+    const editedBody = override?.bodyOverride?.trim() || null;
+
     // Replyable per-agency / EXP sender + signature identity (same as the
     // reply-loop chase).
     // Sending address = the file's agency authenticated address (Reply-To
@@ -209,14 +222,17 @@ export async function runRaiseChaseCron(now: Date): Promise<{
               agentSignatureHtml: sigHtml,
               agentSignatureText: sigText,
             });
-            await sendChainEmail({ to: b.email as string, subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+            const outSubject = override?.subjectOverride ?? mail.subject;
+            const outText = editedBody ?? mail.text;
+            const outHtml = editedBody ? wrapEditedBody(editedBody) : mail.html;
+            await sendChainEmail({ to: b.email as string, subject: outSubject, text: outText, html: outHtml, from, replyTo });
             await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer", recipientName: b.name }).catch(() => {});
             await logEnquiryChaseComm({
               transactionId: tx.id,
               agencyId: tx.agencyId,
-              subject: mail.subject,
-              body: mail.text,
-              html: mail.html,
+              subject: outSubject,
+              body: outText,
+              html: outHtml,
               recipientEmail: b.email as string,
               recipientName: b.name,
               createdById: ownerId ?? null,
@@ -243,14 +259,17 @@ export async function runRaiseChaseCron(now: Date): Promise<{
             agentSignatureHtml: sigHtml,
             agentSignatureText: sigText,
           });
-          await sendChainEmail({ to: email, cc: await solicitorCcForAgency(tx.purchaserSolicitorContact, tx.agencyId), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo });
+          const outSubject = override?.subjectOverride ?? mail.subject;
+          const outText = editedBody ?? mail.text;
+          const outHtml = editedBody ? wrapEditedBody(editedBody) : mail.html;
+          await sendChainEmail({ to: email, cc: await solicitorCcForAgency(tx.purchaserSolicitorContact, tx.agencyId), subject: outSubject, text: outText, html: outHtml, from, replyTo });
           await logChaseSend({ transactionId: tx.id, kind: "raise", recipient: "buyer_solicitor", recipientName: tx.purchaserSolicitorFirm?.name ?? null }).catch(() => {});
           await logEnquiryChaseComm({
             transactionId: tx.id,
             agencyId: tx.agencyId,
-            subject: mail.subject,
-            body: mail.text,
-            html: mail.html,
+            subject: outSubject,
+            body: outText,
+            html: outHtml,
             recipientEmail: email,
             recipientName: tx.purchaserSolicitorFirm?.name ?? null,
             createdById: ownerId ?? null,

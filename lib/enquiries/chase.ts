@@ -2,8 +2,8 @@
 //
 // For every OPEN enquiries tracker it works out who holds the ball (the
 // tracker's whose-court state), how long it's been silent, and:
-//   - sends the matching chase email every 7 working days, via the per-agency
-//     / EXP replyable sender (a reply lands in the right inbox), and
+//   - sends the matching chase email (first after 6 working days, then every 5),
+//     via the per-agency / EXP replyable sender (a reply lands in the right inbox), and
 //   - escalates after 13 working days (about 2.5 weeks) of silence: it sets the amber
 //     "stalled" flag on the tracker (surfaced on the file and in the hub
 //     attention list) and drops a bell notification to the file's owner, so a
@@ -29,6 +29,8 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
+import { getEnquiryOverride, consumeEnquirySkip } from "@/lib/services/chase-overrides";
+import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
 import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "./cadence";
 
 // Pure decision: given a tracker's timestamps and "now", is a chase or an
@@ -165,6 +167,16 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
 
     if (!chaseDue) continue;
 
+    // Agent override from the chase timeline (edit the copy / skip the next send).
+    const override = await getEnquiryOverride(tx.id, "reply");
+    if (override?.skipNext) {
+      // Skip-semantics A: advance the clock one interval without sending or
+      // counting, then consume the one-shot skip. Cadence resumes next cycle.
+      await prisma.enquiryTracker.update({ where: { id: t.id }, data: { lastChasedAt: now } });
+      await consumeEnquirySkip(tx.id, "reply");
+      continue;
+    }
+
     const solicitorContact = seller ? tx.vendorSolicitorContact : tx.purchaserSolicitorContact;
     const email = solicitorContact?.email;
     const pausedFlag = seller ? tx.vendorSolicitorEmailsPaused : tx.purchaserSolicitorEmailsPaused;
@@ -225,13 +237,20 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       agentSignatureText: agentSig?.text ?? (inHouseSig ? inHouseSig.text.trim() : null),
     });
 
+    // Apply any staged edit: an edited body sends as a plain note (wrapEditedBody),
+    // mirroring the milestone chase editor; an edited subject replaces the default.
+    const finalSubject = override?.subjectOverride ?? mail.subject;
+    const editedBody = override?.bodyOverride?.trim() || null;
+    const finalText = editedBody ?? mail.text;
+    const finalHtml = editedBody ? wrapEditedBody(editedBody) : mail.html;
+
     // Deterministic outbound Message-ID, stored on the OutboundMessage record
     // below so an inbound reply can be matched to this enquiry chase.
     const outboundMessageId = buildOutboundMessageId(
       `enq-${tx.id}-${seller ? "v" : "p"}-${now.getTime()}`,
     );
     try {
-      await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: mail.subject, text: mail.text, html: mail.html, from, replyTo, messageId: outboundMessageId });
+      await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
       await prisma.enquiryTracker.update({
         where: { id: t.id },
         data: { lastChasedAt: now, chaseCount: { increment: 1 } },
@@ -246,9 +265,9 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       await logEnquiryChaseComm({
         transactionId: tx.id,
         agencyId: tx.agencyId,
-        subject: mail.subject,
-        body: mail.text,
-        html: mail.html,
+        subject: finalSubject,
+        body: finalText,
+        html: finalHtml,
         recipientEmail: email,
         recipientName: (seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name) ?? handlerName ?? null,
         createdById: ownerId ?? null,

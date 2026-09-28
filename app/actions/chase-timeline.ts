@@ -11,17 +11,23 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
-import { setChaseOverride, clearChaseOverride } from "@/lib/services/chase-overrides";
+import { setChaseOverride, clearChaseOverride, targetKeyFor } from "@/lib/services/chase-overrides";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
+import { extractFirstName } from "@/lib/contacts/displayName";
+import { buildEnquiryChaseEmail } from "@/lib/enquiries/chase-email";
+import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "@/lib/enquiries/raise-chase-email";
+import { raiseChaseTargetNext } from "@/lib/enquiries/raise-chase-decision";
+import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 
 type TargetInput =
   | { kind: "client"; contactId: string }
-  | { kind: "solicitor"; side: "vendor" | "purchaser" };
+  | { kind: "solicitor"; side: "vendor" | "purchaser" }
+  | { kind: "enquiry"; scope: "raise" | "reply" };
 
 async function assertOwns(transactionId: string) {
   const session = await requireSession();
@@ -108,7 +114,7 @@ export async function previewChaseEmailAction(input: {
   const target = input.target; // local const so the discriminated union narrows into closures
 
   // If the agent already staged an edit, prefill with that.
-  const targetKey = target.kind === "client" ? `contact:${target.contactId}` : `sol:${target.side}`;
+  const targetKey = targetKeyFor(target);
   const existing = await prisma.chaseEmailOverride.findUnique({
     where: {
       transactionId_targetKey_milestoneCode: {
@@ -122,16 +128,78 @@ export async function previewChaseEmailAction(input: {
     where: { id: input.transactionId },
     select: {
       propertyAddress: true, purchasePrice: true, agencyId: true, activeBuyerRoundId: true,
-      agency: { select: { name: true } },
+      agency: { select: { name: true, emailTheme: true } },
       agentUser: { select: { name: true, phone: true } },
       assignedUser: { select: { name: true, phone: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
+      vendorSolicitorContact: { select: { name: true } },
+      purchaserSolicitorContact: { select: { name: true } },
       contacts: { select: { id: true, name: true, portalToken: true, roleType: true, buyerRoundId: true } },
     },
   });
   if (!tx) return { ok: false, error: "Transaction not found" };
   const brand = tx.agency?.name ?? "Sales Progressor";
+
+  // Enquiry chases: compose the upcoming email exactly as the enquiry crons do
+  // (reply-loop to the solicitor holding the ball; raise to the next buyer /
+  // buyer's-solicitor target), so the timeline preview mirrors the send.
+  if (target.kind === "enquiry") {
+    const person = tx.assignedUser ?? tx.agentUser;
+    const senderName = person?.name ?? brand;
+    const sellerNames = tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name);
+    const buyerNames = tx.contacts.filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId)).map((c) => c.name);
+    const editedBody = existing?.bodyOverride?.trim() || null;
+    const applyEdit = (m: { subject: string; text: string; html: string }) => ({
+      subject: existing?.subjectOverride ?? m.subject,
+      text: editedBody ?? m.text,
+      html: editedBody ? wrapEditedBody(editedBody) : m.html,
+    });
+
+    if (target.scope === "reply") {
+      const tracker = await prisma.enquiryTracker.findUnique({ where: { transactionId: input.transactionId }, select: { currentlyWith: true } });
+      const seller = (tracker?.currentlyWith ?? "seller_solicitor") === "seller_solicitor";
+      const handler = seller ? tx.vendorSolicitorContact?.name : tx.purchaserSolicitorContact?.name;
+      const firmName = seller ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name;
+      const built = buildEnquiryChaseEmail({
+        court: seller ? "seller_solicitor" : "buyer_solicitor",
+        address: tx.propertyAddress,
+        clientNames: seller ? sellerNames : buyerNames,
+        recipientFirstName: handler ? extractFirstName(handler) : undefined,
+        senderName, agencyName: brand, provideUpdateUrl: "#",
+      });
+      const out = applyEdit(built);
+      const sideLabel = seller ? "Seller's solicitor" : "Buyer's solicitor";
+      return { ok: true, ...out, recipientName: firmName ?? sideLabel, recipientRole: sideLabel };
+    }
+
+    // Raise chase: compose whichever target is next in the alternating schedule.
+    const raise = await prisma.enquiryRaiseChase.findUnique({
+      where: { transactionId: input.transactionId },
+      select: { openedAt: true, lastNudgedAt: true, lastTarget: true, nudgeCount: true, escalatedAt: true },
+    });
+    const nextTarget = raise
+      ? raiseChaseTargetNext({ ...raise, expectedDate: null })
+      : "buyer";
+    if (nextTarget === "buyer") {
+      const buyer = tx.contacts.find((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId));
+      const theme = resolveEmailTheme((tx.agency?.emailTheme ?? null) as EmailThemeInput | null);
+      const built = buildRaiseBuyerEmail({
+        firstName: buyer?.name ? extractFirstName(buyer.name) : "there",
+        address: tx.propertyAddress, senderName, agencyName: brand, fileUrl: "#", theme,
+      });
+      const out = applyEdit(built);
+      return { ok: true, ...out, recipientName: buyer?.name ?? "Buyer", recipientRole: "Buyer" };
+    }
+    const built = buildRaiseSolicitorEmail({
+      address: tx.propertyAddress, clientNames: buyerNames,
+      sellerFirmName: tx.vendorSolicitorFirm?.name ?? undefined,
+      recipientFirstName: tx.purchaserSolicitorContact?.name ? extractFirstName(tx.purchaserSolicitorContact.name) : undefined,
+      senderName, agencyName: brand, provideUpdateUrl: "#",
+    });
+    const out = applyEdit(built);
+    return { ok: true, ...out, recipientName: tx.purchaserSolicitorFirm?.name ?? "Buyer's solicitor", recipientRole: "Buyer's solicitor" };
+  }
 
   if (target.kind === "client") {
     const c = tx.contacts.find((x) => x.id === target.contactId);

@@ -21,7 +21,8 @@ import {
 
 type OverrideTarget =
   | { kind: "client"; contactId: string; milestoneCode: string }
-  | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string };
+  | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string }
+  | { kind: "enquiry"; scope: "raise" | "reply"; milestoneCode: string };
 
 type Preview = { subject: string; text: string; html: string; recipientName: string; recipientRole: string };
 
@@ -50,7 +51,9 @@ export function NextChaseControl({
   const actionTarget =
     target.kind === "client"
       ? ({ kind: "client", contactId: target.contactId } as const)
-      : ({ kind: "solicitor", side: target.side } as const);
+      : target.kind === "solicitor"
+        ? ({ kind: "solicitor", side: target.side } as const)
+        : ({ kind: "enquiry", scope: target.scope } as const);
   const base = { transactionId, target: actionTarget, milestoneCode: target.milestoneCode };
 
   // Render the upcoming email inline on mount (and whenever the thread changes).

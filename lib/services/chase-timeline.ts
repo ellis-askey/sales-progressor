@@ -15,10 +15,12 @@ import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
-import { getChaseOverridesForTimeline } from "@/lib/services/chase-overrides";
+import { getChaseOverridesForTimeline, ENQUIRY_OVERRIDE_CODE } from "@/lib/services/chase-overrides";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 import { resolveConfirmer } from "@/lib/updates-copy";
+import { enquiryNextChaseAt, enquiryEscalateAt } from "@/lib/enquiries/tracker";
+import { raiseChaseNextNudgeAt, raiseChaseEscalateAt, raiseChaseTargetNext } from "@/lib/enquiries/raise-chase-decision";
 
 // Short "who confirmed this step" label for the timeline's resolved event —
 // reuses the canonical resolveConfirmer so it names the agent, the solicitor
@@ -127,6 +129,7 @@ export type ChaseThread = {
   overrideTarget:
     | { kind: "client"; contactId: string; milestoneCode: string }
     | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string }
+    | { kind: "enquiry"; scope: "raise" | "reply"; milestoneCode: string }
     | null;
   overrideEdited: boolean;  // a subject/body edit is staged for the next chase
   overrideSkipped: boolean; // the next chase is set to skip
@@ -149,6 +152,11 @@ export type NextSend = {
   overrideTarget: ChaseThread["overrideTarget"]; // drives the per-lane edit/skip
   edited: boolean; // a subject/body edit is staged for this lane's next send
   skipped: boolean; // this lane's next send is set to skip
+  // Enquiry chases repeat until escalation rather than capping at N — set true so
+  // the card shows "Next chase {date}" + an escalation deadline instead of the
+  // milestone "chase N of cap" line. Omitted (undefined) on milestone/solicitor sends.
+  untilEscalation?: boolean;
+  escalatesAt?: string | null; // ISO — when it escalates to the file owner if no reply (enquiry sends)
 };
 
 export type ChaseTimelineStats = {
@@ -267,7 +275,7 @@ export async function getChaseTimeline(
     }),
     prisma.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { currentlyWith: true, openedAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, outstandingNote: true },
+      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, outstandingNote: true },
     }),
     // Active-round milestone completions — the source of truth for whether a
     // solicitor step is still outstanding (SolicitorChaseState.status is stale:
@@ -607,16 +615,47 @@ export async function getChaseTimeline(
     if (raiseChase.escalatedAt) events.push({ at: raiseChase.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries still not raised after repeated nudges.", actor: "System" });
     if (raiseChase.closedAt) events.push({ at: raiseChase.closedAt.toISOString(), kind: "resolved", title: "Enquiries raised", detail: "The reply loop takes over from here.", actor: "System" });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    // Predict the upcoming nudge (date + who) and the escalation deadline, so the
+    // raise chase shows the same "Up next" card as milestone chases.
+    const rcState = {
+      openedAt: raiseChase.openedAt,
+      lastNudgedAt: raiseChase.lastNudgedAt,
+      lastTarget: raiseChase.lastTarget,
+      nudgeCount: raiseChase.nudgeCount,
+      escalatedAt: raiseChase.escalatedAt,
+      expectedDate: null,
+    };
+    const rcNextAt = closed ? null : raiseChaseNextNudgeAt(rcState);
+    const rcEscalateAt = closed ? null : raiseChaseEscalateAt(rcState);
+    const rcTarget = raiseChaseTargetNext(rcState);
+    const rcOvTarget = { kind: "enquiry" as const, scope: "raise" as const, milestoneCode: ENQUIRY_OVERRIDE_CODE };
+    const rcOv = overrideByKey.get(`enq:raise|${ENQUIRY_OVERRIDE_CODE}`);
+    const rcNext: NextSend | null = closed
+      ? null
+      : {
+          lane: rcTarget === "buyer" ? "client" : "solicitor",
+          recipientLabel: rcTarget === "buyer" ? "Buyer" : "Buyer's solicitor",
+          dueAt: rcNextAt ? rcNextAt.toISOString() : null,
+          chaseNumber: n + 1,
+          capOf: 0,
+          isAutomated: !esc,
+          handedToTeam: esc,
+          overrideTarget: rcOvTarget,
+          edited: !!rcOv?.edited,
+          skipped: !!rcOv?.skipped,
+          untilEscalation: true,
+          escalatesAt: rcEscalateAt ? rcEscalateAt.toISOString() : null,
+        };
     threads.push({
       id: "enquiry-raise", title: "Getting enquiries raised", side: "purchaser", track: "enquiry",
       trackLabel: "Buyer's solicitor", state, waitingOn: buyerSolLabel,
       autoChases: n, manualChases: 0, totalChases: n,
       lastChasedAt: raiseChase.lastNudgedAt?.toISOString() ?? null,
-      nextDueAt: null, nextIsAutomated: !closed && !esc,
+      nextDueAt: rcNextAt ? rcNextAt.toISOString() : null, nextIsAutomated: !closed && !esc,
       escalatesAfter: 0, escalated: esc, snoozedUntil: null,
       startedAt: raiseChase.openedAt.toISOString(), events,
-      overrideTarget: null, overrideEdited: false, overrideSkipped: false,
-      nextSends: [],
+      overrideTarget: closed ? null : rcOvTarget, overrideEdited: !!rcOv?.edited, overrideSkipped: !!rcOv?.skipped,
+      nextSends: rcNext ? [rcNext] : [],
     });
   }
 
@@ -639,16 +678,38 @@ export async function getChaseTimeline(
     if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
     if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Nothing left to chase.", actor: "System" });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    // Predict the next reply-loop chase (to the solicitor holding the ball) + the
+    // escalation deadline, matching the sender's cadence so the card is truthful.
+    const etNextAt = closed ? null : enquiryNextChaseAt(et, new Date(nowMs));
+    const etEscalateAt = closed ? null : enquiryEscalateAt(et, new Date(nowMs));
+    const etOvTarget = { kind: "enquiry" as const, scope: "reply" as const, milestoneCode: ENQUIRY_OVERRIDE_CODE };
+    const etOv = overrideByKey.get(`enq:reply|${ENQUIRY_OVERRIDE_CODE}`);
+    const etNext: NextSend | null = closed
+      ? null
+      : {
+          lane: "solicitor",
+          recipientLabel: withSeller ? "Seller's solicitor" : "Buyer's solicitor",
+          dueAt: etNextAt ? etNextAt.toISOString() : null,
+          chaseNumber: n + 1,
+          capOf: 0,
+          isAutomated: !esc && !snoozeAt,
+          handedToTeam: esc,
+          overrideTarget: etOvTarget,
+          edited: !!etOv?.edited,
+          skipped: !!etOv?.skipped,
+          untilEscalation: true,
+          escalatesAt: etEscalateAt ? etEscalateAt.toISOString() : null,
+        };
     threads.push({
       id: "enquiry-tracker", title: "Outstanding enquiries", side, track: "enquiry",
       trackLabel: withSeller ? "Seller's solicitor" : "Buyer's solicitor", state, waitingOn: who,
       autoChases: n, manualChases: 0, totalChases: n,
       lastChasedAt: et.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: null, nextIsAutomated: !closed && !esc && !snoozeAt,
+      nextDueAt: etNextAt ? etNextAt.toISOString() : null, nextIsAutomated: !closed && !esc && !snoozeAt,
       escalatesAfter: 0, escalated: esc, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: et.openedAt.toISOString(), events,
-      overrideTarget: null, overrideEdited: false, overrideSkipped: false,
-      nextSends: [],
+      overrideTarget: closed ? null : etOvTarget, overrideEdited: !!etOv?.edited, overrideSkipped: !!etOv?.skipped,
+      nextSends: etNext ? [etNext] : [],
     });
   }
 

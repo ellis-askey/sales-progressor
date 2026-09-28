@@ -68,3 +68,31 @@ export function raiseChaseDecision(s: RaiseChaseState, now: Date): RaiseChaseDec
 
   return { nudgeDue, target, escalateDue };
 }
+
+// Who the NEXT nudge targets (buyer or their solicitor), mirroring the schedule
+// above. Used by the chase timeline to label the upcoming "raise" chase.
+export function raiseChaseTargetNext(s: RaiseChaseState): RaiseChaseTarget {
+  if (s.nudgeCount === 0) return "buyer";
+  if (s.nudgeCount === 1) return "buyer_solicitor";
+  return s.lastTarget === "buyer" ? "buyer_solicitor" : "buyer";
+}
+
+// The date the NEXT nudge will send, or null once escalated. Mirrors
+// raiseChaseDecision's schedule so the timeline's predicted date matches when the
+// cron actually fires. Held behind a promised "raised by" date when that's later.
+export function raiseChaseNextNudgeAt(s: RaiseChaseState): Date | null {
+  if (s.escalatedAt) return null;
+  let scheduled: Date;
+  if (s.nudgeCount === 0) scheduled = addWorkingDays(s.openedAt, GRACE_BUYER_WD);
+  else if (s.nudgeCount === 1) scheduled = addWorkingDays(s.openedAt, SOLICITOR_AT_WD);
+  else scheduled = addWorkingDays(s.lastNudgedAt ?? s.openedAt, REPEAT_WD);
+  if (s.expectedDate && s.expectedDate > scheduled) return s.expectedDate;
+  return scheduled;
+}
+
+// The date the raise chase escalates to the file owner if enquiries still aren't
+// raised, or null once escalated.
+export function raiseChaseEscalateAt(s: RaiseChaseState): Date | null {
+  if (s.escalatedAt) return null;
+  return addWorkingDays(s.openedAt, ESCALATE_AT_WD);
+}

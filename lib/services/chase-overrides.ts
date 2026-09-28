@@ -19,11 +19,20 @@ import { prisma } from "@/lib/prisma";
 
 export type ChaseOverrideTarget =
   | { kind: "client"; contactId: string }
-  | { kind: "solicitor"; side: "vendor" | "purchaser" };
+  | { kind: "solicitor"; side: "vendor" | "purchaser" }
+  // Enquiry chases have no milestone code of their own; the scope (get-raised
+  // vs the reply-loop) lives in the target key, paired with ENQUIRY_OVERRIDE_CODE.
+  | { kind: "enquiry"; scope: "raise" | "reply" };
+
+// Synthetic milestone code stored on every enquiry override row (the real
+// discriminator is the target key: enq:raise / enq:reply).
+export const ENQUIRY_OVERRIDE_CODE = "ENQUIRIES";
 
 // The stable per-target discriminator stored on the row.
 export function targetKeyFor(t: ChaseOverrideTarget): string {
-  return t.kind === "client" ? `contact:${t.contactId}` : `sol:${t.side}`;
+  if (t.kind === "client") return `contact:${t.contactId}`;
+  if (t.kind === "solicitor") return `sol:${t.side}`;
+  return `enq:${t.scope}`;
 }
 
 export type BuildOverride = {
@@ -129,6 +138,38 @@ export async function setChaseOverride(args: {
       ...(args.skipNext !== undefined ? { skipNext: args.skipNext } : {}),
       editedById: args.editedById,
     },
+  });
+}
+
+// ── Enquiry-chase build-time reads (mirrors the milestone crons) ─────────────
+
+// The staged override for an enquiry chase, or null. Both enquiry crons call
+// this before composing so an edited subject/body sends instead, and a staged
+// skip suppresses the next send.
+export async function getEnquiryOverride(
+  transactionId: string,
+  scope: "raise" | "reply",
+): Promise<BuildOverride | null> {
+  const row = await prisma.chaseEmailOverride.findUnique({
+    where: {
+      transactionId_targetKey_milestoneCode: {
+        transactionId, targetKey: `enq:${scope}`, milestoneCode: ENQUIRY_OVERRIDE_CODE,
+      },
+    },
+    select: { subjectOverride: true, bodyOverride: true, skipNext: true },
+  });
+  return row ? { subjectOverride: row.subjectOverride, bodyOverride: row.bodyOverride, skipNext: row.skipNext } : null;
+}
+
+// One-shot skip consumed at fire time (skip-semantics A): clears skipNext but
+// keeps any subject/body edit. The cron advances the chase clock separately.
+export async function consumeEnquirySkip(
+  transactionId: string,
+  scope: "raise" | "reply",
+): Promise<void> {
+  await prisma.chaseEmailOverride.updateMany({
+    where: { transactionId, targetKey: `enq:${scope}`, milestoneCode: ENQUIRY_OVERRIDE_CODE, skipNext: true },
+    data: { skipNext: false },
   });
 }
 

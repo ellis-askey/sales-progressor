@@ -246,9 +246,13 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   const isSol = send.lane === "solicitor";
   const accent = isSol ? "#0E8C86" : "var(--agent-info)";
   const whenLabel = send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
-  const kicker = send.handedToTeam
-    ? "Auto-chase done"
-    : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
+  // Enquiry chases repeat until escalation (no numeric cap) — show "Next chase" +
+  // an escalation deadline instead of the milestone "chase N of cap" line.
+  const kicker = send.untilEscalation
+    ? send.handedToTeam ? "Escalated to you" : "Next chase"
+    : send.handedToTeam
+      ? "Auto-chase done"
+      : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
   return (
     <div className="chase-upnext-card" style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
@@ -258,6 +262,11 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
       <Pill glass dot size="sm" tone={isSol ? "brand" : "info"}>{send.recipientLabel}</Pill>
       <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "9px 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
       <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{kicker}</div>
+      {send.untilEscalation && send.escalatesAt && !send.handedToTeam && (
+        <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2 }}>
+          Escalates to you if no reply by {fmtDate(send.escalatesAt)}
+        </div>
+      )}
       {send.overrideTarget && !send.handedToTeam && (
         <NextChaseControl transactionId={transactionId} target={send.overrideTarget} edited={send.edited} skipped={send.skipped} />
       )}

@@ -5,7 +5,47 @@
 
 import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
-import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS } from "./cadence";
+import {
+  ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS,
+  ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS,
+  ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_DAYS,
+} from "./cadence";
+
+// The minimal clock fields the reply-loop cadence math reads. Kept structural so
+// both the DB view (getEnquiryTrackerView) and the chase timeline can pass their
+// already-fetched tracker rows without re-querying.
+export type EnquiryChaseClock = {
+  openedAt: Date;
+  lastMovementAt: Date | null;
+  lastChasedAt: Date | null;
+  escalatedAt: Date | null;
+  snoozedUntil: Date | null;
+  closedAt: Date | null;
+};
+
+// The date the NEXT reply-loop chase will send, or null when nothing more sends
+// (closed, snoozed, or already escalated — we stop auto-chasing on escalation).
+// First chase 6 working days after the anchor, then every 5. Single source of
+// truth: the file panel AND the chase timeline both read this, so the predicted
+// date can never disagree with when the cron actually fires.
+export function enquiryNextChaseAt(t: EnquiryChaseClock, now: Date = new Date()): Date | null {
+  const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
+  if (t.closedAt || snoozed || t.escalatedAt) return null;
+  const anchor = t.lastMovementAt ?? t.openedAt;
+  return t.lastChasedAt
+    ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
+    : addWorkingDays(anchor, FIRST_CHASE_DAYS);
+}
+
+// The date this loop escalates to the file owner if no reply lands, or null when
+// it's already escalated or closed. Measured from the last movement (silence
+// resets on any logged movement), matching the cron.
+export function enquiryEscalateAt(t: EnquiryChaseClock, now: Date = new Date()): Date | null {
+  void now;
+  if (t.closedAt || t.escalatedAt) return null;
+  const anchor = t.lastMovementAt ?? t.openedAt;
+  return addWorkingDays(anchor, ESCALATE_DAYS);
+}
 
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";
@@ -66,15 +106,9 @@ export async function getEnquiryTrackerView(
   const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
   const status: EnquiryTrackerStatus = t.closedAt ? "closed" : snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
 
-  const anchor = t.lastMovementAt ?? t.openedAt;
-  // No "next chase" once closed, snoozed, or escalated (we stop auto-chasing on
-  // escalation). First chase after 6 working days, then every 5.
-  const nextChaseAt =
-    t.closedAt || snoozed || t.escalatedAt
-      ? null
-      : t.lastChasedAt
-        ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
-        : addWorkingDays(anchor, FIRST_CHASE_DAYS);
+  // Single source of truth for the next-chase date (shared with the chase
+  // timeline via enquiryNextChaseAt, so the panel and the timeline agree).
+  const nextChaseAt = enquiryNextChaseAt(t, now);
 
   return {
     currentlyWith: t.currentlyWith as EnquiryCourt,
@@ -107,7 +141,7 @@ export type EnquiryMovementSource = "progressor" | "buyer_report" | "seller_repo
 
 // How a movement affects the chase clock and the court:
 //  - "handover" (the default, and what every existing caller relies on): the
-//    ball genuinely moved. Restarts the 9-working-day cadence + clears any
+//    ball genuinely moved. Restarts the 6/5-working-day cadence + clears any
 //    stalled flag, and flips the court when a side is given.
 //  - "touch": the same side has been in touch but still holds the ball.
 //    Restarts the cadence + clears stalled, but does NOT flip the court.
@@ -170,7 +204,7 @@ export async function logEnquiryMovement(args: {
           { ...(flips ? { currentlyWith: flips } : {}) }
         : {
             lastMovementAt: anchorAt,
-            lastChasedAt: null, // restart the 9-day cadence from this movement
+            lastChasedAt: null, // restart the 6/5-working-day cadence from this movement
             escalatedAt: null, // no longer stalled
             ...(flips ? { currentlyWith: flips } : {}),
             // Partial-flag lifecycle: a partial movement raises it; a movement
