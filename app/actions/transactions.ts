@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
+import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
 import { solicitorPairViolation, solicitorHandlerRequiredMessage } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
@@ -1728,7 +1729,11 @@ export async function saveReferralAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, agencyId: true, referredFirmId: true },
+    select: {
+      id: true, agencyId: true, referredFirmId: true, referralFeeVat: true,
+      status: true, activeBuyerRoundId: true,
+      purchaserSolicitorFirmId: true, vendorSolicitorFirmId: true,
+    },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -1747,6 +1752,26 @@ export async function saveReferralAction(
       referralFeeReceived: data.referralFeeReceived,
       ...(referralFeeVat ? { referralFeeVat } : {}),
     },
+  });
+
+  // Dual-write the referral ledger (referral-ledger arc, Option B). Side is
+  // inferred from which solicitor the referred firm is: the buyer's (round-
+  // attributed) or the seller's (file-level, carries across relist). A firm that
+  // matches neither defaults to seller-side (the safe, non-wiping side). A
+  // solicitor referral earns on completion.
+  const solKind = data.referredFirmId && data.referredFirmId === tx.purchaserSolicitorFirmId
+    ? "buyer_solicitor"
+    : "seller_solicitor";
+  await syncReferralRow(prisma, {
+    transactionId,
+    buyerRoundId: solKind === "buyer_solicitor" ? tx.activeBuyerRoundId : null,
+    kind: solKind,
+    firmField: "solicitor",
+    firmId: data.referredFirmId,
+    feePence: data.referralFee,
+    vat: referralFeeVat ?? tx.referralFeeVat,
+    received: data.referralFeeReceived,
+    earned: tx.status === "completed",
   });
 
   await logActivity(transactionId, `${session.user.name} updated referral details`, session.user.id);
@@ -1776,7 +1801,10 @@ export async function saveBrokerReferralAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, agencyId: true, brokerFirmId: true, onwardBrokerFirmId: true },
+    select: {
+      id: true, agencyId: true, brokerFirmId: true, onwardBrokerFirmId: true,
+      activeBuyerRoundId: true, brokerReferralFeeVat: true, onwardBrokerReferralFeeVat: true,
+    },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -1810,6 +1838,22 @@ export async function saveBrokerReferralAction(
       };
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: updateData });
+
+  // Dual-write the referral ledger (referral-ledger arc, Option B). The buyer's
+  // broker is round-attributed and earns when the mortgage goes in (PM5); the
+  // seller's onward broker is file-level and carries across a relist.
+  await syncReferralRow(prisma, {
+    transactionId,
+    buyerRoundId: side === "vendor" ? null : tx.activeBuyerRoundId,
+    kind: side === "vendor" ? "onward_broker" : "buyer_broker",
+    firmField: "broker",
+    firmId: data.brokerFirmId,
+    contactId: data.brokerContactId,
+    feePence: data.brokerReferralFee,
+    vat: brokerReferralVat ?? (side === "vendor" ? tx.onwardBrokerReferralFeeVat : tx.brokerReferralFeeVat),
+    received: data.brokerReferralFeeReceived,
+    earned: side === "vendor" ? false : await isBrokerEarned(prisma, transactionId, tx.activeBuyerRoundId),
+  });
 
   const label = side === "vendor" ? "seller's onward broker" : "broker referral";
   await logActivity(transactionId, `${session.user.name} updated ${label} details`, session.user.id);
@@ -3147,6 +3191,15 @@ export async function relistTransactionImpl(
     // the previous buyer; it should not survive into the new sale. pausedAt /
     // pausedById are kept as historical audit; the boolean is the live flag.
     const forecastExpected = new Date(newRound.createdAt.getTime() + 84 * 86400000);
+
+    // Referral ledger keep/void (referral-ledger arc Phase 4). Runs against the
+    // OUTGOING round: keeps an earned buyer-broker fee (real revenue, stays on the
+    // archived round), voids an unearned one and the buyer's solicitor referral.
+    // Seller + onward referrals are file-level and untouched. Returns which buyer-
+    // side fee columns to clear for the incoming buyer (the earned fee, if any, is
+    // safe on the kept ledger row). Supersedes Phase 0's "leave broker untouched".
+    const referralReset = await applyRelistReferralRules(ptx, outgoingRound.id, tx.id);
+
     await ptx.propertyTransaction.update({
       where: { id: tx.id },
       data: {
@@ -3210,15 +3263,21 @@ export async function relistTransactionImpl(
         whatsappGroupInviteUrl: null,
         // Enquiries auto-chase pause reflected a stance on the old buyer's file.
         enquiryChasePaused: false,
-        // Broker referral is deliberately LEFT UNTOUCHED on relist (Phase 0 of the
-        // referral-ledger arc, 2026-09-28). A broker fee is earned at mortgage
-        // submission (PM5), i.e. it can be real revenue BEFORE completion, so we
-        // must never wipe it on a fall-through. Preserving it here can leave the
-        // previous buyer's broker showing on the new sale until reconciled, but
-        // that's an attribution wrinkle, never lost money. The proper per-buyer
-        // keep/void rules land in Phase 4 on the Referral ledger. See
-        // docs/active/referral-ledger/00-spec.md. (Onward broker is the seller's,
-        // also untouched.)
+        // Buyer-broker fee columns reset for the incoming buyer (referral-ledger
+        // arc Phase 4, superseding Phase 0's preserve). This is now SAFE because
+        // an earned fee has already been kept on the outgoing round's ledger row
+        // by applyRelistReferralRules above — the money isn't lost, it's just no
+        // longer on the live file's current-buyer columns. The broker FIRM columns
+        // are already set to the incoming buyer's choice higher up. Onward broker
+        // (the seller's) is file-level and left alone.
+        brokerReferralFee: null,
+        brokerReferralFeeReceived: false,
+        purchaserBrokerReferral: false,
+        // Buyer's SOLICITOR referral columns reset only when the file's referral
+        // was the buyer's solicitor (a seller-side referral carries across).
+        ...(referralReset.resetSolicitorColumns
+          ? { referredFirmId: null, referralFee: null, referralFeeReceived: false }
+          : {}),
         // Send the file back for assignment on relist (Ellis, 2026-09-27):
         // clear the SP assignment so an outsourced file re-enters the hub
         // "needs assigning" card and someone must action it. A fresh buyer

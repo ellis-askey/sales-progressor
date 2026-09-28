@@ -14,6 +14,7 @@ import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import { recordEvent } from "@/lib/command/events/write";
 import { recordAvailabilityTransition, type AvailabilityCause } from "@/lib/services/milestone-availability-history";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { flipReferralEarnedForMilestone } from "@/lib/services/referrals";
 import type { MilestoneScope } from "@/lib/services/milestone-scope";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType, PrismaClient } from "@prisma/client";
 
@@ -1584,6 +1585,16 @@ export async function completeMilestone(
     } catch (err) {
       console.error("[completeMilestone] recordEvent(sale_completed) failed:", err);
     }
+  }
+
+  // Referral ledger: flip a referral to "earned" when its trigger milestone lands
+  // (buyer broker on PM5 = mortgage submitted; solicitor referrals on completion).
+  // Best-effort — a ledger hiccup must never fail a milestone confirmation.
+  // (referral-ledger arc, docs/active/referral-ledger/00-spec.md)
+  try {
+    await flipReferralEarnedForMilestone(db, input.transactionId, def.code, activeBuyerRoundId);
+  } catch (err) {
+    console.error("[completeMilestone] flipReferralEarnedForMilestone failed:", err);
   }
 
   return completion;

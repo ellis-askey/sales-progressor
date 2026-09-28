@@ -30,6 +30,7 @@ jest.mock("@/lib/prisma", () => {
     solicitorChaseState: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     chaseEmailOverride: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     quoteRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    referral: { findFirst: jest.fn().mockResolvedValue(null), delete: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     transactionHoldPeriod: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     outboundMessage: { create: jest.fn().mockResolvedValue({}) },
     notification: { create: jest.fn().mockResolvedValue({}), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
