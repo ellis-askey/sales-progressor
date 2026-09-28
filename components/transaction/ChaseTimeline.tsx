@@ -56,7 +56,17 @@ const DELIVERY_META: Record<Exclude<ChaseDelivery, null>, { label: string; color
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  // Show the year when it isn't the current one, so a far-future date can never
+  // read as "this week" (e.g. a parked chase showing "28 Sep" that's really 2027).
+  const yearSuffix = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : "";
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}${yearSuffix}`;
+}
+// A chase parked far into the future — the enquiries "satisfied" gate holds it
+// until the ball returns to the buyer's side. Surface it as "On hold" rather than
+// a date that looks imminent. Only the gate's ~1-year park ever lands out here.
+function isHeldFarOut(iso: string | null): boolean {
+  if (!iso) return false;
+  return new Date(iso).getTime() - Date.now() > 300 * 86_400_000;
 }
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
@@ -198,7 +208,11 @@ function EscalationPath({ thread }: { thread: ChaseThread }) {
 
   rungs.push({
     label: autoLabel,
-    sub: thread.track === "enquiry" ? "on a cadence" : "up to 2 emails",
+    // Enquiry threads: state the real schedule, not a vague "on a cadence".
+    // Reply-loop repeats every 5 working days; the get-raised chase every 6.
+    sub: thread.track === "enquiry"
+      ? (thread.id === "enquiry-raise" ? "every 6 working days" : "every 5 working days")
+      : "up to 2 emails",
     status: thread.state === "auto_chasing" ? "current" : autoDone ? "done" : "pending",
   });
   // Enquiries escalate straight to the file owner if they stall — no separate
@@ -212,7 +226,7 @@ function EscalationPath({ thread }: { thread: ChaseThread }) {
   }
   rungs.push({
     label: "Escalate to file owner",
-    sub: thread.escalated ? "notified" : "if it stalls",
+    sub: thread.escalated ? "notified" : thread.track === "enquiry" ? "after 13 working days quiet" : "if it stalls",
     status: thread.escalated ? "current" : "pending",
   });
 
@@ -245,14 +259,19 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: string }) {
   const isSol = send.lane === "solicitor";
   const accent = isSol ? "#0E8C86" : "var(--agent-info)";
-  const whenLabel = send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
+  // A parked chase (satisfied-gate holding it until the ball returns to the buyer)
+  // reads as "On hold", never a date that looks like it's about to send.
+  const held = isHeldFarOut(send.dueAt);
+  const whenLabel = held ? "On hold" : send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
   // Enquiry chases repeat until escalation (no numeric cap) — show "Next chase" +
   // an escalation deadline instead of the milestone "chase N of cap" line.
-  const kicker = send.untilEscalation
-    ? send.handedToTeam ? "Escalated to you" : "Next chase"
-    : send.handedToTeam
-      ? "Auto-chase done"
-      : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
+  const kicker = held
+    ? "Waiting on enquiries"
+    : send.untilEscalation
+      ? send.handedToTeam ? "Escalated to you" : "Next chase"
+      : send.handedToTeam
+        ? "Auto-chase done"
+        : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
   return (
     <div className="chase-upnext-card" style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
@@ -262,7 +281,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
       <Pill glass dot size="sm" tone={isSol ? "brand" : "info"}>{send.recipientLabel}</Pill>
       <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "9px 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
       <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{kicker}</div>
-      {send.untilEscalation && send.escalatesAt && !send.handedToTeam && (
+      {send.untilEscalation && send.escalatesAt && !send.handedToTeam && !held && (
         <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2 }}>
           Escalates to you if no reply by {fmtDate(send.escalatesAt)}
         </div>
