@@ -2616,7 +2616,10 @@ export async function executeUndoMilestone(input: {
     if (reopensEnquiries) {
       await ptx.enquiryTracker.updateMany({
         where: { transactionId, closedAt: { not: null } },
-        data: { closedAt: null, escalatedAt: null, lastChasedAt: new Date() },
+        // Fresh restart: clear the stale stalled flag AND any stale promised date /
+        // chase leash (critique #4), and re-anchor the silence clock to now so the
+        // loop resumes without an immediate nudge.
+        data: { closedAt: null, escalatedAt: null, snoozedUntil: null, lastChasedAt: null, lastMovementAt: new Date() },
       });
     }
     // Undoing "enquiries raised" (PM14/VM10) means the loop never opened, so it

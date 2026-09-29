@@ -20,6 +20,7 @@ import {
   type EnquiryCallOutcome, type EnquiryCallParty,
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { refreshNavBadges } from "@/lib/agent/nav-badges-client";
 import type { OpenEnquiryRow, EnquiryHistoryEntry } from "@/lib/services/enquiries";
 import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/lib/enquiries/tracker";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
@@ -47,29 +48,28 @@ function startOfTomorrow(): number {
 
 type Pill = { label: string; tone: "danger" | "amber" | "green" | "blue" };
 function statusPill(r: OpenEnquiryRow): Pill {
-  // A stalled loop (silent past escalation) is the loudest signal — surface it
-  // even when it was recently chased (a future nextChaseAt would otherwise read
-  // as a calm "Awaiting replies"/"Being reviewed"). Court-aware wording.
-  if (r.status === "stalled") {
+  // Three distinct resting/attention looks (critique #2/#3), most urgent first:
+  //   stalled       — gone dark, nobody chasing → red.
+  //   chase again   — you chased, the 2-day quiet's up, your move → amber.
+  //   chased/resting — quiet after your chase → calm blue "back <date>".
+  //   promised date  — the solicitor committed a date → amber date.
+  //   otherwise      — court-driven waiting/reviewing.
+  if (r.stalled) {
     return { label: r.currentlyWith === "seller_solicitor" ? "Replies overdue" : "Review overdue", tone: "danger" };
   }
-  const tomorrow = startOfTomorrow();
-  const chaseMs = r.nextChaseAt ? new Date(r.nextChaseAt).getTime() : null;
-  if (r.status !== "snoozed" && chaseMs != null) {
-    if (chaseMs < new Date().setHours(0, 0, 0, 0)) {
-      const days = Math.max(1, Math.floor((new Date().setHours(0, 0, 0, 0) - chaseMs) / 86400000));
-      return { label: `${days} ${days === 1 ? "day" : "days"} overdue`, tone: "danger" };
-    }
-    if (chaseMs < tomorrow) return { label: "Due today", tone: "danger" };
+  if (r.restingReason === "chased" && r.restingUntil) {
+    return { label: `Chased · back ${fmtDay(r.restingUntil)}`, tone: "blue" };
   }
-  if (r.expectedDate && new Date(r.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0)) {
+  if (r.restingReason === "promise" && r.expectedDate) {
     // Just the calendar icon + the date — the "Expected" word is dropped (critique #4).
     return { label: fmtDay(r.expectedDate), tone: "amber" };
   }
+  if (r.needsAttention) {
+    return { label: "Chase again", tone: "amber" };
+  }
   // Court-driven, not last-event-driven: with the buyer's solicitor means the
   // replies are in and they're deciding (satisfied / raise further); with the
-  // seller's solicitor means they still owe the replies. A logged chase no
-  // longer flips this back to "waiting" the way reading lastMovement.kind did.
+  // seller's solicitor means they still owe the replies.
   if (r.currentlyWith === "buyer_solicitor") return { label: "Being reviewed", tone: "green" };
   return { label: "Awaiting replies", tone: "blue" };
 }
@@ -195,7 +195,7 @@ export function EnquiriesTriageList({
       );
     });
     const rank = (r: OpenEnquiryRow) =>
-      r.status === "stalled" ? 0 : (r.nextChaseAt && new Date(r.nextChaseAt).getTime() < startOfTomorrow() && r.status !== "snoozed") ? 1 : r.status === "snoozed" ? 3 : 2;
+      r.stalled ? 0 : (r.needsAttention ? 1 : r.restingUntil ? 3 : 2);
     if (sort === "attention") list = [...list].sort((a, b) => rank(a) - rank(b) || b.quietDays - a.quietDays);
     else if (sort === "quietest") list = [...list].sort((a, b) => b.quietDays - a.quietDays);
     else list = [...list].sort((a, b) => (b.lastMovement?.occurredAt ? new Date(b.lastMovement.occurredAt).getTime() : 0) - (a.lastMovement?.occurredAt ? new Date(a.lastMovement.occurredAt).getTime() : 0));
@@ -231,7 +231,7 @@ export function EnquiriesTriageList({
     startTransition(async () => {
       try {
         const res = await fn();
-        if (res?.ok) { toast.success(msg); /* Phase 4: action revalidates /agent/enquiries */ }
+        if (res?.ok) { toast.success(msg); refreshNavBadges(); /* drop/raise the nav count now, not on next nav (critique #11/#7) */ }
         // Give the real reason where we have one. "prereqs_missing" means an
         // earlier step on the file isn't confirmed yet, so the loop can't close.
         // Tell the agent that rather than the generic "try again".

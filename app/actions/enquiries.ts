@@ -364,6 +364,7 @@ export async function setEnquiryOutstandingAction(input: {
   await setEnquiryOutstandingNote(input.transactionId, input.note);
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
   return { ok: true };
 }
 
@@ -375,6 +376,7 @@ export async function setEnquirySnoozeAction(input: {
   await setEnquirySnooze(input.transactionId, input.workingDays);
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
   return { ok: true };
 }
 

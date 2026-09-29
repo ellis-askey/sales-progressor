@@ -48,6 +48,44 @@ export function enquiryEscalateAt(t: EnquiryChaseClock, now: Date = new Date()):
   return addWorkingDays(anchor, ESCALATE_DAYS);
 }
 
+// When an open loop is resting (not surfaced), or null if it needs you now.
+// "Resting" = an explicit set date still in the future (a solicitor's promised
+// date, or a manual park) OR the short chase leash still running (chased less than
+// ENQUIRY_CHASE_SNOOZE_WORKING_DAYS ago). It rests until the LATER of the two, so a
+// chase never shortens a standing promise, and a promise never hides the fact you
+// chased. (critique #1/#2)
+export function enquiryRestingUntil(t: EnquiryChaseClock, now: Date = new Date()): Date | null {
+  const dates: Date[] = [];
+  if (t.snoozedUntil && t.snoozedUntil > now) dates.push(t.snoozedUntil);
+  if (t.lastChasedAt) {
+    const leash = addWorkingDays(t.lastChasedAt, ENQUIRY_CHASE_SNOOZE_WORKING_DAYS);
+    if (leash > now) dates.push(leash);
+  }
+  if (dates.length === 0) return null;
+  return dates.reduce((a, b) => (a > b ? a : b));
+}
+
+// The single live "needs you now" test — the source of truth for BOTH the nav-bar
+// enquiries count and the hub "gone quiet" card, so they always agree (critique
+// #6). Not resting AND either: you chased and the leash elapsed (your move again —
+// a movement nulls lastChasedAt, so a set value means no reply since), or it was
+// never chased since the last movement and silence has passed the escalation
+// threshold (genuinely stalled). Distinguish the two with enquiryStalled below.
+export function enquiryNeedsAttention(t: EnquiryChaseClock, now: Date = new Date()): boolean {
+  if (t.closedAt) return false;
+  if (enquiryRestingUntil(t, now)) return false;
+  if (t.lastChasedAt) return true;
+  const anchor = t.lastMovementAt ?? t.openedAt;
+  return addWorkingDays(anchor, ESCALATE_DAYS) <= now;
+}
+
+// True only for the ALARMING kind of attention: gone dark past the threshold with
+// nobody chasing (red "stalled"). A loop you're actively chasing needs you too,
+// but reads as the calmer "chase again", not red. (critique #2/#3)
+export function enquiryStalled(t: EnquiryChaseClock, now: Date = new Date()): boolean {
+  return enquiryNeedsAttention(t, now) && !t.lastChasedAt;
+}
+
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
 export type EnquiryTrackerStatus = "closed" | "snoozed" | "stalled" | "chasing";
 export type EnquiryMovementKind =
@@ -104,8 +142,16 @@ export async function getEnquiryTrackerView(
   if (t.transaction?.status === "withdrawn") return null;
   const paused = t.transaction?.status === "on_hold";
 
-  const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
-  const status: EnquiryTrackerStatus = t.closedAt ? "closed" : snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
+  // Live model (critique #2/#6): resting = a promised date/park or the chase leash;
+  // stalled = gone dark past the threshold with nobody chasing. Keeps the file
+  // panel consistent with the triage page + nav count.
+  const status: EnquiryTrackerStatus = t.closedAt
+    ? "closed"
+    : enquiryRestingUntil(t, now)
+      ? "snoozed"
+      : enquiryStalled(t, now)
+        ? "stalled"
+        : "chasing";
 
   // Single source of truth for the next-chase date (shared with the chase
   // timeline via enquiryNextChaseAt, so the panel and the timeline agree).
@@ -205,8 +251,13 @@ export async function logEnquiryMovement(args: {
           { ...(flips ? { currentlyWith: flips } : {}) }
         : {
             lastMovementAt: anchorAt,
-            lastChasedAt: null, // restart the 6/5-working-day cadence from this movement
+            lastChasedAt: null, // any movement clears the chase leash (they responded)
             escalatedAt: null, // no longer stalled
+            // The solicitor's promised date means "ALL replies by then". Clear it
+            // only when the court FLIPS — full replies moving to the buyer, or a
+            // fresh round raised — not on a same-side partial/touch, which still
+            // owes the rest by that date. (critique #4)
+            ...(flips ? { snoozedUntil: null } : {}),
             ...(flips ? { currentlyWith: flips } : {}),
             // Partial-flag lifecycle: a partial movement raises it; a movement
             // that FLIPS the court (full replies across / fresh round) clears
@@ -235,7 +286,10 @@ export async function logEnquiryMovement(args: {
 // number. Unlike a real movement, it does NOT reset the long silence clock
 // (lastMovementAt), so a loop that's been with them for weeks floats to the top
 // when it wakes. It also flags escalatedAt (preserving an earlier one) so the
-// nav-bar count picks it up the moment the snooze elapses — no cron needed.
+// nav-bar count picks it up the moment the leash elapses — computed live, no
+// stored flag. The leash is derived from lastChasedAt (+ ENQUIRY_CHASE_SNOOZE_
+// WORKING_DAYS) so it NEVER touches snoozedUntil (the solicitor's promised date)
+// or escalatedAt (genuine stall). See enquiryNeedsAttention / enquiryRestingUntil.
 //
 // recordMovement=true writes a "chased" row for the history (the button, which
 // sends nothing). The email-send path logs its own chase comm, so it passes false.
@@ -247,7 +301,7 @@ export async function markEnquiryChased(args: {
 }): Promise<boolean> {
   const tracker = await prisma.enquiryTracker.findUnique({
     where: { transactionId: args.transactionId },
-    select: { id: true, closedAt: true, escalatedAt: true },
+    select: { id: true, closedAt: true },
   });
   if (!tracker || tracker.closedAt) return false;
   const now = new Date();
@@ -270,8 +324,6 @@ export async function markEnquiryChased(args: {
       data: {
         lastChasedAt: now,
         chaseCount: { increment: 1 },
-        snoozedUntil: addWorkingDays(now, ENQUIRY_CHASE_SNOOZE_WORKING_DAYS),
-        escalatedAt: tracker.escalatedAt ?? now,
       },
     }),
   ]);

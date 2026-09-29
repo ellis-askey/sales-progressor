@@ -16,6 +16,7 @@ import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/acces
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
 import type { EnquiryCourt, EnquiryTrackerStatus, EnquiryMovementKind } from "@/lib/enquiries/tracker";
+import { enquiryNeedsAttention, enquiryStalled, enquiryRestingUntil } from "@/lib/enquiries/tracker";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
 
 // "Who with" options for the log-a-chase sheet: the two solicitor firms + every
@@ -41,7 +42,14 @@ export type OpenEnquiryRow = {
   quietDays: number;
   chaseCount: number;
   outstandingNote: string | null;
-  expectedDate: Date | null; // the "expect replies by" date (reuses snoozedUntil)
+  expectedDate: Date | null; // the solicitor's "expect ALL replies by" date (snoozedUntil)
+  // When the loop is resting (not surfaced), and why: "promise" = a solicitor's
+  // expected date / manual park; "chased" = the short leash after you chased.
+  // Null = it needs you now. (critique #1/#2/#3)
+  restingUntil: Date | null;
+  restingReason: "promise" | "chased" | null;
+  needsAttention: boolean; // your move now (drives the nav count + list ordering)
+  stalled: boolean; // the alarming kind — gone dark, nobody chasing (red vs amber)
   nextChaseAt: Date | null; // when the auto-chase is next due
   // Two-stage silence countdown for the track fill (progress 0..1 within stage):
   //   chase     — coral, 0 → 7 working days since last movement (full = chase)
@@ -93,18 +101,17 @@ export async function countOpenEnquiries(scope: AccessScope): Promise<number> {
   });
 }
 
-// "Needs you" enquiries for the nav badge: only loops autopilot has escalated to
-// a human (13 working days of silence), still open, and not currently snoozed.
-// This is the "your move" count — not every open loop.
+// "Needs you" enquiries for the nav badge — computed LIVE with the same predicate
+// the hub "gone quiet" card uses, so the two always agree (critique #6). A loop
+// counts when it's not resting AND either you chased and the leash elapsed, or it's
+// gone silent past the threshold with nobody chasing. Working-day maths can't run
+// in SQL, so we read the open loops' clock fields and compute in JS (low volume).
 export async function countEscalatedEnquiries(scope: AccessScope, now: Date = new Date()): Promise<number> {
-  return prisma.enquiryTracker.count({
-    where: {
-      escalatedAt: { not: null },
-      closedAt: null,
-      OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
-      transaction: enquiryTxWhere(scope),
-    },
+  const rows = await prisma.enquiryTracker.findMany({
+    where: { closedAt: null, transaction: enquiryTxWhere(scope) },
+    select: { openedAt: true, lastMovementAt: true, lastChasedAt: true, escalatedAt: true, snoozedUntil: true, closedAt: true },
   });
+  return rows.filter((t) => enquiryNeedsAttention(t, now)).length;
 }
 
 export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryRow[]> {
@@ -118,6 +125,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       lastChasedAt: true,
       snoozedUntil: true,
       escalatedAt: true,
+      closedAt: true,
       chaseCount: true,
       partialRepliesAt: true,
       transaction: {
@@ -154,11 +162,17 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
   const now = new Date();
   const rows: OpenEnquiryRow[] = trackers.map((t) => {
     const quietSince = t.lastMovementAt ?? t.openedAt;
-    const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
-    const status: EnquiryTrackerStatus = snoozed ? "snoozed" : t.escalatedAt ? "stalled" : "chasing";
-    // No "next chase" once snoozed or escalated (auto-chasing stops on escalation).
-    // First chase after 6 working days, then every 5.
-    const nextChaseAt = snoozed || t.escalatedAt
+    // New model (critique #1-3/#6): resting = the LATER of a promised date/park and
+    // the short chase leash; needs-you + stalled are the live "your move" tests.
+    const restingUntil = enquiryRestingUntil(t, now);
+    const promiseFuture = !!(t.snoozedUntil && t.snoozedUntil > now);
+    const restingReason: OpenEnquiryRow["restingReason"] = restingUntil ? (promiseFuture ? "promise" : "chased") : null;
+    const needsAttention = enquiryNeedsAttention(t, now);
+    const stalled = enquiryStalled(t, now);
+    const status: EnquiryTrackerStatus = restingUntil ? "snoozed" : stalled ? "stalled" : "chasing";
+    // No "next chase" while resting or once genuinely escalated. First chase after
+    // 6 working days, then every 5.
+    const nextChaseAt = restingUntil || t.escalatedAt
       ? null
       : t.lastChasedAt
         ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
@@ -175,15 +189,17 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const chaseDueAt = addWorkingDays(quietSince, FIRST_CHASE_DAYS);
     const escalateAt = addWorkingDays(quietSince, ESCALATE_WORKING_DAYS);
     const chaseBar: OpenEnquiryRow["chaseBar"] =
-      t.escalatedAt
-        ? { stage: "escalated", progress: 1 }
-        : snoozed && t.snoozedUntil
-          ? { stage: "hold", progress: barFrac(quietSince, t.snoozedUntil) }
-          : now < chaseDueAt
-            ? { stage: "chase", progress: barFrac(quietSince, chaseDueAt) }
-            : now < escalateAt
-              ? { stage: "escalate", progress: barFrac(chaseDueAt, escalateAt) }
-              : { stage: "escalated", progress: 1 };
+      restingUntil
+        ? { stage: "hold", progress: barFrac(restingReason === "chased" && t.lastChasedAt ? t.lastChasedAt : quietSince, restingUntil) }
+        : stalled
+          ? { stage: "escalated", progress: 1 }
+          : needsAttention
+            ? { stage: "escalate", progress: 1 } // "chase again" — attention, not the full-red stall
+            : now < chaseDueAt
+              ? { stage: "chase", progress: barFrac(quietSince, chaseDueAt) }
+              : now < escalateAt
+                ? { stage: "escalate", progress: barFrac(chaseDueAt, escalateAt) }
+                : { stage: "escalated", progress: 1 };
     const mv = t.movements[0] ?? null;
     const tx = t.transaction;
 
@@ -216,6 +232,10 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       chaseCount: t.chaseCount,
       outstandingNote: t.outstandingNote,
       expectedDate: t.snoozedUntil ?? null,
+      restingUntil,
+      restingReason,
+      needsAttention,
+      stalled,
       nextChaseAt,
       chaseBar,
       openedAt: t.openedAt,

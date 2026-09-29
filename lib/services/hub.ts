@@ -13,8 +13,8 @@ import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
-import { addWorkingDays } from "@/lib/emails/working-hours";
-import { ENQUIRY_ESCALATE_WORKING_DAYS } from "@/lib/enquiries/cadence";
+import { enquiryNeedsAttention } from "@/lib/enquiries/tracker";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
@@ -1179,19 +1179,22 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       currentlyWith: true,
       openedAt: true,
       lastMovementAt: true,
+      lastChasedAt: true,
       escalatedAt: true,
       snoozedUntil: true,
+      closedAt: true,
       chaseCount: true,
       transaction: {
         select: {
           id: true,
           propertyAddress: true,
           photoStoragePath: true,
+          activeBuyerRoundId: true,
           vendorSolicitorFirm: { select: { name: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorContact: { select: { email: true } },
           purchaserSolicitorContact: { select: { email: true } },
-          contacts: { select: { id: true, name: true, roleType: true, email: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true, buyerRoundId: true } },
         },
       },
     },
@@ -1201,14 +1204,16 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
   for (const r of rows) {
     const tx = r.transaction;
     if (!tx) continue;
-    // A future expected date (snooze) parks the loop — not stalled.
-    if (r.snoozedUntil && r.snoozedUntil > now) continue;
+    // Same live "needs you" test the nav-bar count uses, so the two always agree
+    // (critique #6): not resting (promise/park/chase-leash) AND either chased-leash
+    // elapsed or gone silent past the threshold.
+    if (!enquiryNeedsAttention(r, now)) continue;
     const anchor = r.lastMovementAt ?? r.openedAt;
-    const stalled = !!r.escalatedAt || now >= addWorkingDays(anchor, ENQUIRY_ESCALATE_WORKING_DAYS);
-    if (!stalled) continue;
     const seller = r.currentlyWith === "seller_solicitor";
+    // Active-round buyers only — a relisted file must not CC (or name in the chase
+    // subject) the previous buyer (critique #5).
     const ccCandidates = tx.contacts
-      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && !!c.name)
+      .filter((c) => c.roleType === (seller ? "vendor" : "purchaser") && !!c.name && isActiveRoundContact(c, tx.activeBuyerRoundId))
       .map((c) => ({ contactId: c.id, name: c.name as string, email: c.email ?? null }));
     out.push({
       transactionId: tx.id,
