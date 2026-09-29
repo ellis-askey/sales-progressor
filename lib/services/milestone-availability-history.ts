@@ -22,7 +22,11 @@ export type AvailabilityCause =
   | "not_required_satisfied"
   | "exchange_gate_unlocked"
   | "gate_relock"
-  | "reversal";
+  | "reversal"
+  // Self-heal: a step whose prerequisites were already satisfied but which never
+  // got unlocked (a missed unlockDirectDependents cascade) was reconciled to
+  // available by the nightly job. See docs/active/milestone-unlock-selfheal.
+  | "reconcile";
 
 /** Vendor milestone codes start "VM", purchaser "PM". Anything else → null. */
 export function sideForMilestoneCode(code: string): MilestoneSide | null {

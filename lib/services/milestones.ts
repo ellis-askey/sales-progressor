@@ -13,6 +13,7 @@ import { maybeStampExchange } from "@/lib/services/billing-trigger";
 import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import { recordEvent } from "@/lib/command/events/write";
 import { recordAvailabilityTransition, type AvailabilityCause } from "@/lib/services/milestone-availability-history";
+import { computeReconcileUnlocks } from "@/lib/milestones/reconcile";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { flipReferralEarnedForMilestone } from "@/lib/services/referrals";
 import type { MilestoneScope } from "@/lib/services/milestone-scope";
@@ -572,6 +573,95 @@ export async function unlockDirectDependents(
       }
     }
   }
+}
+
+// ── Self-heal: reconcile stale locked states ─────────────────────────────────
+// Belt-and-braces for a missed unlockDirectDependents cascade (a swallowed
+// failure, a concurrent-write skip, or a completion written outside the normal
+// path — seed / back-fill / repair). Flips any locked in-scope step whose direct
+// prerequisites are all complete/not_required to "available" and records the
+// transition. Idempotent: only ever moves locked → available, guarded on the row
+// still being locked at write time; never touches complete/not_required rows or
+// the excluded gate/bilateral codes. Returns the codes it unlocked.
+// See docs/active/milestone-unlock-selfheal.
+export async function reconcileMilestoneStates(
+  transactionId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<string[]> {
+  const db = tx ?? prisma;
+  const allDefs = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
+  const idToCode = new Map(allDefs.map((d) => [d.id, d.code]));
+
+  const scope = await getActiveRoundScope(db, transactionId);
+  const allCompletions = await db.milestoneCompletion.findMany({
+    where: { transactionId, ...milestoneScopeWhere(scope) },
+    select: { id: true, milestoneDefinitionId: true, state: true, buyerRoundId: true },
+  });
+
+  // Code → its best in-scope state (a prerequisite counts as satisfied if ANY
+  // in-scope row for it is complete/not_required — handles a relisted file's
+  // file-level + round rows). Feeds the pure decision.
+  const rank = (s: string) => (s === "complete" || s === "not_required" ? 2 : s === "available" ? 1 : 0);
+  const stateByCode = new Map<string, string>();
+  for (const c of allCompletions) {
+    const code = idToCode.get(c.milestoneDefinitionId);
+    if (!code) continue;
+    const prev = stateByCode.get(code);
+    if (prev === undefined || rank(c.state) > rank(prev)) stateByCode.set(code, c.state);
+  }
+  const toUnlock = new Set(computeReconcileUnlocks(stateByCode));
+  if (toUnlock.size === 0) return [];
+
+  const unlocked: string[] = [];
+  for (const c of allCompletions) {
+    if (c.state !== "locked") continue;
+    const code = idToCode.get(c.milestoneDefinitionId);
+    if (!code || !toUnlock.has(code)) continue;
+    const res = await db.milestoneCompletion.updateMany({
+      where: { id: c.id, state: "locked" },
+      data: { state: "available" },
+    });
+    if (res.count === 1) {
+      await recordAvailabilityTransition(db, {
+        transactionId,
+        milestoneDefinitionId: c.milestoneDefinitionId,
+        milestoneCode: code,
+        buyerRoundId: c.buyerRoundId,
+        transition: "became_available",
+        cause: "reconcile",
+      });
+      unlocked.push(code);
+    }
+  }
+  return unlocked;
+}
+
+// Nightly cron entry: reconcile every active file. Each file is independent and
+// idempotent; a failure on one is logged and never stops the rest.
+export async function reconcileAllActiveMilestoneStates(): Promise<{
+  scanned: number;
+  filesHealed: number;
+  unlocked: number;
+}> {
+  const active = await prisma.propertyTransaction.findMany({
+    where: { status: "active" },
+    select: { id: true },
+  });
+  let filesHealed = 0;
+  let unlocked = 0;
+  for (const t of active) {
+    try {
+      const codes = await reconcileMilestoneStates(t.id);
+      if (codes.length > 0) {
+        filesHealed++;
+        unlocked += codes.length;
+        console.log(`[reconcile-milestone-states] ${t.id}: unlocked ${codes.join(", ")}`);
+      }
+    } catch (err) {
+      console.error(`[reconcile-milestone-states] failed for ${t.id}:`, err);
+    }
+  }
+  return { scanned: active.length, filesHealed, unlocked };
 }
 
 // ── Exchange gate unlock ──────────────────────────────────────────────────────
