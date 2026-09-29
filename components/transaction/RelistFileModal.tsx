@@ -19,9 +19,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, CurrencyGbp, UploadSimple, CheckCircle, WarningCircle, FileText } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowLeft, CurrencyGbp, UploadSimple, CheckCircle, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { PriceInput } from "@/components/ui/PriceInput";
+import { Pill } from "@/components/ui/Pill";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { relistTransactionAction, getPriorEarnedReferralAction, attachRelistMosAction } from "@/app/actions/transactions";
@@ -58,24 +60,45 @@ type Props = {
   onClose: () => void;
 };
 
-function formatPriceForInput(p: number | null): string {
-  if (p === null) return "";
-  // schema stores pence
-  const pounds = Math.floor(p / 100);
-  return String(pounds);
-}
-
-function parsePriceInputToPence(s: string): number | null {
-  const trimmed = s.trim().replace(/[,£\s]/g, "");
-  if (trimmed === "") return null;
-  const pounds = Number(trimmed);
-  if (!Number.isFinite(pounds) || pounds <= 0) return null;
-  return Math.round(pounds * 100);
-}
-
 // £-formatted, no decimals — matches formatPrice across the agent app.
 function formatPence(p: number): string {
   return "£" + (p / 100).toLocaleString("en-GB", { maximumFractionDigits: 0 });
+}
+
+// Pounds-with-commas (no symbol) for the price field placeholder — the
+// canonical PriceInput prepends the £ itself.
+function poundsPlaceholder(p: number | null): string {
+  if (p === null) return "e.g. 325,000";
+  return (p / 100).toLocaleString("en-GB", { maximumFractionDigits: 0 });
+}
+
+// The quiet "upload a different memo" / "try another file" link that sits under
+// the read pill. Muted by default, coral on hover, never underlined (Ellis,
+// critique #4 follow-up).
+function MemoRelinkButton({ onClick, disabled, label }: { onClick: () => void; disabled?: boolean; label: string }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontSize: 12,
+        fontWeight: 600,
+        color: hover && !disabled ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        textDecoration: "none",
+        cursor: disabled ? "default" : "pointer",
+        transition: "color 140ms",
+      }}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function RelistFileModal({ open, transactionId, previousPurchasePrice, inChain, onClose }: Props) {
@@ -88,7 +111,9 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
-  const [priceInput, setPriceInput] = useState(formatPriceForInput(previousPurchasePrice));
+  // Agreed price in pence — matches the canonical PriceInput used on the
+  // new-sale hero (value/onChange both in pence).
+  const [pricePence, setPricePence] = useState<number | null>(previousPurchasePrice);
   // Buyer's purchase method — required step. Mirrors the new-sale flow
   // (components/transactions-v2/form/Stage1Fields.tsx). Drives the auto-NR
   // set on the new round's PMs (cash buyer skips mortgage steps, etc.), so
@@ -106,6 +131,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
   // step for the new round and is filed against the sale.
   const [memoState, setMemoState] = useState<"idle" | "reading" | "done" | "error">("idle");
   const [memoFilled, setMemoFilled] = useState<string[]>([]);
+  const [memoDragOver, setMemoDragOver] = useState(false);
   const [memoError, setMemoError] = useState<string | null>(null);
   const [mosMeta, setMosMeta] = useState<{
     mosStoragePath?: string | null;
@@ -137,12 +163,13 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
       setBuyerName("");
       setBuyerEmail("");
       setBuyerPhone("");
-      setPriceInput(formatPriceForInput(previousPurchasePrice));
+      setPricePence(previousPurchasePrice);
       setPurchaseType(null);
       setSolicitor(null);
       setBroker(null);
       setMemoState("idle");
       setMemoFilled([]);
+      setMemoDragOver(false);
       setMemoError(null);
       setMosMeta(null);
       setOnwardKind(null);
@@ -174,9 +201,40 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose, isPending]);
 
+  // Paste-to-read (critique #4). Mirrors the new-sale hero (HeroCard.tsx): a
+  // copied file OR a screenshot blob pasted anywhere in the open form is read
+  // as the memo. Ignored while a text field is focused so normal paste works.
+  useEffect(() => {
+    if (!open || stage !== "form") return;
+    function onPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+      const cb = e.clipboardData;
+      if (!cb) return;
+      const direct = cb.files[0];
+      if (direct) {
+        e.preventDefault();
+        handleMemoFile(direct);
+        return;
+      }
+      const imageItem = Array.from(cb.items).find((i) => i.type.startsWith("image/"));
+      if (imageItem) {
+        e.preventDefault();
+        const blob = imageItem.getAsFile();
+        if (blob) {
+          const ext = imageItem.type === "image/png" ? "png" : "jpg";
+          handleMemoFile(new File([blob], `screenshot.${ext}`, { type: imageItem.type }));
+        }
+      }
+    }
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, stage]);
+
   if (!open) return null;
 
-  const newPrice = parsePriceInputToPence(priceInput);
+  const newPrice = pricePence;
 
   // Onward-sale validity: only the picked branch's fields are required.
   // Email regex matches CHAIN_EMAIL_RE in app/actions/transactions.ts so a
@@ -244,7 +302,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
         filled.push("Phone");
       }
       if (typeof data.purchasePricePence === "number" && data.purchasePricePence > 0) {
-        setPriceInput(formatPriceForInput(data.purchasePricePence));
+        setPricePence(data.purchasePricePence);
         filled.push("Agreed price");
       }
       if (data.purchaserSolicitor?.firm) {
@@ -433,11 +491,24 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           * when the form is taller than the viewport (the new onward-sale
           * step pushed total height past ~700px on shorter monitors). */}
         {stage === "form" ? (
-          <div className="px-5 py-5 space-y-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
+          <div
+            className="px-5 py-5 space-y-4 overflow-y-auto"
+            style={{ flex: 1, minHeight: 0 }}
+            onDragOver={(e) => { if (!isPending) { e.preventDefault(); setMemoDragOver(true); } }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setMemoDragOver(false); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setMemoDragOver(false);
+              if (isPending) return;
+              const f = e.dataTransfer.files?.[0];
+              if (f) handleMemoFile(f);
+            }}
+          >
             {/* Optional memo re-upload (critique #4) — reads the BUYER side of
               * the new memo and fills the fields below. Seller + tenure are
               * deliberately not shown: the seller carries over and tenure is a
-              * fixed property fact. */}
+              * fixed property fact. Drop / paste / click all read the memo,
+              * matching the new-sale hero. */}
             <input
               ref={memoInputRef}
               type="file"
@@ -456,28 +527,23 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                 disabled={isPending}
                 className="w-full text-left agent-hover-row"
                 style={{
-                  display: "flex", gap: 12, alignItems: "center",
+                  display: "flex", gap: 10, alignItems: "center",
                   padding: "12px 14px", borderRadius: 12,
-                  background: "var(--agent-surface-glass)",
-                  border: "1px dashed var(--agent-border-default)",
+                  background: memoDragOver ? "rgba(var(--agent-coral-rgb), 0.06)" : "var(--agent-surface-glass)",
+                  border: memoDragOver
+                    ? "1px solid var(--agent-coral-deep)"
+                    : "1px solid var(--agent-border-default)",
                   cursor: isPending ? "default" : "pointer",
+                  transition: "background 160ms, border-color 160ms",
                 }}
               >
-                <span
-                  style={{
-                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                    background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)",
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <UploadSimple size={18} weight="regular" />
-                </span>
+                <UploadSimple size={18} weight="regular" style={{ flexShrink: 0, color: "var(--agent-coral-deep)" }} />
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                    Upload the new memo
+                    {memoDragOver ? "Drop the memo here" : "Upload the new memo"}
                   </span>
                   <span style={{ display: "block", fontSize: 12, lineHeight: 1.4, color: "var(--agent-text-secondary)" }}>
-                    Optional. We&rsquo;ll read the buyer&rsquo;s details and fill them in below.
+                    Optional. Drop it here, paste it, or click to browse. We&rsquo;ll read the buyer&rsquo;s details.
                   </span>
                 </span>
               </button>
@@ -510,73 +576,30 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
               </div>
             )}
             {memoState === "done" && (
-              <div
-                style={{
-                  display: "flex", gap: 12, alignItems: "flex-start",
-                  padding: "12px 14px", borderRadius: 12,
-                  background: "rgba(52, 168, 83, 0.08)",
-                  border: "0.5px solid rgba(52, 168, 83, 0.25)",
-                }}
-              >
-                <span style={{ flexShrink: 0, color: "#2E9E52", marginTop: 1 }}>
-                  <CheckCircle size={20} weight="fill" />
-                </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  {memoFilled.length > 0 ? (
-                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-                      Filled from the memo: <strong style={{ color: "var(--agent-text-primary)" }}>{memoFilled.join(", ")}</strong>. Confirm the buyer&rsquo;s purchase method below.
-                    </p>
-                  ) : (
-                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-                      We read the memo but couldn&rsquo;t pull the buyer&rsquo;s details. Fill them in below.
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => memoInputRef.current?.click()}
-                    disabled={isPending}
-                    style={{
-                      marginTop: 6, fontSize: 12, fontWeight: 600,
-                      color: "var(--agent-coral-deep)", background: "transparent",
-                      border: "none", padding: 0, cursor: isPending ? "default" : "pointer",
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                    }}
-                  >
-                    <FileText size={13} weight="regular" /> Upload a different memo
-                  </button>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+                {memoFilled.length > 0 ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                    <CheckCircle size={16} weight="fill" color="var(--agent-success)" style={{ flexShrink: 0 }} />
+                    <Pill tone="success" glass>Filled from Memorandum of Sale</Pill>
+                  </span>
+                ) : (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                    <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
+                    <Pill tone="warning" glass>No buyer details found</Pill>
+                  </span>
+                )}
+                <MemoRelinkButton onClick={() => memoInputRef.current?.click()} disabled={isPending} label="Upload a different memo" />
               </div>
             )}
             {memoState === "error" && (
-              <div
-                style={{
-                  display: "flex", gap: 12, alignItems: "flex-start",
-                  padding: "12px 14px", borderRadius: 12,
-                  background: "rgba(255, 173, 51, 0.10)",
-                  border: "0.5px solid rgba(255, 173, 51, 0.25)",
-                }}
-              >
-                <span style={{ flexShrink: 0, color: "#B8860B", marginTop: 1 }}>
-                  <WarningCircle size={20} weight="fill" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                  <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                    {memoError ?? "Couldn't read that memo."} Fill the details in below.
+                  </span>
                 </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-                    {memoError ?? "Couldn't read that memo."} Fill the details in by hand, or try another file.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => memoInputRef.current?.click()}
-                    disabled={isPending}
-                    style={{
-                      marginTop: 6, fontSize: 12, fontWeight: 600,
-                      color: "var(--agent-coral-deep)", background: "transparent",
-                      border: "none", padding: 0, cursor: isPending ? "default" : "pointer",
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                    }}
-                  >
-                    <UploadSimple size={13} weight="regular" /> Try another file
-                  </button>
-                </div>
+                <MemoRelinkButton onClick={() => memoInputRef.current?.click()} disabled={isPending} label="Try another file" />
               </div>
             )}
             {/* Reassurance: the outgoing buyer's earned broker referral is kept. */}
@@ -660,19 +683,17 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
               </div>
             </div>
 
-            {/* New price */}
+            {/* New price — canonical PriceInput (same control as the new-sale
+              * hero): £ prefix, thousand separators, value in pence. */}
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
-                Agreed price (£)
+                Agreed price
               </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={priceInput}
-                onChange={(e) => setPriceInput(e.target.value)}
+              <PriceInput
+                value={pricePence}
+                onChange={setPricePence}
                 disabled={isPending}
-                placeholder={previousPurchasePrice ? `Previous: £${formatPriceForInput(previousPurchasePrice)}` : "e.g. 500000"}
-                className="w-full glass-input text-sm rounded-lg px-3 py-2"
+                placeholder={poundsPlaceholder(previousPurchasePrice)}
               />
             </div>
 
