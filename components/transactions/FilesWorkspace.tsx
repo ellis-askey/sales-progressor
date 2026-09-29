@@ -235,7 +235,9 @@ export function FilesWorkspace({
               className={`agent-segment-pill agent-segment-pill-sm${view === key ? " on" : ""}`}
               onClick={() => setView(key)}
             >
-              <Icon size={15} weight={view === key ? "fill" : "regular"} />
+              {/* Icon wrapped so it can shrink/grow on small screens (critique #10):
+                  only the selected view keeps its icon there. Desktop unchanged. */}
+              <span className="files-view-ic"><Icon size={15} weight={view === key ? "fill" : "regular"} /></span>
               {label}
             </button>
           ))}

@@ -4782,6 +4782,25 @@ body[data-demo-file] [data-onboarding-checklist] {
 .files-views .agent-segment-pill-sm {
   min-height: 36px; padding: 6px 14px; font-size: 13px; gap: 8px; border-radius: 11px;
 }
+/* Small screens (critique #10): only the SELECTED view pill keeps its icon; the
+   rest slim to label-only so all four fit on one line. The icon wrapper shrinks
+   to zero (and eats the 8px flex gap via a negative margin) as a pill is
+   deselected, and grows back when selected — an animated swap. Desktop is
+   untouched: above 640px every pill shows its icon as before. */
+.files-view-ic { display: inline-flex; align-items: center; flex-shrink: 0; overflow: hidden; }
+@media (max-width: 640px) {
+  .files-view-ic {
+    transition: width .30s cubic-bezier(.4, 0, .15, 1),
+                margin-right .30s cubic-bezier(.4, 0, .15, 1),
+                opacity .22s ease;
+  }
+  .files-views .agent-segment-pill:not(.on) .files-view-ic {
+    width: 0; margin-right: -8px; opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .files-view-ic { transition: none; }
+}
 .tabnum { font-variant-numeric: tabular-nums; }
 
 /* Padding gives card + column shadows room: overflow-x:auto forces overflow-y
