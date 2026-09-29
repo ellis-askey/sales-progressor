@@ -16,7 +16,7 @@ import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -64,6 +64,9 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
   // hidden for them. See docs/active/enquiries-triage/00-spec.md.
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
+    // Founder-only "what to work on next" cockpit (critiques #12 + #29). Same
+    // literal-email gate as the Admin item below — only Ellis sees it.
+    ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/agent/focus", label: "Focus", Icon: Target }] : []),
     ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray, badge: remindersCount > 0 ? remindersCount : undefined }] : []),
     ...(showSelfPages ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck, badge: completionsCount > 0 ? completionsCount : undefined },

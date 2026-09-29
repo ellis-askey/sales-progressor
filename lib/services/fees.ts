@@ -392,6 +392,23 @@ export function rollToBusinessDay(d: Date): Date {
   return x;
 }
 
+// How many WORKING days have elapsed since `from` (weekends + E&W bank holidays
+// excluded). Counts business days in (from, now] — same day = 0, the next
+// working day = 1, and so on. Used by the founder cockpit to age files by their
+// last human contact. Local-date based, matching isBusinessDay above.
+export function businessDaysSince(from: Date, now: Date = new Date()): number {
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let count = 0;
+  let guard = 0;
+  while (cursor < end && guard < 3660) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (isBusinessDay(cursor)) count++;
+    guard++;
+  }
+  return count;
+}
+
 export function calculatePhaseAwarePrediction(
   input: PhaseAwareInput,
   createdAt: Date,
