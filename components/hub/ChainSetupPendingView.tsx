@@ -17,10 +17,7 @@ import { Link } from "@phosphor-icons/react/dist/ssr";
 import Link2 from "next/link";
 import { clearChainSetupPendingAction } from "@/app/actions/transactions";
 import type { HubChainSetupPending } from "@/lib/services/hub";
-
-function fmtFlaggedDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
+import { flaggedAgoSuffix } from "@/lib/utils";
 
 export function ChainSetupPendingView({ initialFiles }: { initialFiles: HubChainSetupPending[] }) {
   const [files, setFiles] = useState(initialFiles);
@@ -52,7 +49,7 @@ export function ChainSetupPendingView({ initialFiles }: { initialFiles: HubChain
           <div>
             <p className="agent-card-title-emphasis">Complete chain setup</p>
             <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Files relisted without their new buyer&apos;s onward sale confirmed.
+              Files relisted without their new buyer&apos;s related sale confirmed.
             </p>
           </div>
         </div>
@@ -89,8 +86,8 @@ export function ChainSetupPendingView({ initialFiles }: { initialFiles: HubChain
               color: "var(--agent-text-secondary)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {f.newBuyerName ? `${f.newBuyerName}'s onward sale is unconfirmed. ` : "New buyer's onward sale is unconfirmed. "}
-              Flagged {fmtFlaggedDate(f.flaggedAt)}.
+              {f.newBuyerName ? `${f.newBuyerName}'s related sale is unconfirmed.` : "New buyer's related sale is unconfirmed."}
+              {flaggedAgoSuffix(f.flaggedAt)}
             </p>
           </div>
           <button

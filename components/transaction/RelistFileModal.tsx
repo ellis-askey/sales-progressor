@@ -753,7 +753,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
             {inChain && (
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
-                  Buyer&apos;s onward sale <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                  Buyer&apos;s related sale <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
                 </label>
                 <div className="space-y-1.5">
                   {([

@@ -33,6 +33,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { FallbackPill } from "@/components/reminders/status-pills";
 import { usePathname } from "next/navigation";
+import { flaggedAgoSuffix } from "@/lib/utils";
 import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -922,7 +923,7 @@ function AttentionRow({
     pill = { label: "Chain setup" };
     txId = f.transactionId;
     address = f.propertyAddress;
-    secondary = `${f.newBuyerName ? `${f.newBuyerName}'s` : "New buyer's"} onward sale is unconfirmed. Flagged ${fmtShortDate(f.flaggedAt)}.`;
+    secondary = `${f.newBuyerName ? `${f.newBuyerName}'s` : "New buyer's"} related sale is unconfirmed.${flaggedAgoSuffix(f.flaggedAt)}`;
     href = `/agent/transactions/${f.transactionId}`;
   }
 

@@ -344,6 +344,17 @@ export function daysUntil(date: Date | string): number {
   return Math.round((new Date(dueStr).getTime() - new Date(todayStr).getTime()) / 86400000);
 }
 
+/**
+ * Relative "Flagged N days ago." suffix for hub cards — only appears once the flag
+ * has actually gone stale (2+ days). Under that it returns an empty string, so a
+ * freshly-flagged item stays clean. Leading space + trailing period so it drops
+ * straight onto the end of a sentence.
+ */
+export function flaggedAgoSuffix(flaggedAt: Date | string): string {
+  const daysAgo = -daysUntil(flaggedAt);
+  return daysAgo >= 2 ? ` Flagged ${daysAgo} days ago.` : "";
+}
+
 // Renders an active-elapsed day count as a human label for the Progress card.
 // 0 -> "Just started"; 1-6 -> "N day(s) elapsed"; exact weeks -> "N week(s) elapsed";
 // mixed -> "N week(s) M day(s) elapsed". Compact swaps "week/day" for "wk/d"
