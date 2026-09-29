@@ -2909,6 +2909,60 @@ export async function relistTransactionAction(input: {
   });
 }
 
+// After a relist, attach the new buyer's Memorandum of Sale and auto-confirm the
+// "Memorandum of sale received" step (VM2 + PM2) for the new round — mirroring
+// the new-sale MOS path (createTransaction above). Called by the relist modal
+// ONLY when the agent uploaded a memo. The relist reset already put VM2/PM2 into
+// the fresh "available" state for the new round, so completing them here lands on
+// the new buyer. Best-effort per side; a miss never breaks the relist.
+export async function attachRelistMosAction(input: {
+  transactionId: string;
+  mosStoragePath?: string | null;
+  mosFileSize?: number | null;
+  mosMimeType?: string | null;
+  mosFilename?: string | null;
+}): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!tx) return { ok: false };
+
+  // Auto-confirm MOS received (VM2 + PM2) for the new round. Fires whenever a
+  // memo was uploaded, even if the storage upload failed (the memo still exists).
+  const mosDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM2", "PM2"] } },
+    select: { id: true },
+  });
+  const confirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
+  await Promise.all(
+    mosDefs.map((def) =>
+      completeMilestone({ transactionId: tx.id, milestoneDefinitionId: def.id, confirmer }).catch(() => {}),
+    ),
+  );
+
+  // Attach the uploaded memo as the file's MOS document — only when the upload
+  // to storage succeeded (path present). Best-effort; a miss never breaks relist.
+  if (input.mosStoragePath && input.mosFileSize && input.mosMimeType) {
+    await prisma.transactionDocument.create({
+      data: {
+        transactionId: tx.id,
+        filename: input.mosFilename ?? "Memorandum of Sale",
+        storagePath: input.mosStoragePath,
+        fileSize: input.mosFileSize,
+        mimeType: input.mosMimeType,
+        source: "mos",
+        uploadedById: session.user.id,
+      },
+    }).catch(() => {});
+  }
+
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
+  return { ok: true };
+}
+
 // Inner implementation — the real work. Exported under an _Impl name so the
 // staging rehearsal harness can drive it with a fixed test-user identity
 // without standing up a NextAuth session. Production code MUST use

@@ -17,14 +17,15 @@
 // Modal chrome mirrors SwitchServiceTypeModal: createPortal + usePortalTheme
 // + Escape-to-dismiss + agent-modal-in animation.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, CurrencyGbp } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowLeft, CurrencyGbp, UploadSimple, CheckCircle, WarningCircle, FileText } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
-import { relistTransactionAction, getPriorEarnedReferralAction } from "@/app/actions/transactions";
+import { relistTransactionAction, getPriorEarnedReferralAction, attachRelistMosAction } from "@/app/actions/transactions";
+import { autoFillSolicitor } from "@/lib/utils/solicitor-autofill";
 import type { PurchaseType } from "@prisma/client";
 // Same input-hygiene helpers used in the new-sale ContactsSection so
 // the relist form behaves identically: name title-cased on blur, phone
@@ -96,6 +97,24 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
   const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(null);
   const [broker, setBroker] = useState<BrokerSelection | null>(null);
 
+  // Optional memo re-upload (critique #4). On a relist the sale is starting
+  // over with a NEW buyer, so we read only the BUYER side of the new memo
+  // (buyer name/email/phone, agreed price, buyer's solicitor) and auto-fill
+  // the fields below. The seller carries over untouched, and tenure is a
+  // property fact that never changes, so neither is shown while reading.
+  // On submit, an uploaded memo also ticks the "Memorandum of sale received"
+  // step for the new round and is filed against the sale.
+  const [memoState, setMemoState] = useState<"idle" | "reading" | "done" | "error">("idle");
+  const [memoFilled, setMemoFilled] = useState<string[]>([]);
+  const [memoError, setMemoError] = useState<string | null>(null);
+  const [mosMeta, setMosMeta] = useState<{
+    mosStoragePath?: string | null;
+    mosFileSize?: number | null;
+    mosMimeType?: string | null;
+    mosFilename?: string | null;
+  } | null>(null);
+  const memoInputRef = useRef<HTMLInputElement>(null);
+
   // Reassurance note (referral-ledger arc): if the outgoing buyer had an earned
   // broker referral, tell the agent it stays on record so adding a new buyer
   // never reads as wiping it. Fetched on open; null = nothing to reassure about.
@@ -122,6 +141,10 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
       setPurchaseType(null);
       setSolicitor(null);
       setBroker(null);
+      setMemoState("idle");
+      setMemoFilled([]);
+      setMemoError(null);
+      setMosMeta(null);
       setOnwardKind(null);
       setOnwardInternalEmail("");
       setOnwardExternalAgency("");
@@ -186,6 +209,71 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
     };
   }
 
+  // Read the uploaded memo and fill BUYER-side fields only. Uses the same
+  // /api/agent/memo-parse endpoint as the new-sale flow, but ignores the
+  // vendor, address, and tenure it returns (all carry over / unchanged on a
+  // relist). Best-effort: a parse miss just leaves the fields for hand entry.
+  async function handleMemoFile(file: File) {
+    setMemoError(null);
+    setMemoFilled([]);
+    setMosMeta(null);
+    setMemoState("reading");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/agent/memo-parse", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setMemoError(typeof data?.error === "string" ? data.error : "Couldn't read that memo.");
+        setMemoState("error");
+        return;
+      }
+
+      const filled: string[] = [];
+      const buyer = Array.isArray(data.purchasers) ? data.purchasers[0] : null;
+      if (buyer?.name && typeof buyer.name === "string") {
+        setBuyerName(titleCase(buyer.name.trim()));
+        filled.push("Buyer name");
+      }
+      if (buyer?.email && typeof buyer.email === "string") {
+        setBuyerEmail(buyer.email.trim().toLowerCase());
+        filled.push("Email");
+      }
+      if (buyer?.phone && typeof buyer.phone === "string") {
+        setBuyerPhone(formatUKPhone(cleanPhone(buyer.phone)));
+        filled.push("Phone");
+      }
+      if (typeof data.purchasePricePence === "number" && data.purchasePricePence > 0) {
+        setPriceInput(formatPriceForInput(data.purchasePricePence));
+        filled.push("Agreed price");
+      }
+      if (data.purchaserSolicitor?.firm) {
+        await autoFillSolicitor(
+          data.purchaserSolicitor.firm,
+          {
+            name: data.purchaserSolicitor.name ?? undefined,
+            phone: data.purchaserSolicitor.phone ?? undefined,
+            email: data.purchaserSolicitor.email ?? undefined,
+          },
+          setSolicitor,
+        );
+        filled.push("Buyer's solicitor");
+      }
+
+      setMosMeta({
+        mosStoragePath: data.mosStoragePath ?? null,
+        mosFileSize: data.mosFileSize ?? null,
+        mosMimeType: data.mosMimeType ?? null,
+        mosFilename: data.mosFilename ?? null,
+      });
+      setMemoFilled(filled);
+      setMemoState("done");
+    } catch {
+      setMemoError("Something went wrong reading that memo.");
+      setMemoState("error");
+    }
+  }
+
   function goToConfirm() {
     if (!formValid) {
       setError("New buyer name is required.");
@@ -237,6 +325,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           // / new-link creation / chain invite emails.
           onwardSale: buildOnwardPayload(),
         });
+        // If the agent uploaded the new memo, tick the "Memorandum of sale
+        // received" step for the new round and file the memo against the sale.
+        // Runs after the relist commits (which reset that step to available),
+        // so the confirm lands on the new buyer. Best-effort — a miss here
+        // never fails the relist that already succeeded.
+        if (memoState === "done") {
+          await attachRelistMosAction({ transactionId, ...(mosMeta ?? {}) }).catch(() => {});
+        }
         onClose();
         // Force a refresh so the file detail rerenders with the new round
         // active. Next.js's revalidatePath inside the action handles the
@@ -338,6 +434,151 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           * step pushed total height past ~700px on shorter monitors). */}
         {stage === "form" ? (
           <div className="px-5 py-5 space-y-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
+            {/* Optional memo re-upload (critique #4) — reads the BUYER side of
+              * the new memo and fills the fields below. Seller + tenure are
+              * deliberately not shown: the seller carries over and tenure is a
+              * fixed property fact. */}
+            <input
+              ref={memoInputRef}
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleMemoFile(f);
+                e.target.value = "";
+              }}
+            />
+            {memoState === "idle" && (
+              <button
+                type="button"
+                onClick={() => memoInputRef.current?.click()}
+                disabled={isPending}
+                className="w-full text-left agent-hover-row"
+                style={{
+                  display: "flex", gap: 12, alignItems: "center",
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "var(--agent-surface-glass)",
+                  border: "1px dashed var(--agent-border-default)",
+                  cursor: isPending ? "default" : "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    background: "rgba(var(--agent-coral-rgb), 0.12)", color: "var(--agent-coral-deep)",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <UploadSimple size={18} weight="regular" />
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                    Upload the new memo
+                  </span>
+                  <span style={{ display: "block", fontSize: 12, lineHeight: 1.4, color: "var(--agent-text-secondary)" }}>
+                    Optional. We&rsquo;ll read the buyer&rsquo;s details and fill them in below.
+                  </span>
+                </span>
+              </button>
+            )}
+            {memoState === "reading" && (
+              <div
+                style={{
+                  display: "flex", gap: 12, alignItems: "center",
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "var(--agent-surface-glass)",
+                  border: "0.5px solid var(--agent-border-default)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                    border: "2px solid rgba(var(--agent-coral-rgb), 0.3)",
+                    borderTopColor: "var(--agent-coral-deep)",
+                    animation: "agent-spin 700ms linear infinite",
+                  }}
+                />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                    Reading the memo&hellip;
+                  </span>
+                  <span style={{ display: "block", fontSize: 12, lineHeight: 1.4, color: "var(--agent-text-secondary)" }}>
+                    Pulling out the buyer, the agreed price, and their solicitor.
+                  </span>
+                </span>
+              </div>
+            )}
+            {memoState === "done" && (
+              <div
+                style={{
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "rgba(52, 168, 83, 0.08)",
+                  border: "0.5px solid rgba(52, 168, 83, 0.25)",
+                }}
+              >
+                <span style={{ flexShrink: 0, color: "#2E9E52", marginTop: 1 }}>
+                  <CheckCircle size={20} weight="fill" />
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {memoFilled.length > 0 ? (
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                      Filled from the memo: <strong style={{ color: "var(--agent-text-primary)" }}>{memoFilled.join(", ")}</strong>. Confirm the buyer&rsquo;s purchase method below.
+                    </p>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                      We read the memo but couldn&rsquo;t pull the buyer&rsquo;s details. Fill them in below.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => memoInputRef.current?.click()}
+                    disabled={isPending}
+                    style={{
+                      marginTop: 6, fontSize: 12, fontWeight: 600,
+                      color: "var(--agent-coral-deep)", background: "transparent",
+                      border: "none", padding: 0, cursor: isPending ? "default" : "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    <FileText size={13} weight="regular" /> Upload a different memo
+                  </button>
+                </div>
+              </div>
+            )}
+            {memoState === "error" && (
+              <div
+                style={{
+                  display: "flex", gap: 12, alignItems: "flex-start",
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "rgba(255, 173, 51, 0.10)",
+                  border: "0.5px solid rgba(255, 173, 51, 0.25)",
+                }}
+              >
+                <span style={{ flexShrink: 0, color: "#B8860B", marginTop: 1 }}>
+                  <WarningCircle size={20} weight="fill" />
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
+                    {memoError ?? "Couldn't read that memo."} Fill the details in by hand, or try another file.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => memoInputRef.current?.click()}
+                    disabled={isPending}
+                    style={{
+                      marginTop: 6, fontSize: 12, fontWeight: 600,
+                      color: "var(--agent-coral-deep)", background: "transparent",
+                      border: "none", padding: 0, cursor: isPending ? "default" : "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                    }}
+                  >
+                    <UploadSimple size={13} weight="regular" /> Try another file
+                  </button>
+                </div>
+              </div>
+            )}
             {/* Reassurance: the outgoing buyer's earned broker referral is kept. */}
             {priorReferral && (
               <div
@@ -600,6 +841,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
             buyerName={buyerName.trim()}
             newPrice={newPrice}
             previousPrice={previousPurchasePrice}
+            memoUploaded={memoState === "done"}
             error={error}
           />
         )}
@@ -720,11 +962,13 @@ function ConfirmStage({
   buyerName,
   newPrice,
   previousPrice,
+  memoUploaded,
   error,
 }: {
   buyerName: string;
   newPrice: number | null;
   previousPrice: number | null;
+  memoUploaded: boolean;
   error: string | null;
 }) {
   const priceChanged = newPrice !== null && previousPrice !== null && newPrice !== previousPrice;
@@ -778,6 +1022,19 @@ function ConfirmStage({
         </ul>
       </div>
 
+      {memoUploaded && (
+        <div
+          className="rounded-lg px-4 py-3 text-xs"
+          style={{
+            background: "rgba(52, 168, 83, 0.08)",
+            border: "0.5px solid rgba(52, 168, 83, 0.25)",
+            color: "var(--agent-text-secondary, #4b5563)",
+          }}
+        >
+          You've uploaded the new memo, so the "Memorandum of sale received" step will be ticked for {buyerName}, and the memo is filed against the sale.
+        </div>
+      )}
+
       <div
         className="rounded-lg px-4 py-3 text-xs"
         style={{
@@ -786,7 +1043,7 @@ function ConfirmStage({
           color: "var(--agent-text-secondary, #4b5563)",
         }}
       >
-        
+
         The previous buyer's portal link will land on a "this link is no longer active" page. Their progress is kept in the file's history but has no effect on the new sale.
       </div>
 
