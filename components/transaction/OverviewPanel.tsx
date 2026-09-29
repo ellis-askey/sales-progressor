@@ -180,6 +180,7 @@ export async function OverviewPanel({
     lastContactedByContactId,
     linkSentByContactId,
     brokerRow,
+    emailConn,
   ] = await Promise.all([
     prisma.propertyTransaction
       .findUnique({
@@ -227,6 +228,11 @@ export async function OverviewPanel({
         onwardBrokerContact: { select: { id: true, name: true } },
       },
     }).catch(() => null),
+
+    // Mailbox connected? Then sent email is ingested automatically, so the
+    // composer's manual "Log an email" option is hidden (critique #6 — the
+    // Overview composer is the same CommsEntry as the Activity tab).
+    prisma.imapConnection.findFirst({ where: { userId: currentUserId }, select: { id: true } }).catch(() => null),
   ]);
 
   const activeRoundCreatedAt = activeRound?.createdAt ?? null;
@@ -576,14 +582,19 @@ export async function OverviewPanel({
         entries={activityEntries}
         currentUserName={currentUserName}
         currentUserImage={currentUserImage}
-        // Quick-record toolbar (critique #6): clients + solicitors for the
-        // "Log a call" who-it-was-with pills and "Update everyone" panel. Same
-        // shapes ActivityPanel feeds the Activity-tab composer.
+        currentUserRole={currentUserRole}
+        // Critique #6: the Overview composer is the SAME <CommsEntry> as the
+        // Activity tab. It needs clients + solicitors (who-it-was-with pills +
+        // Draft-for-everyone), the paste-chat gate (internal staff), and the
+        // mailbox-connected flag (hides manual "Log an email"). Same shapes
+        // ActivityPanel feeds CommsEntry.
         contacts={clientContacts.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType, phone: c.phone ?? null }))}
         solicitors={[
           ...(transaction.vendorSolicitorContact ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }] : []),
           ...(transaction.purchaserSolicitorContact ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }] : []),
         ]}
+        canPasteChat={isInternalStaff}
+        emailConnected={!!emailConn}
       />
 
       {/* Chain spine card moved up into the AI-summary slot (2026-09-02). */}
