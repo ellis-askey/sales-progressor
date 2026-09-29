@@ -24,6 +24,8 @@ function riskScore(tx: TransactionRow): number {
       ? Math.floor((Date.now() - new Date(tx.health.lastActivityAt).getTime()) / 86400000)
       : null,
     daysStuckOnMilestone: tx.health.daysStuckOnMilestone,
+    awaitingDeposit: tx.health.awaitingDeposit, // critique #15
+    inChain: tx.health.inChain,
   }).score;
 }
 

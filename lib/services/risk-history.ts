@@ -66,6 +66,7 @@ export async function runRiskHistorySweep(now: Date = new Date()): Promise<numbe
       status: true,
       createdAt: true,
       lastActivityAt: true,
+      chainLinkId: true, // critique #15: "in a chain" wording for the deposit status
       activeBuyerRound: { select: { createdAt: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
       // Mirrors listTransactions: completed, round-scoped. lastMilestoneAt uses
@@ -79,7 +80,9 @@ export async function runRiskHistorySweep(now: Date = new Date()): Promise<numbe
         where: { status: "pending", OR: roundScopedOR(activeRoundIds) },
         orderBy: { dueDate: "asc" },
         take: 5,
-        select: { dueDate: true, priority: true },
+        // targetMilestoneCode lets deriveRiskInput spot a deposit-transfer (PM24)
+        // wait, matching the list path in transactions.ts (critique #15).
+        select: { dueDate: true, priority: true, reminderLog: { select: { reminderRule: { select: { targetMilestoneCode: true } } } } },
       },
     },
   });
@@ -96,11 +99,16 @@ export async function runRiskHistorySweep(now: Date = new Date()): Promise<numbe
           status: tx.status,
           createdAt: tx.createdAt,
           lastActivityAt: tx.lastActivityAt,
-          chaseTasks: tx.chaseTasks,
+          chaseTasks: tx.chaseTasks.map((t) => ({
+            dueDate: t.dueDate,
+            priority: t.priority,
+            targetMilestoneCode: t.reminderLog?.reminderRule?.targetMilestoneCode ?? null,
+          })),
           completedMilestoneDates: tx.milestoneCompletions.map((c) => c.completedAt),
           completedCount,
           holdPeriods: tx.holdPeriods,
           activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+          inChain: tx.chainLinkId != null,
         },
         totalMilestones,
         now,

@@ -23,14 +23,18 @@ export type RiskInputTx = {
   status: TransactionStatus;
   createdAt: Date;
   lastActivityAt: Date | null;
-  // Overdue/escalated are derived from the file's chase tasks.
-  chaseTasks: { dueDate: Date; priority: string }[];
+  // Overdue/escalated are derived from the file's chase tasks. targetMilestoneCode
+  // lets us spot a deposit-transfer (PM24) wait for critique #15 — matches the
+  // list path in transactions.ts (which reads chaseTasks[0], ordered dueDate asc).
+  chaseTasks: { dueDate: Date; priority: string; targetMilestoneCode?: string | null }[];
   // Completed milestones only (state === "complete"), newest first is not required —
   // we take the max completedAt ourselves.
   completedMilestoneDates: (Date | null)[];
   completedCount: number;
   holdPeriods: { startedAt: Date; endedAt: Date | null }[];
   activeRoundCreatedAt: Date | null;
+  // Whether the file is in a chain (chainLinkId set) — critique #15 wording.
+  inChain?: boolean;
 };
 
 /**
@@ -87,11 +91,18 @@ export function deriveRiskInput(tx: RiskInputTx, totalMilestones: number, now: D
     ? Math.floor((nowMs - new Date(tx.lastActivityAt).getTime()) / DAY_MS)
     : null;
 
+  // Critique #15: parked on the deposit — the soonest-due chase targets PM24.
+  // chaseTasks arrive ordered dueDate-asc (both callers), so [0] is the next one,
+  // matching the list path's `nextTask = tx.chaseTasks[0]`.
+  const awaitingDeposit = tx.chaseTasks[0]?.targetMilestoneCode === "PM24";
+
   return {
     onTrack,
     escalatedTaskCount: escalatedCount,
     overdueTaskCount: overdueCount,
     daysSinceLastActivity,
     daysStuckOnMilestone,
+    awaitingDeposit,
+    inChain: tx.inChain ?? false,
   };
 }

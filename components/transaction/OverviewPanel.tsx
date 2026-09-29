@@ -365,12 +365,20 @@ export async function OverviewPanel({
   const daysSinceLastActivity = lastActivityMs
     ? Math.floor((Date.now() - lastActivityMs) / 86400000)
     : null;
+  // Critique #15: parked on the deposit — the buyer's first outstanding step is
+  // the deposit transfer (PM24). When so, risk drops the deposit-driven signals
+  // and shows a plain "waiting on chain/deposit" status instead.
+  const awaitingDeposit = milestoneData
+    ? milestoneData.purchaser.find((m) => !m.isComplete && !m.isNotRequired && m.isAvailable)?.code === "PM24"
+    : false;
   const riskInput = {
     onTrack: progress.onTrack,
     escalatedTaskCount: escalatedCount,
     overdueTaskCount: overdueCount,
     daysSinceLastActivity,
     daysStuckOnMilestone,
+    awaitingDeposit,
+    inChain: transaction.chainLinkId != null,
   };
 
   // Milestone strip moved to page level (Zone 4 - always visible, above

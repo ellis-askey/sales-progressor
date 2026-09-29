@@ -21,7 +21,7 @@ const BAND_COLOR: Record<string, string> = {
 };
 
 export function RiskScoreWidget({ input }: { input: RiskInput }) {
-  const { level, score, factors } = calculateRiskScore(input);
+  const { level, score, factors, note } = calculateRiskScore(input);
   const cfg = RISK_CONFIG[level];
   const triggered = factors.filter((f) => f.triggered);
   const cleared = factors.filter((f) => !f.triggered);
@@ -43,6 +43,13 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
       </div>
 
       <div style={{ padding: "14px 16px" }}>
+        {/* Critique #15: plain status when the file is just parked on the deposit. */}
+        {note && (
+          <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "var(--agent-surface-subtle, rgba(0,0,0,0.03))", border: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-text-muted)", flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5, color: "var(--agent-text-secondary)" }}>{note}</span>
+          </div>
+        )}
         {level === "no_data" ? (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>

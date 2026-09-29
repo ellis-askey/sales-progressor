@@ -15,6 +15,8 @@ function buildInput(raw: HealthRaw) {
       ? Math.floor((Date.now() - new Date(raw.lastActivityAt).getTime()) / 86400000)
       : null,
     daysStuckOnMilestone: raw.daysStuckOnMilestone,
+    awaitingDeposit: raw.awaitingDeposit, // critique #15
+    inChain: raw.inChain,
   } as const;
 }
 

@@ -14,6 +14,9 @@ export type RiskScore = {
   level: RiskLevel;
   score: number; // 0–100
   factors: RiskFactor[];
+  // Plain status line shown in place of risk factors when a file is simply
+  // parked (currently only the deposit-transfer wait — critique #15).
+  note?: string;
 };
 
 // Points each triggered factor adds to the score, by impact. Exported so the
@@ -26,7 +29,20 @@ export type RiskInput = {
   overdueTaskCount: number;
   daysSinceLastActivity: number | null;
   daysStuckOnMilestone: number | null;
+  // Critique #15: the file is simply parked waiting on the deposit transfer
+  // (step PM24). Nobody's expecting the deposit until the chain's ready, and
+  // once it is the agents know — so the deposit's overdue reminder and the
+  // "no recent step completed" clock aren't real risk. When true they're
+  // dropped from the score and a plain status line is shown instead.
+  awaitingDeposit?: boolean;
+  // Whether the file is in a chain (chainLinkId set). Only changes the wording
+  // of the deposit status line.
+  inChain?: boolean;
 };
+
+// Labels dropped from the score + the visible list when awaitingDeposit — all
+// three are really just "waiting on the deposit".
+const DEPOSIT_SUPPRESSED = new Set(["Overdue reminder", "Multiple overdue reminders", "No recent step completed"]);
 
 export function calculateRiskScore(input: RiskInput): RiskScore {
   const { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone } = input;
@@ -111,18 +127,31 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
     },
   ];
 
+  // Critique #15: parked on the deposit — un-trigger the deposit-driven signals
+  // so they stop feeding the score, and prepare a plain status line instead.
+  const awaitingDeposit = input.awaitingDeposit === true;
+  if (awaitingDeposit) {
+    for (const f of factors) if (DEPOSIT_SUPPRESSED.has(f.label)) f.triggered = false;
+  }
+
   const POINTS: Record<RiskFactor["impact"], number> = { high: 40, medium: 20, low: 10 };
   const score = Math.min(100, factors.filter((f) => f.triggered).reduce((s, f) => s + POINTS[f.impact], 0));
   const level: RiskLevel = score >= 55 ? "high" : score >= 20 ? "medium" : "low";
 
-  // Only expose unique factors (hide "single overdue" if "multiple overdue" triggered)
+  // Only expose unique factors (hide "single overdue" if "multiple overdue"
+  // triggered), and drop the deposit-suppressed factors entirely when parked.
   const visible = factors.filter((f) => {
     if (f.label === "Overdue reminder" && overdueTaskCount >= 2) return false;
     if (f.label === "Slow progress pace" && onTrack === "off_track") return false;
+    if (awaitingDeposit && DEPOSIT_SUPPRESSED.has(f.label)) return false;
     return true;
   });
 
-  return { level, score, factors: visible };
+  const note = awaitingDeposit
+    ? (input.inChain ? "Waiting on chain before deposit transfer" : "Waiting on deposit transfer")
+    : undefined;
+
+  return { level, score, factors: visible, note };
 }
 
 export const RISK_CONFIG: Record<RiskLevel, { label: string; color: string; bg: string; border: string; dot: string }> = {

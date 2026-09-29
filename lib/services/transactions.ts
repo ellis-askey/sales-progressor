@@ -278,6 +278,11 @@ export async function listTransactions(
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,
         onTrack,
+        // Critique #15: the next chase is for the deposit-transfer step (PM24) —
+        // the file is parked on the deposit, so its overdue reminder + stuck
+        // clock shouldn't feed the risk score. inChain only changes the wording.
+        awaitingDeposit: nextTask?.reminderLog.reminderRule.targetMilestoneCode === "PM24",
+        inChain: tx.chainLinkId != null,
       },
     };
   });
@@ -538,6 +543,9 @@ export async function listTransactionsByScope(scope: AccessScope) {
         daysStuckOnMilestone,
         onTrack,
         channelLast: channelLastByTx.get(tx.id) ?? { email: null, whatsapp: null, call: null },
+        // Critique #15: parked on the deposit (next chase targets PM24).
+        awaitingDeposit: nextTask?.reminderLog.reminderRule.targetMilestoneCode === "PM24",
+        inChain: tx.chainLinkId != null,
       },
     };
   });

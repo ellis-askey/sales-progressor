@@ -78,6 +78,11 @@ export type HealthRaw = {
   onTrack?: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
   // Most recent contact per channel, for the "Recent" column (list view).
   channelLast?: { email: Date | null; whatsapp: Date | null; call: Date | null };
+  // Critique #15: parked on the deposit-transfer step (PM24) — the risk score
+  // drops the deposit signals and shows a plain status instead. inChain only
+  // changes the status wording.
+  awaitingDeposit?: boolean;
+  inChain?: boolean;
 };
 
 // The single definition of a row's risk level — the exact mapping the List's
@@ -93,6 +98,8 @@ export function riskLevelForRow(t: { health?: HealthRaw }): RiskLevel {
       ? Math.floor((Date.now() - new Date(t.health.lastActivityAt).getTime()) / 86400000)
       : null,
     daysStuckOnMilestone: t.health.daysStuckOnMilestone,
+    awaitingDeposit: t.health.awaitingDeposit,
+    inChain: t.health.inChain,
   }).level;
 }
 

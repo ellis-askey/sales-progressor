@@ -55,7 +55,26 @@ describe("deriveRiskInput parity", () => {
       overdueTaskCount: 2,
       daysSinceLastActivity: 25,
       daysStuckOnMilestone: 30,
+      awaitingDeposit: false, // no chase targets PM24
+      inChain: false,
     });
+  });
+
+  it("awaitingDeposit + inChain when the soonest chase targets the deposit (PM24)", () => {
+    const input = deriveRiskInput(
+      baseTx({
+        completedCount: 3,
+        inChain: true,
+        chaseTasks: [
+          { dueDate: daysAgo(2), priority: "normal", targetMilestoneCode: "PM24" },
+          { dueDate: new Date(NOW.getTime() + 3 * DAY), priority: "normal", targetMilestoneCode: "PM25" },
+        ],
+      }),
+      50,
+      NOW,
+    );
+    expect(input.awaitingDeposit).toBe(true);
+    expect(input.inChain).toBe(true);
   });
 
   it("on_hold freezes daysStuckOnMilestone and forces onTrack=on_hold", () => {
