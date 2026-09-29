@@ -12,11 +12,11 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { AutoAnimationPlugin } from "@formkit/auto-animate";
 import {
   Check, Checks, ArrowsLeftRight, ArrowsClockwise, ArrowRight, ChatCircleDots, CaretDown, MagnifyingGlass,
-  Phone, EnvelopeSimple, CalendarBlank, ClockCountdown, WarningCircle, CheckCircle, PaperPlaneTilt,
+  Phone, EnvelopeSimple, CalendarBlank, ClockCountdown, WarningCircle, CheckCircle, PaperPlaneTilt, ArrowClockwise,
 } from "@phosphor-icons/react";
 import {
   logEnquiryMovementAction, logEnquiryChaseAction, setEnquiryExpectedDateAction, getEnquiryHistoryAction,
-  markEnquiriesSatisfiedAction,
+  markEnquiriesSatisfiedAction, markEnquiryChasedAction,
   type EnquiryCallOutcome, type EnquiryCallParty,
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -374,6 +374,7 @@ export function EnquiriesTriageList({
                   move={(opts, msg) => run(r.transactionId, () => logEnquiryMovementAction({ transactionId: r.transactionId, ...opts }), msg)}
                   onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
                   onSendChase={() => { setChaseRow(r); setChaseOpen(true); }}
+                  onMarkChased={() => run(r.transactionId, () => markEnquiryChasedAction({ transactionId: r.transactionId }), "Chased, quiet for 2 working days")}
                 />
               </div>
 
@@ -496,7 +497,7 @@ function fmtBd(iso: string): string {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 function RowActions({
-  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy, onSendChase,
+  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy, onSendChase, onMarkChased,
 }: {
   row: OpenEnquiryRow;
   busy: boolean;
@@ -507,6 +508,7 @@ function RowActions({
   move: (opts: MoveOpts, msg: string) => void;
   onSatisfy: () => void;
   onSendChase: () => void;
+  onMarkChased: () => void;
 }) {
   const other = otherCourt(row.currentlyWith);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -597,7 +599,10 @@ function RowActions({
 
   return (
     <div className="enq-actions2" ref={wrapRef}>
-      {/* Desktop: send-a-chase + calendar + split button */}
+      {/* Desktop: I've-chased + send-a-chase + calendar + split button */}
+      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="I've chased" aria-label="I've chased them myself (quiet for 2 working days)" onClick={onMarkChased}>
+        <ArrowClockwise size={15} />
+      </button>
       <button type="button" className="enq-iconbtn enq-a-desktop" title="Send a chase" aria-label="Send a chase to the solicitor" onClick={onSendChase}>
         <PaperPlaneTilt size={15} />
       </button>
@@ -614,6 +619,10 @@ function RowActions({
 
       {menuOpen && (
         <div className="enq-menu" role="menu">
+          <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onMarkChased)}>
+            <span className="enq-mi-ico"><ArrowClockwise size={16} /></span>
+            <span className="enq-mi-txt">I&apos;ve chased<small>Quiet for 2 working days, then resurfaces</small></span>
+          </button>
           <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onSendChase)}>
             <span className="enq-mi-ico"><PaperPlaneTilt size={16} /></span>
             <span className="enq-mi-txt">Send a chase<small>Email the solicitor now</small></span>

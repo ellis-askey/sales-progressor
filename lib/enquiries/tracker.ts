@@ -9,6 +9,7 @@ import {
   ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS,
   ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS,
   ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_DAYS,
+  ENQUIRY_CHASE_SNOOZE_WORKING_DAYS,
 } from "./cadence";
 
 // The minimal clock fields the reply-loop cadence math reads. Kept structural so
@@ -225,6 +226,55 @@ export async function logEnquiryMovement(args: {
       .then((m) => m.evaluateTransactionReminders(args.transactionId))
       .catch(() => {});
   }
+  return true;
+}
+
+// Chase leash (critique #2/#10). A chase where you HAVEN'T heard back — either a
+// sent nudge or the manual "I've chased" tap — quiets the loop for a short window
+// (ENQUIRY_CHASE_SNOOZE_WORKING_DAYS), then it surfaces again as a "needs you"
+// number. Unlike a real movement, it does NOT reset the long silence clock
+// (lastMovementAt), so a loop that's been with them for weeks floats to the top
+// when it wakes. It also flags escalatedAt (preserving an earlier one) so the
+// nav-bar count picks it up the moment the snooze elapses — no cron needed.
+//
+// recordMovement=true writes a "chased" row for the history (the button, which
+// sends nothing). The email-send path logs its own chase comm, so it passes false.
+export async function markEnquiryChased(args: {
+  transactionId: string;
+  createdByUserId?: string | null;
+  recordMovement?: boolean;
+  note?: string;
+}): Promise<boolean> {
+  const tracker = await prisma.enquiryTracker.findUnique({
+    where: { transactionId: args.transactionId },
+    select: { id: true, closedAt: true, escalatedAt: true },
+  });
+  if (!tracker || tracker.closedAt) return false;
+  const now = new Date();
+  await prisma.$transaction([
+    ...(args.recordMovement
+      ? [prisma.enquiryMovement.create({
+          data: {
+            trackerId: tracker.id,
+            note: (args.note ?? "Chased, awaiting a reply").trim(),
+            occurredAt: now,
+            source: "progressor",
+            kind: "chased",
+            status: "accepted",
+            createdByUserId: args.createdByUserId ?? null,
+          },
+        })]
+      : []),
+    prisma.enquiryTracker.update({
+      where: { id: tracker.id },
+      data: {
+        lastChasedAt: now,
+        chaseCount: { increment: 1 },
+        snoozedUntil: addWorkingDays(now, ENQUIRY_CHASE_SNOOZE_WORKING_DAYS),
+        escalatedAt: tracker.escalatedAt ?? now,
+      },
+    }),
+  ]);
   return true;
 }
 

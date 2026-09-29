@@ -25,6 +25,7 @@ import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { resolveEnquiryChaseContext, enquiryChaseTextToHtml } from "@/lib/enquiries/manual-chase";
 import {
   logEnquiryMovement,
+  markEnquiryChased,
   setEnquiryOutstandingNote,
   setEnquirySnooze,
   setEnquirySnoozeUntil,
@@ -377,6 +378,21 @@ export async function setEnquirySnoozeAction(input: {
   return { ok: true };
 }
 
+// "I've chased" (critique #2/#10): the agent nudged the solicitor themselves (a
+// call/email outside the system). Quiets the loop for the short chase window, then
+// it surfaces as a "needs you" number again if no reply lands. No email sent.
+export async function markEnquiryChasedAction(input: {
+  transactionId: string;
+}): Promise<{ ok: boolean }> {
+  const userId = await assertInScope(input.transactionId);
+  const ok = await markEnquiryChased({ transactionId: input.transactionId, createdByUserId: userId, recordMovement: true });
+  revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
+  revalidatePath("/agent/hub");
+  return { ok };
+}
+
 // ── Manual enquiry chase: compose + send ──────────────────────────────────────
 // The send drawer (opened from the enquiries row's send icon and the hub's
 // "gone quiet" card) is the human-driven twin of the auto-chase cron. It reuses
@@ -452,10 +468,10 @@ export async function sendEnquiryChaseAction(input: {
   if (input.logOnly) {
     const now = new Date();
     const loggedText = `${bodyText}${tailText}`;
-    await prisma.enquiryTracker.update({
-      where: { transactionId: ctx.tx.id },
-      data: { lastChasedAt: now, chaseCount: { increment: 1 }, lastMovementAt: now, escalatedAt: null },
-    });
+    // Chase leash (critique #2/#10): quiet for the short window, keep the long
+    // silence clock running, re-surface as a number after. The chase comm below
+    // is the history entry, so no movement row here.
+    await markEnquiryChased({ transactionId: ctx.tx.id, recordMovement: false });
     await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
     await logEnquiryChaseComm({
       transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: loggedText, html: enquiryChaseTextToHtml(loggedText),
@@ -501,11 +517,10 @@ export async function sendEnquiryChaseAction(input: {
     return { ok: false, error: "Couldn't send. Try again." };
   }
 
-  // Reset the quiet clock + schedule the next auto-chase + clear the stalled flag.
-  await prisma.enquiryTracker.update({
-    where: { transactionId: ctx.tx.id },
-    data: { lastChasedAt: now, chaseCount: { increment: 1 }, lastMovementAt: now, escalatedAt: null },
-  });
+  // Chase leash (critique #2/#10): quiet for the short window, keep the long
+  // silence clock running so a long-chased loop floats to the top, and re-surface
+  // as a "needs you" number once it elapses. (Was a full clock reset.)
+  await markEnquiryChased({ transactionId: ctx.tx.id, recordMovement: false });
   await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
   await logEnquiryChaseComm({
     transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: text, html,

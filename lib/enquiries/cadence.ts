@@ -12,3 +12,9 @@
 export const ENQUIRY_FIRST_CHASE_WORKING_DAYS = 6;
 export const ENQUIRY_REPEAT_CHASE_WORKING_DAYS = 5;
 export const ENQUIRY_ESCALATE_WORKING_DAYS = 13;
+
+// When you chase (send a nudge, or tap "I've chased") without a reply, the loop
+// goes quiet for this many working days, then surfaces as a "needs you" number
+// again. A short leash, not the long silence timer — the long clock keeps
+// running so a repeatedly-chased loop floats to the top. (critique #2/#10)
+export const ENQUIRY_CHASE_SNOOZE_WORKING_DAYS = 2;
