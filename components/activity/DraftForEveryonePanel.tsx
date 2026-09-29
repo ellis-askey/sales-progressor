@@ -68,6 +68,92 @@ function CheckDot({ on }: { on: boolean }) {
   );
 }
 
+const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" };
+const cardStyle: React.CSSProperties = { border: "0.5px solid var(--agent-border-default)", borderRadius: 10, padding: "12px 14px", background: "var(--agent-surface-glass)" };
+
+// A side's editable update, its recipient toggles, and Send / Skip.
+//
+// Defined at MODULE scope, NOT inside DraftForEveryonePanel (critique #8). When
+// this lived inside the panel it was a new function identity on every render, so
+// React remounted its <textarea> on every keystroke — which dropped focus, shut
+// the mobile keyboard, and let the page jump Send up under the thumb (accidental
+// sends). A stable top-level component keeps focus and the keyboard through edits.
+function SideCard({
+  side,
+  people,
+  text,
+  setText,
+  selected,
+  setSelected,
+  busy,
+  onSend,
+  onSkip,
+}: {
+  side: "seller" | "buyer";
+  people: ClientContact[];
+  text: string | null;
+  setText: React.Dispatch<React.SetStateAction<string | null>>;
+  selected: string[];
+  setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+  busy: boolean;
+  onSend: () => void;
+  onSkip: () => void;
+}) {
+  const label = side === "seller" ? "Seller update" : "Buyer update";
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={labelStyle}>{label}</span>
+        <button onClick={onSkip} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Skip</button>
+      </div>
+      <textarea
+        value={text ?? ""}
+        onChange={(e) => setText(e.target.value)}
+        rows={4}
+        className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+      />
+      {/* Who it goes to — all on by default, tap a name to leave them out. */}
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
+        <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)", fontWeight: 600 }}>To</span>
+        {people.map((c) => {
+          const on = selected.includes(c.id);
+          return (
+            <button
+              key={c.id}
+              onClick={() => setSelected((prev) => (on ? prev.filter((x) => x !== c.id) : [...prev, c.id]))}
+              aria-pressed={on}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "3px 9px 3px 6px", borderRadius: 8, cursor: "pointer",
+                border: on ? "0.5px solid rgba(var(--agent-coral-rgb), 0.35)" : "0.5px solid var(--agent-border-subtle)",
+                background: on ? "rgba(var(--agent-coral-rgb), 0.06)" : "transparent",
+                color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
+                fontSize: 11.5, fontWeight: 500,
+                transition: "background 120ms ease, border-color 120ms ease, color 120ms ease",
+              }}
+            >
+              <CheckDot on={on} />
+              {firstName(c.name)}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flex: 1, minWidth: 170, lineHeight: 1.4 }}>
+          One alert per update. If they have notifications switched on, they&rsquo;ll get a phone notification. If not, we&rsquo;ll send an email. Either way, it&rsquo;s always saved to their portal.
+        </span>
+        <button
+          onClick={onSend}
+          disabled={!text?.trim() || busy || selected.length === 0}
+          className="agent-btn agent-btn-sm agent-btn-primary"
+        >
+          {busy ? "Sending…" : "Send update"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function DraftForEveryonePanel({
   transactionId,
   contacts,
@@ -186,72 +272,6 @@ export function DraftForEveryonePanel({
     }
   }
 
-  const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" };
-  const cardStyle: React.CSSProperties = { border: "0.5px solid var(--agent-border-default)", borderRadius: 10, padding: "12px 14px", background: "var(--agent-surface-glass)" };
-
-  // A side's editable update, its recipient toggles, and Send / Skip.
-  function SideCard({ side }: { side: "seller" | "buyer" }) {
-    const people = side === "seller" ? sellers : buyers;
-    const text = side === "seller" ? sellerText : buyerText;
-    const setText = side === "seller" ? setSellerText : setBuyerText;
-    const selected = side === "seller" ? selectedSeller : selectedBuyer;
-    const setSelected = side === "seller" ? setSelectedSeller : setSelectedBuyer;
-    const label = side === "seller" ? "Seller update" : "Buyer update";
-
-    return (
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={labelStyle}>{label}</span>
-          <button onClick={() => collapseAway(side)} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Skip</button>
-        </div>
-        <textarea
-          value={text ?? ""}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          className="glass-input w-full px-3 py-2.5 text-sm resize-none"
-        />
-        {/* Who it goes to — all on by default, tap a name to leave them out. */}
-        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
-          <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)", fontWeight: 600 }}>To</span>
-          {people.map((c) => {
-            const on = selected.includes(c.id);
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelected((prev) => (on ? prev.filter((x) => x !== c.id) : [...prev, c.id]))}
-                aria-pressed={on}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "3px 9px 3px 6px", borderRadius: 8, cursor: "pointer",
-                  border: on ? "0.5px solid rgba(var(--agent-coral-rgb), 0.35)" : "0.5px solid var(--agent-border-subtle)",
-                  background: on ? "rgba(var(--agent-coral-rgb), 0.06)" : "transparent",
-                  color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-                  fontSize: 11.5, fontWeight: 500,
-                  transition: "background 120ms ease, border-color 120ms ease, color 120ms ease",
-                }}
-              >
-                <CheckDot on={on} />
-                {firstName(c.name)}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flex: 1, minWidth: 170, lineHeight: 1.4 }}>
-            One alert per update. If they have notifications switched on, they&rsquo;ll get a phone notification. If not, we&rsquo;ll send an email. Either way, it&rsquo;s always saved to their portal.
-          </span>
-          <button
-            onClick={() => sendSide(side)}
-            disabled={!text?.trim() || busy[side] || selected.length === 0}
-            className="agent-btn agent-btn-sm agent-btn-primary"
-          >
-            {busy[side] ? "Sending…" : "Send update"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="agent-reveal-in" style={{ padding: "12px 14px" }}>
       {/* Title + cancel live on the composer row above — not repeated here. */}
@@ -278,13 +298,33 @@ export function DraftForEveryonePanel({
         <div className="agent-reveal-in" style={{ marginTop: 14 }}>
           {sellers.length > 0 && sellerText !== null && !removed.has("seller") && (
             <Collapse show={!exiting.has("seller")}>
-              <SideCard side="seller" />
+              <SideCard
+                side="seller"
+                people={sellers}
+                text={sellerText}
+                setText={setSellerText}
+                selected={selectedSeller}
+                setSelected={setSelectedSeller}
+                busy={busy.seller}
+                onSend={() => sendSide("seller")}
+                onSkip={() => collapseAway("seller")}
+              />
             </Collapse>
           )}
 
           {buyers.length > 0 && buyerText !== null && !removed.has("buyer") && (
             <Collapse show={!exiting.has("buyer")}>
-              <SideCard side="buyer" />
+              <SideCard
+                side="buyer"
+                people={buyers}
+                text={buyerText}
+                setText={setBuyerText}
+                selected={selectedBuyer}
+                setSelected={setSelectedBuyer}
+                busy={busy.buyer}
+                onSend={() => sendSide("buyer")}
+                onSkip={() => collapseAway("buyer")}
+              />
             </Collapse>
           )}
 
