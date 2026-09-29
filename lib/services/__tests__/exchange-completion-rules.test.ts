@@ -49,6 +49,11 @@ describe("AUTO_COUNTERPART_OF", () => {
     expect(AUTO_COUNTERPART_OF.VM10).toBe("PM14");
   });
 
+  test("maps the enquiries 'satisfied' pair PM20↔VM21 bidirectionally (Ellis 2026-09-29)", () => {
+    expect(AUTO_COUNTERPART_OF.PM20).toBe("VM21");
+    expect(AUTO_COUNTERPART_OF.VM21).toBe("PM20");
+  });
+
   test("returns undefined for non-auto-counterpart codes (helper is a no-op)", () => {
     expect(AUTO_COUNTERPART_OF.VM7).toBeUndefined();
     expect(AUTO_COUNTERPART_OF.VM18).toBeUndefined();

@@ -50,6 +50,12 @@ export const AUTO_COUNTERPART_OF: Readonly<Record<string, string>> = {
   // too, so buyer + seller are notified together. Each side has a single
   // client block (PM14 purchaser-only, VM10 vendor-only), so no duplicate.
   VM10: "PM14", PM14: "VM10",
+  // Enquiries "satisfied" pair (Ellis 2026-09-29): now bidirectional. PM20
+  // carries BOTH client blocks (buyer + seller); VM21 has none. So a PM20 click
+  // emails both sides via PM20's own copy (counterpart VM21 no-ops), and a VM21
+  // click emails both sides via PM20's copy here — either entry point notifies
+  // buyer and seller together, exactly once.
+  PM20: "VM21", VM21: "PM20",
 };
 
 // Returns true when the customer-facing email for this exchange/

@@ -284,10 +284,10 @@ const DIRECT_DEPENDENTS: Record<string, string[]> = (() => {
 export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
   VM19: "PM26", PM26: "VM19",
   VM20: "PM27", PM27: "VM20",
-  // Enquiries rework: undoing the buyer's "all enquiries satisfied" (PM20) also
-  // reverses the seller-side reflection VM21, mirroring the completion coupling
-  // in completeMilestone. One-directional — VM21 is never undone on its own.
-  PM20: "VM21",
+  // Enquiries "satisfied" pair: PM20 (buyer) and VM21 (seller) complete
+  // together via the completeMilestone reflection (now bidirectional, Ellis
+  // 2026-09-29), so they undo together too — whichever side is reversed.
+  PM20: "VM21", VM21: "PM20",
   // Contract-pack pair: issued (VM7) and received (PM7) complete together via
   // the completeMilestone reflection, so they must undo together too — a pack
   // that was never issued cannot have been received, and vice versa.
@@ -1471,33 +1471,38 @@ export async function completeMilestone(
     console.error("[completeMilestone] syncRaiseChase failed:", err);
   }
 
-  // Enquiries rework: VM21 (seller "all enquiries satisfied") is a pure
-  // reflection of PM20 (the buyer's solicitor confirming satisfaction). It is
-  // never an independent action, so it must auto-complete whenever PM20 does —
-  // on EVERY confirm path (agent app, client portal, solicitor /s/ link, API
-  // route, chase task, reconciliation). Living here, at the single chokepoint
-  // all of those run through, is what guarantees the two sides never desync
-  // (the prior per-caller wiring left the solicitor link + API route out). The
-  // recursive call bypasses the prereq guard because VM21 mirrors the buyer's
-  // call and must not be blocked by an un-ticked seller-side VM10. completeMilestone
-  // is idempotent on an already-complete row, so a caller that still passed a
-  // PM20→VM21 pair (or a double-fire) is a safe no-op.
-  if (def.code === "PM20") {
+  // Enquiries "satisfied" pair: the buyer's "all enquiries satisfied" (PM20)
+  // and the seller's mirror (VM21) are ONE real-world event — the enquiry
+  // stage closing — seen from two desks. Confirming EITHER side now completes
+  // both (founder decision, 2026-09-29). This used to be one-directional
+  // PM20→VM21, which let an agent tick the seller side (VM21) and silently
+  // leave the buyer's PM20 open with no client email — a mis-click trap, since
+  // both steps sit on the Steps tab at once. "Satisfied" is staff/solicitor-
+  // only (both codes are in PORTAL_AGENT_ONLY_CODES), so a client never lands
+  // here. Living at this single chokepoint guarantees the two sides never
+  // desync across every confirm path (agent app, solicitor /s/ link, API
+  // route, chase, reconciliation). The recursive call bypasses the prereq
+  // guard because the mirror must not be blocked by the other side's chain;
+  // recursion terminates on the counterpart's already-complete row (first-
+  // writer-wins early return above), so a double-fire is a safe no-op. The
+  // matching client emails are sent together by fireAutoCounterpartEmails via
+  // AUTO_COUNTERPART_OF (PM20↔VM21): whichever side is clicked, PM20's copy
+  // (which carries both the buyer and seller blocks) is the one that renders.
+  const satCounterpart = def.code === "PM20" ? "VM21" : def.code === "VM21" ? "PM20" : null;
+  if (satCounterpart) {
     try {
-      const vm21 = await db.milestoneDefinition.findFirst({
-        where: { code: "VM21" },
-        // Full hint shape (Phase 4): same single query, and the recursive
-        // call below no longer re-reads the definition or the round id.
+      const mirror = await db.milestoneDefinition.findFirst({
+        where: { code: satCounterpart },
         select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
       });
-      if (vm21) {
-        // Attribution aligned with the enquiries pair (Ellis, 2026-09-29): an
-        // internal user confirming PM20 carries that user onto VM21; a CLIENT or
-        // SOLICITOR confirming from their portal attributes VM21 to the file's
-        // overseer (assigned SP if outsourced, else the managing agent) — never
-        // the confirming client, so the seller never sees a buyer/solicitor as
-        // having completed their side. (Superseded the earlier plain-fact "auto".)
-        let vm21Confirmer: Confirmer = input.confirmer;
+      if (mirror) {
+        // Attribution aligned with the enquiries "raised" pair (Ellis,
+        // 2026-09-29): an internal user confirming carries that user onto the
+        // mirror; a CLIENT or SOLICITOR confirming attributes the mirror to the
+        // file's overseer (assigned SP if outsourced, else the managing agent)
+        // — never the confirming party, so neither side sees the other as
+        // having completed their step.
+        let mirrorConfirmer: Confirmer = input.confirmer;
         if (input.confirmer.kind !== "user") {
           const owner = await db.propertyTransaction.findUnique({
             where: { id: input.transactionId },
@@ -1508,23 +1513,23 @@ export async function completeMilestone(
             },
           });
           const overseer = owner?.serviceType === "outsourced" ? owner.assignedUser : owner?.agentUser;
-          vm21Confirmer = overseer
+          mirrorConfirmer = overseer
             ? { kind: "user", id: overseer.id, name: overseer.name ?? "" }
             : { kind: "auto" };
         }
         await completeMilestone(
           {
             transactionId: input.transactionId,
-            milestoneDefinitionId: vm21.id,
-            confirmer: vm21Confirmer,
+            milestoneDefinitionId: mirror.id,
+            confirmer: mirrorConfirmer,
             bypassPrereqs: true,
           },
           tx,
-          { def: vm21, activeBuyerRoundId },
+          { def: mirror, activeBuyerRoundId },
         );
       }
     } catch (err) {
-      console.error("[completeMilestone] PM20→VM21 reflection failed:", err);
+      console.error("[completeMilestone] PM20<->VM21 reflection failed:", err);
     }
   }
 

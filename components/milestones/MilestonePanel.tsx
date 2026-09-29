@@ -182,7 +182,19 @@ export function MilestonePanel({
   // Exchange + completion confirms write BOTH sides in one atomic action, but a
   // row only flips itself and the count reads raw server data — so mark the
   // paired step + the clicked step optimistically the moment the row commits.
-  const BILATERAL_COUNTERPART: Record<string, string> = { VM19: "PM26", PM26: "VM19", VM20: "PM27", PM27: "VM20" };
+  // Mirror of the server-side completion reflections in lib/services/milestones.ts
+  // (BILATERAL_UNDO_PAIRS + the completeMilestone reflection blocks). Whenever
+  // one side is confirmed, its counterpart completes server-side too — so we tick
+  // it here in the SAME frame, otherwise the paired step visibly lags until the
+  // refresh lands (poor UX, Ellis 2026-09-29). Must stay in sync with the server
+  // list: exchange, completion, contract-pack, enquiries raised, enquiries satisfied.
+  const BILATERAL_COUNTERPART: Record<string, string> = {
+    VM19: "PM26", PM26: "VM19",
+    VM20: "PM27", PM27: "VM20",
+    VM7: "PM7", PM7: "VM7",
+    VM10: "PM14", PM14: "VM10",
+    PM20: "VM21", VM21: "PM20",
+  };
   function handleOptimisticComplete(completedId: string, completedCode: string) {
     const ids = new Set<string>([completedId]);
     const counterpartCode = BILATERAL_COUNTERPART[completedCode];
