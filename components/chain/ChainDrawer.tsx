@@ -13,6 +13,7 @@ import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2, ChainTabPayload } from "@/lib/services/chains";
 import { computeChainSummary, formatChainValueShort, formatChainPriceFull } from "@/lib/chain/summary";
+import { copyToClipboard } from "@/lib/utils/clipboard";
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
@@ -403,11 +404,11 @@ export function ChainView({
         toast.error("Couldn't create the share link");
         return;
       }
-      await navigator.clipboard.writeText(data.url);
-      toast.success("Link copied");
+      const copied = await copyToClipboard(data.url);
+      toast[copied ? "success" : "error"](copied ? "Link copied" : `Couldn't copy automatically. Link: ${data.url}`);
       await fetchChainAndRefresh();
     } catch {
-      toast.error("Couldn't copy the share link");
+      toast.error("Couldn't create the share link");
     }
   }
 

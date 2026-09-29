@@ -32,6 +32,7 @@ import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 import { getNavBadgeCountsAction } from "@/app/actions/nav-badges";
+import { NAV_BADGES_REFRESH_EVENT } from "@/lib/agent/nav-badges-client";
 
 // Accounts that see the Design Lab flask in the topbar. Picks persist per-user,
 // so adding an email here is all that's needed to let that account use it.
@@ -315,6 +316,23 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
     getNavBadgeCountsAction().then((c) => { if (live && c) setBadges(c); }).catch(() => {});
     return () => { live = false; };
   }, [pathname]);
+
+  // Also refetch WITHOUT navigating: right after a resolve action fires
+  // refreshNavBadges() (so a cleared count drops instantly while you stay on the
+  // page), and when the tab regains focus (covers work cleared elsewhere).
+  // (critique #11, 2026-09-29)
+  useEffect(() => {
+    let live = true;
+    const refetch = () => getNavBadgeCountsAction().then((c) => { if (live && c) setBadges(c); }).catch(() => {});
+    const onVisible = () => { if (document.visibilityState === "visible") refetch(); };
+    window.addEventListener(NAV_BADGES_REFRESH_EVENT, refetch);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      window.removeEventListener(NAV_BADGES_REFRESH_EVENT, refetch);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const [refreshing, setRefreshing] = useState(false);
   function handleRefresh() {

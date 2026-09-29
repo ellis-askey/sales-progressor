@@ -30,6 +30,7 @@ import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { toUKDateStr } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
+import { exchangeBlockerLabel } from "@/lib/milestones/exchange-blocker-label";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
@@ -292,7 +293,10 @@ export async function OverviewPanel({
   const slip = isSlipping && progress.predictedExchangeDate
     ? {
         predictedDateLabel: progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
-        bottleneckName: slipBlocker?.name ?? null,
+        // Friendly "Waiting on ___" fragment rather than the raw step name
+        // (critique #8) — e.g. "the deposit transfer", not "Buyer has
+        // transferred the deposit".
+        bottleneckName: exchangeBlockerLabel(slipBlocker?.code, slipBlocker?.name ?? null),
       }
     : null;
 

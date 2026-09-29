@@ -47,6 +47,7 @@ import { WhatsappGroupModal } from "./WhatsappGroupModal";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
 import { logPortalLinkCopiedAction } from "@/app/actions/comms";
+import { copyToClipboard } from "@/lib/utils/clipboard";
 import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -555,16 +556,19 @@ export function ContactsSection({
     setIntroSide(side);
   }
 
-  function copyPortalLink(token: string, contactId: string) {
+  async function copyPortalLink(token: string, contactId: string) {
     const url = `${window.location.origin}/portal/${token}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(token);
-      setTimeout(() => setCopied(null), 2000);
-      // Log an internal-only note so a manually shared link leaves a trace on
-      // the file. Fire-and-forget — a logging failure must never break the
-      // copy the agent just did.
-      logPortalLinkCopiedAction(transactionId, contactId).catch(() => {});
-    });
+    // Robust copy with a legacy fallback — plain clipboard.writeText fails
+    // silently when the document isn't focused / outside a secure context
+    // (critique #9). No feedback flip unless the copy actually landed.
+    const ok = await copyToClipboard(url);
+    if (!ok) return;
+    setCopied(token);
+    setTimeout(() => setCopied(null), 2000);
+    // Log an internal-only note so a manually shared link leaves a trace on
+    // the file. Fire-and-forget — a logging failure must never break the
+    // copy the agent just did.
+    logPortalLinkCopiedAction(transactionId, contactId).catch(() => {});
   }
 
   async function sendInvite(token: string, contactId: string) {

@@ -12,6 +12,7 @@ import { classifyReminder, countActionable } from "@/lib/reminders/classify";
 import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
 import { completeTaskAction, snoozeTaskAction, snoozeManyAction, wakeupReminderAction, runReminderEngineAction, advanceChaseTaskAction, advanceManyChaseTasksAction } from "@/app/actions/tasks";
+import { refreshNavBadges } from "@/lib/agent/nav-badges-client";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -1147,7 +1148,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   function act(id: string, fn: () => Promise<unknown>) {
     setLoading(id);
     startTransition(async () => {
-      try { await fn(); } finally { setLoading(null); }
+      try { await fn(); refreshNavBadges(); } finally { setLoading(null); }
     });
   }
 
@@ -1181,6 +1182,10 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
               ? `Can't confirm yet. "${names[0]}" needs to be confirmed first.`
               : `Can't confirm yet. These earlier milestones need confirming first: ${names.join(", ")}.`;
             toast.error(msg);
+          } else {
+            // Cleared a "needs you" item — drop the nav badge now, don't wait
+            // for a navigation. (critique #11)
+            refreshNavBadges();
           }
         } finally { setLoading(null); }
       });
