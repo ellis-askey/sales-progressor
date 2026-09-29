@@ -655,7 +655,14 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     ? { name: def.confirmedByClientName ?? "the client", role: def.side === "vendor" ? "seller" : "buyer", image: def.confirmedByClientImage ?? null, channel: "portal" }
                     : comp?.confirmedBySolicitorFirmId
                     ? { name: def.confirmedBySolicitorFirmName ?? "the solicitor", role: "solicitor", image: null, channel: "sol" }
-                    : { name: def.completedByName ?? currentUserName ?? "your agency", role: "agent", image: def.completedByImage ?? null, channel: "app" };
+                    // No portal / solicitor confirmer. If a server completion
+                    // exists but carries no name, it's an auto-mirrored half of a
+                    // paired step (e.g. the contract-pack pair) — show a neutral
+                    // "your team", NOT the person currently viewing the file (the
+                    // old `currentUserName` fallback mis-named the viewer). The
+                    // viewer's name is only right in the optimistic instant BEFORE
+                    // any server completion row exists.
+                    : { name: def.completedByName ?? (comp ? "your team" : (currentUserName ?? "your agency")), role: "agent", image: def.completedByImage ?? null, channel: "app" };
                 const channelLabel = confirmer.channel === "portal" ? "Client portal" : confirmer.channel === "sol" ? "Solicitor" : "In-app";
                 const channelTone: "info" | "success" | "brand" = confirmer.channel === "portal" ? "info" : confirmer.channel === "sol" ? "success" : "brand";
                 return (

@@ -1491,16 +1491,32 @@ export async function completeMilestone(
         select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
       });
       if (vm21) {
+        // Attribution aligned with the enquiries pair (Ellis, 2026-09-29): an
+        // internal user confirming PM20 carries that user onto VM21; a CLIENT or
+        // SOLICITOR confirming from their portal attributes VM21 to the file's
+        // overseer (assigned SP if outsourced, else the managing agent) — never
+        // the confirming client, so the seller never sees a buyer/solicitor as
+        // having completed their side. (Superseded the earlier plain-fact "auto".)
+        let vm21Confirmer: Confirmer = input.confirmer;
+        if (input.confirmer.kind !== "user") {
+          const owner = await db.propertyTransaction.findUnique({
+            where: { id: input.transactionId },
+            select: {
+              serviceType: true,
+              assignedUser: { select: { id: true, name: true } },
+              agentUser: { select: { id: true, name: true } },
+            },
+          });
+          const overseer = owner?.serviceType === "outsourced" ? owner.assignedUser : owner?.agentUser;
+          vm21Confirmer = overseer
+            ? { kind: "user", id: overseer.id, name: overseer.name ?? "" }
+            : { kind: "auto" };
+        }
         await completeMilestone(
           {
             transactionId: input.transactionId,
             milestoneDefinitionId: vm21.id,
-            // Twin close: no named person acted on the seller side, so the
-            // mirrored row carries no provenance and renders as a plain fact
-            // (bucket D). Previously this passed the buyer-side confirmer
-            // through, which mis-attributed the entry (e.g. a solicitor firm
-            // apparently confirming the other firm's step).
-            confirmer: { kind: "auto" },
+            confirmer: vm21Confirmer,
             bypassPrereqs: true,
           },
           tx,
