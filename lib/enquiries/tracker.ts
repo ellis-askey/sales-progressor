@@ -113,6 +113,13 @@ export type EnquiryTrackerView = {
   escalated: boolean;
   chaseCount: number;
   status: EnquiryTrackerStatus;
+  // Live "needs you"/rest model shared with the triage page (critique parity).
+  // restingUntil = the LATER of a promised date/park and the chase leash, or null
+  // when it needs you now; restingReason says which so the panel can word it.
+  restingUntil: Date | null;
+  restingReason: "promise" | "chased" | null;
+  needsAttention: boolean; // your move now (not resting)
+  stalled: boolean; // gone dark, nobody chasing (red vs the amber "chase again")
   // True when the sale is on hold — the panel shows a paused note instead of a
   // live "next chase" line (F4).
   paused: boolean;
@@ -145,11 +152,16 @@ export async function getEnquiryTrackerView(
   // Live model (critique #2/#6): resting = a promised date/park or the chase leash;
   // stalled = gone dark past the threshold with nobody chasing. Keeps the file
   // panel consistent with the triage page + nav count.
+  const restingUntil = enquiryRestingUntil(t, now);
+  const promiseFuture = !!(t.snoozedUntil && t.snoozedUntil > now);
+  const restingReason: "promise" | "chased" | null = restingUntil ? (promiseFuture ? "promise" : "chased") : null;
+  const needsAttention = enquiryNeedsAttention(t, now);
+  const stalled = enquiryStalled(t, now);
   const status: EnquiryTrackerStatus = t.closedAt
     ? "closed"
-    : enquiryRestingUntil(t, now)
+    : restingUntil
       ? "snoozed"
-      : enquiryStalled(t, now)
+      : stalled
         ? "stalled"
         : "chasing";
 
@@ -167,6 +179,10 @@ export async function getEnquiryTrackerView(
     escalated: !!t.escalatedAt,
     chaseCount: t.chaseCount,
     status,
+    restingUntil,
+    restingReason,
+    needsAttention,
+    stalled,
     paused,
     nextChaseAt,
     partialRepliesAt: t.partialRepliesAt,

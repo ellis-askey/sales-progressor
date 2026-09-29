@@ -19,6 +19,7 @@ import {
   markEnquiriesSatisfiedAction,
 } from "@/app/actions/enquiries";
 import type { EnquiryMovementKind } from "@/lib/enquiries/tracker";
+import { refreshNavBadges } from "@/lib/agent/nav-badges-client";
 
 type Court = "seller_solicitor" | "buyer_solicitor";
 type Status = "closed" | "snoozed" | "stalled" | "chasing";
@@ -33,6 +34,13 @@ export type EnquiryTrackerPanelData = {
   snoozedUntil: Date | null;
   escalated: boolean;
   chaseCount: number;
+  // Live rest/needs-you model, shared with the triage page (parity).
+  restingUntil: Date | null;
+  restingReason: "promise" | "chased" | null;
+  needsAttention: boolean;
+  stalled: boolean;
+  openedAt: Date;
+  lastMovementAt: Date | null;
   movements: { id: string; note: string; occurredAt: Date; source: string; flipsCourtTo: Court | null }[];
 };
 
@@ -72,6 +80,7 @@ export function EnquiryTrackerPanel({
       await fn();
       // Phase 4 (2026-09-18, PERF-03): no client refresh - every action
       // routed through here revalidates the file page.
+      refreshNavBadges(); // but do drop/raise the nav enquiries count now (critique #7)
     } catch {
       setActionError("That didn't save. Try again.");
     } finally {
@@ -103,25 +112,36 @@ export function EnquiryTrackerPanel({
   // moved onto the --agent-* tokens so it reads in the dark file view too.
   const headline = closed ? "Enquiries satisfied" : `With ${courtLabel(data.currentlyWith)}`;
   const headlineColor =
-    data.status === "stalled" ? "var(--agent-warning)" : closed ? "var(--agent-success)" : "var(--agent-text-primary)";
-  // On hold: the chase cron skips this file, so a live "next chase" line would lie.
-  // Say it's paused instead (F4).
+    data.stalled ? "var(--agent-danger)" : closed ? "var(--agent-success)" : "var(--agent-text-primary)";
+  // Days the loop's been with them (silence clock), for the "chase again" line.
+  const quietAnchor = data.lastMovementAt ?? data.openedAt;
+  const quietDays = Math.max(0, Math.floor((Date.now() - new Date(quietAnchor).getTime()) / 86400000));
+  // An explicit park / promised date to "Resume" (the chase leash is separate and
+  // clears itself, so it must NOT flip the button to a no-op "Resume now").
+  const hasExplicitSnooze = !!(data.snoozedUntil && new Date(data.snoozedUntil).getTime() > Date.now());
+  // Status line, driven by the live rest/needs-you model so it matches the triage
+  // page (parity) and never shows a blank "paused until" for a chased loop.
   const sub = closed
     ? "Nothing left to chase."
     : data.paused
       ? "Paused whilst this sale is on hold"
-      : data.status === "snoozed"
-        ? `Chasing paused until ${fmtDate(data.snoozedUntil)}`
-        : data.status === "stalled"
-          ? "No reply in three weeks. Worth a direct call."
-          : `Chasing${data.chaseCount > 0 ? ` · chased ${data.chaseCount}×` : ""}${data.nextChaseAt ? ` · next chase ${fmtDate(data.nextChaseAt)}` : ""}`;
-  const STATUS_CHIP: Record<Status, { label: string; color: string }> = {
-    chasing: { label: "Chasing", color: "var(--agent-coral)" },
-    stalled: { label: "Stalled", color: "var(--agent-warning)" },
-    snoozed: { label: "Paused", color: "var(--agent-text-muted)" },
-    closed:  { label: "Done", color: "var(--agent-success)" },
-  };
-  const chip = data.paused && !closed ? { label: "Paused", color: "var(--agent-text-muted)" } : STATUS_CHIP[data.status];
+      : data.restingReason === "chased"
+        ? `Chased · back ${fmtDate(data.restingUntil)}`
+        : data.restingReason === "promise"
+          ? `Chasing paused until ${fmtDate(data.restingUntil)}`
+          : data.stalled
+            ? "No reply in three weeks. Worth a direct call."
+            : data.needsAttention
+              ? `Chase again${quietDays > 0 ? ` · ${quietDays} ${quietDays === 1 ? "day" : "days"} with them` : ""}`
+              : `Chasing${data.chaseCount > 0 ? ` · chased ${data.chaseCount}×` : ""}${data.nextChaseAt ? ` · next chase ${fmtDate(data.nextChaseAt)}` : ""}`;
+  const chip: { label: string; color: string } =
+    closed ? { label: "Done", color: "var(--agent-success)" }
+    : data.paused ? { label: "Paused", color: "var(--agent-text-muted)" }
+    : data.restingReason === "chased" ? { label: "Chased", color: "var(--agent-info)" }
+    : data.restingReason === "promise" ? { label: "Paused", color: "var(--agent-text-muted)" }
+    : data.stalled ? { label: "Stalled", color: "var(--agent-danger)" }
+    : data.needsAttention ? { label: "Chase again", color: "var(--agent-warning)" }
+    : { label: "Chasing", color: "var(--agent-coral)" };
 
   const secBtn: CSSProperties = {
     fontSize: 11.5, fontWeight: 600, borderRadius: 8, padding: "6px 11px",
@@ -201,7 +221,7 @@ export function EnquiryTrackerPanel({
                 <button type="button" disabled={pending} onClick={() => move("relabel", other, "correction")} title={`Corrects who it's with without resetting the chase timer, switch to ${courtLabel(other)}`} style={secBtn}>
                   Wrong side?
                 </button>
-                {data.status === "snoozed" ? (
+                {hasExplicitSnooze ? (
                   <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: null }))} style={secBtn}>Resume now</button>
                 ) : (
                   <button type="button" disabled={pending} onClick={() => run(() => setEnquirySnoozeAction({ transactionId, workingDays: 5 }))} title="Pause chasing for 5 working days" style={secBtn}>⏸ Pause chasing</button>
