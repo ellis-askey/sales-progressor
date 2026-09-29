@@ -576,6 +576,14 @@ export async function OverviewPanel({
         entries={activityEntries}
         currentUserName={currentUserName}
         currentUserImage={currentUserImage}
+        // Quick-record toolbar (critique #6): clients + solicitors for the
+        // "Log a call" who-it-was-with pills and "Update everyone" panel. Same
+        // shapes ActivityPanel feeds the Activity-tab composer.
+        contacts={clientContacts.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType, phone: c.phone ?? null }))}
+        solicitors={[
+          ...(transaction.vendorSolicitorContact ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }] : []),
+          ...(transaction.purchaserSolicitorContact ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }] : []),
+        ]}
       />
 
       {/* Chain spine card moved up into the AI-summary slot (2026-09-02). */}

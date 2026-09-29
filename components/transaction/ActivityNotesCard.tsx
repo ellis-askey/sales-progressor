@@ -14,14 +14,33 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
+import { addNoteAction, deleteCommAction, logCommAction } from "@/app/actions/comms";
+import { DraftForEveryonePanel } from "@/components/activity/DraftForEveryonePanel";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
+import { UserAvatar, ActorAvatar, ContactAvatar, type ActorRole } from "@/components/ui/Avatar";
 
-type Props = { transactionId: string; entries: ActivityEntry[]; currentUserName: string; currentUserImage?: string | null };
+// Client contacts + solicitors are only needed for the "Log a call" and
+// "Update everyone" quick-record actions (critique #6). Same shapes the
+// Activity-tab composer (CommsEntry) uses, so the two stay in step.
+type ComposerContact = { id: string; name: string; roleType: string; phone?: string | null };
+type ComposerSolicitor = { id: string; name: string; role: string; phone?: string | null };
+
+type Props = {
+  transactionId: string;
+  entries: ActivityEntry[];
+  currentUserName: string;
+  currentUserImage?: string | null;
+  contacts?: ComposerContact[];
+  solicitors?: ComposerSolicitor[];
+};
+
+// Quick-record mode for the compact toolbar. "note" is the default so a note
+// stays one click away (the box is shown straight off, as before).
+type RecordMode = "note" | "call" | "draft";
 
 type OptimisticNote = { id: string; content: string; createdByName: string | null; createdByImage: string | null; at: Date };
 
@@ -80,11 +99,23 @@ function isSetupNote(e: ActivityEntry): boolean {
   return isNote(e) && e.kind === "comm" && e.subject === "Setup note";
 }
 
-export function ActivityNotesCard({ transactionId, entries, currentUserName, currentUserImage = null }: Props) {
+export function ActivityNotesCard({ transactionId, entries, currentUserName, currentUserImage = null, contacts = [], solicitors = [] }: Props) {
   const { setActiveTab } = useTabContext();
   const { toast } = useAgentToast();
   const [filter, setFilter] = useState<"all" | "notes">("all");
   const [draft, setDraft] = useState("");
+
+  // Quick-record toolbar (critique #6). "note" default keeps the note box up
+  // front. "call" swaps in the compact log-a-call form; "draft" drops in the
+  // shared Draft-for-everyone panel. Call-form state is held across mode
+  // switches (only cleared on a successful save) so an accidental tab away
+  // never loses what was typed.
+  const [mode, setMode] = useState<RecordMode>("note");
+  const [callDirection, setCallDirection] = useState<"outbound" | "inbound">("outbound");
+  const [callSelected, setCallSelected] = useState<string[]>([]);
+  const [callContent, setCallContent] = useState("");
+  const [callVisible, setCallVisible] = useState(false);
+  const [callSaving, setCallSaving] = useState(false);
   // Phase 2 (2026-09-17): pending is ack-scoped and per-row. `saving` covers
   // the composer only and clears when the server acknowledges the write, not
   // when the follow-up refresh lands. `deletingIds` is a Set so one delete
@@ -162,6 +193,39 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
     }
   }
 
+  function toggleCallContact(id: string) {
+    setCallSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  // Log a phone call through the SAME action the Activity-tab composer uses, so
+  // it lands in the feed/timeline identically. No optimistic row: logCommAction
+  // revalidates the file page, so the new entry streams into the feed on ack.
+  async function handleLogCall() {
+    const content = callContent.trim();
+    if (!content || callSaving) return;
+    setCallSaving(true);
+    try {
+      await logCommAction({
+        transactionId,
+        type: callDirection === "outbound" ? "outbound" : "inbound",
+        method: "phone",
+        contactIds: callSelected,
+        content,
+        visibleToClient: callVisible,
+      });
+      toast.success("Call logged");
+      setCallContent("");
+      setCallSelected([]);
+      setCallVisible(false);
+      setCallDirection("outbound");
+      setMode("note");
+    } catch {
+      toast.error("Couldn't log the call. Try again");
+    } finally {
+      setCallSaving(false);
+    }
+  }
+
   return (
     <GlassCard glassId="overview-activity-notes" label="Overview · Activity & notes" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 14 }}>
       {/* Header: title + All/Notes filter + view all */}
@@ -178,21 +242,166 @@ export function ActivityNotesCard({ transactionId, entries, currentUserName, cur
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all <LinkArrow /></button>
       </div>
 
-      {/* Composer — always present so a note is one click away */}
-      <form onSubmit={handleAdd} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0 16px 12px" }}>
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAdd(e); }}
-          placeholder="Add a note…  (Cmd/Ctrl + Enter to save)"
-          className="agent-textarea"
-          rows={1}
-          style={{ flex: 1, minHeight: 38, resize: "vertical", fontSize: 13 }}
-        />
-        <button type="submit" disabled={saving || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          {saving ? <SavingPulse label="Saving…" /> : <><Plus size={13} weight="bold" /> Add note</>}
-        </button>
-      </form>
+      {/* Quick-record toolbar (critique #6) — always visible. Mirrors the
+          Activity-tab composer's channels, minus the "More" set, in a compact
+          row. Selecting one swaps the body below. */}
+      <div style={{ display: "flex", gap: 6, padding: "0 16px 10px", flexWrap: "wrap" }}>
+        <RecordTab active={mode === "draft"} primary onClick={() => setMode("draft")}>✨ Update everyone</RecordTab>
+        <RecordTab active={mode === "call"} onClick={() => setMode("call")}>📞 Log a call</RecordTab>
+        <RecordTab active={mode === "note"} onClick={() => setMode("note")}>📝 Note</RecordTab>
+      </div>
+
+      {/* Note — the default body, so a note stays one click away as before */}
+      {mode === "note" && (
+        <form onSubmit={handleAdd} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0 16px 12px" }}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAdd(e); }}
+            placeholder="Add a note…  (Cmd/Ctrl + Enter to save)"
+            className="agent-textarea"
+            rows={1}
+            style={{ flex: 1, minHeight: 38, resize: "vertical", fontSize: 13 }}
+          />
+          <button type="submit" disabled={saving || !draft.trim()} className="agent-btn agent-btn-sm agent-btn-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {saving ? <SavingPulse label="Saving…" /> : <><Plus size={13} weight="bold" /> Add note</>}
+          </button>
+        </form>
+      )}
+
+      {/* Log a call — compact version of the Activity-tab call form. Same
+          direction + who-it-was-with + share-with-client, calling logCommAction. */}
+      {mode === "call" && (
+        <div className="agent-reveal-in" style={{ padding: "0 16px 12px" }}>
+          {/* Direction */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>Direction:</span>
+            <button
+              onClick={() => setCallDirection("outbound")}
+              style={{
+                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                background: callDirection === "outbound" ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
+                color: callDirection === "outbound" ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                transition: "background 100ms, color 100ms",
+              }}
+            >
+              Outbound (made)
+            </button>
+            <button
+              onClick={() => setCallDirection("inbound")}
+              style={{
+                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                background: callDirection === "inbound" ? "rgba(16,185,129,0.12)" : "var(--agent-surface-glass)",
+                color: callDirection === "inbound" ? "#059669" : "var(--agent-text-muted)",
+                transition: "background 100ms, color 100ms",
+              }}
+            >
+              Inbound (took)
+            </button>
+          </div>
+
+          {/* Who the call was with — clients then solicitors */}
+          {(contacts.length > 0 || solicitors.length > 0) && (
+            <div style={{ marginBottom: 10 }}>
+              {solicitors.length > 0 && contacts.length > 0 && (
+                <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Clients</p>
+              )}
+              {contacts.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {contacts.map((c) => {
+                    const on = callSelected.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => toggleCallContact(c.id)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, border: "none", cursor: "pointer",
+                          fontSize: 12, fontWeight: 500,
+                          background: on ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
+                          color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                          transition: "background 80ms, color 80ms",
+                        }}
+                      >
+                        <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={16} />
+                        {extractFirstName(c.name)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {solicitors.length > 0 && (
+                <>
+                  {contacts.length > 0 && (
+                    <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "8px 0 6px" }}>Solicitors</p>
+                  )}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    {solicitors.map((s) => {
+                      const on = callSelected.includes(s.id);
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => toggleCallContact(s.id)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, border: "none", cursor: "pointer",
+                            fontSize: 12, fontWeight: 500,
+                            background: on ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
+                            color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                            transition: "background 80ms, color 80ms",
+                          }}
+                        >
+                          <ContactAvatar contact={{ name: s.name, roleType: s.role === "Vendor solicitor" ? "vendor" : "purchaser" }} size={16} />
+                          {s.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* What was said */}
+          <textarea
+            value={callContent}
+            onChange={(e) => setCallContent(e.target.value)}
+            placeholder="What was discussed on the call?"
+            rows={3}
+            className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+          />
+
+          {/* Save + share-with-client */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
+            <button onClick={handleLogCall} disabled={!callContent.trim() || callSaving} className="agent-btn agent-btn-sm agent-btn-primary">
+              {callSaving ? <SavingPulse label="Saving…" /> : "Log call"}
+            </button>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", userSelect: "none" }}>
+              <div
+                onClick={() => setCallVisible((v) => !v)}
+                style={{
+                  position: "relative", width: 36, height: 20, borderRadius: 10, flexShrink: 0, cursor: "pointer",
+                  background: callVisible ? "#3b82f6" : "rgba(15,23,42,0.15)", transition: "background 150ms",
+                }}
+              >
+                <span style={{ position: "absolute", top: 2, left: 2, width: 16, height: 16, borderRadius: "50%", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.18)", transform: callVisible ? "translateX(16px)" : "translateX(0)", transition: "transform 150ms", display: "block" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 500, color: callVisible ? "#3b82f6" : "var(--agent-text-muted)", transition: "color 150ms" }}>
+                {callVisible ? "Visible in client portal" : "Share with client"}
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Update everyone — the shared Draft-for-everyone panel, dropped in */}
+      {mode === "draft" && (
+        <div className="agent-reveal-in" style={{ padding: "0 16px 4px" }}>
+          <DraftForEveryonePanel
+            transactionId={transactionId}
+            contacts={contacts.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType }))}
+            onClose={() => setMode("note")}
+          />
+        </div>
+      )}
 
       {/* Pinned setup note(s) — always above the feed, in both filters,
           and excluded from the lists below so they never render twice. */}
@@ -297,6 +506,46 @@ function BandLabel({ label }: { label: string }) {
 
 function Empty({ label }: { label: string }) {
   return <div style={{ padding: 16, textAlign: "center" }}><p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>{label}</p></div>;
+}
+
+// Compact toolbar button for the quick-record row (critique #6). `primary` is
+// the coral "Update everyone" CTA; the others are ghost pills that turn coral
+// when active.
+function RecordTab({ active, primary, onClick, children }: { active: boolean; primary?: boolean; onClick: () => void; children: React.ReactNode }) {
+  if (primary) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+          padding: "5px 11px", borderRadius: 8, border: "1px solid transparent", cursor: "pointer",
+          color: "#fff",
+          background: "linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 4px rgba(224,78,44,0.24)",
+          transition: "filter 120ms ease",
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+        padding: "5px 11px", borderRadius: 8, cursor: "pointer",
+        background: active ? "rgba(var(--agent-coral-rgb),0.10)" : "var(--agent-surface-glass)",
+        border: active ? "1px solid var(--agent-coral-deep)" : "1px solid var(--agent-border-default)",
+        color: active ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)",
+        transition: "background 120ms, border-color 120ms, color 120ms",
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
