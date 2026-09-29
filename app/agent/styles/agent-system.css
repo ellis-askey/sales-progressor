@@ -3892,6 +3892,21 @@
     margin-left: 0 !important;
   }
 }
+/* Completed-step disclosure footer (critique #11): on desktop the channel label
+ * + Undo sit in a right-hand column beside the "confirmed by" text. On a phone
+ * that's cramped, so at <=640px they drop to their own full-width row beneath —
+ * label pinned bottom-left, Undo (and Change date, when present) bottom-right.
+ * !important overrides the inline flex-direction/align-items on the element. */
+@media (max-width: 640px) {
+  .ms-done-head { flex-wrap: wrap; }
+  .ms-done-actions {
+    width: 100%;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+}
 
 /* ── Reminders mobile polish ────────────────────────────────────────────
  * Reminders are rendered as two side-by-side columns (Seller / Buyer)

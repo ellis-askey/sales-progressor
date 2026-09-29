@@ -659,7 +659,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 const channelLabel = confirmer.channel === "portal" ? "Client portal" : confirmer.channel === "sol" ? "Solicitor" : "In-app";
                 const channelTone: "info" | "success" | "brand" = confirmer.channel === "portal" ? "info" : confirmer.channel === "sol" ? "success" : "brand";
                 return (
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+                  <div className="ms-done-head" style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
                     <ActorAvatar name={confirmer.name} role={confirmer.role} image={confirmer.image} size={34} />
                     <div style={{ minWidth: 0, flex: 1, paddingTop: 1 }}>
                       <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
@@ -671,7 +671,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                         {comp?.completedAt ? fmtDateTime(comp.completedAt) : "just now"}
                       </p>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                    <div className="ms-done-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
                       <Pill glass tone={channelTone} size="sm">{channelLabel}</Pill>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
                         {(isPM6 || isPM9) && comp?.eventDate && (
