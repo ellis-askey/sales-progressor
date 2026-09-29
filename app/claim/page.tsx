@@ -164,12 +164,14 @@ export default async function ClaimPage({
   );
   const manager = originatorFile?.transaction?.assignedUser ?? null;
   const isOutsourced = !!manager && manager.agencyId === null;
+  // White label (non-negotiable): we ALWAYS appear as the agency we're progressing
+  // for — the brand stays the agency's. Only the PERSON changes: an outsourced file
+  // shows its internal progressor (the one actually running it), a self-managed one
+  // shows the agency user who built the chain.
   const originatorName = isOutsourced
-    ? (manager!.name ?? "The Sales Progressor")
+    ? (manager!.name ?? link.chain.createdBy?.name ?? "An agent")
     : (link.chain.createdBy?.name ?? "An agent");
-  const originatorAgency = isOutsourced
-    ? (manager!.firmName ?? "The Sales Progressor")
-    : (link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null);
+  const originatorAgency = link.chain.agency?.name ?? link.chain.createdBy?.firmName ?? null;
   const inviterImage = isOutsourced
     ? (manager!.image ?? null)
     : (link.chain.createdBy?.image ?? null);
