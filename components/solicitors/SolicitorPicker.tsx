@@ -480,9 +480,9 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <input readOnly value={value.phone ?? ""} placeholder="Phone"
-                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]" />
+                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)] outline-none focus:outline-none" />
                   <input readOnly value={value.email ?? ""} placeholder="Email"
-                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]" />
+                    className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)] outline-none focus:outline-none" />
                 </div>
                 {/* Assistant / secretary — cc'd on every email to this handler */}
                 <div className="space-y-1">
@@ -496,7 +496,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                       <input
                         readOnly
                         value={value.secondaryEmail ?? ""}
-                        className="w-full px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)]"
+                        className="w-full px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)] outline-none focus:outline-none"
                       />
                       <p className="text-[11px] text-slate-900/40">Set by the solicitor, so it can&apos;t be changed here.</p>
                     </>
