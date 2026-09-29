@@ -11,7 +11,7 @@
 // would just double it up. WhatsApp paste stays, for messages from outside the
 // tracked chat.
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, type CSSProperties } from "react";
 import type { CommType, CommMethod } from "@prisma/client";
 import { EnvelopeSimple, Phone, ChatText, Voicemail, Package, WhatsappLogo } from "@phosphor-icons/react";
 import { logCommAction } from "@/app/actions/comms";
@@ -75,6 +75,21 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const logItems = LOG_ITEMS.filter((i) => !(i.value === "email" && emailConnected));
+
+  // Selection-pill style (critique #7b): a clean 1px outline that gains a coral
+  // border, coral text and a slight lift shadow when selected — no orange fill.
+  // Both states carry a 1px border so toggling never shifts the layout.
+  const pillStyle = (on: boolean): CSSProperties => ({
+    display: "flex", alignItems: "center", gap: 5,
+    padding: "4px 10px", borderRadius: 20, cursor: "pointer",
+    fontSize: 12, fontWeight: 500,
+    background: on ? "var(--agent-surface-elevated)" : "var(--agent-surface-glass)",
+    border: on ? "1px solid var(--agent-coral-deep)" : "1px solid var(--agent-border-default)",
+    color: on ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+    boxShadow: on ? "0 2px 8px rgba(15,23,42,0.10)" : "none",
+    transform: on ? "translateY(-1px)" : "none",
+    transition: "border-color 160ms, box-shadow 160ms, transform 160ms, color 160ms, background 160ms",
+  });
 
   // Build the flat contact list passed to PasteWhatsAppPanel (clients + solicitors)
   const importableContacts: ImportableContact[] = [
@@ -203,6 +218,22 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         .ce-mi small { display:block; font-weight:400; font-size:11px; color:var(--agent-text-muted); margin-top:1px; }
         .ce-mi-div { height:1px; background:var(--agent-border-subtle); margin:5px 6px; }
         .ce-mi-hint { font-size:10.5px; color:var(--agent-text-muted); padding:7px 9px 3px; line-height:1.45; }
+        /* Direction segmented toggle (critique #7b): a white chip slides between
+           the two options; the active label recolours coral (out) / green (in). */
+        .ce-seg { position:relative; display:inline-flex; padding:3px; border-radius:10px; background:var(--agent-surface-glass); border:1px solid var(--agent-border-default); }
+        .ce-seg-slide { position:absolute; top:3px; bottom:3px; left:3px; width:calc(50% - 3px); border-radius:8px; background:var(--agent-surface-elevated); box-shadow:0 1px 3px rgba(15,23,42,0.14); transition:transform .28s cubic-bezier(.4,0,.15,1); }
+        .ce-seg[data-dir="inbound"] .ce-seg-slide { transform:translateX(100%); }
+        .ce-seg button { position:relative; z-index:1; flex:1 1 0; min-width:116px; font-size:11.5px; font-weight:600; padding:5px 12px; border:none; background:none; cursor:pointer; color:var(--agent-text-muted); transition:color .2s ease; white-space:nowrap; }
+        .ce-seg[data-dir="outbound"] button:first-of-type { color:var(--agent-coral-deep); }
+        .ce-seg[data-dir="inbound"] button:last-of-type { color:#059669; }
+        /* Small breakpoints: the More menu spans the composer so it can never
+           clip on either edge when the channel buttons wrap (critique #7a). */
+        @media (max-width: 520px) {
+          .ce-menu { left:0; right:0; min-width:0; max-width:none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ce-seg-slide { transition:none; }
+        }
       `}</style>
       {/* ── Channel row ──────────────────────────────────────────────────── */}
       <div
@@ -281,34 +312,19 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
       {hasChannel && (
         <div className="agent-reveal-in" style={{ padding: "12px 14px" }}>
 
-          {/* Direction toggle (non-note only) */}
+          {/* Direction segmented toggle (non-note only) — sliding white chip */}
           {!isNote && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>Direction:</span>
-              <button
-                onClick={() => setDirection("outbound")}
-                style={{
-                  fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6,
-                  border: "none", cursor: "pointer",
-                  background: direction === "outbound" ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
-                  color: direction === "outbound" ? "var(--agent-coral)" : "var(--agent-text-muted)",
-                  transition: "background 100ms, color 100ms",
-                }}
-              >
-                Outbound (sent)
-              </button>
-              <button
-                onClick={() => setDirection("inbound")}
-                style={{
-                  fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6,
-                  border: "none", cursor: "pointer",
-                  background: direction === "inbound" ? "rgba(16,185,129,0.12)" : "var(--agent-surface-glass)",
-                  color: direction === "inbound" ? "#059669" : "var(--agent-text-muted)",
-                  transition: "background 100ms, color 100ms",
-                }}
-              >
-                Inbound (received)
-              </button>
+              <div className="ce-seg" data-dir={direction} role="tablist" aria-label="Direction">
+                <span className="ce-seg-slide" aria-hidden />
+                <button type="button" role="tab" aria-selected={direction === "outbound"} onClick={() => setDirection("outbound")}>
+                  Outbound (sent)
+                </button>
+                <button type="button" role="tab" aria-selected={direction === "inbound"} onClick={() => setDirection("inbound")}>
+                  Inbound (received)
+                </button>
+              </div>
             </div>
           )}
 
@@ -327,14 +343,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
                     <button
                       key={c.id}
                       onClick={() => toggleContact(c.id)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 5,
-                        padding: "4px 10px", borderRadius: 20, border: "none", cursor: "pointer",
-                        fontSize: 12, fontWeight: 500,
-                        background: on ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
-                        color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
-                        transition: "background 80ms, color 80ms",
-                      }}
+                      style={pillStyle(on)}
                     >
                       <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={16} />
                       {extractFirstName(c.name)}
@@ -354,14 +363,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
                         <button
                           key={s.id}
                           onClick={() => toggleContact(s.id)}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 5,
-                            padding: "4px 10px", borderRadius: 20, border: "none", cursor: "pointer",
-                            fontSize: 12, fontWeight: 500,
-                            background: on ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
-                            color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
-                            transition: "background 80ms, color 80ms",
-                          }}
+                          style={pillStyle(on)}
                         >
                           <ContactAvatar
                             contact={{ name: s.name, roleType: s.role === "Vendor solicitor" ? "vendor" : "purchaser" }}
