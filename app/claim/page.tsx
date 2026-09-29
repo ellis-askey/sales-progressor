@@ -116,7 +116,14 @@ export default async function ClaimPage({
               stubPhotoStoragePath: true,
               withdrawalStatus: true,
               claimedBy: { select: { firmName: true } },
-              transaction: { select: { propertyAddress: true, status: true, photoStoragePath: true } },
+              transaction: {
+                select: {
+                  propertyAddress: true, status: true, photoStoragePath: true,
+                  // Outsourced files carry an internal Sales Progressor as the assigned
+                  // manager (agencyId null). Used to attribute the invite to them.
+                  assignedUser: { select: { name: true, firmName: true, image: true, agencyId: true } },
+                },
+              },
             },
           },
         },
@@ -148,18 +155,34 @@ export default async function ClaimPage({
       />
     );
 
+  // Inviter identity. For an OUTSOURCED file (run by an internal Sales Progressor,
+  // agencyId null) the invite comes FROM that progressor, not the agency user who
+  // built the chain. Find the chain originator's own claimed file and, when it's
+  // outsourced, attribute the invite to its assigned progressor.
+  const originatorFile = link.chain.links.find(
+    (l) => l.transaction && (l.claimedByUserId === link.chain.createdByUserId || l.createdByUserId === link.chain.createdByUserId),
+  );
+  const manager = originatorFile?.transaction?.assignedUser ?? null;
+  const isOutsourced = !!manager && manager.agencyId === null;
+  const originatorName = isOutsourced
+    ? (manager!.name ?? "The Sales Progressor")
+    : (link.chain.createdBy?.name ?? "An agent");
+  const originatorAgency = isOutsourced
+    ? (manager!.firmName ?? "The Sales Progressor")
+    : (link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null);
+  const inviterImage = isOutsourced
+    ? (manager!.image ?? null)
+    : (link.chain.createdBy?.image ?? null);
+
   const chainBroken = link.chain.links.some(
     (cl) => cl.transaction?.status === "withdrawn" || cl.withdrawalStatus === "WITHDRAWN",
   );
   if (chainBroken) {
-    const originatorContactName = link.chain.createdBy?.name ?? "The inviting agent";
-    const originatorContactAgency =
-      link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null;
     return (
       <ClaimError
         title="This chain has changed."
         body="A sale in this chain has withdrawn. Ask the inviting agent for a fresh invite once the chain has been resolved."
-        contact={{ name: originatorContactName, agency: originatorContactAgency }}
+        contact={{ name: originatorName, agency: originatorAgency }}
       />
     );
   }
@@ -193,8 +216,6 @@ export default async function ClaimPage({
   }
 
   const chainLinks = link.chain.links;
-  const originatorName = link.chain.createdBy?.name ?? "An agent";
-  const originatorAgency = link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null;
   const invitedDate = link.inviteSentAt
     ? new Date(link.inviteSentAt).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -280,7 +301,6 @@ export default async function ClaimPage({
   }));
 
   const yourAddress = link.stubPropertyAddress ?? "your sale";
-  const inviterImage = link.chain.createdBy?.image ?? null;
   return (
     <Shell loginHref={isLoggedIn ? null : `/claim/login?token=${token}`}>
       <ClaimInviteCard
