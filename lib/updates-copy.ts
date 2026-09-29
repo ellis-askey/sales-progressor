@@ -498,6 +498,10 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
       : "Check whether an extension is being arranged.";
     return `${poss}${onward} mortgage offer expires ${when}. ${tail}`;
   }
+  if (type === "checkpoint_confirmed") {
+    const cp = String(payload.checkpointLabel ?? "a checkpoint");
+    return `${name} confirmed "${cp}".`;
+  }
   // enquiries_stalled + solicitor_update carry a ready-made `message`;
   // portal_chain_agent_updated + others carry a pre-rendered body/title.
   return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");
@@ -517,6 +521,7 @@ export const BELL_NOTIFICATION_TYPES = [
   "broker_callback_requested",
   "broker_callback_bounced",
   "mortgage_offer_expiring",
+  "checkpoint_confirmed",
 ];
 
 // The small pill shown on a bell/feed item, per notification type. "Paused" for
@@ -526,5 +531,6 @@ export function pillLabelForType(type: string): string {
   if (type === "enquiries_stalled" || type === "enquiries_raise_stalled") return "Stalled";
   if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
   if (type === "mortgage_offer_expiring") return "Expiring";
+  if (type === "checkpoint_confirmed") return "Confirmed";
   return "Update";
 }

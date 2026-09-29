@@ -1,6 +1,7 @@
 // lib/services/milestones.ts
 
 import { prisma } from "@/lib/prisma";
+import { hasOpenBlockingCheckpoints } from "@/lib/checkpoints/blocking";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
@@ -719,6 +720,10 @@ export async function maybeUnlockExchangeGate(
   });
   if (!allClear) return;
 
+  // A checkpoint marked "must be done before exchange" that isn't fully
+  // confirmed also holds the gate shut (both sides — exchange is joint).
+  if (await hasOpenBlockingCheckpoints(transactionId, db)) return;
+
   const gateRow = await db.milestoneCompletion.findFirst({
     where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
     select: { id: true, buyerRoundId: true },
@@ -807,7 +812,10 @@ export async function maybeLockExchangeGate(
     return s === "complete" || s === "not_required";
   });
 
-  if (!allClear) {
+  // An open "must be done before exchange" checkpoint re-locks the gate too.
+  const checkpointsBlock = await hasOpenBlockingCheckpoints(transactionId, db);
+
+  if (!allClear || checkpointsBlock) {
     const gateRow = await db.milestoneCompletion.findFirst({
       where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
       select: { id: true, buyerRoundId: true },
@@ -986,8 +994,9 @@ export async function getMilestonesForTransaction(
   const vendor = enrich(vendorDefs);
   const purchaser = enrich(purchaserDefs);
 
-  const vendorGateReady = vendor.filter((d) => d.blocksExchange).every((d) => d.isComplete || d.isNotRequired);
-  const purchaserGateReady = purchaser.filter((d) => d.blocksExchange).every((d) => d.isComplete || d.isNotRequired);
+  const checkpointsBlock = await hasOpenBlockingCheckpoints(transactionId);
+  const vendorGateReady = !checkpointsBlock && vendor.filter((d) => d.blocksExchange).every((d) => d.isComplete || d.isNotRequired);
+  const purchaserGateReady = !checkpointsBlock && purchaser.filter((d) => d.blocksExchange).every((d) => d.isComplete || d.isNotRequired);
   const exchangeReady = vendorGateReady && purchaserGateReady;
 
   return { vendor, purchaser, exchangeReady, vendorGateReady, purchaserGateReady, completionDate: transaction.completionDate };

@@ -63,7 +63,7 @@ model Agency {
   // agency's files (e.g. ellis@akeman-residential.co.uk). Null → the quote is
   // sent from the Sales Progressor fallback (ellis@thesalesprogressor.co.uk).
   // Must be a verified SendGrid sender for the agency's domain.
-  quoteSenderEmail String?
+  quoteSenderEmail      String?
   // Whether quoteSenderEmail can ACTUALLY send in SendGrid right now — either its
   // domain is authenticated (a verified VerifiedDomain row) or it's a verified
   // single sender. Stamped nightly by the check-domains cron so the sender
@@ -93,11 +93,11 @@ model Agency {
   whatsAppCaptureEnabled Boolean @default(true)
   // Auto to-dos from WhatsApp promises for this agency's own connections. OFF by
   // default (opt-in) — turned on once capture is proven. See the spec, Phase 4.
-  whatsAppTasksEnabled Boolean @default(false)
+  whatsAppTasksEnabled   Boolean @default(false)
 
   // The agency's own logo, shown in client-facing emails. Path in the public
   // agency-logos bucket (`{agencyId}.png`); full public URL via getAgencyLogoUrl.
-  logoPath String?
+  logoPath      String?
   // Email-branding presentation, set in the branding studio (Account > Profile).
   // logoTileColor: hex background of the logo band (detected, or overridden).
   // logoScale: "sm" | "md" | "lg" logo height. logoAlign: "left" | "center".
@@ -187,33 +187,33 @@ enum AgencyModeProfile {
 }
 
 model User {
-  id                  String     @id @default(cuid())
-  name                String
-  email               String     @unique
-  password            String?
-  totpSecret          String?
-  totpActivatedAt     DateTime?
+  id                      String             @id @default(cuid())
+  name                    String
+  email                   String             @unique
+  password                String?
+  totpSecret              String?
+  totpActivatedAt         DateTime?
   // One-time recovery codes (hashed) for 2FA lockout, and a per-user token
   // version bumped by "sign out of all other devices" (JWT invalidation).
-  totpBackupCodes     String[]   @default([])
-  sessionVersion      Int        @default(0)
+  totpBackupCodes         String[]           @default([])
+  sessionVersion          Int                @default(0)
   // Set when a director removes this member from the team. The user row is
   // never deleted (their name stays attributed on history); instead sign-in is
   // refused and live sessions are killed (sessionVersion bump at removal).
   // Cleared by reinstating from the Team page.
-  deactivatedAt       DateTime?
-  role                UserRole   @default(viewer)
-  agencyId            String?
-  firmName            String?
-  progressorId        String?
-  clientType          ClientType @default(standard)
-  legacyFee           Int?
-  phone               String?
+  deactivatedAt           DateTime?
+  role                    UserRole           @default(viewer)
+  agencyId                String?
+  firmName                String?
+  progressorId            String?
+  clientType              ClientType         @default(standard)
+  legacyFee               Int?
+  phone                   String?
   // Profile detail (2026-09): shown alongside the name in client-facing
   // surfaces. Both optional. jobTitle e.g. "Sales Manager"; directMobile is a
   // personal number distinct from `phone` (which may be an office line).
-  jobTitle            String?
-  directMobile        String?
+  jobTitle                String?
+  directMobile            String?
   // Email signature (2026-09). Per-agent, follows whoever is sending. BASIC =
   // the auto-generated TSP signature (default, backwards-compatible for all
   // existing users); IMAGE = an uploaded/imported signature image; CUSTOM = a
@@ -221,21 +221,21 @@ model User {
   emailSignatureMode      EmailSignatureMode @default(BASIC)
   emailSignatureImagePath String?
   emailSignatureHtml      String?
-  canViewAllFiles     Boolean    @default(false)
-  hasSeenAgentWelcome Boolean    @default(false)
+  canViewAllFiles         Boolean            @default(false)
+  hasSeenAgentWelcome     Boolean            @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
   // gets their own first-run auto-start. Set when the tour is finished or
   // skipped; either being non-null suppresses the auto-start (a "Replay
   // walkthrough" control still runs it on demand). See DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md §13.
-  demoTourCompletedAt DateTime?
-  demoTourSkippedAt   DateTime?
-  isInternal          Boolean    @default(false)
+  demoTourCompletedAt     DateTime?
+  demoTourSkippedAt       DateTime?
+  isInternal              Boolean            @default(false)
   // Made-up staff member who "manages" the demo showcase files, so a demo is
   // never presented as the real user's own file. Excluded from team pickers.
   // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
-  isDemo              Boolean    @default(false)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  isDemo                  Boolean            @default(false)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   agency               Agency?               @relation(fields: [agencyId], references: [id])
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
@@ -306,8 +306,8 @@ model User {
   // portrait headshot can be nudged to keep the face centred. Applied as
   // object-position by UserAvatar. 50/50 = dead centre (the default, so
   // existing photos are unaffected). Set from Command Centre → agent drill-down.
-  imageFocusX            Int       @default(50)
-  imageFocusY            Int       @default(50)
+  imageFocusX            Int                     @default(50)
+  imageFocusY            Int                     @default(50)
   accounts               Account[]
   sessions               Session[]
   transactionNotes       TransactionNote[]
@@ -345,6 +345,8 @@ model User {
   pendingInboundEmails          PendingInboundEmail[]
   agentEmailLogs                AgentEmailLog[]
   whatsAppConnections           WhatsAppConnection[]
+  checkpointsCreated            Checkpoint[]             @relation("CheckpointCreatedBy")
+  checkpointConfirmations       CheckpointConfirmation[] @relation("CheckpointConfirmedByUser")
 }
 
 model AgentPushSubscription {
@@ -411,84 +413,84 @@ enum FeeVatTreatment {
 }
 
 model PropertyTransaction {
-  id                          String            @id @default(cuid())
-  propertyAddress             String
-  status                      TransactionStatus @default(active)
-  agencyId                    String
-  assignedUserId              String?
-  assignedAt                  DateTime?
-  agentUserId                 String?
-  progressedBy                ProgressedBy      @default(progressor)
-  serviceType                 ServiceType       @default(self_managed)
+  id                              String            @id @default(cuid())
+  propertyAddress                 String
+  status                          TransactionStatus @default(active)
+  agencyId                        String
+  assignedUserId                  String?
+  assignedAt                      DateTime?
+  agentUserId                     String?
+  progressedBy                    ProgressedBy      @default(progressor)
+  serviceType                     ServiceType       @default(self_managed)
   // When the file became outsourced (needing an SP progressor). Stamped on
   // create-as-outsourced and on a switch to outsourced. Drives the SP
   // unassigned-file waiting clock; null for self-managed files. Reads fall
   // back to createdAt when absent (files born outsourced before this existed).
-  outsourcedAt                DateTime?
-  expectedExchangeDate        DateTime?
-  purchasePrice               Int?
+  outsourcedAt                    DateTime?
+  expectedExchangeDate            DateTime?
+  purchasePrice                   Int?
   // Buyer-entered figures from the portal "Your costs" card (in pence), used to
   // estimate the completion balance still to fund. Purchaser-supplied.
-  clientDepositGBP            Int?
-  clientMortgageGBP           Int?
+  clientDepositGBP                Int?
+  clientMortgageGBP               Int?
   // Buyer-confirmed stamp-duty circumstances (drive the SDLT estimate) and a
   // flag for when they've told us the completion funds are on their way.
   // clientAdditionalProperty doubles as the "has confirmed their situation"
   // signal: null = not answered yet (SDLT shown faded), true/false = answered.
-  clientFirstTimeBuyer        Boolean?
-  clientAdditionalProperty    Boolean?
-  clientCompletionFundsSent   Boolean?
+  clientFirstTimeBuyer            Boolean?
+  clientAdditionalProperty        Boolean?
+  clientCompletionFundsSent       Boolean?
   // Any funds the buyer has already sent beyond the exchange deposit (pence),
   // so they don't have to inflate the deposit to make the balance match.
-  clientOtherFundsSentGBP     Int?
-  tenure                      Tenure?
-  purchaseType                PurchaseType?
-  isShareOfFreehold           Boolean           @default(false)
+  clientOtherFundsSentGBP         Int?
+  tenure                          Tenure?
+  purchaseType                    PurchaseType?
+  isShareOfFreehold               Boolean           @default(false)
   // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
   // (captured on the survey-booked step). Title-cased on save. Null when they
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
   // no surveyor is recorded.
-  bookedSurveyorName          String?
+  bookedSurveyorName              String?
   // Free-text valuer / lender's-surveyor firm captured inline on the lender-
   // valuation step (PM6) when the buyer arranged it outside our network. Mirrors
   // bookedSurveyorName for the survey step. Null when none is recorded.
-  bookedValuerName            String?
-  twelveWeekTarget            DateTime?
-  predictedExchangeDate       DateTime?
-  overridePredictedDate       DateTime?
+  bookedValuerName                String?
+  twelveWeekTarget                DateTime?
+  predictedExchangeDate           DateTime?
+  overridePredictedDate           DateTime?
   // Snooze on the "Exchange date passed" hub reminder: while this is in the
   // future the file drops off the overdue list without a fake date. Set from the
   // hub action; cleared naturally when it lapses.
-  exchangeReminderSnoozedUntil DateTime?
-  completionDate              DateTime?
-  agentFeeAmount              Int?
-  agentFeePercent             Decimal?
-  agentFeeIsVatInclusive      Boolean?
-  notes                       String?
-  fallThroughReason           String?
+  exchangeReminderSnoozedUntil    DateTime?
+  completionDate                  DateTime?
+  agentFeeAmount                  Int?
+  agentFeePercent                 Decimal?
+  agentFeeIsVatInclusive          Boolean?
+  notes                           String?
+  fallThroughReason               String?
   // Structured withdrawal classification — set at withdraw time alongside
   // the free-text fallThroughReason. Drives chain cascade direction in
   // cascadeChainWithdrawal. Null on files that have never been withdrawn.
-  withdrawalReason            WithdrawalReason?
+  withdrawalReason                WithdrawalReason?
   // Closed-loop chain arc (2026-06-05): set true at relist when the agent
   // selected "Don't know yet" on the new buyer's onward-sale step. The hub
   // surfaces a "complete chain setup" prompt for the file until the agent
   // resolves the onward chain (or confirms there is none). Cleared back to
   // false when the chain step is completed via the prompt.
-  chainSetupPending           Boolean           @default(false)
+  chainSetupPending               Boolean           @default(false)
   // No-chain confirmation (2026-09-03): stamped when the team confirms a live
   // sale needs no chain, so the /agent/chains "Needs chain setup" queue can reach
   // zero. Cleared to re-open the file (undo, or auto-resurface if the client later
   // says they're buying onward). noChainNeededById is the acting user's id (no
   // relation; resolve name at read).
-  noChainNeededAt             DateTime?
-  noChainNeededById           String?
+  noChainNeededAt                 DateTime?
+  noChainNeededById               String?
   // Intro-call onboarding (2026-08-29): stamped once when the team completes the
   // introduction for this file (from either side). Drives the "intro done" state
   // that removes the "Start intro call" opener from the client card.
   // introCallCompletedById is the acting user's id (no relation; resolve name at read).
-  introCallCompletedAt        DateTime?
-  introCallCompletedById      String?
+  introCallCompletedAt            DateTime?
+  introCallCompletedById          String?
   // Per-side intro completion (2026-09-10): buyer and seller intros are separate
   // conversations, completed independently. The legacy introCallCompletedAt is
   // kept as the "either side done" aggregate (stamped on the first completion).
@@ -496,36 +498,36 @@ model PropertyTransaction {
   introCallVendorCompletedById    String?
   introCallPurchaserCompletedAt   DateTime?
   introCallPurchaserCompletedById String?
-  referredFirmId              String?
-  referralFee                 Int?
+  referredFirmId                  String?
+  referralFee                     Int?
   // VAT treatment of this referral income, snapshotted from the recommended
   // firm's default at apply time (overridable per file). Solicitor referrals
   // are usually a VATable introduction fee, so the default is `plus`.
-  referralFeeVat              FeeVatTreatment   @default(plus)
-  referralFeeReceived         Boolean           @default(false)
-  vendorSolicitorFirmId       String?
-  vendorSolicitorContactId    String?
-  purchaserSolicitorFirmId    String?
-  purchaserSolicitorContactId String?
-  brokerFirmId                String?
-  brokerContactId             String?
-  brokerReferralFee           Int?
+  referralFeeVat                  FeeVatTreatment   @default(plus)
+  referralFeeReceived             Boolean           @default(false)
+  vendorSolicitorFirmId           String?
+  vendorSolicitorContactId        String?
+  purchaserSolicitorFirmId        String?
+  purchaserSolicitorContactId     String?
+  brokerFirmId                    String?
+  brokerContactId                 String?
+  brokerReferralFee               Int?
   // VAT treatment of the buyer-broker referral income (snapshot from the
   // preferred broker's default). Defaults to the common +VAT quoting convention.
-  brokerReferralFeeVat        FeeVatTreatment   @default(plus)
-  brokerReferralFeeReceived   Boolean           @default(false)
-  purchaserBrokerReferral     Boolean           @default(false)
+  brokerReferralFeeVat            FeeVatTreatment   @default(plus)
+  brokerReferralFeeReceived       Boolean           @default(false)
+  purchaserBrokerReferral         Boolean           @default(false)
   // Seller's onward-purchase broker (Phase 2, 2026-09-15). Mirrors the buyer set
   // above; only meaningful when the seller is buying onward. Fee is agent income
   // like the buyer's. See docs/active/onward-broker/SPEC.md.
-  onwardBrokerFirmId          String?
-  onwardBrokerContactId       String?
-  onwardBrokerReferralFee     Int?
+  onwardBrokerFirmId              String?
+  onwardBrokerContactId           String?
+  onwardBrokerReferralFee         Int?
   // VAT treatment of the seller's onward-broker referral income (snapshot from
   // the preferred broker's default). Same convention as the buyer broker above.
-  onwardBrokerReferralFeeVat  FeeVatTreatment   @default(plus)
-  onwardBrokerReferralFeeReceived Boolean       @default(false)
-  onwardBrokerReferral        Boolean           @default(false)
+  onwardBrokerReferralFeeVat      FeeVatTreatment   @default(plus)
+  onwardBrokerReferralFeeReceived Boolean           @default(false)
+  onwardBrokerReferral            Boolean           @default(false)
 
   // True when this file was added via the admin Migrate Sale page rather
   // than the standard create flow. Used to EXCLUDE backdated/historical
@@ -594,10 +596,10 @@ model PropertyTransaction {
   // *SolicitorEmailsPaused flag. clientEmailsPaused is retained until its
   // consumers migrate to vendorEmailsPaused + purchaserEmailsPaused (Stage 2c),
   // then dropped. See docs/active/solicitor-confirm/scope.md.
-  vendorEmailsPaused             Boolean @default(false)
-  purchaserEmailsPaused          Boolean @default(false)
-  vendorSolicitorEmailsPaused    Boolean @default(false)
-  purchaserSolicitorEmailsPaused Boolean @default(false)
+  vendorEmailsPaused                  Boolean   @default(false)
+  purchaserEmailsPaused               Boolean   @default(false)
+  vendorSolicitorEmailsPaused         Boolean   @default(false)
+  purchaserSolicitorEmailsPaused      Boolean   @default(false)
   // Timed pause (solicitor portal Notifications): when set to a future date,
   // the side's solicitor chases are held until then, auto-resuming after.
   vendorSolicitorEmailsPausedUntil    DateTime?
@@ -659,14 +661,14 @@ model PropertyTransaction {
   // exchanged, and it must not have been cancelled since the last start. No
   // midnight cron; it simply stops being "today". Re-activating the next day
   // stamps a fresh startedAt. See docs/active/exchange-day-SPEC.md.
-  exchangeDayStartedAt   DateTime?
-  exchangeDayCancelledAt DateTime?
+  exchangeDayStartedAt              DateTime?
+  exchangeDayCancelledAt            DateTime?
   // Per-slot send stamps for the exchange-day solicitor emails (08:45 / 12:30 /
   // 15:30 UK). "Sent for THIS activation" is derived as stamp >= startedAt, so
   // re-activating the next day naturally resets them with no cron/backfill.
-  exchangeDayMorningEmailAt   DateTime?
-  exchangeDayMiddayEmailAt     DateTime?
-  exchangeDayAfternoonEmailAt  DateTime?
+  exchangeDayMorningEmailAt         DateTime?
+  exchangeDayMiddayEmailAt          DateTime?
+  exchangeDayAfternoonEmailAt       DateTime?
   // Per-slot send stamps for the exchange-day CLIENT emails (09:00 info + 11:00
   // authority nudge). Same "sent this activation" derivation (stamp >=
   // exchangeDayStartedAt) so re-activation resets them with no backfill.
@@ -706,6 +708,7 @@ model PropertyTransaction {
   agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
   pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
   contacts                         Contact[]
+  checkpoints                      Checkpoint[]
   clientMoveInfos                  ClientMoveInfo[]
   vendorSolicitorFirm              SolicitorFirm?                    @relation("VendorSolicitorFirm", fields: [vendorSolicitorFirmId], references: [id])
   vendorSolicitorContact           SolicitorContact?                 @relation("VendorSolicitorContact", fields: [vendorSolicitorContactId], references: [id])
@@ -743,7 +746,7 @@ model PropertyTransaction {
   enquiryRaiseChase                EnquiryRaiseChase?
   onwardTrackers                   OnwardTracker[]
   followupTaps                     FollowupTap[]
-  followupNudgesDisabled           Boolean                @default(false)
+  followupNudgesDisabled           Boolean                           @default(false)
   chaseSends                       ChaseSend[]
   agentEmailLogs                   AgentEmailLog[]
 
@@ -755,12 +758,12 @@ model PropertyTransaction {
   activeBuyerRoundId String?      @unique
   activeBuyerRound   BuyerRound?  @relation("ActiveBuyerRound", fields: [activeBuyerRoundId], references: [id], onDelete: SetNull)
 
-  quoteRequests QuoteRequest[]
+  quoteRequests         QuoteRequest[]
   whatsAppGroupMappings WhatsAppGroupMapping[]
-  hubCardDismissals HubCardDismissal[]
-  milestoneProposals MilestoneProposal[]
-  agentRuns AgentRun[]
-  referrals Referral[]
+  hubCardDismissals     HubCardDismissal[]
+  milestoneProposals    MilestoneProposal[]
+  agentRuns             AgentRun[]
+  referrals             Referral[]
 
   @@index([serviceType, createdAt])
   // Phase 4 perceived-performance (2026-09-18, PERF-11). Every list, hub
@@ -955,12 +958,12 @@ model PriceHistory {
 }
 
 model Contact {
-  id                    String      @id @default(cuid())
-  propertyTransactionId String
-  name                  String
-  phone                 String?
-  email                 String?
-  roleType              ContactRole
+  id                        String      @id @default(cuid())
+  propertyTransactionId     String
+  name                      String
+  phone                     String?
+  email                     String?
+  roleType                  ContactRole
   // A person on a side who is NOT the actual buyer/seller — a helper, an
   // assistant, or a representative acting for a trust/company. isPrincipal=false
   // keeps them OUT of the "who confirmed" wording (only real clients are named);
@@ -969,39 +972,39 @@ model Contact {
   // eligible; a helper is silent unless a director ticks "give them a portal".
   // Existing contacts default to principal + eligible (no behaviour change).
   // See docs/active/three-notes-distilled-2026-08-27.md (Note B).
-  isPrincipal           Boolean     @default(true)
-  portalEligible        Boolean     @default(true)
-  portalToken           String?     @unique
-  lastVisitedPortalAt   DateTime?
+  isPrincipal               Boolean     @default(true)
+  portalEligible            Boolean     @default(true)
+  portalToken               String?     @unique
+  lastVisitedPortalAt       DateTime?
   // First-visit welcome sheet gate. Stamped once when the client dismisses the
   // welcome drawer ("Got it"). Makes the sheet show once per PERSON, forever,
   // across every device — localStorage alone was per-browser, so it re-appeared
   // on each new device or after clearing storage. Set via
   // /api/portal/[token]/welcome-seen; read by getPortalData -> PortalShell.
-  welcomeSeenAt         DateTime?
+  welcomeSeenAt             DateTime?
   // Exchange-day: stamped when the client confirms via their portal that they've
   // given their solicitor authority to exchange. Counts for the CURRENT exchange
   // day only (valid when >= the file's exchangeDayStartedAt), so a re-activated
   // day re-asks. See docs/active/exchange-day-SPEC.md.
-  exchangeAuthorityGivenAt DateTime?
+  exchangeAuthorityGivenAt  DateTime?
   // PWA adoption signal (Command Centre → App adoption). pwaInstalledAt: first
   // time we saw them in standalone display-mode or caught the appinstalled
   // event — the truest "added it to their home screen". pwaLastOpenedAt: most
   // recent standalone open. iOS gives no install event, so a standalone open
   // is the only reliable signal there.
-  pwaInstalledAt        DateTime?
-  pwaLastOpenedAt       DateTime?
+  pwaInstalledAt            DateTime?
+  pwaLastOpenedAt           DateTime?
   // Set when the contact clicks the unsubscribe link in any platform email
   // addressed to them. Mirrors User.emailUnsubscribedAt. Suppression check
   // via isContactEmailSuppressed in lib/email.ts. Foundation for the
   // client-chase arc (A2/A3 of Sub-arc A in
   // docs/active/client-chase-discovery.md). No callers yet.
-  unsubscribedAt        DateTime?
+  unsubscribedAt            DateTime?
   // Set when an email to this contact HARD-BOUNCED (dead/invalid address). Stops
   // automated chasing to a dead inbox and hands the reminder back to the agent as
   // a "fix the email" task, instead of silently re-sending daily. Distinct from
   // unsubscribedAt (client opted out) — this is the address failing.
-  emailBouncedAt        DateTime?
+  emailBouncedAt            DateTime?
   // Agent-side per-contact chase-email pause (2026-08-11 email-settings
   // drawer). Null = chase emails send; set = paused by an agent. Replaces
   // the per-SIDE PropertyTransaction.vendorEmailsPaused /
@@ -1009,34 +1012,34 @@ model Contact {
   // remain in place, backfilled into this one at migration time).
   // Distinct from unsubscribedAt: that is the CLIENT opting out of
   // everything; this is the AGENT pausing chasing for one person.
-  emailsPausedAt        DateTime?
+  emailsPausedAt            DateTime?
   // Agent-set pause on STEP-CONFIRMATION emails for this one person (2026-09-10),
   // independent of emailsPausedAt (chasing). The portal milestone-confirmation
   // send skips this contact while set. The file-wide suppressPortalConfirmEmails
   // remains the master switch; this is the per-person override under it.
-  stepConfirmPausedAt   DateTime?
+  stepConfirmPausedAt       DateTime?
   // Client-set timed pause on CHASE emails only (audit #11 / #15). Set to a
   // future date when a client hits "pause for a week" in a chase email or
   // picks a pause length in the portal menu. The chase cron skips them while
   // this is in the future; it auto-resumes once it passes. Distinct from
   // emailsPausedAt (agent-set, indefinite) and unsubscribedAt (client opted
   // out of everything). Milestone / chain / exchange emails ignore this.
-  chasesPausedUntil     DateTime?
+  chasesPausedUntil         DateTime?
   // White-labelled "Getting your sale moving" intro email — fired once per
   // contact, on outsourced sale creation. Atomic check-and-stamp (updateMany
   // where outsourceIntroSentAt IS NULL) guarantees one send per contact per
   // sale even under concurrent callers. See lib/emails/send-outsource-intro.ts
   // for the orchestrator.
-  outsourceIntroSentAt  DateTime?
+  outsourceIntroSentAt      DateTime?
   // Client-uploaded profile photo (audit #16, phase 2). Full public Supabase
   // Storage URL, same shape as User.image. Null = no photo; render sites fall
   // back to the contact's initials, then the generic client silhouette. The
   // client sets this themselves from the portal menu.
-  image                 String?
+  image                     String?
   // Client-chosen overview layout (portal "Customize overview", 2026-08-17).
   // Shape: { order: string[]; hidden: string[] } of moveable card keys. Fixed
   // cards ignore it. Null = default order, nothing hidden.
-  overviewLayout        Json?
+  overviewLayout            Json?
   // Stamped when this buyer requests a mortgage-broker call-back from the
   // portal card (2026-08-21). Drives the card's "requested" acknowledgment
   // state; the card gates on ANY purchaser on the file having this set, so a
@@ -1046,25 +1049,85 @@ model Contact {
   // 2026-08-17). Shape: { theme, textSize, accent, reduceMotion, highContrast,
   // dyslexicFont, whatsappOptIn }. Null = all defaults. "Hide money" is
   // per-device (localStorage), deliberately NOT stored here.
-  portalSettings        Json?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  portalSettings            Json?
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
 
   // Phase 0 shadow attribution. Not read anywhere yet.
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
-  transaction       PropertyTransaction      @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
-  pushSubscriptions PortalPushSubscription[]
-  portalMessages    PortalMessage[]
-  documents         TransactionDocument[]
-  outboundEmails    OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
-  clientChaseStates ClientChaseState[]
-  quoteRequests     QuoteRequest[]
-  portalVisits      PortalVisit[]
-  portalTimeSessions PortalTimeSession[]
+  transaction             PropertyTransaction      @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
+  pushSubscriptions       PortalPushSubscription[]
+  portalMessages          PortalMessage[]
+  documents               TransactionDocument[]
+  outboundEmails          OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
+  clientChaseStates       ClientChaseState[]
+  quoteRequests           QuoteRequest[]
+  portalVisits            PortalVisit[]
+  portalTimeSessions      PortalTimeSession[]
+  checkpointConfirmations CheckpointConfirmation[] @relation("CheckpointConfirmedByContact")
 
   @@index([buyerRoundId])
+}
+
+// Per-file "Checkpoints" (client-facing: "Things to confirm"). The nuanced,
+// off-script items the fixed milestone list doesn't cover. The team creates
+// them and can confirm any; showTo optionally surfaces one to a side's portal so
+// that client can confirm it too (so it isn't forgotten before exchange). See
+// docs / the interactive prototype for the full model. (critique #21 + #23)
+model Checkpoint {
+  id             String             @id @default(cuid())
+  transactionId  String
+  label          String
+  showTo         CheckpointAudience @default(none)
+  targetDate     DateTime?
+  blocksExchange Boolean            @default(false)
+  createdById    String?
+  lastNudgedAt   DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  transaction   PropertyTransaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdBy     User?                    @relation("CheckpointCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  confirmations CheckpointConfirmation[]
+
+  @@index([transactionId])
+}
+
+// One row per party that has confirmed a checkpoint. A "both" checkpoint needs
+// two (vendor + purchaser). Records who confirmed (a staff user OR the client
+// contact) and the event date. One confirmation per party per checkpoint.
+model CheckpointConfirmation {
+  id                   String          @id @default(cuid())
+  checkpointId         String
+  party                CheckpointParty
+  confirmedByUserId    String?
+  confirmedByContactId String?
+  confirmedByName      String
+  eventDate            DateTime?
+  createdAt            DateTime        @default(now())
+
+  checkpoint         Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  confirmedByUser    User?      @relation("CheckpointConfirmedByUser", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  confirmedByContact Contact?   @relation("CheckpointConfirmedByContact", fields: [confirmedByContactId], references: [id], onDelete: SetNull)
+
+  @@unique([checkpointId, party])
+  @@index([checkpointId])
+}
+
+enum CheckpointAudience {
+  none
+  vendor
+  purchaser
+  both
+}
+
+enum CheckpointParty {
+  vendor
+  purchaser
+  agent
 }
 
 // One row per contact per day they open their portal (audit #6). Lets the
@@ -1075,7 +1138,7 @@ model PortalVisit {
   id        String   @id @default(cuid())
   contactId String
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  day       String   // YYYY-MM-DD, UK local day of the visit
+  day       String // YYYY-MM-DD, UK local day of the visit
   createdAt DateTime @default(now())
 
   @@unique([contactId, day])
@@ -1138,15 +1201,15 @@ model SolicitorFirm {
 }
 
 model AgencyRecommendedSolicitor {
-  id                      String   @id @default(cuid())
+  id                      String          @id @default(cuid())
   agencyId                String
   solicitorFirmId         String
   defaultReferralFeePence Int?
   // Default VAT treatment for this firm's referral fee, snapshotted onto each
   // file. Solicitor introductions are usually VATable, hence `plus`.
   defaultReferralFeeVat   FeeVatTreatment @default(plus)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
   agency        Agency        @relation(fields: [agencyId], references: [id])
   solicitorFirm SolicitorFirm @relation(fields: [solicitorFirmId], references: [id], onDelete: Cascade)
@@ -1156,11 +1219,11 @@ model AgencyRecommendedSolicitor {
 }
 
 model SolicitorContact {
-  id        String   @id @default(cuid())
-  firmId    String
-  name      String
-  phone     String?
-  email     String?
+  id             String   @id @default(cuid())
+  firmId         String
+  name           String
+  phone          String?
+  email          String?
   // Optional assistant/secretary address CC'd on every email we send this
   // handler (automated chases, exchange-day, and the client's "email your
   // conveyancer" buttons). Entered against the handler so it's reused across
@@ -1168,14 +1231,14 @@ model SolicitorContact {
   secondaryEmail String?
   // Handler's profile photo (public avatar URL). Set from the solicitor portal;
   // shown on their confirmations in the feed. Falls back to initials.
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  firm                     SolicitorFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
-  purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
-  milestoneConfirmations   MilestoneCompletion[] @relation("MilestoneConfirmedByContact")
+  firm                     SolicitorFirm                    @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  vendorForTransactions    PropertyTransaction[]            @relation("VendorSolicitorContact")
+  purchaserForTransactions PropertyTransaction[]            @relation("PurchaserSolicitorContact")
+  milestoneConfirmations   MilestoneCompletion[]            @relation("MilestoneConfirmedByContact")
   agencyCcOverrides        SolicitorContactAgencyOverride[]
 }
 
@@ -1209,11 +1272,11 @@ model BrokerFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  handlers     BrokerContact[]
-  transactions PropertyTransaction[] @relation("TxBuyerBroker")
-  onwardTransactions PropertyTransaction[] @relation("TxOnwardBroker")
-  preferences  AgencyPreferredBroker[]
-  referrals    Referral[]            @relation("ReferralBrokerFirm")
+  handlers           BrokerContact[]
+  transactions       PropertyTransaction[]   @relation("TxBuyerBroker")
+  onwardTransactions PropertyTransaction[]   @relation("TxOnwardBroker")
+  preferences        AgencyPreferredBroker[]
+  referrals          Referral[]              @relation("ReferralBrokerFirm")
 }
 
 model BrokerContact {
@@ -1225,22 +1288,22 @@ model BrokerContact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firm         BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  transactions PropertyTransaction[] @relation("TxBuyerBrokerContact")
+  firm               BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  transactions       PropertyTransaction[] @relation("TxBuyerBrokerContact")
   onwardTransactions PropertyTransaction[] @relation("TxOnwardBrokerContact")
-  referrals    Referral[]            @relation("ReferralBrokerContact")
+  referrals          Referral[]            @relation("ReferralBrokerContact")
 }
 
 model AgencyPreferredBroker {
-  id                      String   @id @default(cuid())
-  agencyId                String   @unique
+  id                      String          @id @default(cuid())
+  agencyId                String          @unique
   brokerFirmId            String
   defaultReferralFeePence Int?
   // Default VAT treatment for this broker's referral fee, snapshotted onto each
   // file. Defaults to the common +VAT quoting convention.
   defaultReferralFeeVat   FeeVatTreatment @default(plus)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
   agency     Agency     @relation(fields: [agencyId], references: [id])
   brokerFirm BrokerFirm @relation(fields: [brokerFirmId], references: [id], onDelete: Cascade)
@@ -1263,7 +1326,7 @@ model AgencyPreferredBroker {
 // Phase 1 = model only. No read path consumes it yet; Phase 2 backfills, Phase 3
 // cuts consumers over, Phase 4 wires the relist keep/void rules + PM5 earned-flip.
 model Referral {
-  id               String         @id @default(cuid())
+  id               String          @id @default(cuid())
   transactionId    String
   buyerRoundId     String?
   kind             ReferralKind
@@ -1309,33 +1372,33 @@ enum ReferralStatus {
 // gas engineers, EPC, etc. Client entry point is /quote/[token]. Admin
 // surface is /command/providers.
 model ProviderFirm {
-  id        String       @id @default(cuid())
-  kind      ProviderKind
-  name      String
-  email     String
-  phone     String?
-  website   String?
+  id                String       @id @default(cuid())
+  kind              ProviderKind
+  name              String
+  email             String
+  phone             String?
+  website           String?
   // Path in the provider-logos Supabase bucket. Signed URLs served via
   // lib/supabase-storage.ts. Nullable — display renders a monogram tile
   // when absent.
-  logoPath  String?
-  notes     String?
+  logoPath          String?
+  notes             String?
   // Client-facing trust signals shown on the survey-quote card (no contact
   // details — clients request quotes through us, they don't contact directly).
-  ricsRegulated   Boolean @default(false)
+  ricsRegulated     Boolean      @default(false)
   // Chartered engineer credential (CEng / IStructE) — the structural-engineer
   // equivalent of ricsRegulated. Which one is shown depends on the firm kind.
-  charteredEngineer Boolean @default(false)
-  establishedYear Int?
-  turnaround      String? // e.g. "Quotes within 2 working days"
+  charteredEngineer Boolean      @default(false)
+  establishedYear   Int?
+  turnaround        String? // e.g. "Quotes within 2 working days"
   // Sales Progressor's own default provider of this kind — the one shown as
   // the fallback on outsourced files where the agency hasn't set their own
   // (mortgage broker card, 2026-08-21). Only meaningful per kind; there's one
   // TSP-default broker today. Ticked from /command/providers.
-  tspDefault Boolean      @default(false)
-  active    Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  tspDefault        Boolean      @default(false)
+  active            Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   coverage      ProviderCoverage[]
   serviceTypes  ProviderFirmServiceType[]
@@ -1462,11 +1525,11 @@ enum ProviderKind {
 
 enum QuoteRequestStatus {
   pending
-  booked      // the buyer chose this firm; referral in play (fee not yet settled)
+  booked // the buyer chose this firm; referral in play (fee not yet settled)
   won
-  not_chosen  // this firm quoted but the buyer booked a DIFFERENT firm of ours —
-              // neutral, NOT a loss (we still placed the business)
-  lost        // the buyer booked outside our network (or no referral to us)
+  not_chosen // this firm quoted but the buyer booked a DIFFERENT firm of ours —
+  // neutral, NOT a loss (we still placed the business)
+  lost // the buyer booked outside our network (or no referral to us)
   expired
 }
 
@@ -1628,15 +1691,15 @@ model MilestoneCompletion {
 // the genuinely-irrecoverable mid-life transitions are captured: prereq unlock,
 // exchange-gate open/relock, and reversal cascades.
 model MilestoneAvailabilityEvent {
-  id                    String        @id @default(cuid())
+  id                    String         @id @default(cuid())
   transactionId         String
   milestoneDefinitionId String
-  milestoneCode         String        // denormalised (e.g. "PM13") for query ease
-  buyerRoundId          String?       // round attribution; null for vendor/file-level rows
+  milestoneCode         String // denormalised (e.g. "PM13") for query ease
+  buyerRoundId          String? // round attribution; null for vendor/file-level rows
   side                  MilestoneSide?
-  transition            String        // "became_available" | "became_locked"
-  cause                 String        // "prereq_satisfied" | "not_required_satisfied" | "exchange_gate_unlocked" | "gate_relock" | "reversal"
-  occurredAt            DateTime      @default(now())
+  transition            String // "became_available" | "became_locked"
+  cause                 String // "prereq_satisfied" | "not_required_satisfied" | "exchange_gate_unlocked" | "gate_relock" | "reversal"
+  occurredAt            DateTime       @default(now())
 
   // No FK relation (append-log precedent, cf. Event): keeps this off the large
   // PropertyTransaction model and out of the delete path. Capture-only.
@@ -1653,17 +1716,17 @@ model MilestoneAvailabilityEvent {
 // only when the value moves to a different calendar day (the per-confirm system
 // recompute otherwise fires constantly). No FK (append-log precedent).
 model ExchangePredictionHistory {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   transactionId   String
   buyerRoundId    String?
-  field           String   // "expectedExchangeDate" | "overridePredictedDate"
+  field           String // "expectedExchangeDate" | "overridePredictedDate"
   previousDate    DateTime? // from-value (null when unknown / first set)
   predictedDate   DateTime? // new effective value written
-  source          String   // "system_recompute" | "manual_override" | "override_cleared" | ...
-  isOverride      Boolean  @default(false)
-  changedByUserId String?  // null for system/cron-driven writes
-  inputsSnapshot  Json?    // deterministic inputs (completed codes, tenure, purchaseType, ...) where available
-  occurredAt      DateTime @default(now())
+  source          String // "system_recompute" | "manual_override" | "override_cleared" | ...
+  isOverride      Boolean   @default(false)
+  changedByUserId String? // null for system/cron-driven writes
+  inputsSnapshot  Json? // deterministic inputs (completed codes, tenure, purchaseType, ...) where available
+  occurredAt      DateTime  @default(now())
 
   @@index([transactionId, occurredAt])
 }
@@ -1682,12 +1745,12 @@ model ExchangePredictionHistory {
 model TransactionRiskHistory {
   id            String   @id @default(cuid())
   transactionId String
-  fromLevel     String?  // null on the first-ever row; else "no_data|low|medium|high"
-  toLevel       String   // "no_data|low|medium|high"
+  fromLevel     String? // null on the first-ever row; else "no_data|low|medium|high"
+  toLevel       String // "no_data|low|medium|high"
   fromScore     Int?
-  toScore       Int      // 0-100
-  factors       Json     // triggered factors at eval time: [{ label, impact }]
-  inputs        Json     // RiskInput snapshot { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone }
+  toScore       Int // 0-100
+  factors       Json // triggered factors at eval time: [{ label, impact }]
+  inputs        Json // RiskInput snapshot { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone }
   source        String   @default("nightly")
   occurredAt    DateTime @default(now())
 
@@ -1953,7 +2016,7 @@ model OutboundMessage {
   // Stored media for a WhatsApp attachment (image/pdf/voice/video). Full public
   // Supabase Storage URL; null when the message has no media. providerWebhookData
   // carries the type/mimetype/filename metadata.
-  mediaUrl String?
+  mediaUrl    String?
 
   // Bulk-import provenance: groups rows inserted together by WhatsApp chat import.
   // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
@@ -2064,26 +2127,26 @@ model TransactionNote {
 // â”€â”€â”€ TransactionDocument â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model TransactionDocument {
-  id            String   @id @default(cuid())
-  transactionId String
-  contactId     String?
-  filename      String
-  storagePath   String
-  fileSize      Int
-  mimeType      String
-  source        String   @default("portal")
+  id                  String   @id @default(cuid())
+  transactionId       String
+  contactId           String?
+  filename            String
+  storagePath         String
+  fileSize            Int
+  mimeType            String
+  source              String   @default("portal")
   // Who uploaded this from the agent/internal side (memo of sale, admin
   // uploads, file-level paperwork). Null for client/portal uploads (those
   // carry a contact instead) and for historical rows created before this
   // column existed — the feed falls back to a generic label in that case.
-  uploadedById  String?
+  uploadedById        String?
   // Client-portal document taxonomy (Batch 2): the specific-document key from
   // lib/portal-documents.ts. Null on legacy / uncategorised uploads.
-  docType       String?
+  docType             String?
   // Client opt-in to show this document to the OTHER side (buyer <-> seller).
   // Own team always sees it; this only widens visibility across the deal.
-  sharedWithOtherSide Boolean @default(false)
-  createdAt     DateTime @default(now())
+  sharedWithOtherSide Boolean  @default(false)
+  createdAt           DateTime @default(now())
 
   // Phase 0 shadow attribution. Stamped only for docs whose contactId
   // resolves to a purchaser-role Contact. Null-contactId rows (memo
@@ -2342,12 +2405,12 @@ model ChainLink {
   externalStatus  String?
 
   // Stub data (v2 â€” used while unclaimed)
-  stubPropertyAddress String?
-  stubAgencyName      String?
-  stubAgentEmail      String?
-  stubAgentName       String?
-  stubAgentPhone      String?
-  stubNotes           String?
+  stubPropertyAddress  String?
+  stubAgencyName       String?
+  stubAgentEmail       String?
+  stubAgentName        String?
+  stubAgentPhone       String?
+  stubNotes            String?
   // Internal-only property thumbnail for an unclaimed link, uploaded from the
   // chain drawer by the originator or internal staff. Object path in the private
   // `transaction-documents` bucket (chain-stub-photos/{linkId}.{ext}), signed on
@@ -2364,34 +2427,34 @@ model ChainLink {
   // invites. No expiry; revocable (cleared) from the same menu.
   // shareTokenCreatedAt stamps first creation. shareLinkFirstViewedAt / claimedAt
   // mirror the invite funnel stamps for the share path.
-  shareToken             String?      @unique
+  shareToken             String?   @unique
   shareTokenCreatedAt    DateTime?
   shareLinkFirstViewedAt DateTime?
 
   // Invite tracking
-  inviteStatus           InviteStatus @default(NOT_SENT)
-  inviteToken            String?      @unique
-  inviteTokenExpiresAt   DateTime?
-  inviteSentAt           DateTime?
+  inviteStatus              InviteStatus @default(NOT_SENT)
+  inviteToken               String?      @unique
+  inviteTokenExpiresAt      DateTime?
+  inviteSentAt              DateTime?
   // Conversion-funnel stamps (Phase 0). inviteFirstViewedAt = first time the
   // invited agent opened the /claim landing page (i.e. clicked through from the
   // email). claimStartedAt = first time they reached a claim step (signup /
   // login / confirm), i.e. clicked "Claim this sale". Together with inviteSentAt,
   // claimedAt, inviteDeclinedAt and inviteBouncedAt these let us measure where
   // invited agents drop off. Set once (idempotent), never cleared.
-  inviteFirstViewedAt    DateTime?
-  claimStartedAt         DateTime?
+  inviteFirstViewedAt       DateTime?
+  claimStartedAt            DateTime?
   // Phase 3: a one-time reminder was sent to an invite that was delivered but
   // never opened. Set once, so each invite gets at most one nudge.
-  inviteNudgedAt         DateTime?
+  inviteNudgedAt            DateTime?
   // Day-14 "still moving" reminder — set once, so a not-yet-joined neighbour
   // gets at most one of these after the 3-day nudge.
   inviteChainReminderSentAt DateTime?
-  inviteBouncedAt        DateTime?
-  inviteUnsubscribedAt   DateTime?
-  inviteDeclinedAt       DateTime?
-  inviteResendCount      Int          @default(0)
-  lastInviteSentByUserId String?
+  inviteBouncedAt           DateTime?
+  inviteUnsubscribedAt      DateTime?
+  inviteDeclinedAt          DateTime?
+  inviteResendCount         Int          @default(0)
+  lastInviteSentByUserId    String?
 
   // Deferred (v1.1)
   withdrawalStatus      ChainWithdrawalStatus?
@@ -2771,18 +2834,18 @@ model AgentRun {
   agencyId         String?
   triggerType      String    @default("inbound_email")
   triggerMessageId String    @unique // the inbound OutboundMessage; unique = idempotency guard
-  provider         String              // e.g. "anthropic"
+  provider         String // e.g. "anthropic"
   model            String
   promptVersion    String
   status           String    @default("running") // running | completed | failed
-  outcome          String?             // proposed | no_action | error
+  outcome          String? // proposed | no_action | error
   // The agent's concise, human-readable assessment (never raw chain-of-thought).
-  understood       String?             // what it understood from the email
-  changed          String?             // what it believes materially changed
-  waitingOn        String?             // who/what it believes the file now waits for
-  nextExpected     String?             // the next expected event/action
-  reasoningSummary String?             // one-paragraph summary of its reasoning
-  confidence       String?             // overall high | medium | low
+  understood       String? // what it understood from the email
+  changed          String? // what it believes materially changed
+  waitingOn        String? // who/what it believes the file now waits for
+  nextExpected     String? // the next expected event/action
+  reasoningSummary String? // one-paragraph summary of its reasoning
+  confidence       String? // overall high | medium | low
   humanAttention   Boolean   @default(false)
   toolCallCount    Int       @default(0)
   tokensIn         Int?
@@ -2806,18 +2869,18 @@ model AgentRun {
 model AgentAction {
   id                  String    @id @default(cuid())
   agentRunId          String
-  actionType          String    // confirmMilestone | addInternalNote | setWaitingOn | createTask | resolveTask | escalateToHuman | doNothing
-  input               Json      // the validated proposed input
-  confidence          String?   // high | medium | low
-  outcome             String    // shadow_proposed | blocked | flagged | no_action
-  blockedReason       String?   // e.g. "PREREQUISITES_NOT_COMPLETE: PM8"
-  evidence            String?   // short justification/paraphrase from the email (not chain-of-thought)
-  evidenceMessageId   String?   // the triggering OutboundMessage
-  targetType          String?   // milestone | note | waiting_on | task
-  targetRef           String?   // e.g. the milestone code
-  milestoneProposalId String?   // the MilestoneProposal this produced, where applicable
+  actionType          String // confirmMilestone | addInternalNote | setWaitingOn | createTask | resolveTask | escalateToHuman | doNothing
+  input               Json // the validated proposed input
+  confidence          String? // high | medium | low
+  outcome             String // shadow_proposed | blocked | flagged | no_action
+  blockedReason       String? // e.g. "PREREQUISITES_NOT_COMPLETE: PM8"
+  evidence            String? // short justification/paraphrase from the email (not chain-of-thought)
+  evidenceMessageId   String? // the triggering OutboundMessage
+  targetType          String? // milestone | note | waiting_on | task
+  targetRef           String? // e.g. the milestone code
+  milestoneProposalId String? // the MilestoneProposal this produced, where applicable
   // Review/correction linkage — set when the linked MilestoneProposal is decided.
-  reviewStatus        String?   // approved | dismissed | superseded
+  reviewStatus        String? // approved | dismissed | superseded
   reviewedAt          DateTime?
   reviewedById        String?
   createdAt           DateTime  @default(now())
@@ -2872,9 +2935,9 @@ model Session {
 // mailboxes (e.g. one per agency domain), one row each, keyed by the Microsoft
 // account id. Phase 1 = connection only; later phases add token refresh + reads.
 model OutlookConnection {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Identity of the connected Microsoft account, from Graph /me.
   microsoftUserId String // Graph "id" (immutable object id)
@@ -2882,26 +2945,26 @@ model OutlookConnection {
   displayName     String?
 
   // Encrypted credentials. Never logged, never sent to the client.
-  accessToken     String // encrypted (iv:tag:ciphertext hex)
-  refreshToken    String // encrypted
-  tokenExpiresAt  DateTime // when the access token expires (for later refresh)
-  scope           String // granted scopes, space-delimited
+  accessToken    String // encrypted (iv:tag:ciphertext hex)
+  refreshToken   String // encrypted
+  tokenExpiresAt DateTime // when the access token expires (for later refresh)
+  scope          String // granted scopes, space-delimited
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Sent-Items capture cursor (Phase 2). Null until the first Sent sync; then the
   // watermark to fetch forward from, so we don't rescan the 30-day history every
   // run. Only used when SENT_ITEMS_ENABLED. (Complete Email History.)
-  lastSentSyncAt  DateTime?
+  lastSentSyncAt DateTime?
 
   // Health/observability (reconnect UX). lastSyncedAt = last successful sync;
   // lastError = short reason for the most recent failure (null when healthy);
   // needsReconnect = the sign-in is dead (refresh rejected) and the mailbox must
   // be reconnected — drives the "Reconnect" prompt instead of a generic retry.
-  lastSyncedAt    DateTime?
-  lastError       String?
-  needsReconnect  Boolean  @default(false)
+  lastSyncedAt   DateTime?
+  lastError      String?
+  needsReconnect Boolean   @default(false)
 
   // One row per (user, mailbox): reconnecting the same mailbox updates it,
   // a different mailbox adds a new row.
@@ -2916,9 +2979,9 @@ model OutlookConnection {
 // (not the account password) and is stored encrypted, same scheme as the Outlook
 // tokens (lib/security/token-crypto), never logged, never sent to the client.
 model ImapConnection {
-  id       String @id @default(cuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Mailbox identity + where to reach it.
   email       String // login / address, shown in the UI
@@ -2932,8 +2995,8 @@ model ImapConnection {
   encryptedPassword String
 
   // Operational state for the UI + cron.
-  lastSyncedAt DateTime?
-  lastError    String? // last sync/login failure, for a helpful "reconnect" nudge
+  lastSyncedAt   DateTime?
+  lastError      String? // last sync/login failure, for a helpful "reconnect" nudge
   // Sent-Items capture cursor (Phase 2). See OutlookConnection.lastSentSyncAt.
   lastSentSyncAt DateTime?
 
@@ -2972,9 +3035,9 @@ model ImapConnection {
 // inbound keeps its historic zero-candidate behaviour. The model name is kept to
 // avoid a risky rename.
 model PendingInboundEmail {
-  id     String @id @default(cuid())
-  userId String // whose connected mailbox surfaced it (agent-side scoping)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String  @id @default(cuid())
+  userId   String // whose connected mailbox surfaced it (agent-side scoping)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   agencyId String? // mailbox owner's agency (null for internal staff)
 
   providerMessageId String // dedup key: Graph id / Message-ID / imap uid
@@ -3099,11 +3162,11 @@ enum WhatsAppSide {
 // scenario. At send time the most-specific matching row wins (exact scenario >
 // one axis specific > any/any > code default). Edited from Command Centre.
 model MilestoneEmailOverride {
-  id           String  @id @default(cuid())
+  id           String @id @default(cuid())
   code         String // milestone code, e.g. "PM9"
   side         String // "vendor" | "purchaser" | "vendorAgent" | "progressor"
-  tenure       String  @default("any") // "any" | "freehold" | "leasehold"
-  purchaseType String  @default("any") // "any" | "mortgage" | "cash"
+  tenure       String @default("any") // "any" | "freehold" | "leasehold"
+  purchaseType String @default("any") // "any" | "mortgage" | "cash"
 
   // NULL = the Sales Progressor default (edited from the Command Centre matrix).
   // A non-null agencyId = that agency's own override, which wins over the SP
@@ -3271,7 +3334,7 @@ model CritiqueNote {
 
   resolvedAt DateTime? // ticked done in the Command Centre
   resolvedBy String? // user id/email who resolved it
-  adminNotes String?  @db.Text // reserved review field, nullable
+  adminNotes String?   @db.Text // reserved review field, nullable
 
   @@index([resolvedAt, createdAt])
 }
@@ -3482,11 +3545,11 @@ model Signal {
   // the payload; a run where the situation no longer fires stamps resolvedAt.
   // detectedAt stays the FIRST-seen time. snoozedUntil hides a signal from the
   // feed and the briefs until it passes.
-  dedupeKey      String?
-  lastSeenAt     DateTime       @default(now())
-  occurrences    Int            @default(1)
-  resolvedAt     DateTime?
-  snoozedUntil   DateTime?
+  dedupeKey    String?
+  lastSeenAt   DateTime  @default(now())
+  occurrences  Int       @default(1)
+  resolvedAt   DateTime?
+  snoozedUntil DateTime?
 
   @@index([detectedAt])
   @@index([severity, detectedAt])
@@ -4047,8 +4110,8 @@ model SolicitorChaseState {
 model ChaseEmailOverride {
   id              String   @id @default(cuid())
   transactionId   String
-  recipientKind   String   // "client" | "solicitor"
-  targetKey       String   // "contact:<id>" | "sol:vendor" | "sol:purchaser"
+  recipientKind   String // "client" | "solicitor"
+  targetKey       String // "contact:<id>" | "sol:vendor" | "sol:purchaser"
   milestoneCode   String
   subjectOverride String?
   bodyOverride    String?
@@ -4132,15 +4195,15 @@ enum EnquiryCourt {
 }
 
 enum EnquiryMovementSource {
-  progressor      // logged by the internal team / agent
-  buyer_report    // buyer told us (portal or WhatsApp, logged by us)
-  seller_report   // seller told us (portal or WhatsApp, logged by us)
+  progressor // logged by the internal team / agent
+  buyer_report // buyer told us (portal or WhatsApp, logged by us)
+  seller_report // seller told us (portal or WhatsApp, logged by us)
   solicitor_reply // a solicitor replied to a chase
 }
 
 enum EnquiryMovementStatus {
-  pending   // client report awaiting progressor review (Phase 2)
-  accepted  // counts: resets the chase clock, can flip the court
+  pending // client report awaiting progressor review (Phase 2)
+  accepted // counts: resets the chase clock, can flip the court
   dismissed // reviewed and rejected
 }
 
@@ -4149,13 +4212,13 @@ enum EnquiryMovementStatus {
 // free-text note. Set by the page's typed actions; older rows default to
 // "update". See docs/active/enquiries-triage/00-spec.md.
 enum EnquiryMovementKind {
-  raised           // the enquiry loop opened (initial enquiries raised)
-  replies_sent     // the holding side sent their replies (moves the ball on)
+  raised // the enquiry loop opened (initial enquiries raised)
+  replies_sent // the holding side sent their replies (moves the ball on)
   replies_received // replies came back and are being reviewed
-  chased           // we nudged them (email / phone / other)
-  update           // a plain note / status update, no court change
-  correction       // a pure fix of whose court it is
-  partial_replies  // some (not all) replies sent; ball stays their court
+  chased // we nudged them (email / phone / other)
+  update // a plain note / status update, no court change
+  correction // a pure fix of whose court it is
+  partial_replies // some (not all) replies sent; ball stays their court
 }
 
 // ─── OnwardTracker ───────────────────────────────────────────────────────────
@@ -4169,20 +4232,20 @@ enum EnquiryMovementKind {
 // agency boundary into the shared chain view (Q6). One level of chain only (Q9).
 // Full spec: docs/active/onward-visibility/00-discovery.md.
 model OnwardTracker {
-  id                String              @id @default(cuid())
-  transactionId     String              // the client's own sale file (one tracker per kind)
+  id                     String              @id @default(cuid())
+  transactionId          String // the client's own sale file (one tracker per kind)
   // Direction (2026-08-29): onward_purchase = the SELLER buying the property above
   // them in the chain (purchaser/PM steps); related_sale = the BUYER selling the
   // property below them (vendor/VM steps). One file can carry BOTH (its seller's
   // onward + its buyer's related sale), hence @@unique([transactionId, kind]).
-  kind              OnwardTrackerKind   @default(onward_purchase)
+  kind                   OnwardTrackerKind   @default(onward_purchase)
   // The two facts that decide which purchaser steps apply — same axes the real
   // engine uses via computeAutoNrCodes (lib/milestone-auto-nr.ts). Nullable
   // until the seller/agent tells us; the step list stays gated until both set.
-  tenure            Tenure?
-  purchaseType      PurchaseType?
-  isShareOfFreehold Boolean             @default(false)
-  status            OnwardTrackerStatus @default(active)
+  tenure                 Tenure?
+  purchaseType           PurchaseType?
+  isShareOfFreehold      Boolean             @default(false)
+  status                 OnwardTrackerStatus @default(active)
   // The related / onward property's address (free text, e.g. "25 Austin House,
   // Harlow, CM20 2UA"). Optional. When set, inbound mail that NAMES this address
   // auto-files onto this sale file — the mail matcher reads it alongside chain
@@ -4191,9 +4254,9 @@ model OnwardTracker {
   // Steps the seller has manually opted out of (e.g. skipping the survey),
   // merged with the auto-not-required set on read. Mirrors the buyer's manual
   // survey skip, which is the only step a client can opt out of.
-  manualNrCodes     String[]            @default([])
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  manualNrCodes          String[]            @default([])
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
   transaction PropertyTransaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   steps       OnwardStepConfirmation[]
@@ -4202,10 +4265,10 @@ model OnwardTracker {
 }
 
 enum OnwardTrackerKind {
-  onward_purchase        // seller buying the property above (PM steps)
-  related_sale           // buyer selling the property below (VM steps)
+  onward_purchase // seller buying the property above (PM steps)
+  related_sale // buyer selling the property below (VM steps)
   onward_purchase_seller // FAR side: the onward property's seller (VM steps); agent-only
-  related_sale_buyer     // FAR side: the related sale's buyer (PM steps); agent-only
+  related_sale_buyer // FAR side: the related sale's buyer (PM steps); agent-only
 }
 
 enum OnwardTrackerStatus {
@@ -4222,12 +4285,12 @@ enum OnwardTrackerStatus {
 // that step is reported complete. Availability/ordering is computed on read from
 // the real predecessorCode chain, not stored.
 model OnwardStepConfirmation {
-  id                   String              @id @default(cuid())
-  trackerId            String
-  milestoneCode        String // a purchaser-side MilestoneDefinition.code, e.g. "PM7"
+  id                    String              @id @default(cuid())
+  trackerId             String
+  milestoneCode         String // a purchaser-side MilestoneDefinition.code, e.g. "PM7"
   // Real-world date the step happened, if known. Null = "reported done, date
   // unknown" (mirrors reconciliation's null-date semantics).
-  eventDate            DateTime?
+  eventDate             DateTime?
   // Access arrangement for a booked survey / lender valuation (PM6 / PM9),
   // mirroring MilestoneCompletion.keyCollectionRequired. Only captured when the
   // linked onward/related sale is the agency's OWN file (they hold the keys and
@@ -4236,13 +4299,13 @@ model OnwardStepConfirmation {
   // Free-text surveyor firm recorded on the survey-booked step (PM9). Same rule:
   // only when the linked sale is the agency's own file. Null otherwise.
   bookedSurveyorName    String?
-  source               OnwardConfirmSource
+  source                OnwardConfirmSource
   // Whoever confirmed it — the seller's Contact, or the agent/user. One is set.
-  confirmedByContactId String?
-  confirmedByUserId    String?
-  confirmedAt          DateTime            @default(now())
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  confirmedByContactId  String?
+  confirmedByUserId     String?
+  confirmedAt           DateTime            @default(now())
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   tracker OnwardTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
 
@@ -4257,31 +4320,31 @@ enum OnwardConfirmSource {
 }
 
 model EnquiryTracker {
-  id              String       @id @default(cuid())
-  transactionId   String       @unique
+  id               String       @id @default(cuid())
+  transactionId    String       @unique
   // Whose court the ball is in. Defaults to the seller's solicitor at "raised"
   // (they owe the replies). Flips only on a real signal (a solicitor reply, a
   // client report, or a progressor override) — never guessed.
-  currentlyWith   EnquiryCourt @default(seller_solicitor)
+  currentlyWith    EnquiryCourt @default(seller_solicitor)
   // One free-text scratch line ("waiting on: management pack, FENSA cert").
-  outstandingNote String?
-  openedAt        DateTime     @default(now())
+  outstandingNote  String?
+  openedAt         DateTime     @default(now())
   // Silence is measured from lastMovementAt ?? openedAt. Logging a movement
   // resets it, which restarts the chase cadence.
-  lastMovementAt  DateTime?
-  lastChasedAt    DateTime?
-  chaseCount      Int          @default(0)
-  escalatedAt     DateTime?
-  snoozedUntil    DateTime?
+  lastMovementAt   DateTime?
+  lastChasedAt     DateTime?
+  chaseCount       Int          @default(0)
+  escalatedAt      DateTime?
+  snoozedUntil     DateTime?
   // Set when enquiries are marked satisfied — the loop is closed.
-  closedAt        DateTime?
+  closedAt         DateTime?
   // Set when the seller's solicitor sends SOME (not all) replies across: the
   // ball stays their court (they still owe the rest) but the row signals that
   // partial replies are in. Cleared on a full handover (replies sent / court
   // flip) and on close. Durable, so a later chase doesn't erase the signal.
   partialRepliesAt DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   movements   EnquiryMovement[]
@@ -4366,21 +4429,21 @@ enum ChaseResponseType {
 // link, did they act (and how), or did they reply by email (a manual founder
 // tick). Written by the chase crons on a successful send.
 model ChaseSend {
-  id            String             @id @default(cuid())
-  transactionId String
-  kind          ChaseSendKind
-  recipient     ChaseSendRecipient
-  recipientName String? // solicitor firm (or buyer name), for the board
-  sentAt        DateTime           @default(now())
+  id               String             @id @default(cuid())
+  transactionId    String
+  kind             ChaseSendKind
+  recipient        ChaseSendRecipient
+  recipientName    String? // solicitor firm (or buyer name), for the board
+  sentAt           DateTime           @default(now())
   // Set when the recipient opens their /s/ link after this send.
-  openedAt      DateTime?
+  openedAt         DateTime?
   // Set when they take an action via the link.
-  respondedAt   DateTime?
-  responseType  ChaseResponseType?
+  respondedAt      DateTime?
+  responseType     ChaseResponseType?
   // Manual: the founder ticks this when the solicitor replied by email instead
   // of using the link.
   repliedByEmailAt DateTime?
-  createdAt     DateTime           @default(now())
+  createdAt        DateTime           @default(now())
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
@@ -4457,9 +4520,9 @@ enum InvoiceLineKind {
 
 // Why a file did not bill, for revenue reporting (pricing migration 2026-08).
 enum FreeReason {
-  permanent_free_self   // self-progress: free by service type (the product)
+  permanent_free_self // self-progress: free by service type (the product)
   first_outsourced_free // the free first outsourced file (the giveaway)
-  legacy_trial          // legacy: a file freed by the old 14-day trial
+  legacy_trial // legacy: a file freed by the old 14-day trial
 }
 
 model InvoiceLine {
@@ -4660,13 +4723,13 @@ model Prospect {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  convertedAgency Agency?            @relation(fields: [convertedAgencyId], references: [id], onDelete: SetNull)
-  sourceChainLink ChainLink?         @relation(fields: [sourceChainLinkId], references: [id], onDelete: SetNull)
-  group           ProspectGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  contacts        ProspectContact[]
-  activities      ProspectActivity[]
-  emails          ProspectEmail[]
-  flows           ProspectFlow[]
+  convertedAgency     Agency?              @relation(fields: [convertedAgencyId], references: [id], onDelete: SetNull)
+  sourceChainLink     ChainLink?           @relation(fields: [sourceChainLinkId], references: [id], onDelete: SetNull)
+  group               ProspectGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  contacts            ProspectContact[]
+  activities          ProspectActivity[]
+  emails              ProspectEmail[]
+  flows               ProspectFlow[]
   outreachAssignments OutreachAssignment[]
 
   @@index([status, nextFollowUpAt])
@@ -4808,8 +4871,8 @@ model ProspectEmail {
   // style in this model), joined in code. Null for manual / non-experiment sends.
   // A reply matched by replyToken therefore resolves to prospect + this email +
   // experiment + variant.
-  experimentId  String?
-  variantId     String?
+  experimentId String?
+  variantId    String?
 
   // Build Order H send-state lifecycle for experiment sends. sendDedupeKey =
   // "<experimentId>:<prospectId>:<stepIndex>" so the DB physically refuses a
@@ -4840,15 +4903,15 @@ model ProspectEmail {
 // per prospect at a time (enforced in the start action). A reply, opt-out, or
 // bounce halts the flow and skips its remaining steps.
 model ProspectFlow {
-  id          String    @id @default(cuid())
-  prospectId  String
-  status      String    @default("active") // active | completed | halted | cancelled
-  haltedReason String?  // replied | opted_out | bounced | manual
-  startedById String?
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  prospectId   String
+  status       String    @default("active") // active | completed | halted | cancelled
+  haltedReason String? // replied | opted_out | bounced | manual
+  startedById  String?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // AI outreach experiment link (null for manual flows). An experiment flow's
   // steps carry the FROZEN approved variant content; follow-ups reuse it. Reply/
@@ -5002,9 +5065,9 @@ model OutreachExperiment {
   launchedById String?
   launchedAt   DateTime?
 
-  createdById         String?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   variants    OutreachVariant[]
   assignments OutreachAssignment[]
@@ -5245,19 +5308,19 @@ model ContentInboxItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sourceType     String // product_data | customer_behaviour | recurring_issue | product_dev | saved_thought | customer_question | feedback | milestone | revisit | industry_news | manual
-  dedupeKey      String  @unique // stable key so a refresh never duplicates a source
-  observation    String // the thing worth talking about, in plain terms
-  whyInteresting String  @default("")
-  brandFit       String? // why it fits Ellis's positioning
-  reachReason    String? // qualitative note on why it might land (never a fake number)
-  claimClass     String  @default("inference") // of the core claim: verified_fact | ellis_opinion | inference | unverified
-  likelyAudience Json? // string[]
+  sourceType      String // product_data | customer_behaviour | recurring_issue | product_dev | saved_thought | customer_question | feedback | milestone | revisit | industry_news | manual
+  dedupeKey       String  @unique // stable key so a refresh never duplicates a source
+  observation     String // the thing worth talking about, in plain terms
+  whyInteresting  String  @default("")
+  brandFit        String? // why it fits Ellis's positioning
+  reachReason     String? // qualitative note on why it might land (never a fake number)
+  claimClass      String  @default("inference") // of the core claim: verified_fact | ellis_opinion | inference | unverified
+  likelyAudience  Json? // string[]
   suggestedAngles Json? // { angle, point }[] — genuinely different things to say
-  evidence       Json? // dataset / query / sample / date-range / figures behind any numeric claim
+  evidence        Json? // dataset / query / sample / date-range / figures behind any numeric claim
 
-  freshnessAt DateTime @default(now())
-  status      String   @default("new") // new | saved | explored | dismissed | already_said | not_me
+  freshnessAt DateTime  @default(now())
+  status      String    @default("new") // new | saved | explored | dismissed | already_said | not_me
   decidedAt   DateTime?
 
   sourceSignalId  String? // Signal.id when sourced from the signal engine
@@ -5289,8 +5352,8 @@ model BrandOpportunity {
   claimClass      String  @default("inference") // of any factual claim behind it
   evidence        Json?
 
-  dedupeKey String  @unique // stable (slug of title) so a refresh never duplicates
-  status    String  @default("new") // new | pursuing | done | dismissed
+  dedupeKey String    @unique // stable (slug of title) so a refresh never duplicates
+  status    String    @default("new") // new | pursuing | done | dismissed
   decidedAt DateTime?
 
   sourceSignalId String?
@@ -5330,7 +5393,7 @@ model VoiceProfile {
   characteristics Json? // { id: string, text: string }[]
   dismissed       Json? // string[] of dismissed characteristic texts
   generatedAt     DateTime?
-  sampleCount     Int      @default(0) // how many edits the current profile was built from
+  sampleCount     Int       @default(0) // how many edits the current profile was built from
 }
 
 // Content & Personal Brand: platform adaptations (docs/active/content-brand/
