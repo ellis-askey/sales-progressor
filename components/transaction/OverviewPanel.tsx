@@ -582,7 +582,7 @@ export async function OverviewPanel({
         entries={activityEntries}
         currentUserName={currentUserName}
         currentUserImage={currentUserImage}
-        currentUserRole={currentUserRole}
+        currentUserRole={currentUserRole ?? undefined}
         // Critique #6: the Overview composer is the SAME <CommsEntry> as the
         // Activity tab. It needs clients + solicitors (who-it-was-with pills +
         // Draft-for-everyone), the paste-chat gate (internal staff), and the
