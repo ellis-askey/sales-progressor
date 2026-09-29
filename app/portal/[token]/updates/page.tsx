@@ -181,6 +181,7 @@ export default async function PortalUpdatesPage({
                             milestoneName: entry.label,
                             coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                             isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
+                            counterpartFirm: entry.counterpartFirm,
                           })}
                         </p>
                         {(() => {

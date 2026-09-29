@@ -197,6 +197,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         milestoneName: entry.label,
         coreOverride: updateOverrides.get(entry.code)?.core ?? null,
         isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
+        counterpartFirm: entry.counterpartFirm,
       });
     } else if (entry.type === "document") {
       title = entry.filename ?? "New document available";
@@ -1129,6 +1130,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                         milestoneName: entry.label,
                         coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                         isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
+                        counterpartFirm: entry.counterpartFirm,
                       })}
                     </p>
                     {(() => {

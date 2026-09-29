@@ -2827,6 +2827,8 @@ export type TimelineEntry =
       helperName: string | null;
       eventDate: Date | null;
       createdAt: Date | null;
+      // Critique #20: counterpart solicitor firm for the enquiries line (PM14/VM10).
+      counterpartFirm?: string | null;
     }
   | {
       type: "update";
@@ -3046,6 +3048,15 @@ export async function getPortalTimeline(
     // confirmation in the feed, not the mirror entry from the other side.
     const BILATERAL_DUP_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
+    // Critique #20: the enquiries line names the COUNTERPART solicitor firm
+    // (buyer hears the seller's firm on PM14; seller hears the buyer's on VM10).
+    const solFirms = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { vendorSolicitorFirm: { select: { name: true } }, purchaserSolicitorFirm: { select: { name: true } } },
+    });
+    const vendorFirmName = solFirms?.vendorSolicitorFirm?.name ?? null;
+    const purchaserFirmName = solFirms?.purchaserSolicitorFirm?.name ?? null;
+
     const milestoneEntries: TimelineEntry[] = completions
       .filter((c) => !(c.milestoneDefinition.side !== side && BILATERAL_DUP_CODES.has(c.milestoneDefinition.code)))
       .map((c) => {
@@ -3070,6 +3081,11 @@ export async function getPortalTimeline(
           })(),
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,
+          // Critique #20: counterpart firm for the enquiries line (PM14 → seller's
+          // firm, VM10 → buyer's firm); null for every other code.
+          counterpartFirm: c.milestoneDefinition.code === "PM14" ? vendorFirmName
+            : c.milestoneDefinition.code === "VM10" ? purchaserFirmName
+            : null,
         };
       });
 

@@ -365,6 +365,19 @@ export function resolveConfirmer(
  *  survey…"). When it's the OTHER party's step it's a plain third-person fact
  *  with no confirmer named ("The seller's solicitor has issued the draft
  *  contract pack"). */
+// Critique #20 — the client portal enquiries line names the COUNTERPART firm:
+// the buyer hears "…raised initial enquiries with {seller's firm}", the seller
+// "…received initial enquiries from {buyer's firm}". Portal-only; the internal
+// confirmationSentence keeps its generic phrasing.
+const ENQ_FIRM_CLAUSE: Record<string, (firm: string) => string> = {
+  PM14: (firm) => `solicitor has raised initial enquiries with ${firm}`,
+  VM10: (firm) => `solicitor has received initial enquiries from ${firm}`,
+};
+const ENQ_FIRM_FALLBACK: Record<string, string> = {
+  PM14: "the seller's solicitor",
+  VM10: "the buyer's solicitor",
+};
+
 export function portalConfirmationSentence(opts: {
   code: string;
   side: "vendor" | "purchaser";
@@ -378,12 +391,17 @@ export function portalConfirmationSentence(opts: {
   coreOverride?: string | null;
   // PM6 only: desktop valuation (no visit) — see confirmationSentence.
   isDesktopValuation?: boolean;
+  // Critique #20: counterpart solicitor firm for the enquiries line (PM14/VM10).
+  counterpartFirm?: string | null;
 }): string {
-  const { code, side, viewerSide, confirmer, milestoneName, coreOverride, isDesktopValuation } = opts;
-  const isGeneral = GENERAL[code] !== undefined;
+  const { code, side, viewerSide, confirmer, milestoneName, coreOverride, isDesktopValuation, counterpartFirm } = opts;
+  const enqBuild = code === "PM14" || code === "VM10" ? ENQ_FIRM_CLAUSE[code] : undefined;
+  const isGeneral = enqBuild ? false : GENERAL[code] !== undefined;
   const clause = coreOverride && coreOverride.trim()
     ? coreOverride.trim()
-    : (code === "PM6" && isDesktopValuation ? PM6_DESKTOP_CORE : (GENERAL[code] ?? CORES[code] ?? null));
+    : enqBuild
+      ? enqBuild((counterpartFirm && counterpartFirm.trim()) || ENQ_FIRM_FALLBACK[code])
+      : (code === "PM6" && isDesktopValuation ? PM6_DESKTOP_CORE : (GENERAL[code] ?? CORES[code] ?? null));
 
   // The other party's progress — generic, no name, no confirmer.
   if (side !== viewerSide) {
