@@ -91,27 +91,31 @@ export function FilesCockpit({ initialFiles }: { initialFiles: CockpitFile[] }) 
     }));
   }
 
-  async function act(file: CockpitFile, side: CockpitSide, channel: Channel) {
-    // 1) open the channel where we have the detail
+  // Open the channel (phone/WhatsApp/mail) where we have the detail. The note
+  // box opens alongside — logging happens only when you hit Log.
+  function launch(side: CockpitSide, channel: Channel) {
     if (channel === "phone" && side.phone) window.location.href = `tel:${side.phone.replace(/\s/g, "")}`;
     else if (channel === "whatsapp" && side.phone) window.open(`https://wa.me/${toWaDigits(side.phone)}`, "_blank", "noopener");
     else if (channel === "email" && side.email) window.location.href = `mailto:${side.email}`;
+  }
 
-    // 2) optimistic: reset this file's quiet, move to bottom
+  // Log the touch with your typed notes as an INTERNAL-only record (never shown
+  // to the client), then drop the file to the bottom.
+  async function logTouch(file: CockpitFile, side: CockpitSide, channel: Channel, note: string) {
     reorderTouched(file.id);
-
-    // 3) log the human touch so it stays down after refresh
+    const verb = channel === "phone" ? "Called" : channel === "email" ? "Emailed" : "WhatsApp to";
+    const content = note.trim() || `${verb} ${side.name}`;
     try {
       await logCommAction({
         transactionId: file.id,
         type: "outbound",
         method: channel,
         contactIds: [side.contactId],
-        content: `${METHOD_VERB[channel] === "call" ? "Called" : channel === "email" ? "Emailed" : "WhatsApp to"} ${side.name} — logged from your focus list`,
+        content,
         visibleToClient: false,
       });
     } catch {
-      toast.error("Logged the touch here, but couldn't save it to the file. Try again.");
+      toast.error("Logged here, but couldn't save it to the file. Try again.");
     }
   }
 
@@ -155,6 +159,19 @@ export function FilesCockpit({ initialFiles }: { initialFiles: CockpitFile[] }) 
         .ck-act.call:hover:not(:disabled) { background: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
         .ck-act.email:hover:not(:disabled) { background:#3b6ef0; border-color:#3b6ef0; }
         .ck-act.wa:hover:not(:disabled) { background:#25a75a; border-color:#25a75a; }
+        .ck-act.on { color:#fff; }
+        .ck-act.call.on { background: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
+        .ck-act.email.on { background:#3b6ef0; border-color:#3b6ef0; }
+        .ck-act.wa.on { background:#25a75a; border-color:#25a75a; }
+
+        /* Inline note box (critique #12 follow-up): opens under a side when you
+           tap an action; your notes log internal-only, then the file drops. */
+        .ck-note { display:grid; grid-template-rows:0fr; transition: grid-template-rows .3s cubic-bezier(.4,0,.15,1); }
+        .ck-note.open { grid-template-rows:1fr; }
+        .ck-note-inner { overflow:hidden; min-height:0; }
+        .ck-note-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:8px 0 6px; }
+        .ck-note-cancel { font-size:12px; font-weight:600; color: var(--agent-text-muted); background:none; border:none; cursor:pointer; transition: color .14s; }
+        .ck-note-cancel:hover { color: var(--agent-text-primary); }
 
         .ck-empty { text-align:center; padding:48px 20px; }
         .ck-empty .big { font-size:17px; font-weight:700; color: var(--agent-text-primary); }
@@ -175,7 +192,7 @@ export function FilesCockpit({ initialFiles }: { initialFiles: CockpitFile[] }) 
         .ck-col.no li .mk { color: var(--agent-danger); }
         .ck-col li small { display:block; color: var(--agent-text-muted); font-size:11.5px; }
         .ck-foot { margin-top:18px; font-size:12.5px; color: var(--agent-text-muted); text-align:center; }
-        @media (prefers-reduced-motion: reduce) { .ck-card { transition:none !important; } }
+        @media (prefers-reduced-motion: reduce) { .ck-card, .ck-note { transition:none !important; } }
       `}</style>
 
       <div className="ck-eyebrow">Just for you</div>
@@ -215,8 +232,8 @@ export function FilesCockpit({ initialFiles }: { initialFiles: CockpitFile[] }) 
                   </Link>
                   <Pill glass tone={badge.tone} size="sm">{badge.label}</Pill>
                 </div>
-                <SideRow file={f} side={f.seller} onAct={act} />
-                <SideRow file={f} side={f.buyer} onAct={act} />
+                <SideRow file={f} side={f.seller} onLaunch={launch} onLog={logTouch} />
+                <SideRow file={f} side={f.buyer} onLaunch={launch} onLog={logTouch} />
               </article>
             );
           })}
@@ -254,24 +271,71 @@ export function FilesCockpit({ initialFiles }: { initialFiles: CockpitFile[] }) 
   );
 }
 
-function SideRow({ file, side, onAct }: { file: CockpitFile; side: CockpitSide | null; onAct: (f: CockpitFile, s: CockpitSide, ch: Channel) => void }) {
+function SideRow({ file, side, onLaunch, onLog }: {
+  file: CockpitFile;
+  side: CockpitSide | null;
+  onLaunch: (s: CockpitSide, ch: Channel) => void;
+  onLog: (f: CockpitFile, s: CockpitSide, ch: Channel, note: string) => Promise<void>;
+}) {
+  const [openCh, setOpenCh] = useState<Channel | null>(null);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
   if (!side) return null;
+
   const last = side.lastTouchAt
     ? `Last ${METHOD_VERB[side.lastMethod ?? "message"] ?? "contact"} ${quietText(side.quietWorkingDays)}`
     : "Not contacted yet";
+  const verb = openCh === "phone" ? "call" : openCh === "email" ? "email" : "WhatsApp";
+
+  function pick(ch: Channel) {
+    onLaunch(side!, ch);
+    setOpenCh(ch);
+    setTimeout(() => taRef.current?.focus(), 80);
+  }
+  function close() { setOpenCh(null); setNote(""); }
+  async function save() {
+    if (saving || !openCh) return;
+    setSaving(true);
+    await onLog(file, side!, openCh, note);
+    setSaving(false);
+    close();
+  }
+
   return (
-    <div className="ck-side">
-      <ContactAvatar contact={{ name: side.name, roleType: side.roleType }} image={side.image} size={30} />
-      <span className="ck-who">
-        <span className="n">{side.name}</span>
-        <span className="last">{last}</span>
-      </span>
-      <span className="ck-acts">
-        <button className="ck-act call" title={`Call ${side.name}`} disabled={!side.phone} onClick={() => onAct(file, side, "phone")}><Phone size={16} /></button>
-        <button className="ck-act email" title={`Email ${side.name}`} disabled={!side.email} onClick={() => onAct(file, side, "email")}><EnvelopeSimple size={16} /></button>
-        <button className="ck-act wa" title={`WhatsApp ${side.name}`} disabled={!side.phone} onClick={() => onAct(file, side, "whatsapp")}><WhatsappLogo size={16} /></button>
-      </span>
-    </div>
+    <>
+      <div className="ck-side">
+        <ContactAvatar contact={{ name: side.name, roleType: side.roleType }} image={side.image} size={30} />
+        <span className="ck-who">
+          <span className="n">{side.name}</span>
+          <span className="last">{last}</span>
+        </span>
+        <span className="ck-acts">
+          <button className={`ck-act call${openCh === "phone" ? " on" : ""}`} title={`Call ${side.name}`} disabled={!side.phone} onClick={() => pick("phone")}><Phone size={16} /></button>
+          <button className={`ck-act email${openCh === "email" ? " on" : ""}`} title={`Email ${side.name}`} disabled={!side.email} onClick={() => pick("email")}><EnvelopeSimple size={16} /></button>
+          <button className={`ck-act wa${openCh === "whatsapp" ? " on" : ""}`} title={`WhatsApp ${side.name}`} disabled={!side.phone} onClick={() => pick("whatsapp")}><WhatsappLogo size={16} /></button>
+        </span>
+      </div>
+      <div className={`ck-note${openCh ? " open" : ""}`}>
+        <div className="ck-note-inner">
+          <textarea
+            ref={taRef}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save(); if (e.key === "Escape") close(); }}
+            placeholder={`What was said on the ${verb}? Internal only.`}
+            rows={2}
+            className="glass-input w-full px-3 py-2 text-sm resize-none"
+          />
+          <div className="ck-note-actions">
+            <button type="button" className="ck-note-cancel" onClick={close}>Cancel</button>
+            <button type="button" className="agent-btn agent-btn-sm agent-btn-primary" disabled={saving} onClick={save}>
+              {saving ? "Logging…" : `Log ${verb}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
