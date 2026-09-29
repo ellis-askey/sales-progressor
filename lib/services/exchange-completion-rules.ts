@@ -45,6 +45,11 @@ const THREE_DAYS_MS = 3 * DAY_MS;
 export const AUTO_COUNTERPART_OF: Readonly<Record<string, string>> = {
   VM19: "PM26", PM26: "VM19",
   VM20: "PM27", PM27: "VM20",
+  // Enquiries pair (critique #20): confirming either side auto-completes the
+  // other (completeMilestone reflection); this fires the OTHER client's email
+  // too, so buyer + seller are notified together. Each side has a single
+  // client block (PM14 purchaser-only, VM10 vendor-only), so no duplicate.
+  VM10: "PM14", PM14: "VM10",
 };
 
 // Returns true when the customer-facing email for this exchange/

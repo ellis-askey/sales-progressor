@@ -292,6 +292,9 @@ export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
   // the completeMilestone reflection, so they must undo together too — a pack
   // that was never issued cannot have been received, and vice versa.
   VM7: "PM7", PM7: "VM7",
+  // Enquiries pair (critique #20): raised (PM14) and received (VM10) complete
+  // together via the completeMilestone reflection, so they undo together too.
+  VM10: "PM14", PM14: "VM10",
 };
 
 // ── Enquiries tracker lifecycle (enquiries rework) ────────────────────────────
@@ -1550,6 +1553,63 @@ export async function completeMilestone(
       }
     } catch (err) {
       console.error(`[completeMilestone] ${def.code}→${dcpCounterpart} contract-pack reflection failed:`, err);
+    }
+  }
+
+  // Enquiries pair (critique #20): the buyer's "initial enquiries raised" (PM14)
+  // and the seller's "initial enquiries received" (VM10) are ONE event — the
+  // buyer's solicitor raising enquiries IS the seller's solicitor receiving
+  // them. Confirming EITHER side completes both in the same instant, so a
+  // delayed second confirm can't fire a stale "new enquiries" email at the other
+  // client (the bug on 26 The Copse). Same chokepoint + first-writer-wins
+  // recursion termination as the contract-pack pair above. The counterpart's
+  // CLIENT email is fired separately by fireAutoCounterpartEmails
+  // (AUTO_COUNTERPART_OF) in the confirm action.
+  //
+  // Attribution (Ellis, Option A + refinement): if an internal user confirmed,
+  // both sides carry that user. If a CLIENT or SOLICITOR confirmed their own side
+  // from the portal, the mirrored side is attributed to whoever OVERSEES the file
+  // — the assigned Sales Progressor when outsourced, else the managing agent —
+  // never the confirming client, so a buyer/seller never shows as having
+  // completed the OTHER side's step.
+  const enqCounterpart = def.code === "PM14" ? "VM10" : def.code === "VM10" ? "PM14" : null;
+  if (enqCounterpart) {
+    try {
+      const other = await db.milestoneDefinition.findFirst({
+        where: { code: enqCounterpart },
+        select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
+      });
+      if (other) {
+        let mirrorConfirmer: Confirmer = input.confirmer;
+        if (input.confirmer.kind !== "user") {
+          const owner = await db.propertyTransaction.findUnique({
+            where: { id: input.transactionId },
+            select: {
+              serviceType: true,
+              assignedUser: { select: { id: true, name: true } },
+              agentUser: { select: { id: true, name: true } },
+            },
+          });
+          const overseer = owner?.serviceType === "outsourced" ? owner.assignedUser : owner?.agentUser;
+          mirrorConfirmer = overseer
+            ? { kind: "user", id: overseer.id, name: overseer.name ?? "" }
+            : { kind: "auto" };
+        }
+        await completeMilestone(
+          {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: other.id,
+            confirmer: mirrorConfirmer,
+            eventDate: input.eventDate,
+            completedAt: input.completedAt,
+            bypassPrereqs: true,
+          },
+          tx,
+          { def: other, activeBuyerRoundId },
+        );
+      }
+    } catch (err) {
+      console.error(`[completeMilestone] ${def.code}→${enqCounterpart} enquiries reflection failed:`, err);
     }
   }
 
