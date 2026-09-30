@@ -32,6 +32,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { buildOutsourceIntroEmail } from "@/lib/emails/outsource-intro-template";
+import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
 import { deliverAtInsideWorkingWindow } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
@@ -99,6 +100,7 @@ export async function sendOutsourceIntroForTransaction(
         propertyAddress: true,
         agencyId: true,
         agency: { select: { name: true } },
+        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
         serviceType: true,
         contacts: {
           where: { roleType: { in: ["vendor", "purchaser"] } },
@@ -139,6 +141,10 @@ export async function sendOutsourceIntroForTransaction(
 
     const { firstName: agentFirstName, lastName: agentLastName } = splitAgentName(creator.name);
     const agencyName = tx.agency?.name ?? "your agent";
+    // WhatsApp CTA resolves from the responsible progression business (null =
+    // TSP → the +447508862929 link, unchanged). An external business with no
+    // number set sends the intro with no WhatsApp block rather than TSP's line.
+    const whatsappUrl = whatsappLink(clientFacingIdentity(tx.progressionBusiness).contactWhatsapp);
 
     const fromAddress = await resolveAgentSenderAddress(creatorUserId, tx.agencyId);
     const fromName = `${agentFirstName}${agentLastName ? " " + agentLastName : ""}, ${agencyName}`;
@@ -191,6 +197,7 @@ export async function sendOutsourceIntroForTransaction(
         portalUrl: contact.portalToken ? `${portalBase()}/portal/${contact.portalToken}` : null,
         // Buyers follow their "purchase", sellers their "sale".
         saleNoun: contact.roleType === "purchaser" ? "purchase" : "sale",
+        whatsappUrl,
       });
 
       try {

@@ -16,6 +16,7 @@
 import { buildOutsourceIntroEmail, type OutsourceIntroVars } from "@/lib/emails/outsource-intro-template";
 
 const DEMO_PORTAL_URL = "https://portal.thesalesprogressor.co.uk/portal/demo-token";
+const DEMO_WHATSAPP = "https://wa.me/447508862929";
 
 const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
   {
@@ -28,6 +29,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agencyName: "Akeman Residential",
       portalUrl: DEMO_PORTAL_URL,
       saleNoun: "sale",
+      whatsappUrl: DEMO_WHATSAPP,
     },
   },
   {
@@ -40,6 +42,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agencyName: "Akeman Residential",
       portalUrl: DEMO_PORTAL_URL,
       saleNoun: "purchase",
+      whatsappUrl: DEMO_WHATSAPP,
     },
   },
   {
@@ -52,6 +55,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agencyName: "Akeman Residential",
       portalUrl: DEMO_PORTAL_URL,
       saleNoun: "sale",
+      whatsappUrl: DEMO_WHATSAPP,
     },
   },
   {
@@ -64,6 +68,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agencyName: "Akeman Residential",
       portalUrl: DEMO_PORTAL_URL,
       saleNoun: "sale",
+      whatsappUrl: DEMO_WHATSAPP,
     },
   },
   {
@@ -76,6 +81,7 @@ const VARIANTS: { label: string; vars: OutsourceIntroVars }[] = [
       agencyName: "Akeman Residential",
       portalUrl: null,
       saleNoun: "sale",
+      whatsappUrl: DEMO_WHATSAPP,
     },
   },
 ];
