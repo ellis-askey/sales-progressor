@@ -29,6 +29,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { isTspBusiness } from "@/lib/progression/business";
 
 export const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
 
@@ -43,7 +44,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true, progressionBusinessId: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -54,6 +55,19 @@ export async function maybeStampExchange(
     where: { id: transactionId, exchangedAt: null },
     data: { exchangedAt: now },
   });
+
+  // 1b. Ring-fence external progression businesses (docs/active/progression-
+  // businesses/10-signup-team-billing-spec.md, Arc B1). A file progressed by an
+  // EXTERNAL progression business is billed to THAT business (its own per-sale
+  // charge), never to the client's agency — the agency didn't buy TSP's
+  // progression service, the progressor did. exchangedAt is stamped above (it
+  // DID exchange); we stop before any agency billing, so billedAtExchange is
+  // never set and the agency accrual (lib/billing/accrual.ts keys on
+  // billedAtExchange) never picks it up. TSP files (progressionBusinessId = null)
+  // and normal agency files fall through unchanged — isTspBusiness(null) returns
+  // true with no query, so the common path pays no cost. The per-sale charge to
+  // the progression business is recorded by the progression-billing arc (B3).
+  if (!(await isTspBusiness(txn.progressionBusinessId))) return;
 
   // 2a. Demo showcase files never bill (guarding the source here keeps every
   // downstream billing reader safe — a demo never gets billedAtExchange set).
