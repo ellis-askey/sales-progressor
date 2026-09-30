@@ -251,6 +251,15 @@ export function ChainView({
   const [loading, setLoading] = useState(initialChainData == null);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [declineDismissed, setDeclineDismissed] = useState(false);
+  // Chain-split "rebuilt" note is dismissible once seen (critique #128), keyed on
+  // the split date so a fresh split re-shows it.
+  const [splitNoticeHidden, setSplitNoticeHidden] = useState(false);
+  const splitAtKey = chain?.detachedSegment?.splitAt ? String(chain.detachedSegment.splitAt) : "";
+  useEffect(() => {
+    if (!splitAtKey) { setSplitNoticeHidden(false); return; }
+    try { setSplitNoticeHidden(!!window.localStorage.getItem("chainSplitDismissed:" + splitAtKey)); }
+    catch { setSplitNoticeHidden(false); }
+  }, [splitAtKey]);
   const [pendingNotifications, setPendingNotifications] = useState<Array<{
     id: string;
     type: "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT";
@@ -1408,30 +1417,45 @@ export function ChainView({
                 * "below" the agent's perspective so it's obvious WHICH end
                 * left — pre-arc agents couldn't tell their chain had been
                 * shortened at all. */}
-              {chain.detachedSegment && chain.detachedSegment.count > 0 && (
-                <div style={{
-                  marginBottom: 12,
-                  padding: "10px 12px",
-                  background: "rgba(245,158,11,0.08)",
-                  border: "0.5px solid rgba(245,158,11,0.25)",
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                }}>
-                  <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↯</span>
-                  <p style={{ fontSize: 12, color: "rgb(146, 78, 4)", margin: 0, lineHeight: 1.5 }}>
-                    <strong>Chain split.</strong>{" "}
-                    {chain.detachedSegment.count} sale{chain.detachedSegment.count !== 1 ? "s" : ""}{" "}
-                    {chain.detachedSegment.direction === "DOWNWARD"
-                      ? "below"
-                      : chain.detachedSegment.direction === "UPWARD"
-                        ? "above"
-                        : "in this chain"}{" "}
-                    were separated when a sale here withdrew. They now stand as their own chain.
-                  </p>
-                </div>
-              )}
+              {chain.detachedSegment && chain.detachedSegment.count > 0 && (() => {
+                // detachedSegment is a permanent stamp, so isChainBroken tells
+                // "still split, waiting on a buyer" (amber) from "rebuilt, a new
+                // buyer's in" (calm green). The calm note is dismissible once
+                // seen. Critique #128.
+                const seg = chain.detachedSegment!;
+                const n = seg.count;
+                const many = n !== 1;
+                const dir = seg.direction === "DOWNWARD" ? "below" : seg.direction === "UPWARD" ? "above" : null;
+
+                if (isChainBroken(chain)) {
+                  return (
+                    <div style={{ marginBottom: 12, padding: "10px 12px", background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.25)", borderRadius: 8, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↯</span>
+                      <p style={{ fontSize: 12, color: "rgb(146, 78, 4)", margin: 0, lineHeight: 1.5 }}>
+                        <strong>Chain split.</strong> The sale here fell through, so the {n} sale{many ? "s" : ""} {dir ?? "in this chain"} broke away into {many ? "their" : "its"} own chain. This end is waiting on a new buyer.
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (splitNoticeHidden) return null;
+                return (
+                  <div style={{ marginBottom: 12, padding: "10px 12px", background: "rgba(31,138,74,0.08)", border: "0.5px solid rgba(31,138,74,0.28)", borderRadius: 8, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{ fontSize: 13, lineHeight: 1, flexShrink: 0, color: "rgb(21,128,61)", fontWeight: 700, marginTop: 1 }}>✓</span>
+                    <p style={{ fontSize: 12, color: "rgb(20,83,45)", margin: 0, lineHeight: 1.5, flex: 1 }}>
+                      <strong>Chain rebuilt.</strong> A new buyer&apos;s in place, so this chain&apos;s moving again. The {n} sale{many ? "s" : ""} that split off earlier {many ? "are" : "is"} now progressing as {many ? "their" : "its"} own chain.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { try { if (splitAtKey) window.localStorage.setItem("chainSplitDismissed:" + splitAtKey, "1"); } catch { /* ignore */ } setSplitNoticeHidden(true); }}
+                      aria-label="Dismiss"
+                      style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "rgb(21,128,61)", fontSize: 15, lineHeight: 1, padding: "0 2px", fontFamily: "inherit" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Chain bottleneck banner — only when the chain is intact + a
                * meaningful gap (>7 days) exists between the slowest claimed
