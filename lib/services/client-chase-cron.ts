@@ -479,8 +479,8 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       const repeatEveryDays = snapshotTiming?.repeatEveryDays ?? rule.repeatEveryDays;
 
       // First-due-date = anchor + max(graceDays, floor). But when re-anchored on
-      // an expected due-back date, use the small expected-date buffer (fire when
-      // the date passes, not the ordered-step grace weeks later).
+      // an expected due-back date, fire ON that date (EXPECTED_DATE_GRACE_DAYS = 0)
+      // and bypass the floor, so the chase starts the day it was due, not later.
       const grace = expectedDateAnchored ? EXPECTED_DATE_GRACE_DAYS : Math.max(graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
       const firstDueDate = addDays(anchorDate, grace);
 
