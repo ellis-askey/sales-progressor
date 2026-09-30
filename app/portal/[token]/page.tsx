@@ -14,6 +14,8 @@ import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
+import { PortalThingsToConfirm } from "@/components/portal/PortalThingsToConfirm";
+import { listCheckpoints } from "@/lib/services/checkpoints";
 import { PortalTeamCard } from "@/components/portal/PortalTeamCard";
 import { getFollowupNudge } from "@/lib/portal/followup-state";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -88,6 +90,31 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   // Portal Engagement v2 (Phase 1): section view. Fire-and-forget, best-effort.
   void recordPortalEvent("portal_section_viewed", contact.id, { section: "overview" });
+
+  // Checkpoints shown to this side ("Things to confirm"). Internal-only ones
+  // (showTo === none) never reach here — requiredParties won't include the side.
+  const [allCheckpoints, otherContact] = await Promise.all([
+    listCheckpoints(transaction.id),
+    prisma.contact.findFirst({
+      where: { propertyTransactionId: transaction.id, roleType: otherSide, isPrincipal: true },
+      select: { name: true },
+    }),
+  ]);
+  const otherName = otherContact ? extractFirstName(otherContact.name) : otherSide === "vendor" ? "the seller" : "the buyer";
+  const portalCheckpoints = allCheckpoints
+    .filter((c) => c.requiredParties.includes(side))
+    .map((c) => {
+      const mine = c.confirmations.find((x) => x.party === side);
+      return {
+        id: c.id,
+        label: c.label,
+        targetDate: c.targetDate,
+        mineDone: !!mine,
+        mineDate: mine ? mine.at : null,
+        isComplete: c.isComplete,
+        isBoth: c.showTo === "both",
+      };
+    });
 
   const ownScope   = portalOwnSideScope(contact, transaction);
   const otherScope = portalOtherSideScope(contact, transaction);
@@ -746,6 +773,11 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           whatHappensNext={getMilestoneCopy(nextAction.code).next ?? null}
           saleActive={transaction.status !== "withdrawn" && transaction.status !== "completed"}
         />
+      )}
+
+      {/* ── Things to confirm (checkpoints) ──────────────────────────── */}
+      {portalCheckpoints.length > 0 && (
+        <PortalThingsToConfirm token={token} otherName={otherName} items={portalCheckpoints} />
       )}
 
       {/* ── Something you can do (item B — task-driven) ─────────────── */}

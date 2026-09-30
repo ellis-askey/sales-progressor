@@ -16,6 +16,7 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { getSurveyBookingOptionsForTx, applySurveyBooking, type SurveyBookingOption, type SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { assertLivePortalRound } from "@/lib/portal/round-guard";
 import { isAgentPortalView } from "@/lib/portal/preview";
+import { confirmCheckpoint } from "@/lib/services/checkpoints";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -68,6 +69,50 @@ export async function portalConfirmMilestoneAction(input: {
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
 
+  return { ok: true };
+}
+
+// A client confirms a checkpoint ("Things to confirm") from their portal. Token
+// is the auth: it resolves to the contact, whose roleType picks the party. The
+// checkpoint must live on their file and be shown to their side. Mirrors the
+// milestone-confirm path (critique #21 + #23).
+export async function portalConfirmCheckpointAction(input: {
+  token: string;
+  checkpointId: string;
+  eventDate?: string | null;
+}): Promise<{ ok: boolean }> {
+  // Read-only agent window never writes.
+  if (await isAgentPortalView()) return { ok: true };
+
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+  });
+  if (!contact || (contact.roleType !== "vendor" && contact.roleType !== "purchaser")) return { ok: false };
+
+  try {
+    await assertLivePortalRound(input.token);
+  } catch {
+    return { ok: false };
+  }
+
+  const side = contact.roleType; // "vendor" | "purchaser"
+  const cp = await prisma.checkpoint.findFirst({
+    where: { id: input.checkpointId, transactionId: contact.propertyTransactionId, archivedAt: null },
+    select: { id: true, showTo: true },
+  });
+  if (!cp) return { ok: false };
+  if (cp.showTo !== "both" && cp.showTo !== side) return { ok: false };
+
+  await confirmCheckpoint({
+    checkpointId: cp.id,
+    party: side,
+    by: { kind: "contact", id: contact.id, name: contact.name },
+    eventDate: input.eventDate ?? null,
+  });
+
+  revalidatePath(`/portal/${input.token}`, "page");
+  revalidatePath(`/portal/${input.token}/progress`, "page");
   return { ok: true };
 }
 
