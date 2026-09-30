@@ -18,7 +18,7 @@ const base: OutsourceIntroVars = {
   whatsappUrl: null,
 };
 
-describe("buildOutsourceIntroEmail — WhatsApp block", () => {
+describe("buildOutsourceIntroEmail WhatsApp block", () => {
   it("includes the WhatsApp CTA (text + html) when a link is provided", () => {
     const email = buildOutsourceIntroEmail({ ...base, whatsappUrl: "https://wa.me/447900000000" });
     expect(email.text).toContain("WhatsApp us: https://wa.me/447900000000");
