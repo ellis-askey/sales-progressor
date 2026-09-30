@@ -450,6 +450,12 @@ export async function portalSetExpectedDateAction(input: {
   // snooze attaches to the right rule even if a milestone has multiple
   // reminders (defensive — no production rules do today, but the schema
   // permits it).
+  //
+  // Critique #23: rules that re-anchor on expectedDate (useExpectedDate, e.g.
+  // PM13 searches) no longer need this snooze — writing the expectedDate above
+  // already re-times the chase to that date in both engines. So the snooze is
+  // scoped to non-re-anchored rules only (useExpectedDate: false); one clean
+  // mechanism each, no double-handling.
   const todayUKStr = toUKDateStr(new Date());
   const expectedUKStr = toUKDateStr(new Date(input.expectedDate));
   if (expectedUKStr > todayUKStr) {
@@ -458,7 +464,7 @@ export async function portalSetExpectedDateAction(input: {
       where: {
         transactionId: contact.propertyTransactionId,
         status: "active",
-        reminderRule: { targetMilestoneCode: input.milestoneCode },
+        reminderRule: { targetMilestoneCode: input.milestoneCode, useExpectedDate: false },
       },
       data: { snoozedUntil: snoozeUntil },
     });
