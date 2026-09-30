@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import {
   getAgentUpdatesFeed,
   getFileSnapshots,
@@ -57,6 +58,7 @@ export default async function AgentCommsPage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isAdmin = hasAdminPowers(session);
+  const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -133,9 +135,11 @@ export default async function AgentCommsPage() {
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {isAdmin
                   ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across the platform."
-                  : isProgressor
-                    ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
-                    : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
+                  : isBusinessOwner
+                    ? "Confirmed steps, price changes, shared notes, replies, and uploads across your clients' sales appear here."
+                    : isProgressor
+                      ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
+                      : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
               </p>
             </div>
 

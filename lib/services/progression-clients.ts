@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import type { Session } from "next-auth";
 
 export type BusinessOwner = { businessId: string; userId: string };
@@ -26,6 +27,17 @@ export async function resolveBusinessOwner(session: Session): Promise<BusinessOw
   });
   if (!me?.progressionBusinessId || me.progressionBusinessRole !== "owner") return null;
   return { businessId: me.progressionBusinessId, userId: session.user.id };
+}
+
+/**
+ * Flag-gated boolean: is the viewer a progression-business owner? Used to pick
+ * owner-facing empty-state copy (their files come from clients they add, not
+ * from being assigned work) without repeating the flag + owner check on every
+ * surface. Flag off short-circuits with no query.
+ */
+export async function isBusinessOwnerViewer(session: Session): Promise<boolean> {
+  if (!progressionBusinessesEnabled()) return false;
+  return (await resolveBusinessOwner(session)) !== null;
 }
 
 export type AddClientAgencyInput = {

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, getReferralStats, getBrokerReferralStats } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
@@ -58,6 +59,7 @@ export default async function AgentAnalyticsPage({
   const { user: filterUserId, period: rawPeriod } = await searchParams;
   const isDirector = session.user.role === "director";
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isBusinessOwner = session.user.role === "sales_progressor" ? await isBusinessOwnerViewer(session) : false;
 
   const period = (["week", "month", "year", "all"] as string[]).includes(rawPeriod ?? "")
     ? rawPeriod!
@@ -118,12 +120,22 @@ export default async function AgentAnalyticsPage({
               <rect x="32" y="10" width="10" height="32" rx="2" fill="var(--agent-coral)" />
             </svg>
             <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              Analytics will appear here as you submit sales.
+              {isBusinessOwner ? "Analytics will appear here as you progress sales." : "Analytics will appear here as you submit sales."}
             </p>
             <p style={{ margin: "0 auto 20px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              After you submit your first file, this page shows pipeline value, fee tracking, conversion rates and monthly trends.
+              {isBusinessOwner
+                ? "Once you're progressing sales for your clients, this page shows pipeline value, fee tracking, conversion rates and monthly trends."
+                : "After you submit your first file, this page shows pipeline value, fee tracking, conversion rates and monthly trends."}
             </p>
-            {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
+            {isBusinessOwner ? (
+              <Link
+                href="/agent/clients"
+                className="agent-btn agent-btn-primary"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
+              >
+                + Add your first client
+              </Link>
+            ) : session.user.role !== "sales_progressor" && session.user.role !== "viewer" ? (
               <Link
                 href="/agent/transactions/new"
                 className="agent-btn agent-btn-primary"
@@ -131,7 +143,7 @@ export default async function AgentAnalyticsPage({
               >
                 + Submit your first sale
               </Link>
-            )}
+            ) : null}
           </Card>
 
           {/* Ghost analytics preview */}

@@ -5,6 +5,7 @@ import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, getCompletionsMomentum, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import {
   CompletionsGroupList,
   type CompletionGroup,
@@ -54,6 +55,7 @@ export default async function AgentCompletionsPage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isAdmin = hasAdminPowers(session);
+  const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -306,8 +308,12 @@ export default async function AgentCompletionsPage() {
             </p>
             <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
               {completedFiles.length > 0
-                ? "Files appear here once they exchange. Your completed files are below."
-                : "Files appear here once they exchange."}
+                ? (isBusinessOwner
+                    ? "Files appear here once your clients' sales exchange. Your completed files are below."
+                    : "Files appear here once they exchange. Your completed files are below.")
+                : (isBusinessOwner
+                    ? "Files appear here once your clients' sales exchange."
+                    : "Files appear here once they exchange.")}
             </p>
           </div>
         )}

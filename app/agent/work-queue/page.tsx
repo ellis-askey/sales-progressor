@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
@@ -77,6 +78,7 @@ export default async function WorkQueuePage() {
   }
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
+  const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -180,13 +182,15 @@ export default async function WorkQueuePage() {
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                {isProgressor ? "No files assigned yet" : "Your reminders will appear here"}
+                {isBusinessOwner ? "No files yet" : isProgressor ? "No files assigned yet" : "Your reminders will appear here"}
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {/* OLD: "Once you create a sale, we'll surface chases and follow-ups as files progress." — Rule 1 (VOICE_GUIDELINES.md pre-catalogued) */}
-                {isProgressor
-                  ? "Reminders for your assigned files will appear here."
-                  : "Chases and follow-ups appear here as your files move forward."}
+                {isBusinessOwner
+                  ? "Reminders appear here as your clients' sales move forward."
+                  : isProgressor
+                    ? "Reminders for your assigned files will appear here."
+                    : "Chases and follow-ups appear here as your files move forward."}
               </p>
             </div>
 

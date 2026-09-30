@@ -12,6 +12,7 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -100,6 +101,9 @@ export default async function AllTransactionsPage({
   const agentId = !isInternalStaff && !vis.seeAll ? session.user.id : undefined;
   const isDirector = session.user.role === "director";
   const isProgressor = session.user.role === "sales_progressor";
+  // A progression-business owner's files come from clients they add, not from
+  // being assigned work, so their empty state points at Clients (not "assigned").
+  const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
   // their own name, which is redundant. Directors and internal staff see files belonging to multiple
   // people, so the column is meaningful for them.
@@ -303,7 +307,24 @@ export default async function AllTransactionsPage({
                 opacity: 0.45,
               }}
             />
-            {isProgressor ? (
+            {isBusinessOwner ? (
+              <>
+                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                  No files yet
+                </p>
+                <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                  Add a client and create their first sale, and it&apos;ll appear here.
+                </p>
+                <Link
+                  href="/agent/clients"
+                  className="agent-btn agent-btn-primary agent-btn-md"
+                  style={{ textDecoration: "none" }}
+                >
+                  <Plus size={16} weight="bold" />
+                  Add your first client
+                </Link>
+              </>
+            ) : isProgressor ? (
               <>
                 <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                   No files assigned yet

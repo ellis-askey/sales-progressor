@@ -33,8 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -221,10 +220,8 @@ export default async function Hub() {
   const isAdmin           = hasAdminPowers(session);
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin";
   // Flag-gated + DB-checked: only a genuine progression-business owner. The
-  // flag short-circuits the query for everyone else (and off = no query).
-  const isBusinessOwner   = isProgressor && progressionBusinessesEnabled()
-    ? !!(await resolveBusinessOwner(session))
-    : false;
+  // helper short-circuits (no query) when the flag is off.
+  const isBusinessOwner   = isProgressor ? await isBusinessOwnerViewer(session) : false;
 
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
