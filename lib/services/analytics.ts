@@ -491,6 +491,10 @@ export async function getKpiTrendsForAgency(
 ): Promise<KpiSparklines> {
   const txWhere = buildTxWhere(vis);
   const rangeEnd = range.end;
+  // Relist safety: active-round scope for the cross-tx exchange/completion reads
+  // below, so a relisted file's archived-round exchange/completion doesn't
+  // double-count into the KPI sparklines (mirrors getMonthlyActivity).
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   // 8 weekly buckets (oldest → newest), each 7 days, last ending at rangeEnd
   const buckets = Array.from({ length: 8 }, (_, i) => {
@@ -539,6 +543,7 @@ export async function getKpiTrendsForAgency(
         reconciledAtExchange: false,
         reconciledAtClaim: false,
         completedAt: { gte: windowStart, lt: rangeEnd },
+        OR: roundScopedOR(activeRoundIds),
       },
       select: { transactionId: true, completedAt: true },
     }),
@@ -550,6 +555,7 @@ export async function getKpiTrendsForAgency(
         reconciledAtExchange: false,
         reconciledAtClaim: false,
         completedAt: { gte: windowStart, lt: rangeEnd },
+        OR: roundScopedOR(activeRoundIds),
       },
       select: { transactionId: true, completedAt: true },
     }),

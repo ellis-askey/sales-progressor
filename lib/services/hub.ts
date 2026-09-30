@@ -1241,6 +1241,10 @@ export async function getBookingsToConfirm(vis: AgentVisibility, excludeTxIds: s
     ? { status: "active", serviceType: "outsourced", isDemo: false, ...txNested }
     : { agencyId: vis.agencyId, status: "active", serviceType: "self_managed", isDemo: false, ...txNested };
 
+  // Relist safety: PM6/PM9 are purchaser (per-round) codes — scope to the active
+  // round so a fallen-through buyer's awaiting-booking row doesn't surface a
+  // stale "confirm this booking" card on the relisted file.
+  const bookingRoundIds = await loadActiveRoundIds(txFilter);
   const rows = await prisma.milestoneCompletion.findMany({
     where: {
       awaitingBookingConfirmation: true,
@@ -1250,6 +1254,7 @@ export async function getBookingsToConfirm(vis: AgentVisibility, excludeTxIds: s
         ...txFilter,
         ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
       },
+      OR: roundScopedOR(bookingRoundIds),
     },
     // Soonest appointment first — the one most likely to need action today.
     orderBy: { eventDate: "asc" },
@@ -2404,7 +2409,7 @@ export async function getHubAttentionItems(
           // Full contact + solicitor shapes (mirroring getAgentReminderLogs) so
           // the hub's inline chase drawer gets real recipients, not just the
           // email fields resolveAutopilot needs.
-          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true } },
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, portalToken: true, unsubscribedAt: true, buyerRoundId: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorContact: { select: { id: true, name: true, email: true, phone: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
@@ -2633,20 +2638,34 @@ export async function getHubAttentionItems(
       overridePredictedDate: true,
       exchangeReminderSnoozedUntil: true,
       exchangedAt: true,
-      milestoneCompletions: {
-        where: { state: "complete", completedAt: { not: null } },
-        orderBy: { completedAt: "desc" },
-        take: 1,
-        select: { completedAt: true },
-      },
     },
   });
+  // Relist safety: the "last confirmed milestone" that decides whether a file is
+  // still moving must be the ACTIVE round's — a nested include can't filter by
+  // the row's own round, so an archived round's recent completion would read as
+  // "still moving" and wrongly suppress the overdue-exchange item. Grouped read,
+  // round-scoped, keyed by tx.
+  const overdueLastByTx = new Map<string, Date | null>();
+  if (overdueCandidates.length > 0) {
+    const ocRoundIds = await loadActiveRoundIds(txLogFilter);
+    const grouped = await prisma.milestoneCompletion.groupBy({
+      by: ["transactionId"],
+      where: {
+        transactionId: { in: overdueCandidates.map((t) => t.id) },
+        state: "complete",
+        completedAt: { not: null },
+        OR: roundScopedOR(ocRoundIds),
+      },
+      _max: { completedAt: true },
+    });
+    for (const g of grouped) overdueLastByTx.set(g.transactionId, g._max.completedAt ?? null);
+  }
   for (const tx of overdueCandidates) {
     const { stuck, passedDate } = isExchangeOverdueStuck({
       exchangedAt: tx.exchangedAt,
       expectedExchangeDate: tx.expectedExchangeDate,
       overridePredictedDate: tx.overridePredictedDate,
-      lastMilestoneConfirmedAt: tx.milestoneCompletions[0]?.completedAt ?? null,
+      lastMilestoneConfirmedAt: overdueLastByTx.get(tx.id) ?? null,
       snoozedUntil: tx.exchangeReminderSnoozedUntil,
       now,
     });

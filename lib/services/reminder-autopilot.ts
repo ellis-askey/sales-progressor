@@ -16,6 +16,7 @@
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 import { pickLiveChase } from "@/lib/reminders/pick-live-chase";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
 export type AutopilotStatus =
   // pausedUntil (ISO) is set when every reachable client asked us to hold until a
@@ -56,10 +57,13 @@ interface LogShape {
   chaseTasks: { status: string; priority: string; fallbackKind: string | null; chaseCount?: number; manualChaseCount?: number; lastChasedAt?: Date | null }[];
   transaction: {
     agencyId: string | null;
+    // Relist safety: the active round, so buyer reachability is judged on the
+    // CURRENT buyer, not a fallen-through one (see reachableClients below).
+    activeBuyerRoundId: string | null;
     clientEmailsPaused: boolean;
     vendorSolicitorEmailsPaused: boolean;
     purchaserSolicitorEmailsPaused: boolean;
-    contacts: { roleType: string; email: string | null; portalToken: string | null; unsubscribedAt: Date | null; emailBouncedAt?: Date | null; chasesPausedUntil?: Date | null }[];
+    contacts: { roleType: string; buyerRoundId: string | null; email: string | null; portalToken: string | null; unsubscribedAt: Date | null; emailBouncedAt?: Date | null; chasesPausedUntil?: Date | null }[];
     vendorSolicitorContact: { email: string | null } | null;
     purchaserSolicitorContact: { email: string | null } | null;
   };
@@ -139,7 +143,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     const clientCode = isClientChaseable(code);
     if (clientOn && clientCode && !manuallyChased) {
       const clientRole = side === "vendor" ? "vendor" : "purchaser";
-      const reachableClients = tx.contacts.filter((c) => c.roleType === clientRole && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
+      const reachableClients = tx.contacts.filter((c) => c.roleType === clientRole && isActiveRoundContact(c, tx.activeBuyerRoundId) && c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
       if (reachableClients.length > 0) {
         const nowTs = Date.now();
         const chaseableNow = reachableClients.some((c) => !(c.chasesPausedUntil && c.chasesPausedUntil.getTime() > nowTs));
