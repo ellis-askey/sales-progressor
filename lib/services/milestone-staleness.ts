@@ -69,6 +69,27 @@ function latestPrerequisiteCompletion(code: string, lookup: CompletionLookup): D
   return latest;
 }
 
+// The "became available" proxy, floored at the active buyer round's start.
+//
+// Relist safety: PM12's only prerequisite is VM9, a file-level (vendor)
+// milestone that persists across rounds. On a relisted file VM9 was completed
+// in the PREVIOUS round (e.g. June), so a new buyer's PM12 would otherwise read
+// "Awaiting 103 days" the instant they walk in. A step cannot have been awaiting
+// before the current buyer existed, so we clamp the proxy forward to the active
+// round's createdAt — mirroring the "days stuck on milestone" clamp in
+// OverviewPanel. `floorAt` is null on non-relisted files (round 1's createdAt is
+// the file's own start, so the clamp is a no-op there anyway).
+function flooredAvailability(
+  code: string,
+  lookup: CompletionLookup,
+  floorAt: Date | null,
+): Date | null {
+  const raw = latestPrerequisiteCompletion(code, lookup);
+  if (!raw) return null;
+  if (floorAt && raw.getTime() < floorAt.getTime()) return floorAt;
+  return raw;
+}
+
 // Compute the slowness signal for ONE milestone row. Null = no badge.
 // Caller should only invoke this for milestones that are currently
 // available + not complete + not not_required; this helper does not gate
@@ -76,12 +97,13 @@ function latestPrerequisiteCompletion(code: string, lookup: CompletionLookup): D
 export function computeSlowness(
   code: string,
   lookup: CompletionLookup,
+  floorAt: Date | null = null,
   now: Date = new Date(),
 ): SlownessSignal | null {
   const median = MILESTONE_DURATION_MEDIANS[code];
   if (median == null || median <= 0) return null;
 
-  const becameAvailableAt = latestPrerequisiteCompletion(code, lookup);
+  const becameAvailableAt = flooredAvailability(code, lookup, floorAt);
   if (!becameAvailableAt) return null; // null proxy → no badge (v1 limitation)
 
   const daysAvailable = Math.floor((now.getTime() - becameAvailableAt.getTime()) / DAY_MS);
@@ -123,11 +145,12 @@ export function computeStaleness(
   code: string,
   lookup: CompletionLookup,
   graceDays: number | null | undefined,
+  floorAt: Date | null = null,
   now: Date = new Date(),
 ): StalenessSignal | null {
   if (graceDays == null || graceDays < 0) return null;
 
-  const becameAvailableAt = latestPrerequisiteCompletion(code, lookup);
+  const becameAvailableAt = flooredAvailability(code, lookup, floorAt);
   if (!becameAvailableAt) return null;
 
   const daysAwaiting = Math.floor((now.getTime() - becameAvailableAt.getTime()) / DAY_MS);

@@ -575,7 +575,11 @@ export async function getPortalTeam(
         agency: { select: { quoteSenderEmail: true } },
         agencyId: true,
         progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
-        contacts: { where: { roleType: side }, select: { name: true } },
+        // buyerRoundId selected so the mailto-subject names can be filtered to the
+        // active round below — otherwise a relisted file leaks the previous
+        // buyer's name into the conveyancer email subject.
+        contacts: { where: { roleType: side }, select: { name: true, roleType: true, buyerRoundId: true } },
+        activeBuyerRoundId: true,
         purchaseType: true,
         purchaserBrokerReferral: true,
         brokerFirm: { select: { name: true } },
@@ -642,7 +646,11 @@ export async function getPortalTeam(
       const assistant = await resolveSolicitorCc(solicitorContact, tx.agencyId);
       const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
-      const names = tx.contacts.map((c) => c.name.trim()).filter(Boolean).join(" & ");
+      const names = tx.contacts
+        .filter((c) => isActiveRoundContact(c, tx.activeBuyerRoundId))
+        .map((c) => c.name.trim())
+        .filter(Boolean)
+        .join(" & ");
       const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;
       solicitorMailto = `mailto:${solicitorEmail}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}`;
     }

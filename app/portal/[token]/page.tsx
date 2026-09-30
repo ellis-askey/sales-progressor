@@ -96,7 +96,18 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const [allCheckpoints, otherContact] = await Promise.all([
     listCheckpoints(transaction.id),
     prisma.contact.findFirst({
-      where: { propertyTransactionId: transaction.id, roleType: otherSide, isPrincipal: true },
+      where: {
+        propertyTransactionId: transaction.id,
+        roleType: otherSide,
+        isPrincipal: true,
+        // Relist safety: when the counterparty is the buyer, exclude a
+        // fallen-through buyer from an archived round (otherwise the seller can
+        // see the previous buyer's first name as "the buyer").
+        ...(otherSide === "purchaser"
+          ? { OR: [{ buyerRoundId: null }, { buyerRoundId: transaction.activeBuyerRoundId }] }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
       select: { name: true },
     }),
   ]);

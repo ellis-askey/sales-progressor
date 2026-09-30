@@ -5,6 +5,7 @@
 
 import type { PurchaseType } from "@prisma/client";
 import { getMilestonesCached, getGraceDaysCached, getClientChaseStatesCached } from "@/lib/services/cached-fetchers";
+import { prisma } from "@/lib/prisma";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
 import type { PartyNameContext } from "@/lib/milestones/step-name";
 
@@ -19,10 +20,17 @@ type Props = {
 };
 
 export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerNames, partyNames }: Props) {
-  const [milestoneData, graceDaysMap, clientChaseByCode] = await Promise.all([
+  const [milestoneData, graceDaysMap, clientChaseByCode, activeRound] = await Promise.all([
     getMilestonesCached(transactionId, agencyId).catch(() => null),
     getGraceDaysCached().catch(() => new Map<string, number>()),
     getClientChaseStatesCached(transactionId).catch(() => ({})),
+    // Active round's createdAt — floors the "Awaiting X days" staleness badge so
+    // a relisted file's new buyer doesn't inherit a prior round's prereq date
+    // (same clamp OverviewPanel applies to "days stuck on milestone").
+    prisma.propertyTransaction
+      .findUnique({ where: { id: transactionId }, select: { activeBuyerRound: { select: { createdAt: true } } } })
+      .then((r) => r?.activeBuyerRound?.createdAt ?? null)
+      .catch(() => null),
   ]);
 
   if (!milestoneData) {
@@ -54,6 +62,7 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerN
         purchaseType={purchaseType}
         buyerNames={buyerNames}
         partyNames={partyNames}
+        activeRoundStartedAt={activeRound}
       />
     </>
   );

@@ -161,7 +161,16 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
   // Documents shared with this matter (MOS + anything shared cross-side) —
   // view/download only.
   const sharedDocs = await prisma.transactionDocument.findMany({
-    where: { transactionId: tx.id, OR: [{ source: "mos" }, { sharedWithOtherSide: true }] },
+    // Relist safety: file-level docs (MoS/admin, buyerRoundId null) + the ACTIVE
+    // round's purchaser uploads only — a fallen-through buyer's shared uploads
+    // must not surface to either solicitor (mirrors portal-documents.ts).
+    where: {
+      transactionId: tx.id,
+      AND: [
+        { OR: [{ source: "mos" }, { sharedWithOtherSide: true }] },
+        { OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] },
+      ],
+    },
     select: { id: true, filename: true, storagePath: true, source: true },
     orderBy: { createdAt: "desc" },
   });

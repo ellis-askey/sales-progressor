@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
 /**
  * Generic primitive. Most callers should use the typed event helpers below
@@ -50,10 +51,19 @@ export async function addPortalClientSelfNote(opts: {
   plural: (firstName: string) => string;
 }): Promise<void> {
   const roleType = opts.side === "vendor" ? "vendor" : "purchaser";
-  const sameSide = await prisma.contact.findMany({
-    where: { propertyTransactionId: opts.transactionId, roleType },
-    select: { id: true },
+  // Relist safety: on a purchaser self-note, address only the ACTIVE round's
+  // buyer(s). Without this the fallen-through buyer's contactId was included in
+  // the client-visible note (and the row was written round-unstamped).
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: opts.transactionId },
+    select: { activeBuyerRoundId: true },
   });
+  const activeRoundId = tx?.activeBuyerRoundId ?? null;
+  const sameSideAll = await prisma.contact.findMany({
+    where: { propertyTransactionId: opts.transactionId, roleType },
+    select: { id: true, roleType: true, buyerRoundId: true },
+  });
+  const sameSide = sameSideAll.filter((c) => isActiveRoundContact(c, activeRoundId));
   if (sameSide.length === 0) return;
   // One shared row addressed to everyone on the side. `content` is the name-led
   // form ("Lauren updated…") — what co-clients (and the agent view) should see.
@@ -73,6 +83,9 @@ export async function addPortalClientSelfNote(opts: {
       content: opts.plural(firstName),
       selfNoteActorContactId: opts.actorContactId,
       selfNoteSelfText: opts.singular,
+      // Stamp the round so the note is attributed to the current sale (purchaser
+      // side); vendor notes are file-level (null).
+      buyerRoundId: opts.side === "purchaser" ? activeRoundId : null,
     },
   });
 }

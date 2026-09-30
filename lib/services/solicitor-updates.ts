@@ -47,7 +47,7 @@ export async function getSolicitorUpdates(
   // The own-side handler's photo, shown on their firm-attributed confirmations.
   const txContacts = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
-    select: { vendorSolicitorContact: { select: { image: true } }, purchaserSolicitorContact: { select: { image: true } } },
+    select: { vendorSolicitorContact: { select: { image: true } }, purchaserSolicitorContact: { select: { image: true } }, activeBuyerRoundId: true },
   });
   const myFirmImage = (side === "vendor" ? txContacts?.vendorSolicitorContact?.image : txContacts?.purchaserSolicitorContact?.image) ?? null;
 
@@ -108,8 +108,17 @@ export async function getSolicitorUpdates(
   });
 
   // Documents shared with this matter (MOS + anything shared cross-side).
+  // Relist safety: file-level docs (MoS/admin, buyerRoundId null) + the ACTIVE
+  // round's purchaser uploads only — a fallen-through buyer's shared uploads
+  // must not surface in the solicitor feed (mirrors portal-documents.ts).
   const docs = await prisma.transactionDocument.findMany({
-    where: { transactionId: txId, OR: [{ source: "mos" }, { sharedWithOtherSide: true }] },
+    where: {
+      transactionId: txId,
+      AND: [
+        { OR: [{ source: "mos" }, { sharedWithOtherSide: true }] },
+        { OR: [{ buyerRoundId: null }, { buyerRoundId: txContacts?.activeBuyerRoundId ?? null }] },
+      ],
+    },
     select: { id: true, filename: true, storagePath: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });

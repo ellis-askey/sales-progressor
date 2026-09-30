@@ -61,6 +61,11 @@ type Props = {
   buyerNames?: string[];
   // Real party names for personalising the step labels (firm + seller/buyer).
   partyNames?: PartyNameContext;
+  // Active buyer round's createdAt — floors the "Awaiting X days" staleness /
+  // slowness proxy so a relisted file's new buyer doesn't inherit a prior
+  // round's prerequisite date (e.g. PM12 anchored on VM9 completed last round).
+  // Null on files with no round; the clamp is a no-op for round 1 anyway.
+  activeRoundStartedAt?: string | Date | null;
 };
 
 export function MilestonePanel({
@@ -76,8 +81,11 @@ export function MilestonePanel({
   purchaseType,
   buyerNames,
   partyNames,
+  activeRoundStartedAt,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
+  // Parse once — the floor for the staleness/slowness "became available" proxy.
+  const roundFloor = activeRoundStartedAt ? new Date(activeRoundStartedAt) : null;
 
   const milestones = activeTab === "vendor" ? vendor : purchaser;
   const gateReady = activeTab === "vendor" ? vendorGateReady : purchaserGateReady;
@@ -438,7 +446,7 @@ export function MilestonePanel({
                         const showSlowness =
                           def.isAvailable && !def.isComplete && !def.isNotRequired;
                         const slownessSignal = (showSlowness && MEDIANS_READY)
-                          ? computeSlowness(def.code, completionLookup)
+                          ? computeSlowness(def.code, completionLookup, roundFloor)
                           : null;
                         // Staleness signal: separate from slowness. Threshold
                         // is the configured ReminderRule.graceDays, not a
@@ -455,7 +463,7 @@ export function MilestonePanel({
                           completionLookup.has("PM20") || completionLookup.has("VM21");
                         const stalenessSignal =
                           showSlowness && !(def.code === "VM16" && !enquiriesSatisfied)
-                            ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code])
+                            ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code], roundFloor)
                             : null;
                         // Client-chase chip: same eligibility gate (avail-
                         // able + not done + not NR). Renders only when the

@@ -335,6 +335,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       lastChasedAt: true,
       firstChasedAt: true,
       lastEngagedAt: true,
+      // Relist safety: drop a previous buyer's row from the couple-engagement
+      // aggregation below (the per-contact due lookup is already round-safe via
+      // the round-scoped recipients, but that aggregation keys by tx+code).
+      buyerRoundId: true,
     },
   });
 
@@ -391,6 +395,8 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
   const coupleEngagedByTxCode = new Map<string, Date>();
   for (const s of states) {
     if (!s.lastEngagedAt) continue;
+    // Ignore a previous buyer's engagement (archived round).
+    if (s.buyerRoundId != null && s.buyerRoundId !== activeRoundByTx.get(s.transactionId)) continue;
     const key = `${s.transactionId}:${s.milestoneCode}`;
     const cur = coupleEngagedByTxCode.get(key);
     if (!cur || s.lastEngagedAt > cur) coupleEngagedByTxCode.set(key, s.lastEngagedAt);
@@ -674,6 +680,10 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
       firstChasedAt: true,
       lastChasedAt: true,
       lastEngagedAt: true,
+      // Relist safety: needed to drop a previous buyer's surviving row (see the
+      // activeRoundByTx filter below) so it can't escalate + mint a phantom
+      // "handed to agent" chase on the new round.
+      buyerRoundId: true,
     },
   });
   if (rows.length === 0) return [];
@@ -696,9 +706,17 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
   const txIds = Array.from(new Set(rows.map((r) => r.transactionId)));
   const txSnapshots = await prisma.propertyTransaction.findMany({
     where: { id: { in: txIds } },
-    select: { id: true, chaseRuleSnapshot: true },
+    select: { id: true, chaseRuleSnapshot: true, activeBuyerRoundId: true },
   });
   const snapshotByTx = new Map(txSnapshots.map((t) => [t.id, t.chaseRuleSnapshot]));
+  // Relist safety: each tx's active round, so a previous buyer's surviving
+  // ClientChaseState (archived round) can't be escalated onto the new round.
+  const activeRoundByTx = new Map(txSnapshots.map((t) => [t.id, t.activeBuyerRoundId]));
+  // File-level (null round) rows and active-round rows only; archived-round
+  // rows are dropped. Mirrors the read-side filters in reminders.ts / hub.ts.
+  const scopedRows = rows.filter(
+    (r) => r.buyerRoundId == null || r.buyerRoundId === activeRoundByTx.get(r.transactionId),
+  );
   function repeatFor(transactionId: string, code: string): number | undefined {
     const snap = readSnapshotTiming(snapshotByTx.get(transactionId), code);
     return snap?.repeatEveryDays ?? liveRepeatByCode.get(code);
@@ -712,10 +730,13 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
   const coupleEngagedByTxCode = new Map<string, Date>();
   const engagementRows = await prisma.clientChaseState.findMany({
     where: { transactionId: { in: txIds }, milestoneCode: { in: codes }, lastEngagedAt: { not: null } },
-    select: { transactionId: true, milestoneCode: true, lastEngagedAt: true },
+    select: { transactionId: true, milestoneCode: true, lastEngagedAt: true, buyerRoundId: true },
   });
   for (const r of engagementRows) {
     if (!r.lastEngagedAt) continue;
+    // Relist safety: ignore a previous buyer's engagement so it can't suppress
+    // (or otherwise affect) the new round's escalation clock.
+    if (r.buyerRoundId != null && r.buyerRoundId !== activeRoundByTx.get(r.transactionId)) continue;
     const val = r.lastEngagedAt > now ? now : r.lastEngagedAt;
     const key = `${r.transactionId}:${r.milestoneCode}`;
     const cur = coupleEngagedByTxCode.get(key);
@@ -724,7 +745,7 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
 
   const candidates: EscalationCandidate[] = [];
 
-  for (const row of rows) {
+  for (const row of scopedRows) {
     // 2026-07-13 fix (Chunk 1d): clamp any future-dated anchor to `now`
     // before doing the silence math. If bad data (clock skew, browser
     // clock drift, test fixture, manual data patch) puts lastEngagedAt

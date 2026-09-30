@@ -228,7 +228,14 @@ export async function getChaseTimeline(
 
   const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules] = await Promise.all([
     prisma.reminderLog.findMany({
-      where: { transactionId, status: { in: ["active", "completed", "cancelled"] } },
+      // Relist safety: file-level (null) + active-round only, so a previous
+      // buyer's cancelled/completed PM logs don't render as "resolved" threads
+      // in the new buyer's timeline.
+      where: {
+        transactionId,
+        status: { in: ["active", "completed", "cancelled"] },
+        OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }],
+      },
       select: {
         id: true,
         status: true,
@@ -255,7 +262,10 @@ export async function getChaseTimeline(
       select: { id: true, name: true, roleType: true, isPrincipal: true, exchangeAuthorityGivenAt: true, buyerRoundId: true },
     }),
     prisma.clientChaseState.findMany({
-      where: { transactionId },
+      // Relist safety: file-level (null) + active-round only, so the new buyer's
+      // live thread doesn't inherit the previous buyer's chase counts + dates
+      // (the clientByCode map below keeps the highest chaseCount per code).
+      where: { transactionId, OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] },
       select: { contactId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, statusReason: true },
     }),
     prisma.outboundMessage.findMany({
