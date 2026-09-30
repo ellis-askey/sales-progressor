@@ -35,6 +35,7 @@ import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
+import { CheckpointsCard } from "@/components/transaction/CheckpointsCard";
 import { PropertyChainCard } from "@/components/transaction/PropertyChainCard";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
@@ -588,6 +589,8 @@ export async function OverviewPanel({
         showRelated={relatedView.exists || relatedSignal.selling}
         noChainConfirmed={transaction.noChainNeededAt != null}
       />
+
+      <CheckpointsCard transactionId={transaction.id} />
 
       <ActivityNotesCard
         transactionId={transaction.id}
