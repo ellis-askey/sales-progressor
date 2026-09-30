@@ -334,7 +334,7 @@ export function ManualTaskList({
       >
         <div className="flex items-center gap-2">
           <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
-            {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
+            {perspective === "agent" ? "Managed by TSP" : "Agent requests"}
           </h3>
           {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
         </div>

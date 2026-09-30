@@ -350,19 +350,24 @@ export function PropertyHero({
     // the confirm-and-switch modal.
     const servicePill = !hideServiceTypeBadge && serviceType && (() => {
       const isSelf = serviceType === "self_managed";
-      const label = isSelf ? "Self-managed" : "With progressor";
+      // Critique #129: TSP rebrand. Outsourced = a solid-coral pill reading
+      // "Managed by TSP" on desktop/tablet, "TSP managed" on mobile; in-house =
+      // a quiet neutral outline ("In-house") that turns coral on hover.
+      const label: React.ReactNode = isSelf ? "In-house" : (
+        <>
+          <span className="hidden md:inline">Managed by TSP</span>
+          <span className="md:hidden">TSP managed</span>
+        </>
+      );
       const baseStyle: React.CSSProperties = {
         fontSize: 11,
         fontWeight: 600,
-        // "With progressor" was light coral on a faint coral tint — near-
-        // invisible on the light hero. Deeper coral + stronger tint + a
-        // hairline border give it real contrast.
-        color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral-deep)",
-        background: isSelf ? "var(--agent-surface-overlay)" : "rgba(var(--agent-coral-rgb), 0.16)",
-        border: isSelf ? "1px solid transparent" : "1px solid rgba(var(--agent-coral-rgb), 0.30)",
         borderRadius: 999,
         padding: "4px 10px",
         whiteSpace: "nowrap",
+        ...(isSelf
+          ? { color: "var(--agent-text-secondary)", background: "transparent", border: "1px solid var(--agent-border-strong)" }
+          : { color: "#fff", background: "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))", border: "1px solid transparent", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px rgba(var(--agent-coral-rgb), 0.30)" }),
       };
       if (!canSwitchService) {
         return <span style={baseStyle}>{label}</span>;
@@ -371,14 +376,23 @@ export function PropertyHero({
         <button
           type="button"
           onClick={() => setSwitchModalOpen(true)}
-          title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
+          title={isSelf ? "Switch to TSP" : "Switch to in-house"}
           className="v2-swap-btn"
+          onMouseEnter={(e) => {
+            if (isSelf) { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }
+            else { e.currentTarget.style.filter = "brightness(1.05)"; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.28), 0 3px 8px rgba(var(--agent-coral-rgb), 0.34)"; }
+          }}
+          onMouseLeave={(e) => {
+            if (isSelf) { e.currentTarget.style.borderColor = "var(--agent-border-strong)"; e.currentTarget.style.color = "var(--agent-text-secondary)"; }
+            else { e.currentTarget.style.filter = ""; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px rgba(var(--agent-coral-rgb), 0.30)"; }
+          }}
           style={{
             ...baseStyle,
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
             fontFamily: "inherit",
+            transition: "filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease, color 160ms ease",
           }}
         >
           {label}
