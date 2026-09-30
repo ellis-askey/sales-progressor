@@ -265,6 +265,12 @@ export async function getActivityTimeline(
     prisma.outboundMessage.findMany({
       where: {
         transactionId,
+        // Progression-business private notes are hidden from the owning agency's
+        // staff. agencyId is non-null ONLY for director/negotiator viewers;
+        // internal staff and progression-business members pass null (they may
+        // see their own private notes). A no-op for every existing note, which
+        // all have businessOnly = false.
+        ...(agencyId !== null ? { businessOnly: false } : {}),
         // Hide chase-engine bookkeeping notes ("Automated chase scheduled /
         // moved / closed"). That lifecycle now lives in the chase timeline
         // (components/transaction/ChaseTimeline.tsx), so the activity feed
@@ -999,6 +1005,10 @@ export type CreateCommInput = {
   wasEdited?: boolean;
   isAutomated?: boolean;
   visibleToClient?: boolean;
+  // Progression-business private note: visible only to the file's progression
+  // business members (+ admins), hidden from the owning agency. Mutually
+  // exclusive with visibleToClient (a private note is never client-visible).
+  businessOnly?: boolean;
   createdById: string;
   createdByRole?: string | null;
   // scope replaces agencyId — use getAccessScope(session) at the call site.
@@ -1056,6 +1066,8 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       wasEdited: input.wasEdited ?? false,
       isAutomated: input.isAutomated ?? false,
       visibleToClient: input.visibleToClient ?? false,
+      // A private note is never client-visible, regardless of the toggle.
+      businessOnly: input.businessOnly ? !input.visibleToClient : false,
       createdById: input.createdById,
       createdByRole: input.createdByRole ?? null,
       buyerRoundId: stampBuyerRoundId,

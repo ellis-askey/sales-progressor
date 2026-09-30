@@ -125,6 +125,9 @@ export type VmSnapshotRowEnriched = VmSnapshotRow & {
 export async function getArchivedRoundData(
   transactionId: string,
   roundId: string,
+  // Hide progression-business private notes from an owning-agency viewer
+  // (scope.kind === "agency"). Default false = internal/business members see all.
+  hideBusinessOnly: boolean = false,
 ): Promise<ArchivedRoundData | null> {
   // BuyerRound only stores FK ids for its solicitor / broker; the
   // referenced rows are fetched separately. Two-step is needed because
@@ -237,7 +240,7 @@ export async function getArchivedRoundData(
   // getCommBadge helper can render them with a distinct "Portal" pill.
   const [outboundRows, portalRows] = await Promise.all([
     prisma.outboundMessage.findMany({
-      where: { transactionId, buyerRoundId: roundId },
+      where: { transactionId, buyerRoundId: roundId, ...(hideBusinessOnly ? { businessOnly: false } : {}) },
       select: {
         id: true,
         type: true,

@@ -29,7 +29,9 @@ export async function GET(
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const data = await getArchivedRoundData(id, roundId);
+  // Agency-staff viewers (director/negotiator) don't see progression-business
+  // private notes on the archived round either.
+  const data = await getArchivedRoundData(id, roundId, scope.kind === "agency");
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const fileDocuments = await getFileLevelDocumentsForArchive(id, roundId);

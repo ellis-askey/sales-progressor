@@ -2057,6 +2057,12 @@ model OutboundMessage {
   wasEdited       Boolean @default(false)
   isAutomated     Boolean @default(false)
   visibleToClient Boolean @default(false)
+  // Progression-business private note: visible ONLY to members of the file's
+  // progression business (+ platform admins), hidden from the owning agency's
+  // staff. Defaults false = today's behaviour (a note is visible to anyone who
+  // can open the file). Only ever set true by an external progression-business
+  // member. See lib/services/comms.ts + lib/security/access-scope.ts.
+  businessOnly    Boolean @default(false)
   ccEmails        String?
 
   // New AI provenance
