@@ -18,6 +18,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/utils";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { parseGroupName, firstLineAddress, chooseTransaction, type Side } from "./match";
 import { resolveConnectionScope, touchConnectionMessage } from "./connections";
 
@@ -226,7 +227,7 @@ async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null): Promi
 async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, mediaUrl?: string | null) {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: txId },
-    select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true, contacts: { select: { id: true, roleType: true } } },
+    select: { agencyId: true, activeBuyerRoundId: true, assignedUserId: true, agentUserId: true, contacts: { select: { id: true, roleType: true, buyerRoundId: true } } },
   });
 
   const sender = await resolveSender(m, txId, tx?.assignedUserId ?? tx?.agentUserId ?? null);
@@ -258,7 +259,15 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
   // otherwise the No-comms / Gone-quiet detectors (which key off contactIds)
   // never register our own WhatsApps as contact with the client.
   const sideRole = side === "BUYER" ? "purchaser" : side === "SELLER" ? "vendor" : null;
-  const sideContactIds = sideRole ? (tx?.contacts ?? []).filter((c) => c.roleType === sideRole).map((c) => c.id) : [];
+  // Relist safety: attribute buyer-side messages only to the ACTIVE round's
+  // buyer(s) — a fallen-through buyer must not be tagged as freshly contacted
+  // (it would skew the No-comms / Gone-quiet / last-contacted detectors) or
+  // named on an outbound bubble.
+  const sideContactIds = sideRole
+    ? (tx?.contacts ?? [])
+        .filter((c) => c.roleType === sideRole && isActiveRoundContact(c, tx?.activeBuyerRoundId ?? null))
+        .map((c) => c.id)
+    : [];
 
   const webhookData: Prisma.InputJsonValue = {
     source: "whatsapp",

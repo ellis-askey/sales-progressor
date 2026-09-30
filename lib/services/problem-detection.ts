@@ -309,12 +309,8 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
         take: 1,
         select: { createdAt: true, type: true },
       },
-      chaseTasks: {
-        where: { status: "pending" },
-        orderBy: { dueDate: "asc" },
-        take: 3,
-        select: { dueDate: true },
-      },
+      // chaseTasks are read per-tx below with a round filter (a nested include
+      // can't reference the row's own activeBuyerRoundId) — see overdueChaseTasks.
       contacts: { select: { id: true, portalToken: true } },
     },
   });
@@ -360,6 +356,19 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       }),
     ]);
 
+    // Pending chase tasks for the chase_unanswered flag — round-scoped so a
+    // previous buyer's overdue task can't raise a false flag on the new sale.
+    const overdueChaseTasks = await prisma.chaseTask.findMany({
+      where: {
+        transactionId: tx.id,
+        status: "pending",
+        OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }],
+      },
+      orderBy: { dueDate: "asc" },
+      take: 3,
+      select: { dueDate: true },
+    });
+
     // Enrich with inbound count for portal activity check
     const inboundCount = await prisma.outboundMessage.count({
       where: { transactionId: tx.id, type: "inbound" },
@@ -389,6 +398,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
 
     const enriched: TxData = {
       ...tx,
+      chaseTasks: overdueChaseTasks,
       activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
       hasExchanged: exchangeCompletes > 0,
       hasOpenEnquiryTracker: !!openEnquiryTracker,

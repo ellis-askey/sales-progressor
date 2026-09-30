@@ -107,7 +107,17 @@ export async function getFollowupNudge(args: {
 
   // "I" vs "we" by how many clients are on this side; the other side's solicitor
   // from this client's perspective.
-  const clientCount = await prisma.contact.count({ where: { propertyTransactionId: transactionId, roleType: side } });
+  const clientCount = await prisma.contact.count({
+    where: {
+      propertyTransactionId: transactionId,
+      roleType: side,
+      // Relist safety: count only the active round's buyer(s) — otherwise a solo
+      // new buyer on a relisted file gets plural "we" copy from the old buyer.
+      ...(side === "purchaser"
+        ? { OR: [{ buyerRoundId: null }, { buyerRoundId: activeBuyerRoundId }] }
+        : {}),
+    },
+  });
   const multi = clientCount >= 2;
   const otherSolicitor = side === "vendor" ? "the buyer's solicitor" : "the seller's solicitor";
 

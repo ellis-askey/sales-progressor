@@ -30,6 +30,17 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
   const periodStart = new Date(now);
   periodStart.setDate(periodStart.getDate() - 7);
 
+  // Relist safety: the agency's active buyer-round ids, so the cross-tx reads
+  // below (milestones-this-week, overdue chases) exclude a fallen-through
+  // buyer's archived-round rows — otherwise a relisted file surfaces the
+  // previous buyer's late PM completion as "this week's progress".
+  const agencyRounds = await prisma.propertyTransaction.findMany({
+    where: { agencyId, isMigrated: false, isDemo: false },
+    select: { activeBuyerRoundId: true },
+  });
+  const activeRoundIds = agencyRounds.map((t) => t.activeBuyerRoundId).filter((id): id is string => !!id);
+  const roundScopedOR = [{ buyerRoundId: null }, { buyerRoundId: { in: activeRoundIds } }];
+
   const [exchangeDefs, milestones, filesAdded, overdueTaskCount, activeFiles] = await Promise.all([
     prisma.milestoneDefinition.findMany({
       where: { code: { in: ["VM19", "PM26"] } },
@@ -50,6 +61,8 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
         transaction: { agencyId, isMigrated: false, isDemo: false },
         state: "complete",
         completedAt: { gte: periodStart },
+        // Active round + file-level (vendor) rows only — see agencyRounds above.
+        OR: roundScopedOR,
       },
       include: {
         transaction: { select: { id: true, propertyAddress: true } },
@@ -70,6 +83,8 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
         transaction: { agencyId, isDemo: false },
         status: "pending",
         dueDate: { lt: now },
+        // Exclude a fallen-through buyer's archived-round overdue tasks.
+        OR: roundScopedOR,
       },
     }),
     prisma.propertyTransaction.findMany({

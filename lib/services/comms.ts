@@ -336,7 +336,10 @@ export async function getActivityTimeline(
     // The confirmer's name + photo for the inline avatar. For a portal confirm
     // this is the specific client; otherwise the completing user.
     const clientContact = confirmedByClient
-      ? (tx.contacts.find((ct) => ct.id === c.confirmedByContactId) ?? tx.contacts.find((ct) => ct.roleType === side))
+      ? (tx.contacts.find((ct) => ct.id === c.confirmedByContactId)
+         // Relist safety: the fallback (legacy rows with no confirmedByContactId)
+         // must pick from the ACTIVE round only, not a fallen-through buyer.
+         ?? tx.contacts.find((ct) => ct.roleType === side && (side !== "purchaser" || activeRoundId === null || ct.buyerRoundId === null || ct.buyerRoundId === activeRoundId)))
       : null;
     const byName = confirmedByClient ? (clientContact?.name ?? null) : (c.completedBy?.name ?? null);
     const byImage = confirmedByClient ? (clientContact?.image ?? null) : (c.completedBy?.image ?? null);
