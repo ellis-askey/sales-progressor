@@ -280,7 +280,7 @@ export function WarmLoginForm() {
 
         {stage === "password" && (
           <p style={{ textAlign: "center", fontSize: "13px", color: "#8A8A94", margin: 0 }}>
-            Estate agent?{" "}
+            New here?{" "}
             <Link href="/register" className="wcreate" style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "none", transition: "color 0.12s ease" }}>
               Create an account
             </Link>

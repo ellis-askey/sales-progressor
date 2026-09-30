@@ -104,7 +104,7 @@ export function LoginForm() {
       </button>
 
       <p className="text-center text-xs text-slate-900/40 pt-1">
-        Estate agent?{" "}
+        New here?{" "}
         <Link href="/register" className="text-blue-500 hover:text-blue-600 font-medium">
           Create an account
         </Link>

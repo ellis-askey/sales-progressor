@@ -460,6 +460,19 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   ← Back
                 </button>
 
+                {/* Net fallback: a persistent way back to the estate-agency path
+                    for anyone who took the side door by mistake and is now on
+                    step 2. Mirrors the estate-agency switch on step 1. */}
+                {isProgressor && (
+                  <p className="reg-alt" style={{ marginTop: "2px" }}>
+                    Not a progression business?{" "}
+                    <button type="button" className="reg-alt-link" onClick={() => setAccountType("agency")}>
+                      Use an estate agency instead
+                      <span className="reg-alt-arrow" aria-hidden>→</span>
+                    </button>
+                  </p>
+                )}
+
               </form>
             )}
           </div>
