@@ -10,10 +10,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Buildings, UserPlus, Clock, FolderSimple, X, Plus } from "@phosphor-icons/react";
-import { useAgentToast } from "@/components/agent/AgentToaster";
-import { addClientAgencyAction } from "@/app/actions/progression-clients";
+import { useAddClientForm } from "./useAddClientForm";
 
 export type ClientRow = {
   linkId: string;
@@ -43,41 +41,8 @@ const labelStyle: React.CSSProperties = {
 };
 
 export function ClientsManager({ clients }: { clients: ClientRow[] }) {
-  const { toast } = useAgentToast();
-  const router = useRouter();
   const [showAdd, setShowAdd] = useState(clients.length === 0);
-  const [agentName, setAgentName] = useState("");
-  const [agentEmail, setAgentEmail] = useState("");
-  const [agencyName, setAgencyName] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const canSubmit = !!agentName.trim() && !!agentEmail.trim() && !!agencyName.trim();
-
-  async function addClient() {
-    if (!canSubmit || adding) return;
-    setAdding(true);
-    setError(null);
-
-    const fd = new FormData();
-    fd.set("agentName", agentName.trim());
-    fd.set("agentEmail", agentEmail.trim());
-    fd.set("agencyName", agencyName.trim());
-
-    const res = await addClientAgencyAction(fd);
-    setAdding(false);
-
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    toast.success("Client added", { description: `We've emailed ${agentName.trim()} a link to set their password.` });
-    setAgentName("");
-    setAgentEmail("");
-    setAgencyName("");
-    setShowAdd(false);
-    router.refresh();
-  }
+  const f = useAddClientForm(() => setShowAdd(false));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -175,12 +140,12 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Add a client agent</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Add a client</span>
             {clients.length > 0 && (
               <button
                 type="button"
                 className="pc-cancel-btn"
-                onClick={() => { setShowAdd(false); setError(null); }}
+                onClick={() => { setShowAdd(false); f.reset(); }}
                 aria-label="Cancel"
                 style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: 2, display: "inline-flex" }}
               >
@@ -190,31 +155,31 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
           </div>
 
           <div>
-            <label style={labelStyle} htmlFor="pc-agent-name">Agent name</label>
-            <input id="pc-agent-name" className="pc-input" style={inputStyle} value={agentName} onChange={(e) => setAgentName(e.target.value)} placeholder="e.g. Donna Smith" maxLength={100} />
+            <label style={labelStyle} htmlFor="pc-agent-name">Contact name</label>
+            <input id="pc-agent-name" className="pc-input" style={inputStyle} value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} placeholder="e.g. Sophie Bennett" maxLength={100} />
           </div>
           <div>
-            <label style={labelStyle} htmlFor="pc-agent-email">Agent email</label>
-            <input id="pc-agent-email" className="pc-input" style={inputStyle} type="email" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} placeholder="donna@example.com" maxLength={255} />
+            <label style={labelStyle} htmlFor="pc-agent-email">Email address</label>
+            <input id="pc-agent-email" className="pc-input" style={inputStyle} type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} placeholder="sophie@oakandkey.co.uk" maxLength={255} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="pc-agency-name">Agency name</label>
-            <input id="pc-agency-name" className="pc-input" style={inputStyle} value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="e.g. Donna Smith, eXp" maxLength={120} />
+            <input id="pc-agency-name" className="pc-input" style={inputStyle} value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} placeholder="e.g. Oak & Key" maxLength={120} />
           </div>
 
-          {error && (
-            <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>
+          {f.error && (
+            <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{f.error}</p>
           )}
 
           <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "#9ca3af" }}>
-            We'll set up their own login and email them a link to choose a password. They'll only ever see the sales you progress for them.
+            We&apos;ll email them an invite to set up their login. They&apos;ll only have access to their own sales.
           </p>
 
           <button
             type="button"
             className="pc-add-btn"
-            onClick={addClient}
-            disabled={!canSubmit || adding}
+            onClick={f.submit}
+            disabled={!f.canSubmit || f.adding}
             style={{
               alignSelf: "flex-start",
               display: "inline-flex",
@@ -224,14 +189,14 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
               fontSize: 13.5,
               fontWeight: 700,
               color: "#fff",
-              background: canSubmit && !adding ? "var(--agent-coral-deep, #E2452A)" : "#d1cfcd",
+              background: f.canSubmit && !f.adding ? "var(--agent-coral-deep, #E2452A)" : "#d1cfcd",
               border: "none",
               borderRadius: 10,
-              cursor: canSubmit && !adding ? "pointer" : "default",
+              cursor: f.canSubmit && !f.adding ? "pointer" : "default",
             }}
           >
             <UserPlus size={15} weight="bold" />
-            {adding ? "Adding…" : "Add client"}
+            {f.adding ? "Adding…" : "Add client"}
           </button>
         </div>
       ) : (

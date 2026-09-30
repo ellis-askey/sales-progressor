@@ -12,6 +12,7 @@ import { resolveBusinessOwner, listClientsForBusiness } from "@/lib/services/pro
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Buildings } from "@phosphor-icons/react/dist/ssr";
 import { ClientsManager } from "@/components/progression/ClientsManager";
+import { ClientsEmptyState } from "@/components/progression/ClientsEmptyState";
 
 export default async function AgentClientsPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -21,6 +22,15 @@ export default async function AgentClientsPage() {
   if (!owner) notFound();
 
   const clients = await listClientsForBusiness(owner.businessId);
+
+  // No clients yet: the full-width onboarding layout (hero + preview + form).
+  if (clients.length === 0) {
+    return (
+      <div className="px-4 md:px-8 py-4" style={{ width: "100%" }}>
+        <ClientsEmptyState />
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: 24 }}>
