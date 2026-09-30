@@ -6,7 +6,7 @@
  *      UNCHANGED; external progression-business members get {kind:"business"}).
  *   2. The scope->where helpers emit progressionBusinessId filters for a business
  *      scope and are byte-identical for all/assigned/agency.
- *   3. canReadTransaction enforces the fixture isolation matrix — Sarah cannot
+ *   3. canReadTransaction enforces the fixture isolation matrix - Sarah cannot
  *      read TSP files, another business's files, or a client's self-progressed
  *      files, purely from the transaction tag (no UI involved).
  *
@@ -47,13 +47,13 @@ function makeSession(u: {
   } as Session;
 }
 
-describe("getAccessScope — derivation per user type", () => {
+describe("getAccessScope - derivation per user type", () => {
   it("admin and superadmin get {kind:'all'} (platform operator)", () => {
     expect(getAccessScope(makeSession({ role: "admin" }))).toEqual({ kind: "all" });
     expect(getAccessScope(makeSession({ role: "superadmin" }))).toEqual({ kind: "all" });
   });
 
-  it("a TSP progressor (sales_progressor, no business) gets {kind:'assigned'} — UNCHANGED", () => {
+  it("a TSP progressor (sales_progressor, no business) gets {kind:'assigned'} - UNCHANGED", () => {
     const scope = getAccessScope(
       makeSession({ id: "u_tsp_prog", role: "sales_progressor", progressionBusinessId: null }),
     );
@@ -67,7 +67,7 @@ describe("getAccessScope — derivation per user type", () => {
     expect(scope).toEqual({ kind: "business", businessId: "biz_sarah" });
   });
 
-  it("director and negotiator get {kind:'agency'} — UNCHANGED", () => {
+  it("director and negotiator get {kind:'agency'} - UNCHANGED", () => {
     expect(getAccessScope(makeSession({ role: "director", agencyId: "ag_donna" }))).toEqual({
       kind: "agency",
       agencyIds: ["ag_donna"],
@@ -79,7 +79,7 @@ describe("getAccessScope — derivation per user type", () => {
   });
 
   it("platform operator ALWAYS wins: a hybrid-admin with a business id is still {kind:'all'}", () => {
-    // Defensive ordering check — hasAdminPowers is evaluated before the business
+    // Defensive ordering check - hasAdminPowers is evaluated before the business
     // branch, so a hybrid sales_progressor never gets narrowed to a business.
     const scope = getAccessScope(
       makeSession({
@@ -132,7 +132,7 @@ describe("scope -> where helpers", () => {
   });
 });
 
-describe("canReadTransaction — fixture isolation matrix", () => {
+describe("canReadTransaction - fixture isolation matrix", () => {
   // Only the fields canReadTransaction reads.
   const T1 = { agencyId: "ag_donna", assignedUserId: null, progressionBusinessId: null }; // Donna self
   const T2 = { agencyId: "ag_donna", assignedUserId: "u_sarah_owner", progressionBusinessId: "biz_sarah" }; // Donna->Sarah
@@ -186,7 +186,7 @@ describe("canReadTransaction — fixture isolation matrix", () => {
     expect(canReadTransaction(donna, T4)).toBe(false); // Sarah's OTHER client (James)
   });
 
-  it("James sees only his agency's files (T4, T5) — never Donna's", () => {
+  it("James sees only his agency's files (T4, T5) - never Donna's", () => {
     expect(readable(james)).toEqual(["T4", "T5"]);
   });
 
