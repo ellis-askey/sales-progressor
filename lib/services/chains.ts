@@ -1872,6 +1872,10 @@ export type NoChainSale = {
   // Seller hasn't answered "are you buying onward?" in the portal yet, so we
   // can't auto-suggest either way.
   awaitingClientOnward: boolean;
+  // Relisted (or newly set up) with the onward marked "don't know yet" — it has a
+  // chain link but the onward shape is unconfirmed, so it needs clarifying rather
+  // than a from-scratch chain setup. Critique #128.
+  chainSetupPending: boolean;
   search: string;
 };
 
@@ -2064,7 +2068,9 @@ export async function countChainsNeedsSetup(scope: AccessScope): Promise<number>
     where: {
       AND: [
         scopeTransactionWhere(scope),
-        { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null, noChainNeededAt: null, ...serviceTypeFilter(scope) },
+        { status: { in: CHAINS_LIVE_STATUSES }, noChainNeededAt: null, ...serviceTypeFilter(scope) },
+        // No chain yet, OR in a chain but the onward's unconfirmed (#128).
+        { OR: [{ chainLinkId: null }, { chainSetupPending: true }] },
       ],
     },
   });
@@ -2072,7 +2078,13 @@ export async function countChainsNeedsSetup(scope: AccessScope): Promise<number>
 
 export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoChainSale[]> {
   const rows = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: null, ...serviceTypeFilter(scope) }] },
+    where: { AND: [
+      scopeTransactionWhere(scope),
+      { status: { in: CHAINS_LIVE_STATUSES }, ...serviceTypeFilter(scope) },
+      // No chain yet, OR in a chain but the onward's unconfirmed (#128) — both
+      // read as "needs clarifying" on the chains page.
+      { OR: [{ chainLinkId: null }, { chainSetupPending: true }] },
+    ] },
     select: {
       id: true,
       propertyAddress: true,
@@ -2082,6 +2094,7 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
       purchaseType: true,
       clientFirstTimeBuyer: true,
       noChainNeededAt: true,
+      chainSetupPending: true,
       agency: { select: { name: true } },
     },
     // Oldest first — a sale that's been sitting without a chain the longest is
@@ -2133,6 +2146,7 @@ export async function listNoChainSalesForScope(scope: AccessScope): Promise<NoCh
       noChainConfirmedAt: r.noChainNeededAt ? r.noChainNeededAt.toISOString() : null,
       resurfaced,
       awaitingClientOnward,
+      chainSetupPending: r.chainSetupPending,
       search: [r.propertyAddress, r.agency?.name, buyerPosition].filter(Boolean).join(" ").toLowerCase(),
     };
   });

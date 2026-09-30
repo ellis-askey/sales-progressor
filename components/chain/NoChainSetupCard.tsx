@@ -106,7 +106,10 @@ export function NoChainSetupCard({
             {sale.resurfaced && (
               <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
             )}
-            {!confirmed && !sale.resurfaced && !sale.noChainRequired && sale.awaitingClientOnward && (
+            {!confirmed && sale.chainSetupPending && (
+              <Pill glass tone="warning" size="sm">Onward not confirmed</Pill>
+            )}
+            {!confirmed && !sale.resurfaced && !sale.noChainRequired && !sale.chainSetupPending && sale.awaitingClientOnward && (
               <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Seller hasn&apos;t said if they&apos;re buying onward</span>
             )}
             {!confirmed && sale.noChainRequired && (

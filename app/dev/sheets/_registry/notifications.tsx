@@ -324,6 +324,7 @@ function noChainSale(overrides: Partial<NoChainSale>): NoChainSale {
     noChainConfirmedAt: null,
     resurfaced: false,
     awaitingClientOnward: false,
+    chainSetupPending: false,
     search: "",
     ...overrides,
   };
