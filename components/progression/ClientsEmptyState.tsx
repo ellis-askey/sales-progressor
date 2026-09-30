@@ -118,13 +118,14 @@ export function ClientsEmptyState() {
 
       <style>{`
         .ce-wrap {
-          display: flex; flex-direction: column; gap: 28px;
-          max-width: 1120px; margin: 0 auto; width: 100%;
+          display: flex; flex-direction: column; gap: 32px; width: 100%;
           animation: ce-in 360ms cubic-bezier(0.16,1,0.3,1) both;
         }
         @keyframes ce-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-        .ce-top { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: start; }
+        /* Fills the content area (like every other page), not a centred column.
+           The preview is a fixed-ish right rail; the hero takes the rest. */
+        .ce-top { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 52px; align-items: start; }
 
         .ce-title { margin: 0 0 14px; font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: var(--agent-text-primary); text-wrap: balance; }
         .ce-lead { margin: 0 0 8px; font-size: 16.5px; font-weight: 500; color: var(--agent-text-secondary); line-height: 1.5; }
@@ -138,8 +139,21 @@ export function ClientsEmptyState() {
         .ce-step-desc { margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.45; }
         .ce-step-arrow { color: var(--agent-text-muted); opacity: 0.4; flex-shrink: 0; margin-top: 6px; }
 
-        /* Decorative preview card */
-        .ce-preview { border-radius: 20px; padding: 20px; }
+        /* Decorative preview card — leans slightly in 3D (matches the reference),
+           straightens on hover. Static tilt is fine under reduced-motion; only
+           the hover transition is dropped there. */
+        .ce-preview {
+          border-radius: 20px; padding: 20px; margin-top: 10px; user-select: none;
+          transform: perspective(1600px) rotateY(-8deg) rotateX(2.5deg);
+          transform-origin: 65% 50%;
+          box-shadow: 0 34px 64px -26px rgba(28,26,44,0.30), 0 12px 26px -14px rgba(28,26,44,0.18);
+          transition: transform 480ms cubic-bezier(0.22,1,0.36,1), box-shadow 480ms ease;
+          will-change: transform;
+        }
+        .ce-preview:hover {
+          transform: perspective(1600px) rotateY(0deg) rotateX(0deg);
+          box-shadow: 0 26px 52px -24px rgba(28,26,44,0.22);
+        }
         .ce-preview-title { margin: 0 0 14px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--agent-text-primary); }
         .ce-preview-rows { display: flex; flex-direction: column; gap: 10px; }
         .ce-prow { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.55); border: 0.5px solid var(--agent-border-subtle); }
@@ -188,7 +202,7 @@ export function ClientsEmptyState() {
         }
         @media (prefers-reduced-motion: reduce) {
           .ce-wrap { animation: none; }
-          .ce-form-x, .ce-input { transition: none; }
+          .ce-form-x, .ce-input, .ce-preview { transition: none; }
         }
       `}</style>
     </div>
