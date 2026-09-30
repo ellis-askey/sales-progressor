@@ -798,7 +798,13 @@ export async function changeStatusAction(
       //    cancelled too since the file as a whole is dead.
       //    Idempotent via status="active" precondition.
       const ccsResult = await ptx.clientChaseState.updateMany({
-        where: { transactionId, status: "active" },
+        // Cancel active AND escalated rows: an escalated row (handed to the
+        // agent for no-reply) is just as dead as an active one once the file
+        // falls through, and leaving it behind let a relisted file's previous
+        // buyer surface in the new round (4 Old Oak, 2026-09-30 audit). The
+        // relist path deletes these outright too; this covers the withdraw-
+        // without-relist case.
+        where: { transactionId, status: { in: ["active", "escalated"] } },
         // 2026-07-13 (Chunk 6f/7): stamp the SAME plain-English string
         // the ReminderLog statusReason on line 617 uses so the two models
         // read consistently in the chase-history panel.
@@ -3551,6 +3557,28 @@ export async function relistTransactionImpl(
         OR: [
           { side: "purchaser" },
           { side: "vendor", milestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
+        ],
+      },
+    });
+
+    // Client-chase state reset (2026-09-30 relist audit). ClientChaseState was
+    // NEVER cleared on relist — the previous buyer's rows (active, and in
+    // particular ESCALATED, which the withdraw-time cancel skipped) survived and
+    // leaked into the new round: the escalation pass re-handed them to the agent,
+    // and the hub/work-queue/chase-timeline surfaced the old buyer's chase
+    // history. Mirror the SolicitorChaseState reset above. DELETE rather than
+    // cancel: an absent row is the engine's "fresh, never chased" path, whereas
+    // a "cancelled" row on a carried-over vendor contact would be skipped
+    // forever (the same contactId is reused across rounds for vendor steps).
+    // ClientChaseState has no `side` column, so scope by code: all purchaser
+    // (PM*) rows belong to previous buyers at this point in the transaction (the
+    // new round's chases are rebuilt post-commit), plus the reset vendor codes.
+    await ptx.clientChaseState.deleteMany({
+      where: {
+        transactionId: tx.id,
+        OR: [
+          { milestoneCode: { startsWith: "PM" } },
+          { milestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
         ],
       },
     });
