@@ -9,8 +9,9 @@
 // team-management form/toast pattern (components/account/v2/TeamManagementPlain).
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Buildings, UserPlus, Clock, FolderSimple, X } from "@phosphor-icons/react";
+import { Buildings, UserPlus, Clock, FolderSimple, X, Plus } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { addClientAgencyAction } from "@/app/actions/progression-clients";
 
@@ -140,6 +141,20 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
                 >
                   <FolderSimple size={14} weight="bold" /> {c.fileCount}
                 </span>
+                <Link
+                  href={`/agent/transactions/new?clientAgencyId=${c.agencyId}`}
+                  className="pc-addsale"
+                  title={`Create a sale for ${c.agencyName}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+                    color: "var(--agent-coral-deep, #E2452A)",
+                    padding: "5px 10px", borderRadius: 8,
+                    border: "0.5px solid rgba(226,69,42,0.22)",
+                  }}
+                >
+                  <Plus size={12} weight="bold" /> Sale
+                </Link>
               </div>
             </li>
           ))}
@@ -244,9 +259,10 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
       )}
 
       <style>{`
-        .pc-input, .pc-add-btn, .pc-toggle-btn, .pc-cancel-btn, .pc-row {
+        .pc-input, .pc-add-btn, .pc-toggle-btn, .pc-cancel-btn, .pc-row, .pc-addsale {
           transition: box-shadow 140ms ease, filter 140ms ease, opacity 140ms ease, background 140ms ease;
         }
+        .pc-addsale:hover { background: rgba(226,69,42,0.09); box-shadow: 0 2px 8px rgba(226,69,42,0.14); }
         .pc-input:focus { box-shadow: 0 0 0 3px rgba(226,69,42,0.14); }
         .pc-add-btn:not(:disabled):hover { filter: brightness(1.06); box-shadow: 0 5px 14px rgba(226,69,42,0.3); }
         .pc-add-btn:not(:disabled):active { filter: brightness(0.97); }

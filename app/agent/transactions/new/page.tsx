@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -12,8 +13,29 @@ export const maxDuration = 60;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
-export default async function AgentNewSaleV2Page() {
+export default async function AgentNewSaleV2Page({ searchParams }: { searchParams: Promise<{ clientAgencyId?: string }> }) {
   const session = await requireSession();
+
+  // Progression-business create-for-client: ?clientAgencyId=X. Resolve the
+  // client's name for the header, and only pass the id through when it's genuinely
+  // one of the actor's clients (the action re-validates as the security boundary).
+  const sp = await searchParams;
+  const requestedClientAgencyId = typeof sp?.clientAgencyId === "string" ? sp.clientAgencyId : undefined;
+  let clientAgencyId: string | undefined;
+  let clientAgencyName: string | null = null;
+  if (requestedClientAgencyId) {
+    const owner = await resolveBusinessOwner(session);
+    if (owner) {
+      const link = await prisma.progressionBusinessClient.findUnique({
+        where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId: requestedClientAgencyId } },
+        select: { agency: { select: { name: true } } },
+      });
+      if (link) {
+        clientAgencyId = requestedClientAgencyId;
+        clientAgencyName = link.agency.name;
+      }
+    }
+  }
 
   // Pricing migration (2026-08): there is no trial gate any more. Self-progress
   // is free, so a self-progressing agency is never blocked from adding a sale.
@@ -220,7 +242,10 @@ export default async function AgentNewSaleV2Page() {
 
   return (
     <>
-      <PageHeader title="New sale" subtitle="Drop in your memo of sale to get started, or add the details manually." />
+      <PageHeader
+        title={clientAgencyName ? `New sale for ${clientAgencyName}` : "New sale"}
+        subtitle="Drop in your memo of sale to get started, or add the details manually."
+      />
 
       <div className="px-4 md:px-8 pt-2 pb-8">
         <NewSaleFlow
@@ -240,6 +265,7 @@ export default async function AgentNewSaleV2Page() {
           feeTier={feeTier}
           legacyOutsourcedFeePence={legacyOutsourcedFeePence}
           withinTrial={withinTrial}
+          clientAgencyId={clientAgencyId}
         />
       </div>
     </>

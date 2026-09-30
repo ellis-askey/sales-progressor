@@ -307,11 +307,16 @@ type Props = {
   feeTier: string;
   legacyOutsourcedFeePence: number | null;
   withinTrial: boolean;
+  // Progression-business create-for-client: when set, this sale is created for
+  // the given client agency (owned by it, tagged to the actor's business, and
+  // assigned to the actor). Hides the "self-progress / send to us" toggle — an
+  // external business is always the progressor — and is validated server-side.
+  clientAgencyId?: string;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -938,6 +943,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         // empty or when the caller isn't a director. Negotiators never
         // populate this field because the picker isn't rendered for them.
         assignToUserId: formFields.assignToUserId || undefined,
+        // Progression-business create-for-client. Server validates it's one of
+        // the actor's clients; ignored (undefined) on the normal agency flow.
+        clientAgencyId: clientAgencyId || undefined,
         chain: formFields.chainStubs.length > 0
           ? { stubs: formFields.chainStubs, sendInvites: true }
           : undefined,
@@ -1204,6 +1212,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             ensureDraft={ensureDraft}
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
+            canOutsource={!clientAgencyId}
           />
         </div>
       )}
