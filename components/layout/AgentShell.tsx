@@ -16,7 +16,7 @@ import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -51,7 +51,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number) {
+function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -65,6 +65,10 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
   // hidden for them. See docs/active/enquiries-triage/00-spec.md.
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
+    // Progression-business owners manage the estate agents they progress for.
+    // Only shown when the feature is enabled AND the viewer is a business owner
+    // (resolved server-side, passed in as showClients).
+    ...(showClients ? [{ href: "/agent/clients", label: "Clients", Icon: Handshake }] : []),
     // Founder-only "what to work on next" cockpit (critiques #12 + #29). Same
     // literal-email gate as the Admin item below — only Ellis sees it.
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/agent/focus", label: "Focus", Icon: Target }] : []),
@@ -262,7 +266,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -273,7 +277,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
-  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions);
+  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);

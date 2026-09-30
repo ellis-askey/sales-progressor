@@ -86,11 +86,13 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
           {clients.map((c, i) => (
             <li
               key={c.linkId}
+              className="pc-row"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: "13px 2px",
+                padding: "13px 6px",
+                borderRadius: 8,
                 borderTop: i === 0 ? "none" : "0.5px solid rgba(0,0,0,0.07)",
               }}
             >
@@ -162,6 +164,7 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
             {clients.length > 0 && (
               <button
                 type="button"
+                className="pc-cancel-btn"
                 onClick={() => { setShowAdd(false); setError(null); }}
                 aria-label="Cancel"
                 style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: 2, display: "inline-flex" }}
@@ -173,15 +176,15 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
 
           <div>
             <label style={labelStyle} htmlFor="pc-agent-name">Agent name</label>
-            <input id="pc-agent-name" style={inputStyle} value={agentName} onChange={(e) => setAgentName(e.target.value)} placeholder="e.g. Donna Smith" maxLength={100} />
+            <input id="pc-agent-name" className="pc-input" style={inputStyle} value={agentName} onChange={(e) => setAgentName(e.target.value)} placeholder="e.g. Donna Smith" maxLength={100} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="pc-agent-email">Agent email</label>
-            <input id="pc-agent-email" style={inputStyle} type="email" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} placeholder="donna@example.com" maxLength={255} />
+            <input id="pc-agent-email" className="pc-input" style={inputStyle} type="email" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} placeholder="donna@example.com" maxLength={255} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="pc-agency-name">Agency name</label>
-            <input id="pc-agency-name" style={inputStyle} value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="e.g. Donna Smith, eXp" maxLength={120} />
+            <input id="pc-agency-name" className="pc-input" style={inputStyle} value={agencyName} onChange={(e) => setAgencyName(e.target.value)} placeholder="e.g. Donna Smith, eXp" maxLength={120} />
           </div>
 
           {error && (
@@ -194,6 +197,7 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
 
           <button
             type="button"
+            className="pc-add-btn"
             onClick={addClient}
             disabled={!canSubmit || adding}
             style={{
@@ -218,6 +222,7 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
       ) : (
         <button
           type="button"
+          className="pc-toggle-btn"
           onClick={() => setShowAdd(true)}
           style={{
             display: "inline-flex",
@@ -237,6 +242,21 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
           <UserPlus size={15} weight="bold" /> Add a client
         </button>
       )}
+
+      <style>{`
+        .pc-input, .pc-add-btn, .pc-toggle-btn, .pc-cancel-btn, .pc-row {
+          transition: box-shadow 140ms ease, filter 140ms ease, opacity 140ms ease, background 140ms ease;
+        }
+        .pc-input:focus { box-shadow: 0 0 0 3px rgba(226,69,42,0.14); }
+        .pc-add-btn:not(:disabled):hover { filter: brightness(1.06); box-shadow: 0 5px 14px rgba(226,69,42,0.3); }
+        .pc-add-btn:not(:disabled):active { filter: brightness(0.97); }
+        .pc-toggle-btn:hover { box-shadow: 0 3px 10px rgba(226,69,42,0.16); filter: brightness(0.99); }
+        .pc-cancel-btn:hover { opacity: 0.6; }
+        .pc-row:hover { background: rgba(0,0,0,0.025); }
+        @media (prefers-reduced-motion: reduce) {
+          .pc-input, .pc-add-btn, .pc-toggle-btn, .pc-cancel-btn, .pc-row { transition: none; }
+        }
+      `}</style>
     </div>
   );
 }
