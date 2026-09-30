@@ -153,28 +153,29 @@ model Agency {
   feeTier                  ClientType @default(standard)
   legacyOutsourcedFeePence Int? // Required when feeTier=legacy, null otherwise
 
-  users                   User[]
-  transactions            PropertyTransaction[]
-  manualTasks             ManualTask[]
-  chains                  PropertyChain[]
-  verifiedDomains         VerifiedDomain[]
-  solicitorCcOverrides    SolicitorContactAgencyOverride[]
-  joinRequests            AgencyJoinRequest[]
-  recommendedSolicitors   AgencyRecommendedSolicitor[]
-  preferredBroker         AgencyPreferredBroker?
-  feedbackSubmissions     FeedbackSubmission[]
-  negotiatorInvitations   NegotiatorInvitation[]
-  directorInvitations     DirectorInvitation[]
-  fileTimeSessions        FileTimeSession[]
-  invoices                Invoice[]
-  pricingAcknowledgements PricingAcknowledgement[]
-  creditNotes             CreditNote[]
-  agentEmailLogs          AgentEmailLog[]
-  prospect                Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
-  milestoneEmailOverrides MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
-  agencyEmailTemplates    AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
-  agencyEmailEdits        AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
-  chaseRuleOverrides      AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
+  users                      User[]
+  transactions               PropertyTransaction[]
+  manualTasks                ManualTask[]
+  chains                     PropertyChain[]
+  verifiedDomains            VerifiedDomain[]
+  solicitorCcOverrides       SolicitorContactAgencyOverride[]
+  joinRequests               AgencyJoinRequest[]
+  recommendedSolicitors      AgencyRecommendedSolicitor[]
+  preferredBroker            AgencyPreferredBroker?
+  feedbackSubmissions        FeedbackSubmission[]
+  negotiatorInvitations      NegotiatorInvitation[]
+  directorInvitations        DirectorInvitation[]
+  fileTimeSessions           FileTimeSession[]
+  invoices                   Invoice[]
+  pricingAcknowledgements    PricingAcknowledgement[]
+  creditNotes                CreditNote[]
+  agentEmailLogs             AgentEmailLog[]
+  prospect                   Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
+  milestoneEmailOverrides    MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
+  agencyEmailTemplates       AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
+  agencyEmailEdits           AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
+  chaseRuleOverrides         AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
+  progressionBusinessClients ProgressionBusinessClient[] // progression businesses that count this agency as a client (client management only — never grants transaction access)
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -186,27 +187,92 @@ enum AgencyModeProfile {
   mixed
 }
 
+// A sales-progression business. TSP is progression business #1 (isTsp = true)
+// and also the platform operator; external businesses (e.g. an independent
+// progressor) are ordinary rows with isTsp = false and no platform powers.
+// The transaction is the access boundary: a member sees a file only when
+// PropertyTransaction.progressionBusinessId matches their business. A null
+// progressionBusinessId on a transaction means TSP (no backfill of existing
+// files) — see lib/progression/business.ts. See docs/active/progression-businesses/.
+model ProgressionBusiness {
+  id              String   @id @default(cuid())
+  name            String
+  // Exactly one row is the platform operator's own business (The Sales
+  // Progressor). Seeded by scripts/seed-progression-tsp.ts and used as the
+  // fallback identity for null-progressionBusinessId (TSP) transactions.
+  isTsp           Boolean  @default(false)
+  // Client-facing identity, resolved per transaction by
+  // getProgressionBusinessForTransaction so a professionally-progressed file
+  // shows THIS business's contact details instead of TSP's. On the TSP row
+  // these carry today's hardcoded values; on external rows they are the
+  // business's own. Null falls back to the platform default.
+  contactWhatsapp String?
+  senderEmail     String?
+  senderDomain    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members      User[]
+  transactions PropertyTransaction[]
+  clients      ProgressionBusinessClient[]
+
+  @@index([isTsp])
+}
+
+// Client-management link between a progression business and an estate agency
+// it works for. CLIENT MANAGEMENT ONLY — this relationship NEVER grants access
+// to any transaction. Access is decided solely by
+// PropertyTransaction.progressionBusinessId. A self-employed agent (e.g. an eXp
+// agent) is represented by their own single-director Agency.
+model ProgressionBusinessClient {
+  id                    String   @id @default(cuid())
+  progressionBusinessId String
+  agencyId              String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
+  agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([progressionBusinessId, agencyId])
+  @@index([agencyId])
+}
+
+// A member's role WITHIN their progression business (business administration),
+// distinct from the platform-level UserRole. owner can manage the business
+// (add clients, assign work); progressor does the progression work. Null for
+// users who are not progression-business members (agency staff, etc.).
+enum ProgressionBusinessRole {
+  owner
+  progressor
+}
+
 model User {
-  id                      String             @id @default(cuid())
+  id                      String                   @id @default(cuid())
   name                    String
-  email                   String             @unique
+  email                   String                   @unique
   password                String?
   totpSecret              String?
   totpActivatedAt         DateTime?
   // One-time recovery codes (hashed) for 2FA lockout, and a per-user token
   // version bumped by "sign out of all other devices" (JWT invalidation).
-  totpBackupCodes         String[]           @default([])
-  sessionVersion          Int                @default(0)
+  totpBackupCodes         String[]                 @default([])
+  sessionVersion          Int                      @default(0)
   // Set when a director removes this member from the team. The user row is
   // never deleted (their name stays attributed on history); instead sign-in is
   // refused and live sessions are killed (sessionVersion bump at removal).
   // Cleared by reinstating from the Team page.
   deactivatedAt           DateTime?
-  role                    UserRole           @default(viewer)
+  role                    UserRole                 @default(viewer)
   agencyId                String?
   firmName                String?
   progressorId            String?
-  clientType              ClientType         @default(standard)
+  // Progression-business membership (additive, 2026-09). Null for agency staff
+  // and for TSP internal staff (who resolve to TSP implicitly). Set only for
+  // members of a progression business; drives the business access scope.
+  progressionBusinessId   String?
+  progressionBusinessRole ProgressionBusinessRole?
+  clientType              ClientType               @default(standard)
   legacyFee               Int?
   phone                   String?
   // Profile detail (2026-09): shown alongside the name in client-facing
@@ -218,26 +284,27 @@ model User {
   // the auto-generated TSP signature (default, backwards-compatible for all
   // existing users); IMAGE = an uploaded/imported signature image; CUSTOM = a
   // pasted, sanitised HTML signature. See docs/active/email-signature/00-audit-and-plan.md.
-  emailSignatureMode      EmailSignatureMode @default(BASIC)
+  emailSignatureMode      EmailSignatureMode       @default(BASIC)
   emailSignatureImagePath String?
   emailSignatureHtml      String?
-  canViewAllFiles         Boolean            @default(false)
-  hasSeenAgentWelcome     Boolean            @default(false)
+  canViewAllFiles         Boolean                  @default(false)
+  hasSeenAgentWelcome     Boolean                  @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
   // gets their own first-run auto-start. Set when the tour is finished or
   // skipped; either being non-null suppresses the auto-start (a "Replay
   // walkthrough" control still runs it on demand). See DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md §13.
   demoTourCompletedAt     DateTime?
   demoTourSkippedAt       DateTime?
-  isInternal              Boolean            @default(false)
+  isInternal              Boolean                  @default(false)
   // Made-up staff member who "manages" the demo showcase files, so a demo is
   // never presented as the real user's own file. Excluded from team pickers.
   // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
-  isDemo                  Boolean            @default(false)
-  createdAt               DateTime           @default(now())
-  updatedAt               DateTime           @updatedAt
+  isDemo                  Boolean                  @default(false)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   agency               Agency?               @relation(fields: [agencyId], references: [id])
+  progressionBusiness  ProgressionBusiness?  @relation(fields: [progressionBusinessId], references: [id])
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
   managedAgents        User[]                @relation("ProgressorAgents")
   assignedTransactions PropertyTransaction[] @relation("AssignedUser")
@@ -420,6 +487,12 @@ model PropertyTransaction {
   assignedUserId                  String?
   assignedAt                      DateTime?
   agentUserId                     String?
+  // Which progression business is responsible for this file. THE ACCESS
+  // BOUNDARY for progression-business members. Null means TSP (no backfill of
+  // existing/legacy files — see lib/progression/business.ts); external
+  // businesses always carry an explicit id. Independent of agencyId/agentUserId
+  // (the client agency/agent) and of assignedUserId (the individual progressor).
+  progressionBusinessId           String?
   progressedBy                    ProgressedBy      @default(progressor)
   serviceType                     ServiceType       @default(self_managed)
   // When the file became outsourced (needing an SP progressor). Stamped on
@@ -704,6 +777,7 @@ model PropertyTransaction {
   updatedAt DateTime @updatedAt
 
   agency                           Agency                            @relation(fields: [agencyId], references: [id])
+  progressionBusiness              ProgressionBusiness?              @relation(fields: [progressionBusinessId], references: [id])
   assignedUser                     User?                             @relation("AssignedUser", fields: [assignedUserId], references: [id])
   agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
   pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
@@ -773,6 +847,9 @@ model PropertyTransaction {
   @@index([agencyId, status])
   @@index([assignedUserId, status])
   @@index([agentUserId, status])
+  // Progression-business access scope (2026-09): every business-scoped list and
+  // ownership guard filters on this owner column combined with status.
+  @@index([progressionBusinessId, status])
 }
 
 // Phase 0 of the relist feature — shadow foundation only. One BuyerRound

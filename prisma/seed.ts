@@ -17,6 +17,7 @@ async function main() {
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   await prisma.feedbackSubmission.deleteMany();
+  await prisma.progressionBusinessClient.deleteMany();
   await prisma.portalPushSubscription.deleteMany();
   await prisma.portalMessage.deleteMany();
   await prisma.transactionDocument.deleteMany();
@@ -41,7 +42,24 @@ async function main() {
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.progressionBusiness.deleteMany();
   await prisma.agency.deleteMany();
+
+  // ── Progression business #1 (The Sales Progressor) ────────────────────────
+  // Progression business #1 + platform operator. Fallback identity for every
+  // transaction whose progressionBusinessId is null (TSP). Kept in sync with
+  // scripts/seed-progression-tsp.ts and the Phase 1 migration's INSERT.
+  await prisma.progressionBusiness.create({
+    data: {
+      id: "progression_business_tsp",
+      name: "The Sales Progressor",
+      isTsp: true,
+      contactWhatsapp: "+447508862929",
+      senderEmail: "ellis@thesalesprogressor.co.uk",
+      senderDomain: "thesalesprogressor.co.uk",
+    },
+  });
+  console.log("✓ Progression business #1 (TSP)");
 
   // ── Agency & Users ────────────────────────────────────────────────────────
   const agency = await prisma.agency.create({ data: { name: "Hartwell & Partners" } });

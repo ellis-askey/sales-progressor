@@ -372,3 +372,10 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Lifetime:** one-shot (throwaway, staging demo).
 - **Author/date:** Claude, 2026-09-28.
 - **Deletion criteria:** delete this script + this entry once the referral-ledger demo has been reviewed and the seeded staging file is no longer needed.
+
+### seed-progression-tsp.ts
+- **Purpose:** seed progression business #1 (The Sales Progressor, the platform operator) — the single `ProgressionBusiness` row with `isTsp = true`. It is the fallback identity for every transaction whose `progressionBusinessId` is null (docs/active/progression-businesses/, Phase 1; see lib/progression/business.ts). Needed on staging/local because those sync the schema via `prisma db push`, which skips the Phase 1 migration's INSERT; production gets the row from the migration. Idempotent (skips if an `isTsp` row already exists). Safe against any environment.
+- **Lifetime:** ongoing (permanent — the row is required wherever the app runs; the script is the staging/local seeding path and stays alongside the migration).
+- **Author/date:** Claude, 2026-09-30.
+- **Deletion criteria:** permanent while the progression-business model exists; remove only if the model is retired.
+- **Justification:** one-time environment bootstrap of a required singleton that db-push cannot create (raw-migration INSERT is skipped on staging/local); not a feature/admin action because it seeds infrastructure state, and it mirrors the migration + `prisma/seed.ts`.

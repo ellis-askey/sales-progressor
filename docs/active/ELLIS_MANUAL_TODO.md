@@ -165,6 +165,16 @@ Automated monthly invoice issuance (the `issue-invoices` cron, the only thing th
 
 ---
 
+## Progression businesses — shipping DARK, in phases (2026-09-30)
+
+We're generalising our internal progression operation so external progression businesses (first pilot: Sarah) can run their own bounded version, while TSP stays the platform operator. The external-facing surfaces are gated OFF by default behind `PROGRESSION_BUSINESSES_ENABLED`.
+
+- **Flag:** `PROGRESSION_BUSINESSES_ENABLED=true` (Vercel production, when we're ready to onboard the first external progression business). It gates ONLY the new entry points (business onboarding, client management, create-sale-for-client). The security boundary, identity resolver and notes rules are always on and data-driven, so nothing external is reachable until an external business actually exists.
+- **Phase 1 (schema foundation) — no visible change.** Adds the `ProgressionBusiness` model and a nullable `progressionBusinessId` on transactions/users. A null `progressionBusinessId` means TSP — existing files are NOT backfilled.
+- **Manual step for STAGING:** after the schema syncs (`prisma db push`), run `npm run db:seed` (or `npx ts-node scripts/seed-progression-tsp.ts`) so the TSP `ProgressionBusiness` row exists. Production gets that row automatically from the Phase 1 migration — no manual step there.
+
+---
+
 ## Content — connect a publishing platform + schedule the reminder cron (2026-09-11)
 
 The Content area (Command Centre → Content) is built through Phase 6. Two optional setup steps unlock the last bits:
