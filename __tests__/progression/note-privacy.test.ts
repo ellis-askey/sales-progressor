@@ -54,7 +54,7 @@ beforeEach(() => {
   p.propertyTransaction.findFirst.mockResolvedValue(txRow);
 });
 
-describe("getActivityTimeline — private-note filter", () => {
+describe("getActivityTimeline private-note filter", () => {
   it("hides businessOnly notes from an owning-agency viewer (agencyId set)", async () => {
     await getActivityTimeline("tx1", "ag_donna");
     const where = p.outboundMessage.findMany.mock.calls[0][0].where;
@@ -68,7 +68,7 @@ describe("getActivityTimeline — private-note filter", () => {
   });
 });
 
-describe("createCommunicationRecord — businessOnly write mapping", () => {
+describe("createCommunicationRecord businessOnly write mapping", () => {
   const scope: AccessScope = { kind: "business", businessId: "biz_sarah" };
   const base = {
     transactionId: "tx1",
