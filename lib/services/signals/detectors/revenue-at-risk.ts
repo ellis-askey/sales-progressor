@@ -7,6 +7,7 @@
 //      or at risk of falling through right before the payday.
 
 import { prisma } from "@/lib/prisma";
+import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import type { Detector, SignalResult } from "../types";
 
 const STALLED_DAYS = 14;
@@ -92,17 +93,26 @@ export const revenueAtRisk: Detector = async (window) => {
   }
 
   // B) Ready to exchange but stalled — no VM19/PM26 yet and no movement.
+  // Relist safety: PM25 is per-round, so scope to active rounds — otherwise a
+  // relisted file matches on the PREVIOUS buyer's old "ready to exchange" (PM25)
+  // and gets flagged stalled when the new buyer isn't ready. (VM18 is file-level;
+  // the exchangedAt-canonical precondition already covers the VM19/PM26 `none`.)
+  const stalledTxWhere = {
+    status: "active" as const,
+    exchangedAt: null,
+    isDemo: false,
+    isMigrated: false,
+    agency: { isInternal: false },
+  };
+  const stalledRoundIds = await loadActiveRoundIds(stalledTxWhere);
   const stalled = await prisma.milestoneCompletion.findMany({
     where: {
       state: "complete",
       milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
       completedAt: { lt: stalledCutoff },
+      OR: roundScopedOR(stalledRoundIds),
       transaction: {
-        status: "active",
-        exchangedAt: null,
-        isDemo: false,
-        isMigrated: false,
-        agency: { isInternal: false },
+        ...stalledTxWhere,
         milestoneCompletions: {
           none: { state: "complete", milestoneDefinition: { code: { in: ["VM19", "PM26"] } } },
         },

@@ -19,6 +19,7 @@ import { setUkChaseTime } from "@/lib/services/reminders";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { assembleMilestoneDigest, type MilestoneDigestPayload } from "@/lib/email/milestone-digest";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import type { ContactRole } from "@prisma/client";
 
 export type PendingEmail = {
@@ -212,6 +213,9 @@ export async function getAutomatedEmailsForTransaction(
         chaseCount: true,
         lastChasedAt: true,
         lastEngagedAt: true,
+        // Relist safety: scoped to the active round below so the preview doesn't
+        // predict repeat chases for a fallen-through buyer.
+        buyerRoundId: true,
         contact: { select: { id: true, name: true, roleType: true } },
       },
     }),
@@ -259,7 +263,9 @@ export async function getAutomatedEmailsForTransaction(
         email: { not: null },
         portalToken: { not: null },
       },
-      select: { id: true, name: true, roleType: true },
+      // buyerRoundId selected so first-chase predictions can be scoped to the
+      // active round's buyer (see scopedContacts below).
+      select: { id: true, name: true, roleType: true, buyerRoundId: true },
     }),
     prisma.propertyTransaction.findUnique({
       where: { id: transactionId },
@@ -267,6 +273,7 @@ export async function getAutomatedEmailsForTransaction(
         createdAt: true,
         status: true,
         chaseRuleSnapshot: true,
+        activeBuyerRoundId: true,
         // Pause-state inputs (added 2026-05-29 for the auto-emails honesty pass)
         clientEmailsPaused: true,
         agency: { select: { name: true, chaseEmailsEnabled: true } },
@@ -460,7 +467,14 @@ export async function getAutomatedEmailsForTransaction(
   const defByCode = new Map(allDefs.map((d) => [d.code, d.id]));
   const blockerDefIds = new Set(allDefs.filter((d) => d.blocksExchange).map((d) => d.id));
   const completionByDefId = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c]));
-  const existingCcsKeys = new Set(allCcsRows.map((r) => `${r.contactId}:${r.milestoneCode}`));
+  // Relist safety: scope the CCS rows + contacts that drive the prediction to the
+  // active round, so a fallen-through buyer never appears in the "upcoming
+  // automated emails" preview (repeat chases from their CCS, or first chases to
+  // their contact). Matches the round-scoped MC read + the live cron.
+  const activeRoundId = transaction?.activeBuyerRoundId ?? null;
+  const scopedCcsRows = allCcsRows.filter((r) => r.buyerRoundId == null || r.buyerRoundId === activeRoundId);
+  const scopedContacts = contacts.filter((c) => isActiveRoundContact(c, activeRoundId));
+  const existingCcsKeys = new Set(scopedCcsRows.map((r) => `${r.contactId}:${r.milestoneCode}`));
 
   const upcoming: UpcomingChase[] = [];
 
@@ -480,7 +494,7 @@ export async function getAutomatedEmailsForTransaction(
     if (r.targetMilestoneCode) liveRepeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
   }
   if (txIsChaseable) {
-    for (const row of allCcsRows) {
+    for (const row of scopedCcsRows) {
       if (row.status !== "active") continue;
       if (row.chaseCount <= 0 || row.chaseCount >= CLIENT_CHASE_COUNT_CAP) continue;
       if (!row.lastChasedAt) continue;
@@ -578,7 +592,7 @@ export async function getAutomatedEmailsForTransaction(
         : code.startsWith("PM") ? "purchaser"
         : null;
       if (!side) continue;
-      const recipients = contacts.filter((c) => c.roleType === side);
+      const recipients = scopedContacts.filter((c) => c.roleType === side);
 
       for (const contact of recipients) {
         // Skip if a CCS row of any status already exists — repeat-kind

@@ -54,14 +54,25 @@ export async function getChasePerformance(input: EmailScopeInput & { periodDays:
   const [states, chasesSentPeriod] = await Promise.all([
     prisma.clientChaseState.findMany({
       where: { transactionId: { in: txIds }, chaseCount: { gt: 0 } },
-      select: { status: true, statusReason: true, chaseCount: true, lastEngagedAt: true },
+      select: { status: true, statusReason: true, chaseCount: true, lastEngagedAt: true, transactionId: true, buyerRoundId: true },
     }),
     prisma.outboundEmailQueue.count({ where: { ...queueScope, emailType: "CLIENT_CHASE", sentAt: { gte: periodStart } } }),
   ]);
 
+  // Relist safety: exclude a fallen-through buyer's chase rows so the chase
+  // performance rates reflect the current sale, not the archived round.
+  const perfRounds = await prisma.propertyTransaction.findMany({
+    where: { id: { in: txIds } },
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  const activeRoundByTx = new Map(perfRounds.map((t) => [t.id, t.activeBuyerRoundId]));
+  const scopedStates = states.filter(
+    (s) => s.buyerRoundId == null || s.buyerRoundId === activeRoundByTx.get(s.transactionId),
+  );
+
   let engaged = 0, stillChasing = 0, resolved = 0, escalated = 0, closedOther = 0;
   let resolvedChaseSum = 0;
-  for (const s of states) {
+  for (const s of scopedStates) {
     if (s.lastEngagedAt) engaged++;
     if (s.status === "active") {
       stillChasing++;
@@ -74,7 +85,7 @@ export async function getChasePerformance(input: EmailScopeInput & { periodDays:
       closedOther++;
     }
   }
-  const totalChased = states.length;
+  const totalChased = scopedStates.length;
 
   return {
     periodDays: input.periodDays,

@@ -175,7 +175,7 @@ async function computeExhausted(
   const [clientStates, solStates] = await Promise.all([
     prisma.clientChaseState.findMany({
       where: { transactionId: { in: txIds }, chaseCount: { gte: CLIENT_CHASE_COUNT_CAP } },
-      select: { id: true, transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, contact: { select: { name: true, roleType: true } } },
+      select: { id: true, transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, buyerRoundId: true, contact: { select: { name: true, roleType: true } } },
     }),
     prisma.solicitorChaseState.findMany({
       where: { transactionId: { in: txIds }, chaseCount: { gt: 0 } },
@@ -184,13 +184,24 @@ async function computeExhausted(
   ]);
   const solCapped = solStates.filter((s) => s.chaseCount >= (solRuleByCode.get(s.milestoneCode)?.maxChases ?? defMax));
 
+  // Relist safety: drop a fallen-through buyer's capped CCS rows so they don't
+  // show as "automation exhausted" on the new sale.
+  const exRounds = await prisma.propertyTransaction.findMany({
+    where: { id: { in: txIds } },
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  const activeRoundByTx = new Map(exRounds.map((t) => [t.id, t.activeBuyerRoundId]));
+  const scopedClientStates = clientStates.filter(
+    (c) => c.buyerRoundId == null || c.buyerRoundId === activeRoundByTx.get(c.transactionId),
+  );
+
   // Confirm the milestone is still outstanding (state = available). Look up the
   // exact (transaction, code) pairs — never infer.
-  const codes = new Set<string>([...clientStates.map((c) => c.milestoneCode), ...solCapped.map((s) => s.milestoneCode)]);
+  const codes = new Set<string>([...scopedClientStates.map((c) => c.milestoneCode), ...solCapped.map((s) => s.milestoneCode)]);
   const availableKeys = await availableMilestoneKeys(txIds, [...codes]);
 
   const out: ExhaustedItem[] = [];
-  for (const c of clientStates) {
+  for (const c of scopedClientStates) {
     if (!availableKeys.has(`${c.transactionId}:${c.milestoneCode}`)) continue;
     const started = c.firstChasedAt ?? c.lastChasedAt;
     out.push({

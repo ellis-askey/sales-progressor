@@ -830,7 +830,11 @@ export async function evaluateTransactionReminders(
   //     escalation branch only reads manualChaseCount / lastChasedAt /
   //     priority, never dueDate.
   const activeLogsSnapshot = await prisma.reminderLog.findMany({
-    where: { transactionId, status: "active" },
+    // Relist safety (defence-in-depth): the engine only re-evaluates the active
+    // round's logs (+ file-level VM). Archived-round PM logs are cancelled at
+    // relist, but scoping here means a surviving one can never be advanced or
+    // escalated onto the new round even if that cancellation regressed.
+    where: { transactionId, status: "active", OR: [{ buyerRoundId: null }, { buyerRoundId: transaction.activeBuyerRoundId }] },
     include: { reminderRule: { select: { name: true } } },
   });
   const activeLogByRuleId = new Map(activeLogsSnapshot.map((l) => [l.reminderRuleId, l]));
