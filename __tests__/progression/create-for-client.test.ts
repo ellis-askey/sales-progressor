@@ -72,7 +72,7 @@ beforeEach(() => {
   p.user.findFirst.mockResolvedValue({ id: "u_donna" });
 });
 
-describe("createTransactionAction — create-for-client gates", () => {
+describe("createTransactionAction: create-for-client gates", () => {
   it("throws when the feature flag is off (no file created)", async () => {
     (progressionBusinessesEnabled as jest.Mock).mockReturnValue(false);
     await expect(createTransactionAction(baseInput)).rejects.toThrow(/not enabled/i);
@@ -92,7 +92,7 @@ describe("createTransactionAction — create-for-client gates", () => {
   });
 });
 
-describe("createTransactionAction — create-for-client ownership", () => {
+describe("createTransactionAction: create-for-client ownership", () => {
   it("tags the file to the actor's business, the client agency, its director, and the actor", async () => {
     await createTransactionAction(baseInput);
     expect(createTransaction).toHaveBeenCalledWith(
