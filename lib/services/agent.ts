@@ -18,6 +18,10 @@ export type AgentVisibility = {
   // "admin_all": see every transaction on the platform (admin role).
   // "assigned": see only transactions where assignedUserId = userId (sales_progressor).
   internalMode?: "admin_all" | "assigned";
+  // External progression-business member: their "assigned" mode is widened to the
+  // whole business book (PropertyTransaction.progressionBusinessId), so every
+  // member sees all the files their business progresses. Undefined for TSP staff.
+  businessId?: string;
 };
 
 /** Resolve how much of the agency a user can see based on role + canViewAllFiles. */
@@ -43,13 +47,18 @@ export function resolveInternalVisibility(
   userId: string,
   role: string,
   hasAdminPowers: boolean = false,
+  progressionBusinessId?: string | null,
 ): AgentVisibility {
+  const isAdmin = role === "admin" || hasAdminPowers;
   return {
     userId,
     agencyId: "",
     seeAll: false,
     firmName: null,
-    internalMode: (role === "admin" || hasAdminPowers) ? "admin_all" : "assigned",
+    internalMode: isAdmin ? "admin_all" : "assigned",
+    // A non-admin progression-business member: widen "assigned" to the business
+    // book. TSP internal staff (null) keep per-user assigned scope.
+    businessId: !isAdmin && progressionBusinessId ? progressionBusinessId : undefined,
   };
 }
 
@@ -57,7 +66,7 @@ export function resolveInternalVisibility(
 function txWhere(vis: AgentVisibility) {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
-  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths unchanged.
   if (vis.seeAll) {
     if (vis.firmName) {

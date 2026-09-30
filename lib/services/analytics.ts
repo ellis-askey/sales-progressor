@@ -27,7 +27,7 @@ const DRAFT = "draft" as TransactionStatus;
 function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
-  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths. isDemo:false — the demo showcase file is never real activity
   // and must not count toward the agency's analytics (deal counts, pipeline
   // value, overdue chases). Its own tabs still show its seeded data; the

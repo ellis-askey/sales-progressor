@@ -55,7 +55,7 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
   // admin_all: internal team only touches outsourced files. Filter added
   // 2026-07-06 alongside sibling bugs in reminders.ts + work-queue.ts.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
-  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths (director / negotiator) — unchanged.
   if (vis.seeAll) {
     return vis.firmName
@@ -69,7 +69,7 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
 function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
-  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths — unchanged.
   if (vis.seeAll) {
     return vis.firmName
@@ -3091,7 +3091,7 @@ export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<
   if (vis.internalMode === "admin_all") {
     txWhere = { serviceType: "outsourced", status: "active" };
   } else if (vis.internalMode === "assigned") {
-    txWhere = { serviceType: "outsourced", status: "active", assignedUserId: vis.userId };
+    txWhere = { serviceType: "outsourced", status: "active", ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }) };
   } else {
     return [];
   }
@@ -3178,7 +3178,7 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
     // buildTxWhere above.
     txWhere = { status: "active", chainSetupPending: true, serviceType: "outsourced" };
   } else if (vis.internalMode === "assigned") {
-    txWhere = { status: "active", chainSetupPending: true, assignedUserId: vis.userId };
+    txWhere = { status: "active", chainSetupPending: true, ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }) };
   } else if (vis.seeAll) {
     // Attention rule (founder, 2026-08-08): agency viewers only see
     // chain-setup prompts on files they progress themselves.

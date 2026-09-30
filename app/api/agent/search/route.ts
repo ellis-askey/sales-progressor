@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   const isInternal = INTERNAL_ROLES.includes(session.user.role ?? "");
   const vis = isInternal
-    ? resolveInternalVisibility(session.user.id, session.user.role ?? "", hasAdminPowers(session))
+    ? resolveInternalVisibility(session.user.id, session.user.role ?? "", hasAdminPowers(session), session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   let txWhere: Record<string, unknown>;

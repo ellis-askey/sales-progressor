@@ -78,7 +78,7 @@ export default async function WorkQueuePage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session))
+    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [reminderLogs, activeFileCount] = await Promise.all([
     getAgentReminderLogs(vis),

@@ -214,7 +214,7 @@ export default async function Hub() {
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin";
 
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, role, isAdmin)
+    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const greeting = getGreeting(session.user.name ?? "there");

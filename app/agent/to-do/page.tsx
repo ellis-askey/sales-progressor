@@ -59,7 +59,7 @@ export default async function AgentTodoPage() {
   // Needs AgentVisibility (buildTxWhere), resolved the same way the hub and
   // work queue do. Photos signed once, keyed by transaction.
   const vis = isInternal
-    ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session))
+    ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session), session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const noCommsRaw = await getNoCommsFiles(vis);
   const noCommsPhotos = await getSignedUrlMap(

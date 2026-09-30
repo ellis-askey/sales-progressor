@@ -355,7 +355,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     // wade past sales they don't touch.
     txWhere = { status: "active" as const, serviceType: "outsourced" as const };
   } else if (vis.internalMode === "assigned") {
-    txWhere = { assignedUserId: vis.userId, status: "active" as const, serviceType: "outsourced" as const };
+    txWhere = { ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }), status: "active" as const, serviceType: "outsourced" as const };
   } else {
     // isDemo:false — the demo showcase file now carries seeded reminders (so
     // its own Reminders tab is alive); they must not spill into the agency's

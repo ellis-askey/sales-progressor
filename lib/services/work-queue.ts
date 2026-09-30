@@ -39,7 +39,7 @@ export function txWhereWorkQueue(vis: AgentVisibility) {
   // the agency's own work queue). Fixed 2026-07-06 alongside the sibling
   // bug in lib/services/reminders.ts:260.
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
-  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths. serviceType: "self_managed" added 2026-08-09 (founder
   // rule): agencies only chase files they progress themselves — outsourced
   // files are the SP team's job, so their file-alerts / reminders don't

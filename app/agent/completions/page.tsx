@@ -55,7 +55,7 @@ export default async function AgentCompletionsPage() {
   const isProgressor = session.user.role === "sales_progressor";
   const isAdmin = hasAdminPowers(session);
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [files, completedFiles, momentum] = await Promise.all([
     getAgentCompletions(vis),

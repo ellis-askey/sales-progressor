@@ -26,7 +26,7 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
   const isAdmin = role === "admin" || role === "superadmin";
 
   const vis = isInternal
-    ? resolveInternalVisibility(session.user.id, role, isAdmin)
+    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const [todoBase, reviews, enquiries, chains, completions, reminders] = await Promise.all([
