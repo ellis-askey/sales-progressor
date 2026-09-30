@@ -96,11 +96,16 @@ export async function maybeStampExchange(
     // next real outsourced exchange.
     const agency = await db.agency.findUnique({
       where: { id: txn.agencyId },
-      select: { feeTier: true },
+      select: { feeTier: true, firstOutsourcedFreeEligible: true },
     });
-    const isLegacyTier = agency?.feeTier === "legacy";
-    const priorOutsourcedExchanged = isLegacyTier
-      ? 1 // force "not first" so a legacy agency never gets the free file
+    // Ineligible = legacy fee tier OR explicitly flagged out. The flag covers the
+    // pre-existing agencies that were already outsourcing before this giveaway
+    // existed — including standard-tier ones whose only exchanged outsourced
+    // history is migrated/imported, which the count below would otherwise treat
+    // as "no prior outsourced file" and wrongly grant a free file.
+    const ineligible = agency?.feeTier === "legacy" || agency?.firstOutsourcedFreeEligible === false;
+    const priorOutsourcedExchanged = ineligible
+      ? 1 // force "not first" so an ineligible agency never gets the free file
       : await db.propertyTransaction.count({
           where: {
             agencyId: txn.agencyId,

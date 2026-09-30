@@ -160,10 +160,22 @@ async function sendRetentionEmail({
 
 // ─── 3a. Event-triggered — first exchange ────────────────────────────────────
 
+// Internal-staff roles never receive an agency-facing celebration. They confirm
+// outsourced files on the agency's behalf, so keying a celebration off "the
+// confirmer" would land it on us, not the agency. (This is exactly the bug that
+// sent a first-exchange email to an internal progressor.)
+const INTERNAL_STAFF_ROLES = new Set(["sales_progressor", "admin", "superadmin"]);
+
 /**
- * Called after exchange milestones (VM19 or PM26) commit.
- * Fires the `first_exchange` email if this user has never received it before.
- * Ignores retentionEmailOptOut — this is transactional/celebration.
+ * Called after exchange milestones (VM19 or PM26) commit, for SELF-MANAGED files.
+ * Fires the `first_exchange` email (the "£0 — self-progressed sales are free"
+ * celebration) if this user has never received it before. Ignores
+ * retentionEmailOptOut — this is transactional/celebration.
+ *
+ * Outsourced first exchanges are NOT handled here — they use
+ * maybeFireFirstOutsourcedFreeEmail (different copy, per-agency, agency agent).
+ * The self-managed path stays keyed to the confirmer (on a self-managed file the
+ * confirmer IS the agency's own agent), with an internal-staff guard for safety.
  */
 export async function maybeFireFirstExchangeEmail(
   userId: string,
@@ -172,9 +184,10 @@ export async function maybeFireFirstExchangeEmail(
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, agencyId: true },
+      select: { id: true, email: true, name: true, agencyId: true, role: true },
     });
     if (!user?.email) return;
+    if (INTERNAL_STAFF_ROLES.has(user.role)) return;
 
     // Check if user already received first_exchange
     const existing = await prisma.retentionEmailLog.findFirst({
@@ -183,15 +196,16 @@ export async function maybeFireFirstExchangeEmail(
     });
     if (existing) return;
 
-    // Verify the transaction belongs to this user and has an exchange milestone
+    // Verify the transaction belongs to this user and is self-managed. Outsourced
+    // files never fire this email — they route through the outsourced helper.
     const tx = await prisma.propertyTransaction.findFirst({
       where: {
         id: transactionId,
         OR: [{ agentUserId: userId }, { assignedUserId: userId }],
       },
-      select: { id: true, propertyAddress: true },
+      select: { id: true, propertyAddress: true, serviceType: true },
     });
-    if (!tx) return;
+    if (!tx || tx.serviceType !== "self_managed") return;
 
     const base = process.env.NEXTAUTH_URL ?? "";
     const ctaUrl = `${base}/transactions/${transactionId}`;
@@ -203,6 +217,65 @@ export async function maybeFireFirstExchangeEmail(
     });
   } catch (err) {
     console.error("[retention] maybeFireFirstExchangeEmail error:", err);
+  }
+}
+
+/**
+ * Called after exchange milestones (VM19 or PM26) commit, for OUTSOURCED files.
+ * Fires the `first_outsourced_free` email when the file was stamped
+ * firstOutsourcedFree — i.e. the agency's first outsourced sale to reach
+ * exchange, which is on us. Sent to the agency's OWN agent (the file's
+ * agentUserId), never to internal staff, and deduped ONCE PER AGENCY.
+ *
+ * Eligibility (the pre-existing agencies that predate the giveaway) is enforced
+ * upstream in billing-trigger.ts via Agency.firstOutsourcedFreeEligible: an
+ * ineligible agency never gets the firstOutsourcedFree stamp, so it can never
+ * reach this email. We gate purely on that stamp here so the rule stays in one
+ * place.
+ */
+export async function maybeFireFirstOutsourcedFreeEmail(
+  transactionId: string
+): Promise<void> {
+  try {
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        id: true,
+        propertyAddress: true,
+        serviceType: true,
+        firstOutsourcedFree: true,
+        agencyId: true,
+        agentUser: { select: { id: true, email: true, name: true, agencyId: true, role: true } },
+      },
+    });
+    if (!tx) return;
+    if (tx.serviceType !== "outsourced" || !tx.firstOutsourcedFree) return;
+
+    const agent = tx.agentUser;
+    if (!agent?.email || INTERNAL_STAFF_ROLES.has(agent.role)) return;
+
+    // Per-agency dedup: once per agency, ever. (Matches the existing per-user
+    // first_exchange pattern — a claim-before-send log row, no unique index;
+    // safe at current scale where a single agency can't exchange two first
+    // outsourced files concurrently.)
+    if (tx.agencyId) {
+      const existing = await prisma.retentionEmailLog.findFirst({
+        where: { agencyId: tx.agencyId, emailKey: "first_outsourced_free" },
+        select: { id: true },
+      });
+      if (existing) return;
+    }
+
+    const base = process.env.NEXTAUTH_URL ?? "";
+    const ctaUrl = `${base}/transactions/${transactionId}`;
+
+    await sendRetentionEmail({
+      user: { id: agent.id, email: agent.email, name: agent.name, agencyId: agent.agencyId },
+      emailKey: "first_outsourced_free",
+      vars: { address: tx.propertyAddress, ctaUrl, addSaleUrl: `${base}/agent/transactions/new` },
+    });
+  } catch (err) {
+    console.error("[retention] maybeFireFirstOutsourcedFreeEmail error:", err);
   }
 }
 

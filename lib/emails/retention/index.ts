@@ -855,6 +855,7 @@ export type RetentionEmailKey =
   | "claim_welcome"
   | "stuck_day_3"
   | "first_exchange"
+  | "first_outsourced_free"
   | "quiet_30d"
   | "claim_quiet_14d"
   | "send_to_us_drop_21d"
@@ -865,6 +866,7 @@ export const RETENTION_EMAIL_KEYS: RetentionEmailKey[] = [
   "claim_welcome",
   "stuck_day_3",
   "first_exchange",
+  "first_outsourced_free",
   "quiet_30d",
   "claim_quiet_14d",
   "send_to_us_drop_21d",
@@ -877,6 +879,7 @@ export const TRANSACTIONAL_EMAIL_KEYS: RetentionEmailKey[] = [
   "claim_welcome",
   "stuck_day_3",
   "first_exchange",
+  "first_outsourced_free",
 ];
 
 export function buildRetentionEmail(key: RetentionEmailKey, vars: TemplateVars): RetentionEmailResult {
@@ -891,6 +894,17 @@ export function buildRetentionEmail(key: RetentionEmailKey, vars: TemplateVars):
         fileUrl: vars.ctaUrl ?? "",
         addSaleUrl: vars.addSaleUrl ?? vars.ctaUrl ?? "",
         unsubscribeUrl: vars.unsubscribeUrl,
+      }),
+      fromDisplayName: "Sales Progressor",
+    };
+    case "first_outsourced_free": return {
+      ...buildFirstExchangeHero({
+        firstName: vars.firstName,
+        addressLine1: vars.address ?? "",
+        fileUrl: vars.ctaUrl ?? "",
+        addSaleUrl: vars.addSaleUrl ?? vars.ctaUrl ?? "",
+        unsubscribeUrl: vars.unsubscribeUrl,
+        variant: "outsourced",
       }),
       fromDisplayName: "Sales Progressor",
     };

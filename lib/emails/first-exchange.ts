@@ -22,10 +22,27 @@ export function buildFirstExchange(vars: {
   fileUrl: string;
   addSaleUrl: string;
   unsubscribeUrl?: string;
+  // "self" (default): a self-progressed sale, which is always free — the free
+  // line reads "Self-progressed sales are completely free." "outsourced": the
+  // agency's first outsourced sale, free as a one-off giveaway — the free line
+  // reads "Your first outsourced sale is on us." Layout is identical; only the
+  // two free-pricing lines differ, so the honest copy matches who receives it.
+  variant?: "self" | "outsourced";
 }): { subject: string; html: string; text: string } {
   const firstName = escapeHtml(vars.firstName.trim());
   const fullAddress = [vars.addressLine1.trim(), vars.addressLine2?.trim()].filter(Boolean).join(", ");
   const subject = "Your first sale has exchanged";
+
+  const isOutsourced = vars.variant === "outsourced";
+  const freeSubtext = isOutsourced
+    ? "Your first outsourced sale is on us."
+    : "Self-progressed sales are completely free.";
+  const nextSubtextHtml = isOutsourced
+    ? "Add your next sale whenever you’re ready.<br>We’ll progress it with you, start to finish."
+    : "Add your next sale whenever you’re ready.<br>Self-progress as many as you like, <strong style=\"color:#1a1d29;\">completely free.</strong>";
+  const nextSubtextText = isOutsourced
+    ? "Add your next sale whenever you’re ready, and we’ll progress it with you, start to finish."
+    : "One down. Keep the rest moving. Add your next sale whenever you’re ready, and self-progress as many as you like, completely free.";
 
   // Single baked hero ("Your first sale. Exchanged.") for all breakpoints — the
   // title lives in the art, so the address stays in the body copy below.
@@ -43,7 +60,7 @@ export function buildFirstExchange(vars: {
           <td valign="middle" width="60"><img src="${EMAIL_ASSET}/icon-coins-white.png" width="52" height="52" alt="" style="display:block;border:0;"></td>
           <td valign="middle" style="padding-left:16px;">
             <div style="font-family:${FONT_STACK};font-size:21px;font-weight:800;color:#0F1B2D;">£0 to pay</div>
-            <div style="font-family:${FONT_STACK};font-size:14px;color:#8a93a3;margin-top:3px;">Self-progressed sales are completely free.</div>
+            <div style="font-family:${FONT_STACK};font-size:14px;color:#8a93a3;margin-top:3px;">${freeSubtext}</div>
           </td>
         </tr></table>
       </div>
@@ -59,7 +76,7 @@ export function buildFirstExchange(vars: {
           <td valign="top" width="60"><img src="${EMAIL_ASSET}/icon-bars-white.png" width="52" height="52" alt="" style="display:block;border:0;"></td>
           <td valign="top" style="padding-left:16px;">
             <div style="font-family:${FONT_STACK};font-size:16px;font-weight:800;color:#1a1d29;">One down. Keep the rest moving.</div>
-            <div style="font-family:${FONT_STACK};font-size:14px;color:#8a93a3;line-height:1.5;margin-top:5px;">Add your next sale whenever you’re ready.<br>Self-progress as many as you like, <strong style="color:#1a1d29;">completely free.</strong></div>
+            <div style="font-family:${FONT_STACK};font-size:14px;color:#8a93a3;line-height:1.5;margin-top:5px;">${nextSubtextHtml}</div>
             <div style="margin-top:12px;"><a href="${vars.addSaleUrl}" style="font-family:${FONT_STACK};font-size:15px;font-weight:800;color:#FF6B4A;text-decoration:underline;">Add another sale  &rarr;</a></div>
           </td>
         </tr></table>
@@ -89,11 +106,11 @@ export function buildFirstExchange(vars: {
     ``,
     `Contracts have exchanged on ${fullAddress} and the sale is now safely over the line.`,
     ``,
-    `£0 to pay. Self-progressed sales are completely free.`,
+    `£0 to pay. ${freeSubtext}`,
     ``,
     `View the file: ${vars.fileUrl}`,
     ``,
-    `One down. Keep the rest moving. Add your next sale whenever you’re ready, and self-progress as many as you like, completely free.`,
+    nextSubtextText,
     `Add another sale: ${vars.addSaleUrl}`,
     ``,
     `TSP · Sales Progressor`,

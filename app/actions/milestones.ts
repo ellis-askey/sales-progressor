@@ -37,7 +37,7 @@ import {
   scheduleOrSendCompletionPack,
 } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
-import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
+import { maybeFireFirstExchangeEmail, maybeFireFirstOutsourcedFreeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeSendBookingDiaryEmail } from "@/lib/services/booking-reminders";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
@@ -396,9 +396,12 @@ export async function confirmMilestoneAction(input: {
         }
       }
 
-      // Retention email: fire first-exchange celebration for the agent who owns the file
+      // Retention email: self-managed → first-exchange celebration for the
+      // confirming agency agent; outsourced first-free → the agency's own agent
+      // (never internal staff). Mutually exclusive by service type.
       if (code === "VM19" || code === "PM26") {
         await maybeFireFirstExchangeEmail(session.user.id, input.transactionId).catch(() => {});
+        await maybeFireFirstOutsourcedFreeEmail(input.transactionId).catch(() => {});
       }
 
       // SP bell notification: when an agency-side user (director/negotiator/viewer)

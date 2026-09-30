@@ -29,7 +29,7 @@ import {
   fireAutoCounterpartEmails,
   scheduleOrSendCompletionPack,
 } from "@/lib/services/portal";
-import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
+import { maybeFireFirstExchangeEmail, maybeFireFirstOutsourcedFreeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeSendReadyToExchangeEmail } from "@/lib/email/ready-to-exchange";
 import { EXCHANGE_COMPLETION_CODES } from "@/lib/services/exchange-completion-rules";
@@ -142,9 +142,12 @@ export async function sendMilestoneConfirmationNotifications(input: {
     }
   }
 
-  // Retention: first-exchange celebration for the confirming user.
+  // Retention: first-exchange celebration. Self-managed → the confirming agency
+  // agent; outsourced first-free → the agency's own agent (never internal). The
+  // two are mutually exclusive by service type, so firing both is safe.
   if (code === "VM19" || code === "PM26") {
     maybeFireFirstExchangeEmail(confirmerUserId, transactionId).catch(() => {});
+    maybeFireFirstOutsourcedFreeEmail(transactionId).catch(() => {});
   }
 
   // SP bell: when an agency-side user confirms on an outsourced file, ping the

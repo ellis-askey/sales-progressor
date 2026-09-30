@@ -110,7 +110,7 @@ jest.mock("@/lib/services/portal", () => ({
 jest.mock("@/lib/contacts/displayName", () => ({
   getDisplayName: jest.fn((c: { name?: string | null }) => c?.name ?? ""),
 }));
-jest.mock("@/lib/services/retention", () => ({ maybeFireFirstExchangeEmail: jest.fn(async () => ({})) }));
+jest.mock("@/lib/services/retention", () => ({ maybeFireFirstExchangeEmail: jest.fn(async () => ({})), maybeFireFirstOutsourcedFreeEmail: jest.fn(async () => ({})) }));
 jest.mock("@/lib/services/notifications", () => ({ notifyOutsourcedMilestoneConfirmed: jest.fn(async () => ({})) }));
 jest.mock("@/lib/services/booking-reminders", () => ({ maybeSendBookingDiaryEmail: jest.fn(async () => ({})) }));
 jest.mock("@/lib/services/reminders", () => ({

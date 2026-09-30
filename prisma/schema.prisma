@@ -153,6 +153,15 @@ model Agency {
   feeTier                  ClientType @default(standard)
   legacyOutsourcedFeePence Int? // Required when feeTier=legacy, null otherwise
 
+  // First-outsourced-free eligibility. The agency's first outsourced sale to
+  // reach exchange is on us (billing-trigger.ts) AND triggers the
+  // first_outsourced_free celebration email to the agency's own agent. Set false
+  // for agencies that were already outsourcing before this giveaway existed, so
+  // they neither get a wrongly-free file (the migrated-history hazard) nor the
+  // email. Default true = every genuinely new agency is eligible. The 5
+  // pre-existing outsourcing agencies are backfilled to false in the migration.
+  firstOutsourcedFreeEligible Boolean @default(true)
+
   users                      User[]
   transactions               PropertyTransaction[]
   manualTasks                ManualTask[]
