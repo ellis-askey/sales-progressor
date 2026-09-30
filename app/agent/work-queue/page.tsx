@@ -230,10 +230,13 @@ export default async function WorkQueuePage() {
   );
 }
 
-// Perceived-performance (2026-09-18): let the client router reuse this
-// page for 5 minutes after a visit — moving around a working burst never
-// re-renders a page you just saw. Per-page opt-in rather than a global
-// staleTimes so buyer/seller portal navigation keeps its default
-// always-fresh behaviour. Every mutation still purges this via its
-// revalidatePath calls, and the "As of" button force-refreshes.
-export const unstable_dynamicStaleTime = 300;
+// 2026-09-30: the Reminders page must ALWAYS render live — it drives "what to
+// chase now", and a stale render here surfaced a corrected reminder at its old
+// (overdue) date across every client, immune to browser refresh and even a
+// no-build-cache redeploy (a durable render/data cache was holding it). Force
+// fully-dynamic rendering with no data cache so every load reads the database
+// fresh. This replaces the earlier 5-minute client-router reuse
+// (unstable_dynamicStaleTime), whose staleness is the wrong trade-off for a
+// live work queue.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
