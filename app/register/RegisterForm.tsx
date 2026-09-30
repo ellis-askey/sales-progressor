@@ -197,6 +197,19 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         }
         .rbtn:active:not(:disabled) { transform: scale(0.98); }
         .rback:hover { color: #20242E !important; }
+        /* Option D side-door link: darkens on hover, no underline, arrow glides right. */
+        .reg-alt { text-align: center; font-size: 12px; color: #8A8A94; margin: 0; }
+        .reg-alt-link {
+          background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+          color: #FF6B4A; font-weight: 600; text-decoration: none;
+          display: inline-flex; align-items: center; gap: 4px;
+          transition: color 0.15s ease;
+        }
+        .reg-alt-link:hover { color: #C7401F; }
+        .reg-alt-link:focus-visible { outline: 2px solid #FF6B4A; outline-offset: 2px; border-radius: 4px; }
+        .reg-alt-arrow { display: inline-block; transition: transform 0.15s ease; }
+        .reg-alt-link:hover .reg-alt-arrow { transform: translateX(3px); }
+        @media (prefers-reduced-motion: reduce) { .reg-alt-arrow { transition: none; } }
         @keyframes rpulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%       { opacity: 0.6; transform: scale(0.85); }
@@ -261,32 +274,6 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
             {/* ── Step 1 ── */}
             {step === 1 && (
               <form onSubmit={e => { e.preventDefault(); advanceToStep2(); }} style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-
-                {progressorEnabled && (
-                  <div>
-                    <label style={labelStyle}>I&apos;m signing up as</label>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      {([
-                        { value: "agency" as const, label: "An estate agent" },
-                        { value: "progressor" as const, label: "A sales progressor" },
-                      ]).map(({ value, label }) => {
-                        const selected = accountType === value;
-                        return (
-                          <button key={value} type="button" onClick={() => setAccountType(value)} style={{
-                            flex: 1, padding: "10px 12px", borderRadius: "10px", cursor: "pointer",
-                            border: `1.5px solid ${selected ? "#FF6B4A" : "rgba(32,36,46,0.12)"}`,
-                            background: selected ? "rgba(255,107,74,0.08)" : "#F4F4F6",
-                            color: selected ? "#20242E" : "rgba(32,36,46,0.60)",
-                            fontSize: "13px", fontWeight: selected ? 600 : 500,
-                            transition: "all 0.15s ease",
-                          }}>
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 <div>
                   <label style={labelStyle}>Full name</label>
@@ -372,6 +359,19 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   Already have an account?{" "}
                   <Link href="/login" style={{ color: "#FF6B4A", fontWeight: 500, textDecoration: "none" }}>Sign in</Link>
                 </p>
+
+                {/* Option D — agency is the clean default; an independent sales
+                    progressor takes this quiet side door into the business
+                    signup. Only shown when the feature is on. */}
+                {progressorEnabled && (
+                  <p className="reg-alt">
+                    {isProgressor ? "Setting up a progression business." : "Progressing sales independently?"}{" "}
+                    <button type="button" className="reg-alt-link" onClick={() => setAccountType(t => t === "progressor" ? "agency" : "progressor")}>
+                      {isProgressor ? "Use an estate agency instead" : "Set up a progression business"}
+                      <span className="reg-alt-arrow" aria-hidden>→</span>
+                    </button>
+                  </p>
+                )}
               </form>
             )}
 
