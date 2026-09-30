@@ -89,7 +89,8 @@ export type AssembleDigestInput = {
   // vetted surveyor covering the property's postcode, turn the plain "book your
   // survey" nudge into a pre-filled quote offer. Resolved by the caller (async
   // coverage check); omitted = no local provider, so the email is unchanged.
-  surveyQuote?: { url: string };
+  // mortgage drives the "separate from your lender's valuation" line.
+  surveyQuote?: { url: string; mortgage: boolean };
 };
 
 export type AssembledDigest = {
@@ -278,23 +279,35 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 
   if (surveyOnly && surveyOffer) {
     // The survey is the only thing due — lead with the pre-filled quote offer.
+    // Mortgage buyers get the extra "separate from your lender's valuation" line.
+    const lenderLine = surveyOffer.mortgage
+      ? " This is separate from the valuation carried out by your mortgage lender."
+      : "";
     toneLines = [
-      `Now is a good time to get your survey booked. It is your own independent check on the property's condition, and it is separate from your lender's valuation.`,
+      `Now is a good time to think about getting your survey booked.`,
       ``,
-      `To make it simple, we work with vetted local surveyors who cover your area, and we have already filled in your details. Getting quotes back takes about a minute.`,
+      `A survey gives you an independent view of the property's condition and can highlight anything you may want to look into before you move forward.${lenderLine}`,
       ``,
-      `Get your survey quotes:`,
+      `If you'd like a recommendation, you can request quotes from a small selection of trusted local surveyors using the button below. It takes around 30 seconds.`,
+      ``,
+      `Get a survey quote:`,
       surveyOffer.url,
       ``,
       `Already arranged your own surveyor? You can confirm that on your page instead:`,
       respondUrl,
     ];
-  } else if (overallTone === "diy") {
-    const opener = count === 1
-      ? `There's one thing on your ${transactionWord} at ${address} that only you can move forward:`
-      : `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`;
+  } else if (overallTone === "diy" && count === 1) {
+    // A single DIY item reads as one clean step, not a one-item bullet list.
     toneLines = [
-      opener,
+      `There's one thing on your ${transactionWord} at ${address} that only you can move forward: ${diy[0].label}.`,
+      ``,
+      `Open the page below to confirm it's done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.`,
+      ``,
+      respondUrl,
+    ];
+  } else if (overallTone === "diy") {
+    toneLines = [
+      `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`,
       ``,
       ...diy.map((d) => bulletLine(d.label)),
       ``,
@@ -343,8 +356,8 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const surveyCalloutText = surveyOffer && !surveyOnly
     ? [
         ``,
-        `On your survey: we work with vetted local surveyors who cover your area and have pre-filled your details, so getting quotes back takes about a minute.`,
-        `Get your survey quotes: ${surveyOffer.url}`,
+        `Need a survey? If you'd like a recommendation, you can request quotes from a small selection of local surveyors who cover your area.`,
+        `Get a survey quote: ${surveyOffer.url}`,
       ]
     : [];
 
@@ -381,15 +394,20 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   let toneHtml: string;
 
   if (surveyOnly && surveyOffer) {
+    const lenderLineHtml = surveyOffer.mortgage
+      ? " This is separate from the valuation carried out by your mortgage lender."
+      : "";
     toneHtml = `
-          <p style="${pStyle}">Now is a good time to get your survey booked on your purchase at <strong>${escapeHtml(address)}</strong>. It is your own independent check on the property's condition, and it is separate from your lender's valuation.</p>
-          <p style="${pStyle}">To make it simple, we work with vetted local surveyors who cover your area, and we have already filled in your details. Getting quotes back takes about a minute.</p>`;
+          <p style="${pStyle}">Now is a good time to think about getting your survey booked on your purchase at <strong>${escapeHtml(address)}</strong>.</p>
+          <p style="${pStyle}">A survey gives you an independent view of the property's condition and can highlight anything you may want to look into before you move forward.${lenderLineHtml}</p>
+          <p style="${pStyle}">If you'd like a recommendation, you can request quotes from a small selection of trusted local surveyors using the button below. It takes around 30 seconds.</p>`;
+  } else if (overallTone === "diy" && count === 1) {
+    toneHtml = `
+          <p style="${pStyle}">There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward: <strong>${escapeHtml(diy[0].label)}</strong>.</p>
+          <p style="${pStyle}">Open the page below to confirm it's done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
   } else if (overallTone === "diy") {
-    const opener = count === 1
-      ? `There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
-      : `There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
     toneHtml = `
-          <p style="${pStyle}">${opener}</p>
+          <p style="${pStyle}">There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:</p>
           ${renderList(diy)}
           <p style="${pStyle}">Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
   } else if (overallTone === "nudge") {
@@ -425,8 +443,8 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:4px 0 20px;">
             <tr><td style="border:1px solid #e6e8ee;border-radius:10px;padding:16px 18px;background:#f7f8fa;">
               <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#1a1d29;">Need a survey?</p>
-              <p style="margin:0 0 12px;font-size:13.5px;line-height:1.55;color:#4a5162;">We work with vetted local surveyors who cover your area and have pre-filled your details, so getting quotes back takes about a minute.</p>
-              <a href="${surveyOffer.url}" style="display:inline-block;padding:9px 18px;border-radius:8px;background:${theme.buttonBg};color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:14px;">Get my survey quotes</a>
+              <p style="margin:0 0 12px;font-size:13.5px;line-height:1.55;color:#4a5162;">If you'd like a recommendation, you can request quotes from a small selection of local surveyors who cover your area.</p>
+              <a href="${surveyOffer.url}" style="display:inline-block;padding:9px 18px;border-radius:8px;background:${theme.buttonBg};color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:14px;">Get a survey quote</a>
             </td></tr>
           </table>`
     : "";
@@ -441,7 +459,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   // Primary CTA: the survey offer takes the button when it's the only item;
   // otherwise the usual "Open the page" (the callout box carries the survey link).
   const ctaHref = surveyOnly && surveyOffer ? surveyOffer.url : respondUrl;
-  const ctaLabel = surveyOnly && surveyOffer ? "Get my survey quotes" : "Open the page";
+  const ctaLabel = surveyOnly && surveyOffer ? "Get a survey quote" : "Open the page";
   const surveyOnlySecondaryHtml = surveyOnly
     ? `
           <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#4a5162;">Already arranged your own surveyor? <a href="${respondUrl}" style="color:${theme.buttonBg};text-decoration:underline;">Confirm it on your page</a>.</p>`
@@ -518,6 +536,9 @@ export async function enqueueClientChaseDigest(input: {
         // Phase 1 commit 4c: needed by the ClientChaseState upsert
         // below so purchaser-contact rows get round-stamped.
         activeBuyerRoundId: true,
+        // Critique #22: mortgage buyers get the extra "separate from your
+        // lender's valuation" line in the survey-quote offer copy.
+        purchaseType: true,
       },
     }),
     prisma.contact.findUnique({
@@ -589,11 +610,14 @@ export async function enqueueClientChaseDigest(input: {
   // Critique #22: if the survey step (PM9) is being chased to a buyer and a
   // vetted surveyor covers this property's postcode, turn the plain nudge into a
   // pre-filled quote offer. No coverage → undefined → the email is unchanged.
-  let surveyQuote: { url: string } | undefined;
+  let surveyQuote: { url: string; mortgage: boolean } | undefined;
   if (sendCodes.includes("PM9") && contact.roleType === "purchaser") {
     const avail = await resolveProviderAvailability(transaction.propertyAddress).catch(() => null);
     if (avail?.hasLocalCovered) {
-      surveyQuote = { url: `${portalBase()}/quote/${contact.portalToken}` };
+      surveyQuote = {
+        url: `${portalBase()}/quote/${contact.portalToken}`,
+        mortgage: transaction.purchaseType === "mortgage",
+      };
     }
   }
 
