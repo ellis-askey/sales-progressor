@@ -463,9 +463,14 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           {/* New sale CTA */}
           {(() => {
             const isNewSale = pathname.startsWith("/agent/transactions/new");
+            // A progression-business owner creates every sale against a client,
+            // so their "New sale" starts on the Clients screen (pick the agent,
+            // then "Add sale") rather than the blank form, which has no agency
+            // to hang a progressor's sale on. showClientsNav = flag + owner.
+            const newSaleHref = showClientsNav ? "/agent/clients" : "/agent/transactions/new";
             return (
               <Link
-                href="/agent/transactions/new"
+                href={newSaleHref}
                 // Instant-clicks slice (2026-09-18): full prefetch so the
                 // new-sale form is already loaded when clicked.
                 prefetch={true}
