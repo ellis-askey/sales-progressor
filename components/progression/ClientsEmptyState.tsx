@@ -82,7 +82,7 @@ export function ClientsEmptyState() {
       {/* Add a client form */}
       <div className="ce-form agent-glass">
         <div className="ce-form-hdr">
-          <span className="ce-form-ic"><Buildings size={22} weight="bold" /></span>
+          <span className="ce-form-ic"><Buildings size={24} weight="regular" /></span>
           <span className="ce-form-title">Add a client</span>
           <button type="button" className="ce-form-x" onClick={f.reset} aria-label="Clear">
             <X size={16} weight="bold" />
@@ -106,16 +106,17 @@ export function ClientsEmptyState() {
 
         {f.error && <p className="ce-err">{f.error}</p>}
 
-        <p className="ce-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
-
         <div className="ce-form-footer">
-          <button type="button" className="agent-btn agent-btn-secondary agent-btn-md" onClick={f.reset}>
-            Cancel
-          </button>
-          <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={f.submit} disabled={!f.canSubmit || f.adding} style={{ gap: 7 }}>
-            <UserPlus size={15} weight="bold" />
-            {f.adding ? "Adding…" : "Add client"}
-          </button>
+          <p className="ce-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
+          <div className="ce-form-actions">
+            <button type="button" className="agent-btn agent-btn-secondary agent-btn-md" onClick={f.reset}>
+              Cancel
+            </button>
+            <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={f.submit} disabled={!f.canSubmit || f.adding} style={{ gap: 7 }}>
+              <UserPlus size={15} weight="bold" />
+              {f.adding ? "Adding…" : "Add client"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -138,11 +139,13 @@ export function ClientsEmptyState() {
         .ce-lead { margin: 0 0 8px; font-size: 16.5px; font-weight: 500; color: var(--agent-text-secondary); line-height: 1.5; }
         .ce-detail { margin: 0; font-size: 14.5px; color: var(--agent-text-muted); line-height: 1.55; max-width: 460px; }
 
-        /* The three steps sit in their own subtle card below the text. */
-        .ce-steps-card { margin-top: 28px; max-width: 660px; padding: 22px 24px; border-radius: 16px; border: 0.5px solid var(--agent-border-subtle); background: rgba(255,255,255,0.45); }
-        .ce-steps { display: flex; align-items: flex-start; gap: 16px; }
+        /* The three steps sit in their own subtle card below the text. It fits to
+           the full width; the steps spread across and wrap only once the column
+           (squeezed by the preview) gets too narrow for a row. */
+        .ce-steps-card { margin-top: 28px; padding: 22px 24px; border-radius: 16px; border: 0.5px solid var(--agent-border-subtle); background: rgba(255,255,255,0.45); }
+        .ce-steps { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px 22px; }
         .ce-step-group { display: contents; }
-        .ce-step { display: flex; flex-direction: column; gap: 2px; flex: 1 1 0; max-width: 200px; }
+        .ce-step { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 150px; }
         .ce-step-ic { margin-bottom: 8px; }
         .ce-step-title { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--agent-text-primary); letter-spacing: -0.005em; }
         .ce-step-desc { margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.45; }
@@ -178,7 +181,7 @@ export function ClientsEmptyState() {
         /* Form card */
         .ce-form { border-radius: 18px; padding: 22px 24px; }
         .ce-form-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-        .ce-form-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 11px; background: rgba(var(--agent-coral-rgb), 0.12); color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; }
+        .ce-form-ic { display: inline-flex; align-items: center; color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; }
         .ce-form-title { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
         .ce-form-x { background: none; border: none; color: var(--agent-text-muted); cursor: pointer; padding: 3px; display: inline-flex; border-radius: 7px; transition: opacity 140ms ease, background 140ms ease; }
         .ce-form-x:hover { opacity: 0.65; background: rgba(0,0,0,0.04); }
@@ -191,8 +194,12 @@ export function ClientsEmptyState() {
         .ce-input:focus { border-color: var(--agent-coral-deep, #E2452A); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.14); }
 
         .ce-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
-        .ce-help { margin: 14px 0 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.5; }
-        .ce-form-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+        /* Buttons sit up against the inputs, with the helper text to their left.
+           When the row gets too tight they wrap below the helper, staying
+           bottom-right aligned (margin-left:auto). */
+        .ce-form-footer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 20px; margin-top: 16px; }
+        .ce-help { flex: 1 1 320px; min-width: 240px; margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.5; }
+        .ce-form-actions { display: flex; gap: 10px; margin-left: auto; flex-shrink: 0; }
 
         /* Hide the decorative preview once the two columns would crowd the hero. */
         @media (max-width: 1024px) {
@@ -204,10 +211,10 @@ export function ClientsEmptyState() {
         }
         @media (max-width: 560px) {
           .ce-steps { flex-direction: column; gap: 18px; }
-          .ce-step { max-width: none; }
+          .ce-step { min-width: 0; }
           .ce-step-arrow { display: none; }
-          .ce-form-footer { flex-direction: column-reverse; }
-          .ce-form-footer .agent-btn { width: 100%; }
+          .ce-form-actions { width: 100%; margin-left: 0; }
+          .ce-form-actions .agent-btn { flex: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
           .ce-wrap { animation: none; }
