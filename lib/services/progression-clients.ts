@@ -9,6 +9,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
+import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import type { Session } from "next-auth";
 
 export type BusinessOwner = { businessId: string; userId: string };
@@ -63,6 +64,18 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
   await prisma.progressionBusinessClient.create({
     data: { progressionBusinessId: input.owner.businessId, agencyId },
   });
+
+  // Best-effort onboarding email with a set-password link. A send failure is
+  // logged, not fatal — the account exists and the agent can use Forgot password.
+  try {
+    const business = await prisma.progressionBusiness.findUnique({
+      where: { id: input.owner.businessId },
+      select: { name: true },
+    });
+    await sendClientAgentSetupEmail({ userId, email, businessName: business?.name ?? "Your progressor" });
+  } catch (err) {
+    console.error(`[progression] client_agent_setup email failed for ${email}`, err);
+  }
 
   console.log(
     `[AUDIT] progression_client_added businessId=${input.owner.businessId} agencyId=${agencyId} agentUserId=${userId} by=${input.owner.userId}`,

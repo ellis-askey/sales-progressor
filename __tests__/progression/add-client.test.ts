@@ -10,12 +10,14 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
     progressionBusinessClient: { create: jest.fn() },
+    progressionBusiness: { findUnique: jest.fn(async () => ({ name: "Sarah's Progression Co" })) },
     propertyTransaction: { create: jest.fn(), groupBy: jest.fn() },
   },
 }));
 jest.mock("@/lib/auth/create-director-with-agency", () => ({
   createDirectorWithAgency: jest.fn(async () => ({ userId: "u_donna", agencyId: "ag_donna" })),
 }));
+jest.mock("@/lib/emails/client-agent-invite", () => ({ sendClientAgentSetupEmail: jest.fn() }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
 jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn() }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
@@ -26,6 +28,7 @@ import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import type { Session } from "next-auth";
 
 const p = prisma as any;
@@ -72,6 +75,10 @@ describe("addClientAgency", () => {
     });
     // Zero transaction access: adding a client never creates or tags a transaction.
     expect(p.propertyTransaction.create).not.toHaveBeenCalled();
+    // The new agent is emailed a set-password onboarding link.
+    expect(sendClientAgentSetupEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "u_donna", email: "donna@exp.com" }),
+    );
   });
 
   it("rejects an email that already has an account and creates nothing", async () => {

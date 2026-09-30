@@ -41,10 +41,13 @@ export type AgentEmailKind =
   | "chain_neighbour_chase"
   | "milestone_agent"
   | "milestone_progressor"
-  | "password_reset";
+  | "password_reset"
+  // Onboarding email for a progression business's newly-added client agent:
+  // carries a live set-password link (so it's redacted like password_reset).
+  | "client_agent_setup";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
-const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset"]);
+const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup"]);
 
 type SendAgentEmailParams = {
   // Passthrough to sendEmail.
