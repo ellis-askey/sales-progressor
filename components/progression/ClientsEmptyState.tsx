@@ -1,15 +1,13 @@
 "use client";
 
 // Onboarding empty state for /agent/clients (a progression-business owner with
-// no clients yet). "Warm glass" direction: frosted glass panels floating over a
-// warm coral-and-blue glow, the add form on the left and a decorative roster on
-// the right that SHUFFLES on hover (auto-cycles) or on a vertical swipe (mobile).
-// Fills the width on desktop, stacks on mobile. Canonical Button + .agent-input +
-// .agent-glass; the panel gradient/glow are bespoke with dark overrides.
-// Reduced-motion: no auto-shuffle, no float, no transitions.
+// no clients yet). "Warm glass" direction: frosted glass panels over a warm
+// coral-and-blue glow, the add form on the left and a decorative roster on the
+// right whose cards LIFT as the cursor passes over each. Fills the width on
+// desktop, stacks on mobile. Canonical Button + .agent-input + .agent-glass; the
+// primary button wears the reminders/enquiries polished gradient (.enq-btn-
+// primary2). Panel gradient/glow + lift honour reduced-motion.
 
-import type React from "react";
-import { useEffect, useRef, useState } from "react";
 import { UserPlus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
@@ -21,39 +19,9 @@ const ROSTER: { name: string; agency: string; sales: number; img: string }[] = [
   { name: "Emma Collins", agency: "Birchwood Homes", sales: 17, img: "/clients-preview/birchwood.png" },
   { name: "Daniel Carter", agency: "Maple & Co", sales: 9, img: "/clients-preview/maple.png" },
 ];
-const N = ROSTER.length;
-const SLOT = 84; // vertical distance between stacked cards
 
 export function ClientsEmptyState() {
   const f = useAddClientForm();
-
-  // Shuffle: `offset` rotates which card sits in which slot. Hover auto-cycles;
-  // a vertical swipe nudges it one step (mobile). Reduced-motion opts out of the
-  // auto-cycle (swipe still works, just without the slide).
-  const [offset, setOffset] = useState(0);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reduced = useRef(false);
-  const touchY = useRef<number | null>(null);
-
-  useEffect(() => {
-    reduced.current = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, []);
-
-  function startShuffle() {
-    if (reduced.current || timer.current) return;
-    timer.current = setInterval(() => setOffset((o) => o + 1), 950);
-  }
-  function stopShuffle() {
-    if (timer.current) { clearInterval(timer.current); timer.current = null; }
-  }
-  function onTouchStart(e: React.TouchEvent) { touchY.current = e.touches[0].clientY; }
-  function onTouchEnd(e: React.TouchEvent) {
-    if (touchY.current == null) return;
-    const dy = e.changedTouches[0].clientY - touchY.current;
-    if (Math.abs(dy) > 28) setOffset((o) => o + (dy < 0 ? 1 : -1));
-    touchY.current = null;
-  }
 
   return (
     <div className="cwg">
@@ -92,30 +60,23 @@ export function ClientsEmptyState() {
             </Button>
           </div>
 
-          {/* Decorative shuffling roster */}
-          <aside className="cwg-roster" aria-hidden onMouseEnter={startShuffle} onMouseLeave={stopShuffle} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {/* Decorative roster — each card lifts as the cursor passes over it */}
+          <aside className="cwg-roster" aria-hidden>
             <p className="cwg-roster-title">Your clients</p>
             <div className="cwg-stack">
-              {ROSTER.map((r, i) => {
-                const slot = (((i + offset) % N) + N) % N;
-                return (
-                  <div
-                    className="cwg-rcard agent-glass"
-                    key={r.name}
-                    style={{ transform: `translateY(${slot * SLOT}px) translateX(${(slot - 1) * 3}px) rotate(${(slot - 1) * 1.1}deg)`, zIndex: N - slot }}
-                  >
-                    <span className="cwg-tile"><img src={r.img} alt="" width={48} height={48} /></span>
-                    <div className="cwg-rmain">
-                      <div className="cwg-rname">{r.name}</div>
-                      <div className="cwg-ragency">{r.agency}</div>
-                    </div>
-                    <div className="cwg-rstat">
-                      <div className="cwg-rnum">{r.sales}</div>
-                      <div className="cwg-rsub">active</div>
-                    </div>
+              {ROSTER.map((r, i) => (
+                <div className={`cwg-rcard agent-glass cwg-rcard-${i}`} key={r.name}>
+                  <span className="cwg-tile"><img src={r.img} alt="" width={48} height={48} /></span>
+                  <div className="cwg-rmain">
+                    <div className="cwg-rname">{r.name}</div>
+                    <div className="cwg-ragency">{r.agency}</div>
                   </div>
-                );
-              })}
+                  <div className="cwg-rstat">
+                    <div className="cwg-rnum">{r.sales}</div>
+                    <div className="cwg-rsub">active</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </aside>
         </div>
@@ -163,18 +124,32 @@ export function ClientsEmptyState() {
         .cwg-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
         .cwg-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
         .cwg-help { margin: 12px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
-        .cwg-btn { width: 100%; margin-top: 16px; gap: 8px; }
 
-        /* Shuffling roster */
-        .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; touch-action: pan-x; }
+        /* Primary button: the reminders/enquiries polished gradient (matches
+           .enq-btn-primary2 / .rem-chase-go) — a vertical coral fill + top sheen. */
+        .cwg-btn { width: 100%; margin-top: 16px; gap: 8px;
+          background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
+        .cwg-btn:hover:not(:disabled) { filter: brightness(1.05); transform: none;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 18px -6px rgba(var(--agent-coral-rgb),0.45); }
+        .cwg-btn:active:not(:disabled) { transform: scale(0.985); }
+
+        /* Roster — subtle scattered glass cards; each lifts on hover */
+        .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; }
         .cwg-roster-title { margin: 0 0 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: var(--agent-text-secondary); padding-left: 4px; }
         @keyframes cwg-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-        .cwg-stack { position: relative; height: 240px; }
+        .cwg-stack { display: flex; flex-direction: column; gap: 12px; }
         .cwg-rcard {
-          position: absolute; top: 0; left: 0; right: 0; height: 72px; box-sizing: border-box;
-          display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 15px;
-          transition: transform 520ms cubic-bezier(0.22,1,0.36,1); will-change: transform;
+          display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 15px;
+          transition: transform 220ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms ease;
+          will-change: transform;
         }
+        .cwg-rcard-0 { transform: rotate(0.6deg); }
+        .cwg-rcard-1 { transform: rotate(-1deg) translateX(-5px); }
+        .cwg-rcard-2 { transform: rotate(0.8deg) translateX(4px); }
+        .cwg-rcard:hover { transform: translateY(-5px) scale(1.03); z-index: 2;
+          box-shadow: 0 18px 34px -14px rgba(40,26,20,0.4); }
+        :root[data-theme="dark"] .cwg-rcard:hover { box-shadow: 0 20px 38px -14px rgba(0,0,0,0.6); }
         .cwg-tile { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); }
         .cwg-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .cwg-rmain { min-width: 0; flex: 1; }
