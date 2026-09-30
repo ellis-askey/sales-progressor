@@ -34,7 +34,7 @@ import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
-import { createAgentChaseTaskForMilestone, clearFallbackForMilestone } from "@/lib/services/reminders";
+import { createAgentChaseTaskForMilestone, clearFallbackForMilestone, EXPECTED_DATE_GRACE_DAYS } from "@/lib/services/reminders";
 import type { ContactRole } from "@prisma/client";
 
 export const CLIENT_CHASE_GRACE_FLOOR_DAYS = 1;
@@ -464,8 +464,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       // TARGET milestone has an expectedDate set (searches "due back"), chase
       // from that date instead of the predecessor anchor. Mirrors the agent
       // engine so both surfaces agree.
+      let expectedDateAnchored = false;
       if (rule.useExpectedDate && targetComp.expectedDate) {
         anchorDate = targetComp.expectedDate;
+        expectedDateAnchored = true;
       }
 
       // Timing fields (graceDays + repeatEveryDays) come from the
@@ -476,8 +478,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       const graceDays = snapshotTiming?.graceDays ?? rule.graceDays;
       const repeatEveryDays = snapshotTiming?.repeatEveryDays ?? rule.repeatEveryDays;
 
-      // First-due-date = anchor + max(graceDays, floor)
-      const grace = Math.max(graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
+      // First-due-date = anchor + max(graceDays, floor). But when re-anchored on
+      // an expected due-back date, use the small expected-date buffer (fire when
+      // the date passes, not the ordered-step grace weeks later).
+      const grace = expectedDateAnchored ? EXPECTED_DATE_GRACE_DAYS : Math.max(graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
       const firstDueDate = addDays(anchorDate, grace);
 
       // Route to vendor or purchaser contacts based on code prefix.
