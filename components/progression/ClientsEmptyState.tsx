@@ -1,224 +1,166 @@
 "use client";
 
 // Onboarding empty state for /agent/clients (a progression-business owner with
-// no clients yet). Matches the agreed mock: a hero + three-step "how it works"
-// row, a decorative "Your clients" preview card (hidden below the two-column
-// breakpoint so it never clashes with the hero text), and the "Add a client"
-// form. Canonical agent-btn classes carry the press/hover states; borders are
-// hairline (var(--agent-border-subtle)); reduced-motion is honoured.
+// no clients yet). "Warm glass" direction: frosted glass panels floating over a
+// warm coral-and-blue glow, with the add form on the left and a decorative
+// floating roster on the right. Fills the width on desktop, stacks on mobile.
+// Canonical agent-glass / agent-btn carry the surfaces + press states; the panel
+// gradient + glow are bespoke with explicit dark overrides. Reduced-motion safe.
 
 import type { ReactNode } from "react";
-import {
-  UserPlus, EnvelopeSimple, FileText, House, Leaf, Mountains,
-  ArrowRight, CaretRight, Buildings, X,
-} from "@phosphor-icons/react";
+import { House, Leaf, Mountains, UserPlus } from "@phosphor-icons/react";
 import { useAddClientForm } from "./useAddClientForm";
 
-const STEPS: { title: string; desc: string; icon: ReactNode; color: string }[] = [
-  { title: "1. Add your client", desc: "Their name, agency and email.", icon: <UserPlus size={24} weight="regular" />, color: "var(--agent-coral-deep, #E2452A)" },
-  { title: "2. We'll invite them", desc: "They'll get their own secure login.", icon: <EnvelopeSimple size={24} weight="regular" />, color: "#3B6FD4" },
-  { title: "3. Start progressing", desc: "Add their sales and get to work.", icon: <FileText size={24} weight="regular" />, color: "#2F7D53" },
-];
-
 // Decorative only (aria-hidden): fictional agencies, glyph tiles — a taste of
-// the populated list, never real data.
-const PREVIEW: { name: string; agency: string; sales: number; icon: ReactNode; tileBg: string; iconColor: string }[] = [
-  { name: "Alex Turner", agency: "Riverside Estates", sales: 28, icon: <House size={22} weight="fill" />, tileBg: "#1F2A44", iconColor: "#FF6B4A" },
-  { name: "Emma Collins", agency: "Birchwood Homes", sales: 17, icon: <Leaf size={22} weight="fill" />, tileBg: "rgba(59,111,212,0.14)", iconColor: "#3B6FD4" },
-  { name: "Daniel Carter", agency: "Maple & Co", sales: 9, icon: <Mountains size={22} weight="fill" />, tileBg: "rgba(176,142,74,0.18)", iconColor: "#2F7D53" },
+// the populated roster, never real data.
+const ROSTER: { name: string; agency: string; sales: number; icon: ReactNode; tileBg: string; iconColor: string; cls: string }[] = [
+  { name: "Daniel Carter", agency: "Maple & Co", sales: 9, icon: <Mountains size={20} weight="fill" />, tileBg: "rgba(176,142,74,0.20)", iconColor: "#2F7D53", cls: "t1" },
+  { name: "Emma Collins", agency: "Birchwood Homes", sales: 17, icon: <Leaf size={20} weight="fill" />, tileBg: "rgba(59,111,212,0.16)", iconColor: "#3B6FD4", cls: "t2" },
+  { name: "Alex Turner", agency: "Riverside Estates", sales: 28, icon: <House size={20} weight="fill" />, tileBg: "#1E2A44", iconColor: "#FF6B4A", cls: "t3" },
 ];
 
 export function ClientsEmptyState() {
   const f = useAddClientForm();
 
   return (
-    <div className="ce-wrap">
-      <div className="ce-top">
-        {/* Hero */}
-        <div className="ce-hero">
-          <p className="ce-eyebrow">Clients</p>
-          <h1 className="ce-title">Add your first client</h1>
-          <p className="ce-lead">Add the agents and agencies you progress sales for.</p>
-          <p className="ce-detail">They&rsquo;ll have their own login, while you manage their sales from one place.</p>
+    <div className="cwg">
+      <div className="cwg-blob cwg-blob-1" aria-hidden />
+      <div className="cwg-blob cwg-blob-2" aria-hidden />
 
-          <div className="ce-steps-card">
-            <div className="ce-steps">
-              {STEPS.map((s, i) => (
-                <div className="ce-step-group" key={s.title}>
-                  <div className="ce-step">
-                    <span className="ce-step-ic" style={{ color: s.color }}>{s.icon}</span>
-                    <p className="ce-step-title">{s.title}</p>
-                    <p className="ce-step-desc">{s.desc}</p>
-                  </div>
-                  {i < STEPS.length - 1 && <ArrowRight size={16} weight="bold" className="ce-step-arrow" aria-hidden />}
-                </div>
-              ))}
+      <div className="cwg-inner">
+        <p className="cwg-eyebrow">Clients</p>
+        <h1 className="cwg-title">Add your first client</h1>
+        <p className="cwg-sub">Add the agents and agencies you progress sales for.</p>
+
+        <div className="cwg-cols">
+          {/* Form */}
+          <div className="cwg-form agent-glass">
+            <div className="cwg-field">
+              <label className="cwg-label" htmlFor="cwg-name">Contact name</label>
+              <input id="cwg-name" className="cwg-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} placeholder="e.g. Sophie Bennett" maxLength={100} />
             </div>
-          </div>
-        </div>
-
-        {/* Decorative preview */}
-        <aside className="ce-preview agent-glass" aria-hidden>
-          <p className="ce-preview-title">Your clients</p>
-          <div className="ce-preview-rows">
-            {PREVIEW.map((p) => (
-              <div className="ce-prow" key={p.name}>
-                <span className="ce-tile" style={{ background: p.tileBg, color: p.iconColor }}>{p.icon}</span>
-                <div className="ce-prow-main">
-                  <div className="ce-prow-name">{p.name}</div>
-                  <div className="ce-prow-agency">{p.agency}</div>
-                </div>
-                <div className="ce-prow-stat">
-                  <div className="ce-prow-num">{p.sales}</div>
-                  <div className="ce-prow-sub">active sales</div>
-                </div>
-                <CaretRight size={18} weight="bold" className="ce-prow-caret" />
+            <div className="cwg-row">
+              <div className="cwg-field">
+                <label className="cwg-label" htmlFor="cwg-email">Email address</label>
+                <input id="cwg-email" className="cwg-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} placeholder="sophie@oakandkey.co.uk" maxLength={255} />
               </div>
-            ))}
-          </div>
-        </aside>
-      </div>
+              <div className="cwg-field">
+                <label className="cwg-label" htmlFor="cwg-agency">Agency name</label>
+                <input id="cwg-agency" className="cwg-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} placeholder="e.g. Oak & Key" maxLength={120} />
+              </div>
+            </div>
 
-      {/* Add a client form */}
-      <div className="ce-form agent-glass">
-        <div className="ce-form-hdr">
-          <span className="ce-form-ic"><Buildings size={24} weight="regular" /></span>
-          <span className="ce-form-title">Add a client</span>
-          <button type="button" className="ce-form-x" onClick={f.reset} aria-label="Clear">
-            <X size={16} weight="bold" />
-          </button>
-        </div>
+            {f.error && <p className="cwg-err">{f.error}</p>}
+            <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
 
-        <div className="ce-fields">
-          <div className="ce-field">
-            <label className="ce-label" htmlFor="ce-name">Contact name</label>
-            <input id="ce-name" className="ce-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} placeholder="e.g. Sophie Bennett" maxLength={100} />
-          </div>
-          <div className="ce-field">
-            <label className="ce-label" htmlFor="ce-email">Email address</label>
-            <input id="ce-email" className="ce-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} placeholder="sophie@oakandkey.co.uk" maxLength={255} />
-          </div>
-          <div className="ce-field">
-            <label className="ce-label" htmlFor="ce-agency">Agency name</label>
-            <input id="ce-agency" className="ce-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} placeholder="e.g. Oak & Key" maxLength={120} />
-          </div>
-        </div>
-
-        {f.error && <p className="ce-err">{f.error}</p>}
-
-        <div className="ce-form-footer">
-          <p className="ce-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
-          <div className="ce-form-actions">
-            <button type="button" className="agent-btn agent-btn-secondary agent-btn-md" onClick={f.reset}>
-              Cancel
-            </button>
-            <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={f.submit} disabled={!f.canSubmit || f.adding} style={{ gap: 7 }}>
-              <UserPlus size={15} weight="bold" />
+            <button type="button" className="agent-btn agent-btn-primary agent-btn-md cwg-btn" onClick={f.submit} disabled={!f.canSubmit || f.adding}>
+              <UserPlus size={16} weight="bold" />
               {f.adding ? "Adding…" : "Add client"}
             </button>
           </div>
+
+          {/* Decorative floating roster */}
+          <aside className="cwg-roster" aria-hidden>
+            <p className="cwg-roster-title">Your clients</p>
+            {ROSTER.map((r) => (
+              <div className={`cwg-rcard agent-glass ${r.cls}`} key={r.name}>
+                <span className="cwg-tile" style={{ background: r.tileBg, color: r.iconColor }}>{r.icon}</span>
+                <div className="cwg-rmain">
+                  <div className="cwg-rname">{r.name}</div>
+                  <div className="cwg-ragency">{r.agency}</div>
+                </div>
+                <div className="cwg-rstat">
+                  <div className="cwg-rnum">{r.sales}</div>
+                  <div className="cwg-rsub">active</div>
+                </div>
+              </div>
+            ))}
+          </aside>
         </div>
       </div>
 
       <style>{`
-        .ce-wrap {
-          display: flex; flex-direction: column; gap: 24px; width: 100%;
-          animation: ce-in 360ms cubic-bezier(0.16,1,0.3,1) both;
+        .cwg {
+          position: relative; overflow: hidden; width: 100%;
+          border-radius: 24px; padding: clamp(26px, 4vw, 46px);
+          border: 1px solid var(--agent-border-subtle);
+          background:
+            linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.11), transparent 52%),
+            linear-gradient(305deg, rgba(64,116,214,0.09), transparent 55%),
+            rgba(255,255,255,0.32);
+          box-shadow: 0 26px 62px -34px rgba(40,26,20,0.30);
+          animation: cwg-in 420ms cubic-bezier(0.16,1,0.3,1) both;
         }
-        @keyframes ce-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-
-        /* Fills the content area (like every other page). The hero sits in the
-           app's gradient hero card (its padding is what keeps the text off the
-           edges); the preview is a fixed-ish right rail. */
-        .ce-top { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 28px; align-items: start; }
-
-        .ce-hero { position: relative; }
-        .ce-eyebrow { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--agent-text-muted); }
-
-        .ce-title { margin: 0 0 14px; font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: var(--agent-text-primary); text-wrap: balance; }
-        .ce-lead { margin: 0 0 8px; font-size: 16.5px; font-weight: 500; color: var(--agent-text-secondary); line-height: 1.5; }
-        .ce-detail { margin: 0; font-size: 14.5px; color: var(--agent-text-muted); line-height: 1.55; max-width: 460px; }
-
-        /* The three steps sit in their own subtle card below the text. It fits to
-           the full width; the steps spread across and wrap only once the column
-           (squeezed by the preview) gets too narrow for a row. */
-        .ce-steps-card { margin-top: 28px; padding: 22px 24px; border-radius: 16px; border: 0.5px solid var(--agent-border-subtle); background: rgba(255,255,255,0.45); }
-        .ce-steps { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px 22px; }
-        .ce-step-group { display: contents; }
-        .ce-step { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 150px; }
-        .ce-step-ic { margin-bottom: 8px; }
-        .ce-step-title { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--agent-text-primary); letter-spacing: -0.005em; }
-        .ce-step-desc { margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.45; }
-        .ce-step-arrow { color: var(--agent-text-muted); opacity: 0.4; flex-shrink: 0; margin-top: 6px; }
-
-        /* Decorative preview card — leans slightly in 3D (matches the reference),
-           straightens on hover. Static tilt is fine under reduced-motion; only
-           the hover transition is dropped there. */
-        .ce-preview {
-          border-radius: 20px; padding: 20px; margin-top: 10px; user-select: none;
-          transform: perspective(1600px) rotateY(-8deg) rotateX(2.5deg);
-          transform-origin: 65% 50%;
-          box-shadow: 0 34px 64px -26px rgba(28,26,44,0.30), 0 12px 26px -14px rgba(28,26,44,0.18);
-          transition: transform 480ms cubic-bezier(0.22,1,0.36,1), box-shadow 480ms ease;
-          will-change: transform;
+        :root[data-theme="dark"] .cwg {
+          background:
+            linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.15), transparent 52%),
+            linear-gradient(305deg, rgba(108,151,232,0.12), transparent 55%),
+            rgba(255,255,255,0.03);
+          box-shadow: 0 34px 74px -38px rgba(0,0,0,0.72);
         }
-        .ce-preview:hover {
-          transform: perspective(1600px) rotateY(0deg) rotateX(0deg);
-          box-shadow: 0 26px 52px -24px rgba(28,26,44,0.22);
-        }
-        .ce-preview-title { margin: 0 0 14px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--agent-text-primary); }
-        .ce-preview-rows { display: flex; flex-direction: column; gap: 10px; }
-        .ce-prow { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.55); border: 0.5px solid var(--agent-border-subtle); }
-        .ce-tile { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; flex-shrink: 0; }
-        .ce-prow-main { min-width: 0; flex: 1; }
-        .ce-prow-name { font-size: 15px; font-weight: 700; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ce-prow-agency { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ce-prow-stat { text-align: right; flex-shrink: 0; }
-        .ce-prow-num { font-size: 19px; font-weight: 800; color: var(--agent-text-primary); line-height: 1.1; font-variant-numeric: tabular-nums; }
-        .ce-prow-sub { font-size: 11px; color: var(--agent-text-muted); }
-        .ce-prow-caret { color: var(--agent-text-muted); opacity: 0.55; flex-shrink: 0; }
+        @keyframes cwg-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+        .cwg-blob { position: absolute; border-radius: 50%; filter: blur(66px); pointer-events: none; z-index: 0; }
+        .cwg-blob-1 { width: 360px; height: 360px; top: -120px; right: -70px; opacity: 0.5;
+          background: radial-gradient(circle at 40% 40%, rgba(var(--agent-coral-rgb),0.95), transparent 68%); }
+        .cwg-blob-2 { width: 320px; height: 320px; bottom: -130px; left: 26%; opacity: 0.42;
+          background: radial-gradient(circle at 50% 50%, rgba(70,124,224,0.9), transparent 70%); }
+        :root[data-theme="dark"] .cwg-blob-1 { opacity: 0.4; }
+        :root[data-theme="dark"] .cwg-blob-2 { opacity: 0.34; }
+
+        .cwg-inner { position: relative; z-index: 1; }
+        .cwg-eyebrow { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A); }
+        .cwg-title { margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 820; letter-spacing: -0.03em; line-height: 1.05; color: var(--agent-text-primary); text-wrap: balance; }
+        .cwg-sub { margin: 0; font-size: 14.5px; color: var(--agent-text-secondary); line-height: 1.5; max-width: 42ch; }
+
+        .cwg-cols { display: grid; grid-template-columns: 1fr 0.9fr; gap: 28px; align-items: center; margin-top: 30px; }
 
         /* Form card */
-        .ce-form { border-radius: 18px; padding: 22px 24px; }
-        .ce-form-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-        .ce-form-ic { display: inline-flex; align-items: center; color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; }
-        .ce-form-title { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
-        .ce-form-x { background: none; border: none; color: var(--agent-text-muted); cursor: pointer; padding: 3px; display: inline-flex; border-radius: 7px; transition: opacity 140ms ease, background 140ms ease; }
-        .ce-form-x:hover { opacity: 0.65; background: rgba(0,0,0,0.04); }
-
-        .ce-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .ce-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
-        .ce-input { width: 100%; padding: 11px 13px; font-size: 14px; color: var(--agent-text-primary); background: var(--agent-input-bg, rgba(255,255,255,0.7)); border: 0.5px solid var(--agent-border-subtle); border-radius: 10px; outline: none; transition: border-color 140ms ease, box-shadow 140ms ease; box-sizing: border-box; }
-        .ce-input::placeholder { color: var(--agent-text-muted); opacity: 0.7; }
-        .ce-input:hover { border-color: rgba(var(--agent-coral-rgb), 0.4); }
-        .ce-input:focus { border-color: var(--agent-coral-deep, #E2452A); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.14); }
-
-        .ce-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
-        /* Buttons sit up against the inputs, with the helper text to their left.
-           When the row gets too tight they wrap below the helper, staying
-           bottom-right aligned (margin-left:auto). */
-        .ce-form-footer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 20px; margin-top: 16px; }
-        .ce-help { flex: 1 1 320px; min-width: 240px; margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.5; }
-        .ce-form-actions { display: flex; gap: 10px; margin-left: auto; flex-shrink: 0; }
-
-        /* Hide the decorative preview once the two columns would crowd the hero. */
-        @media (max-width: 1024px) {
-          .ce-top { grid-template-columns: 1fr; }
-          .ce-preview { display: none; }
+        .cwg-form { border-radius: 18px; padding: 22px; }
+        .cwg-field { margin-bottom: 12px; }
+        .cwg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .cwg-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
+        .cwg-input {
+          width: 100%; box-sizing: border-box; padding: 11px 13px; font-size: 14px;
+          color: var(--agent-text-primary); background: rgba(255,255,255,0.6);
+          border: 0.5px solid var(--agent-border-subtle); border-radius: 10px; outline: none;
+          transition: border-color 140ms ease, box-shadow 140ms ease;
         }
-        @media (max-width: 720px) {
-          .ce-fields { grid-template-columns: 1fr; }
+        :root[data-theme="dark"] .cwg-input { background: rgba(255,255,255,0.05); }
+        .cwg-input::placeholder { color: var(--agent-text-muted); opacity: 0.75; }
+        .cwg-input:hover { border-color: rgba(var(--agent-coral-rgb),0.4); }
+        .cwg-input:focus { border-color: var(--agent-coral-deep, #E2452A); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),0.14); }
+        .cwg-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
+        .cwg-help { margin: 12px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
+        .cwg-btn { width: 100%; margin-top: 16px; gap: 8px; }
+
+        /* Decorative roster */
+        .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; }
+        .cwg-roster-title { margin: 0 0 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: var(--agent-text-secondary); padding-left: 4px; }
+        @keyframes cwg-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        .cwg-rcard { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 15px; margin-bottom: 12px; }
+        .cwg-rcard:last-child { margin-bottom: 0; }
+        .cwg-rcard.t1 { transform: translateX(12px) rotate(1.2deg); }
+        .cwg-rcard.t2 { transform: translateX(-6px) rotate(-1.4deg); }
+        .cwg-rcard.t3 { transform: translateX(4px) rotate(0.6deg); }
+        .cwg-tile { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+        .cwg-rmain { min-width: 0; flex: 1; }
+        .cwg-rname { font-size: 14px; font-weight: 700; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cwg-ragency { font-size: 12px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cwg-rstat { text-align: right; flex-shrink: 0; }
+        .cwg-rnum { font-size: 18px; font-weight: 800; color: var(--agent-text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+        .cwg-rsub { font-size: 10.5px; color: var(--agent-text-muted); margin-top: 2px; }
+
+        @media (max-width: 820px) {
+          .cwg-cols { grid-template-columns: 1fr; gap: 24px; }
+          /* form stays first; the decorative roster follows below */
         }
-        @media (max-width: 560px) {
-          .ce-steps { flex-direction: column; gap: 18px; }
-          .ce-step { min-width: 0; }
-          .ce-step-arrow { display: none; }
-          .ce-form-actions { width: 100%; margin-left: 0; }
-          .ce-form-actions .agent-btn { flex: 1; }
+        @media (max-width: 480px) {
+          .cwg-row { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .ce-wrap { animation: none; }
-          .ce-form-x, .ce-input, .ce-preview { transition: none; }
+          .cwg, .cwg-roster { animation: none; }
+          .cwg-input { transition: none; }
         }
       `}</style>
     </div>
