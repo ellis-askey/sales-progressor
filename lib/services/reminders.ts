@@ -384,7 +384,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
   // where can't reference the parent tx's activeBuyerRoundId, so we
   // fetch the logs (without the MC include), then per-tx fetch the
   // round-scoped satisfied codes in a single batch query.
-  const logs = await prisma.reminderLog.findMany({
+  const allLogs = await prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
     include: {
       reminderRule: {
@@ -439,6 +439,19 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     },
     orderBy: { nextDueDate: "asc" },
   });
+
+  // Relist safety (belt-and-braces): never surface a reminder that belongs to an
+  // ARCHIVED buyer round. Vendor / file-level logs (buyerRoundId null) and the
+  // active round's logs stay; a stale old-round log that somehow survived the
+  // relist cancellation sweep is dropped here so it can't render an old-buyer
+  // date (read straight off nextDueDate as "overdue" and even queued for an
+  // immediate auto-chase). Mirrors the per-file getChaseTasksForTransaction
+  // round filter — the cross-file query can't express "= this tx's active round"
+  // in Prisma, so we filter in memory using the activeBuyerRoundId we already
+  // selected per log.
+  const logs = allLogs.filter(
+    (l) => l.buyerRoundId == null || l.buyerRoundId === l.transaction.activeBuyerRoundId,
+  );
 
   // Step 2: build a per-tx round-scoped map of satisfied codes via raw
   // SQL DISTINCT so the per-tx OR clause can reference the parent.
