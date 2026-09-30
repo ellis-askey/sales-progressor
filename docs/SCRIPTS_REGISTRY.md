@@ -386,3 +386,10 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-09-30.
 - **Deletion criteria:** delete this script + this entry once the real pilot progression business is onboarded and the seeded test data is no longer needed.
 - **Justification:** disposable demo/proof-see data for a not-yet-self-serve onboarding path; belongs in a seed script, not a feature, until self-serve business onboarding exists.
+
+### seed-progression-fixture.ts
+- **Purpose:** deterministic isolation fixture for the progression-businesses feature (docs/active/progression-businesses/, Phase 8). Builds the 3-business / 7-transaction matrix (Sarah + Other businesses, Donna/James/Unrelated/Other agencies, their users, and 7 tagged " - PBFIX" transactions) so the isolation rules can be walked manually and by e2e/progression-isolation.spec.ts. Idempotent (natural keys). Refuses production.
+- **Lifetime:** one-shot (throwaway, staging/local isolation testing).
+- **Author/date:** Claude, 2026-09-30.
+- **Deletion criteria:** delete this script + this entry once the progression-businesses isolation testing is settled and the seeded fixture data is no longer needed on staging.
+- **Justification:** disposable multi-entity test data that backs an e2e spec; belongs in a seed script (Law 20 keeps fabricated names in seeds), not a feature or a unit test.
