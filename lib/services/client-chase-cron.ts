@@ -159,6 +159,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       graceDays: true,
       repeatEveryDays: true,
       useEventDate: true,
+      useExpectedDate: true,
       requiresExchangeReady: true,
     },
   });
@@ -257,6 +258,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       state: string;
       completedAt: Date | null;
       eventDate: Date | null;
+      expectedDate: Date | null;
       reconciledAtClaim: boolean;
     }>
   >`
@@ -266,6 +268,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       mc.state::text AS state,
       mc."completedAt",
       mc."eventDate",
+      mc."expectedDate",
       mc."reconciledAtClaim"
     FROM "MilestoneCompletion" mc
     JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
@@ -450,12 +453,20 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       const anchorComp = rule.anchorMilestoneId
         ? completionByTxAndDefId.get(`${transaction.id}:${rule.anchorMilestoneId}`) ?? null
         : null;
-      const anchorDate = computeAnchorDate({
+      let anchorDate = computeAnchorDate({
         rule,
         transaction,
         anchorCompletion: anchorComp,
       });
       if (!anchorDate) continue;
+
+      // Critique #23: expected-date re-anchoring. When the rule opts in and the
+      // TARGET milestone has an expectedDate set (searches "due back"), chase
+      // from that date instead of the predecessor anchor. Mirrors the agent
+      // engine so both surfaces agree.
+      if (rule.useExpectedDate && targetComp.expectedDate) {
+        anchorDate = targetComp.expectedDate;
+      }
 
       // Timing fields (graceDays + repeatEveryDays) come from the
       // per-transaction snapshot; falls back to the live ReminderRule for

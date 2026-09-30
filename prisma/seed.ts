@@ -380,7 +380,7 @@ async function main() {
     { name: "Chase: Survey report received",                                   targetMilestoneCode: "PM10", anchorCode: "PM9",   graceDays: 7,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
     { name: "Chase: Mortgage offer received",                                  targetMilestoneCode: "PM11", anchorCode: "PM6",   graceDays: 14, repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
     { name: "Chase: Management pack received (buyer)",                         targetMilestoneCode: "PM12", anchorCode: "VM8",   graceDays: 14, repeatEveryDays: 10, escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, useExpectedDate: true },
     // Enquiries rework: PM14 (enquiries raised) is chased by the enquiries
     // tracker, so its milestone-engine rule stays inactive. PM15-PM19 (the
     // granular buyer enquiries loop) are retired (RETIRED_ENQUIRY_CODES); PM20

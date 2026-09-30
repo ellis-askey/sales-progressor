@@ -965,6 +965,20 @@ export async function evaluateTransactionReminders(
       anchorDate = transaction.completionDate;
     }
 
+    // Critique #23: expected-date re-anchoring (searches "due back", and any
+    // step given an expected date). When the rule opts in and the TARGET
+    // milestone has an expectedDate set (by the solicitor or agent), measure the
+    // chase from that date instead of the predecessor anchor, so we don't chase
+    // before it's due. No expectedDate → keep the anchor computed above. The
+    // anchor-milestone gate above still governs whether the reminder exists at
+    // all (PM13 only after PM8/searches-ordered completes).
+    if (rule.useExpectedDate && rule.targetMilestoneCode) {
+      const targetCompletion = completionByCode.get(rule.targetMilestoneCode);
+      if (targetCompletion?.expectedDate) {
+        anchorDate = targetCompletion.expectedDate;
+      }
+    }
+
     // Pass 3 B7: vendor chase clock reset at relist. If this rule TARGETS a
     // vendor milestone that gets reset by relist, AND the computed anchor
     // pre-dates the active round's start, clamp the anchor forward to the

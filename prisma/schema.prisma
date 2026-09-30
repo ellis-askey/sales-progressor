@@ -1776,6 +1776,12 @@ model ReminderRule {
   // VM19 is complete), but the actual due date is measured from the
   // agreed completion date stored at exchange. Used by VM20 / PM27.
   useCompletionDate     Boolean  @default(false)
+  // Critique #23: when true, the engine re-anchors the chase on the TARGET
+  // milestone's MilestoneCompletion.expectedDate when one is set (e.g. a
+  // "searches due back" date entered by the solicitor or the agent), so we
+  // don't chase before it's due. No expectedDate → falls back to the normal
+  // predecessor anchor. Used by PM13 (search results received).
+  useExpectedDate       Boolean  @default(false)
   isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
