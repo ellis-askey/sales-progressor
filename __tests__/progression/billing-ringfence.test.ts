@@ -46,7 +46,7 @@ beforeEach(() => {
   prismaMock.agency.findUnique.mockResolvedValue({ feeTier: "standard", firstOutsourcedFreeEligible: true });
 });
 
-describe("maybeStampExchange — external progression-business ring-fence (B1)", () => {
+describe("maybeStampExchange: external progression-business ring-fence (B1)", () => {
   it("records the exchange but does NOT bill the client agency for an external-business file", async () => {
     prismaMock.propertyTransaction.findUnique.mockResolvedValue({ ...base, progressionBusinessId: "sarah-biz" });
     await maybeStampExchange("tx1", "VM19");
