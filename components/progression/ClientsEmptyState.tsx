@@ -79,7 +79,7 @@ export function ClientsEmptyState() {
       {/* Add a client form */}
       <div className="ce-form agent-glass">
         <div className="ce-form-hdr">
-          <span className="ce-form-ic"><Buildings size={18} weight="bold" /></span>
+          <span className="ce-form-ic"><Buildings size={22} weight="bold" /></span>
           <span className="ce-form-title">Add a client</span>
           <button type="button" className="ce-form-x" onClick={f.reset} aria-label="Clear">
             <X size={16} weight="bold" />
@@ -118,14 +118,23 @@ export function ClientsEmptyState() {
 
       <style>{`
         .ce-wrap {
-          display: flex; flex-direction: column; gap: 32px; width: 100%;
+          display: flex; flex-direction: column; gap: 24px; width: 100%;
           animation: ce-in 360ms cubic-bezier(0.16,1,0.3,1) both;
         }
         @keyframes ce-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-        /* Fills the content area (like every other page), not a centred column.
-           The preview is a fixed-ish right rail; the hero takes the rest. */
-        .ce-top { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 52px; align-items: start; }
+        /* Fills the content area (like every other page). The hero sits in the
+           app's gradient hero card (its padding is what keeps the text off the
+           edges); the preview is a fixed-ish right rail. */
+        .ce-top { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 28px; align-items: start; }
+
+        .ce-hero {
+          position: relative; overflow: hidden;
+          border-radius: var(--agent-radius-xl);
+          padding: 36px 40px;
+          border: 1px solid var(--agent-border-subtle);
+          background: linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.13), rgba(var(--agent-coral-rgb),0.045) 54%, transparent 80%);
+        }
 
         .ce-title { margin: 0 0 14px; font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: var(--agent-text-primary); text-wrap: balance; }
         .ce-lead { margin: 0 0 8px; font-size: 16.5px; font-weight: 500; color: var(--agent-text-secondary); line-height: 1.5; }
@@ -169,7 +178,7 @@ export function ClientsEmptyState() {
         /* Form card */
         .ce-form { border-radius: 18px; padding: 22px 24px; }
         .ce-form-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-        .ce-form-ic { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: rgba(var(--agent-coral-rgb), 0.10); color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; }
+        .ce-form-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 11px; background: rgba(var(--agent-coral-rgb), 0.12); color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; }
         .ce-form-title { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
         .ce-form-x { background: none; border: none; color: var(--agent-text-muted); cursor: pointer; padding: 3px; display: inline-flex; border-radius: 7px; transition: opacity 140ms ease, background 140ms ease; }
         .ce-form-x:hover { opacity: 0.65; background: rgba(0,0,0,0.04); }
