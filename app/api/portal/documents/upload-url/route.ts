@@ -7,8 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolvePortalUploadContact } from "@/lib/portal/upload-auth";
 import { createDocumentUploadUrl } from "@/lib/supabase-storage";
 import { buildDocumentStoragePath, validateUploadRequest } from "@/lib/upload/document-upload";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 export async function POST(req: NextRequest) {
+  // Read-only window: don't even mint an upload URL for an agent view.
+  if (await isAgentPortalView()) return NextResponse.json({ error: "Read-only preview" }, { status: 403 });
   const token = req.nextUrl.searchParams.get("token");
   const contact = await resolvePortalUploadContact(token);
   if (!contact) return NextResponse.json({ error: "Invalid token" }, { status: 401 });

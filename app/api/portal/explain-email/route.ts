@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { callClaude } from "@/lib/anthropic";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 const RATE_LIMIT_PER_HOUR = 3;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -29,6 +30,8 @@ Rules:
 - Do NOT use # headings of any kind`;
 
 export async function POST(req: NextRequest) {
+  // Read-only window: don't spend AI tokens explaining an email for an agent view.
+  if (await isAgentPortalView()) return NextResponse.json({ error: "Read-only preview" }, { status: 403 });
   const { token, emailBody } = await req.json();
 
   if (!token || typeof emailBody !== "string" || emailBody.trim().length < 20) {

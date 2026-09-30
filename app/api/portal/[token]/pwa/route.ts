@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 // Records portal PWA adoption (Command Centre → App adoption). The client pings
 // this on load when it's running in standalone display-mode, and on the browser
@@ -7,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 // only signal there — hence the first standalone open also stamps installed.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
+    if (await isAgentPortalView()) return NextResponse.json({ ok: true });
     const { token } = await params;
     const body = (await req.json().catch(() => ({}))) as { standalone?: boolean; installed?: boolean };
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 // Records that the client has given their solicitor authority to exchange, from
 // the exchange-day card on their portal. Only accepted while the file is
@@ -9,6 +10,9 @@ import { isExchangeDayActive } from "@/lib/services/exchange-day";
 // who's ready. See docs/active/exchange-day-SPEC.md.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
+    // Read-only window: an agent looking must never give the client's authority
+    // to exchange. Clients have no session, so this only blocks agent views.
+    if (await isAgentPortalView()) return NextResponse.json({ ok: true });
     const { token } = await params;
     const contact = await prisma.contact.findFirst({
       where: { portalToken: token },

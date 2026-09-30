@@ -7,8 +7,12 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+  // Read-only window: don't open an engaged-time session for an agent view (and
+  // returning no sessionId means the client hook never heartbeats).
+  if (await isAgentPortalView()) return NextResponse.json({});
   const { token } = await ctx.params;
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },

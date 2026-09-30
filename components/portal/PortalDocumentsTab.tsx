@@ -15,6 +15,7 @@ import { P } from "./portal-ui";
 import { PortalSheet } from "./PortalSheet";
 import { getMyPortalDocumentsAction, portalDeleteDocument, portalToggleDocumentShare } from "@/app/actions/portal";
 import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 import { categoriesFor, isDocShareable } from "@/lib/portal-documents";
 import type { PortalDocumentsData, PortalDoc } from "@/lib/services/portal-documents";
 
@@ -337,6 +338,7 @@ function AddSheet({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const readOnly = usePortalReadOnly();
   const cats = categoriesFor(data.role, data.tenure);
   const preCat = preselect ? cats.find((c) => c.docs.some((d) => d.key === preselect)) : null;
   const [catKey, setCatKey] = useState<string>(preCat?.key ?? cats[0]?.key ?? "");
@@ -359,6 +361,7 @@ function AddSheet({
   const activeCat = cats.find((c) => c.key === catKey) ?? cats[0];
 
   async function upload() {
+    if (readOnly) return; // read-only window: never upload to the client's file
     if (!file || !docKey) { setError("Pick a document type and a file."); return; }
     setUploading(true);
     setError(null);

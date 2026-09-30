@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "@phosphor-icons/react/dist/ssr";
 import { P } from "./portal-ui";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type AuthorityState = "given" | "reask" | "first";
 
@@ -20,6 +21,7 @@ export function PortalExchangeDayCard({
   saleWord: "sale" | "purchase";
   authorityState: AuthorityState;
 }) {
+  const readOnly = usePortalReadOnly();
   const [given, setGiven] = useState(authorityState === "given");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,9 @@ export function PortalExchangeDayCard({
   }, [given]);
 
   async function confirm() {
+    // Read-only window: show the confirmed state locally but never post the
+    // client's authority to exchange.
+    if (readOnly) { setGiven(true); setSheetOpen(false); return; }
     setLoading(true);
     try {
       const res = await fetch(`/api/portal/${token}/give-authority`, { method: "POST" });

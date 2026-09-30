@@ -15,6 +15,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { getSurveyBookingOptionsForTx, applySurveyBooking, type SurveyBookingOption, type SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { assertLivePortalRound } from "@/lib/portal/round-guard";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -33,6 +34,10 @@ export async function portalConfirmMilestoneAction(input: {
   // report the split going forward.
   source?: "app" | "chase";
 }): Promise<PortalConfirmResult> {
+  // Read-only window backstop: a write arriving from an agent session is never
+  // the client — refuse it so viewing can't confirm a step. The client UI
+  // already skips the call; this covers any path that slips through.
+  if (await isAgentPortalView()) return { ok: true };
   try {
     await portalCompleteMilestone(input);
   } catch (err) {
@@ -153,6 +158,7 @@ export async function portalMarkNotRequiredAction(input: {
   token: string;
   milestoneDefinitionId: string;
 }) {
+  if (await isAgentPortalView()) return;
   await portalMarkNotRequired(input);
 
   revalidatePath(`/portal/${input.token}`, "page");
@@ -166,6 +172,7 @@ export async function portalMarkRequiredAction(input: {
   token: string;
   milestoneDefinitionId: string;
 }) {
+  if (await isAgentPortalView()) return;
   await portalUnmarkNotRequired(input);
 
   revalidatePath(`/portal/${input.token}`, "page");
@@ -189,6 +196,7 @@ export async function recordPortalSurveyBookingAction(input: {
   token: string;
   choice: SurveyBookingChoice;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (await isAgentPortalView()) return { ok: true };
   // Dead-round guard (P1-4): a superseded buyer can't book against the live round.
   try {
     await assertLivePortalRound(input.token);
@@ -214,6 +222,7 @@ export async function portalSendMessageAction(input: {
   token: string;
   content: string;
 }) {
+  if (await isAgentPortalView()) return;
   if (!input.content.trim()) throw new Error("Message cannot be empty");
   await sendClientPortalMessage(input.token, input.content.trim());
   revalidatePath(`/portal/${input.token}/updates`, "page");
@@ -266,6 +275,7 @@ export async function portalConfirmFromRespondAction(input: {
   milestoneDefinitionId: string;
   eventDate?: string | null;
 }) {
+  if (await isAgentPortalView()) return { ok: true } as PortalConfirmResult;
   const result = await portalConfirmMilestoneAction({
     token: input.token,
     milestoneDefinitionId: input.milestoneDefinitionId,
@@ -307,6 +317,7 @@ export async function portalSetExpectedDateAction(input: {
   milestoneDefinitionId: string;
   expectedDate: string;
 }) {
+  if (await isAgentPortalView()) return;
   if (!input.expectedDate) throw new Error("Date required");
   // Dead-round guard (P1-4): a superseded buyer can't set dates / snooze chases
   // on the live round.
@@ -462,6 +473,7 @@ export async function portalLeaveChaseNoteAction(input: {
   milestoneCode: string;
   note: string;
 }) {
+  if (await isAgentPortalView()) return;
   const trimmed = input.note.trim();
   if (!trimmed) throw new Error("Note cannot be empty");
   // Dead-round guard (P1-4): a superseded buyer can't leave chase notes on the
@@ -541,6 +553,7 @@ export async function portalSaveCostsAction(input: {
   additionalProperty?: boolean | null;
   completionFundsSent?: boolean;
 }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   // Dead-round guard (P1-4): a superseded buyer can't overwrite the live buyer's
   // financial figures on the file.
   try {
@@ -586,6 +599,7 @@ export async function portalSaveMoveInfoAction(input: {
   token: string;
   patch: Partial<import("@/lib/services/portal-info").MoveInfo>;
 }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   // Dead-round guard (P1-4): a superseded buyer can't overwrite the live buyer's
   // move information.
   try {
@@ -638,6 +652,7 @@ export async function portalSaveSettingsAction(input: {
   token: string;
   settings: import("@/lib/portal/settings").PortalSettings;
 }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   const { parsePortalSettings } = await import("@/lib/portal/settings");
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
@@ -661,6 +676,7 @@ export async function getMyPortalDocumentsAction(token: string) {
 
 // Remove a document the client uploaded themselves (their own only).
 export async function portalDeleteDocument(input: { token: string; docId: string }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
     select: { id: true },
@@ -683,6 +699,7 @@ export async function portalToggleDocumentShare(input: {
   docId: string;
   shared: boolean;
 }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
     select: { id: true },
@@ -706,6 +723,7 @@ export async function portalSaveOverviewLayout(input: {
   order: string[];
   hidden: string[];
 }): Promise<{ ok: boolean }> {
+  if (await isAgentPortalView()) return { ok: true };
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
     select: { id: true },

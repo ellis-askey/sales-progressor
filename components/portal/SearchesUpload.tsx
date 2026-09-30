@@ -4,18 +4,21 @@ import { useRef, useState } from "react";
 import { P } from "./portal-ui";
 import { uploadDocumentDirect } from "@/lib/upload/direct-upload";
 import { MAX_UPLOAD_FILES } from "@/lib/upload/document-upload";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type Props = { token: string };
 
 type UploadState = "idle" | "uploading" | "done" | "error";
 
 export function SearchesUpload({ token }: Props) {
+  const readOnly = usePortalReadOnly();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>("idle");
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function handleFiles(files: FileList | null) {
+    if (readOnly) return; // read-only window: never upload to the client's file
     if (!files || files.length === 0) return;
 
     const list = Array.from(files).slice(0, MAX_UPLOAD_FILES);

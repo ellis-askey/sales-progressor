@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 // Stamps welcomeSeenAt on the client's Contact when they dismiss the first-visit
 // welcome sheet ("Got it"). Gates the sheet server-side so it shows once per
@@ -8,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 // no-op. No body needed — the token identifies the contact.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
+    if (await isAgentPortalView()) return NextResponse.json({ ok: true });
     const { token } = await params;
     await prisma.contact.updateMany({
       where: { portalToken: token, welcomeSeenAt: null },

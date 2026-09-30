@@ -12,8 +12,12 @@ import { storageObjectExists } from "@/lib/supabase-storage";
 import { isKnownDocType } from "@/lib/portal-documents";
 import { resolvePortalUploadContact } from "@/lib/portal/upload-auth";
 import { ALLOWED_UPLOAD_MIME, MAX_DOCUMENT_BYTES } from "@/lib/upload/document-upload";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 export async function POST(req: NextRequest) {
+  // Read-only window: an agent looking must not upload a document to the client's
+  // file. Refuse before touching storage or the DB.
+  if (await isAgentPortalView()) return NextResponse.json({ error: "Read-only preview" }, { status: 403 });
   const token = req.nextUrl.searchParams.get("token");
   const contact = await resolvePortalUploadContact(token);
   if (!contact) return NextResponse.json({ error: "Invalid token" }, { status: 401 });

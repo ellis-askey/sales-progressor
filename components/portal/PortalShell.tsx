@@ -14,6 +14,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
 import { usePortalPick } from "@/lib/glass/portal-context";
 import { classFor } from "@/lib/glass/variants";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type Props = {
   token: string;
@@ -88,6 +89,11 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   const base = `/portal/${token}`;
   const saleWord = roleType === "vendor" ? "sale" : "purchase";
 
+  // Read-only window: an agent is looking through the glass. Suppress every
+  // passive tracker (engaged-time, PWA ping, onboarding, first-visit welcome) so
+  // viewing trips nothing. Interactive components handle their own guard.
+  const readOnly = usePortalReadOnly();
+
   // Design Lab: the two nav bars are tagged surfaces too, so a founder pick
   // restyles them live. No pick → the current chrome.
   const topNavPick = usePortalPick("portal-topnav");
@@ -111,7 +117,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // Measure real engaged time the client spends on their portal (audit
   // COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13). Mounts once for the whole portal
   // shell, so it spans every sub-page. No backfill — records from ship forward.
-  usePortalTimeTracking(token);
+  usePortalTimeTracking(readOnly ? null : token);
 
   // Menu drawer (hamburger top-right of the header, added 2026-08-09).
   const [menuOpen, setMenuOpen] = useState(false);
@@ -182,8 +188,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           globals.css) so dark mode gets a deep-ground variant. Batch 4. */}
       <div aria-hidden className="portal-ambient" />
 
-      {/* Fire-and-forget PWA adoption signal (Command Centre → App adoption). */}
-      <PortalPwaPing token={token} />
+      {/* Fire-and-forget PWA adoption signal (Command Centre → App adoption).
+          Suppressed in the agent window — an agent looking is not a client
+          adding the app to their home screen. */}
+      {!readOnly && <PortalPwaPing token={token} />}
 
       {/* Top header. On the overview it floats OVER the property photo
           (transparent, with a soft top scrim for legibility) so the image runs
@@ -274,12 +282,15 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           logic. 2026-08-09.
           The original PortalInstallPrompt + PortalPushPrompt files
           are kept on disk for revert; unused as of this change. */}
-      {/* First-visit welcome (once per client, all viewports). */}
-      {!isRespond && (
+      {/* First-visit welcome (once per client, all viewports). Suppressed in the
+          agent window: it would auto-open a modal over the very portal the agent
+          wants to see, and dismissing it would stamp "welcome seen" on the
+          client. */}
+      {!isRespond && !readOnly && (
         <PortalWelcomeSheet token={token} side={roleType === "vendor" ? "vendor" : "purchaser"} alreadySeen={welcomeSeen} />
       )}
 
-      {!isRespond && (
+      {!isRespond && !readOnly && (
         <div className="lg:hidden">
           <PortalOnboardingToasts
             token={token}

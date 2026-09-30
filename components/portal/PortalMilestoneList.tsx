@@ -16,6 +16,7 @@ import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
 import { PortalPill } from "./portal-ui";
 import { DateField } from "@/components/ui/DateField";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 
 type Milestone = {
@@ -79,6 +80,7 @@ async function fireConfetti() {
 }
 
 export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel, saleActive = true }: Props) {
+  const readOnly = usePortalReadOnly();
   const [, startTransition] = useTransition();
   const [optimisticMilestones, addOptimistic] = useOptimistic(
     milestones,
@@ -169,6 +171,8 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   }
 
   function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
+    // Read-only window: press animates, sheet closes, nothing is confirmed.
+    if (readOnly) { closeSheet(); return; }
     if (isTimeSensitive && !eventDate) {
       setError("Please enter the date for this step.");
       return;
@@ -214,6 +218,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   }
 
   function skipSurvey(milestoneId: string) {
+    if (readOnly) { setSkipSurveyId(null); return; }
     setSkipSurveyId(null);
     setSkipLoading(true);
     startTransition(async () => {

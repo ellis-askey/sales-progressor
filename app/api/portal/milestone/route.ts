@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { portalCompleteMilestone } from "@/lib/services/portal";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 export async function POST(req: NextRequest) {
+  // Read-only window backstop: never complete a milestone from an agent view.
+  if (await isAgentPortalView()) return NextResponse.json({ ok: true }, { status: 200 });
   const { token, milestoneDefinitionId, eventDate } = await req.json();
   if (!token || !milestoneDefinitionId) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });

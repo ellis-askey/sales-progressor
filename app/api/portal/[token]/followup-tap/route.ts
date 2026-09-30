@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 // Records that a client opened a follow-up to their conveyancer (tapped "Open in
 // email"). Powers the Command Centre opened-vs-sent usage view. Not proof of a
 // send — the CC'd copy filed via the inbox sync is that.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
+    if (await isAgentPortalView()) return NextResponse.json({ ok: true });
     const { token } = await params;
     const body = (await req.json().catch(() => ({}))) as { stepCode?: string; state?: string };
     if (!body.stepCode || !body.state) return NextResponse.json({ error: "Bad request" }, { status: 400 });

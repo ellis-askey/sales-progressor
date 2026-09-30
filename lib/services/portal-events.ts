@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { EventType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 /**
  * Emit a client-side portal engagement event into the unified Event table
@@ -24,6 +25,10 @@ export async function recordPortalEvent(
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
   try {
+    // Read-only window: an agent looking at a client's portal must not emit any
+    // engagement event (section viewed, service surfaced, recap click, etc.).
+    // Clients have no session, so this only ever suppresses agent views.
+    if (await isAgentPortalView()) return;
     const c = await prisma.contact.findUnique({
       where: { id: contactId },
       select: {

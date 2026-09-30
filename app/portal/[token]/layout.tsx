@@ -16,6 +16,8 @@ import { getPortalGlassPicks } from "@/lib/glass/portal-picks";
 import { PortalGlassProvider } from "@/lib/glass/portal-context";
 import { PortalSettingsProvider } from "@/components/portal/PortalSettingsProvider";
 import { parsePortalSettings, portalSettingsBootScript } from "@/lib/portal/settings";
+import { isAgentPortalView } from "@/lib/portal/preview";
+import { PortalReadOnlyProvider } from "@/components/portal/PortalReadOnlyProvider";
 // Glass variant classes for the founder-only portal Design Lab. Light-theme
 // glass tokens are re-declared on .portal-scope in globals.css.
 import "@/app/styles/glass.css";
@@ -85,12 +87,21 @@ export default async function PortalLayout({
 
   const { contact, transaction } = result.data;
 
+  // Read-only "window": true when an internal agent (who has a session) is
+  // viewing, not the real token-only client. When true, EVERY passive side-
+  // effect of a view is suppressed — the agent looks through the glass and trips
+  // nothing on the client's file. See lib/portal/preview.ts.
+  const agentView = await isAgentPortalView();
+
   // Client appearance/accessibility settings (Batch 4). Applied to <html>
   // pre-paint by the boot script (no flash), then managed live by the provider.
   const portalSettings = parsePortalSettings((contact as { portalSettings?: unknown }).portalSettings);
 
   // Log portal view and update last-visited timestamp (fire-and-forget — never blocks render)
   // Both run from layout so they fire on every sub-page (progress, updates, etc.), not just root.
+  // Skipped entirely for an agent view: a look through the window must not stamp
+  // a visit, clear the unread badge, or fire any engagement signal.
+  if (!agentView) {
   logPortalView(token).catch(() => {});
   void (async () => {
     const row = await prisma.contact.findUnique({
@@ -137,6 +148,7 @@ export default async function PortalLayout({
       }
     }
   })();
+  }
 
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -186,27 +198,31 @@ export default async function PortalLayout({
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: portalSettingsBootScript(portalSettings) }} />
-      <PortalSettingsProvider token={token} initial={portalSettings}>
-        <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
-          <PortalShell
-            token={token}
-            contactName={contact.name}
-            roleType={contact.roleType}
-            propertyAddress={transaction.propertyAddress}
-            agencyName={transaction.agencyName}
-            vapidPublicKey={vapidPublicKey}
-            welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt || !transaction.portalDisplay.welcomeSheet}
-            photoUrl={transaction.photoUrl ?? null}
-            unreadCount={unreadCount}
-            hasConfirmedStep={hasConfirmedStep}
-            isReturningVisit={isReturningVisit}
-            isNearExchange={isNearExchange}
-          >
-            <PortalAutoRefresh />
-            {children}
-          </PortalShell>
-        </PortalGlassProvider>
-      </PortalSettingsProvider>
+      <PortalReadOnlyProvider readOnly={agentView}>
+        <PortalSettingsProvider token={token} initial={portalSettings}>
+          <PortalGlassProvider initialPicks={glassPicks} canEdit={canEditLab}>
+            <PortalShell
+              token={token}
+              contactName={contact.name}
+              roleType={contact.roleType}
+              propertyAddress={transaction.propertyAddress}
+              agencyName={transaction.agencyName}
+              vapidPublicKey={vapidPublicKey}
+              welcomeSeen={!!(contact as { welcomeSeenAt?: Date | null }).welcomeSeenAt || !transaction.portalDisplay.welcomeSheet}
+              photoUrl={transaction.photoUrl ?? null}
+              unreadCount={unreadCount}
+              hasConfirmedStep={hasConfirmedStep}
+              isReturningVisit={isReturningVisit}
+              isNearExchange={isNearExchange}
+            >
+              {/* Auto-refresh is a live-client convenience; in the agent window it
+                  would reload the iframe under the agent, so it's suppressed there. */}
+              {!agentView && <PortalAutoRefresh />}
+              {children}
+            </PortalShell>
+          </PortalGlassProvider>
+        </PortalSettingsProvider>
+      </PortalReadOnlyProvider>
     </>
   );
 }

@@ -15,6 +15,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadAvatar, getAvatarPublicUrl } from "@/lib/supabase-storage";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
@@ -28,6 +29,8 @@ function extFor(mime: string): string {
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+  // Read-only window: an agent looking must not change the client's photo.
+  if (await isAgentPortalView()) return NextResponse.json({ url: null });
   const { token } = await ctx.params;
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },

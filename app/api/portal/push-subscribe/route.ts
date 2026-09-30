@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAgentPortalView } from "@/lib/portal/preview";
 
 export async function POST(req: NextRequest) {
   try {
+    if (await isAgentPortalView()) return NextResponse.json({ ok: true });
     const { token, subscription } = await req.json() as {
       token: string;
       subscription: { endpoint: string; keys: { p256dh: string; auth: string } };

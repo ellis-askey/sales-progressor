@@ -22,6 +22,7 @@ import { PortalButton } from "./PortalButton";
 import { PortalMoney } from "./PortalMoney";
 import { calculateSdlt } from "@/lib/sdlt";
 import { portalSaveCostsAction } from "@/app/actions/portal";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 // One info-blue for every stamp-duty figure/affordance (reads on light + dark).
 const INFO = "#3B82F6";
@@ -64,9 +65,12 @@ type Props = {
 };
 
 export function PortalCostsCard({
-  priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token, previewMode = false,
+  priceGBP, hasExchanged, isCash, savedDeposit, savedMortgage, savedOtherFunds, savedFtb, savedAdditional, savedFundsSent, token, previewMode: previewModeProp = false,
   sharedSdlt, onSharedSdltChange,
 }: Props) {
+  // The agency-settings preview passes previewMode; the agent's read-only window
+  // supplies it via context. Either one means "show it, never save it".
+  const previewMode = previewModeProp || usePortalReadOnly();
   const [open, setOpen] = useState(false);
   // Item B: the "See your stamp duty" task prompt opens this card's sheet.
   useEffect(() => {

@@ -8,6 +8,7 @@ import { PortalGlassCard } from "./PortalGlassCard";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
 import { DateField } from "@/components/ui/DateField";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type Props = {
   token: string;
@@ -43,6 +44,7 @@ async function fireConfetti() {
 }
 
 export function PortalNextActionCard({ token, milestone, whatHappensNext, saleActive = true }: Props) {
+  const readOnly = usePortalReadOnly();
   const [, startTransition] = useTransition();
   const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -71,6 +73,12 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext, saleAc
   }
 
   function confirm() {
+    // Read-only window: the agent sees the confirm sheet exactly as the client
+    // would, and the button presses, but nothing is confirmed. Just close.
+    if (readOnly) {
+      setSheetOpen(false);
+      return;
+    }
     if (milestone.eventDateRequired && !eventDate) {
       setError("Please enter the date for this step.");
       return;

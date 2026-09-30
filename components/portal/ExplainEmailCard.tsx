@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { P } from "@/components/portal/portal-ui";
 import { usePortalPick } from "@/lib/glass/portal-context";
 import { classFor } from "@/lib/glass/variants";
+import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type State = "idle" | "open" | "loading" | "result" | "error";
 
@@ -76,6 +77,7 @@ const AMBER_BG = "#fdf8ee";
 const AMBER_TEXT = "#7a5a1e";
 
 export function ExplainEmailCard({ token }: { token: string }) {
+  const readOnly = usePortalReadOnly();
   const [state, setState] = useState<State>("idle");
   const glassPick = usePortalPick("explain-email");
   const [emailBody, setEmailBody] = useState("");
@@ -84,6 +86,8 @@ export function ExplainEmailCard({ token }: { token: string }) {
 
   async function handleSubmit() {
     if (emailBody.trim().length < 20) return;
+    // Read-only window: don't call the AI explainer for an agent view.
+    if (readOnly) return;
     setState("loading");
     setErrorMsg("");
     try {
