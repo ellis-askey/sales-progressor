@@ -135,10 +135,10 @@ export function PortalThingsToConfirm({
 
       <PortalSheet open={pending != null} onClose={closeSheet} closeDisabled={loading}>
         <div className="px-6 pb-6 pt-2">
-          <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>Confirm this</p>
+          <p className="text-[18px] font-semibold leading-snug mb-2" style={{ color: P.textPrimary }}>Are you sure?</p>
           {pending && (
             <p className="text-[14px] leading-relaxed mb-4" style={{ color: P.textSecondary }}>
-              You&apos;re confirming: {pending.label}.{pending.isBoth ? ` ${otherName} confirms their side too.` : ""} We&apos;ll let everyone know.
+              You&apos;re confirming: {pending.label}.{pending.isBoth ? ` ${otherName} confirms their side too.` : ""}
             </p>
           )}
           <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>Date this was done</label>

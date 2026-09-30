@@ -321,6 +321,8 @@ function RowKebab({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Actions for ${contactName}`}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-muted)"; }}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -332,6 +334,7 @@ function RowKebab({
           background: "var(--agent-surface-elevated)",
           color: "var(--agent-text-muted)",
           cursor: "pointer",
+          transition: "border-color 140ms ease, color 140ms ease",
         }}
       >
         <DotsThreeVertical size={16} weight="bold" />

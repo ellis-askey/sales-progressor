@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useState, useEffect, useTransition, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import { DateField } from "@/components/ui/DateField";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { DotsThree, Bell, Trash, Plus } from "@phosphor-icons/react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { clampPopoverRight } from "@/lib/agent/popover-position";
+import { DotsThreeVertical, Bell, Trash, Plus } from "@phosphor-icons/react";
 import type { CheckpointView } from "@/lib/services/checkpoints";
 import {
   createCheckpointAction,
@@ -61,9 +64,17 @@ export function CheckpointsPanel({
   items: CheckpointView[];
 }) {
   const { toast } = useAgentToast();
+  const { theme } = usePortalTheme();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  const menuItemStyle = (color: string): CSSProperties => ({
+    display: "flex", alignItems: "flex-start", gap: 10, width: "100%", textAlign: "left",
+    padding: "8px 9px", borderRadius: 8, border: "none", background: "transparent",
+    cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color,
+  });
 
   // composer
   const [adding, setAdding] = useState(false);
@@ -75,7 +86,21 @@ export function CheckpointsPanel({
   function pName(p: string): string {
     return p === "vendor" ? vendorName : p === "purchaser" ? purchaserName : "you";
   }
-  const openCount = items.filter((i) => !i.isComplete).length;
+
+  // The menu is portalled to <body> (clears the card's stacking context so it
+  // can't hide behind the next card / the right rail). Close it on scroll/resize
+  // so the fixed menu never drifts from its button; an outside click closes via
+  // the full-screen scrim rendered with it.
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [menuId]);
 
   function run(id: string | null, fn: () => Promise<{ ok: boolean; error?: string } | { ok: true; delivered: number }>, okMsg?: string) {
     setBusyId(id);
@@ -124,17 +149,17 @@ export function CheckpointsPanel({
     <GlassCard glassId="overview-checkpoints" label="Overview · Checkpoints" defaultVariant="v05" style={{ borderRadius: 14 }}>
       <div style={{ padding: "14px 16px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: items.length ? 4 : 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Checkpoints</span>
-            {openCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-tertiary)", background: "rgba(var(--agent-coral-rgb),0.14)", borderRadius: 999, padding: "3px 9px" }}>{openCount} open</span>
-            )}
-          </div>
-          {!adding && (
-            <button className="enq-btn enq-btn-primary2" onClick={() => setAdding(true)} style={{ padding: "7px 12px" }}>
-              <Plus size={14} weight="bold" /> Add
-            </button>
-          )}
+          <span style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Checkpoints</span>
+          <button
+            type="button"
+            onClick={() => setAdding((a) => !a)}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)", padding: "4px 2px" }}
+          >
+            <Plus size={15} weight="bold" style={{ transition: "transform 320ms cubic-bezier(0.34,1.56,0.64,1)", transform: adding ? "rotate(135deg)" : "none" }} />
+            Add
+          </button>
         </div>
 
         {/* rows */}
@@ -148,9 +173,6 @@ export function CheckpointsPanel({
           {items.map((cp) => {
             const anyDone = cp.confirmations.length > 0;
             const rowBusy = busyId === cp.id && pending;
-            const nudgeSides = (["vendor", "purchaser"] as const).filter(
-              (s) => cp.requiredParties.includes(s) && !cp.confirmations.some((c) => c.party === s) && (s === "vendor" ? cp.pushVendor : cp.pushPurchaser),
-            );
             return (
               <div key={cp.id} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "12px 0", borderTop: "1px solid var(--agent-border-subtle)" }}>
                 {/* status dot */}
@@ -205,32 +227,57 @@ export function CheckpointsPanel({
                         {cp.showTo === "both" ? `Confirm for ${pName(p)}` : "Confirm"}
                       </button>
                     ))}
-                    <div style={{ position: "relative" }}>
-                      <button className="enq-btn enq-btn-flip" style={{ padding: "6px 9px" }} aria-haspopup="menu" aria-expanded={menuId === cp.id} onClick={() => setMenuId(menuId === cp.id ? null : cp.id)}>
-                        <DotsThree size={16} weight="bold" />
-                      </button>
-                      {menuId === cp.id && (
-                        <div className="ce-menu agent-dropdown-in" role="menu" style={{ minWidth: 200 }}>
-                          {nudgeSides.map((s) => (
-                            <button key={s} className="ce-mi" role="menuitem" onClick={() => nudge(cp, s)}>
-                              <span className="ce-ico"><Bell size={17} /></span>
-                              <span>Nudge {pName(s)}<small>Sends a push notification</small></span>
-                            </button>
-                          ))}
-                          {nudgeSides.length > 0 && <div className="ce-mi-div" />}
-                          <button className="ce-mi" role="menuitem" onClick={() => remove(cp)}>
-                            <span className="ce-ico"><Trash size={17} /></span>
-                            <span>Remove</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={menuId === cp.id}
+                      onClick={(e) => {
+                        if (menuId === cp.id) { setMenuId(null); return; }
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setMenuPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 220) });
+                        setMenuId(cp.id);
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-muted)"; }}
+                      style={{ display: "grid", placeItems: "center", width: 32, height: 32, borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer", transition: "border-color 140ms, color 140ms", flex: "none" }}
+                    >
+                      <DotsThreeVertical size={16} weight="bold" />
+                    </button>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* Row menu — portalled to <body> so it clears the card's stacking
+            context and can't hide behind the next card or the right rail. */}
+        {menuId && menuPos && (() => {
+          const cp = items.find((i) => i.id === menuId);
+          if (!cp) return null;
+          const nudgeSides = (["vendor", "purchaser"] as const).filter(
+            (s) => cp.requiredParties.includes(s) && !cp.confirmations.some((c) => c.party === s) && (s === "vendor" ? cp.pushVendor : cp.pushPurchaser),
+          );
+          return createPortal(
+            <div data-theme={theme}>
+              <div onClick={() => setMenuId(null)} style={{ position: "fixed", inset: 0, zIndex: 1600 }} />
+              <div role="menu" className="agent-dropdown-in" style={{ position: "fixed", top: menuPos.top, right: menuPos.right, minWidth: 210, padding: 4, borderRadius: 12, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", boxShadow: "0 12px 32px rgba(15,23,42,0.16)", zIndex: 1601 }}>
+                {nudgeSides.map((s) => (
+                  <button key={s} type="button" role="menuitem" onClick={() => nudge(cp, s)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-hover-tint)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                    <Bell size={16} style={{ marginTop: 1, flexShrink: 0, color: "var(--agent-text-muted)" }} />
+                    <span>Nudge {pName(s)}<small style={{ display: "block", fontWeight: 400, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>Sends a push notification</small></span>
+                  </button>
+                ))}
+                {nudgeSides.length > 0 && <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />}
+                <button type="button" role="menuitem" onClick={() => remove(cp)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220,38,38,0.06)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  <Trash size={16} style={{ marginTop: 1, flexShrink: 0, color: "var(--agent-text-muted)" }} />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>,
+            document.body,
+          );
+        })()}
 
         {/* composer */}
         {adding && (
