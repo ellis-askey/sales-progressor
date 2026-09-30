@@ -9,14 +9,17 @@ import { recordEvent } from "@/lib/command/events/write";
 import { storageObjectExists } from "@/lib/supabase-storage";
 import { isKnownDocType } from "@/lib/portal-documents";
 import { ALLOWED_UPLOAD_MIME, MAX_DOCUMENT_BYTES } from "@/lib/upload/document-upload";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+  // Law 7: scope by the caller's access scope, not a bare agencyId (which was ""
+  // for internal staff → always 404, and blind to progression-business members).
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(getAccessScope(session), id),
     select: { id: true },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -36,8 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+  // Law 7: scope by the caller's access scope (see GET above).
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(getAccessScope(session), id),
     select: { id: true },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });

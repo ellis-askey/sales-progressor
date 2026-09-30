@@ -1390,9 +1390,23 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
-    select: { id: true, assignedUserId: true },
+    select: { id: true, assignedUserId: true, progressionBusinessId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Forward-safety for the multi-progression-business model: a file owned by an
+  // external progression business may only be assigned to a member of THAT
+  // business. Keeps the business boundary intact even against an admin
+  // mis-assign. TSP files (progressionBusinessId = null) are unaffected.
+  if (assignedUserId && tx.progressionBusinessId) {
+    const assignee = await prisma.user.findUnique({
+      where: { id: assignedUserId },
+      select: { progressionBusinessId: true },
+    });
+    if (!assignee || assignee.progressionBusinessId !== tx.progressionBusinessId) {
+      throw new Error("Cannot assign this file to a user outside its progression business");
+    }
+  }
 
   const previousAssigneeId = tx.assignedUserId;
   const isNewAssignment = !!assignedUserId && assignedUserId !== previousAssigneeId;

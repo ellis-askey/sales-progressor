@@ -72,6 +72,16 @@ export function canAddBelow(link: LinkPermissionData, userId: string, role?: str
 // gating the chain drawer behind per-link membership would falsely hide chains
 // they legitimately need to progress. Customer-agency roles (director /
 // negotiator / viewer) still go through the participant check.
+//
+// NOTE (progression businesses): an external business member is also role
+// "sales_progressor", so this role set grants them chain-SUMMARY visibility and
+// structural ops (add-below). That is backstopped by transaction scope — the
+// chains API only loads a chain for files the caller can access
+// (scopeOwnershipWhere), so a business member can only ever reach chains their
+// own files are in, and chain summaries are cross-agency by design. The
+// sensitive per-node intel is separately and precisely bounded by SCOPE in
+// lib/chain/intel.ts (business members see only their own assigned node). Finer
+// chain-participant bounding for business members is a Phase 7 refinement.
 const INTERNAL_ROLES_SEE_ALL_CHAINS = new Set(["admin", "superadmin", "sales_progressor"]);
 
 // View the full chain (address, agency, % progress on all nodes).

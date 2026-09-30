@@ -10,14 +10,17 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createDocumentUploadUrl } from "@/lib/supabase-storage";
 import { buildDocumentStoragePath, validateUploadRequest } from "@/lib/upload/document-upload";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+  // Law 7: scope by the caller's access scope, not a bare agencyId (which was ""
+  // for internal staff and blind to progression-business members).
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(getAccessScope(session), id),
     select: { id: true },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });

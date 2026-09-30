@@ -14,7 +14,6 @@
 // client components for the shared input type.
 
 import type { AccessScope } from "@/lib/security/access-scope";
-import { isInternalStaff } from "@/lib/chain/permissions";
 
 export type IntelViewer = {
   userId: string;
@@ -47,8 +46,19 @@ export type ChainNodeIntelInput = {
 };
 
 export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
-  // Internal staff see the chains they can already access.
-  if (isInternalStaff(v.role)) return true;
+  // TSP internal team (platform-wide "all" or "assigned" scope) see the intel on
+  // any chain they can already access. Distinguished by SCOPE, not role, so an
+  // external progression-business member (also role sales_progressor) is NOT
+  // treated as TSP internal.
+  if (v.scope.kind === "all" || v.scope.kind === "assigned") return true;
+  // External progression-business member: bounded to nodes they personally
+  // progress (their own assigned file) or an unclaimed stub they created. Never
+  // another agency's or another business's node. (Cross-member visibility within
+  // a single business is a Phase 7 refinement.)
+  if (v.scope.kind === "business") {
+    if (o.transactionId === null) return o.linkCreatedByUserId === v.userId;
+    return o.txAssignedUserId === v.userId;
+  }
   if (o.transactionId === null) {
     // Unclaimed placeholder: the whole agency that ADDED it (a director /
     // colleague), not just the person who typed it. Never another agency.
@@ -62,10 +72,13 @@ export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
 }
 
 export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
+  // TSP internal team — by scope, not role (see canViewNodeIntel).
+  const tspInternal = v.scope.kind === "all" || v.scope.kind === "assigned";
   if (o.transactionId === null) {
-    // Unclaimed placeholder: internal team, whoever added it, or a director in
-    // the same agency (mirrors the claimed-node rule: creator / director / us).
-    if (isInternalStaff(v.role)) return true;
+    // Unclaimed placeholder: TSP internal team, whoever added it, or a director
+    // in the same agency (mirrors the claimed-node rule: creator / director / us).
+    // An external business member: only a stub they created themselves.
+    if (tspInternal) return true;
     if (o.linkCreatedByUserId === v.userId) return true;
     return v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId;
   }
@@ -74,6 +87,11 @@ export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
   if (v.scope.kind === "assigned") {
     // sales_progressor: only on the file assigned to them.
     return o.txAssignedUserId === v.scope.userId;
+  }
+  if (v.scope.kind === "business") {
+    // External progression-business member: only their own assigned file. Never
+    // another agency's or another business's node.
+    return o.txAssignedUserId === v.userId;
   }
   // Agency scope: director edits any file in the agency; a negotiator only if
   // they are the assigned overseer or the owning agent.

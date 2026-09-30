@@ -9,7 +9,7 @@
 //    ownership model, so it's the same agency-aware rule everywhere (cleanup 3).
 
 import { canViewChain } from "../permissions";
-import { canEditNodeIntel, type IntelViewer, type ChainNodeOwnership } from "../intel";
+import { canViewNodeIntel, canEditNodeIntel, type IntelViewer, type ChainNodeOwnership } from "../intel";
 import type { AccessScope } from "@/lib/security/access-scope";
 
 const agencyScope = (id: string): AccessScope => ({ kind: "agency", agencyIds: [id] });
@@ -76,5 +76,55 @@ describe("canEditNodeIntel: unclaimed stub (the rule canManageStub uses)", () =>
   it("blocks a non-creator negotiator in the same agency", () => {
     const v: IntelViewer = { userId: "neg2", role: "negotiator", agencyId: "agencyA", scope: agencyScope("agencyA") };
     expect(canEditNodeIntel(v, unclaimedStub("neg1", "agencyA"))).toBe(false);
+  });
+});
+
+describe("node intel: external progression-business member bounding (Phase 2c)", () => {
+  const businessScope = (id: string): AccessScope => ({ kind: "business", businessId: id });
+  const assignedScope = (id: string): AccessScope => ({ kind: "assigned", userId: id });
+
+  // A claimed node Sarah (business biz_sarah) personally progresses.
+  const sarahOwnNode: ChainNodeOwnership = {
+    transactionId: "tx_sarah", linkCreatedByUserId: "u_sarah", linkCreatedByAgencyId: null,
+    txAgencyId: "ag_donna", txAssignedUserId: "u_sarah", txAgentUserId: "u_donna",
+  };
+  // Another node in the same chain, owned by a different agency / business.
+  const foreignNode: ChainNodeOwnership = {
+    transactionId: "tx_other", linkCreatedByUserId: "u_someone", linkCreatedByAgencyId: "ag_x",
+    txAgencyId: "ag_x", txAssignedUserId: "u_other", txAgentUserId: "u_x",
+  };
+  const sarah: IntelViewer = {
+    userId: "u_sarah", role: "sales_progressor", agencyId: null, scope: businessScope("biz_sarah"),
+  };
+
+  it("a business member can view AND edit intel on their own assigned node", () => {
+    expect(canViewNodeIntel(sarah, sarahOwnNode)).toBe(true);
+    expect(canEditNodeIntel(sarah, sarahOwnNode)).toBe(true);
+  });
+
+  it("a business member CANNOT view or edit intel on another node in the chain", () => {
+    expect(canViewNodeIntel(sarah, foreignNode)).toBe(false);
+    expect(canEditNodeIntel(sarah, foreignNode)).toBe(false);
+  });
+
+  it("a business member can manage only an unclaimed stub they created themselves", () => {
+    const ownStub: ChainNodeOwnership = {
+      transactionId: null, linkCreatedByUserId: "u_sarah", linkCreatedByAgencyId: null,
+      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null,
+    };
+    const foreignStub: ChainNodeOwnership = {
+      transactionId: null, linkCreatedByUserId: "u_other", linkCreatedByAgencyId: "ag_x",
+      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null,
+    };
+    expect(canEditNodeIntel(sarah, ownStub)).toBe(true);
+    expect(canEditNodeIntel(sarah, foreignStub)).toBe(false);
+  });
+
+  it("a TSP progressor (assigned scope) still sees intel across a chain they access (unchanged)", () => {
+    const tsp: IntelViewer = {
+      userId: "u_tsp", role: "sales_progressor", agencyId: null, scope: assignedScope("u_tsp"),
+    };
+    expect(canViewNodeIntel(tsp, sarahOwnNode)).toBe(true);
+    expect(canViewNodeIntel(tsp, foreignNode)).toBe(true);
   });
 });
