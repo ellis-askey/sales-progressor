@@ -41,6 +41,11 @@ export function OpenUpdatesCard({ token, steps }: { token: string; steps: Step[]
 }
 
 function UpdateRow({ token, step }: { token: string; step: Step }) {
+  // Critique #23: the search-results step's date IS the "searches due back" date
+  // that re-times chasing, so label it plainly on that row. Other steps keep the
+  // generic wording.
+  const isSearchesResults = step.code === "PM13";
+  const dateLabel = isSearchesResults ? "Searches expected back" : "Expected date";
   const [open, setOpen] = useState(false);       // add-update drawer mounted
   const [entered, setEntered] = useState(false); // drawer slid up
   const [done, setDone] = useState<Done>(null);
@@ -104,7 +109,7 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.35 }}>{step.label}</p>
           {step.expectedDate && !done && (
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: S.muted }}>Expected by {fmtUk(step.expectedDate)}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: S.muted }}>{isSearchesResults ? "Searches expected back" : "Expected by"} {fmtUk(step.expectedDate)}</p>
           )}
         </div>
       </div>
@@ -136,6 +141,7 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
         <AddUpdateDrawer
           entered={entered}
           stepLabel={step.label}
+          dateLabel={dateLabel}
           date={date}
           note={note}
           pending={pending}
@@ -153,10 +159,11 @@ function UpdateRow({ token, step }: { token: string; step: Step }) {
 
 // The "Add update" bottom sheet — slides up/down like the menu, one per step.
 function AddUpdateDrawer({
-  entered, stepLabel, date, note, pending, error, noInput, onDate, onNote, onSend, onClose,
+  entered, stepLabel, dateLabel, date, note, pending, error, noInput, onDate, onNote, onSend, onClose,
 }: {
   entered: boolean;
   stepLabel: string;
+  dateLabel: string;
   date: string;
   note: string;
   pending: boolean;
@@ -210,7 +217,7 @@ function AddUpdateDrawer({
         </div>
 
         <div style={{ marginTop: 14 }}>
-          <label style={labelStyle}>Expected date <span style={optional}>(optional)</span></label>
+          <label style={labelStyle}>{dateLabel} <span style={optional}>(optional)</span></label>
           <DateField value={date} onChange={onDate} />
         </div>
         <div style={{ marginTop: 12 }}>
