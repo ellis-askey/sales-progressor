@@ -29,6 +29,9 @@ type Props = {
   isInternalStaff: boolean;
   isProgressor: boolean;
   isAdminRole: boolean;
+  // True for a progression-business member — enables the note composer's
+  // "Private to my team" option.
+  canMarkPrivate: boolean;
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
@@ -45,6 +48,7 @@ export async function ActivityPanel({
   isInternalStaff,
   isProgressor,
   isAdminRole,
+  canMarkPrivate,
   currentUserId,
   currentUserName,
   currentUserRole,
@@ -90,6 +94,7 @@ export async function ActivityPanel({
         ]}
         canPasteChat={isProgressor || isAdminRole}
         emailConnected={!!emailConn}
+        canMarkPrivate={canMarkPrivate}
         currentUserName={currentUserName}
         currentUserImage={me?.image ?? null}
         currentUserRole={currentUserRole}

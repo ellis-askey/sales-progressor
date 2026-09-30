@@ -97,4 +97,11 @@ describe("createCommunicationRecord businessOnly write mapping", () => {
     const data = p.outboundMessage.create.mock.calls[0][0].data;
     expect(data.businessOnly).toBe(false);
   });
+
+  it("ignores businessOnly for a non-business author (defence-in-depth)", async () => {
+    const agencyScope: AccessScope = { kind: "agency", agencyIds: ["ag_donna"] };
+    await createCommunicationRecord({ ...base, scope: agencyScope, businessOnly: true });
+    const data = p.outboundMessage.create.mock.calls[0][0].data;
+    expect(data.businessOnly).toBe(false);
+  });
 });

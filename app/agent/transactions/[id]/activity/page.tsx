@@ -5,12 +5,18 @@ import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { prisma } from "@/lib/prisma";
 import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { TabEnter } from "@/components/transaction/TabEnter";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 
 export const unstable_dynamicStaleTime = 300;
 
 export default async function ActivityTabPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, transaction, isInternalStaff, isProgressor, isAdminRole } = await loadFilePageContext(id);
+
+  // Progression-business members can mark a note private to their team. They can
+  // only ever reach their own business's files, so membership + flag is enough;
+  // createCommunicationRecord re-checks the business scope as the boundary.
+  const canMarkPrivate = progressionBusinessesEnabled() && !!session.user.progressionBusinessId;
 
   const spSenderIdentity = await (async (): Promise<{ name: string; email: string } | undefined> => {
     if (!isInternalStaff || (!isProgressor && !isAdminRole)) return undefined;
@@ -44,6 +50,7 @@ export default async function ActivityTabPage({ params }: { params: Promise<{ id
         isInternalStaff={isInternalStaff}
         isProgressor={isProgressor}
         isAdminRole={isAdminRole}
+        canMarkPrivate={canMarkPrivate}
         currentUserId={session.user.id}
         currentUserName={session.user.name ?? ""}
         currentUserRole={session.user.role ?? ""}

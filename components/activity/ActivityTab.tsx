@@ -29,6 +29,9 @@ type Props = {
   // True when the agent's mailbox is connected — hides the manual "Log an
   // email" option (sent mail is ingested automatically).
   emailConnected?: boolean;
+  // True when the author is a progression-business member — the note composer
+  // then offers a "Private to my team" (businessOnly) option.
+  canMarkPrivate?: boolean;
   // For building optimistic entries — these aren't on session client-side,
   // so the parent page passes them in from the server session.
   currentUserName: string;
@@ -121,6 +124,7 @@ export function ActivityTab(props: Props) {
           solicitors={props.solicitors}
           canPasteChat={props.canPasteChat}
           emailConnected={props.emailConnected}
+          canMarkPrivate={props.canMarkPrivate}
           onOptimisticAdd={handleOptimisticAdd}
         />
       }

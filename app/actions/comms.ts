@@ -92,6 +92,9 @@ export async function logCommAction(input: {
   contactIds: string[];
   content: string;
   visibleToClient: boolean;
+  // Progression-business private note. Only honoured for a business-scope author
+  // (enforced in createCommunicationRecord); ignored otherwise.
+  businessOnly?: boolean;
 }) {
   const session = await requireSession();
   await createCommunicationRecord({
@@ -101,6 +104,7 @@ export async function logCommAction(input: {
     contactIds: input.contactIds,
     content: input.content,
     visibleToClient: input.visibleToClient,
+    businessOnly: input.businessOnly ?? false,
     createdById: session.user.id,
     createdByRole: session.user.role,
     scope: getAccessScope(session),

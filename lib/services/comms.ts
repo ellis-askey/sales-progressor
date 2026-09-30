@@ -1066,8 +1066,10 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       wasEdited: input.wasEdited ?? false,
       isAutomated: input.isAutomated ?? false,
       visibleToClient: input.visibleToClient ?? false,
-      // A private note is never client-visible, regardless of the toggle.
-      businessOnly: input.businessOnly ? !input.visibleToClient : false,
+      // Private notes are a progression-business feature: only honoured for a
+      // business-scope author (an external progression-business member), and
+      // never client-visible. Defence-in-depth behind the UI gate.
+      businessOnly: input.businessOnly && input.scope.kind === "business" ? !input.visibleToClient : false,
       createdById: input.createdById,
       createdByRole: input.createdByRole ?? null,
       buyerRoundId: stampBuyerRoundId,

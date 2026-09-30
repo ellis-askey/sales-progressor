@@ -35,6 +35,10 @@ type Props = {
    * automatically — so the manual "Log an email" option is hidden (logging it
    * by hand would duplicate it). */
   emailConnected?: boolean;
+  /** When true, the author is a progression-business member, so the NOTE
+   *  composer offers a "Private to my team" option (businessOnly) — a note
+   *  visible only to their business, hidden from the owning agency. */
+  canMarkPrivate?: boolean;
   /** Optional optimistic-render callback. When supplied, fires after the
    * server action resolves successfully — the parent appends an entry to
    * the activity timeline immediately, without waiting for the server
@@ -59,7 +63,7 @@ const LOG_ITEMS: { value: CommChannel; label: string; desc: string; Icon: typeof
   { value: "post",      label: "Log post",         desc: "A letter sent or received", Icon: Package },
 ];
 
-export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false, emailConnected = false, onOptimisticAdd }: Props) {
+export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false, emailConnected = false, canMarkPrivate = false, onOptimisticAdd }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [channel, setChannel]         = useState<CommChannel | null>(null);
@@ -67,6 +71,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const [selected, setSelected]       = useState<string[]>([]);
   const [content, setContent]         = useState("");
   const [visibleToClient, setVisibleToClient] = useState(false);
+  const [businessOnly, setBusinessOnly] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
@@ -173,7 +178,9 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setLoading(true);
     const type = channel === "note" ? "internal_note" as const : direction === "outbound" ? "outbound" as const : "inbound" as const;
     const method = channel === "note" ? null : channel as Exclude<CommChannel, "note">;
-    const snap = { type, method, contactIds: selected, content, visibleToClient };
+    // businessOnly only applies to a note by a business member; the toggle is
+    // never shown otherwise, so the state stays false.
+    const snap = { type, method, contactIds: selected, content, visibleToClient, businessOnly: type === "internal_note" && canMarkPrivate ? businessOnly : false };
     // Fire optimistic add BEFORE we clear the form so the new row appears
     // in the timeline at the same instant the user sees the toast.
     if (onOptimisticAdd) {
@@ -421,6 +428,32 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 500, color: visibleToClient ? "#3b82f6" : "var(--agent-text-muted)", transition: "color 150ms" }}>
                   {visibleToClient ? "Visible in client portal" : "Share with client"}
+                </span>
+              </label>
+            )}
+
+            {isNote && canMarkPrivate && (
+              <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", userSelect: "none" }} title="A private note is visible only to your team, never the agent or client.">
+                <div
+                  onClick={() => setBusinessOnly((v) => !v)}
+                  style={{
+                    position: "relative", width: 36, height: 20, borderRadius: 10,
+                    flexShrink: 0, cursor: "pointer",
+                    background: businessOnly ? "var(--agent-coral-deep, #E2452A)" : "rgba(15,23,42,0.15)",
+                    transition: "background 150ms",
+                  }}
+                >
+                  <span style={{
+                    position: "absolute", top: 2, left: 2,
+                    width: 16, height: 16, borderRadius: "50%",
+                    background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                    transform: businessOnly ? "translateX(16px)" : "translateX(0)",
+                    transition: "transform 150ms",
+                    display: "block",
+                  }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 500, color: businessOnly ? "var(--agent-coral-deep, #E2452A)" : "var(--agent-text-muted)", transition: "color 150ms" }}>
+                  {businessOnly ? "Private to your team" : "Visible to the agent"}
                 </span>
               </label>
             )}

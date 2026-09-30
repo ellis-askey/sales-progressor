@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     wasAiGenerated,
     wasEdited,
     visibleToClient,
+    businessOnly,
   } = body;
 
   if (!transactionId || !type || !content?.trim()) {
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
       wasAiGenerated: wasAiGenerated ?? false,
       wasEdited: wasEdited ?? false,
       visibleToClient: visibleToClient ?? false,
+      businessOnly: businessOnly ?? false,
       createdById: session.user.id,
       scope: getAccessScope(session),
     });
