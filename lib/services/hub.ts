@@ -2398,6 +2398,9 @@ export async function getHubAttentionItems(
         select: {
           id: true, propertyAddress: true, photoStoragePath: true, expectedExchangeDate: true, overridePredictedDate: true,
           agencyId: true, clientEmailsPaused: true, vendorSolicitorEmailsPaused: true, purchaserSolicitorEmailsPaused: true,
+          // Relist safety: needed to drop archived-round chase state from the
+          // hand-over compute below (mirrors getAgentReminderLogs).
+          activeBuyerRoundId: true,
           // Full contact + solicitor shapes (mirroring getAgentReminderLogs) so
           // the hub's inline chase drawer gets real recipients, not just the
           // email fields resolveAutopilot needs.
@@ -2442,11 +2445,24 @@ export async function getHubAttentionItems(
   const codesForChase = Array.from(new Set(logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)));
   const txIdsForChase = Array.from(new Set(logs.map((l) => l.transaction.id)));
   const chaseByTxCode = new Map<string, ChaseSnapshot>();
+  // Each tx's active buyer round, so archived-round chase state can't leak into
+  // the hand-over compute below (relist safety — see the filter after the read).
+  const activeRoundByTx = new Map(logs.map((l) => [l.transaction.id, l.transaction.activeBuyerRoundId]));
   if (txIdsForChase.length > 0 && codesForChase.length > 0) {
-    const states = await prisma.clientChaseState.findMany({
+    const rawStates = await prisma.clientChaseState.findMany({
       where: { transactionId: { in: txIdsForChase }, milestoneCode: { in: codesForChase }, status: { in: ["active", "escalated"] } },
-      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true },
+      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true, buyerRoundId: true },
     });
+    // Ignore chase state from an ARCHIVED buyer round. After a relist the old
+    // buyer's escalated/active state stays on the file (the relist sweep doesn't
+    // clear ClientChaseState); un-scoped, its stale first-chase date drives the
+    // hand-over compute and surfaces the NEW round's reminder as a phantom
+    // overdue attention item, inflating the nav badge. This is exactly what put
+    // a relisted PM8/PM9 on the badge at the previous buyer's June date. Keep
+    // file-level (null round) + the active round only — mirrors getAgentReminderLogs.
+    const states = rawStates.filter(
+      (s) => s.buyerRoundId == null || s.buyerRoundId === activeRoundByTx.get(s.transactionId),
+    );
     for (const s of states) {
       const key = `${s.transactionId}:${s.milestoneCode}`;
       const cur = chaseByTxCode.get(key);

@@ -894,28 +894,48 @@ function SplitFileCard({
           const solicitorFirm = sideSol?.firm?.name || sideSol?.name || (isBuyer ? "the buyer's solicitor" : "the seller's solicitor");
           const copy = renderChaseCardCopy(code, clientNames, solicitorFirm, clientList.length <= 1);
           const supporting = copy?.line ?? info?.outstanding;
+          // A scheduled reminder (no live ChaseTask yet) can still be on
+          // autopilot: the client + solicitor crons chase off ClientChaseState +
+          // the rule, not a ChaseTask, so a not-yet-due step with no task will
+          // still fire on its due date. When it does, show the same green
+          // "Auto-chase <when>" countdown the chased autopilot rows carry — a
+          // bare "Due 1 Oct" line otherwise reads as "nothing will chase".
+          const autoState = autopilot?.get(log.id);
+          const isAuto = autoState?.kind === "auto";
           return (
             <div
               key={log.id}
-              style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
+              style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
-                {isSingle ? (
-                  <>
-                    {supporting && (
-                      <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                        {supporting}
-                      </p>
-                    )}
-                    <p style={{ margin: "6px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
-                  </>
-                ) : (
-                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                    {isBuyer ? "Buyer" : "Seller"} · Due {dueDateLabel}
+                {isSingle && supporting && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                    {supporting}
                   </p>
                 )}
+                {/* Date line only when NOT on autopilot — the green banner below
+                    carries the auto-chase date, so this would be a duplicate. */}
+                {!isAuto && (
+                  isSingle ? (
+                    <p style={{ margin: "6px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
+                  ) : (
+                    <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                      {isBuyer ? "Buyer" : "Seller"} · Due {dueDateLabel}
+                    </p>
+                  )
+                )}
+                {isAuto && !isSingle && (
+                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>{isBuyer ? "Buyer" : "Seller"}</p>
+                )}
               </div>
+              {autoState?.kind === "auto" && (
+                <AutoChaseCountdown
+                  iso={autoState.nextSend}
+                  pausedUntil={autoState.pausedUntil}
+                  onView={() => setPreviewRow({ logId: log.id, pipeline: autoState.pipeline, sendLabel: sendMoment(autoState.nextSend) })}
+                />
+              )}
             </div>
           );
         })}
