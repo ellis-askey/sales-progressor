@@ -26,6 +26,7 @@ import { useSession } from "next-auth/react";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
+import { SearchesExpectedBack } from "./SearchesExpectedBack";
 import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
 
 type Props = {
@@ -637,6 +638,16 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               )}
             </span>
           </p>
+          {/* Critique #23: searches "expected back" control on the active
+              search-results row. Sets MilestoneCompletion.expectedDate, which
+              re-anchors the chase and shows on both clients' portals. */}
+          {def.code === "PM13" && !isDone && !isBlocked && (
+            <SearchesExpectedBack
+              transactionId={transactionId}
+              milestoneDefinitionId={def.id}
+              expectedDate={def.completion?.expectedDate ? new Date(def.completion.expectedDate).toISOString() : null}
+            />
+          )}
           {isDone && detailsOpen && (def.completion || isCompleted) && (
             <div
               className="agent-reveal-in"
