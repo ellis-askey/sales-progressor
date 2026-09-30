@@ -1724,3 +1724,60 @@ export async function migrateCompleteMilestonesAction(input: {
   revalidateTx(input.transactionId);
   return { applied };
 }
+
+// Critique #23: agent/SP sets (or clears) the "searches expected back" date on
+// the searches-results step (PM13). Writes MilestoneCompletion.expectedDate,
+// which re-anchors the PM13 chase (ReminderRule.useExpectedDate) and shows on
+// both clients' portals. Mirrors the client/solicitor expectedDate write, with
+// the agent access-scope guard. Scoped to PM13 so it can't be misused to date
+// arbitrary steps from this control.
+export async function setSearchesExpectedBackAction(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  expectedDate: string | null;
+}): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { id: true, code: true },
+  });
+  if (!def || def.code !== "PM13") throw new Error("Milestone not found");
+
+  const date = input.expectedDate ? new Date(input.expectedDate) : null;
+  if (date && Number.isNaN(date.getTime())) throw new Error("Please choose a valid date.");
+
+  const roundScope = forRound(tx.activeBuyerRoundId, tx.id);
+  const existing = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId: tx.id, milestoneDefinitionId: def.id, ...milestoneScopeWhere(roundScope) },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.milestoneCompletion.update({ where: { id: existing.id }, data: { expectedDate: date } });
+  } else {
+    // PM13 is purchaser-side — stamp the active buyer round, matching the portal
+    // + solicitor writers.
+    await prisma.milestoneCompletion.create({
+      data: {
+        transactionId: tx.id,
+        milestoneDefinitionId: def.id,
+        state: "available",
+        expectedDate: date,
+        buyerRoundId: tx.activeBuyerRoundId,
+      },
+    });
+  }
+
+  // Re-time the chase now (so the work queue reflects the new anchor without
+  // waiting for the next cron pass), then refresh the file surfaces.
+  await evaluateTransactionReminders(tx.id).catch(() => {});
+  revalidateTx(tx.id);
+  return { ok: true };
+}
