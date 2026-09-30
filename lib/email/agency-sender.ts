@@ -19,6 +19,7 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { resolveEmailTheme, type EmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
+import { clientFacingIdentity, progressorSenderAddress } from "@/lib/progression/identity";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
@@ -27,15 +28,10 @@ const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
 // (canReply is false when it's used).
 const SP_NOREPLY = "noreply@thesalesprogressor.co.uk";
 
-// The Sales Progressor address a client email falls back to on an OUTSOURCED
-// file when the agency has no verified sender: the assigned progressor's own
-// @thesalesprogressor.co.uk address, else Ellis's as the default progressor.
-const PROGRESSOR_FALLBACK = "ellis@thesalesprogressor.co.uk";
-function progressorFallbackAddress(assignedEmail?: string | null): string {
-  return assignedEmail && assignedEmail.toLowerCase().endsWith("@thesalesprogressor.co.uk")
-    ? assignedEmail
-    : PROGRESSOR_FALLBACK;
-}
+// The outsourced-file progressor fallback address now resolves from the
+// responsible progression business (null = TSP → the assigned progressor's own
+// @thesalesprogressor.co.uk address, else ellis@ — unchanged). See
+// progressorSenderAddress in lib/progression/identity.ts.
 
 // Persona for a per-file client email. "personal" sends from the agent's OWN
 // address (self-managed + authenticated domain only) so chases/replies/invites
@@ -148,6 +144,7 @@ export async function resolveAgencySenderForTransaction(
       },
       agentUser: { select: { name: true, email: true } },
       assignedUser: { select: { email: true, name: true } },
+      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
@@ -186,7 +183,11 @@ export async function resolveAgencySenderForTransaction(
   // split across progressors, single-sender replies still land in the shared
   // agency inbox rather than the assigned person's — revisit then.
   if (tx.serviceType === "outsourced") {
-    const prog = progressorFallbackAddress(tx.assignedUser?.email);
+    // Progressor fallback address from the responsible progression business
+    // (null = TSP, so unchanged for our own files; an external business never
+    // falls back to a TSP personal address).
+    const identity = clientFacingIdentity(tx.progressionBusiness);
+    const prog = progressorSenderAddress(identity, tx.assignedUser?.email);
     if (agencyAddr && agencyVerified) {
       const senderDomain = agencyAddr.split("@")[1]?.toLowerCase();
       const domainAuthed = senderDomain

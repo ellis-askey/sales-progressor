@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveSolicitorCc } from "@/lib/services/solicitor-cc";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
 import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
@@ -573,6 +574,7 @@ export async function getPortalTeam(
         purchaserSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
         agency: { select: { quoteSenderEmail: true } },
         agencyId: true,
+        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
         contacts: { where: { roleType: side }, select: { name: true } },
         purchaseType: true,
         purchaserBrokerReferral: true,
@@ -610,12 +612,16 @@ export async function getPortalTeam(
       // than leaking the internal updates@ / progressor address. (Founder,
       // 2026-08-15.)
       const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+      // WhatsApp resolves from the responsible progression business (null = TSP,
+      // giving the same +447508862929 link as before). An external business with
+      // no number set shows no WhatsApp button rather than leaking TSP's line.
+      const identity = clientFacingIdentity(tx.progressionBusiness);
       managing = {
         name: person.name ?? "Your progressor",
         image: person.image ?? null,
         email: agencyEmail,
         roleLabel: isOutsourced ? "Your progressor" : "Your agent",
-        whatsappUrl: isOutsourced ? "https://wa.me/447508862929" : null,
+        whatsappUrl: isOutsourced ? whatsappLink(identity.contactWhatsapp) : null,
       };
     }
 
@@ -705,6 +711,7 @@ export async function getPortalVCardData(
       assignedUser: { select: { name: true, phone: true } },
       agentUser:    { select: { name: true, phone: true } },
       agency: { select: { name: true, quoteSenderEmail: true } },
+      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       vendorSolicitorContact:    { select: { name: true, email: true, phone: true } },
@@ -716,15 +723,18 @@ export async function getPortalVCardData(
   const isOutsourced = tx.serviceType !== "self_managed";
   const person = isOutsourced ? tx.assignedUser : tx.agentUser;
   const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+  // Org + WhatsApp on an outsourced file come from the responsible progression
+  // business (null = TSP → "The Sales Progressor" / +447508862929, unchanged).
+  const identity = clientFacingIdentity(tx.progressionBusiness);
 
   const progressor: PortalVCard | null = person
     ? {
         fn: person.name,
-        org: isOutsourced ? "The Sales Progressor" : (tx.agency?.name ?? null),
+        org: isOutsourced ? identity.orgName : (tx.agency?.name ?? null),
         email: agencyEmail,
-        // The shared progressor WhatsApp line on outsourced files, else the
+        // The progression business's WhatsApp line on outsourced files, else the
         // agent's own number if they've entered one.
-        tel: isOutsourced ? "+447508862929" : (person.phone?.trim() || null),
+        tel: isOutsourced ? identity.contactWhatsapp : (person.phone?.trim() || null),
       }
     : null;
 
