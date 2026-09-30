@@ -10,6 +10,8 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
@@ -162,6 +164,11 @@ export async function createTransactionAction(input: {
   // own name. Ignored entirely on non-self-managed flows (the field has
   // no meaning when an internal progressor will own the file).
   assignToUserId?: string;
+  // Progression-business create-for-client: the client agency this sale belongs
+  // to. When set (and the actor is a business owner whose client it is), the
+  // file is owned by that agency, attributed to its director, tagged to the
+  // actor's business, and assigned to the actor. Validated server-side.
+  clientAgencyId?: string;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -186,6 +193,36 @@ export async function createTransactionAction(input: {
     throw new Error("Forbidden: migration overrides require admin role");
   }
 
+  // Progression-business create-for-client path. A business owner creates a file
+  // for one of their client agencies: the file is owned by that agency, attributed
+  // to its director (agentUserId), tagged to the actor's business
+  // (progressionBusinessId), and assigned to the actor (the "else" branch below
+  // already assigns a non-agent creator to themselves). Flag- and owner-gated;
+  // the chosen agency MUST be one of the actor's clients.
+  let clientCreate: { agencyId: string; agentUserId: string | null; progressionBusinessId: string } | null = null;
+  if (input.clientAgencyId) {
+    if (!progressionBusinessesEnabled()) {
+      throw new Error("Progression businesses are not enabled.");
+    }
+    const owner = await resolveBusinessOwner(session);
+    if (!owner) {
+      throw new Error("Only a progression-business owner can create a sale for a client.");
+    }
+    const link = await prisma.progressionBusinessClient.findUnique({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId: input.clientAgencyId } },
+      select: { id: true },
+    });
+    if (!link) {
+      throw new Error("That agency is not one of your clients.");
+    }
+    const director = await prisma.user.findFirst({
+      where: { agencyId: input.clientAgencyId, role: "director" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    clientCreate = { agencyId: input.clientAgencyId, agentUserId: director?.id ?? null, progressionBusinessId: owner.businessId };
+  }
+
   // Universal solicitor invariant (founder decision 2026-09-18): a firm may
   // never be attached without a named case handler, on ANY service type.
   // Migration imports stay exempt (historical records may be sparse).
@@ -205,7 +242,11 @@ export async function createTransactionAction(input: {
   // exempt — they backfill historical records that legitimately may be
   // sparse. Self-progress files are never gated (they may start with no
   // solicitors at all; the pair invariant above still applies).
-  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride) {
+  // The outsourced-handover readiness gate is a checkpoint for an agency handing
+  // a file to a progression team. When a progression business creates its OWN
+  // file (clientCreate), it is the team from the start, so the gate is skipped
+  // (like migration) — the solicitor pair invariant above still applies.
+  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride && !clientCreate) {
     const readiness = checkOutsourcedHandoverReadiness({
       tenure: input.tenure,
       purchaseType: input.purchaseType,
@@ -219,7 +260,7 @@ export async function createTransactionAction(input: {
       throw new Error(handoverReadinessMessage(readiness.missing));
     }
   }
-  const effectiveAgencyId = input.migrationAgencyId ?? session.user.agencyId;
+  const effectiveAgencyId = clientCreate?.agencyId ?? input.migrationAgencyId ?? session.user.agencyId;
   if (!effectiveAgencyId) {
     throw new Error("Cannot create transaction without an agency");
   }
@@ -229,7 +270,7 @@ export async function createTransactionAction(input: {
   // negotiator in the SAME agency and override the file owner. Negotiators
   // can't use this — silently ignore if a negotiator submits the field
   // (defence-in-depth; the form shouldn't render the picker for them).
-  let effectiveAgentUserId: string | null = input.migrationAgentUserId ?? (isAgent ? session.user.id : null);
+  let effectiveAgentUserId: string | null = clientCreate?.agentUserId ?? input.migrationAgentUserId ?? (isAgent ? session.user.id : null);
   if (input.assignToUserId && session.user.role === "director") {
     const target = await prisma.user.findUnique({
       where: { id: input.assignToUserId },
@@ -279,6 +320,7 @@ export async function createTransactionAction(input: {
     agencyId: effectiveAgencyId,
     assignedUserId: effectiveAssignedUserId,
     agentUserId: effectiveAgentUserId,
+    progressionBusinessId: clientCreate?.progressionBusinessId ?? null,
     createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,

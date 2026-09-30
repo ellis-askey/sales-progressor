@@ -888,6 +888,10 @@ export type CreateTransactionInput = {
   agencyId: string;
   assignedUserId?: string;
   agentUserId?: string | null;
+  // Which progression business is responsible (the access boundary). Null = TSP
+  // (legacy/self-run). Set when an external progression business creates a file
+  // for one of its client agencies. See lib/security/access-scope.ts.
+  progressionBusinessId?: string | null;
   progressedBy?: "progressor" | "agent";
   expectedExchangeDate?: Date | null;
   // Admin-only override for migrating historical files. When set, createdAt
@@ -1063,6 +1067,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       // backdated files report "assigned 3 weeks ago" correctly.
       assignedAt: input.assignedUserId ? (input.createdAt ?? new Date()) : null,
       agentUserId: input.agentUserId ?? null,
+      progressionBusinessId: input.progressionBusinessId ?? null,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
       // Pricing migration (2026-08): a self-run sale is free by type; an
