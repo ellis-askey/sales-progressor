@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { House, Leaf, Mountains, UserPlus } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
 
 // Decorative only (aria-hidden): fictional agencies, glyph tiles — a taste of
@@ -28,7 +29,6 @@ export function ClientsEmptyState() {
       <div className="cwg-blob cwg-blob-2" aria-hidden />
 
       <div className="cwg-inner">
-        <p className="cwg-eyebrow">Clients</p>
         <h1 className="cwg-title">Add your first client</h1>
         <p className="cwg-sub">Add the agents and agencies you progress sales for.</p>
 
@@ -37,26 +37,27 @@ export function ClientsEmptyState() {
           <div className="cwg-form agent-glass">
             <div className="cwg-field">
               <label className="cwg-label" htmlFor="cwg-name">Contact name</label>
-              <input id="cwg-name" className="cwg-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} placeholder="e.g. Sophie Bennett" maxLength={100} />
+              <input id="cwg-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
             </div>
             <div className="cwg-row">
               <div className="cwg-field">
                 <label className="cwg-label" htmlFor="cwg-email">Email address</label>
-                <input id="cwg-email" className="cwg-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} placeholder="sophie@oakandkey.co.uk" maxLength={255} />
+                <input id="cwg-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
               </div>
               <div className="cwg-field">
                 <label className="cwg-label" htmlFor="cwg-agency">Agency name</label>
-                <input id="cwg-agency" className="cwg-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} placeholder="e.g. Oak & Key" maxLength={120} />
+                <input id="cwg-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
               </div>
             </div>
 
+            {f.emailInvalid && <p className="cwg-err">Enter a valid email address.</p>}
             {f.error && <p className="cwg-err">{f.error}</p>}
             <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
 
-            <button type="button" className="agent-btn agent-btn-primary agent-btn-md cwg-btn" onClick={f.submit} disabled={!f.canSubmit || f.adding}>
+            <Button variant="primary" size="md" className="cwg-btn" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
               <UserPlus size={16} weight="bold" />
-              {f.adding ? "Adding…" : "Add client"}
-            </button>
+              Add client
+            </Button>
           </div>
 
           {/* Decorative floating roster */}
@@ -109,7 +110,6 @@ export function ClientsEmptyState() {
         :root[data-theme="dark"] .cwg-blob-2 { opacity: 0.34; }
 
         .cwg-inner { position: relative; z-index: 1; }
-        .cwg-eyebrow { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A); }
         .cwg-title { margin: 0 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 820; letter-spacing: -0.03em; line-height: 1.05; color: var(--agent-text-primary); text-wrap: balance; }
         .cwg-sub { margin: 0; font-size: 14.5px; color: var(--agent-text-secondary); line-height: 1.5; max-width: 42ch; }
 
@@ -120,16 +120,6 @@ export function ClientsEmptyState() {
         .cwg-field { margin-bottom: 12px; }
         .cwg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .cwg-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
-        .cwg-input {
-          width: 100%; box-sizing: border-box; padding: 11px 13px; font-size: 14px;
-          color: var(--agent-text-primary); background: rgba(255,255,255,0.6);
-          border: 0.5px solid var(--agent-border-subtle); border-radius: 10px; outline: none;
-          transition: border-color 140ms ease, box-shadow 140ms ease;
-        }
-        :root[data-theme="dark"] .cwg-input { background: rgba(255,255,255,0.05); }
-        .cwg-input::placeholder { color: var(--agent-text-muted); opacity: 0.75; }
-        .cwg-input:hover { border-color: rgba(var(--agent-coral-rgb),0.4); }
-        .cwg-input:focus { border-color: var(--agent-coral-deep, #E2452A); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),0.14); }
         .cwg-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
         .cwg-help { margin: 12px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
         .cwg-btn { width: 100%; margin-top: 16px; gap: 8px; }
@@ -160,7 +150,6 @@ export function ClientsEmptyState() {
         }
         @media (prefers-reduced-motion: reduce) {
           .cwg, .cwg-roster { animation: none; }
-          .cwg-input { transition: none; }
         }
       `}</style>
     </div>

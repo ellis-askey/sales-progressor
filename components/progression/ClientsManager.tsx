@@ -156,17 +156,20 @@ export function ClientsManager({ clients }: { clients: ClientRow[] }) {
 
           <div>
             <label style={labelStyle} htmlFor="pc-agent-name">Contact name</label>
-            <input id="pc-agent-name" className="pc-input" style={inputStyle} value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} placeholder="e.g. Sophie Bennett" maxLength={100} />
+            <input id="pc-agent-name" className="pc-input" style={inputStyle} value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="pc-agent-email">Email address</label>
-            <input id="pc-agent-email" className="pc-input" style={inputStyle} type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} placeholder="sophie@oakandkey.co.uk" maxLength={255} />
+            <input id="pc-agent-email" className="pc-input" style={inputStyle} type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="pc-agency-name">Agency name</label>
-            <input id="pc-agency-name" className="pc-input" style={inputStyle} value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} placeholder="e.g. Oak & Key" maxLength={120} />
+            <input id="pc-agency-name" className="pc-input" style={inputStyle} value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
           </div>
 
+          {f.emailInvalid && (
+            <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>Enter a valid email address.</p>
+          )}
           {f.error && (
             <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{f.error}</p>
           )}

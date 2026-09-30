@@ -11,6 +11,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { addClientAgencyAction } from "@/app/actions/progression-clients";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function useAddClientForm(onDone?: () => void) {
   const { toast } = useAgentToast();
@@ -21,7 +24,15 @@ export function useAddClientForm(onDone?: () => void) {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = !!agentName.trim() && !!agentEmail.trim() && !!agencyName.trim();
+  const emailValid = EMAIL_RE.test(agentEmail.trim());
+  const emailInvalid = agentEmail.trim().length > 0 && !emailValid;
+  const canSubmit = !!agentName.trim() && !!agencyName.trim() && emailValid;
+
+  // Tidy on blur: acronym-safe title-case on the name + agency (so "cj oak" ->
+  // "CJ Oak", not "Cj Oak"), lowercase + trim the email.
+  function blurName() { const v = agentName.trim(); if (v) setAgentName(titleCaseKeepAcronyms(v)); }
+  function blurAgency() { const v = agencyName.trim(); if (v) setAgencyName(titleCaseKeepAcronyms(v)); }
+  function blurEmail() { const v = agentEmail.trim(); if (v) setAgentEmail(v.toLowerCase()); }
 
   function reset() {
     setAgentName("");
@@ -35,10 +46,15 @@ export function useAddClientForm(onDone?: () => void) {
     setAdding(true);
     setError(null);
 
+    // Normalise once more at submit — covers values changed without a blur.
+    const cleanName = titleCaseKeepAcronyms(agentName.trim());
+    const cleanEmail = agentEmail.trim().toLowerCase();
+    const cleanAgency = titleCaseKeepAcronyms(agencyName.trim());
+
     const fd = new FormData();
-    fd.set("agentName", agentName.trim());
-    fd.set("agentEmail", agentEmail.trim());
-    fd.set("agencyName", agencyName.trim());
+    fd.set("agentName", cleanName);
+    fd.set("agentEmail", cleanEmail);
+    fd.set("agencyName", cleanAgency);
 
     const res = await addClientAgencyAction(fd);
     setAdding(false);
@@ -48,7 +64,7 @@ export function useAddClientForm(onDone?: () => void) {
       return;
     }
     toast.success("Client added", {
-      description: `We've emailed ${agentName.trim()} an invite to set up their login.`,
+      description: `We've emailed ${cleanName} an invite to set up their login.`,
     });
     reset();
     router.refresh();
@@ -59,7 +75,8 @@ export function useAddClientForm(onDone?: () => void) {
     agentName, setAgentName,
     agentEmail, setAgentEmail,
     agencyName, setAgencyName,
-    adding, error, canSubmit,
+    adding, error, canSubmit, emailInvalid,
+    blurName, blurAgency, blurEmail,
     submit, reset,
   };
 }
