@@ -425,7 +425,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             {/* Critique #23: searches "expected back" reassurance line. */}
                             {m.code === "PM13" && m.expectedDate && !m.isComplete && !m.isNotRequired && (
                               <p className="text-[11.5px] mt-1 font-semibold" style={{ color: P.accent }}>
-                                Searches expected back around {fmtDate(m.expectedDate)}
+                                Expected back approx {fmtDate(m.expectedDate)}
                               </p>
                             )}
                             {m.code === "PM10" && !isLocked && (
@@ -533,7 +533,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             {/* Critique #23: the other side sees the searches "expected back" date too. */}
                             {m.code === "PM13" && m.expectedDate && !m.isComplete && !m.isNotRequired && (
                               <p className="text-[11px] mt-0.5 font-semibold" style={{ color: P.accent }}>
-                                Searches expected back around {fmtDate(m.expectedDate)}
+                                Expected back approx {fmtDate(m.expectedDate)}
                               </p>
                             )}
                           </div>
