@@ -32,6 +32,9 @@ import { DiaryCard } from "@/components/hub/DiaryCard";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
+import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
+import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -182,6 +185,11 @@ type Ctx = {
   isProgressor: boolean;
   isAdmin: boolean;
   canCreateSale: boolean;
+  // True only for a progression-business OWNER (flag-gated), whose first-run
+  // empty state nudges "add your first client" instead of the passive
+  // "files assigned to you will appear here". TSP internal progressors and
+  // non-owner members are false.
+  isBusinessOwner: boolean;
   // The claimed first sale (or null). Fetched once in the shell so the header
   // can swap its CTA and FullBodyGate can render the hero without re-querying.
   claimedFirstSale: Awaited<ReturnType<typeof getClaimedFirstSale>>;
@@ -212,6 +220,11 @@ export default async function Hub() {
   const isProgressor      = role === "sales_progressor";
   const isAdmin           = hasAdminPowers(session);
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin";
+  // Flag-gated + DB-checked: only a genuine progression-business owner. The
+  // flag short-circuits the query for everyone else (and off = no query).
+  const isBusinessOwner   = isProgressor && progressionBusinessesEnabled()
+    ? !!(await resolveBusinessOwner(session))
+    : false;
 
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
@@ -225,7 +238,7 @@ export default async function Hub() {
     isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(vis).catch(() => null),
   ]);
 
-  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale, claimedFirstSale };
+  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale, isBusinessOwner, claimedFirstSale };
 
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -339,7 +352,18 @@ async function FullBodyGate({ ctx }: { ctx: Ctx }) {
 // ── Empty state — verbatim from previous implementation, no fade ────────────
 
 function EmptyStateBody({ ctx }: { ctx: Ctx }) {
-  const { isProgressor, canCreateSale } = ctx;
+  const { isProgressor, canCreateSale, isBusinessOwner } = ctx;
+
+  // Progression-business owner: their pipeline starts with a client, so their
+  // first-run state nudges "add your first client" rather than the passive
+  // assigned-files copy below (which is right for a TSP internal progressor).
+  if (isBusinessOwner) {
+    return (
+      <div data-testid="hub-empty-state">
+        <ProgressionOwnerEmptyState />
+      </div>
+    );
+  }
 
   // Agency users (director / negotiator / admin) get the onboarding empty state.
   if (!isProgressor) {
