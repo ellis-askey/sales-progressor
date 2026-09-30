@@ -129,10 +129,10 @@ export function ClientsEmptyState() {
            .enq-btn-primary2 / .rem-chase-go) — a vertical coral fill + top sheen. */
         .cwg-btn { width: 100%; margin-top: 16px; gap: 8px;
           background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
-        .cwg-btn:hover:not(:disabled) { filter: brightness(1.05); transform: none;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 18px -6px rgba(var(--agent-coral-rgb),0.45); }
-        .cwg-btn:active:not(:disabled) { transform: scale(0.985); }
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); }
+        .cwg-btn:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
+        .cwg-btn:active:not(:disabled) { transform: scale(0.98); }
 
         /* Roster — subtle scattered glass cards; each lifts on hover */
         .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; }
