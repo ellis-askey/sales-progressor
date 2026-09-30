@@ -227,6 +227,10 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     { key: "activity",   label: "Activity", icon: "activity" },
     ...(setupMatured ? [setupTab] : []),
     ...(isInternalTeam ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
+    // Client portal sits at the very end and STAYS there — even once File setup
+    // demotes toward the end at 14 days, this remains the final tab (founder,
+    // 2026-09-30). A read-only window onto exactly what each client sees.
+    { key: "client-portal", label: "Client portal", icon: "portal" },
   ];
 
   const heroTopRightSlot = (() => {

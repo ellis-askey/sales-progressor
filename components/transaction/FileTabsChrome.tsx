@@ -20,7 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { withFrom } from "@/lib/agent/back-nav";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@phosphor-icons/react/dist/ssr";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText, DeviceMobile } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { TabBadgeContext, type TabBadgeUpdater } from "./TabBadgeContext";
@@ -37,6 +37,7 @@ const TAB_ICONS: Record<string, Icon> = {
   documents: FileText,
   chase: PaperPlaneTilt,
   whatsapp: WhatsappLogo,
+  portal: DeviceMobile,
 };
 
 type Tab = { key: string; label: string; badge?: number; icon?: string };
