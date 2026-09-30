@@ -43,6 +43,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
+import { resolveProviderAvailability } from "@/lib/services/provider-availability";
 
 // Guard for the multi-contact chase-inflation bug (2026-08-17).
 //
@@ -84,6 +85,11 @@ export type AssembleDigestInput = {
   agencyCopy?: { subject: string; intro: string; outro: string };
   // Agency brand theme (colours). Optional; omitted = Sales Progressor coral.
   theme?: EmailTheme;
+  // Critique #22: when the survey step (PM9) is being chased AND we have a
+  // vetted surveyor covering the property's postcode, turn the plain "book your
+  // survey" nudge into a pre-filled quote offer. Resolved by the caller (async
+  // coverage check); omitted = no local provider, so the email is unchanged.
+  surveyQuote?: { url: string };
 };
 
 export type AssembledDigest = {
@@ -205,6 +211,13 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const first = extractFirstName(contact.name);
   const count = milestones.length;
 
+  // Critique #22: survey-quote offer. Only when the caller supplied a link
+  // (i.e. a surveyor covers this postcode) AND the survey step is in this
+  // digest. "surveyOnly" = the survey is the sole due item, so the whole email
+  // becomes the offer; otherwise it rides as an extra callout below the digest.
+  const surveyOffer = input.surveyQuote && milestones.some((m) => m.code === "PM9") ? input.surveyQuote : null;
+  const surveyOnly = !!surveyOffer && count === 1;
+
   // ─── Classify each item; split into DIY / NUDGE groups ──────────────────
   // Prefer chaseLabel where the copy defines it — it's phrased for the
   // chase opener ("sitting with your solicitor: <chaseLabel>" or
@@ -263,7 +276,20 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 
   let toneLines: string[];
 
-  if (overallTone === "diy") {
+  if (surveyOnly && surveyOffer) {
+    // The survey is the only thing due — lead with the pre-filled quote offer.
+    toneLines = [
+      `Now is a good time to get your survey booked. It is your own independent check on the property's condition, and it is separate from your lender's valuation.`,
+      ``,
+      `To make it simple, we work with vetted local surveyors who cover your area, and we have already filled in your details. Getting quotes back takes about a minute.`,
+      ``,
+      `Get your survey quotes:`,
+      surveyOffer.url,
+      ``,
+      `Already arranged your own surveyor? You can confirm that on your page instead:`,
+      respondUrl,
+    ];
+  } else if (overallTone === "diy") {
     const opener = count === 1
       ? `There's one thing on your ${transactionWord} at ${address} that only you can move forward:`
       : `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`;
@@ -312,11 +338,22 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     ];
   }
 
+  // Bundled case (survey is one of several due items): the offer rides below
+  // the digest as its own short block rather than taking over the email.
+  const surveyCalloutText = surveyOffer && !surveyOnly
+    ? [
+        ``,
+        `On your survey: we work with vetted local surveyors who cover your area and have pre-filled your details, so getting quotes back takes about a minute.`,
+        `Get your survey quotes: ${surveyOffer.url}`,
+      ]
+    : [];
+
   const bodyLines = [
     `Hi ${first},`,
     ``,
     ...(introText ? [introText, ``] : []),
     ...toneLines,
+    ...surveyCalloutText,
     ...(outroText ? [``, outroText] : []),
   ];
 
@@ -343,7 +380,11 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   // Tone body WITHOUT the greeting <p>, so the agency intro/outro can bracket it.
   let toneHtml: string;
 
-  if (overallTone === "diy") {
+  if (surveyOnly && surveyOffer) {
+    toneHtml = `
+          <p style="${pStyle}">Now is a good time to get your survey booked on your purchase at <strong>${escapeHtml(address)}</strong>. It is your own independent check on the property's condition, and it is separate from your lender's valuation.</p>
+          <p style="${pStyle}">To make it simple, we work with vetted local surveyors who cover your area, and we have already filled in your details. Getting quotes back takes about a minute.</p>`;
+  } else if (overallTone === "diy") {
     const opener = count === 1
       ? `There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
       : `There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
@@ -375,11 +416,36 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   }
 
   const extraPara = (t: string) => `<p style="${pStyle}">${escapeHtml(t)}</p>`;
+
+  // Bundled-case survey callout box (solid colours only — no alpha-hex, which
+  // older Outlook drops). Omitted when the survey is the sole item (the whole
+  // email is the offer) or when there's no local surveyor.
+  const surveyCalloutHtml = surveyOffer && !surveyOnly
+    ? `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:4px 0 20px;">
+            <tr><td style="border:1px solid #e6e8ee;border-radius:10px;padding:16px 18px;background:#f7f8fa;">
+              <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#1a1d29;">Need a survey?</p>
+              <p style="margin:0 0 12px;font-size:13.5px;line-height:1.55;color:#4a5162;">We work with vetted local surveyors who cover your area and have pre-filled your details, so getting quotes back takes about a minute.</p>
+              <a href="${surveyOffer.url}" style="display:inline-block;padding:9px 18px;border-radius:8px;background:${theme.buttonBg};color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:14px;">Get my survey quotes</a>
+            </td></tr>
+          </table>`
+    : "";
+
   const htmlInner =
     `\n          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>` +
     (introText ? `\n          ${extraPara(introText)}` : "") +
     toneHtml +
+    surveyCalloutHtml +
     (outroText ? `\n          ${extraPara(outroText)}` : "");
+
+  // Primary CTA: the survey offer takes the button when it's the only item;
+  // otherwise the usual "Open the page" (the callout box carries the survey link).
+  const ctaHref = surveyOnly && surveyOffer ? surveyOffer.url : respondUrl;
+  const ctaLabel = surveyOnly && surveyOffer ? "Get my survey quotes" : "Open the page";
+  const surveyOnlySecondaryHtml = surveyOnly
+    ? `
+          <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#4a5162;">Already arranged your own surveyor? <a href="${respondUrl}" style="color:${theme.buttonBg};text-decoration:underline;">Confirm it on your page</a>.</p>`
+    : "";
 
   const html = `<!DOCTYPE html>
 <html>
@@ -392,9 +458,9 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:${theme.buttonBg};text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>${htmlInner}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr><td style="border-radius:8px;background:${theme.buttonBg};">
-              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
+              <a href="${ctaHref}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">${ctaLabel}</a>
             </td></tr>
-          </table>
+          </table>${surveyOnlySecondaryHtml}
         </td></tr>
       </table>
       <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
@@ -520,11 +586,23 @@ export async function enqueueClientChaseDigest(input: {
   const sender = await resolveAgencySenderForTransaction(transaction.id, { persona: "personal" });
   const theme = sender.theme ?? resolveEmailTheme(null);
 
+  // Critique #22: if the survey step (PM9) is being chased to a buyer and a
+  // vetted surveyor covers this property's postcode, turn the plain nudge into a
+  // pre-filled quote offer. No coverage → undefined → the email is unchanged.
+  let surveyQuote: { url: string } | undefined;
+  if (sendCodes.includes("PM9") && contact.roleType === "purchaser") {
+    const avail = await resolveProviderAvailability(transaction.propertyAddress).catch(() => null);
+    if (avail?.hasLocalCovered) {
+      surveyQuote = { url: `${portalBase()}/quote/${contact.portalToken}` };
+    }
+  }
+
   const payload = assembleDigestPayload({
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
     milestones: sendCodes.map((code) => ({ code })),
     agencyName: transaction.agency?.name ?? "Sales Progressor",
+    surveyQuote,
     // Drives sale/purchase word in the body openers. Defaults to vendor
     // defensively — should never apply since the cron filters contacts
     // to vendor/purchaser only before reaching this path.
