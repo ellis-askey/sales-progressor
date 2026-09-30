@@ -379,3 +379,10 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-09-30.
 - **Deletion criteria:** permanent while the progression-business model exists; remove only if the model is retired.
 - **Justification:** one-time environment bootstrap of a required singleton that db-push cannot create (raw-migration INSERT is skipped on staging/local); not a feature/admin action because it seeds infrastructure state, and it mirrors the migration + `prisma/seed.ts`.
+
+### seed-progression-pilot.ts
+- **Purpose:** staging/local pilot seed for the progression-businesses feature (docs/active/progression-businesses/, Phase 4). Creates "Sarah's Progression Co" + an owner login (sarah@sarahprogression.co.uk) so the founder can log in as a progression-business owner and proof-see the /agent/clients screen. Idempotent (skip/update by natural key). Refuses production.
+- **Lifetime:** one-shot (throwaway, pilot proof-see data).
+- **Author/date:** Claude, 2026-09-30.
+- **Deletion criteria:** delete this script + this entry once the real pilot progression business is onboarded and the seeded test data is no longer needed.
+- **Justification:** disposable demo/proof-see data for a not-yet-self-serve onboarding path; belongs in a seed script, not a feature, until self-serve business onboarding exists.
