@@ -48,6 +48,7 @@ export async function DELETE(req: NextRequest) {
   const noteWhere =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+    scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                  { id, transaction: { agencyId: scope.agencyIds[0] } };
   const note = await prisma.transactionNote.findFirst({
     where: noteWhere,

@@ -1262,6 +1262,7 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope, 
   const where =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+    scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const comm = await prisma.outboundMessage.findFirst({
     where,
@@ -1303,6 +1304,7 @@ export async function updateCommunicationRecord(input: UpdateCommInput) {
   const where =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+    scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const comm = await prisma.outboundMessage.findFirst({
     where,

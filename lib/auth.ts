@@ -22,6 +22,10 @@ declare module "next-auth" {
       agencyId: string;
       firmName: string | null;
       needsSignupCompletion: boolean;
+      // Progression-business membership (null for everyone except external
+      // progression-business members). Drives the "business" access scope in
+      // lib/security/access-scope.ts. TSP internal staff stay null.
+      progressionBusinessId: string | null;
     };
   }
   interface User {
@@ -32,6 +36,7 @@ declare module "next-auth" {
     agencyId: string;
     firmName: string | null;
     sessionVersion?: number;
+    progressionBusinessId?: string | null;
   }
 }
 
@@ -43,6 +48,7 @@ declare module "next-auth/jwt" {
     firmName: string | null;
     needsSignupCompletion: boolean;
     sessionVersion?: number;
+    progressionBusinessId?: string | null;
   }
 }
 
@@ -131,6 +137,7 @@ export const authOptions: NextAuthOptions = {
           agencyId: user.agencyId ?? "",
           firmName: user.firmName ?? null,
           sessionVersion: user.sessionVersion,
+          progressionBusinessId: user.progressionBusinessId ?? null,
         };
       },
     }),
@@ -179,11 +186,13 @@ export const authOptions: NextAuthOptions = {
           token.firmName = (user as { firmName: string | null }).firmName;
           token.needsSignupCompletion = false;
           token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
+          token.progressionBusinessId =
+            (user as { progressionBusinessId?: string | null }).progressionBusinessId ?? null;
         } else if (account) {
           // OAuth: fetch role/agencyId/firmName from DB.
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            select: { role: true, agencyId: true, firmName: true, sessionVersion: true, deactivatedAt: true },
+            select: { role: true, agencyId: true, firmName: true, sessionVersion: true, deactivatedAt: true, progressionBusinessId: true },
           });
           // Removed team members can't come back in through OAuth either.
           if (dbUser?.deactivatedAt) token.id = "";
@@ -193,6 +202,7 @@ export const authOptions: NextAuthOptions = {
           // viewer + no agencyId = net-new OAuth user who hasn't completed signup
           token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
           token.sessionVersion = dbUser?.sessionVersion ?? 0;
+          token.progressionBusinessId = dbUser?.progressionBusinessId ?? null;
         }
 
         // Command Centre event log — fires only on initial sign-in (when
@@ -259,6 +269,9 @@ export const authOptions: NextAuthOptions = {
       session.user.agencyId = token.agencyId;
       session.user.firmName = token.firmName;
       session.user.needsSignupCompletion = token.needsSignupCompletion ?? false;
+      // Absent on tokens minted before this field existed → null (fail-closed:
+      // getAccessScope treats null as "no external business" = today's behaviour).
+      session.user.progressionBusinessId = token.progressionBusinessId ?? null;
       return session;
     },
   },

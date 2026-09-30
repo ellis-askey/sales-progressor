@@ -77,6 +77,7 @@ function originFromReason(reason: string | null): ReviewOrigin {
 function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
   if (scope.kind === "all") return { status: "on_hold", serviceType: "outsourced" };
   if (scope.kind === "assigned") return { status: "on_hold", serviceType: "outsourced", assignedUserId: scope.userId };
+  if (scope.kind === "business") return { status: "on_hold", serviceType: "outsourced", progressionBusinessId: scope.businessId };
   return { status: "on_hold", serviceType: "self_managed", agencyId: { in: scope.agencyIds } };
 }
 
@@ -89,6 +90,7 @@ function reviewTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInpu
   // files never appear on the internal side. Agency users keep their own.
   if (scope.kind === "all") return { serviceType: "outsourced" };
   if (scope.kind === "assigned") return { serviceType: "outsourced", assignedUserId: scope.userId };
+  if (scope.kind === "business") return { progressionBusinessId: scope.businessId };
   return { agencyId: { in: scope.agencyIds } };
 }
 

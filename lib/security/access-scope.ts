@@ -18,20 +18,34 @@ import { hasAdminPowers } from "@/lib/agent-session";
 
 export type AccessScope =
   | { kind: "agency";   agencyIds: string[] }  // director, negotiator, viewer
-  | { kind: "assigned"; userId: string }        // sales_progressor — own assigned files
+  | { kind: "business"; businessId: string }    // external progression-business member — own business's book
+  | { kind: "assigned"; userId: string }        // TSP sales_progressor — own assigned files
   | { kind: "all" };                            // admin, superadmin — no agency filter
 
 // ─── Derive scope from session ────────────────────────────────────────────────
 
 export function getAccessScope(session: Session): AccessScope {
-  const { role, agencyId, id } = session.user;
+  const { role, agencyId, id, progressionBusinessId } = session.user;
 
   // hasAdminPowers covers admin, superadmin, and the hybrid sales_progressor
   // exception (ellis). Hybrid users get full-platform visibility while keeping
   // role = "sales_progressor" so the SP daily UX (hub assigned lane, isProgressor
-  // checks) stays intact.
+  // checks) stays intact. This is checked FIRST so the platform operator always
+  // wins regardless of any progression-business membership.
   if (hasAdminPowers(session)) {
     return { kind: "all" };
+  }
+
+  // External progression-business member: bounded to the book of transactions
+  // tagged to their business (PropertyTransaction.progressionBusinessId). The
+  // access boundary is the TRANSACTION, never the business↔agency client link.
+  // TSP internal progressors keep progressionBusinessId = null (they resolve to
+  // TSP implicitly and fall through to the "assigned" scope below), so a
+  // non-null id here means a genuine external business. Never assign the TSP
+  // business id to a user — TSP members must stay null (see
+  // docs/active/progression-businesses/00-spec.md).
+  if (role === "sales_progressor" && progressionBusinessId) {
+    return { kind: "business", businessId: progressionBusinessId };
   }
 
   if (role === "sales_progressor") {
@@ -62,6 +76,9 @@ export function scopeTransactionWhere(
   // (they created it to look through), so the "agency" branch stays unfiltered.
   if (scope.kind === "all")      return { isDemo: false };
   if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
+  // External progression business — its own book only, keyed on the transaction
+  // tag. Demo files are excluded like the other non-agency scopes.
+  if (scope.kind === "business") return { progressionBusinessId: scope.businessId, isDemo: false };
   return { agencyId: { in: scope.agencyIds } };
 }
 
@@ -79,6 +96,7 @@ export function scopeOwnershipWhere(
 ): Prisma.PropertyTransactionWhereInput {
   if (scope.kind === "all")      return { id: transactionId };
   if (scope.kind === "assigned") return { id: transactionId, assignedUserId: scope.userId };
+  if (scope.kind === "business") return { id: transactionId, progressionBusinessId: scope.businessId };
   // agency — agencyIds always has exactly one entry for a non-internal user
   return { id: transactionId, agencyId: scope.agencyIds[0] };
 }
@@ -93,6 +111,7 @@ export function scopeChaseTaskWhere(
 ): Prisma.ChaseTaskWhereInput {
   if (scope.kind === "all")      return { id: taskId };
   if (scope.kind === "assigned") return { id: taskId, transaction: { assignedUserId: scope.userId } };
+  if (scope.kind === "business") return { id: taskId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: taskId, transaction: { agencyId: scope.agencyIds[0] } };
 }
 
@@ -105,6 +124,7 @@ export function scopeReminderLogWhere(
 ): Prisma.ReminderLogWhereInput {
   if (scope.kind === "all")      return { id: logId };
   if (scope.kind === "assigned") return { id: logId, transaction: { assignedUserId: scope.userId } };
+  if (scope.kind === "business") return { id: logId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: logId, transaction: { agencyId: scope.agencyIds[0] } };
 }
 
@@ -114,9 +134,16 @@ export function scopeReminderLogWhere(
  */
 export function canReadTransaction(
   scope: AccessScope,
-  tx: { agencyId: string; assignedUserId: string | null }
+  tx: {
+    agencyId: string;
+    assignedUserId: string | null;
+    // Required for the "business" branch. Callers that may pass a business scope
+    // MUST select this; when absent it reads as undefined and fails closed.
+    progressionBusinessId?: string | null;
+  }
 ): boolean {
   if (scope.kind === "all")      return true;
   if (scope.kind === "assigned") return tx.assignedUserId === scope.userId;
+  if (scope.kind === "business") return tx.progressionBusinessId === scope.businessId;
   return scope.agencyIds.includes(tx.agencyId);
 }

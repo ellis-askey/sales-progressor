@@ -55,6 +55,7 @@ export async function PATCH(req: NextRequest) {
   const contactWhere =
     scope.kind === "all"      ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+    scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                  { id, transaction: { agencyId: scope.agencyIds[0] } };
   const existing = await prisma.contact.findFirst({
     where: contactWhere,
