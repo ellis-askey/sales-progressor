@@ -2,26 +2,58 @@
 
 // Onboarding empty state for /agent/clients (a progression-business owner with
 // no clients yet). "Warm glass" direction: frosted glass panels floating over a
-// warm coral-and-blue glow, with the add form on the left and a decorative
-// floating roster on the right. Fills the width on desktop, stacks on mobile.
-// Canonical agent-glass / agent-btn carry the surfaces + press states; the panel
-// gradient + glow are bespoke with explicit dark overrides. Reduced-motion safe.
+// warm coral-and-blue glow, the add form on the left and a decorative roster on
+// the right that SHUFFLES on hover (auto-cycles) or on a vertical swipe (mobile).
+// Fills the width on desktop, stacks on mobile. Canonical Button + .agent-input +
+// .agent-glass; the panel gradient/glow are bespoke with dark overrides.
+// Reduced-motion: no auto-shuffle, no float, no transitions.
 
-import type { ReactNode } from "react";
-import { House, Leaf, Mountains, UserPlus } from "@phosphor-icons/react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { UserPlus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
 
-// Decorative only (aria-hidden): fictional agencies, glyph tiles — a taste of
-// the populated roster, never real data.
-const ROSTER: { name: string; agency: string; sales: number; icon: ReactNode; tileBg: string; iconColor: string; cls: string }[] = [
-  { name: "Daniel Carter", agency: "Maple & Co", sales: 9, icon: <Mountains size={20} weight="fill" />, tileBg: "rgba(176,142,74,0.20)", iconColor: "#2F7D53", cls: "t1" },
-  { name: "Emma Collins", agency: "Birchwood Homes", sales: 17, icon: <Leaf size={20} weight="fill" />, tileBg: "rgba(59,111,212,0.16)", iconColor: "#3B6FD4", cls: "t2" },
-  { name: "Alex Turner", agency: "Riverside Estates", sales: 28, icon: <House size={20} weight="fill" />, tileBg: "#1E2A44", iconColor: "#FF6B4A", cls: "t3" },
+// Decorative only (aria-hidden): fictional agencies with illustrative logos —
+// a taste of the populated roster, never real data.
+const ROSTER: { name: string; agency: string; sales: number; img: string }[] = [
+  { name: "Alex Turner", agency: "Riverside Estates", sales: 28, img: "/clients-preview/riverside.png" },
+  { name: "Emma Collins", agency: "Birchwood Homes", sales: 17, img: "/clients-preview/birchwood.png" },
+  { name: "Daniel Carter", agency: "Maple & Co", sales: 9, img: "/clients-preview/maple.png" },
 ];
+const N = ROSTER.length;
+const SLOT = 84; // vertical distance between stacked cards
 
 export function ClientsEmptyState() {
   const f = useAddClientForm();
+
+  // Shuffle: `offset` rotates which card sits in which slot. Hover auto-cycles;
+  // a vertical swipe nudges it one step (mobile). Reduced-motion opts out of the
+  // auto-cycle (swipe still works, just without the slide).
+  const [offset, setOffset] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reduced = useRef(false);
+  const touchY = useRef<number | null>(null);
+
+  useEffect(() => {
+    reduced.current = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return () => { if (timer.current) clearInterval(timer.current); };
+  }, []);
+
+  function startShuffle() {
+    if (reduced.current || timer.current) return;
+    timer.current = setInterval(() => setOffset((o) => o + 1), 950);
+  }
+  function stopShuffle() {
+    if (timer.current) { clearInterval(timer.current); timer.current = null; }
+  }
+  function onTouchStart(e: React.TouchEvent) { touchY.current = e.touches[0].clientY; }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchY.current == null) return;
+    const dy = e.changedTouches[0].clientY - touchY.current;
+    if (Math.abs(dy) > 28) setOffset((o) => o + (dy < 0 ? 1 : -1));
+    touchY.current = null;
+  }
 
   return (
     <div className="cwg">
@@ -60,22 +92,31 @@ export function ClientsEmptyState() {
             </Button>
           </div>
 
-          {/* Decorative floating roster */}
-          <aside className="cwg-roster" aria-hidden>
+          {/* Decorative shuffling roster */}
+          <aside className="cwg-roster" aria-hidden onMouseEnter={startShuffle} onMouseLeave={stopShuffle} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <p className="cwg-roster-title">Your clients</p>
-            {ROSTER.map((r) => (
-              <div className={`cwg-rcard agent-glass ${r.cls}`} key={r.name}>
-                <span className="cwg-tile" style={{ background: r.tileBg, color: r.iconColor }}>{r.icon}</span>
-                <div className="cwg-rmain">
-                  <div className="cwg-rname">{r.name}</div>
-                  <div className="cwg-ragency">{r.agency}</div>
-                </div>
-                <div className="cwg-rstat">
-                  <div className="cwg-rnum">{r.sales}</div>
-                  <div className="cwg-rsub">active</div>
-                </div>
-              </div>
-            ))}
+            <div className="cwg-stack">
+              {ROSTER.map((r, i) => {
+                const slot = (((i + offset) % N) + N) % N;
+                return (
+                  <div
+                    className="cwg-rcard agent-glass"
+                    key={r.name}
+                    style={{ transform: `translateY(${slot * SLOT}px) translateX(${(slot - 1) * 3}px) rotate(${(slot - 1) * 1.1}deg)`, zIndex: N - slot }}
+                  >
+                    <span className="cwg-tile"><img src={r.img} alt="" width={48} height={48} /></span>
+                    <div className="cwg-rmain">
+                      <div className="cwg-rname">{r.name}</div>
+                      <div className="cwg-ragency">{r.agency}</div>
+                    </div>
+                    <div className="cwg-rstat">
+                      <div className="cwg-rnum">{r.sales}</div>
+                      <div className="cwg-rsub">active</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </aside>
         </div>
       </div>
@@ -124,16 +165,18 @@ export function ClientsEmptyState() {
         .cwg-help { margin: 12px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
         .cwg-btn { width: 100%; margin-top: 16px; gap: 8px; }
 
-        /* Decorative roster */
-        .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; }
+        /* Shuffling roster */
+        .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; touch-action: pan-x; }
         .cwg-roster-title { margin: 0 0 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: var(--agent-text-secondary); padding-left: 4px; }
         @keyframes cwg-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-        .cwg-rcard { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 15px; margin-bottom: 12px; }
-        .cwg-rcard:last-child { margin-bottom: 0; }
-        .cwg-rcard.t1 { transform: translateX(12px) rotate(1.2deg); }
-        .cwg-rcard.t2 { transform: translateX(-6px) rotate(-1.4deg); }
-        .cwg-rcard.t3 { transform: translateX(4px) rotate(0.6deg); }
-        .cwg-tile { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+        .cwg-stack { position: relative; height: 240px; }
+        .cwg-rcard {
+          position: absolute; top: 0; left: 0; right: 0; height: 72px; box-sizing: border-box;
+          display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 15px;
+          transition: transform 520ms cubic-bezier(0.22,1,0.36,1); will-change: transform;
+        }
+        .cwg-tile { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); }
+        .cwg-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .cwg-rmain { min-width: 0; flex: 1; }
         .cwg-rname { font-size: 14px; font-weight: 700; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cwg-ragency { font-size: 12px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -143,13 +186,13 @@ export function ClientsEmptyState() {
 
         @media (max-width: 820px) {
           .cwg-cols { grid-template-columns: 1fr; gap: 24px; }
-          /* form stays first; the decorative roster follows below */
         }
         @media (max-width: 480px) {
           .cwg-row { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
           .cwg, .cwg-roster { animation: none; }
+          .cwg-rcard { transition: none; }
         }
       `}</style>
     </div>
