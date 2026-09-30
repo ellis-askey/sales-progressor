@@ -29,12 +29,13 @@ const RELIST_RESET_VM_CODE_SET = new Set([
 ]);
 
 // Critique #23: when a chase re-anchors on an expected "due back" date
-// (useExpectedDate, e.g. PM13 searches), fire this many days AFTER that date if
-// the step is still outstanding — NOT the rule's ordered-step graceDays, which
-// would push the chase weeks past the date the results were due. Small buffer so
-// we don't nag on the exact day an estimate might still land. Shared by the
-// agent engine + the client-chase cron so both agree.
-export const EXPECTED_DATE_GRACE_DAYS = 2;
+// (useExpectedDate, e.g. PM13 searches), the first chase fires ON that date if
+// the step is still outstanding (0 = the day itself), NOT the rule's ordered-step
+// graceDays — which would push the chase weeks past the date the results were
+// due. After that first chase, the rule's normal repeat + escalate apply
+// unchanged. Shared by the agent engine + the client-chase cron so both agree.
+// Bump above 0 if a buffer past the estimate is ever wanted.
+export const EXPECTED_DATE_GRACE_DAYS = 0;
 
 // ─── UK chase-time helper ───────────────────────────────────────────────────
 //
@@ -1026,9 +1027,10 @@ export async function evaluateTransactionReminders(
     // Calculate first due date: anchor + graceDays, normalised to 06:00 UK
     // on the resulting calendar day (so chases fire before the working day
     // starts, not at the random hour the anchor milestone was confirmed).
-    // Re-anchored on an expected due-back date → fire from that date with a
-    // small buffer, not the ordered-step grace (which would land the chase weeks
-    // after the results were due). Otherwise the rule's normal grace applies.
+    // Re-anchored on an expected due-back date → first chase fires ON that date
+    // (EXPECTED_DATE_GRACE_DAYS = 0), not the ordered-step grace (which would land
+    // the chase weeks after the results were due). Otherwise the rule's normal
+    // grace applies. Repeat + escalate are the rule's usual values either way.
     const graceForDue = expectedDateAnchored ? EXPECTED_DATE_GRACE_DAYS : rule.graceDays;
     let firstDueDate = setUkChaseTime(addDays(anchorDate, graceForDue));
 
