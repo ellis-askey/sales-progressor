@@ -2,7 +2,6 @@
 // Updated engine: graceDays, repeatEveryDays, escalateAfterChases, priority, chaseCount
 
 import { prisma } from "@/lib/prisma";
-import { unstable_noStore as noStore } from "next/cache";
 import { Prisma } from "@prisma/client";
 import type { ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
@@ -341,11 +340,6 @@ export async function getReminderLogsForTransaction(
 }
 
 export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transactionId?: string }) {
-  // Always read live: opt this query out of Next's data cache so a corrected
-  // reminder can never be served from a stale cached result (2026-09-30 — a
-  // stale entry surfaced a fixed reminder at its old overdue date across all
-  // clients, immune to redeploys).
-  noStore();
   // Internal staff paths: no agencyId filter; serviceType filter reversed (their files are outsourced).
   // Agent paths: existing agencyId + serviceType (self_managed only) logic unchanged.
   //
@@ -510,10 +504,21 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
   );
   const chaseByTxCode = new Map<string, ChaseSnapshot>();
   if (txIds.length > 0 && codesForChase.length > 0) {
-    const states = await prisma.clientChaseState.findMany({
+    const rawStates = await prisma.clientChaseState.findMany({
       where: { transactionId: { in: txIds }, milestoneCode: { in: codesForChase }, status: { in: ["active", "escalated"] } },
-      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true },
+      select: { transactionId: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, lastEngagedAt: true, buyerRoundId: true },
     });
+    // Relist safety: ignore chase state from an ARCHIVED buyer round. An old
+    // buyer's chase state (left active/escalated after a relist — the relist
+    // sweep doesn't clear ClientChaseState) would otherwise feed the hand-over
+    // compute below and override the NEW reminder's real due date with a stale
+    // old-round date. This is exactly what surfaced a relisted PM8 at the
+    // previous buyer's June chase date. Keep file-level (null round) + the active
+    // round only — mirrors the reminder-log round filter above. txInfo maps each
+    // tx to its activeBuyerRoundId.
+    const states = rawStates.filter(
+      (s) => s.buyerRoundId == null || s.buyerRoundId === txInfo.get(s.transactionId),
+    );
     // Aggregate couple-as-one per (tx, milestone): furthest-along chase count,
     // earliest first-chase, latest last-chase + last-engagement.
     for (const s of states) {
