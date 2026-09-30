@@ -135,9 +135,10 @@ export default async function AgentCompletionsPage() {
       keysReleased: f.keysReleased,
     }));
 
-  // Brand-new agency user (no pending, no completed history): show the onboarding
-  // empty state (hero + "getting set up" cards). Internal staff never see it.
-  const isBrandNew = files.length === 0 && completedFiles.length === 0 && !isInternalStaff;
+  // Brand-new agency user OR progression-business owner (no pending, no completed
+  // history): show the onboarding empty state (hero + "getting set up" cards).
+  // Other internal staff (TSP progressors, admin, viewer) never see it.
+  const isBrandNew = files.length === 0 && completedFiles.length === 0 && (!isInternalStaff || isBusinessOwner);
 
   // Pre-compute groups with serialisable per-file data for the client component
   const completionGroups: CompletionGroup[] = ALL_GROUPS.flatMap(({ key, label }) => {
@@ -226,11 +227,13 @@ export default async function AgentCompletionsPage() {
                   No completions yet
                 </p>
                 <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>
-                  Once files are exchanged, they&apos;ll appear here and you&apos;ll be able to track them all the way to completion.
+                  {isBusinessOwner
+                    ? "Once your clients' sales exchange, they'll appear here and you'll be able to track them all the way to completion."
+                    : "Once files are exchanged, they'll appear here and you'll be able to track them all the way to completion."}
                 </p>
-                <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
+                <Link href={isBusinessOwner ? "/agent/clients" : "/agent/transactions/new"} className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
                   <Plus size={16} weight="bold" />
-                  Add your first sale
+                  {isBusinessOwner ? "Add your first client" : "Add your first sale"}
                 </Link>
               </div>
             </div>
@@ -238,6 +241,30 @@ export default async function AgentCompletionsPage() {
             {/* While you're getting set up */}
             <div>
               <p className="agent-eyebrow" style={{ marginBottom: 12 }}>While you&apos;re getting set up</p>
+              {isBusinessOwner ? (
+                <div className="setup-cards-2">
+                  <SetupCard
+                    glassId="empty-completions-add-clients"
+                    label="Completions empty · Add clients"
+                    iconSrc="/setup-agency.png"
+                    tint="coral"
+                    title="Add your clients"
+                    desc="Add the estate agents you progress sales for. Each gets their own login and sees only their own sales."
+                    cta="Add a client"
+                    href="/agent/clients"
+                  />
+                  <SetupCard
+                    glassId="empty-completions-profile-prog"
+                    label="Completions empty · Complete profile"
+                    iconSrc="/setup-profile.png"
+                    tint="blue"
+                    title="Complete your profile"
+                    desc="Add your contact details and photo so buyers and sellers know who they're dealing with."
+                    cta="Set up profile"
+                    href="/agent/account/profile"
+                  />
+                </div>
+              ) : (
               <div className="setup-cards-3">
                 <SetupCard
                   glassId="empty-completions-profile"
@@ -270,6 +297,7 @@ export default async function AgentCompletionsPage() {
                   href="/agent/account/team"
                 />
               </div>
+              )}
             </div>
 
             {/* Bottom guide card — built, hidden until its "View all steps" modal
@@ -308,12 +336,8 @@ export default async function AgentCompletionsPage() {
             </p>
             <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
               {completedFiles.length > 0
-                ? (isBusinessOwner
-                    ? "Files appear here once your clients' sales exchange. Your completed files are below."
-                    : "Files appear here once they exchange. Your completed files are below.")
-                : (isBusinessOwner
-                    ? "Files appear here once your clients' sales exchange."
-                    : "Files appear here once they exchange.")}
+                ? "Files appear here once they exchange. Your completed files are below."
+                : "Files appear here once they exchange."}
             </p>
           </div>
         )}

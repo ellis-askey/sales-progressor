@@ -291,9 +291,10 @@ export default async function AllTransactionsPage({
         )}
 
         {allTransactions.length === 0 ? (
-          !isInternalStaff ? (
-            // Agency users with no files: the onboarding empty state (mock).
-            <AllFilesEmptyState />
+          !isInternalStaff || isBusinessOwner ? (
+            // Agency users AND progression-business owners get the onboarding
+            // hero; the owner variant points its CTA at Clients.
+            <AllFilesEmptyState audience={isBusinessOwner ? "progressor" : "agency"} />
           ) : (
           <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
             <HouseLine
@@ -307,24 +308,7 @@ export default async function AllTransactionsPage({
                 opacity: 0.45,
               }}
             />
-            {isBusinessOwner ? (
-              <>
-                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  No files yet
-                </p>
-                <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                  Add a client and create their first sale, and it&apos;ll appear here.
-                </p>
-                <Link
-                  href="/agent/clients"
-                  className="agent-btn agent-btn-primary agent-btn-md"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Plus size={16} weight="bold" />
-                  Add your first client
-                </Link>
-              </>
-            ) : isProgressor ? (
+            {isProgressor ? (
               <>
                 <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                   No files assigned yet

@@ -12,6 +12,7 @@ import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { NoCommsCard } from "@/components/todos/NoCommsCard";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
+import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
@@ -23,6 +24,7 @@ export default async function AgentTodoPage() {
   const role = session.user.role;
   const isProgressor = role === "sales_progressor";
   const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
+  const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
 
   // Agent-side tasks are agency-scoped; internal staff have agencyId=null
   // so listAllTasksForAgent returns empty for them. Internal tasks come
@@ -115,10 +117,12 @@ export default async function AgentTodoPage() {
       </PageHeader>
 
       <PageReveal>
-      {tasks.length === 0 && !hasReviews && !isInternal && noCommsItems.length === 0 ? (
-        // Brand-new agency user: the onboarding empty state (full width, mock).
+      {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) && noCommsItems.length === 0 ? (
+        // Brand-new agency user OR progression-business owner: the onboarding
+        // empty state. An owner has no TSP progressor to send to, so the
+        // "send to your progressor" card is off for them.
         <div className="px-4 md:px-8 py-2 md:py-4">
-          <TodoEmptyState canUseProgressor={hasOutsourced} />
+          <TodoEmptyState canUseProgressor={isBusinessOwner ? false : hasOutsourced} />
         </div>
       ) : (
         <div className="px-4 md:px-8 py-2 md:py-4 todo-cols">

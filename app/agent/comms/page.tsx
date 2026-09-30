@@ -122,10 +122,12 @@ export default async function AgentCommsPage() {
       <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
-        {/* Brand-new agency user: the onboarding empty state (matches the mock). */}
-        {entries.length === 0 && !isInternalStaff && <CommsEmptyState />}
+        {/* Agency users AND progression-business owners get the onboarding hero
+            (its copy reads for a progressor as-is). Other internal staff (TSP
+            progressors, admin, viewer) keep the simple card below. */}
+        {entries.length === 0 && (!isInternalStaff || isBusinessOwner) && <CommsEmptyState />}
 
-        {entries.length === 0 && isInternalStaff && (
+        {entries.length === 0 && isInternalStaff && !isBusinessOwner && (
           <>
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
@@ -135,11 +137,9 @@ export default async function AgentCommsPage() {
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {isAdmin
                   ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across the platform."
-                  : isBusinessOwner
-                    ? "Confirmed steps, price changes, shared notes, replies, and uploads across your clients' sales appear here."
-                    : isProgressor
-                      ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
-                      : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
+                  : isProgressor
+                    ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
+                    : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
               </p>
             </div>
 

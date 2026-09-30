@@ -97,14 +97,15 @@ export default async function AgentAnalyticsPage({
 
   // ── Full empty state (zero files ever) ───────────────────────────────────
   if (transactions.length === 0) {
-    // Agency users get the onboarding empty state (mock). Internal staff keep
-    // the simple card + ghost preview below.
-    if (!isInternalStaff) {
+    // Agency users AND progression-business owners get the onboarding hero (the
+    // owner variant points its CTA at Clients). Other internal staff (TSP
+    // progressors, admin, viewer) keep the simple card + ghost preview below.
+    if (!isInternalStaff || isBusinessOwner) {
       return (
         <>
           <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
           <div className="px-4 py-5 sm:px-8">
-            <AnalyticsEmptyState />
+            <AnalyticsEmptyState audience={isBusinessOwner ? "progressor" : "agency"} />
           </div>
         </>
       );
@@ -120,22 +121,12 @@ export default async function AgentAnalyticsPage({
               <rect x="32" y="10" width="10" height="32" rx="2" fill="var(--agent-coral)" />
             </svg>
             <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {isBusinessOwner ? "Analytics will appear here as you progress sales." : "Analytics will appear here as you submit sales."}
+              Analytics will appear here as you submit sales.
             </p>
             <p style={{ margin: "0 auto 20px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              {isBusinessOwner
-                ? "Once you're progressing sales for your clients, this page shows pipeline value, fee tracking, conversion rates and monthly trends."
-                : "After you submit your first file, this page shows pipeline value, fee tracking, conversion rates and monthly trends."}
+              After you submit your first file, this page shows pipeline value, fee tracking, conversion rates and monthly trends.
             </p>
-            {isBusinessOwner ? (
-              <Link
-                href="/agent/clients"
-                className="agent-btn agent-btn-primary"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
-              >
-                + Add your first client
-              </Link>
-            ) : session.user.role !== "sales_progressor" && session.user.role !== "viewer" ? (
+            {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
               <Link
                 href="/agent/transactions/new"
                 className="agent-btn agent-btn-primary"
@@ -143,7 +134,7 @@ export default async function AgentAnalyticsPage({
               >
                 + Submit your first sale
               </Link>
-            ) : null}
+            )}
           </Card>
 
           {/* Ghost analytics preview */}

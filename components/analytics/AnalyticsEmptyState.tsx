@@ -19,8 +19,11 @@ import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
 const SHOW_DEMO_ANALYTICS = false;
 
-export function AnalyticsEmptyState() {
+// `audience` picks the copy + primary CTA (see AllFilesEmptyState). A progression
+// business measures across its clients' sales and starts by adding a client.
+export function AnalyticsEmptyState({ audience = "agency" }: { audience?: "agency" | "progressor" }) {
   const { launch, node } = useDemoExplore();
+  const isProg = audience === "progressor";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -39,18 +42,20 @@ export function AnalyticsEmptyState() {
             Your data starts here
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
-            See what&apos;s really happening in your agency
+            {isProg ? "See what's really happening across your sales" : "See what's really happening in your agency"}
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 380 }}>
-            Add your sales and Sales Progressor starts turning every exchange, delay and fee into something you can measure.
+            {isProg
+              ? "Add a client and start progressing their sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."
+              : "Add your sales and Sales Progressor starts turning every exchange, delay and fee into something you can measure."}
           </p>
           <Link
-            href="/agent/transactions/new"
+            href={isProg ? "/agent/clients" : "/agent/transactions/new"}
             className="agent-btn agent-btn-primary agent-btn-md"
             style={{ textDecoration: "none", width: "fit-content" }}
           >
             <Plus size={16} weight="bold" />
-            Add your first sale
+            {isProg ? "Add your first client" : "Add your first sale"}
           </Link>
         </div>
       </div>

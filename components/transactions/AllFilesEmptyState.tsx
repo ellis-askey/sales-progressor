@@ -13,8 +13,12 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
-export function AllFilesEmptyState() {
+// `audience` picks the copy + primary CTA. A progression-business owner starts
+// with a CLIENT (their sales hang off clients they add), so their hero points
+// at /agent/clients; an agency starts with a sale. Everything else is shared.
+export function AllFilesEmptyState({ audience = "agency" }: { audience?: "agency" | "progressor" }) {
   const { launch, node } = useDemoExplore();
+  const isProg = audience === "progressor";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -36,15 +40,17 @@ export function AllFilesEmptyState() {
             Your pipeline starts here
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-            Add your first sale and we&apos;ll keep everything around it together, from offer agreed through to completion.
+            {isProg
+              ? "Add a client and create their first sale, and we'll keep everything around it together, from offer agreed through to completion."
+              : "Add your first sale and we'll keep everything around it together, from offer agreed through to completion."}
           </p>
           <Link
-            href="/agent/transactions/new"
+            href={isProg ? "/agent/clients" : "/agent/transactions/new"}
             className="agent-btn agent-btn-primary agent-btn-md"
             style={{ textDecoration: "none", width: "fit-content" }}
           >
             <Plus size={16} weight="bold" />
-            Add your first sale
+            {isProg ? "Add your first client" : "Add your first sale"}
           </Link>
         </div>
       </div>
