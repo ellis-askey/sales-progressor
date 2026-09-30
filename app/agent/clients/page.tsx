@@ -26,7 +26,7 @@ export default async function AgentClientsPage() {
   // No clients yet: the full-width onboarding layout (hero + preview + form).
   if (clients.length === 0) {
     return (
-      <div className="px-4 md:px-8 py-4" style={{ width: "100%" }}>
+      <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
         <ClientsEmptyState />
       </div>
     );

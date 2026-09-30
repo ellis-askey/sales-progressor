@@ -36,21 +36,24 @@ export function ClientsEmptyState() {
       <div className="ce-top">
         {/* Hero */}
         <div className="ce-hero">
+          <p className="ce-eyebrow">Clients</p>
           <h1 className="ce-title">Add your first client</h1>
           <p className="ce-lead">Add the agents and agencies you progress sales for.</p>
           <p className="ce-detail">They&rsquo;ll have their own login, while you manage their sales from one place.</p>
 
-          <div className="ce-steps">
-            {STEPS.map((s, i) => (
-              <div className="ce-step-group" key={s.title}>
-                <div className="ce-step">
-                  <span className="ce-step-ic" style={{ color: s.color }}>{s.icon}</span>
-                  <p className="ce-step-title">{s.title}</p>
-                  <p className="ce-step-desc">{s.desc}</p>
+          <div className="ce-steps-card">
+            <div className="ce-steps">
+              {STEPS.map((s, i) => (
+                <div className="ce-step-group" key={s.title}>
+                  <div className="ce-step">
+                    <span className="ce-step-ic" style={{ color: s.color }}>{s.icon}</span>
+                    <p className="ce-step-title">{s.title}</p>
+                    <p className="ce-step-desc">{s.desc}</p>
+                  </div>
+                  {i < STEPS.length - 1 && <ArrowRight size={16} weight="bold" className="ce-step-arrow" aria-hidden />}
                 </div>
-                {i < STEPS.length - 1 && <ArrowRight size={16} weight="bold" className="ce-step-arrow" aria-hidden />}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -128,19 +131,16 @@ export function ClientsEmptyState() {
            edges); the preview is a fixed-ish right rail. */
         .ce-top { display: grid; grid-template-columns: 1fr minmax(340px, 440px); gap: 28px; align-items: start; }
 
-        .ce-hero {
-          position: relative; overflow: hidden;
-          border-radius: var(--agent-radius-xl);
-          padding: 36px 40px;
-          border: 1px solid var(--agent-border-subtle);
-          background: linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.13), rgba(var(--agent-coral-rgb),0.045) 54%, transparent 80%);
-        }
+        .ce-hero { position: relative; }
+        .ce-eyebrow { margin: 0 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--agent-text-muted); }
 
         .ce-title { margin: 0 0 14px; font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: var(--agent-text-primary); text-wrap: balance; }
         .ce-lead { margin: 0 0 8px; font-size: 16.5px; font-weight: 500; color: var(--agent-text-secondary); line-height: 1.5; }
         .ce-detail { margin: 0; font-size: 14.5px; color: var(--agent-text-muted); line-height: 1.55; max-width: 460px; }
 
-        .ce-steps { display: flex; align-items: flex-start; gap: 16px; margin-top: 34px; }
+        /* The three steps sit in their own subtle card below the text. */
+        .ce-steps-card { margin-top: 28px; max-width: 660px; padding: 22px 24px; border-radius: 16px; border: 0.5px solid var(--agent-border-subtle); background: rgba(255,255,255,0.45); }
+        .ce-steps { display: flex; align-items: flex-start; gap: 16px; }
         .ce-step-group { display: contents; }
         .ce-step { display: flex; flex-direction: column; gap: 2px; flex: 1 1 0; max-width: 200px; }
         .ce-step-ic { margin-bottom: 8px; }
