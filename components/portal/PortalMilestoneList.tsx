@@ -30,6 +30,9 @@ type Milestone = {
   isExchangeGate: boolean;
   completedAt: Date | null;
   eventDate: Date | null;
+  // Critique #23: expected "due back" date for a step still in progress (PM13
+  // searches), set by the solicitor or agent. Shown to both sides as reassurance.
+  expectedDate?: Date | null;
   label: string;
   labelOther?: string | null;
   who: string;
@@ -419,6 +422,12 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 : m.whoLabel
                               }
                             </p>
+                            {/* Critique #23: searches "expected back" reassurance line. */}
+                            {m.code === "PM13" && m.expectedDate && !m.isComplete && !m.isNotRequired && (
+                              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: P.accent }}>
+                                Searches expected back around {fmtDate(m.expectedDate)}
+                              </p>
+                            )}
                             {m.code === "PM10" && !isLocked && (
                               <SearchesUpload token={token} />
                             )}
@@ -517,9 +526,17 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                       {isOpen && (<div className="portal-reveal-fade">{groupMilestones.map((m, mIdx) => (
                         <div key={m.id} className="flex items-center gap-3.5 px-5 py-3" style={{ borderBottom: mIdx < groupMilestones.length - 1 ? `1px solid ${P.border}` : undefined }}>
                           <StatusDot isComplete={m.isComplete} isLocked={!m.isComplete && !m.isAvailable} canConfirm={false} />
-                          <p className="text-[13px] flex-1" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
-                            {m.labelOther ?? m.label}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px]" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
+                              {m.labelOther ?? m.label}
+                            </p>
+                            {/* Critique #23: the other side sees the searches "expected back" date too. */}
+                            {m.code === "PM13" && m.expectedDate && !m.isComplete && !m.isNotRequired && (
+                              <p className="text-[11px] mt-0.5 font-semibold" style={{ color: P.accent }}>
+                                Searches expected back around {fmtDate(m.expectedDate)}
+                              </p>
+                            )}
+                          </div>
                           {m.isComplete && (
                             <span className="text-[11px] flex-shrink-0" style={{ color: P.success }}>✓</span>
                           )}

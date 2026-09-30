@@ -25,6 +25,7 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
     isExchangeGate:  EXCHANGE_GATES_PORTAL.has(m.code),
     completedAt:     m.completedAt,
     eventDate:       m.eventDate,
+    expectedDate:    m.expectedDate,
     confirmedByPortal: m.confirmedByPortal,
     label:           getMilestoneCopy(m.code).label,
     labelOther:      getMilestoneCopy(m.code).labelOther ?? null,

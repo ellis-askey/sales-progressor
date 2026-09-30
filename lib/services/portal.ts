@@ -147,6 +147,9 @@ export type PortalMilestone = {
   isAvailable: boolean;
   eventDate: Date | null;
   completedAt: Date | null;
+  // Critique #23: an expected date for a step still in progress (e.g. "searches
+  // due back"), set by the solicitor or agent. Shown to clients as reassurance.
+  expectedDate: Date | null;
   confirmedByPortal: boolean;
   eventDateRequired: boolean;
 };
@@ -801,6 +804,7 @@ export async function getPortalMilestones(
         isAvailable,
         eventDate: comp?.eventDate ?? null,
         completedAt: comp?.completedAt ?? null,
+        expectedDate: comp?.expectedDate ?? null,
         confirmedByPortal: comp?.confirmedByPortal ?? false,
         eventDateRequired: def.eventDateRequired,
       };
