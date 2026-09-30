@@ -98,6 +98,7 @@ export function OnHoldBanner({
           title="This file is on hold."
           body="Everything is paused: no client emails, agent reminders or escalations. Reactivate the file when you're ready to resume."
           rightSlot={actions}
+          rightSlotPlacement="inline-responsive"
           className="mb-4"
         />
       )}

@@ -44,6 +44,7 @@ export function RelistBanner({ show, transactionId, previousPurchasePrice, inCha
             Add a new buyer
           </button>
         }
+        rightSlotPlacement="inline-responsive"
         className="mb-4"
       />
       <RelistFileModal

@@ -44,6 +44,11 @@ type Props = {
   // Arbitrary right-aligned content (e.g. a small stack of buttons). When set it
   // renders centre-right; use instead of `action` when one link isn't enough.
   rightSlot?: ReactNode;
+  // "inline" (default) keeps rightSlot centre-right on the main row at every
+  // width. "inline-responsive" keeps it there at >=sm but drops it BELOW the
+  // body, right-aligned, below sm — so a stack of buttons doesn't crush the copy
+  // on mobile (critique #137).
+  rightSlotPlacement?: "inline" | "inline-responsive";
   dismissible?: { onDismiss: () => void };
   // Optional className for cases where a caller needs extra spacing (e.g.
   // mb-3). Container styling otherwise comes from this component.
@@ -57,7 +62,7 @@ const TOKEN_FOR_KIND: Record<BannerKind, { tint: string; border: string }> = {
   success: { tint: "var(--agent-success)", border: "var(--agent-success-border-strong)" },
 };
 
-export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", rightSlot, dismissible, className }: Props) {
+export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", rightSlot, rightSlotPlacement = "inline", dismissible, className }: Props) {
   const t = TOKEN_FOR_KIND[kind];
   // A label ending in "→" is a navigate action: render the arrow as a nudging
   // icon (.agent-arrow-i) with NO underline — the arrow is the affordance.
@@ -148,6 +153,12 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
             {actionBtn}
           </div>
         )}
+        {/* Mobile: rightSlot drops beneath the body, right-aligned (critique #137). */}
+        {rightSlot && rightSlotPlacement === "inline-responsive" && (
+          <div className="flex justify-end sm:hidden" style={{ marginTop: 10 }}>
+            {rightSlot}
+          </div>
+        )}
       </div>
 
       {actionBtn && actionPlacement === "inline" && (
@@ -160,7 +171,14 @@ export function AgentBanner({ kind, icon, title, body, action, actionPlacement =
         <span style={{ alignSelf: "flex-start", marginTop: 1 }}>{actionBtn}</span>
       )}
 
-      {rightSlot && <span style={{ alignSelf: "center", flexShrink: 0 }}>{rightSlot}</span>}
+      {rightSlot && (
+        <span
+          className={rightSlotPlacement === "inline-responsive" ? "hidden sm:flex" : undefined}
+          style={{ alignSelf: "center", flexShrink: 0 }}
+        >
+          {rightSlot}
+        </span>
+      )}
 
       {dismissible && (
         <button
