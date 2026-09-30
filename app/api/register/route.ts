@@ -3,6 +3,8 @@ import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
+import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveSignupDestination } from "@/lib/auth/signup-destination";
 import { createJoinRequest } from "@/lib/services/agency-join-requests";
 import type { UserRole } from "@prisma/client";
@@ -30,14 +32,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(rateLimitJson(rl), { status: 429 });
     }
 
-    const { name, email, password, firmName, role, claimSignup } = await req.json();
+    const { name, email, password, firmName, role, claimSignup, accountType } = await req.json();
+
+    // Independent sales progressor signing up for their own bounded business.
+    // Gated server-side too (never trust the client): if the flag is off, any
+    // accountType=progressor payload falls through to the normal agency path.
+    const isProgressor = accountType === "progressor" && progressionBusinessesEnabled();
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
     }
 
     if (!firmName?.trim()) {
-      return NextResponse.json({ error: "Agency name is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: isProgressor ? "Business name is required" : "Agency name is required" },
+        { status: 400 },
+      );
     }
 
     if (password.length < 8) {
@@ -53,6 +63,32 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hash(password, 12);
 
     const attribution = parseAttributionCookie(req.cookies.get(ATTRIBUTION_COOKIE)?.value);
+
+    // Progressor path: create a bounded ProgressionBusiness + owner instead of
+    // an agency. No join-request check applies (that routes into an existing
+    // agency's domain, which a progression business isn't). agencyName here is
+    // the title-cased firmName field, reused as the business name.
+    // NOTE: the progressor welcome email (CTA "add your first client") lands in
+    // Arc S6 — we deliberately do NOT fire the agent "add your first sale"
+    // welcome here, which would be the wrong copy for a progressor.
+    if (isProgressor) {
+      const { userId, businessId } = await createProgressionBusinessWithOwner({
+        name: toTitleCase(name),
+        email,
+        password: hashedPassword,
+        businessName: agencyName,
+      });
+      console.log(`[AUDIT] progression_business_registered userId=${userId} businessId=${businessId}`);
+      void trackServerEvent(userId, ANALYTICS_EVENTS.USER_SIGNED_UP, {
+        provider: "credentials",
+        agencyId: undefined,
+        source: attribution?.source ?? null,
+        marketing_distinct_id: attribution?.marketingDistinctId ?? null,
+      });
+      const res = NextResponse.json({ ok: true, id: userId }, { status: 201 });
+      res.cookies.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 });
+      return res;
+    }
 
     // Fix 8: if this work email belongs to an agency that has verified its own
     // domain, route it as a REQUEST TO JOIN that agency (pending a director's
