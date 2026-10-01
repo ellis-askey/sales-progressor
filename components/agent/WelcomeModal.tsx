@@ -14,9 +14,13 @@ type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
 export function WelcomeModal({
   agencyModeProfile = "self_progressed",
   userName = "",
+  progressorName = null,
 }: {
   agencyModeProfile?: AgencyModeProfile;
   userName?: string;
+  // Set when this agent was invited by a progression business (the business
+  // name). Switches the copy from self-managed to progressor-managed framing.
+  progressorName?: string | null;
 }) {
   const router = useRouter();
   const firstName = extractFirstName(userName);
@@ -153,7 +157,9 @@ export function WelcomeModal({
                 Welcome to TSP{firstName ? `, ${firstName}` : ""}.
               </h2>
               <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "#54617d" }}>
-                Your workspace is ready. Let&apos;s get your first sale in and show you how everything works.
+                {progressorName
+                  ? `${progressorName} set up your workspace and will progress your sales here, so you can follow every step as it happens.`
+                  : "Your workspace is ready. Let's get your first sale in and show you how everything works."}
               </p>
 
               <button
@@ -173,7 +179,9 @@ export function WelcomeModal({
                 <ArrowRight size={18} weight="bold" />
               </button>
               <p style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#9aa3b2" }}>
-                Drop in your Memorandum of Sale or add the details yourself.
+                {progressorName
+                  ? `Got a sale on? Add it and ${progressorName} will progress it for you.`
+                  : "Drop in your Memorandum of Sale or add the details yourself."}
               </p>
 
               {/* OR divider */}
@@ -197,7 +205,7 @@ export function WelcomeModal({
                   Take a quick tour
                 </button>
                 <p style={{ margin: 0, fontSize: 12, color: "#9aa3b2", textAlign: "center" }}>
-                  See how TSP can save you time in 60 seconds.
+                  {progressorName ? "See how to follow your sales in 60 seconds." : "See how TSP can save you time in 60 seconds."}
                 </p>
               </div>
             </div>

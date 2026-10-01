@@ -106,6 +106,10 @@ export type AgentSessionContext = {
   // Defaults to "self_progressed" if the user has no agency (shouldn't
   // happen for non-internal staff, but defensive).
   agencyModeProfile: "self_progressed" | "progressor_managed" | "mixed";
+  // The progression business that invited this agent (the ProgressionBusinessClient
+  // link, set the moment the progressor adds them) — null for self-signup. Powers
+  // the welcome-modal copy variant. Only resolved when the welcome modal will show.
+  progressorName: string | null;
 };
 
 export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> => {
@@ -150,6 +154,17 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
   const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
 
+  // Only the welcome modal reads this, so resolve it only when that will show —
+  // no extra query on the hot path for everyone else.
+  let progressorName: string | null = null;
+  if (showWelcome && session.user.agencyId) {
+    const link = await prisma.progressionBusinessClient.findFirst({
+      where: { agencyId: session.user.agencyId },
+      select: { progressionBusiness: { select: { name: true } } },
+    });
+    progressorName = link?.progressionBusiness?.name ?? null;
+  }
+
   return {
     session,
     role,
@@ -167,6 +182,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     chainDeclineNotif,
     agentBellClearedAt,
     agencyModeProfile,
+    progressorName,
   };
 });
 
