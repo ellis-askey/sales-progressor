@@ -116,6 +116,70 @@ export async function portalConfirmCheckpointAction(input: {
   return { ok: true };
 }
 
+// The client's OTHER files with this agency — matched by their email across the
+// agency's live files. Powers the portal property switcher: a client on 2+ of
+// your files (buying onward, selling + buying, buying two, selling two…) can hop
+// between them. Email is the only reliable "same person" key; a contact with no
+// email can't be matched, and files with a different agency never appear (we
+// don't hold their portal). (critique 2026-09-30)
+export type LinkedProperty = {
+  token: string;
+  line1: string;      // first line of the address (bigger)
+  rest: string;       // town + postcode (subtext)
+  photoUrl: string | null;
+  role: "sale" | "purchase";
+};
+
+export async function getMyLinkedPropertiesAction(token: string): Promise<LinkedProperty[]> {
+  const me = await prisma.contact.findUnique({
+    where: { portalToken: token },
+    select: { email: true, propertyTransactionId: true, transaction: { select: { agencyId: true } } },
+  });
+  if (!me?.email || !me.transaction?.agencyId) return [];
+
+  const others = await prisma.contact.findMany({
+    where: {
+      email: { equals: me.email, mode: "insensitive" },
+      portalEligible: true,
+      portalToken: { not: null },
+      roleType: { in: ["vendor", "purchaser"] },
+      propertyTransactionId: { not: me.propertyTransactionId },
+      transaction: { agencyId: me.transaction.agencyId, status: { not: "withdrawn" } },
+    },
+    select: {
+      portalToken: true,
+      roleType: true,
+      transaction: { select: { id: true, propertyAddress: true, photoStoragePath: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Dedup by transaction (the same person could be >1 contact on a file).
+  const seen = new Set<string>();
+  const rows = others.filter((o) => {
+    if (!o.portalToken || !o.transaction || seen.has(o.transaction.id)) return false;
+    seen.add(o.transaction.id);
+    return true;
+  });
+  if (rows.length === 0) return [];
+
+  const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+  const photoMap = await getSignedUrlMap(rows.map((r) => r.transaction!.photoStoragePath), 3600).catch(() => new Map<string, string>());
+
+  return rows.map((r) => {
+    const addr = r.transaction!.propertyAddress ?? "";
+    const parts = addr.split(",").map((s) => s.trim()).filter(Boolean);
+    const path = r.transaction!.photoStoragePath;
+    return {
+      token: r.portalToken!,
+      line1: parts[0] ?? addr,
+      rest: parts.slice(1).join(", "),
+      photoUrl: path ? photoMap.get(path) ?? null : null,
+      role: (r.roleType === "vendor" ? "sale" : "purchase") as "sale" | "purchase",
+    };
+  });
+}
+
 // Portal Engagement v2 (Phase 1): the client tapped an item (or the footer) in
 // the "Since you were last here" recap. Fire-and-forget from the client; used
 // to measure whether the recap drives engagement. Best-effort, no revalidate.

@@ -12,6 +12,7 @@
 // 2026-08-09.
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { X, User, Buildings, Bell, CaretDown, Check, Wrench, ArrowRight, Camera, PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import type { EditDrawerConfig } from "./PortalEditDrawer";
 
@@ -32,7 +33,7 @@ function EditPencil({ onClick, label }: { onClick: () => void; label: string }) 
     </button>
   );
 }
-import { P } from "./portal-ui";
+import { P, PortalPill } from "./portal-ui";
 import {
   getMyPortalDetailsAction,
   updateMyNotificationsAction,
@@ -40,7 +41,7 @@ import {
   resumeMyChasesAction,
   type MyPortalDetails,
 } from "@/app/actions/portal-menu";
-import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAction, getMyPortalDocumentsAction } from "@/app/actions/portal";
+import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAction, getMyPortalDocumentsAction, getMyLinkedPropertiesAction, type LinkedProperty } from "@/app/actions/portal";
 import type { MoveInfo, MoveInfoContext } from "@/lib/services/portal-info";
 import type { PortalDocumentsData } from "@/lib/services/portal-documents";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
@@ -80,6 +81,10 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"documents" | "information" | "settings" | "customisation">("documents");
+  const router = useRouter();
+  // The client's other files with us (property switcher). Empty unless they're on
+  // 2+ of our files, matched by email. Loaded on open.
+  const [linked, setLinked] = useState<LinkedProperty[]>([]);
   const { btnRefs, ind } = useTabIndicator(activeTab === "documents" ? 0 : activeTab === "information" ? 1 : activeTab === "settings" ? 2 : 3);
   // Move-info prefetched on open so the Information tab shows instantly.
   const [moveInfo, setMoveInfo] = useState<{ context: MoveInfoContext; info: MoveInfo } | null | undefined>(undefined);
@@ -162,6 +167,12 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
       .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [open, details, loading, token]);
+
+  // Load the client's other files on open (for the property switcher).
+  useEffect(() => {
+    if (!open) return;
+    getMyLinkedPropertiesAction(token).then(setLinked).catch(() => setLinked([]));
+  }, [open, token]);
 
   // Prefetch the Information-tab data on open so switching to it is instant.
   useEffect(() => {
@@ -277,6 +288,39 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
             onUploaded={reload}
           />
         </header>
+
+        {/* Property switcher — the client's OTHER files with us (matched by
+            email). Only shows when they're on 2+ of our files; lets them hop to
+            that sale/purchase's portal. Sits between the profile header and the
+            tabs. (critique 2026-09-30) */}
+        {linked.length > 0 && (
+          <div style={{ padding: "12px 20px", borderBottom: `0.5px solid ${P.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
+            {linked.map((lp) => (
+              <button
+                key={lp.token}
+                type="button"
+                className="pbtn-press"
+                onClick={() => { onClose(); router.push(`/portal/${lp.token}`); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+                  padding: "11px 12px", borderRadius: 14, border: `1px solid ${P.border}`,
+                  background: P.cardBg, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                <span style={{ width: 46, height: 46, borderRadius: 11, flexShrink: 0, overflow: "hidden", background: "linear-gradient(135deg,#c9b8a6,#8a7360)", position: "relative" }}>
+                  {lp.photoUrl
+                    ? <img src={lp.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <svg viewBox="0 0 46 46" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.85 }}><path d="M10 30l13-10 13 10v8H10z" fill="#8a7360" /></svg>}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: P.textPrimary, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lp.line1}</span>
+                  {lp.rest && <span style={{ display: "block", fontSize: 12.5, color: P.textMuted, marginTop: 1 }}>{lp.rest}</span>}
+                </span>
+                <PortalPill tone={lp.role === "purchase" ? "green" : "blue"} size="sm">{lp.role === "purchase" ? "Buying" : "Selling"}</PortalPill>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tabs — Documents | Settings. The underline slides with a little
             overshoot; a faint underline previews on hover (no icons). */}
