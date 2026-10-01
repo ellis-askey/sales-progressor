@@ -23,6 +23,7 @@ import { updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/ma
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -403,6 +404,11 @@ function PortalMenu({
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  // Portalled to document.body — outside .agent-shell-root — so the --agent-*
+  // tokens don't resolve and the panel renders see-through (critique
+  // 2026-10-01). Stamp the shell's theme on the panel so they resolve (the
+  // canonical portal-theme fix — see docs/reference/AGENT_APP_INTERNALS.md §2).
+  const { theme, isNight } = usePortalTheme();
 
   useEffect(() => {
     if (!open) { setPos(null); return; }
@@ -431,7 +437,7 @@ function PortalMenu({
 
   if (!open || !pos) return null;
   return createPortal(
-    <div ref={menuRef} className="rv-menu" role="menu" style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: width, zIndex: 1300 }}>
+    <div ref={menuRef} data-theme={theme} data-night={isNight ? "" : undefined} className="rv-menu" role="menu" style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: width, zIndex: 1300 }}>
       {children}
     </div>,
     document.body,
