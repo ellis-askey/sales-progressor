@@ -37,7 +37,8 @@ function initials(name: string): string {
 function expiryText(ms: number | null): string {
   if (ms == null) return "";
   const days = Math.ceil((ms - Date.now()) / 86400000);
-  return days <= 0 ? "link expired" : `expires in ${days}d`;
+  if (days <= 0) return "link expired";
+  return `expires in ${days} ${days === 1 ? "day" : "days"}`;
 }
 function relTime(ms: number): string {
   const days = Math.floor((Date.now() - ms) / 86400000);
