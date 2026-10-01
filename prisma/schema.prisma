@@ -3447,6 +3447,24 @@ model CritiqueNote {
   @@index([resolvedAt, createdAt])
 }
 
+// Durable cache of HM Land Registry registered-sale counts per postcode
+// district, for the All Files → Map view's market-share bars. The Land
+// Registry SPARQL endpoint is ~30s per outcode, so a live fetch on page load
+// left the bars blank; this table is read first (fresh within the TTL) and
+// pre-warmed nightly by /api/cron/area-sales-warm so the bars populate on load.
+// count is the registered-sale count over the rolling window; 0 is a valid
+// value (no sales), distinct from a cache miss (no row).
+model AreaSalesCount {
+  id        String   @id @default(cuid())
+  outcode   String
+  months    Int // rolling window the count covers (12 or 24)
+  count     Int
+  fetchedAt DateTime @default(now())
+
+  @@unique([outcode, months])
+  @@index([fetchedAt])
+}
+
 // â”€â”€â”€ RetentionEmailLog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // TODO: surface in admin dashboard â€” see future-admin-page ticket
 

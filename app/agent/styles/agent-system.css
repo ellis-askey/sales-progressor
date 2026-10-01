@@ -5192,6 +5192,16 @@ body[data-demo-file] [data-onboarding-checklist] {
 .map-share { display: flex; align-items: center; gap: 8px; }
 .map-sb { width: 56px; height: 7px; border-radius: 4px; background: var(--agent-border-subtle); overflow: hidden; }
 .map-sb i { display: block; height: 100%; background: linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep)); }
+/* Fetching state: a shimmer where the share bar will land (market data is a
+   ~30s Land Registry lookup), so the row reads as "loading", not "empty". */
+.map-sb--load {
+  background: linear-gradient(90deg, var(--agent-border-subtle) 0%, rgba(var(--agent-coral-rgb), 0.22) 50%, var(--agent-border-subtle) 100%);
+  background-size: 200% 100%;
+  animation: agent-shimmer 1400ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-sb--load { animation: none; }
+}
 .map-pct { font-size: 11px; font-weight: 700; color: var(--agent-text-secondary); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
 .map-pct-muted { color: var(--agent-text-muted); font-weight: 500; }
 .map-attr { margin: 12px 0 0; padding-top: 10px; border-top: 0.5px solid var(--agent-border-subtle); font-size: 10px; color: var(--agent-text-muted); line-height: 1.4; }

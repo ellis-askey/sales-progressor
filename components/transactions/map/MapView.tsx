@@ -62,6 +62,7 @@ export function MapView({
   const [selected, setSelected] = useState<string | null>(null);
   const [geo, setGeo] = useState<Record<string, LatLng>>({});
   const [market, setMarket] = useState<Record<string, number | null>>({});
+  const [marketLoading, setMarketLoading] = useState(false);
   const [selectedSale, setSelectedSale] = useState<{ id: string; address: string; lat: number; lng: number } | null>(null);
   // Street View overlay fade-out: `closing` plays the exit, then a timer
   // unmounts (robust under prefers-reduced-motion, where animationend never
@@ -140,15 +141,24 @@ export function MapView({
   // share bars; failures degrade to "no market data" (null).
   useEffect(() => {
     const top = patches.slice(0, 20).map((p) => p.outcode);
-    if (!top.length) { setMarket({}); return; }
+    if (!top.length) { setMarket({}); setMarketLoading(false); return; }
     let cancelled = false;
+    setMarketLoading(true);
     fetch(`/api/area-sales?outcodes=${encodeURIComponent(top.join(","))}&months=${months ?? 12}`)
       .then((r) => r.json())
       .then((j) => { if (!cancelled) setMarket(j.sales ?? {}); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMarketLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outcodeKey, months]);
+
+  // Outcodes actually in the current market fetch (top 20) — only these get a
+  // loading shimmer; rows beyond the fetch window keep the plain "—".
+  const marketRequested = useMemo(
+    () => new Set(patches.slice(0, 20).map((p) => p.outcode)),
+    [patches],
+  );
 
   // Patches enriched with a centroid (mean of members' geocodes) + share.
   const placedPatches = useMemo(() => {
@@ -284,6 +294,8 @@ export function MapView({
                       <span className="map-sb"><i style={{ width: `${placed.sharePct}%` }} /></span>
                       <span className="map-pct">{placed.sharePct.toFixed(placed.sharePct < 10 ? 1 : 0)}%</span>
                     </>
+                  ) : marketLoading && marketRequested.has(p.outcode) ? (
+                    <span className="map-sb map-sb--load" aria-label="Loading market data" />
                   ) : (
                     <span className="map-pct map-pct-muted">—</span>
                   )}
