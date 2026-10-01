@@ -62,7 +62,17 @@ function buildHtmlWrapper(bodyContent: string, footerContent?: string): string {
 }
 
 function ctaButton(label: string, url: string): string {
-  return `<p style="margin:20px 0"><a href="${url}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:14px 32px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(255,107,74,0.35)">${label}</a></p>`;
+  // Bulletproof CTA: the fill + rounding live on a <td bgcolor>, with the
+  // padding on the inner inline-block <a>. A bare <a> loses its padding and
+  // rounded corners when a client re-renders a forwarded or quoted message
+  // (critique 2026-10-01), collapsing to a flat rectangle of text; a table
+  // cell survives.
+  return (
+    `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0">` +
+    `<tr><td align="center" bgcolor="#FF6B4A" style="border-radius:14px;background:#FF6B4A;box-shadow:0 4px 16px rgba(255,107,74,0.35)">` +
+    `<a href="${url}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;border-radius:14px">${label}</a>` +
+    `</td></tr></table>`
+  );
 }
 
 function unsubscribeFooterHtml(unsubscribeUrl: string): string {
@@ -737,15 +747,20 @@ export function buildClaimQuiet14d(vars: TemplateVars): RetentionEmailResult {
   const rawAddress = address.trim();
   const saleRef = rawAddress
     ? rawAddress.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    : "your sale";
-  const saleRefText = rawAddress || "your sale";
+    : null;
+  const saleRefText = rawAddress || null;
+  // "the sale of <address>" where we have one, else just "your sale".
+  const salePhrase = saleRef ? `the sale of ${saleRef}` : "your sale";
+  const salePhraseText = saleRefText ? `the sale of ${saleRefText}` : "your sale";
 
   const bodyHtml = [
     `<p style="${NOTE_BODY_STYLE}">Hi ${firstName},</p>`,
-    `<p style="${NOTE_BODY_STYLE}">A couple of weeks ago you connected ${saleRef} to its chain on Sales Progressor. It's been quiet on your file since, so I wanted to check in.</p>`,
-    `<p style="${NOTE_BODY_STYLE}">The file is still live. Opening it shows you where each sale in the chain is up to, and ticking off your own progress takes a couple of minutes and keeps everyone around you in the picture.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">Hope you're well.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">You connected ${salePhrase} to its chain on Sales Progressor a few weeks ago. It's been a little quiet on your file since, so I just wanted to check in.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">Your sale is still live and waiting for you. You'll be able to see where things are up to across the chain, confirm your own progress as you go, and help keep everybody else in the picture too!</p>`,
     ctaButton("Open your sale", ctaUrl),
-    `<p style="${NOTE_BODY_STYLE}">If something got in the way, or you'd rather we ran the sale for you, just reply to this email. Self-progressing is free, and your first outsourced sale is on us.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">No worries if something's simply got in the way, but if you've had any issues or would like a hand getting properly set up, just let me know.</p>`,
+    `<p style="${NOTE_BODY_STYLE}">The system is completely free to use. At the very least, it should make keeping on top of your sales and chains a little easier. At best, having everyone better connected and knowing what's holding things up might just help get your exchanges through that bit quicker.</p>`,
     `<p style="${NOTE_BODY_STYLE}">Best regards,</p>`,
     ellisSignatureHtml(),
   ].join("");
@@ -753,13 +768,17 @@ export function buildClaimQuiet14d(vars: TemplateVars): RetentionEmailResult {
   const text = [
     `Hi ${firstName},`,
     ``,
-    `A couple of weeks ago you connected ${saleRefText} to its chain on Sales Progressor. It's been quiet on your file since, so I wanted to check in.`,
+    `Hope you're well.`,
     ``,
-    `The file is still live. Opening it shows you where each sale in the chain is up to, and ticking off your own progress takes a couple of minutes and keeps everyone around you in the picture.`,
+    `You connected ${salePhraseText} to its chain on Sales Progressor a few weeks ago. It's been a little quiet on your file since, so I just wanted to check in.`,
+    ``,
+    `Your sale is still live and waiting for you. You'll be able to see where things are up to across the chain, confirm your own progress as you go, and help keep everybody else in the picture too!`,
     ``,
     `Open your sale: ${ctaUrl}`,
     ``,
-    `If something got in the way, or you'd rather we ran the sale for you, just reply to this email. Self-progressing is free, and your first outsourced sale is on us.`,
+    `No worries if something's simply got in the way, but if you've had any issues or would like a hand getting properly set up, just let me know.`,
+    ``,
+    `The system is completely free to use. At the very least, it should make keeping on top of your sales and chains a little easier. At best, having everyone better connected and knowing what's holding things up might just help get your exchanges through that bit quicker.`,
     ``,
     `Best regards,`,
     ...ELLIS_SIGNATURE_TEXT,
