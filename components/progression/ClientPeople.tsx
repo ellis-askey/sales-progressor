@@ -82,7 +82,7 @@ export function ClientPeople({
   }
 
   const resend = (p: AgencyPerson) => run(p.id, () => resendClientPersonInviteAction(agencyId, p.id), () => toast.success("Invite re-sent", { description: `We've emailed ${p.email}.` }));
-  const toggleAccess = (p: AgencyPerson) => run(p.id, () => setClientPersonFileAccessAction(agencyId, p.id, !p.canViewAll), () => toast.success(p.canViewAll ? "Now sees their own files only" : "Now sees all the agency's sales"));
+  const toggleAccess = (p: AgencyPerson) => run(p.id, () => setClientPersonFileAccessAction(agencyId, p.id, !p.canViewAll), () => toast.success(p.canViewAll ? "Now sees their own sales only" : "Now sees all the agency's sales"));
   const makeMain = (p: AgencyPerson) => { if (window.confirm(`Make ${p.name} the main contact? ${director?.name ?? "The current contact"} becomes a colleague.`)) run(p.id, () => makeClientMainContactAction(agencyId, p.id), () => toast.success(`${p.name} is now the main contact`)); };
   const remove = (p: AgencyPerson) => { if (window.confirm(`Remove ${p.name}? They'll no longer be able to log in.`)) run(p.id, () => removeClientPersonAction(agencyId, p.id), () => toast.success("Colleague removed")); };
   const cancel = (p: AgencyPerson) => { if (window.confirm(`Cancel ${p.name}'s invite? Their pending account will be deleted.`)) run(p.id, () => cancelClientInviteAction(agencyId, p.id), () => toast.success("Invite cancelled")); };
@@ -191,7 +191,7 @@ export function ClientPeople({
       )}
 
       <p className="cp-note">
-        Colleagues get their own login and can follow the sales you progress for {agencyName}. &ldquo;All sales&rdquo; sees every sale on the agency; &ldquo;Own files&rdquo; sees only the ones assigned to them. Removing someone ends their access straight away.
+        Colleagues get their own login and can follow the sales you progress for {agencyName}. &ldquo;All sales&rdquo; gives them access to every sale for the agency, while &ldquo;Own files&rdquo; limits them to sales assigned to them. Removing someone ends their access immediately.
       </p>
 
       {addOpen && <InviteModal agencyId={agencyId} agencyName={agencyName} onClose={() => setAddOpen(false)} />}
@@ -362,7 +362,7 @@ function EditModal({ agencyId, person, onClose }: { agencyId: string; person: Ag
         </div>
         {emailInvalid && <p className="cpm-err">Enter a valid email address.</p>}
         {error && <p className="cpm-err">{error}</p>}
-        {person.pending && <p className="cpm-help">If you change the email, re-send the set-up link so the new address gets it.</p>}
+        {person.pending && <p className="cpm-help">If you change their email, re-send the set-up link so it reaches the new address.</p>}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>

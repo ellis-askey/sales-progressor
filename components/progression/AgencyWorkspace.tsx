@@ -113,8 +113,9 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
               <div className="aw-branding-intro">
                 <h4>Email branding</h4>
                 <p>
-                  Upload {detail.name}'s logo and set their brand colours. Every client-facing email we send on
-                  their sales uses these, so the live preview on the left is exactly what their buyers and sellers receive.
+                  Upload {detail.name}&rsquo;s logo and choose their brand colours. We&rsquo;ll use them on every
+                  client-facing email sent for their sales, and the live preview on the left shows exactly what
+                  their buyers and sellers will receive.
                 </p>
               </div>
               <EmailBrandingStudio
@@ -128,7 +129,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
             <div className="aw-card full">
               <h4>Their sales · {detail.active} active</h4>
               {detail.sales.length === 0
-                ? <p className="aw-empty">No sales yet. Add their first with “Add a sale”.</p>
+                ? <p className="aw-empty">No sales yet. Add their first sale to get started.</p>
                 : detail.sales.map((s) => {
                     const p = salePill(s.status);
                     return (
@@ -153,12 +154,12 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 {detail.status === "active" ? (
                   <p className="aw-accesstxt">
                     <span className="aw-ok"><CheckCircle size={15} weight="fill" /></span>
-                    {detail.contact ?? "The agent"} has set up their login. They see only the sales you progress for them.
+                    {detail.contact ?? "The agent"} has set up their login. They&rsquo;ll only see the sales you progress for them.
                   </p>
                 ) : (
                   <>
                     <p className="aw-accesstxt">
-                      Invite sent to {detail.email ?? "the agent"}. We&rsquo;re waiting for them to set a password and sign in.
+                      Invite sent to {detail.email ?? "the agent"}. We&rsquo;re waiting for them to set up their login.
                     </p>
                     <div className="aw-access-actions">
                       <button className="agent-btn agent-btn-secondary agent-btn-sm" onClick={resend} disabled={resending}>
@@ -168,16 +169,16 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                         <Copy size={14} weight="bold" /> {copying ? "Preparing…" : "Copy set-up link"}
                       </button>
                     </div>
-                    <p className="aw-note">Prefer to send it yourself? Copy the link and share it over WhatsApp, text or on a call.</p>
+                    <p className="aw-note">Prefer to send it yourself? Copy the link and share it by WhatsApp, text or while you&rsquo;re on a call.</p>
                   </>
                 )}
               </div>
               <div className="aw-card">
                 <h4>What they can do</h4>
                 <ul className="aw-can">
-                  <li><CheckCircle size={17} weight="fill" /><span>See the sales you progress for them, live.</span></li>
-                  <li><CheckCircle size={17} weight="fill" /><span>Follow each one&rsquo;s progress and documents.</span></li>
-                  <li><CheckCircle size={17} weight="fill" /><span>Never see another agency&rsquo;s sales, or your other clients.</span></li>
+                  <li><CheckCircle size={17} weight="fill" /><span>See the sales you progress for them in real time.</span></li>
+                  <li><CheckCircle size={17} weight="fill" /><span>Follow the progress of each sale and view its documents.</span></li>
+                  <li><CheckCircle size={17} weight="fill" /><span>They&rsquo;ll never see another agency&rsquo;s sales or any of your other clients.</span></li>
                 </ul>
               </div>
             </div>

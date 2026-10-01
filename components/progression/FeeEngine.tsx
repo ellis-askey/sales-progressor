@@ -96,7 +96,7 @@ export function FeeEngine({
   const lastBounded = tiered ? [...tiered.bands].filter((b) => b.uptoPence != null).sort((a, b) => (a.uptoPence! - b.uptoPence!)).slice(-1)[0] : null;
   const previewFee = calculateClientFee(model, Math.round(previewPounds * 100));
 
-  const applied = <div className="fe-applied"><CheckCircle size={16} weight="fill" /> Applied automatically to every new sale for this client.</div>;
+  const applied = <div className="fe-applied"><CheckCircle size={16} weight="fill" /> Applied automatically to every new sale you add for this client.</div>;
   const editBtn = (label: string, cls = "") => (
     <button type="button" className={`fe-edit ${cls}`} onClick={() => setEditing((e) => !e)}>
       {editing ? <><CheckCircle size={15} weight="bold" /> Done</> : <><PencilSimple size={15} weight="bold" /> {label}</>}
@@ -141,7 +141,7 @@ export function FeeEngine({
           <RowActionsMenu items={[{ label: "Reset to default rate", onClick: resetDefault }]} label="Rate options" />
         </div>
       </div>
-      <p className="fe-sub">Set it once and we&rsquo;ll automatically apply it to every new sale for this client. You can change it at any time.</p>
+      <p className="fe-sub">Set it once and we&rsquo;ll automatically apply it to every new sale you add for this client. You can change it at any time.</p>
 
       <div className="fe-cards">
         {TYPES.map(({ t, label, sub, icon }) => {

@@ -30,7 +30,7 @@ export function ClientsEmptyState() {
 
       <div className="cwg-inner">
         <h1 className="cwg-title">Add your first client</h1>
-        <p className="cwg-sub">Add the agents and agencies you progress sales for.</p>
+        <p className="cwg-sub">Add the agents and agencies you progress sales for, and manage everything in one place.</p>
 
         <div className="cwg-cols">
           {/* Form */}
@@ -52,7 +52,7 @@ export function ClientsEmptyState() {
 
             {f.emailInvalid && <p className="cwg-err">Enter a valid email address.</p>}
             {f.error && <p className="cwg-err">{f.error}</p>}
-            <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
+            <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
 
             <Button variant="primary" size="md" className="cwg-btn" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
               <UserPlus size={16} weight="bold" />

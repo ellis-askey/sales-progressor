@@ -47,7 +47,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
     { tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
     { tone: "info", icon: <TrendUp size={22} weight="bold" />, value: String(totals.activeSales), label: "Active sales", sub: "Across all clients" },
     { tone: "warning", icon: <CurrencyGbp size={22} weight="fill" />, value: fmtCompact(totals.pipelinePence), label: "Pipeline value", sub: "In progress" },
-    { tone: "success", icon: <Handshake size={22} weight="fill" />, value: String(totals.exchangedThisMonth), label: "Exchanged this month", sub: "Completed deals" },
+    { tone: "success", icon: <Handshake size={22} weight="fill" />, value: String(totals.exchangedThisMonth), label: "Exchanged this month", sub: "Sales exchanged" },
   ];
 
   return (
@@ -56,7 +56,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         <div className="cw-top">
           <div>
             <h1 className="cw-h1">Clients</h1>
-            <p className="cw-sub">Run and grow your book of agencies.</p>
+            <p className="cw-sub">Manage and grow your book of agencies.</p>
           </div>
           <Button variant="primary" size="md" className="cw-primary" onClick={() => setAddOpen(true)}>
             <UserPlus size={16} weight="bold" />
@@ -179,7 +179,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark">
       <Modal.Header style={SHEET_BAND_STYLE}>
-        <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Add a client" subtitle="Bring an estate agent into your book." />
+        <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Add a client" subtitle="Add an estate agent to your book." />
       </Modal.Header>
 
       <Modal.Body>
@@ -200,7 +200,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
 
         {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
         {f.error && <p className="cwm-err">{f.error}</p>}
-        <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
+        <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
       </Modal.Body>
 
       <Modal.Footer>

@@ -92,7 +92,7 @@ export function ClientOverview({
       <div className="ov-card" style={{ animationDelay: "60ms" }}>
         <p className="ov-eyebrow">Recent sales</p>
         {detail.sales.length === 0
-          ? <p className="ov-empty">No sales yet. Add their first with &ldquo;Add a sale&rdquo;.</p>
+          ? <p className="ov-empty">No sales yet. Add their first sale to get started.</p>
           : (<>
               {detail.sales.slice(0, 5).map((s) => {
                 const p = salePill(s.status);
@@ -111,7 +111,7 @@ export function ClientOverview({
       {/* Service & defaults */}
       <div className="ov-card" style={{ animationDelay: "120ms" }}>
         <p className="ov-eyebrow">Service &amp; chasing</p>
-        <p className="ov-sub">What we chase on their files.</p>
+        <p className="ov-sub">Choose what we automatically chase on their files.</p>
         {sw("solicitorChase", "Chase solicitors")}
         {sw("enquiryChase", "Chase enquiries")}
         {sw("weeklyUpdate", "Weekly client update")}
@@ -120,7 +120,7 @@ export function ClientOverview({
       {/* Portal defaults */}
       <div className="ov-card" style={{ animationDelay: "160ms" }}>
         <p className="ov-eyebrow">Portal defaults</p>
-        <p className="ov-sub">What their buyers &amp; sellers see.</p>
+        <p className="ov-sub">Choose what their buyers and sellers can see.</p>
         {sw("portalKeyDates", "Key dates card")}
         {sw("portalCosts", "Costs estimate")}
         {sw("portalProgress", "Progress percentage")}
