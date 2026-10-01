@@ -34,16 +34,26 @@ function nodeStyle(kind: ChainLinkStatusKind, isOurs: boolean): React.CSSPropert
     background: "var(--agent-surface-elevated)",
   };
   if (isOurs) return { ...base, background: "var(--agent-coral-deep)", color: "#fff", border: "1.5px solid var(--agent-coral-deep)" };
+  // Circle colour encodes the link's invite state at a glance (critique
+  // 2026-10-01): dashed = no details yet, solid grey = details but not invited,
+  // amber = invited/awaiting, green = claimed/on-system, soft red = declined or
+  // bounced (a quiet "didn't land", not panic). Full danger red is deliberately
+  // held back for a genuine withdrawal/broken link; our own node is coral.
   switch (kind) {
     case "claimed_own":
     case "claimed_other":
     case "your_transaction":
-      return { ...base, border: "1.5px solid var(--agent-border-strong)", color: "var(--agent-text-secondary)" };
-    case "unclaimed_unsent":
-      return { ...base, border: "1.5px solid var(--agent-warning)", color: "var(--agent-warning)" };
-    case "unclaimed_no_email":
+      return { ...base, border: "1.5px solid var(--agent-success)", color: "var(--agent-success)" };
+    case "unclaimed_no_email": // no details — can't be invited yet
       return { ...base, background: "transparent", border: "1.5px dashed var(--agent-border-strong)", color: "var(--agent-text-muted)" };
-    default: // invited, declined, bounced
+    case "unclaimed_unsent": // details captured, invite not yet sent
+      return { ...base, border: "1.5px solid var(--agent-text-muted)", color: "var(--agent-text-muted)" };
+    case "invited": // invite sent, awaiting claim
+      return { ...base, border: "1.5px solid var(--agent-warning)", color: "var(--agent-warning)" };
+    case "declined":
+    case "bounced": // declined, or the invite bounced — a soft, non-alarm red
+      return { ...base, border: "1.5px solid rgba(var(--agent-danger-rgb), 0.6)", color: "rgba(var(--agent-danger-rgb), 0.62)" };
+    default:
       return { ...base, border: "1.5px solid var(--agent-text-muted)", color: "var(--agent-text-muted)" };
   }
 }
