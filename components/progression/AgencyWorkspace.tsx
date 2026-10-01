@@ -142,7 +142,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
           )}
 
           {tab === "People" && (
-            <ClientPeople agencyId={detail.agencyId} agencyName={detail.name} people={detail.people} />
+            <ClientPeople agencyId={detail.agencyId} agencyName={detail.name} people={detail.people} removed={detail.removedPeople} />
           )}
 
           {tab === "Access" && (

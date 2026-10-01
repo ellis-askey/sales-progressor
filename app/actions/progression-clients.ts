@@ -77,21 +77,21 @@ export async function resendClientInviteAction(agencyId: string): Promise<Action
  */
 export async function createClientSetupLinkAction(
   agencyId: string,
+  userId?: string,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
   const session = await requireSession();
   const owner = await assertOwnerOfClient(session, agencyId);
   if (!owner) return { ok: false, error: "That isn't one of your clients." };
 
-  const director = await prisma.user.findFirst({
-    where: { agencyId, role: "director" },
-    orderBy: { createdAt: "asc" },
-    select: { email: true, password: true },
-  });
-  if (!director) return { ok: false, error: "There's no agent on this agency to invite." };
-  if (director.password) return { ok: false, error: "They've already set up their login." };
+  // A specific person (People tab), else the main contact (Access tab).
+  const target = userId
+    ? await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { email: true, password: true } })
+    : await prisma.user.findFirst({ where: { agencyId, role: "director" }, orderBy: { createdAt: "asc" }, select: { email: true, password: true } });
+  if (!target) return { ok: false, error: "That person isn't on this agency." };
+  if (target.password) return { ok: false, error: "They've already set up their login." };
 
-  const url = await mintClientSetupLink(director.email);
+  const url = await mintClientSetupLink(target.email);
   return { ok: true, url };
 }
 
@@ -243,6 +243,108 @@ export async function removeClientPersonAction(agencyId: string, userId: string)
     where: { id: userId },
     data: { role: "viewer", deactivatedAt: new Date(), sessionVersion: { increment: 1 } },
   });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Toggle a colleague's file access: all the agency's sales vs only their own. Owner-scoped. */
+export async function setClientPersonFileAccessAction(agencyId: string, userId: string, canViewAll: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const user = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { role: true } });
+  if (!user) return { ok: false, error: "That person isn't on this agency." };
+  if (user.role !== "negotiator") return { ok: false, error: "Only a colleague's access can be changed." };
+
+  await prisma.user.update({ where: { id: userId }, data: { canViewAllFiles: canViewAll } });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Make a colleague the main contact: promote them to director, demote the current one. Owner-scoped. */
+export async function makeClientMainContactAction(agencyId: string, userId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const target = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { role: true } });
+  if (!target) return { ok: false, error: "That person isn't on this agency." };
+  if (target.role !== "negotiator") return { ok: false, error: "Only a colleague can be made the main contact." };
+
+  const currentDirector = await prisma.user.findFirst({ where: { agencyId, role: "director" }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  await prisma.$transaction([
+    // Demote the old contact to colleague, keeping full visibility (a director
+    // saw all the agency's sales; a bare negotiator is scoped by canViewAllFiles).
+    ...(currentDirector ? [prisma.user.update({ where: { id: currentDirector.id }, data: { role: "negotiator", canViewAllFiles: true } })] : []),
+    prisma.user.update({ where: { id: userId }, data: { role: "director" } }),
+  ]);
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Edit a person's name (and, while their invite is pending, their email). Owner-scoped. */
+export async function editClientPersonAction(agencyId: string, userId: string, name: string, email?: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const clean = name.trim();
+  if (!clean || clean.length > 100) return { ok: false, error: "Please enter their name." };
+
+  const user = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { email: true, password: true } });
+  if (!user) return { ok: false, error: "That person isn't on this agency." };
+
+  const data: { name: string; email?: string } = { name: clean };
+  const newEmail = email?.trim().toLowerCase();
+  if (newEmail && newEmail !== user.email.toLowerCase()) {
+    if (user.password) return { ok: false, error: "You can only change the email while their invite is pending." };
+    if (newEmail.length > 255 || !EMAIL_RE.test(newEmail)) return { ok: false, error: "Please enter a valid email address." };
+    const taken = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
+    if (taken) return { ok: false, error: "An account already exists for that email." };
+    data.email = newEmail;
+    // The old set-up token was keyed to the old email — clear it so a resend mints fresh.
+    await prisma.verificationToken.deleteMany({ where: { identifier: user.email.toLowerCase() } });
+  }
+
+  await prisma.user.update({ where: { id: userId }, data });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Cancel a pending colleague's invite entirely (they never activated). Owner-scoped. */
+export async function cancelClientInviteAction(agencyId: string, userId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const user = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { role: true, password: true, email: true } });
+  if (!user) return { ok: false, error: "That person isn't on this agency." };
+  if (user.role === "director") return { ok: false, error: "You can't cancel the main contact." };
+  if (user.password) return { ok: false, error: "They've already set up their login — remove them instead." };
+
+  await prisma.verificationToken.deleteMany({ where: { identifier: user.email.toLowerCase() } });
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Reinstate a removed colleague (role back to negotiator, access restored). Owner-scoped. */
+export async function reinstateClientPersonAction(agencyId: string, userId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const user = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { role: true } });
+  if (!user) return { ok: false, error: "That person isn't on this agency." };
+  if (user.role !== "viewer") return { ok: false, error: "That person isn't removed." };
+
+  await prisma.user.update({ where: { id: userId }, data: { role: "negotiator", deactivatedAt: null, sessionVersion: { increment: 1 } } });
   revalidatePath(`/agent/clients/${agencyId}`);
   return { ok: true };
 }

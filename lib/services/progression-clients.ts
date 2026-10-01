@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { getAgencyLogoUrl, getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { calculateClientFee, parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { sanitizeEmailThemeInput, type EmailThemeInput } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
@@ -263,7 +263,13 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
 // ─── Single client agency: the detail workspace at /agent/clients/[agencyId] ──
 
 export type AgencySale = { id: string; address: string; status: string };
-export type AgencyPerson = { id: string; name: string; email: string; role: string; pending: boolean };
+export type AgencyPerson = {
+  id: string; name: string; email: string; role: string; pending: boolean;
+  image: string | null;          // avatar URL, if they've set a photo
+  canViewAll: boolean;           // sees all the agency's sales vs only their own
+  inviteExpiresAt: number | null; // epoch ms the set-up link expires (pending only)
+};
+export type RemovedPerson = { id: string; name: string; email: string; image: string | null };
 export type ClientAgencyFlags = {
   solicitorChase: boolean;
   enquiryChase: boolean;
@@ -303,6 +309,7 @@ export type ClientAgencyDetail = {
   checks: { label: string; done: boolean }[];
   sales: AgencySale[];
   people: AgencyPerson[];
+  removedPeople: RemovedPerson[];
   flags: ClientAgencyFlags;
   branding: ClientBranding;
   feeModel: ClientFeeModel | null;
@@ -328,12 +335,10 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       id: true, name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true,
       solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true, weeklyClientUpdatesEnabled: true,
       showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true,
-      // Active roster only — a removed member is a soft-deleted `viewer`
-      // tombstone (role flipped, deactivatedAt stamped) and shouldn't show here.
+      // All users — split into active roster vs removed tombstones below.
       users: {
-        where: { role: { in: ["director", "negotiator"] } },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, email: true, role: true, password: true },
+        select: { id: true, name: true, email: true, role: true, password: true, image: true, canViewAllFiles: true, deactivatedAt: true },
       },
     },
   });
@@ -370,8 +375,25 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   const conversionPct = started ? Math.round((exchanged / started) * 100) : null;
   const fallThroughPct = started ? Math.round((withdrawn / started) * 100) : null;
 
-  const director = agency.users.find((u) => u.role === "director") ?? agency.users[0] ?? null;
+  // Active roster vs removed (soft-deleted to `viewer` with deactivatedAt).
+  const activeUsers = agency.users.filter((u) => u.role === "director" || u.role === "negotiator");
+  const removedUsers = agency.users.filter((u) => u.role === "viewer" && u.deactivatedAt);
+  const director = activeUsers.find((u) => u.role === "director") ?? activeUsers[0] ?? null;
   const pending = director ? !director.password : true;
+
+  // Invite expiry for pending people, from their set-password verificationToken.
+  const pendingEmails = activeUsers.filter((u) => !u.password).map((u) => u.email.toLowerCase());
+  const expiryByEmail = new Map<string, number>();
+  if (pendingEmails.length) {
+    const tokens = await prisma.verificationToken.findMany({
+      where: { identifier: { in: pendingEmails } },
+      select: { identifier: true, expires: true },
+    });
+    for (const t of tokens) {
+      const e = t.expires.getTime();
+      if (!expiryByEmail.has(t.identifier) || e > expiryByEmail.get(t.identifier)!) expiryByEmail.set(t.identifier, e);
+    }
+  }
 
   const theme = (agency.emailTheme ?? {}) as Record<string, unknown>;
   const themeColor = typeof theme.buttonColor === "string" ? theme.buttonColor : null;
@@ -398,7 +420,12 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
     sales: txns.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
-    people: agency.users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password })),
+    people: activeUsers.map((u) => ({
+      id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password,
+      image: getAvatarPublicUrl(u.image), canViewAll: u.canViewAllFiles,
+      inviteExpiresAt: !u.password ? (expiryByEmail.get(u.email.toLowerCase()) ?? null) : null,
+    })),
+    removedPeople: removedUsers.map((u) => ({ id: u.id, name: u.name, email: u.email, image: getAvatarPublicUrl(u.image) })),
     flags: {
       solicitorChase: agency.solicitorChaseEnabled,
       enquiryChase: agency.enquiryReplyChaseEnabled,
