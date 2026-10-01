@@ -261,6 +261,15 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
 
 export type AgencySale = { id: string; address: string; status: string };
 export type AgencyPerson = { id: string; name: string; email: string; role: string; pending: boolean };
+export type ClientAgencyFlags = {
+  solicitorChase: boolean;
+  enquiryChase: boolean;
+  weeklyUpdate: boolean;
+  portalKeyDates: boolean;
+  portalCosts: boolean;
+  portalProgress: boolean;
+};
+
 export type ClientAgencyDetail = {
   agencyId: string;
   name: string;
@@ -273,10 +282,16 @@ export type ClientAgencyDetail = {
   active: number;
   pipelinePence: number;
   exchanged: number;
+  completed: number;
+  withdrawn: number;
+  avgDaysToExchange: number | null;
+  conversionPct: number | null;
+  fallThroughPct: number | null;
   completePct: number;
   checks: { label: string; done: boolean }[];
   sales: AgencySale[];
   people: AgencyPerson[];
+  flags: ClientAgencyFlags;
 };
 
 /**
@@ -295,6 +310,8 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     where: { id: agencyId },
     select: {
       id: true, name: true, logoPath: true, logoTileColor: true, emailTheme: true,
+      solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true, weeklyClientUpdatesEnabled: true,
+      showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true,
       users: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, role: true, password: true } },
     },
   });
@@ -303,14 +320,25 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   const txns = await prisma.propertyTransaction.findMany({
     where: { progressionBusinessId: businessId, agencyId, isDemo: false, isMigrated: false },
     orderBy: { createdAt: "desc" },
-    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true },
+    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true },
   });
 
-  let active = 0, pipeline = 0, exchanged = 0;
+  let active = 0, pipeline = 0, exchanged = 0, completed = 0, withdrawn = 0, started = 0;
+  const exchangeDays: number[] = [];
   for (const t of txns) {
+    if (t.status !== "draft") started += 1;
     if (t.status === "active") { active += 1; pipeline += t.purchasePrice ?? 0; }
-    if (t.exchangedAt) exchanged += 1;
+    if (t.status === "completed") completed += 1;
+    if (t.status === "withdrawn") withdrawn += 1;
+    if (t.exchangedAt) {
+      exchanged += 1;
+      const d = Math.round((new Date(t.exchangedAt).getTime() - new Date(t.createdAt).getTime()) / 86400000);
+      if (d >= 0) exchangeDays.push(d);
+    }
   }
+  const avgDaysToExchange = exchangeDays.length ? Math.round(exchangeDays.reduce((a, b) => a + b, 0) / exchangeDays.length) : null;
+  const conversionPct = started ? Math.round((exchanged / started) * 100) : null;
+  const fallThroughPct = started ? Math.round((withdrawn / started) * 100) : null;
 
   const director = agency.users.find((u) => u.role === "director") ?? agency.users[0] ?? null;
   const pending = director ? !director.password : true;
@@ -337,9 +365,18 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     pending,
     status: pending ? "invite" : "active",
     active, pipelinePence: pipeline, exchanged,
+    completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
     sales: txns.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
     people: agency.users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password })),
+    flags: {
+      solicitorChase: agency.solicitorChaseEnabled,
+      enquiryChase: agency.enquiryReplyChaseEnabled,
+      weeklyUpdate: agency.weeklyClientUpdatesEnabled,
+      portalKeyDates: agency.showPortalKeyDates,
+      portalCosts: agency.showPortalCosts,
+      portalProgress: agency.showPortalProgressPercent,
+    },
   };
 }
 

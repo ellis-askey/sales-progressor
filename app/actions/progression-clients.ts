@@ -69,6 +69,31 @@ export async function resendClientInviteAction(agencyId: string): Promise<Action
   return { ok: true };
 }
 
+// Overview toggles -> the real Agency columns. Allowlisted so only these six
+// flags can be flipped through this action.
+const FLAG_FIELDS: Record<string, string> = {
+  solicitorChase: "solicitorChaseEnabled",
+  enquiryChase: "enquiryReplyChaseEnabled",
+  weeklyUpdate: "weeklyClientUpdatesEnabled",
+  portalKeyDates: "showPortalKeyDates",
+  portalCosts: "showPortalCosts",
+  portalProgress: "showPortalProgressPercent",
+};
+
+/** Flip one of a client agency's service / portal settings. Owner-scoped. */
+export async function setClientAgencyFlagAction(agencyId: string, key: string, value: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const field = FLAG_FIELDS[key];
+  if (!field) return { ok: false, error: "Unknown setting." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  await prisma.agency.update({ where: { id: agencyId }, data: { [field]: value } as Prisma.AgencyUpdateInput });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
 /** Set a client agency's brand colour (flows to their portal + emails). Owner-scoped. */
 export async function setClientBrandColorAction(agencyId: string, color: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

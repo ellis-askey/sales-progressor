@@ -12,8 +12,8 @@ import { useState } from "react";
 import { CaretLeft, Plus, Clock, CaretRight, UserPlus, ArrowClockwise } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { fmtCurrencyPence } from "@/lib/utils";
 import { resendClientInviteAction, setClientBrandColorAction } from "@/app/actions/progression-clients";
+import { ClientOverview } from "./ClientOverview";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
@@ -84,23 +84,6 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
       </SectionReveal>
 
       <SectionReveal order={1}>
-        <div className="aw-banner">
-          <div>
-            <div className="tt">Agency profile · {detail.completePct}% complete</div>
-            <div className="ds">Add a logo and brand colour so every file for {detail.name} looks like a real, professional agency.</div>
-          </div>
-          <div className="aw-banner-right">
-            <div className="aw-meter"><i style={{ width: `${detail.completePct}%` }} /></div>
-            <div className="aw-legend">
-              {detail.checks.map((c, i) => (
-                <span key={c.label}>{i > 0 ? " · " : ""}{c.label} {c.done ? "✓" : "○"}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </SectionReveal>
-
-      <SectionReveal order={2}>
         <div className="aw-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t} role="tab" aria-selected={t === tab} className={`aw-tab ${t === tab ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
@@ -109,32 +92,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
 
         <div className="aw-panel" key={tab}>
           {tab === "Overview" && (
-            <div className="aw-cards">
-              <div className="aw-card full">
-                <h4>This agency</h4>
-                <div className="aw-ov">
-                  <div className="aw-ov-stat"><div className="v">{detail.active}</div><div className="k">Active sales</div></div>
-                  <div className="aw-ov-stat"><div className="v">{fmtCurrencyPence(detail.pipelinePence)}</div><div className="k">Pipeline value</div></div>
-                  <div className="aw-ov-stat"><div className="v">{detail.exchanged}</div><div className="k">Exchanged</div></div>
-                </div>
-              </div>
-              <div className="aw-card full">
-                <h4>Recent sales</h4>
-                {detail.sales.length === 0
-                  ? <p className="aw-empty">No sales yet. Add their first with “Add a sale”.</p>
-                  : detail.sales.slice(0, 5).map((s) => {
-                      const p = salePill(s.status);
-                      return (
-                        <Link key={s.id} href={`/agent/transactions/${s.id}`} className="aw-salerow">
-                          <span className="ad">{s.address}</span>
-                          <span className={`aw-spill ${p.cls}`}>{p.label}</span>
-                          <CaretRight size={15} weight="bold" className="aw-salechev" />
-                        </Link>
-                      );
-                    })}
-                {detail.sales.length > 5 && <button className="aw-link" onClick={() => setTab("Sales")}>View all {detail.sales.length} sales →</button>}
-              </div>
-            </div>
+            <ClientOverview detail={detail} onTab={setTab} onResend={resend} />
           )}
 
           {tab === "Branding" && (
