@@ -13,6 +13,7 @@ import { UserPlus, CaretRight, Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
 import { useAddClientForm } from "./useAddClientForm";
@@ -147,10 +148,9 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
   const f = useAddClientForm(onClose);
 
   return (
-    <Modal open onClose={onClose} ariaLabel="Add a client" size="lg">
-      <Modal.Header>
-        <h3 className="cwm-h">Add a client</h3>
-        <p className="cwm-sub">Bring an estate agent into your book.</p>
+    <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark">
+      <Modal.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Add a client" subtitle="Bring an estate agent into your book." />
       </Modal.Header>
 
       <Modal.Body>
@@ -183,8 +183,6 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
       </Modal.Footer>
 
       <style>{`
-        .cwm-h { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--agent-text-primary); }
-        .cwm-sub { margin: 4px 0 0; font-size: 13px; color: var(--agent-text-secondary); }
         .cwm-field { margin-bottom: 12px; }
         .cwm-field:last-child { margin-bottom: 0; }
         .cwm-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
