@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CaretRight } from "@phosphor-icons/react";
+import { CaretRight, Check, Circle } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { setClientAgencyFlagAction } from "@/app/actions/progression-clients";
@@ -134,11 +134,13 @@ export function ClientOverview({
           const go = c.done ? null : checkGo(c.label);
           return (
             <div className="ov-check" key={c.label}>
-              <span className={`b ${c.done ? "on" : "off"}`}>{c.done ? "✓" : "○"}</span>
+              {c.done
+                ? <Check size={16} weight="bold" className="ov-tick" />
+                : <Circle size={14} weight="regular" className="ov-tick off" />}
               <span className="lbl">{c.label}</span>
               {go && (go.href
-                ? <Link href={go.href} className="go">{go.text} →</Link>
-                : <button className="go" onClick={go.go}>{go.text} →</button>)}
+                ? <Link href={go.href} className="go">{go.text} <span className="go-arr">→</span></Link>
+                : <button className="go" onClick={go.go}>{go.text} <span className="go-arr">→</span></button>)}
             </div>
           );
         })}
@@ -195,14 +197,14 @@ export function ClientOverview({
         .ov-meter { height: 8px; border-radius: 999px; background: rgba(var(--agent-coral-rgb),0.18); overflow: hidden; margin-bottom: 12px; }
         .ov-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep)); border-radius: 999px; transition: width .9s cubic-bezier(.22,1,.36,1); }
         .ov-check { display: flex; align-items: center; gap: 9px; font-size: 12.5px; padding: 7px 0; }
-        .ov-check .b { width: 18px; height: 18px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex-shrink: 0; }
-        .ov-check .b.on { background: rgba(47,125,83,0.14); color: var(--agent-success, #2F7D53); }
-        .ov-check .b.off { background: var(--agent-glass-bg, rgba(0,0,0,0.05)); color: var(--agent-text-faint, var(--agent-text-muted)); }
+        .ov-check .ov-tick { flex-shrink: 0; color: var(--agent-success, #2F7D53); }
+        .ov-check .ov-tick.off { color: var(--agent-text-faint, var(--agent-text-muted)); }
         .ov-check .lbl { color: var(--agent-text-primary); }
-        .ov-check .go { margin-left: auto; font-size: 11px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0; }
-        .ov-check .go:hover { text-decoration: underline; }
+        .ov-check .go { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0; }
+        .ov-check .go .go-arr { transition: transform .18s cubic-bezier(.22,1,.36,1); }
+        .ov-check .go:hover .go-arr { transform: translateX(3px); }
 
-        @media (prefers-reduced-motion: reduce) { .ov-card { animation: none; } .ov-meter i, .ov-sw, .ov-sw i { transition: none; } }
+        @media (prefers-reduced-motion: reduce) { .ov-card { animation: none; } .ov-meter i, .ov-sw, .ov-sw i, .ov-check .go-arr { transition: none; } }
       `}</style>
       </div>
     </>
