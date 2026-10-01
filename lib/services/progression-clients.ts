@@ -328,7 +328,13 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       id: true, name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true,
       solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true, weeklyClientUpdatesEnabled: true,
       showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true,
-      users: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, role: true, password: true } },
+      // Active roster only — a removed member is a soft-deleted `viewer`
+      // tombstone (role flipped, deactivatedAt stamped) and shouldn't show here.
+      users: {
+        where: { role: { in: ["director", "negotiator"] } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, email: true, role: true, password: true },
+      },
     },
   });
   if (!agency) return null;

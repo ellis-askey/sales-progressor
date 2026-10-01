@@ -9,11 +9,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CaretLeft, Plus, Clock, CaretRight, UserPlus, ArrowClockwise } from "@phosphor-icons/react";
+import { CaretLeft, Plus, Clock, CaretRight, ArrowClockwise } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { resendClientInviteAction } from "@/app/actions/progression-clients";
 import { ClientOverview } from "./ClientOverview";
+import { ClientPeople } from "./ClientPeople";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
@@ -121,17 +122,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
           )}
 
           {tab === "People" && (
-            <div className="aw-card full">
-              <h4>People · {detail.people.length}</h4>
-              {detail.people.map((m) => (
-                <div key={m.id} className="aw-mem">
-                  <span className="aw-av">{initials(m.name)}</span>
-                  <div><div className="nm">{m.name}</div><div className="ro">{m.role === "director" ? "Director" : m.role === "negotiator" ? "Negotiator" : m.role}</div></div>
-                  <span className={`aw-tag ${m.pending ? "pend" : "ok"}`}>{m.pending ? "Invite sent" : "Signed in"}</span>
-                </div>
-              ))}
-              <p className="aw-note" style={{ marginTop: 12 }}>Colleagues are added from the agency's own account.</p>
-            </div>
+            <ClientPeople agencyId={detail.agencyId} agencyName={detail.name} people={detail.people} />
           )}
 
           {tab === "Access" && (
@@ -227,14 +218,6 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-branding-intro h4 { margin: 0 0 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
         .aw-branding-intro p { margin: 0; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.6; max-width: 72ch; }
         .aw-note { font-size: 11px; color: var(--agent-text-muted); margin: 10px 0 0; }
-
-        .aw-mem { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-top: 1px solid var(--agent-border-subtle); }
-        .aw-mem:first-of-type { border-top: 0; }
-        .aw-av { width: 34px; height: 34px; border-radius: 50%; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-        .aw-mem .nm { font-size: 13px; font-weight: 650; color: var(--agent-text-primary); }
-        .aw-mem .ro { font-size: 11px; color: var(--agent-text-muted); }
-        .aw-tag { margin-left: auto; font-size: 10px; font-weight: 700; }
-        .aw-tag.ok { color: var(--agent-success, #2F7D53); } .aw-tag.pend { color: #B5831E; } :root[data-theme="dark"] .aw-tag.pend { color: #E0B050; }
 
         .aw-accesstxt { font-size: 12.5px; color: var(--agent-text-secondary); line-height: 1.6; margin: 0; }
         .aw-access-actions { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; }
