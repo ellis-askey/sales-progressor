@@ -227,11 +227,13 @@ export function FeeEngine({
       </div>
 
       <style>{`
+        /* Float: no border, lifted on a soft drop shadow (style pick). */
         .fe { position: relative; overflow: hidden; border-radius: 18px; padding: 22px; margin-bottom: 16px;
-          background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle);
+          background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: none;
           -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-          box-shadow: 0 18px 44px -26px rgba(40,26,20,0.3);
+          box-shadow: 0 24px 50px -28px rgba(40,26,20,0.40), 0 4px 12px -8px rgba(40,26,20,0.18);
           animation: fe-in .5s cubic-bezier(.22,1,.36,1) both; }
+        :root[data-theme="dark"] .fe { box-shadow: 0 24px 50px -26px rgba(0,0,0,0.72), 0 4px 12px -8px rgba(0,0,0,0.5); }
         @keyframes fe-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 
         .fe-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
