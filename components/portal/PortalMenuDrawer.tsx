@@ -45,6 +45,7 @@ import { portalMarkRequiredAction, portalMarkNotRequiredAction, getMyMoveInfoAct
 import type { MoveInfo, MoveInfoContext } from "@/lib/services/portal-info";
 import type { PortalDocumentsData } from "@/lib/services/portal-documents";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { PortalDocumentsTab } from "./PortalDocumentsTab";
 import { PortalInformationTab } from "./PortalInformationTab";
 import { PortalAppearanceSettings } from "./PortalAppearanceSettings";
@@ -307,11 +308,7 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                   background: P.cardBg, cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                <span style={{ width: 46, height: 46, borderRadius: 11, flexShrink: 0, overflow: "hidden", background: "linear-gradient(135deg,#c9b8a6,#8a7360)", position: "relative" }}>
-                  {lp.photoUrl
-                    ? <img src={lp.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <svg viewBox="0 0 46 46" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.85 }}><path d="M10 30l13-10 13 10v8H10z" fill="#8a7360" /></svg>}
-                </span>
+                <PropertyThumb photoUrl={lp.photoUrl} size={46} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: P.textPrimary, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lp.line1}</span>
                   {lp.rest && <span style={{ display: "block", fontSize: 12.5, color: P.textMuted, marginTop: 1 }}>{lp.rest}</span>}
