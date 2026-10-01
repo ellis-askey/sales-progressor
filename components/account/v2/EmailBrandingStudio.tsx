@@ -4,6 +4,10 @@
 // band, CTA button, links and footer beneath it. The preview renders through the
 // SAME helpers the emails use (lib/email/logo-header.ts + lib/email/brand-theme.ts)
 // so what's shown here is what recipients receive; it can't drift.
+//
+// Presented as a guided 3-step wizard (Logo → Colours → Finishing) so the panel
+// has order instead of one long list. Reused owner-scoped on the progressor
+// client Branding tab via the `endpoint` prop, and by the Command Centre.
 
 import { useMemo, useRef, useState } from "react";
 import {
@@ -47,6 +51,12 @@ const PREVIEW_TYPES = [
   { key: "completion", label: "Completion", eyebrow: "14 Maple Grove, Harborne", headline: "Completion confirmed", sub: "The keys are yours.", cta: "See what happens next" },
 ] as const;
 
+const STEPS = [
+  { title: "Logo", sub: "upload & place" },
+  { title: "Colours", sub: "header & button" },
+  { title: "Finishing", sub: "text & footer" },
+] as const;
+
 export interface BrandingInitial {
   logoUrl: string | null;
   tileColor: string | null;
@@ -88,9 +98,9 @@ export function EmailBrandingStudio({
   const [footerBg, setFooterBg] = useState(th.footerBg ?? "#f4f4f6");
   const [footerText, setFooterText] = useState(th.footerText ?? "#6b7280");
   const [bandShape, setBandShape] = useState<BandShape>(th.bandShape ?? "rounded");
-  const [advanced, setAdvanced] = useState(false);
   const [previewType, setPreviewType] = useState<(typeof PREVIEW_TYPES)[number]["key"]>("milestone");
 
+  const [step, setStep] = useState(0); // 0-indexed step
   const [busy, setBusy] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -212,11 +222,7 @@ export function EmailBrandingStudio({
               type="button"
               onClick={() => setPreviewType(p.key)}
               aria-pressed={p.key === previewType}
-              style={{
-                fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 999, cursor: "pointer",
-                border: p.key === previewType ? "1px solid #111827" : "1px solid rgba(0,0,0,0.14)",
-                background: p.key === previewType ? "#111827" : "#fff", color: p.key === previewType ? "#fff" : "#4b5563",
-              }}
+              className={`eb-pvtab${p.key === previewType ? " on" : ""}`}
             >
               {p.label}
             </button>
@@ -251,112 +257,202 @@ export function EmailBrandingStudio({
           )}
         </div>
         <p style={{ margin: "8px 2px 0", fontSize: 12, color: "#9ca3af" }}>A live preview of the emails your clients receive.</p>
-
-        {/* Advanced (Tier 2) sits under the preview to balance the two columns. */}
-        <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", gap: 16 }}>
-          <button type="button" onClick={() => setAdvanced((a) => !a)} style={{ alignSelf: "flex-start", fontSize: 12.5, fontWeight: 600, color: "#4b5563", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-            {advanced ? "Hide advanced" : "Advanced options"} {advanced ? "▲" : "▼"}
-          </button>
-          {advanced && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Control label="Header text">
-                <Segmented value={headerTextMode} onChange={(v) => { setHeaderTextMode(v as "auto" | "custom"); touch(); }} options={[{ value: "auto", label: "Auto contrast" }, { value: "custom", label: "Custom" }]} />
-                {headerTextMode === "custom" && <div style={{ marginTop: 8 }}><CustomColor value={headerTextColor} onChange={(v) => { setHeaderTextColor(v); touch(); }} /></div>}
-              </Control>
-              <Control label="Link colour">
-                <CustomColor value={linkColor} onChange={(v) => { setLinkColor(v); touch(); }} />
-              </Control>
-              <Control label="Footer">
-                <Segmented value={footerMode} onChange={(v) => { setFooterMode(v as "default" | "custom"); touch(); }} options={[{ value: "default", label: "None" }, { value: "custom", label: "Coloured band" }]} />
-                {footerMode === "custom" && (
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-                    <CustomColor value={footerBg} onChange={(v) => { setFooterBg(v); touch(); }} label="Background" />
-                    <CustomColor value={footerText} onChange={(v) => { setFooterText(v); touch(); }} label="Text" />
-                  </div>
-                )}
-              </Control>
-              <Control label="Header corners">
-                <Segmented value={bandShape} onChange={(v) => { setBandShape(v as BandShape); touch(); }} options={[{ value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
-              </Control>
-            </div>
-          )}
-        </div>
       </div>
 
-      <div className="eb-col-controls" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* ── Logo upload / replace / remove ── */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={busy} className="eb-btn" style={{ fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.14)", background: "#fff", color: "#111827", cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-          {busy ? "Working…" : logoUrl ? "Replace logo" : "Upload logo"}
-        </button>
-        {logoUrl && !busy && (
-          <button type="button" onClick={onRemove} className="eb-remove" style={{ fontSize: 13, fontWeight: 500, background: "none", border: "none", color: "#6b7280", cursor: "pointer", padding: 0 }}>Remove</button>
-        )}
-        <style>{`.eb-btn{transition:background 140ms ease,transform 90ms ease}.eb-btn:hover:not(:disabled){background:#f6f6f7!important}.eb-btn:active:not(:disabled){transform:scale(0.97)}.eb-remove:hover{color:#dc2626!important}@media(prefers-reduced-motion:reduce){.eb-btn{transition:none}.eb-btn:active:not(:disabled){transform:none}}`}</style>
-        <input ref={inputRef} type="file" accept={ACCEPT} onChange={onFile} style={{ display: "none" }} />
-      </div>
-
-      {/* ── Logo presentation (only with a logo) ── */}
-      {logoUrl && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Control label="Logo background">
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {swatches.map((s) => (
-                <SwatchButton key={s.key} label={s.label} color={s.color} active={tileColor.toLowerCase() === s.color.toLowerCase()} onClick={() => { setTileColor(s.color); touch(); }} />
-              ))}
-              <CustomColor value={tileColor} onChange={(v) => { setTileColor(v); touch(); }} />
-            </div>
-          </Control>
-          <Control label="Logo size">
-            <Segmented value={scale} onChange={(v) => { setScale(v as LogoScale); touch(); }} options={[{ value: "sm", label: "Small" }, { value: "md", label: "Medium" }, { value: "lg", label: "Large" }]} />
-          </Control>
-          <Control label="Logo alignment">
-            <Segmented value={align} onChange={(v) => { setAlign(v as LogoAlign); touch(); }} options={[{ value: "left", label: "Left" }, { value: "center", label: "Centre" }]} />
-          </Control>
-        </div>
-      )}
-
-      {/* ── Header (hero band) ── */}
-      <div style={{ height: 1, background: "rgba(0,0,0,0.07)" }} />
-      <Control label="Header colour">
-        <Segmented value={headerMode} onChange={(v) => { setHeaderMode(v as "solid" | "gradient"); touch(); }} options={[{ value: "solid", label: "Solid" }, { value: "gradient", label: "Gradient" }]} />
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-          <CustomColor value={headerColor} onChange={(v) => { setHeaderColor(v); touch(); }} label={headerMode === "gradient" ? "From" : "Colour"} />
-          {headerMode === "gradient" && <CustomColor value={headerColor2} onChange={(v) => { setHeaderColor2(v); touch(); }} label="To" />}
-          <LinkBtn onClick={() => { setHeaderColor(HEX.test(tileColor) ? tileColor : autoColor); if (headerMode === "gradient") setHeaderColor2(HEX.test(tileColor) ? tileColor : autoColor); touch(); }}>Match my logo</LinkBtn>
-          {initial.appAccent && HEX.test(initial.appAccent) && (
-            <LinkBtn onClick={() => { setHeaderColor(initial.appAccent!); if (headerMode === "gradient") setHeaderColor2(initial.appAccent!); touch(); }}>Match my app colour</LinkBtn>
-          )}
-        </div>
-        {headerMode === "gradient" && (
-          <div style={{ marginTop: 8 }}>
-            <Segmented value={gradientDir} onChange={(v) => { setGradientDir(v as GradientDir); touch(); }} options={[{ value: "horizontal", label: "Horizontal" }, { value: "diagonal", label: "Diagonal" }, { value: "vertical", label: "Vertical" }]} />
+      {/* ── Guided controls ── */}
+      <div className="eb-col-controls">
+        <div className="eb-wiz">
+          {/* Step header */}
+          <div className="eb-steps">
+            {STEPS.map((s, i) => (
+              <button key={s.title} type="button" className={`eb-pip${i === step ? " on" : ""}${i < step ? " done" : ""}`} onClick={() => setStep(i)}>
+                <span className="eb-pip-n">{i < step ? "✓" : i + 1}</span>
+                <span className="eb-pip-tx">{s.title}<span>{s.sub}</span></span>
+              </button>
+            ))}
           </div>
-        )}
-      </Control>
 
-      {/* ── Button ── */}
-      <Control label="Button colour">
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <CustomColor value={buttonColor} onChange={(v) => { setButtonColor(v); touch(); }} />
-          <LinkBtn onClick={() => { setButtonColor(headerColor); touch(); }}>Match header</LinkBtn>
+          {/* Step body */}
+          <div className="eb-pane" key={step}>
+            {step === 0 && (
+              <>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <button type="button" onClick={() => inputRef.current?.click()} disabled={busy} className="eb-btn">
+                    {busy ? "Working…" : logoUrl ? "Replace logo" : "Upload logo"}
+                  </button>
+                  {logoUrl && !busy && (
+                    <button type="button" onClick={onRemove} className="eb-remove">Remove</button>
+                  )}
+                  <input ref={inputRef} type="file" accept={ACCEPT} onChange={onFile} style={{ display: "none" }} />
+                </div>
+                {logoUrl ? (
+                  <>
+                    <Control label="Logo background">
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        {swatches.map((s) => (
+                          <SwatchButton key={s.key} label={s.label} color={s.color} active={tileColor.toLowerCase() === s.color.toLowerCase()} onClick={() => { setTileColor(s.color); touch(); }} />
+                        ))}
+                        <CustomColor value={tileColor} onChange={(v) => { setTileColor(v); touch(); }} />
+                      </div>
+                    </Control>
+                    <div className="eb-row2">
+                      <Control label="Logo size">
+                        <Segmented value={scale} onChange={(v) => { setScale(v as LogoScale); touch(); }} options={[{ value: "sm", label: "Small" }, { value: "md", label: "Medium" }, { value: "lg", label: "Large" }]} />
+                      </Control>
+                      <Control label="Alignment">
+                        <Segmented value={align} onChange={(v) => { setAlign(v as LogoAlign); touch(); }} options={[{ value: "left", label: "Left" }, { value: "center", label: "Centre" }]} />
+                      </Control>
+                    </div>
+                  </>
+                ) : (
+                  <p className="eb-hint">Add a logo to set how it sits in the email header. You can carry on and set colours without one.</p>
+                )}
+              </>
+            )}
+
+            {step === 1 && (
+              <>
+                <Control label="Header colour">
+                  <Segmented value={headerMode} onChange={(v) => { setHeaderMode(v as "solid" | "gradient"); touch(); }} options={[{ value: "solid", label: "Solid" }, { value: "gradient", label: "Gradient" }]} />
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                    <CustomColor value={headerColor} onChange={(v) => { setHeaderColor(v); touch(); }} label={headerMode === "gradient" ? "From" : "Colour"} />
+                    {headerMode === "gradient" && <CustomColor value={headerColor2} onChange={(v) => { setHeaderColor2(v); touch(); }} label="To" />}
+                    <LinkBtn onClick={() => { setHeaderColor(HEX.test(tileColor) ? tileColor : autoColor); if (headerMode === "gradient") setHeaderColor2(HEX.test(tileColor) ? tileColor : autoColor); touch(); }}>Match my logo</LinkBtn>
+                    {initial.appAccent && HEX.test(initial.appAccent) && (
+                      <LinkBtn onClick={() => { setHeaderColor(initial.appAccent!); if (headerMode === "gradient") setHeaderColor2(initial.appAccent!); touch(); }}>Match my app colour</LinkBtn>
+                    )}
+                  </div>
+                  {headerMode === "gradient" && (
+                    <div style={{ marginTop: 8 }}>
+                      <Segmented value={gradientDir} onChange={(v) => { setGradientDir(v as GradientDir); touch(); }} options={[{ value: "horizontal", label: "Horizontal" }, { value: "diagonal", label: "Diagonal" }, { value: "vertical", label: "Vertical" }]} />
+                    </div>
+                  )}
+                </Control>
+                <Control label="Button colour">
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <CustomColor value={buttonColor} onChange={(v) => { setButtonColor(v); touch(); }} />
+                    <LinkBtn onClick={() => { setButtonColor(headerColor); touch(); }}>Match header</LinkBtn>
+                  </div>
+                </Control>
+              </>
+            )}
+
+            {step === 2 && (
+              <>
+                <div className="eb-row2">
+                  <Control label="Header text">
+                    <Segmented value={headerTextMode} onChange={(v) => { setHeaderTextMode(v as "auto" | "custom"); touch(); }} options={[{ value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }]} />
+                    {headerTextMode === "custom" && <div style={{ marginTop: 8 }}><CustomColor value={headerTextColor} onChange={(v) => { setHeaderTextColor(v); touch(); }} /></div>}
+                  </Control>
+                  <Control label="Link colour">
+                    <CustomColor value={linkColor} onChange={(v) => { setLinkColor(v); touch(); }} />
+                  </Control>
+                </div>
+                <Control label="Footer">
+                  <Segmented value={footerMode} onChange={(v) => { setFooterMode(v as "default" | "custom"); touch(); }} options={[{ value: "default", label: "None" }, { value: "custom", label: "Coloured band" }]} />
+                  {footerMode === "custom" && (
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                      <CustomColor value={footerBg} onChange={(v) => { setFooterBg(v); touch(); }} label="Background" />
+                      <CustomColor value={footerText} onChange={(v) => { setFooterText(v); touch(); }} label="Text" />
+                    </div>
+                  )}
+                </Control>
+                <Control label="Header corners">
+                  <Segmented value={bandShape} onChange={(v) => { setBandShape(v as BandShape); touch(); }} options={[{ value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
+                </Control>
+                <p className="eb-note">Text colours over your header and button are chosen automatically for legibility. Only your client-facing emails use these colours.</p>
+              </>
+            )}
+          </div>
+
+          {/* Nav */}
+          <div className="eb-nav">
+            {step > 0
+              ? <button type="button" className="eb-back" onClick={() => setStep((s) => s - 1)}>← Back</button>
+              : <span />}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {step === STEPS.length - 1 && !dirty && savingState === "saved" && <span className="eb-saved">Saved</span>}
+              {step < STEPS.length - 1
+                ? <button type="button" className="eb-next" onClick={() => setStep((s) => s + 1)}>Next: {STEPS[step + 1].title} <span className="arr">→</span></button>
+                : <button type="button" className="eb-save2" onClick={onSave} disabled={!dirty || savingState === "saving"}>{savingState === "saving" ? "Saving…" : "Save changes"}</button>}
+            </div>
+          </div>
         </div>
-      </Control>
-
-      {/* ── Save ── */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", paddingTop: 2 }}>
-        <button type="button" onClick={onSave} disabled={!dirty || savingState === "saving"} style={{ fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 8, border: "none", background: !dirty ? "rgba(0,0,0,0.08)" : "#FF6B4A", color: !dirty ? "#9ca3af" : "#fff", cursor: !dirty || savingState === "saving" ? "default" : "pointer" }}>
-          {savingState === "saving" ? "Saving…" : "Save changes"}
-        </button>
-        {!dirty && savingState === "saved" && <span style={{ fontSize: 12, fontWeight: 600, color: "#16a34a" }}>Saved</span>}
+        {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#dc2626" }} role="alert">{error}</p>}
       </div>
 
-      <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-        Text colours over your header and button are chosen automatically for legibility. Only your client-facing emails use these colours.
-      </p>
-      {error && <p style={{ margin: 0, fontSize: 12, color: "#dc2626" }} role="alert">{error}</p>}
-      </div>
-      <style>{`.eb-grid{display:grid;grid-template-columns:minmax(0,440px) 1fr;gap:28px;align-items:start}.eb-col-controls{min-width:0}@media(max-width:820px){.eb-grid{grid-template-columns:1fr}}`}</style>
+      <style>{`
+        .eb-grid { display: grid; grid-template-columns: minmax(0,440px) 1fr; gap: 28px; align-items: start; }
+        .eb-col-controls { min-width: 0; }
+        @media (max-width: 820px) { .eb-grid { grid-template-columns: 1fr; } }
+
+        .eb-pvtab { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+          border: 1px solid rgba(0,0,0,0.14); background: #fff; color: #4b5563; transition: background 130ms, color 130ms, border-color 130ms; }
+        .eb-pvtab:hover:not(.on) { background: #f6f6f7; color: #111827; }
+        .eb-pvtab.on { background: #111827; color: #fff; border-color: #111827; }
+
+        /* wizard shell */
+        .eb-wiz { border: 1px solid rgba(0,0,0,0.10); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 10px 30px -22px rgba(15,23,42,0.4); }
+        .eb-steps { display: flex; gap: 4px; padding: 14px 16px; border-bottom: 1px solid rgba(0,0,0,0.08); background: #faf9f7; }
+        .eb-pip { flex: 1; display: flex; align-items: center; gap: 9px; background: none; border: none; cursor: pointer; padding: 2px; text-align: left; opacity: 0.55; transition: opacity 180ms ease; }
+        .eb-pip.on, .eb-pip.done { opacity: 1; }
+        .eb-pip-n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; flex-shrink: 0;
+          background: linear-gradient(180deg, #f4f5f7, #e2e5e9); color: #9ca3af;
+          box-shadow: inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -2px 4px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(15,23,42,0.18); transition: all 180ms ease; }
+        .eb-pip.on .eb-pip-n, .eb-pip.done .eb-pip-n { background: linear-gradient(180deg, #FF8A5C, #E2452A); color: #fff;
+          box-shadow: inset 0 1.5px 1px rgba(255,255,255,0.45), inset 0 -2px 5px rgba(0,0,0,0.18), 0 3px 8px -2px rgba(255,107,74,0.55); }
+        .eb-pip-tx { font-size: 12.5px; font-weight: 700; color: #111827; line-height: 1.15; }
+        .eb-pip-tx span { display: block; font-size: 10px; font-weight: 500; color: #9ca3af; margin-top: 1px; }
+
+        .eb-pane { padding: 20px 18px; display: flex; flex-direction: column; gap: 16px; min-height: 196px; animation: eb-pane-in 260ms cubic-bezier(.22,1,.36,1) both; }
+        @keyframes eb-pane-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .eb-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 520px) { .eb-row2 { grid-template-columns: 1fr; } }
+        .eb-hint { margin: 0; font-size: 12.5px; color: #6b7280; line-height: 1.5; }
+        .eb-note { margin: 2px 0 0; font-size: 11.5px; color: #6b7280; line-height: 1.5; }
+
+        .eb-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid rgba(0,0,0,0.08); }
+        .eb-back { font-size: 13px; font-weight: 650; color: #6b7280; background: none; border: none; cursor: pointer; padding: 6px 4px; border-radius: 7px; transition: color 130ms; }
+        .eb-back:hover { color: #111827; }
+        .eb-next, .eb-save2 { font-size: 13px; font-weight: 700; color: #fff; border: none; border-radius: 9px; padding: 10px 18px; cursor: pointer;
+          background: linear-gradient(180deg, #FF7A5C, #E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 14px -5px rgba(255,107,74,0.5);
+          transition: transform 120ms, box-shadow 150ms, filter 150ms; }
+        .eb-next:hover, .eb-save2:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 7px 18px -6px rgba(255,107,74,0.6); }
+        .eb-next:active, .eb-save2:active:not(:disabled) { transform: scale(0.98); }
+        .eb-next .arr { display: inline-block; transition: transform 180ms cubic-bezier(.22,1,.36,1); }
+        .eb-next:hover .arr { transform: translateX(3px); }
+        .eb-save2:disabled { background: rgba(0,0,0,0.08); color: #9ca3af; cursor: default; box-shadow: none; }
+        .eb-saved { font-size: 12px; font-weight: 700; color: #16a34a; }
+
+        .eb-btn { transition: background 140ms ease, transform 90ms ease; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.14); background: #fff; color: #111827; cursor: pointer; }
+        .eb-btn:hover:not(:disabled) { background: #f6f6f7; }
+        .eb-btn:active:not(:disabled) { transform: scale(0.97); }
+        .eb-btn:disabled { opacity: 0.6; cursor: default; }
+        .eb-remove { font-size: 13px; font-weight: 500; background: none; border: none; color: #6b7280; cursor: pointer; padding: 0; transition: color 130ms; }
+        .eb-remove:hover { color: #dc2626; }
+
+        .eb-seg { display: inline-flex; border: 1px solid rgba(0,0,0,0.14); border-radius: 8px; overflow: hidden; width: fit-content; background: #fff; }
+        .eb-seg-b { font-size: 13px; font-weight: 600; padding: 7px 16px; cursor: pointer; border: none; border-left: 1px solid rgba(0,0,0,0.10); background: #fff; color: #374151; transition: background 130ms, color 130ms; }
+        .eb-seg-b:first-child { border-left: none; }
+        .eb-seg-b:hover:not(.on) { background: #f3f4f6; color: #111827; }
+        .eb-seg-b.on { background: #111827; color: #fff; }
+
+        .eb-swatch { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 6px; border-radius: 999px; cursor: pointer; border: 1px solid rgba(0,0,0,0.14); background: #fff; font-size: 12px; font-weight: 600; color: #374151; transition: background 130ms, border-color 130ms; }
+        .eb-swatch:hover:not(.on) { background: #f6f6f7; border-color: rgba(0,0,0,0.24); }
+        .eb-swatch.on { border: 2px solid #111827; padding: 4px 9px 4px 5px; }
+        .eb-cc { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #374151; cursor: pointer; }
+        .eb-cc input { width: 28px; height: 28px; padding: 0; border: 1px solid rgba(0,0,0,0.14); border-radius: 6px; background: none; cursor: pointer; transition: border-color 130ms; }
+        .eb-cc:hover input { border-color: rgba(0,0,0,0.3); }
+        .eb-link { font-size: 12px; font-weight: 600; background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; transition: color 130ms; }
+        .eb-link:hover { color: #1e40af; text-decoration: underline; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .eb-pane { animation: none; }
+          .eb-next .arr, .eb-next, .eb-save2, .eb-pip, .eb-pip-n, .eb-btn, .eb-seg-b { transition: none; }
+          .eb-next:hover, .eb-save2:hover:not(:disabled) { transform: none; }
+          .eb-next:hover .arr { transform: none; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -372,7 +468,7 @@ function Control({ label, children }: { label: string; children: React.ReactNode
 
 function LinkBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} style={{ fontSize: 12, fontWeight: 600, background: "none", border: "none", color: "#2563eb", cursor: "pointer", padding: 0 }}>
+    <button type="button" onClick={onClick} className="eb-link">
       {children}
     </button>
   );
@@ -380,7 +476,7 @@ function LinkBtn({ onClick, children }: { onClick: () => void; children: React.R
 
 function SwatchButton({ label, color, active, onClick }: { label: string; color: string; active: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={active} title={label} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 10px 5px 6px", borderRadius: 999, cursor: "pointer", border: active ? "2px solid #111827" : "1px solid rgba(0,0,0,0.14)", background: "#fff", fontSize: 12, fontWeight: 600, color: "#374151" }}>
+    <button type="button" onClick={onClick} aria-pressed={active} title={label} className={`eb-swatch${active ? " on" : ""}`}>
       <span style={{ width: 18, height: 18, borderRadius: "50%", background: color, border: "1px solid rgba(0,0,0,0.12)" }} />
       {label}
     </button>
@@ -389,8 +485,8 @@ function SwatchButton({ label, color, active, onClick }: { label: string; color:
 
 function CustomColor({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-      <input type="color" value={HEX.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} style={{ width: 28, height: 28, padding: 0, border: "1px solid rgba(0,0,0,0.14)", borderRadius: 6, background: "none", cursor: "pointer" }} />
+    <label className="eb-cc">
+      <input type="color" value={HEX.test(value) ? value : "#ffffff"} onChange={(e) => onChange(e.target.value)} />
       {label ?? "Custom"}
     </label>
   );
@@ -398,11 +494,11 @@ function CustomColor({ value, onChange, label }: { value: string; onChange: (v: 
 
 function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: Array<{ value: string; label: string }> }) {
   return (
-    <div style={{ display: "inline-flex", border: "1px solid rgba(0,0,0,0.14)", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
-      {options.map((o, i) => {
+    <div className="eb-seg">
+      {options.map((o) => {
         const active = o.value === value;
         return (
-          <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-pressed={active} style={{ fontSize: 13, fontWeight: 600, padding: "7px 16px", cursor: "pointer", border: "none", borderLeft: i === 0 ? "none" : "1px solid rgba(0,0,0,0.10)", background: active ? "#111827" : "#fff", color: active ? "#fff" : "#374151" }}>
+          <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-pressed={active} className={`eb-seg-b${active ? " on" : ""}`}>
             {o.label}
           </button>
         );
