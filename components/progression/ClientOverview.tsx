@@ -15,6 +15,7 @@ import { CaretRight } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { setClientAgencyFlagAction } from "@/app/actions/progression-clients";
+import { FeeEngine } from "./FeeEngine";
 import type { ClientAgencyDetail, ClientAgencyFlags } from "@/lib/services/progression-clients";
 
 type Tab = "Overview" | "Branding" | "Sales" | "People" | "Access";
@@ -71,7 +72,9 @@ export function ClientOverview({
   };
 
   return (
-    <div className="ov">
+    <>
+      <FeeEngine agencyId={detail.agencyId} name={detail.name} initial={detail.feeModel} fees={detail.fees} />
+      <div className="ov">
       {/* Performance */}
       <div className="ov-card span2" style={{ animationDelay: "0ms" }}>
         <p className="ov-eyebrow">Performance</p>
@@ -201,6 +204,7 @@ export function ClientOverview({
 
         @media (prefers-reduced-motion: reduce) { .ov-card { animation: none; } .ov-meter i, .ov-sw, .ov-sw i { transition: none; } }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }

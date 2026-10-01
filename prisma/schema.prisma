@@ -240,6 +240,11 @@ model ProgressionBusinessClient {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  // The progressor's rate card for THIS client — how they charge for the sales
+  // they progress for this agency. JSON validated by lib/progression/client-fees.ts
+  // (ClientFeeModel: flat | tiered | percent). Null = no fee model set yet.
+  feeModel Json?
+
   progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
   agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 

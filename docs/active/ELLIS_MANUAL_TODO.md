@@ -4,7 +4,20 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-09-27
+Last updated: 2026-10-01
+
+---
+
+## Apply the `feeModel` column to staging (progression fee engine, 2026-10-01)
+
+The client fee engine (per-client rate card on `/agent/clients/[agencyId]` → Overview) adds a `feeModel JSONB` column to `ProgressionBusinessClient`. **The code is committed but the DB column isn't applied yet** — until it is, opening a client's workspace will error (the query selects a column that doesn't exist). I couldn't run it: the auto-mode classifier blocks DB-schema commands, and `prisma generate` EPERMs while the dev server holds the engine DLL.
+
+**Do this (one time, local/staging DB):**
+1. Stop the `:3001` dev server (so Prisma can regenerate cleanly).
+2. `npx prisma db push` — applies the `feeModel` column + regenerates the client.
+3. Restart: `npm run dev -- -p 3001`.
+
+Prod gets it from the committed migration `prisma/migrations/20261001090000_progression_client_fee_model` on the next `migrate deploy` (Vercel). Verify Vercel build is green after the staging→master push.
 
 ---
 

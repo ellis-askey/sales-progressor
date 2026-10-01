@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
+import { parseFeeModel } from "@/lib/progression/client-fees";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -90,6 +91,24 @@ export async function setClientAgencyFlagAction(agencyId: string, key: string, v
   if (!owner) return { ok: false, error: "That isn't one of your clients." };
 
   await prisma.agency.update({ where: { id: agencyId }, data: { [field]: value } as Prisma.AgencyUpdateInput });
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/** Save the progressor's rate card for a client (how they charge). Owner-scoped. */
+export async function setClientFeeModelAction(agencyId: string, model: unknown): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const parsed = parseFeeModel(model);
+  if (!parsed) return { ok: false, error: "That fee model isn't valid." };
+
+  await prisma.progressionBusinessClient.update({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+    data: { feeModel: parsed as unknown as Prisma.InputJsonValue },
+  });
   revalidatePath(`/agent/clients/${agencyId}`);
   return { ok: true };
 }

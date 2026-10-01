@@ -12,6 +12,7 @@ import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { calculateClientFee, parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
 import type { Session } from "next-auth";
 
 export type BusinessOwner = { businessId: string; userId: string };
@@ -292,6 +293,8 @@ export type ClientAgencyDetail = {
   sales: AgencySale[];
   people: AgencyPerson[];
   flags: ClientAgencyFlags;
+  feeModel: ClientFeeModel | null;
+  fees: { earnedPence: number; pipelinePence: number; thisMonthPence: number; avgPence: number | null };
 };
 
 /**
@@ -302,9 +305,10 @@ export type ClientAgencyDetail = {
 export async function getClientAgencyDetail(businessId: string, agencyId: string): Promise<ClientAgencyDetail | null> {
   const link = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
-    select: { id: true },
+    select: { id: true, feeModel: true },
   });
   if (!link) return null;
+  const feeModel = parseFeeModel(link.feeModel);
 
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
@@ -323,19 +327,27 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true },
   });
 
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   let active = 0, pipeline = 0, exchanged = 0, completed = 0, withdrawn = 0, started = 0;
+  let feeEarned = 0, feePipeline = 0, feeThisMonth = 0, feeExchangedCount = 0;
   const exchangeDays: number[] = [];
   for (const t of txns) {
     if (t.status !== "draft") started += 1;
     if (t.status === "active") { active += 1; pipeline += t.purchasePrice ?? 0; }
     if (t.status === "completed") completed += 1;
     if (t.status === "withdrawn") withdrawn += 1;
+    const fee = calculateClientFee(feeModel, t.purchasePrice);
     if (t.exchangedAt) {
       exchanged += 1;
       const d = Math.round((new Date(t.exchangedAt).getTime() - new Date(t.createdAt).getTime()) / 86400000);
       if (d >= 0) exchangeDays.push(d);
+      if (fee != null) { feeEarned += fee; feeExchangedCount += 1; if (new Date(t.exchangedAt) >= monthStart) feeThisMonth += fee; }
+    } else if (t.status === "active" && fee != null) {
+      feePipeline += fee;
     }
   }
+  const feeAvg = feeExchangedCount ? Math.round(feeEarned / feeExchangedCount) : null;
   const avgDaysToExchange = exchangeDays.length ? Math.round(exchangeDays.reduce((a, b) => a + b, 0) / exchangeDays.length) : null;
   const conversionPct = started ? Math.round((exchanged / started) * 100) : null;
   const fallThroughPct = started ? Math.round((withdrawn / started) * 100) : null;
@@ -377,6 +389,8 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       portalCosts: agency.showPortalCosts,
       portalProgress: agency.showPortalProgressPercent,
     },
+    feeModel,
+    fees: { earnedPence: feeEarned, pipelinePence: feePipeline, thisMonthPence: feeThisMonth, avgPence: feeAvg },
   };
 }
 
