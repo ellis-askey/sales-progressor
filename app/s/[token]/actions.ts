@@ -366,7 +366,9 @@ async function resolveEnquiries(token: string) {
       assignedUserId: true,
       suppressPortalConfirmEmails: true,
       vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirmId: true,
       purchaserSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorContactId: true,
       enquiryTracker: { select: { id: true, closedAt: true } },
     },
   });
@@ -408,7 +410,7 @@ export async function solicitorEnquiriesSatisfiedAction(token: string): Promise<
       {
         transactionId: decoded.transactionId,
         milestoneDefinitionId: pm20.id,
-        confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
+        confirmer: { kind: "solicitor", firmId: tx.purchaserSolicitorFirmId, contactId: tx.purchaserSolicitorContactId, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
       },
       ptx,
     );
@@ -524,7 +526,9 @@ async function resolveRaise(token: string) {
       id: true,
       activeBuyerRoundId: true,
       suppressPortalConfirmEmails: true,
+      purchaserSolicitorFirmId: true,
       purchaserSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorContactId: true,
       enquiryRaiseChase: { select: { closedAt: true } },
     },
   });
@@ -545,7 +549,7 @@ export async function solicitorRaisedConfirmAction(token: string): Promise<{ ok:
   await completeMilestone({
     transactionId: decoded.transactionId,
     milestoneDefinitionId: pm14.id,
-    confirmer: { kind: "solicitor", firmId: null, contactId: null, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
+    confirmer: { kind: "solicitor", firmId: tx.purchaserSolicitorFirmId, contactId: tx.purchaserSolicitorContactId, firmName: tx.purchaserSolicitorFirm?.name ?? "the solicitor" },
   });
 
   // Fire the client-facing "enquiries raised" email, same as any PM14 confirm.

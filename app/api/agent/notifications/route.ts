@@ -83,8 +83,11 @@ export async function GET(req: NextRequest) {
         avatarImage: confirmer?.kind === "agent" ? (m.completedBy?.image ?? null)
           : confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.image ?? null)
           : null,
+        // Solicitor confirms carry the firm name so the id-card avatar reads
+        // "Pictons" rather than a nameless badge (critique 2026-09-30).
         avatarName: confirmer?.kind === "agent" ? (m.completedBy?.name ?? "")
           : confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? "")
+          : confirmer?.kind === "solicitor" ? (m.confirmedBySolicitorFirm?.name ?? "")
           : "",
         at: (m.completedAt ?? new Date()).toISOString(),
         updateLabel: null as string | null,

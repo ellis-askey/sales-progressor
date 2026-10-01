@@ -630,7 +630,9 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       code: m.milestoneDefinition.code,
       stageKey: stageMap.get(m.milestoneDefinition.code) ?? null,
       sentence: confirmationSentence({ code: m.milestoneDefinition.code, side, confirmer, sideContacts: principals, milestoneName: m.milestoneDefinition.name, isDesktopValuation: m.milestoneDefinition.code === "PM6" && !m.eventDate }),
-      byName: confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? null) : (m.completedBy?.name ?? null),
+      byName: confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? null)
+        : confirmer?.kind === "solicitor" ? (m.confirmedBySolicitorFirm?.name ?? null)
+        : (m.completedBy?.name ?? null),
       byImage: confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.image ?? null) : (m.completedBy?.image ?? null),
     });
   }
