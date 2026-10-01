@@ -163,6 +163,7 @@ export type ClientOverviewRow = {
   email: string | null;
   pending: boolean;
   logoUrl: string | null;
+  tileColor: string | null; // the logo's detected background, for the list tile
   people: number;
   active: number;
   pipelinePence: number;
@@ -193,6 +194,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
           id: true,
           name: true,
           logoPath: true,
+          logoTileColor: true,
           _count: { select: { users: true } },
           users: {
             where: { role: "director" },
@@ -246,6 +248,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
       email: d?.email ?? null,
       pending,
       logoUrl: getAgencyLogoUrl(l.agency.logoPath),
+      tileColor: l.agency.logoTileColor,
       people: l.agency._count.users,
       active: agg.active,
       pipelinePence: agg.pipeline,

@@ -62,7 +62,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   }
 
   const logo = detail.logoUrl
-    ? (<span className="aw-logo"><img src={detail.logoUrl} alt="" /></span>)
+    ? (<span className="aw-logo" style={{ background: detail.branding.tileColor ?? "#ffffff" }}><img src={detail.logoUrl} alt="" /></span>)
     : (<span className="aw-logo aw-logo-mono" style={{ background: detail.brandColor }}>{initials(detail.name)}</span>);
 
   return (
@@ -189,7 +189,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
         .aw-who { display: flex; align-items: center; gap: 16px; min-width: 0; }
         .aw-logo { width: 60px; height: 60px; border-radius: 16px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
-        .aw-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .aw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 7px; box-sizing: border-box; }
         .aw-logo-mono { color: #fff; font-weight: 800; font-size: 20px; }
         .aw-name { margin: 0 0 3px; font-size: clamp(22px, 3.4vw, 28px); font-weight: 820; letter-spacing: -0.02em; color: var(--agent-text-primary); }
         .aw-csub { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 13px; color: var(--agent-text-muted); }

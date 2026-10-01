@@ -34,7 +34,7 @@ function fmtCompact(pence: number): string {
 function Logo({ c }: { c: ClientOverviewRow }) {
   if (c.logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <span className="cw-logo"><img src={c.logoUrl} alt="" /></span>;
+    return <span className="cw-logo" style={{ background: c.tileColor ?? "#ffffff" }}><img src={c.logoUrl} alt="" /></span>;
   }
   return <span className="cw-logo cw-logo-mono">{initials(c.name)}</span>;
 }
@@ -149,7 +149,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         :root[data-theme="dark"] .cw-row:hover { box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6); }
         .cw-row:active { transform: translateY(-1px) scale(.996); }
         .cw-logo { width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
-        .cw-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
         .cw-logo-mono { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
         .cw-main { min-width: 0; flex: 1; }
         .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
