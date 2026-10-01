@@ -12,13 +12,13 @@ import { useState } from "react";
 import { CaretLeft, Plus, Clock, CaretRight, UserPlus, ArrowClockwise } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { resendClientInviteAction, setClientBrandColorAction } from "@/app/actions/progression-clients";
+import { resendClientInviteAction } from "@/app/actions/progression-clients";
 import { ClientOverview } from "./ClientOverview";
+import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
 type Tab = (typeof TABS)[number];
-const SWATCHES = ["#1E2A44", "#2F7D53", "#8A5A2B", "#3B6FD4", "#9B2D4F", "#E2452A"];
 
 function salePill(status: string): { label: string; cls: string } {
   if (status === "completed") return { label: "Completed", cls: "done" };
@@ -33,17 +33,8 @@ function initials(name: string): string {
 export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   const { toast } = useAgentToast();
   const [tab, setTab] = useState<Tab>("Overview");
-  const [color, setColor] = useState(detail.brandColor);
   const [resending, setResending] = useState(false);
 
-  async function pickColor(c: string) {
-    if (c === color) return;
-    const prev = color;
-    setColor(c);
-    const res = await setClientBrandColorAction(detail.agencyId, c);
-    if (!res.ok) { setColor(prev); toast.error(res.error); }
-    else toast.success("Brand colour saved", { description: `${detail.name}'s portal and emails now use this colour.` });
-  }
   async function resend() {
     setResending(true);
     const res = await resendClientInviteAction(detail.agencyId);
@@ -54,7 +45,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
 
   const logo = detail.logoUrl
     ? (<span className="aw-logo"><img src={detail.logoUrl} alt="" /></span>)
-    : (<span className="aw-logo aw-logo-mono" style={{ background: color }}>{initials(detail.name)}</span>);
+    : (<span className="aw-logo aw-logo-mono" style={{ background: detail.brandColor }}>{initials(detail.name)}</span>);
 
   return (
     <div className="aw">
@@ -96,33 +87,18 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
           )}
 
           {tab === "Branding" && (
-            <div className="aw-cards">
-              <div className="aw-card">
-                <h4>Logo</h4>
-                <div className="aw-logobox">
-                  {detail.logoUrl
-                    ? <span className="aw-logo" style={{ width: 54, height: 54 }}><img src={detail.logoUrl} alt="" /></span>
-                    : <span className="aw-logo aw-logo-mono" style={{ width: 54, height: 54, background: color }}>{initials(detail.name)}</span>}
-                  <div className="tx">
-                    <b>{detail.logoUrl ? "Logo set" : "No logo yet"}</b>
-                    <span>{detail.logoUrl ? "Shown on their portal and emails." : "A logo will appear here once it's added."}</span>
-                  </div>
-                </div>
-                <div className="aw-swlabel">Brand colour</div>
-                <div className="aw-swatches">
-                  {SWATCHES.map((c) => (
-                    <button key={c} className={`aw-sw ${c.toLowerCase() === color.toLowerCase() ? "on" : ""}`} style={{ background: c }} onClick={() => pickColor(c)} aria-label={`Set brand colour ${c}`} />
-                  ))}
-                </div>
+            <div className="aw-branding">
+              <div className="aw-branding-intro">
+                <h4>Email branding</h4>
+                <p>
+                  Upload {detail.name}'s logo and set their brand colours. Every client-facing email we send on
+                  their sales uses these, so the live preview on the left is exactly what their buyers and sellers receive.
+                </p>
               </div>
-              <div className="aw-card">
-                <h4>Portal preview</h4>
-                <div className="aw-portal">
-                  <div className="top" style={{ background: color }}><span className="lg" />{detail.name}</div>
-                  <div className="bd"><div className="bar" /><div className="bar s" /><span className="chip" style={{ background: color }}>On track</span></div>
-                </div>
-                <p className="aw-note">How buyers &amp; sellers see their sales — branded with the colour you pick.</p>
-              </div>
+              <EmailBrandingStudio
+                initial={detail.branding}
+                endpoint={`/api/agent/clients/${detail.agencyId}/logo`}
+              />
             </div>
           )}
 
@@ -247,22 +223,9 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-link { appearance: none; background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; margin-top: 10px; padding: 0; }
         .aw-link:hover { text-decoration: underline; }
 
-        .aw-logobox { display: flex; align-items: center; gap: 14px; border: 1px solid var(--agent-border-subtle); border-radius: 12px; padding: 14px; background: var(--agent-glass-bg, rgba(255,255,255,0.4)); }
-        .aw-logobox .tx b { display: block; font-size: 12.5px; font-weight: 650; color: var(--agent-text-primary); margin-bottom: 2px; }
-        .aw-logobox .tx span { font-size: 11px; color: var(--agent-text-muted); }
-        .aw-swlabel { font-size: 10.5px; font-weight: 600; color: var(--agent-text-muted); margin: 16px 0 9px; text-transform: uppercase; letter-spacing: 0.06em; }
-        .aw-swatches { display: flex; gap: 9px; }
-        .aw-sw { width: 30px; height: 30px; border-radius: 9px; cursor: pointer; border: 2px solid transparent; transition: transform .14s; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
-        .aw-sw:hover { transform: scale(1.1); }
-        .aw-sw.on { border-color: var(--agent-text-primary); }
-
-        .aw-portal { border-radius: 12px; overflow: hidden; border: 1px solid var(--agent-border-subtle); }
-        .aw-portal .top { height: 50px; display: flex; align-items: center; gap: 10px; padding: 0 14px; color: #fff; font-size: 13px; font-weight: 700; transition: background .3s; }
-        .aw-portal .top .lg { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.92); flex-shrink: 0; }
-        .aw-portal .bd { padding: 14px; background: var(--agent-glass-bg, rgba(0,0,0,0.03)); }
-        .aw-portal .bar { height: 9px; border-radius: 999px; background: var(--agent-border-subtle); margin-bottom: 8px; }
-        .aw-portal .bar.s { width: 58%; }
-        .aw-portal .chip { display: inline-block; height: 22px; line-height: 22px; padding: 0 12px; border-radius: 999px; font-size: 10px; font-weight: 700; color: #fff; transition: background .3s; }
+        .aw-branding-intro { margin-bottom: 18px; }
+        .aw-branding-intro h4 { margin: 0 0 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
+        .aw-branding-intro p { margin: 0; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.6; max-width: 72ch; }
         .aw-note { font-size: 11px; color: var(--agent-text-muted); margin: 10px 0 0; }
 
         .aw-mem { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-top: 1px solid var(--agent-border-subtle); }

@@ -113,21 +113,6 @@ export async function setClientFeeModelAction(agencyId: string, model: unknown):
   return { ok: true };
 }
 
-/** Set a client agency's brand colour (flows to their portal + emails). Owner-scoped. */
-export async function setClientBrandColorAction(agencyId: string, color: string): Promise<ActionResult> {
-  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
-  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return { ok: false, error: "That isn't a valid colour." };
-  const session = await requireSession();
-  const owner = await assertOwnerOfClient(session, agencyId);
-  if (!owner) return { ok: false, error: "That isn't one of your clients." };
-
-  const ag = await prisma.agency.findUnique({ where: { id: agencyId }, select: { emailTheme: true } });
-  const theme = (ag?.emailTheme ?? {}) as Record<string, unknown>;
-  theme.buttonColor = color;
-  await prisma.agency.update({
-    where: { id: agencyId },
-    data: { emailTheme: theme as Prisma.InputJsonValue, logoTileColor: color },
-  });
-  revalidatePath(`/agent/clients/${agencyId}`);
-  return { ok: true };
-}
+// Brand colour + full email theme + logo are now managed by the Branding tab's
+// studio via the owner-scoped /api/agent/clients/[agencyId]/logo route (same
+// normalise + storage + Agency columns as the agency's own branding studio).

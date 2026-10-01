@@ -13,6 +13,8 @@ import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { calculateClientFee, parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
+import { sanitizeEmailThemeInput, type EmailThemeInput } from "@/lib/email/brand-theme";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import type { Session } from "next-auth";
 
 export type BusinessOwner = { businessId: string; userId: string };
@@ -270,6 +272,15 @@ export type ClientAgencyFlags = {
   portalCosts: boolean;
   portalProgress: boolean;
 };
+// The current branding state for the Branding tab's studio. Structurally the
+// studio's BrandingInitial (appAccent omitted — not applicable to a client).
+export type ClientBranding = {
+  logoUrl: string | null;
+  tileColor: string | null;
+  scale: LogoScale | null;
+  align: LogoAlign | null;
+  theme: EmailThemeInput | null;
+};
 
 export type ClientAgencyDetail = {
   agencyId: string;
@@ -293,6 +304,7 @@ export type ClientAgencyDetail = {
   sales: AgencySale[];
   people: AgencyPerson[];
   flags: ClientAgencyFlags;
+  branding: ClientBranding;
   feeModel: ClientFeeModel | null;
   fees: { earnedPence: number; pipelinePence: number; thisMonthPence: number; avgPence: number | null };
 };
@@ -313,7 +325,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
     select: {
-      id: true, name: true, logoPath: true, logoTileColor: true, emailTheme: true,
+      id: true, name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true,
       solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true, weeklyClientUpdatesEnabled: true,
       showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true,
       users: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, role: true, password: true } },
@@ -388,6 +400,13 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       portalKeyDates: agency.showPortalKeyDates,
       portalCosts: agency.showPortalCosts,
       portalProgress: agency.showPortalProgressPercent,
+    },
+    branding: {
+      logoUrl: getAgencyLogoUrl(agency.logoPath),
+      tileColor: agency.logoTileColor,
+      scale: (agency.logoScale as LogoScale | null) ?? null,
+      align: (agency.logoAlign as LogoAlign | null) ?? null,
+      theme: sanitizeEmailThemeInput(agency.emailTheme),
     },
     feeModel,
     fees: { earnedPence: feeEarned, pipelinePence: feePipeline, thisMonthPence: feeThisMonth, avgPence: feeAvg },
