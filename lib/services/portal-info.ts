@@ -32,6 +32,8 @@ export type MoveInfo = {
   noCompletionPreference: boolean | null;
   flexibility: string | null;
   mortgageOfferExpiry: string | null;
+  // True when the expiry is the auto 6-month estimate (show "approx" to the buyer).
+  mortgageOfferExpiryApprox: boolean;
   fundsInPlace: string | null;
   fundsSource: string | null;
   needsNotice: boolean | null;
@@ -51,7 +53,7 @@ export type MoveInfo = {
 
 const EMPTY: MoveInfo = {
   preferredCompletionDate: null, noCompletionPreference: null, flexibility: null,
-  mortgageOfferExpiry: null, fundsInPlace: null, fundsSource: null,
+  mortgageOfferExpiry: null, mortgageOfferExpiryApprox: false, fundsInPlace: null, fundsSource: null,
   needsNotice: null, noticePeriod: null, noticeGiven: null, noticeEndDate: null,
   buyingOnward: null, onwardReadyToExchange: null, onwardMortgageOfferExpiry: null,
   sellingRelated: null,
@@ -151,6 +153,7 @@ export async function getClientMoveInfo(
         noCompletionPreference: row.noCompletionPreference,
         flexibility: row.flexibility,
         mortgageOfferExpiry: isoDate(row.mortgageOfferExpiry),
+        mortgageOfferExpiryApprox: row.mortgageOfferExpiryApprox,
         fundsInPlace: row.fundsInPlace,
         fundsSource: row.fundsSource,
         needsNotice: row.needsNotice,

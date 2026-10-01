@@ -70,7 +70,7 @@ const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0,
 
 function rowToMoveInfo(row: {
   preferredCompletionDate: Date | null; noCompletionPreference: boolean | null; flexibility: string | null;
-  mortgageOfferExpiry: Date | null; fundsInPlace: string | null; fundsSource: string | null;
+  mortgageOfferExpiry: Date | null; mortgageOfferExpiryApprox?: boolean; fundsInPlace: string | null; fundsSource: string | null;
   needsNotice: boolean | null; noticePeriod: string | null; noticeGiven: boolean | null; noticeEndDate: Date | null;
   buyingOnward: boolean | null; onwardReadyToExchange: string | null; onwardMortgageOfferExpiry: Date | null;
   sellingRelated: boolean | null;
@@ -82,6 +82,7 @@ function rowToMoveInfo(row: {
     noCompletionPreference: row?.noCompletionPreference ?? null,
     flexibility: row?.flexibility ?? null,
     mortgageOfferExpiry: isoDate(row?.mortgageOfferExpiry ?? null),
+    mortgageOfferExpiryApprox: row?.mortgageOfferExpiryApprox ?? false,
     fundsInPlace: row?.fundsInPlace ?? null,
     fundsSource: row?.fundsSource ?? null,
     needsNotice: row?.needsNotice ?? null,
@@ -252,7 +253,7 @@ export async function saveMoveInfoAgentAction(
   if (p.preferredCompletionDate !== undefined) data.preferredCompletionDate = d(p.preferredCompletionDate);
   if (p.noCompletionPreference !== undefined) data.noCompletionPreference = p.noCompletionPreference;
   if (p.flexibility !== undefined) data.flexibility = p.flexibility;
-  if (p.mortgageOfferExpiry !== undefined) data.mortgageOfferExpiry = d(p.mortgageOfferExpiry);
+  if (p.mortgageOfferExpiry !== undefined) { data.mortgageOfferExpiry = d(p.mortgageOfferExpiry); data.mortgageOfferExpiryApprox = false; }
   if (p.fundsInPlace !== undefined) data.fundsInPlace = p.fundsInPlace;
   if (p.fundsSource !== undefined) data.fundsSource = p.fundsSource;
   if (p.needsNotice !== undefined) data.needsNotice = p.needsNotice;

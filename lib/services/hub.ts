@@ -1114,6 +1114,8 @@ export type MortgageExpiryItem = {
   // rather than "Buyer's offer".
   clientLabel: string;
   expiryDate: Date;
+  // True when the date is the auto 6-month estimate (shown as "approx").
+  approx: boolean;
   photoStoragePath: string | null;
   // Predicted exchange date (override ?? predicted) → the "how urgent" chip
   // (offer expiring + still far from exchange is the real worry).
@@ -1331,6 +1333,7 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility, excludeT
     select: {
       side: true,
       mortgageOfferExpiry: true,
+      mortgageOfferExpiryApprox: true,
       onwardMortgageOfferExpiry: true,
       transaction: {
         select: {
@@ -1356,12 +1359,12 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility, excludeT
     const inWindow = (d: Date | null): d is Date => d != null && d >= floor && d <= horizon;
     const label = (role: "purchaser" | "vendor", fallback: string) =>
       possessiveClientLabel(tx.contacts.filter((c) => c.roleType === role).map((c) => c.name), fallback);
-    const push = (side: "buyer" | "seller_onward", date: Date, role: "purchaser" | "vendor", fallback: string) => {
+    const push = (side: "buyer" | "seller_onward", date: Date, role: "purchaser" | "vendor", fallback: string, approx: boolean) => {
       if (dismissed.has(`${side}:${date.toISOString().slice(0, 10)}`)) return;
-      items.push({ transactionId: tx.id, propertyAddress: tx.propertyAddress, side, clientLabel: label(role, fallback), expiryDate: date, photoStoragePath: tx.photoStoragePath, exchangeDate });
+      items.push({ transactionId: tx.id, propertyAddress: tx.propertyAddress, side, clientLabel: label(role, fallback), expiryDate: date, approx, photoStoragePath: tx.photoStoragePath, exchangeDate });
     };
-    if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) push("buyer", r.mortgageOfferExpiry, "purchaser", "The buyer's");
-    if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) push("seller_onward", r.onwardMortgageOfferExpiry, "vendor", "The seller's");
+    if (r.side === "purchaser" && inWindow(r.mortgageOfferExpiry)) push("buyer", r.mortgageOfferExpiry, "purchaser", "The buyer's", r.mortgageOfferExpiryApprox);
+    if (r.side === "vendor" && inWindow(r.onwardMortgageOfferExpiry)) push("seller_onward", r.onwardMortgageOfferExpiry, "vendor", "The seller's", false);
   }
   items.sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime());
   return items;

@@ -130,8 +130,13 @@ export function PortalInformationTab({
       {ctx.role === "buyer" && (ctx.isMortgaged || !ctx.hasExchanged) && (
         <Section id="your-situation" label="Your situation" saved={savedSection}>
           {ctx.isMortgaged && (
-            <Field label="Mortgage offer expiry">
+            <Field label={info.mortgageOfferExpiryApprox ? "Mortgage offer expiry (approx)" : "Mortgage offer expiry"}>
               <DateInput value={info.mortgageOfferExpiry} disabled={readOnly} onChange={(v) => patch("your-situation", { mortgageOfferExpiry: v })} />
+              {info.mortgageOfferExpiryApprox && info.mortgageOfferExpiry && (
+                <p style={{ fontSize: 12, color: "var(--portal-textMuted, #8B91A3)", margin: "6px 2px 0", lineHeight: 1.45 }}>
+                  Approximate, based on a typical 6-month offer. Pop in the exact date from your offer if you have it.
+                </p>
+              )}
             </Field>
           )}
           {!ctx.hasExchanged && (

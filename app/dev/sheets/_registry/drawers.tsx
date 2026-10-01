@@ -68,6 +68,7 @@ const demoMove = (over: Partial<MoveInfo> = {}): MoveInfo => ({
   preferredCompletionDate: null,
   noCompletionPreference: null,
   flexibility: null,
+  mortgageOfferExpiryApprox: false,
   mortgageOfferExpiry: null,
   fundsInPlace: null,
   fundsSource: null,

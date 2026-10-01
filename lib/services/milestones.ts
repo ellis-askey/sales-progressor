@@ -1586,6 +1586,32 @@ export async function completeMilestone(
     }
   }
 
+  // PM11 (mortgage offer received): auto-pencil a 6-month expiry on the buyer's
+  // move info, anchored on the day the offer is confirmed. Gives the hub card,
+  // the portal and the reminders a date to work from. Flagged approx (shown to
+  // the buyer as "approx" until a real date is entered); never overwrites an
+  // existing expiry. Buyer side only for now (seller onward deferred, docs/TODO).
+  // Best-effort — must not block the confirmation. (critique 2026-09-30)
+  if (def.code === "PM11") {
+    try {
+      const existing = await db.clientMoveInfo.findUnique({
+        where: { transactionId_side: { transactionId: input.transactionId, side: "purchaser" } },
+        select: { mortgageOfferExpiry: true },
+      });
+      if (!existing?.mortgageOfferExpiry) {
+        const expiry = new Date(input.eventDate ?? new Date());
+        expiry.setMonth(expiry.getMonth() + 6);
+        await db.clientMoveInfo.upsert({
+          where: { transactionId_side: { transactionId: input.transactionId, side: "purchaser" } },
+          create: { transactionId: input.transactionId, side: "purchaser", mortgageOfferExpiry: expiry, mortgageOfferExpiryApprox: true },
+          update: { mortgageOfferExpiry: expiry, mortgageOfferExpiryApprox: true },
+        });
+      }
+    } catch (err) {
+      console.error("[completeMilestone] PM11 mortgage-offer-expiry auto-set failed:", err);
+    }
+  }
+
   // Enquiries pair (critique #20): the buyer's "initial enquiries raised" (PM14)
   // and the seller's "initial enquiries received" (VM10) are ONE event — the
   // buyer's solicitor raising enquiries IS the seller's solicitor receiving

@@ -672,7 +672,8 @@ export async function portalSaveMoveInfoAction(input: {
   if (p.preferredCompletionDate !== undefined) data.preferredCompletionDate = d(p.preferredCompletionDate);
   if (p.noCompletionPreference !== undefined) data.noCompletionPreference = p.noCompletionPreference;
   if (p.flexibility !== undefined) data.flexibility = p.flexibility;
-  if (p.mortgageOfferExpiry !== undefined) data.mortgageOfferExpiry = d(p.mortgageOfferExpiry);
+  // A real date entered by the buyer/agent is exact, not the auto 6-month guess.
+  if (p.mortgageOfferExpiry !== undefined) { data.mortgageOfferExpiry = d(p.mortgageOfferExpiry); data.mortgageOfferExpiryApprox = false; }
   if (p.fundsInPlace !== undefined) data.fundsInPlace = p.fundsInPlace;
   if (p.fundsSource !== undefined) data.fundsSource = p.fundsSource;
   if (p.needsNotice !== undefined) data.needsNotice = p.needsNotice;

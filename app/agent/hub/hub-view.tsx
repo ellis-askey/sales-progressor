@@ -694,7 +694,7 @@ function buildMortgageRows(
       address: i.propertyAddress,
       pillLabel,
       pillTone,
-      subtext: `${i.clientLabel} ${i.side === "seller_onward" ? "onward offer" : "offer"} · expires ${new Date(i.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+      subtext: `${i.clientLabel} ${i.side === "seller_onward" ? "onward offer" : "offer"} · expires ${i.approx ? "approx " : ""}${new Date(i.expiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
       meta: meta.text,
       metaTone: meta.tone,
       dismissSignature: `${i.side}:${new Date(i.expiryDate).toISOString().slice(0, 10)}`,

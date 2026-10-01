@@ -2281,6 +2281,11 @@ model ClientMoveInfo {
 
   // Situation — mortgage + funds (buyers)
   mortgageOfferExpiry DateTime?
+  // True when mortgageOfferExpiry was auto-set to +6 months on PM11 (offer
+  // received) confirmation — shown to the buyer as "approx". Cleared to false
+  // the moment a real date is entered. (critique 2026-09-30, buyer side only;
+  // seller onward deferred.)
+  mortgageOfferExpiryApprox Boolean @default(false)
   fundsInPlace        String? // "yes" | "not_yet" | "not_sure"
   fundsSource         String? // "savings" | "lisa" | "gift" | "sale" | "other"
 

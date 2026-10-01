@@ -2,6 +2,21 @@
 
 ---
 
+## Seller onward mortgage-offer auto-expiry (deferred, filed 2026-10-01)
+
+DEFERRED (founder, 2026-10-01). The buyer's mortgage-offer expiry now auto-sets
+to +6 months on PM11 (offer received) confirmation, flagged `approx`, flowing
+into the hub card / portal / reminders — see `lib/services/milestones.ts`
+(PM11 block) + `ClientMoveInfo.mortgageOfferExpiry(Approx)`. The SELLER's onward
+purchase has the equivalent "offer received" step on its onward-tracking steps,
+and `ClientMoveInfo.onwardMortgageOfferExpiry` already exists — but the founder
+says that onward step isn't used reliably enough yet to auto-set from. When it
+is: mirror the PM11 auto-set for the onward offer-received step, add an
+`onwardMortgageOfferExpiryApprox` flag, and surface "approx" on the hub
+(seller_onward branch in getUpcomingMortgageExpiries) + the portal.
+
+---
+
 ## Outsourced reply-to on single-sender agencies — multi-progressor routing (deferred, filed 2026-09-08)
 
 DEFERRED. On an OUTSOURCED file where the agency's verified sender is a
