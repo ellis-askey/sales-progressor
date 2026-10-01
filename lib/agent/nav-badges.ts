@@ -35,7 +35,14 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
     showSelfPages ? countEscalatedEnquiries(scope).catch(() => 0) : Promise.resolve(0),
     canSeeChains(role, session.user.email, hasSelfManagedFiles) ? countChainsNeedsSetup(scope).catch(() => 0) : Promise.resolve(0),
     countCompletionsToday(vis).catch(() => 0),
-    role !== "admin" && showSelfPages ? getHubAttentionItems(vis).then((a) => a.length).catch(() => 0) : Promise.resolve(0),
+    // The "Reminders" badge links to the Reminders page, which shows reminders
+    // only. getHubAttentionItems also carries synthetic "exchange date passed"
+    // items (id "xovr-<txId>") that belong on the Hub's own "Exchange dates
+    // passed" section, not a reminder — counting them made the badge disagree
+    // with the page (critique 2026-10-01). Count reminder-backed items only.
+    role !== "admin" && showSelfPages
+      ? getHubAttentionItems(vis).then((a) => a.filter((i) => !i.id.startsWith("xovr-")).length).catch(() => 0)
+      : Promise.resolve(0),
   ]);
 
   return { todo: todoBase + reviews, enquiries, reminders, chains, completions };
