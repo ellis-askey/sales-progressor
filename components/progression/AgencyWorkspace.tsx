@@ -9,10 +9,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CaretLeft, Plus, Clock, CaretRight, ArrowClockwise } from "@phosphor-icons/react";
+import { CaretLeft, Plus, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { resendClientInviteAction } from "@/app/actions/progression-clients";
+import { resendClientInviteAction, createClientSetupLinkAction } from "@/app/actions/progression-clients";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
@@ -35,6 +35,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   const { toast } = useAgentToast();
   const [tab, setTab] = useState<Tab>("Overview");
   const [resending, setResending] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   async function resend() {
     setResending(true);
@@ -42,6 +43,18 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
     setResending(false);
     if (res.ok) toast.success("Invite re-sent", { description: detail.email ? `We've emailed ${detail.email}.` : undefined });
     else toast.error(res.error);
+  }
+  async function copyLink() {
+    setCopying(true);
+    const res = await createClientSetupLinkAction(detail.agencyId);
+    setCopying(false);
+    if (!res.ok) { toast.error(res.error); return; }
+    try {
+      await navigator.clipboard.writeText(res.url);
+      toast.success("Set-up link copied", { description: "Share it with them directly." });
+    } catch {
+      toast.error("Couldn't copy the link. Try again.");
+    }
   }
 
   const logo = detail.logoUrl
@@ -129,23 +142,34 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
             <div className="aw-cards">
               <div className="aw-card">
                 <h4>Login &amp; access</h4>
-                <p className="aw-accesstxt">
-                  {detail.status === "active"
-                    ? `${detail.contact ?? "The agent"} has set up their login. They see only the sales you progress for them.`
-                    : `Invite sent to ${detail.email ?? "the agent"} — waiting for them to set a password.`}
-                </p>
-                <div className="aw-access-actions">
-                  <button className="agent-btn agent-btn-secondary agent-btn-sm" onClick={resend} disabled={resending}>
-                    <ArrowClockwise size={14} weight="bold" /> {resending ? "Sending…" : "Resend set-up link"}
-                  </button>
-                </div>
+                {detail.status === "active" ? (
+                  <p className="aw-accesstxt">
+                    <span className="aw-ok"><CheckCircle size={15} weight="fill" /></span>
+                    {detail.contact ?? "The agent"} has set up their login. They see only the sales you progress for them.
+                  </p>
+                ) : (
+                  <>
+                    <p className="aw-accesstxt">
+                      Invite sent to {detail.email ?? "the agent"}. We&rsquo;re waiting for them to set a password and sign in.
+                    </p>
+                    <div className="aw-access-actions">
+                      <button className="agent-btn agent-btn-secondary agent-btn-sm" onClick={resend} disabled={resending}>
+                        <ArrowClockwise size={14} weight="bold" /> {resending ? "Sending…" : "Resend set-up link"}
+                      </button>
+                      <button className="agent-btn agent-btn-ghost agent-btn-sm" onClick={copyLink} disabled={copying}>
+                        <Copy size={14} weight="bold" /> {copying ? "Preparing…" : "Copy set-up link"}
+                      </button>
+                    </div>
+                    <p className="aw-note">Prefer to send it yourself? Copy the link and share it over WhatsApp, text or on a call.</p>
+                  </>
+                )}
               </div>
               <div className="aw-card">
                 <h4>What they can do</h4>
-                <ul className="aw-list">
-                  <li>See the sales you progress for them, live.</li>
-                  <li>Follow each one's progress and documents.</li>
-                  <li>Never see another agency's sales, or your other clients.</li>
+                <ul className="aw-can">
+                  <li><CheckCircle size={17} weight="fill" /><span>See the sales you progress for them, live.</span></li>
+                  <li><CheckCircle size={17} weight="fill" /><span>Follow each one&rsquo;s progress and documents.</span></li>
+                  <li><CheckCircle size={17} weight="fill" /><span>Never see another agency&rsquo;s sales, or your other clients.</span></li>
                 </ul>
               </div>
             </div>
@@ -219,9 +243,12 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-branding-intro p { margin: 0; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.6; max-width: 72ch; }
         .aw-note { font-size: 11px; color: var(--agent-text-muted); margin: 10px 0 0; }
 
-        .aw-accesstxt { font-size: 12.5px; color: var(--agent-text-secondary); line-height: 1.6; margin: 0; }
+        .aw-accesstxt { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--agent-text-secondary); line-height: 1.6; margin: 0; }
+        .aw-ok { color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; margin-top: 1px; display: inline-flex; }
         .aw-access-actions { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; }
-        .aw-list { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--agent-text-secondary); line-height: 1.8; }
+        .aw-can { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+        .aw-can li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; }
+        .aw-can li svg { color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; margin-top: 1px; }
 
         @media (prefers-reduced-motion: reduce) { .aw-panel { animation: none; } .aw-meter i { transition: none; } }
       `}</style>

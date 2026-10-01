@@ -61,6 +61,24 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Mint a fresh set-password token for a client user and return the live setup
+ * link (reusing the verificationToken + /reset-password machinery). Minting a
+ * new token invalidates any previously-issued one for this email, exactly like
+ * a resend. Shared by the email send below and the "copy set-up link" action so
+ * there's one source of truth for the link shape (Law 4).
+ */
+export async function mintClientSetupLink(rawEmail: string): Promise<string> {
+  const email = rawEmail.toLowerCase().trim();
+  await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+  const token = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + SETUP_LINK_TTL_MS);
+  await prisma.verificationToken.create({ data: { identifier: email, token, expires } });
+
+  const base = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
+  return `${base}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+}
+
+/**
  * Mint a set-password token and email a newly-added client agent their setup
  * link. Best-effort: a send failure is logged, not thrown — the account is valid
  * and the agent can always use "Forgot password" instead.
@@ -71,13 +89,7 @@ export async function sendClientAgentSetupEmail(input: {
   businessName: string;
 }): Promise<void> {
   const email = input.email.toLowerCase().trim();
-  await prisma.verificationToken.deleteMany({ where: { identifier: email } });
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + SETUP_LINK_TTL_MS);
-  await prisma.verificationToken.create({ data: { identifier: email, token, expires } });
-
-  const base = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
-  const setupUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+  const setupUrl = await mintClientSetupLink(email);
   const built = buildClientAgentInvite({ setupUrl, businessName: input.businessName });
 
   await sendAgentEmail({

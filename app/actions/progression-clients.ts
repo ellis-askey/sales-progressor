@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
-import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
+import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { parseFeeModel } from "@/lib/progression/client-fees";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -68,6 +68,31 @@ export async function resendClientInviteAction(agencyId: string): Promise<Action
   const business = await prisma.progressionBusiness.findUnique({ where: { id: owner.businessId }, select: { name: true } });
   await sendClientAgentSetupEmail({ userId: director.id, email: director.email, businessName: business?.name ?? "Your progressor" });
   return { ok: true };
+}
+
+/**
+ * Mint + return the client director's set-up link so the owner can share it
+ * directly (WhatsApp, text, on a call) instead of only emailing it. Owner-scoped.
+ * Only for a pending agent — once they've set a password the link is pointless.
+ */
+export async function createClientSetupLinkAction(
+  agencyId: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const director = await prisma.user.findFirst({
+    where: { agencyId, role: "director" },
+    orderBy: { createdAt: "asc" },
+    select: { email: true, password: true },
+  });
+  if (!director) return { ok: false, error: "There's no agent on this agency to invite." };
+  if (director.password) return { ok: false, error: "They've already set up their login." };
+
+  const url = await mintClientSetupLink(director.email);
+  return { ok: true, url };
 }
 
 // Overview toggles -> the real Agency columns. Allowlisted so only these six
