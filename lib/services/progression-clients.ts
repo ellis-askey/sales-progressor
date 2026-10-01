@@ -268,6 +268,7 @@ export type AgencyPerson = {
   image: string | null;          // avatar URL, if they've set a photo
   canViewAll: boolean;           // sees all the agency's sales vs only their own
   inviteExpiresAt: number | null; // epoch ms the set-up link expires (pending only)
+  lastLoginAt: number | null;     // epoch ms of their last sign-in (null = never)
 };
 export type RemovedPerson = { id: string; name: string; email: string; image: string | null };
 export type ClientAgencyFlags = {
@@ -338,7 +339,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       // All users — split into active roster vs removed tombstones below.
       users: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, email: true, role: true, password: true, image: true, canViewAllFiles: true, deactivatedAt: true },
+        select: { id: true, name: true, email: true, role: true, password: true, image: true, canViewAllFiles: true, deactivatedAt: true, lastLoginAt: true },
       },
     },
   });
@@ -424,6 +425,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
       id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password,
       image: getAvatarPublicUrl(u.image), canViewAll: u.canViewAllFiles,
       inviteExpiresAt: !u.password ? (expiryByEmail.get(u.email.toLowerCase()) ?? null) : null,
+      lastLoginAt: u.lastLoginAt ? u.lastLoginAt.getTime() : null,
     })),
     removedPeople: removedUsers.map((u) => ({ id: u.id, name: u.name, email: u.email, image: getAvatarPublicUrl(u.image) })),
     flags: {

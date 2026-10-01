@@ -302,6 +302,9 @@ model User {
   emailSignatureImagePath String?
   emailSignatureHtml      String?
   canViewAllFiles         Boolean                  @default(false)
+  // Last successful sign-in, stamped in the auth signIn callback (fire-and-forget).
+  // Null = hasn't signed in since this was added, or invite not yet accepted.
+  lastLoginAt             DateTime?
   hasSeenAgentWelcome     Boolean                  @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
   // gets their own first-run auto-start. Set when the tour is finished or

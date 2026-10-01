@@ -39,6 +39,15 @@ function expiryText(ms: number | null): string {
   const days = Math.ceil((ms - Date.now()) / 86400000);
   return days <= 0 ? "link expired" : `expires in ${days}d`;
 }
+function relTime(ms: number): string {
+  const days = Math.floor((Date.now() - ms) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 28) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
 
 function Avatar({ name, image, lead }: { name: string; image: string | null; lead?: boolean }) {
   return (
@@ -118,7 +127,9 @@ export function ClientPeople({
         )}
         <div className={`cp-stat ${p.pending ? "pend" : "ok"}`}>
           <span className="top">{p.pending ? <Clock size={11} weight="bold" /> : <Check size={11} weight="bold" />}{p.pending ? "Invite sent" : "Signed in"}</span>
-          {p.pending && p.inviteExpiresAt != null && <span className="sub">{expiryText(p.inviteExpiresAt)}</span>}
+          {p.pending
+            ? (p.inviteExpiresAt != null && <span className="sub">{expiryText(p.inviteExpiresAt)}</span>)
+            : (p.lastLoginAt != null && <span className="sub">active {relTime(p.lastLoginAt)}</span>)}
         </div>
         <div className="cp-actions">
           {p.pending && (

@@ -161,6 +161,12 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
+      // Stamp last sign-in for both credentials + OAuth. Fire-and-forget: a write
+      // failure here must never block the login.
+      if (user?.id) {
+        void prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {});
+      }
+
       // Credentials: always allow — authorize() already validated email+password.
       if (account?.provider === "credentials") {
         return true;
