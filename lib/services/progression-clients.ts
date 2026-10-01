@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import type { Session } from "next-auth";
 
 export type BusinessOwner = { businessId: string; userId: string };
@@ -147,4 +148,111 @@ export async function listClientsForBusiness(businessId: string): Promise<Progre
       fileCount: countByAgency.get(l.agency.id) ?? 0,
     };
   });
+}
+
+// ─── Clients workspace: the richer overview powering /agent/clients ───────────
+
+export type ClientOverviewRow = {
+  linkId: string;
+  agencyId: string;
+  name: string;
+  contact: string | null;
+  email: string | null;
+  pending: boolean;
+  logoUrl: string | null;
+  people: number;
+  active: number;
+  pipelinePence: number;
+  exchanged: number;
+  status: "active" | "invite";
+};
+
+export type ClientsOverview = {
+  totals: { agencies: number; activeSales: number; pipelinePence: number; exchangedThisMonth: number };
+  clients: ClientOverviewRow[];
+};
+
+/**
+ * The Clients landing data for a progression business: per-agency rows (active
+ * sales, pipeline, exchanged, people, logo, status) plus book-wide totals. Only
+ * counts files tagged to THIS business (the client relationship never exposes
+ * the agency's other files). One transaction read, aggregated in memory — a
+ * progressor's book is small, so this stays cheap.
+ */
+export async function getClientsOverview(businessId: string): Promise<ClientsOverview> {
+  const links = await prisma.progressionBusinessClient.findMany({
+    where: { progressionBusinessId: businessId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      agency: {
+        select: {
+          id: true,
+          name: true,
+          logoPath: true,
+          _count: { select: { users: true } },
+          users: {
+            where: { role: "director" },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+            select: { name: true, email: true, password: true },
+          },
+        },
+      },
+    },
+  });
+
+  const txns = await prisma.propertyTransaction.findMany({
+    where: { progressionBusinessId: businessId, isDemo: false, isMigrated: false },
+    select: { agencyId: true, status: true, purchasePrice: true, exchangedAt: true },
+  });
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  type Agg = { active: number; pipeline: number; exchanged: number };
+  const byAgency = new Map<string, Agg>();
+  let totalActive = 0;
+  let totalPipeline = 0;
+  let exchangedThisMonth = 0;
+
+  for (const t of txns) {
+    const a = byAgency.get(t.agencyId) ?? { active: 0, pipeline: 0, exchanged: 0 };
+    if (t.status === "active") {
+      a.active += 1;
+      a.pipeline += t.purchasePrice ?? 0;
+      totalActive += 1;
+      totalPipeline += t.purchasePrice ?? 0;
+    }
+    if (t.exchangedAt) {
+      a.exchanged += 1;
+      if (new Date(t.exchangedAt) >= monthStart) exchangedThisMonth += 1;
+    }
+    byAgency.set(t.agencyId, a);
+  }
+
+  const clients: ClientOverviewRow[] = links.map((l) => {
+    const d = l.agency.users[0] ?? null;
+    const agg = byAgency.get(l.agency.id) ?? { active: 0, pipeline: 0, exchanged: 0 };
+    const pending = d ? !d.password : true;
+    return {
+      linkId: l.id,
+      agencyId: l.agency.id,
+      name: l.agency.name,
+      contact: d?.name ?? null,
+      email: d?.email ?? null,
+      pending,
+      logoUrl: getAgencyLogoUrl(l.agency.logoPath),
+      people: l.agency._count.users,
+      active: agg.active,
+      pipelinePence: agg.pipeline,
+      exchanged: agg.exchanged,
+      status: pending ? "invite" : "active",
+    };
+  });
+
+  return {
+    totals: { agencies: links.length, activeSales: totalActive, pipelinePence: totalPipeline, exchangedThisMonth },
+    clients,
+  };
 }
