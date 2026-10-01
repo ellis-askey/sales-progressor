@@ -256,3 +256,100 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
     clients,
   };
 }
+
+// ─── Single client agency: the detail workspace at /agent/clients/[agencyId] ──
+
+export type AgencySale = { id: string; address: string; status: string };
+export type AgencyPerson = { id: string; name: string; email: string; role: string; pending: boolean };
+export type ClientAgencyDetail = {
+  agencyId: string;
+  name: string;
+  logoUrl: string | null;
+  brandColor: string;
+  contact: string | null;
+  email: string | null;
+  pending: boolean;
+  status: "active" | "invite";
+  active: number;
+  pipelinePence: number;
+  exchanged: number;
+  completePct: number;
+  checks: { label: string; done: boolean }[];
+  sales: AgencySale[];
+  people: AgencyPerson[];
+};
+
+/**
+ * The workspace data for one client agency. OWNER-SCOPED: returns null unless a
+ * ProgressionBusinessClient link exists between this business and the agency, and
+ * only ever counts files tagged to this business (never the agency's other work).
+ */
+export async function getClientAgencyDetail(businessId: string, agencyId: string): Promise<ClientAgencyDetail | null> {
+  const link = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
+    select: { id: true },
+  });
+  if (!link) return null;
+
+  const agency = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: {
+      id: true, name: true, logoPath: true, logoTileColor: true, emailTheme: true,
+      users: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, role: true, password: true } },
+    },
+  });
+  if (!agency) return null;
+
+  const txns = await prisma.propertyTransaction.findMany({
+    where: { progressionBusinessId: businessId, agencyId, isDemo: false, isMigrated: false },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true },
+  });
+
+  let active = 0, pipeline = 0, exchanged = 0;
+  for (const t of txns) {
+    if (t.status === "active") { active += 1; pipeline += t.purchasePrice ?? 0; }
+    if (t.exchangedAt) exchanged += 1;
+  }
+
+  const director = agency.users.find((u) => u.role === "director") ?? agency.users[0] ?? null;
+  const pending = director ? !director.password : true;
+
+  const theme = (agency.emailTheme ?? {}) as Record<string, unknown>;
+  const themeColor = typeof theme.buttonColor === "string" ? theme.buttonColor : null;
+  const brandColor = themeColor || agency.logoTileColor || "#FF6B4A";
+
+  const checks = [
+    { label: "Logo added", done: !!agency.logoPath },
+    { label: "Brand colour", done: !!themeColor },
+    { label: "Agent joined", done: !pending },
+    { label: "First sale", done: txns.length > 0 },
+  ];
+  const completePct = Math.round((checks.filter((c) => c.done).length / checks.length) * 100);
+
+  return {
+    agencyId: agency.id,
+    name: agency.name,
+    logoUrl: getAgencyLogoUrl(agency.logoPath),
+    brandColor,
+    contact: director?.name ?? null,
+    email: director?.email ?? null,
+    pending,
+    status: pending ? "invite" : "active",
+    active, pipelinePence: pipeline, exchanged,
+    completePct, checks,
+    sales: txns.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
+    people: agency.users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password })),
+  };
+}
+
+/** Owner-scoped guard: resolve the business owner AND confirm the agency is their client. */
+export async function assertOwnerOfClient(session: Session, agencyId: string): Promise<BusinessOwner | null> {
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return null;
+  const link = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+    select: { id: true },
+  });
+  return link ? owner : null;
+}

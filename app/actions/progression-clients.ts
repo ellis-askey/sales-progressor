@@ -1,13 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner, addClientAgency } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
+import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type AddClientResult = { ok: true } | { ok: false; error: string };
+type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Add an estate agent as a client of the acting user's progression business.
@@ -43,5 +47,43 @@ export async function addClientAgencyAction(formData: FormData): Promise<AddClie
   if (!result.ok) return result;
 
   revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/** Re-send the set-password invite to a client agency's agent. Owner-scoped. */
+export async function resendClientInviteAction(agencyId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const director = await prisma.user.findFirst({
+    where: { agencyId, role: "director" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, email: true },
+  });
+  if (!director) return { ok: false, error: "There's no agent on this agency to invite." };
+
+  const business = await prisma.progressionBusiness.findUnique({ where: { id: owner.businessId }, select: { name: true } });
+  await sendClientAgentSetupEmail({ userId: director.id, email: director.email, businessName: business?.name ?? "Your progressor" });
+  return { ok: true };
+}
+
+/** Set a client agency's brand colour (flows to their portal + emails). Owner-scoped. */
+export async function setClientBrandColorAction(agencyId: string, color: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return { ok: false, error: "That isn't a valid colour." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const ag = await prisma.agency.findUnique({ where: { id: agencyId }, select: { emailTheme: true } });
+  const theme = (ag?.emailTheme ?? {}) as Record<string, unknown>;
+  theme.buttonColor = color;
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { emailTheme: theme as Prisma.InputJsonValue, logoTileColor: color },
+  });
+  revalidatePath(`/agent/clients/${agencyId}`);
   return { ok: true };
 }
