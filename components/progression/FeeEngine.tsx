@@ -34,14 +34,19 @@ const DEF: Record<FeeType, ClientFeeModel> = {
 
 const fmtPct = (bps: number) => `${+(bps / 100).toFixed(2)}%`;
 
-// Small money input: shows pounds, stores pence.
+// Pounds with thousands separators in the field (matches how prices read
+// everywhere else in the app), parsed back to a plain integer.
+const fmtNum = (n: number) => (n ? n.toLocaleString("en-GB") : "");
+const parseNum = (s: string) => { const d = s.replace(/[^0-9]/g, ""); return d ? parseInt(d, 10) : 0; };
+
+// Small money input: shows pounds (comma-grouped), stores pence.
 function Money({ pence, onChange, width = 120 }: { pence: number; onChange: (p: number) => void; width?: number }) {
   return (
     <span className="fe-money" style={{ width }}>
       <span className="sym">£</span>
       <input
-        type="number" min={0} inputMode="numeric" value={pence / 100}
-        onChange={(e) => onChange(Math.max(0, Math.round((parseFloat(e.target.value) || 0) * 100)))}
+        type="text" inputMode="numeric" value={fmtNum(pence / 100)}
+        onChange={(e) => onChange(parseNum(e.target.value) * 100)}
       />
     </span>
   );
@@ -152,6 +157,7 @@ export function FeeEngine({
           </div>
         ) : (
           <div className="fe-editor">
+            <div className={`fe-editor-grid ${model.type === "flat" ? "solo" : ""}`}>
             <div className="fe-editor-main">
               {model.type === "flat" && (
                 <div className="fe-flat"><Money pence={model.pence} onChange={(pence) => setModel({ type: "flat", pence })} /><span className="fe-unit">per exchanged sale</span></div>
@@ -197,8 +203,8 @@ export function FeeEngine({
               <div className="fe-preview">
                 <div className="fe-pk">Fee preview</div>
                 <div className="fe-prow">
-                  <span className="fe-money" style={{ width: 140 }}><span className="sym">£</span>
-                    <input type="number" min={0} step={10000} value={previewPounds} onChange={(e) => setPreviewPounds(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))} />
+                  <span className="fe-money" style={{ width: 150 }}><span className="sym">£</span>
+                    <input type="text" inputMode="numeric" value={fmtNum(previewPounds)} onChange={(e) => setPreviewPounds(parseNum(e.target.value))} />
                   </span>
                   <span className="fe-arrow big">→</span>
                   <span className="fe-pfee">{fmtCurrencyPence(previewFee ?? 0)}</span>
@@ -206,6 +212,7 @@ export function FeeEngine({
                 <div className="fe-pcap">A sale at that price earns you this fee.</div>
               </div>
             )}
+            </div>
 
             <button type="button" className="fe-done" onClick={() => setEditing(false)}><CheckCircle size={15} weight="bold" /> Done</button>
           </div>
@@ -221,11 +228,10 @@ export function FeeEngine({
 
       <style>{`
         .fe { position: relative; overflow: hidden; border-radius: 18px; padding: 22px; margin-bottom: 16px;
-          background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid rgba(var(--agent-coral-rgb),0.3);
+          background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle);
           -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
           box-shadow: 0 18px 44px -26px rgba(40,26,20,0.3);
           animation: fe-in .5s cubic-bezier(.22,1,.36,1) both; }
-        .fe::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep)); }
         @keyframes fe-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 
         .fe-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -286,9 +292,14 @@ export function FeeEngine({
         .fe-edit:active { transform: scale(.98); }
 
         .fe-editor { padding: 20px 2px; border-top: 1px solid var(--agent-border-subtle); border-bottom: 1px solid var(--agent-border-subtle); display: flex; flex-direction: column; gap: 16px; }
-        .fe-money { display: inline-flex; align-items: center; border: 1px solid var(--agent-border-strong, var(--agent-border-subtle)); border-radius: 10px; background: var(--agent-panel, rgba(255,255,255,0.7)); overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+        .fe-editor-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; align-items: start; }
+        .fe-editor-grid.solo { grid-template-columns: 1fr; }
+        @media (max-width: 720px) { .fe-editor-grid { grid-template-columns: 1fr; } }
+        .fe-money { display: inline-flex; align-items: center; border: 1px solid var(--agent-border-subtle); border-radius: 10px; background: var(--agent-panel, rgba(255,255,255,0.7)); overflow: hidden; transition: border-color .15s; }
         :root[data-theme="dark"] .fe-money { background: rgba(255,255,255,0.05); }
-        .fe-money:focus-within { border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),0.14); }
+        .fe-money:hover { border-color: var(--agent-border-default, rgba(0,0,0,0.2)); }
+        .fe-money:focus-within { border-color: var(--agent-border-strong, rgba(0,0,0,0.42)); }
+        :root[data-theme="dark"] .fe-money:focus-within { border-color: rgba(255,255,255,0.55); }
         .fe-money .sym { padding: 0 2px 0 12px; font-size: 14px; color: var(--agent-text-muted); font-weight: 600; }
         .fe-money .sym.pct { padding: 0 12px 0 2px; order: 2; }
         .fe-money input { border: none; outline: none; background: none; font: inherit; font-size: 15px; font-weight: 700; color: var(--agent-text-primary); width: 100%; padding: 10px 12px 10px 4px; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
@@ -306,7 +317,7 @@ export function FeeEngine({
         .fe-addband { appearance: none; border: none; background: none; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); padding: 4px 0; text-align: left; align-self: flex-start; }
         .fe-addband:hover { text-decoration: underline; }
 
-        .fe-preview { background: linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.1), transparent); border: 1px solid rgba(var(--agent-coral-rgb),0.25); border-radius: 13px; padding: 15px; align-self: flex-start; min-width: 280px; }
+        .fe-preview { background: linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.1), transparent); border: 1px solid rgba(var(--agent-coral-rgb),0.25); border-radius: 13px; padding: 16px; }
         .fe-pk { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--agent-text-muted); font-weight: 600; margin-bottom: 11px; }
         .fe-prow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .fe-pfee { font-size: 26px; font-weight: 840; letter-spacing: -0.03em; color: var(--agent-coral-deep, #E2452A); font-variant-numeric: tabular-nums; }
