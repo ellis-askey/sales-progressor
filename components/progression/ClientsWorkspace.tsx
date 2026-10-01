@@ -9,8 +9,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { UserPlus, CaretRight, Clock } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -20,6 +21,14 @@ import { useAddClientForm } from "./useAddClientForm";
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+}
+
+// Compact money for the totals bar (matches CompletionsMomentum): £1.2M / £45k / £0.
+function fmtCompact(pence: number): string {
+  const pounds = pence / 100;
+  if (pounds >= 1_000_000) return "£" + (pounds / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
+  if (pounds >= 1_000) return "£" + Math.round(pounds / 1_000) + "k";
+  return "£" + pounds.toLocaleString("en-GB");
 }
 
 function Logo({ c }: { c: ClientOverviewRow }) {
@@ -33,6 +42,13 @@ function Logo({ c }: { c: ClientOverviewRow }) {
 export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
   const [addOpen, setAddOpen] = useState(false);
   const { totals, clients } = data;
+
+  const cells = [
+    { tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
+    { tone: "info", icon: <TrendUp size={22} weight="bold" />, value: String(totals.activeSales), label: "Active sales", sub: "Across all clients" },
+    { tone: "warning", icon: <CurrencyGbp size={22} weight="fill" />, value: fmtCompact(totals.pipelinePence), label: "Pipeline value", sub: "In progress" },
+    { tone: "success", icon: <Handshake size={22} weight="fill" />, value: String(totals.exchangedThisMonth), label: "Exchanged this month", sub: "Completed deals" },
+  ];
 
   return (
     <div className="cw">
@@ -50,12 +66,20 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
       </SectionReveal>
 
       <SectionReveal order={1}>
-        <div className="cw-stats">
-          <div className="cw-stat"><div className="k">Agencies</div><div className="v">{totals.agencies}</div><div className="d">in your book</div></div>
-          <div className="cw-stat"><div className="k">Active sales</div><div className="v">{totals.activeSales}</div><div className="d">across all clients</div></div>
-          <div className="cw-stat"><div className="k">Pipeline value</div><div className="v">{fmtCurrencyPence(totals.pipelinePence)}</div><div className="d">in progress</div></div>
-          <div className="cw-stat"><div className="k">Exchanged · this month</div><div className="v">{totals.exchangedThisMonth}</div><div className="d">completed deals</div></div>
-        </div>
+        <GlassCard glassId="clients-totals" label="Clients totals" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+          <div className="cw-bar">
+            {cells.map((c, i) => (
+              <div key={c.label} className="cw-cell" style={{ borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined }}>
+                <span aria-hidden className={`stat-circle stat-circle--${c.tone}`}>{c.icon}</span>
+                <span className="cw-cell-tx">
+                  <span className="cw-cell-v">{c.value}</span>
+                  <span className="cw-cell-l">{c.label}</span>
+                  <span className="cw-cell-s">{c.sub}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
       </SectionReveal>
 
       <SectionReveal order={2}>
@@ -101,12 +125,17 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
         .cw-primary:active:not(:disabled) { transform: scale(0.98); }
 
-        .cw-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        .cw-stat { background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle); border-radius: 16px; padding: 15px 17px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-        .cw-stat .k { font-size: 11px; color: var(--agent-text-secondary); font-weight: 600; margin-bottom: 8px; }
-        .cw-stat .v { font-size: 26px; font-weight: 820; letter-spacing: -0.02em; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
-        .cw-stat .d { font-size: 10.5px; color: var(--agent-text-muted); margin-top: 6px; font-weight: 500; }
-        @media (max-width: 680px) { .cw-stats { grid-template-columns: repeat(2, 1fr); } }
+        .cw-bar { display: grid; grid-template-columns: repeat(4, 1fr); }
+        .cw-cell { display: flex; align-items: center; gap: 12px; padding: 15px 17px; }
+        .cw-cell-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .cw-cell-v { font-size: 22px; font-weight: 600; line-height: 1; letter-spacing: -0.01em; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; }
+        .cw-cell-l { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.2; }
+        .cw-cell-s { font-size: 10.5px; color: var(--agent-text-muted); line-height: 1.2; }
+        @media (max-width: 680px) {
+          .cw-bar { grid-template-columns: repeat(2, 1fr); }
+          .cw-cell:nth-child(odd) { border-left: none !important; }
+          .cw-cell:nth-child(3), .cw-cell:nth-child(4) { border-top: 1px solid var(--agent-border-subtle); }
+        }
 
         .cw-label { margin: 2px 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--agent-text-muted); }
         .cw-rows { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
