@@ -52,9 +52,9 @@ const PREVIEW_TYPES = [
 ] as const;
 
 const STEPS = [
-  { title: "Logo", sub: "upload & place" },
-  { title: "Colours", sub: "header & button" },
-  { title: "Finishing", sub: "text & footer" },
+  { title: "Logo", sub: "Upload & place" },
+  { title: "Colours", sub: "Header & button" },
+  { title: "Finishing", sub: "Text & footer" },
 ] as const;
 
 export interface BrandingInitial {

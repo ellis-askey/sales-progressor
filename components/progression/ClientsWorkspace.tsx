@@ -92,7 +92,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
                 <div className="cw-name">{c.name}</div>
                 <div className="cw-meta">
                   {c.contact ?? "Agent"}
-                  {c.status === "invite" ? " · invite sent" : ` · ${c.people} ${c.people === 1 ? "person" : "people"}`}
+                  {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
                 </div>
               </div>
               <div className="cw-mstats">
@@ -160,8 +160,8 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-mstats .l { font-size: 10px; color: var(--agent-text-faint, var(--agent-text-muted)); margin-top: 4px; }
         .cw-pill { font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
         .cw-pill.active { color: var(--agent-success, #2F7D53); background: rgba(47,125,83,0.13); }
-        .cw-pill.invite { color: #B5831E; background: rgba(214,158,46,0.16); }
-        :root[data-theme="dark"] .cw-pill.invite { color: #E0B050; }
+        .cw-pill.invite { color: #B5831E; background: rgba(181,131,30,0.14); }
+        :root[data-theme="dark"] .cw-pill.invite { color: #E0B050; background: rgba(224,176,80,0.16); }
         .cw-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
         .cw-chev { color: var(--agent-text-muted); flex-shrink: 0; transition: transform .2s, color .2s; }
         .cw-row:hover .cw-chev { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }

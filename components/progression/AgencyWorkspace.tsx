@@ -14,6 +14,7 @@ import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { resendClientInviteAction, createClientSetupLinkAction } from "@/app/actions/progression-clients";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
@@ -61,6 +62,8 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
     }
   }
 
+  const contactPerson = detail.people.find((p) => p.role === "director") ?? detail.people[0] ?? null;
+
   const logo = detail.logoUrl
     ? (<span className="aw-logo" style={{ background: detail.branding.tileColor ?? "#ffffff" }}><img src={detail.logoUrl} alt="" /></span>)
     : (<span className="aw-logo aw-logo-mono" style={{ background: detail.brandColor }}>{initials(detail.name)}</span>);
@@ -76,6 +79,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
             <div>
               <h1 className="aw-name">{detail.name}</h1>
               <div className="aw-csub">
+                <UserAvatar user={{ name: detail.contact ?? "Agent", image: contactPerson?.image ?? null }} size={20} />
                 <span>{detail.contact ?? "Agent"}</span>
                 {detail.email && <span className="aw-dot">·</span>}
                 {detail.email && <span>{detail.email}</span>}

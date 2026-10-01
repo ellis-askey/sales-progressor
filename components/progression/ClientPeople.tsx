@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, UserPlus, ArrowClockwise, Clock, Check, CaretDown, ArrowUUpLeft } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
@@ -31,9 +32,6 @@ import type { AgencyPerson, RemovedPerson } from "@/lib/services/progression-cli
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function initials(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
-}
 function expiryText(ms: number | null): string {
   if (ms == null) return "";
   const days = Math.ceil((ms - Date.now()) / 86400000);
@@ -52,9 +50,8 @@ function relTime(ms: number): string {
 
 function Avatar({ name, image, lead }: { name: string; image: string | null; lead?: boolean }) {
   return (
-    <span className={`cp-av ${lead ? "lead" : ""}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {image ? <img src={image} alt="" /> : initials(name)}
+    <span className="cp-av-wrap">
+      <UserAvatar user={{ name, image }} size={40} />
       {lead && <span className="cp-crown"><Crown size={10} weight="fill" /></span>}
     </span>
   );
@@ -214,11 +211,7 @@ export function ClientPeople({
         .cp-row { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: border-color .18s; }
         .cp-row:hover { border-color: var(--agent-border-default, rgba(0,0,0,0.12)); }
         .cp-row.gone { opacity: 0.72; background: var(--agent-glass-bg, rgba(0,0,0,0.03)); }
-        /* No overflow:hidden here — it clipped the crown badge. The photo rounds
-           itself instead, so the crown can sit outside the avatar. */
-        .cp-av { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-        .cp-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-        .cp-av.lead { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); color: #fff; }
+        .cp-av-wrap { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
         .cp-crown { position: absolute; bottom: -3px; right: -3px; width: 17px; height: 17px; border-radius: 50%; background: #B5831E; color: #fff; display: grid; place-items: center; border: 2px solid var(--agent-surface, #fff); }
         :root[data-theme="dark"] .cp-crown { background: #E0B050; color: #1a1a1a; }
         .cp-main { min-width: 0; flex: 1; }
