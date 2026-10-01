@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CaretLeft, Plus, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy } from "@phosphor-icons/react";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -86,9 +86,6 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
               </div>
             </div>
           </div>
-          <Link href={`/agent/transactions/new?clientAgencyId=${detail.agencyId}`} className="agent-btn agent-btn-primary agent-btn-md aw-primary">
-            <Plus size={16} weight="bold" /> Add a sale
-          </Link>
         </div>
       </SectionReveal>
 
@@ -200,10 +197,6 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-stat { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }
         .aw-stat.live { color: var(--agent-success, #2F7D53); } .aw-stat.live .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
         .aw-stat.invite { color: #B5831E; } :root[data-theme="dark"] .aw-stat.invite { color: #E0B050; }
-
-        .aw-primary { gap: 8px; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); text-decoration: none; }
-        .aw-primary:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
-        .aw-primary:active { transform: scale(0.98); }
 
         .aw-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 15px 18px; border-radius: 14px; border: 1px solid rgba(var(--agent-coral-rgb),0.25); background: rgba(var(--agent-coral-rgb),0.08); margin-bottom: 18px; }
         .aw-banner .tt { font-size: 13.5px; font-weight: 750; color: var(--agent-text-primary); }

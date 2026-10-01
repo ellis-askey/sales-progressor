@@ -154,7 +154,7 @@ export function ClientPeople({
           </p>
         </div>
         <Button variant="primary" size="sm" className="cp-primary" onClick={() => setAddOpen(true)}>
-          <UserPlus size={15} weight="bold" /> Invite a colleague
+          <span className="cp-ico" aria-hidden>👤</span> Invite a colleague
         </Button>
       </div>
 
@@ -205,6 +205,7 @@ export function ClientPeople({
         .cp-title { margin: 0 0 3px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
         .cp-sub { margin: 0; font-size: 13px; color: var(--agent-text-secondary); }
         .cp-primary { gap: 7px; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); }
+        .cp-ico { font-size: 14px; line-height: 1; }
         .cp-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
         .cp-primary:active:not(:disabled) { transform: scale(0.98); }
 
@@ -212,8 +213,10 @@ export function ClientPeople({
         .cp-row { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: border-color .18s; }
         .cp-row:hover { border-color: var(--agent-border-default, rgba(0,0,0,0.12)); }
         .cp-row.gone { opacity: 0.72; background: var(--agent-glass-bg, rgba(0,0,0,0.03)); }
-        .cp-av { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 13px; font-weight: 800; flex-shrink: 0; overflow: hidden; }
-        .cp-av img { width: 100%; height: 100%; object-fit: cover; }
+        /* No overflow:hidden here — it clipped the crown badge. The photo rounds
+           itself instead, so the crown can sit outside the avatar. */
+        .cp-av { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+        .cp-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
         .cp-av.lead { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); color: #fff; }
         .cp-crown { position: absolute; bottom: -3px; right: -3px; width: 17px; height: 17px; border-radius: 50%; background: #B5831E; color: #fff; display: grid; place-items: center; border: 2px solid var(--agent-surface, #fff); }
         :root[data-theme="dark"] .cp-crown { background: #E0B050; color: #1a1a1a; }
