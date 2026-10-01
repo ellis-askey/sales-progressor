@@ -9,9 +9,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { UserPlus, CaretRight, Clock, TrendUp } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
 import { useAddClientForm } from "./useAddClientForm";
@@ -83,20 +84,6 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         </div>
       </SectionReveal>
 
-      <SectionReveal order={3}>
-        <div className="cw-grow">
-          <span className="cw-grow-ic"><TrendUp size={22} weight="bold" /></span>
-          <div className="cw-grow-tx">
-            <div className="tt">Grow your book</div>
-            <div className="ds">The more agencies you progress for, the more your business earns. Add the agents you already work with.</div>
-          </div>
-          <Button variant="primary" size="sm" className="cw-primary cw-grow-btn" onClick={() => setAddOpen(true)}>
-            <UserPlus size={15} weight="bold" />
-            Add a client
-          </Button>
-        </div>
-      </SectionReveal>
-
       {addOpen && <AddClientModal onClose={() => setAddOpen(false)} />}
 
       <style>{`
@@ -149,12 +136,6 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-chev { color: var(--agent-text-muted); flex-shrink: 0; transition: transform .2s, color .2s; }
         .cw-row:hover .cw-chev { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }
         @media (max-width: 760px) { .cw-mstats { display: none; } }
-
-        .cw-grow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 20px; border-radius: 16px; border: 1px dashed rgba(var(--agent-coral-rgb),0.4); background: rgba(var(--agent-coral-rgb),0.07); }
-        .cw-grow-ic { width: 44px; height: 44px; border-radius: 12px; background: var(--agent-glass-bg, #fff); display: grid; place-items: center; color: var(--agent-coral-deep, #E2452A); box-shadow: 0 6px 16px -8px rgba(40,26,20,0.24); flex-shrink: 0; }
-        .cw-grow-tx .tt { font-size: 14.5px; font-weight: 760; color: var(--agent-text-primary); }
-        .cw-grow-tx .ds { font-size: 12.5px; color: var(--agent-text-secondary); margin-top: 2px; max-width: 52ch; }
-        .cw-grow-btn { margin-left: auto; }
       `}</style>
     </div>
   );
@@ -166,64 +147,55 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
   const f = useAddClientForm(onClose);
 
   return (
-    <div className="cwm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="cwm agent-glass" role="dialog" aria-modal="true" aria-label="Add a client">
-        <div className="cwm-blob" aria-hidden />
-        <div className="cwm-body">
-          <h3 className="cwm-h">Add a client</h3>
-          <p className="cwm-sub">Bring an estate agent into your book.</p>
+    <Modal open onClose={onClose} ariaLabel="Add a client" size="lg">
+      <Modal.Header>
+        <h3 className="cwm-h">Add a client</h3>
+        <p className="cwm-sub">Bring an estate agent into your book.</p>
+      </Modal.Header>
 
+      <Modal.Body>
+        <div className="cwm-field">
+          <label className="cwm-label" htmlFor="cwm-name">Contact name</label>
+          <input id="cwm-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
+        </div>
+        <div className="cwm-row">
           <div className="cwm-field">
-            <label className="cwm-label" htmlFor="cwm-name">Contact name</label>
-            <input id="cwm-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} autoFocus />
+            <label className="cwm-label" htmlFor="cwm-email">Email address</label>
+            <input id="cwm-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
           </div>
-          <div className="cwm-row">
-            <div className="cwm-field">
-              <label className="cwm-label" htmlFor="cwm-email">Email address</label>
-              <input id="cwm-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
-            </div>
-            <div className="cwm-field">
-              <label className="cwm-label" htmlFor="cwm-agency">Agency name</label>
-              <input id="cwm-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
-            </div>
-          </div>
-
-          {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
-          {f.error && <p className="cwm-err">{f.error}</p>}
-          <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
-
-          <div className="cwm-foot">
-            <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-            <Button variant="primary" size="md" className="cwm-primary" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
-              <UserPlus size={16} weight="bold" />
-              Add client
-            </Button>
+          <div className="cwm-field">
+            <label className="cwm-label" htmlFor="cwm-agency">Agency name</label>
+            <input id="cwm-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
           </div>
         </div>
-      </div>
+
+        {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
+        {f.error && <p className="cwm-err">{f.error}</p>}
+        <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only have access to their own sales.</p>
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" size="md" className="cwm-primary" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
+          <UserPlus size={16} weight="bold" />
+          Add client
+        </Button>
+      </Modal.Footer>
 
       <style>{`
-        .cwm-overlay { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 20px;
-          background: rgba(20,10,6,0.4); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: cwm-fade .2s ease both; }
-        @keyframes cwm-fade { from { opacity: 0; } to { opacity: 1; } }
-        .cwm { position: relative; width: 100%; max-width: 540px; border-radius: 20px; overflow: hidden; box-shadow: 0 34px 74px -34px rgba(0,0,0,0.6); animation: cwm-in .3s cubic-bezier(.22,1,.36,1) both; }
-        @keyframes cwm-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
-        .cwm-blob { position: absolute; width: 240px; height: 240px; border-radius: 50%; filter: blur(60px); opacity: .4; top: -90px; right: -50px; background: radial-gradient(circle, rgba(var(--agent-coral-rgb),0.95), transparent 70%); pointer-events: none; }
-        .cwm-body { position: relative; padding: 24px; }
-        .cwm-h { margin: 0 0 4px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--agent-text-primary); }
-        .cwm-sub { margin: 0 0 18px; font-size: 13px; color: var(--agent-text-secondary); }
+        .cwm-h { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--agent-text-primary); }
+        .cwm-sub { margin: 4px 0 0; font-size: 13px; color: var(--agent-text-secondary); }
         .cwm-field { margin-bottom: 12px; }
+        .cwm-field:last-child { margin-bottom: 0; }
         .cwm-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
         .cwm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         @media (max-width: 460px) { .cwm-row { grid-template-columns: 1fr; } }
         .cwm-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
         .cwm-help { margin: 14px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
-        .cwm-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
         .cwm-primary { gap: 8px; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); }
         .cwm-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
         .cwm-primary:active:not(:disabled) { transform: scale(0.98); }
-        @media (prefers-reduced-motion: reduce) { .cwm-overlay, .cwm { animation: none; } }
       `}</style>
-    </div>
+    </Modal>
   );
 }
