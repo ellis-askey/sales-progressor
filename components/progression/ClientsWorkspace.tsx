@@ -51,7 +51,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         <div className="cw-stats">
           <div className="cw-stat"><div className="k">Agencies</div><div className="v">{totals.agencies}</div><div className="d">in your book</div></div>
           <div className="cw-stat"><div className="k">Active sales</div><div className="v">{totals.activeSales}</div><div className="d">across all clients</div></div>
-          <div className="cw-stat"><div className="k">Pipeline value</div><div className="v">{totals.pipelinePence > 0 ? fmtCurrencyPence(totals.pipelinePence) : "—"}</div><div className="d">in progress</div></div>
+          <div className="cw-stat"><div className="k">Pipeline value</div><div className="v">{fmtCurrencyPence(totals.pipelinePence)}</div><div className="d">in progress</div></div>
           <div className="cw-stat"><div className="k">Exchanged · this month</div><div className="v">{totals.exchangedThisMonth}</div><div className="d">completed deals</div></div>
         </div>
       </SectionReveal>
@@ -71,7 +71,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
               </div>
               <div className="cw-mstats">
                 <div className="ms"><div className="n">{c.active}</div><div className="l">active</div></div>
-                <div className="ms"><div className="n">{c.pipelinePence > 0 ? fmtCurrencyPence(c.pipelinePence) : "—"}</div><div className="l">pipeline</div></div>
+                <div className="ms"><div className="n">{fmtCurrencyPence(c.pipelinePence)}</div><div className="l">pipeline</div></div>
                 <div className="ms"><div className="n">{c.exchanged}</div><div className="l">exchanged</div></div>
               </div>
               {c.status === "active"
