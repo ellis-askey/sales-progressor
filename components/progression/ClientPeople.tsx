@@ -223,7 +223,7 @@ export function ClientPeople({
         .cp-main { min-width: 0; flex: 1; }
         .cp-name { font-size: 14px; font-weight: 700; color: var(--agent-text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .cp-badge { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 7px; border-radius: 999px; background: var(--agent-glass-bg, rgba(0,0,0,0.05)); color: var(--agent-text-muted); }
-        .cp-badge.lead { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
+        .cp-badge.lead { color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), 0 2px 5px -2px rgba(var(--agent-coral-rgb),0.55); }
         .cp-email { font-size: 12px; color: var(--agent-text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .cp-acc { flex-shrink: 0; font-size: 11.5px; font-weight: 650; color: var(--agent-text-primary); background: var(--agent-glass-bg, rgba(0,0,0,0.04)); border: 1px solid var(--agent-border-subtle); border-radius: 999px; padding: 5px 11px; cursor: pointer; transition: border-color .15s, background .15s; }
