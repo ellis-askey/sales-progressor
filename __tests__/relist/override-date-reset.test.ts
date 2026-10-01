@@ -26,7 +26,7 @@ jest.mock("@/lib/prisma", () => {
     priceHistory: { create: jest.fn().mockResolvedValue({}) },
     chaseTask: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     reminderLog: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    clientChaseState: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    clientChaseState: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     solicitorChaseState: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     chaseEmailOverride: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     quoteRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
