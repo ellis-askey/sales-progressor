@@ -325,7 +325,7 @@ export async function cancelClientInviteAction(agencyId: string, userId: string)
   const user = await prisma.user.findFirst({ where: { id: userId, agencyId }, select: { role: true, password: true, email: true } });
   if (!user) return { ok: false, error: "That person isn't on this agency." };
   if (user.role === "director") return { ok: false, error: "You can't cancel the main contact." };
-  if (user.password) return { ok: false, error: "They've already set up their login — remove them instead." };
+  if (user.password) return { ok: false, error: "They've already set up their login. Remove them instead." };
 
   await prisma.verificationToken.deleteMany({ where: { identifier: user.email.toLowerCase() } });
   await prisma.user.delete({ where: { id: userId } });
