@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CaretLeft, Plus, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
+import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { resendClientInviteAction, createClientSetupLinkAction } from "@/app/actions/progression-clients";
 import { ClientOverview } from "./ClientOverview";
@@ -36,6 +37,9 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   const [tab, setTab] = useState<Tab>("Overview");
   const [resending, setResending] = useState(false);
   const [copying, setCopying] = useState(false);
+  const activeIdx = TABS.indexOf(tab);
+  const { btnRefs, ind } = useTabIndicator(activeIdx);
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   async function resend() {
     setResending(true);
@@ -89,9 +93,12 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
       </SectionReveal>
 
       <SectionReveal order={1}>
-        <div className="aw-tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t} role="tab" aria-selected={t === tab} className={`aw-tab ${t === tab ? "on" : ""}`} onClick={() => setTab(t)}>{t}</button>
+        <div className="aw-tabs agent-tab-bar" role="tablist">
+          {ind && (
+            <div aria-hidden style={{ position: "absolute", bottom: 0, left: ind.left, width: ind.width, height: 2, background: "var(--agent-coral)", borderRadius: "1px 1px 0 0", transition: reduceMotion ? "none" : "left 200ms ease, width 200ms ease", pointerEvents: "none" }} />
+          )}
+          {TABS.map((t, i) => (
+            <button key={t} ref={(el) => { btnRefs.current[i] = el; }} role="tab" aria-selected={t === tab} className="agent-tab" onClick={() => setTab(t)}>{t}</button>
           ))}
         </div>
 
@@ -206,11 +213,10 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep)); border-radius: 999px; transition: width .9s cubic-bezier(.22,1,.36,1); }
         .aw-legend { font-size: 10.5px; color: var(--agent-text-muted); }
 
-        .aw-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--agent-border-subtle); margin-bottom: 18px; overflow-x: auto; }
-        .aw-tab { appearance: none; background: none; border: none; cursor: pointer; font-size: 13.5px; font-weight: 650; color: var(--agent-text-muted); padding: 10px 14px; position: relative; white-space: nowrap; transition: color .15s; }
-        .aw-tab:hover { color: var(--agent-text-primary); }
-        .aw-tab.on { color: var(--agent-coral-deep, #E2452A); }
-        .aw-tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--agent-coral-deep, #E2452A); border-radius: 2px; }
+        /* Tabs use the canonical .agent-tab / .agent-tab-bar (hover-preview
+           underline + sliding active indicator); .aw-tabs just adds the rule
+           line + spacing. */
+        .aw-tabs { border-bottom: 1px solid var(--agent-border-subtle); margin-bottom: 18px; }
         .aw-panel { animation: aw-panelin .32s cubic-bezier(.22,1,.36,1) both; }
         @keyframes aw-panelin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 

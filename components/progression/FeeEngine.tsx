@@ -241,7 +241,7 @@ export function FeeEngine({
         <div className="fe-stat"><Coins size={21} weight="fill" className="ic" /><div className="body"><div className="v">{fmtCurrencyPence(fees.earnedPence)}</div><div className="l">Fees earned</div><div className="d">All time</div></div></div>
         <div className="fe-stat"><TrendUp size={21} weight="bold" className="ic" /><div className="body"><div className="v">{fmtCurrencyPence(fees.pipelinePence)}</div><div className="l">In pipeline</div><div className="d">Current sales</div></div></div>
         <div className="fe-stat"><CalendarBlank size={21} weight="fill" className="ic" /><div className="body"><div className="v">{fmtCurrencyPence(fees.thisMonthPence)}</div><div className="l">This month</div><div className="d">Exchanged</div></div></div>
-        <div className="fe-stat"><ChartBar size={21} weight="fill" className="ic" /><div className="body"><div className="v">{fees.avgPence == null ? "n/a" : fmtCurrencyPence(fees.avgPence)}</div><div className="l">Average per sale</div><div className="d">Exchanged sales</div></div></div>
+        <div className="fe-stat"><ChartBar size={21} weight="fill" className="ic" /><div className="body"><div className="v">{fees.avgPence == null ? "N/A" : fmtCurrencyPence(fees.avgPence)}</div><div className="l">Average per sale</div><div className="d">Exchanged sales</div></div></div>
       </div>
 
       <style>{`

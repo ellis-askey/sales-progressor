@@ -26,8 +26,8 @@ function salePill(status: string): { label: string; cls: string } {
   if (status === "draft") return { label: "Draft", cls: "muted" };
   return { label: "Active", cls: "live" };
 }
-const pct = (n: number | null) => (n == null ? "n/a" : `${n}%`);
-const num = (n: number | null) => (n == null ? "n/a" : String(n));
+const pct = (n: number | null) => (n == null ? "N/A" : `${n}%`);
+const num = (n: number | null) => (n == null ? "N/A" : String(n));
 
 export function ClientOverview({
   detail,
