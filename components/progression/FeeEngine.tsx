@@ -148,7 +148,7 @@ export function FeeEngine({
               <input type="number" min={0} step={10000} value={previewPounds} onChange={(e) => setPreviewPounds(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))} />
             </span>
             <span className="fe-arrow big">→</span>
-            <span className="fe-pfee">{previewFee == null ? "—" : fmtCurrencyPence(previewFee)}</span>
+            <span className="fe-pfee">{fmtCurrencyPence(previewFee ?? 0)}</span>
           </div>
           <div className="fe-pcap">A sale at that price earns you this fee.</div>
         </div>
@@ -158,7 +158,7 @@ export function FeeEngine({
         <div className="m"><div className="v">{fmtCurrencyPence(fees.earnedPence)}</div><div className="l">Fees earned</div></div>
         <div className="m"><div className="v">{fmtCurrencyPence(fees.pipelinePence)}</div><div className="l">In pipeline</div></div>
         <div className="m"><div className="v">{fmtCurrencyPence(fees.thisMonthPence)}</div><div className="l">This month</div></div>
-        <div className="m"><div className="v">{fees.avgPence == null ? "—" : fmtCurrencyPence(fees.avgPence)}</div><div className="l">Avg / sale</div></div>
+        <div className="m"><div className="v">{fees.avgPence == null ? "n/a" : fmtCurrencyPence(fees.avgPence)}</div><div className="l">Avg / sale</div></div>
       </div>
 
       <style>{`
