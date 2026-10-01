@@ -29,9 +29,13 @@ describe("enquiries chase email", () => {
     expect(e.text).toContain("I hope you are well.");
     expect(e.text).toContain("the outstanding enquiries for 12 Elm Road");
     expect(e.text).toContain("where things currently stand");
-    expect(e.text).toContain("simply reply to this email");
+    expect(e.text).toContain("please let us know");
+    expect(e.text).toContain("If you'd prefer to email, please reply to this email");
     expect(e.text).toContain("Best regards,\nEllis Askey\nHillcrest Estates");
     expect(e.html).toContain("Provide an update");
+    // Bulletproof CTA: the colour/rounding is on a <td>, not a bare <a>, so it
+    // survives client CSS stripping in quoted reply chains (critique 2026-10-01).
+    expect(e.html).toContain('bgcolor="#111111"');
   });
 
   it("signs outsourced files with the in-house block, never SP branding (white label)", () => {

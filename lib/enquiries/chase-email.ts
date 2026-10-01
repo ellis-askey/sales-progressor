@@ -70,7 +70,19 @@ function greetingLine(recipientFirstName: string | undefined, now: Date): string
 }
 
 const WRAP = "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#111;";
-const BTN = "display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;";
+
+// Bulletproof CTA: the padding + rounded corners live on a <td> background,
+// not on the <a>. Mail clients (and especially quoted reply chains) strip
+// padding/border-radius off a bare <a>, which left the button as a flat
+// coloured rectangle of text (critique 2026-10-01). A table cell survives.
+export function updateButton(url: string): string {
+  return (
+    `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:4px 0">` +
+    `<tr><td align="center" bgcolor="#111111" style="border-radius:6px;background:#111111">` +
+    `<a href="${esc(url)}" style="display:inline-block;padding:11px 20px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:6px">Provide an update</a>` +
+    `</td></tr></table>`
+  );
+}
 
 // Firm we name in the body: the OTHER side's firm, with a graceful fallback.
 function otherFirmLabel(otherFirmName: string | undefined, side: "vendor" | "purchaser"): string {
@@ -106,7 +118,7 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
     ? `Would you be able to let me know where things currently stand, and whether there's anything holding up the remaining responses at your end?`
     : `Would you be able to let me know whether you're now satisfied with the replies received, or if anything is still outstanding?`;
   const ifClause = isSeller
-    ? `If you have an update, please can you confirm using the button below. If you're still waiting on anything before you can respond, but have an idea of when you expect to be able to do so, please let me know and we'll hold off checking in again until then.`
+    ? `If you have an update, please can you confirm using the button below. If you're still waiting on anything before you can respond, but have an idea of when you expect to be able to do so, please let us know and we'll hold off checking in again until then.`
     : `If you're satisfied with the replies, please confirm below. If anything remains outstanding, please let me know when you expect it to be resolved and we'll hold off chasing until then.`;
 
   const text = [
@@ -122,7 +134,7 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
     ``,
     provideUpdateUrl,
     ``,
-    `Alternatively, simply reply to this email and it will come directly to me.`,
+    `If you'd prefer to email, please reply to this email and it will come directly to me.`,
     ``,
     `Best regards,`,
     input.agentSignatureText ?? `${senderName}\n${agencyName}`,
@@ -138,8 +150,8 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
 <p>${esc(opener)}</p>
 <p>${esc(ask)}</p>
 <p>${esc(ifClause)}</p>
-<p><a href="${esc(provideUpdateUrl)}" style="${BTN}">Provide an update</a></p>
-<p>Alternatively, simply reply to this email and it will come directly to me.</p>
+${updateButton(provideUpdateUrl)}
+<p>If you'd prefer to email, please reply to this email and it will come directly to me.</p>
 ${signoffHtml}
 </div>`;
 

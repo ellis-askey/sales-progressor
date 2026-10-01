@@ -7,6 +7,7 @@
 import { timeGreeting } from "@/lib/emails/greeting";
 import { solicitorEmailSubject } from "@/lib/enquiries/chase-email";
 import { emailButton, type EmailTheme } from "@/lib/email/brand-theme";
+import { updateButton } from "@/lib/enquiries/chase-email";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -23,7 +24,6 @@ function joinNames(names: string[]): string {
 }
 
 const WRAP = "font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#111;";
-const BTN = "display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;";
 
 // ── Buyer nudge (email 1) ────────────────────────────────────────────────────
 // Client-facing.
@@ -158,7 +158,7 @@ export function buildRaiseSolicitorEmail(input: {
 <p>${esc(line1)}</p>
 <p>${esc(line2)}</p>
 <p>${esc(line3)}</p>
-<p><a href="${esc(provideUpdateUrl)}" style="${BTN}">Provide an update</a></p>
+${updateButton(provideUpdateUrl)}
 <p>Alternatively, simply reply to this email and it will come directly to me.</p>
 ${signoffHtml}
 </div>`;
