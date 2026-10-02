@@ -220,8 +220,15 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       ? await getInvitingProgressorName(session.user.agencyId)
       : null;
 
+  // Chase timeline: the founder on every file; an agency on its own self-managed
+  // files; and an internal viewer of an EXTERNAL progression-business file (the
+  // progressor who runs it, or an admin overseeing them). `fileProgressor` is
+  // non-null only for a non-TSP business, so TSP files and TSP's own team are
+  // unaffected — their gate stays exactly as it was.
   const showChaseTimeline =
-    isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
+    isEllis
+    || (!!session.user.agencyId && transaction.serviceType === "self_managed")
+    || (isInternalStaff && !!fileProgressor);
 
   // (exchangeDay / demoTourUser resolved in the single barrier above. The File
   // setup badge streams in via TabBadgeCounts — it starts at 0 here.)

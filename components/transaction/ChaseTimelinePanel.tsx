@@ -11,7 +11,9 @@ export async function ChaseTimelinePanel({
   agencyId,
 }: {
   transactionId: string;
-  agencyId: string;
+  // Null for internal staff (TSP team or an external progressor) — getChaseTimeline
+  // then scopes by transaction, since the page already enforced access.
+  agencyId: string | null;
 }) {
   const timeline = await getChaseTimeline(transactionId, agencyId).catch(() => null);
 
