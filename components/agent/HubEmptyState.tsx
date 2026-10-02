@@ -13,7 +13,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
-export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale: boolean }) {
+export function HubEmptyState({ canCreateSale, progressorName = null }: { userId: string; canCreateSale: boolean; progressorName?: string | null }) {
   const { launch, node } = useDemoExplore();
 
   return (
@@ -36,7 +36,9 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
             Your pipeline starts with one sale
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 440 }}>
-            Add your first sale and we&apos;ll start tracking what&apos;s happening, what&apos;s outstanding and what needs your attention.
+            {progressorName
+              ? `Add your first sale and we'll track it with you and ${progressorName}, flagging what's outstanding and what needs attention.`
+              : "Add your first sale and we'll start tracking what's happening, what's outstanding and what needs your attention."}
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {canCreateSale && (
@@ -101,7 +103,7 @@ export function HubEmptyState({ canCreateSale }: { userId: string; canCreateSale
           </span>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Finish setting up your workspace</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Add your details, personalise your agency and invite your team.</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{progressorName ? "Add your details, set your branding and invite your team." : "Add your details, personalise your agency and invite your team."}</p>
           </div>
         </div>
         <button

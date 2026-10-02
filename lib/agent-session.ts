@@ -23,6 +23,7 @@ const cache: typeof reactCache =
   typeof reactCache === "function" ? reactCache : ((fn: never) => fn) as typeof reactCache;
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getInvitingProgressorName } from "@/lib/services/progression-clients";
 import {
   getAgentTheme,
   getBrandColor,
@@ -156,14 +157,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
 
   // Only the welcome modal reads this, so resolve it only when that will show —
   // no extra query on the hot path for everyone else.
-  let progressorName: string | null = null;
-  if (showWelcome && session.user.agencyId) {
-    const link = await prisma.progressionBusinessClient.findFirst({
-      where: { agencyId: session.user.agencyId },
-      select: { progressionBusiness: { select: { name: true } } },
-    });
-    progressorName = link?.progressionBusiness?.name ?? null;
-  }
+  const progressorName = showWelcome ? await getInvitingProgressorName(session.user.agencyId) : null;
 
   return {
     session,

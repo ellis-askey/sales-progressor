@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import {
   getAgentUpdatesFeed,
   getFileSnapshots,
@@ -106,6 +106,9 @@ export default async function AgentCommsPage() {
     defaultOpen: label === "Today" || label === "Yesterday",
   }));
 
+  // Only the empty state reads this, so resolve it only when we'll show it.
+  const progressorName = entries.length === 0 ? await getInvitingProgressorName(session.user.agencyId) : null;
+
   return (
     <>
       {/* Reading the Updates page clears the notification bell. */}
@@ -125,7 +128,7 @@ export default async function AgentCommsPage() {
         {/* Agency users AND progression-business owners get the onboarding hero
             (its copy reads for a progressor as-is). Other internal staff (TSP
             progressors, admin, viewer) keep the simple card below. */}
-        {entries.length === 0 && (!isInternalStaff || isBusinessOwner) && <CommsEmptyState />}
+        {entries.length === 0 && (!isInternalStaff || isBusinessOwner) && <CommsEmptyState progressorName={progressorName} />}
 
         {entries.length === 0 && isInternalStaff && !isBusinessOwner && (
           <>

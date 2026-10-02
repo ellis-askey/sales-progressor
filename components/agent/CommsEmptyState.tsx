@@ -11,7 +11,7 @@ const SHOW_UPDATES_GUIDE = false;
 // Updates onboarding empty state (agency users, no updates yet). Mirrors the
 // Completions and To-Do empty states. There's no user action that creates an
 // update, so the cards are info-only until the guides are built.
-export function CommsEmptyState() {
+export function CommsEmptyState({ progressorName = null }: { progressorName?: string | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
@@ -31,8 +31,10 @@ export function CommsEmptyState() {
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             Nothing to catch up on yet
           </p>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 300 }}>
-            Updates from across your sales will appear here as they happen.
+          <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: progressorName ? 400 : 300 }}>
+            {progressorName
+              ? `Everything happening across your sales, including the work ${progressorName} does for you, shows up here as it happens.`
+              : "Updates from across your sales will appear here as they happen."}
           </p>
         </div>
       </div>

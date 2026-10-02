@@ -33,7 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -348,7 +348,7 @@ async function FullBodyGate({ ctx }: { ctx: Ctx }) {
 
 // ── Empty state — verbatim from previous implementation, no fade ────────────
 
-function EmptyStateBody({ ctx }: { ctx: Ctx }) {
+async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
   const { isProgressor, canCreateSale, isBusinessOwner } = ctx;
 
   // Progression-business owner: their pipeline starts with a client, so their
@@ -364,9 +364,10 @@ function EmptyStateBody({ ctx }: { ctx: Ctx }) {
 
   // Agency users (director / negotiator / admin) get the onboarding empty state.
   if (!isProgressor) {
+    const progressorName = await getInvitingProgressorName(ctx.session.user.agencyId);
     return (
       <div data-testid="hub-empty-state">
-        <HubEmptyState userId={ctx.session.user.id} canCreateSale={canCreateSale} />
+        <HubEmptyState userId={ctx.session.user.id} canCreateSale={canCreateSale} progressorName={progressorName} />
       </div>
     );
   }

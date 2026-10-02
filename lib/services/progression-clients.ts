@@ -451,6 +451,20 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   };
 }
 
+/**
+ * The name of the progression business that invited this agency (its
+ * ProgressionBusinessClient link), or null if the agency self-signed-up. Used to
+ * tailor onboarding copy for a progressor-invited agent. One cheap lookup.
+ */
+export async function getInvitingProgressorName(agencyId: string | null | undefined): Promise<string | null> {
+  if (!agencyId) return null;
+  const link = await prisma.progressionBusinessClient.findFirst({
+    where: { agencyId },
+    select: { progressionBusiness: { select: { name: true } } },
+  });
+  return link?.progressionBusiness?.name ?? null;
+}
+
 /** Owner-scoped guard: resolve the business owner AND confirm the agency is their client. */
 export async function assertOwnerOfClient(session: Session, agencyId: string): Promise<BusinessOwner | null> {
   const owner = await resolveBusinessOwner(session);
