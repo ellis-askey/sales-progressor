@@ -227,6 +227,31 @@ New deferred item:
 
 ---
 
+## Data isolation — TSP ↔ external businesses (CRITICAL — shipped 2026-10-02)
+
+Founder principle: **TSP must see NOTHING of an external progression business** —
+not their sales, reminders, fees, needs-assigning, nothing — on any TSP surface.
+External data is confined to a future Command Centre page (separate `commandDb`
+path). Two separate businesses; TSP is only the primary/platform.
+
+Shipped (commit 114641f3): TSP's "see everything" scope (admin/superadmin "all",
+and resolveInternalVisibility admin_all) now matches only TSP's own files
+(progressionBusinessId null / the TSP row). Applied at both scope systems + the
+hand-rolled admin queries (hub service-split / unassigned / relists / chain-setup,
+reminders, reviews, work-queue, analytics) and the inline "all" delete/edit guards
+(comms, contacts, transaction-notes). New `TSP_ONLY_TX_WHERE` primitive +
+regression test `__tests__/progression/tsp-isolation.test.ts`.
+
+Tracked follow-up:
+- **P1-i — Chain-intel cross-business.** `lib/chain/intel.ts` canViewNodeIntel /
+  canEditNodeIntel still grant a TSP "all" viewer view/edit on ANY chain node,
+  including an external business's. Excluding external nodes needs the node's
+  business threaded through `ChainNodeOwnership`. Chains are inherently cross-party
+  (a chain legitimately spans agencies/businesses), so this needs a deliberate
+  decision on what TSP should see of a shared chain, not a blanket block.
+
+---
+
 ## Decided — no change (recorded so they're not re-raised)
 
 ### 5. "Managed by {their own business}" hero badge — KEEP
