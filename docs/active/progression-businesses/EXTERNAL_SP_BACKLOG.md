@@ -42,6 +42,18 @@ flag and is pre-launch.
   `isInternalStaff && fileProgressor` so TSP files and TSP's own team are unchanged.
   `getChaseTimeline` already scopes by transaction for internal (null-agency)
   viewers, so the data is correct.
+- **Progressor-view #3 — Own earnings.** The business OWNER
+  (`progressionBusinessRole = owner`) now sees a "Your fee" row on files their
+  business progresses, showing their rate-card fee for that agency
+  (`progressorRateCardFeePence`). Gated on `isBusinessOwnerOfFile` (owner of THIS
+  file's business). Regular team progressors don't see it; TSP staff / TSP files
+  unchanged. Kept as a distinct line, NOT the agency income waterfall (which stays
+  agency-facing).
+- **Progressor-view #6 — WhatsApp tab hidden.** The WhatsApp tab (and its route) is
+  hidden on an external progression-business file, where TSP's WhatsApp capture
+  never applies. Gated on `!fileProgressor`, so TSP files keep the tab exactly as
+  before. (Pairing an external business's own WhatsApp number remains a future
+  "proper" option.)
 
 ---
 
@@ -62,9 +74,9 @@ Needs:
   business — so the gate needs widening to let the business owner assign within
   their own business, nothing more.
 
-### 3. Their own fee / earnings on the file — PENDING CONFIRM
-**Decision (Ellis):** "same relationship TSP has with the agents who outsource —
-confirm this one." **Status: blocked on confirmation.**
+### 3. Their own fee / earnings on the file — DONE (confirmed 2026-10-02)
+**Decision (Ellis):** confirmed — owner sees their rate-card earnings, team does
+not. **Status: shipped (see "Shipped" above).**
 My read of "same as TSP": on the file, TSP earnings are hidden from regular
 progressors (`hideCommercialFields = isProgressor && !isAdminRole`) and only an
 admin/director sees "Our fee" (`showOurFee = isDirectorRole || isAdminRole`). So to
@@ -93,15 +105,11 @@ Needs:
   address (not TSP's personal one)? Decide before building.
 - Do NOT touch CRM/system email paths (reset password etc.) — those stay TSP.
 
-### 6. WhatsApp tab is a dead tab for them
-**Decision (Ellis):** "we need to sort this." **Status: deferred here.**
-The WhatsApp tab (gated `isInternalTeam`) shows for them but WhatsApp capture is
-wired to TSP's WhatsApp number, so it's permanently empty.
-Options:
-- **Quick interim:** hide the WhatsApp tab for external-progressor viewers (gate it
-  off when the file is a non-TSP progressor file). Low risk, improves UX now.
-- **Proper:** let a progression business pair its own WhatsApp number into the
-  capture pipeline. Large.
+### 6. WhatsApp tab is a dead tab for them — DONE (hidden, 2026-10-02)
+**Decision (Ellis):** hide it now. **Status: shipped (see "Shipped" above).**
+The tab and its route are now hidden on an external progression-business file.
+Future "proper" option (not done): let a progression business pair its own WhatsApp
+number into the capture pipeline so the tab becomes useful rather than hidden.
 
 ### 7. To-Do ownership / visibility permission model
 **Decision (Ellis):** the **Main contact sees all**; extra progressors (their team)

@@ -65,6 +65,10 @@ type Props = {
   isDirectorRole: boolean;
   isProgressor: boolean;
   isAdminRole: boolean;
+  // True when the viewer is the OWNER of the external progression business that
+  // manages this file. Lets them see their own rate-card earnings (regular team
+  // progressors don't). Always false for TSP staff / TSP files.
+  isBusinessOwnerOfFile?: boolean;
   isAgentRole: boolean;
   agencyId: string;
   // Slot rendered at the bottom of the Agent card. Used by the page to
@@ -82,6 +86,7 @@ export async function SidebarPanel({
   isDirectorRole,
   isProgressor,
   isAdminRole,
+  isBusinessOwnerOfFile = false,
   isAgentRole,
   agencyId,
   agentSlot,
@@ -389,6 +394,7 @@ export async function SidebarPanel({
         },
       }}
       showOurFee={isDirectorRole || isAdminRole}
+      showOwnProgressorEarnings={isBusinessOwnerOfFile}
       progressorName={fileProgressor?.name ?? null}
       progressorRateCardFeePence={progressorRateCardFeePence}
       assignedUser={assignedUser}

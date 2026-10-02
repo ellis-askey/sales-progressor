@@ -25,7 +25,7 @@ import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { fileProgressorLabel } from "@/lib/progression/identity";
-import { getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { getInvitingProgressorName, resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
@@ -209,6 +209,14 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // tooltip) so the badge reads "Managed by {business}" instead of TSP.
   const fileProgressor = fileProgressorLabel(transaction.progressionBusiness);
 
+  // The OWNER of an external progression business sees their own rate-card
+  // earnings on files their business progresses (mirroring a TSP admin on a TSP
+  // file). Regular team progressors do not. Gated to the owner of THIS file's
+  // business, so it never affects TSP staff or TSP files.
+  const businessOwner = isProgressor ? await resolveBusinessOwner(session) : null;
+  const isBusinessOwnerOfFile =
+    !!businessOwner && !!transaction.progressionBusinessId && businessOwner.businessId === transaction.progressionBusinessId;
+
   // A director may hand their OWN in-house file over to be progressed. When they
   // can, resolve the agency's inviting progressor so the handover modal reads
   // "Hand to {progressor}" and routes there; null (no progressor / flag off)
@@ -253,7 +261,11 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
     ...(setupMatured ? [setupTab] : []),
-    ...(isInternalTeam ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
+    // WhatsApp capture is wired to TSP's own WhatsApp number, so the tab is
+    // only meaningful on TSP files. Hidden on an external progression-business
+    // file (fileProgressor set) where it would always be empty. TSP files
+    // (fileProgressor null) keep it exactly as before.
+    ...(isInternalTeam && !fileProgressor ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
     // Client portal sits at the very end and STAYS there — even once File setup
     // demotes toward the end at 14 days, this remains the final tab (founder,
     // 2026-09-30). A read-only window onto exactly what each client sees.
@@ -308,6 +320,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         isDirectorRole={isDirectorRole}
         isProgressor={isProgressor}
         isAdminRole={isAdminRole}
+        isBusinessOwnerOfFile={isBusinessOwnerOfFile}
         isAgentRole={isAgentRole}
         agencyId={session.user.agencyId}
         agentSlot={

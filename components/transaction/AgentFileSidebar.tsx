@@ -100,6 +100,10 @@ type Props = {
   // TSP free-trial copy is suppressed. Null for TSP/self files (unchanged).
   progressorName?: string | null;
   progressorRateCardFeePence?: number | null;
+  // When true (the viewer is the external progression-business owner), show a
+  // "Your fee" row with their own rate-card earnings on this file. Distinct from
+  // the agency's income waterfall, which stays agency-facing.
+  showOwnProgressorEarnings?: boolean;
   fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
   // Internal staff (SP/admin/superadmin) see the agent vs our-team time split.
   isInternal?: boolean;
@@ -205,6 +209,7 @@ export function AgentFileSidebar({
   showOurFee = true,
   progressorName = null,
   progressorRateCardFeePence = null,
+  showOwnProgressorEarnings = false,
   recommendedFirms,
   fileTime,
   isInternal = false,
@@ -599,6 +604,17 @@ export function AgentFileSidebar({
             label="Seller broker referral"
             value={transaction.onwardBrokerReferralFee != null ? formatFee(transaction.onwardBrokerReferralFee) : "–"}
           />
+        )}
+        {/* Progression-business owner's own earnings on this file (their rate
+            card for the agency). Shown only to the owner; kept separate from the
+            agency income waterfall below, which stays agency-facing. */}
+        {showOwnProgressorEarnings && progressorRateCardFeePence != null && (
+          <div style={{ borderTop: "0.5px solid var(--agent-border-default)", marginTop: 10, paddingTop: 10 }}>
+            <SidebarRow
+              label="Your fee"
+              value={<span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums" }}>{formatFee(progressorRateCardFeePence)}</span>}
+            />
+          </div>
         )}
         {hasTotal && (
           <div style={{ borderTop: "0.5px solid var(--agent-border-default)", marginTop: 10, paddingTop: 10 }}>
