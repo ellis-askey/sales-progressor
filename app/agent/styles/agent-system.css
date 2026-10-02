@@ -1866,6 +1866,22 @@
   .agent-tab-scroll-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
   .agent-tab-scroll-left { left: 2px; }
   .agent-tab-scroll-right { right: 2px; }
+  /* One-time discovery glow on the Client-portal tab (it sits last, easy to
+     miss). Pulses coral until the agent opens it once, then never again
+     (localStorage flag in FileTabsChrome). Critique 2026-10-02. */
+  @keyframes agent-tab-glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--agent-coral-rgb), 0); }
+    50%      { box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.16), 0 3px 12px rgba(var(--agent-coral-rgb), 0.3); }
+  }
+  .agent-tab-glow {
+    color: var(--agent-coral-deep) !important;
+    border-radius: 9px;
+    animation: agent-tab-glow-pulse 2.2s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-tab-glow { animation: none; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.16); }
+  }
+
   .agent-tab {
     display: inline-flex;
     align-items: center;

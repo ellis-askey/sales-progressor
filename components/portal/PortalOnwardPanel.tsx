@@ -178,9 +178,12 @@ export function PortalOnwardPanel({
     });
   }
 
-  // ── Superseded: the agent handling the other-side property now owns these
-  //    updates (their real file took over from this reported stand-in). ─────────
-  if (view.status === "superseded") {
+  // ── Superseded / claimed: the agent handling the other-side property now owns
+  //    these updates (their real file took over from this reported stand-in).
+  //    neighbourClaimedByOther covers the case where no tracker was ever opened,
+  //    so the client sees "managed for you" instead of a now-pointless setup
+  //    form. Critique 2026-10-02. ─────────────────────────────────────────────
+  if (view.status === "superseded" || view.neighbourClaimedByOther) {
     return (
       <div className="space-y-3">
         <div className="rounded-2xl px-5 py-5" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>

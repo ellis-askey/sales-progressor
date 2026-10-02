@@ -46,7 +46,7 @@ export default async function ClientPortalTabPage({ params }: { params: Promise<
 
   return (
     <TabEnter>
-      <ClientPortalPreview clients={clients} />
+      <ClientPortalPreview clients={clients} transactionId={transaction.id} />
     </TabEnter>
   );
 }

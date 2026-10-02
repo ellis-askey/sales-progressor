@@ -131,6 +131,20 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // One-time discovery glow on the Client-portal tab (it's last, easy to miss).
+  // Glows until the agent opens it once, then never again. Default false avoids
+  // an SSR flash; the effect turns it on only when not yet seen. Critique 2026-10-02.
+  const [portalGlow, setPortalGlow] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("tsp_clientportal_seen") !== "1") setPortalGlow(true); } catch { /* storage blocked */ }
+  }, []);
+  useEffect(() => {
+    if (active === "client-portal" && portalGlow) {
+      try { localStorage.setItem("tsp_clientportal_seen", "1"); } catch { /* storage blocked */ }
+      setPortalGlow(false);
+    }
+  }, [active, portalGlow]);
+
   const activeIdx = tabs.findIndex((t) => t.key === active);
   const { btnRefs, ind } = useTabIndicator(activeIdx);
   const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -271,7 +285,7 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                     data-active={isActive ? "true" : undefined}
                     aria-selected={isActive}
                     aria-current={isActive ? "page" : undefined}
-                    className="agent-tab flex-shrink-0"
+                    className={`agent-tab flex-shrink-0${tab.key === "client-portal" && portalGlow && !isActive ? " agent-tab-glow" : ""}`}
                   >
                     {TabIcon && <TabIcon size={15} weight={isActive ? "fill" : "regular"} aria-hidden />}
                     {tab.label}
