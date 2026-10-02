@@ -21,7 +21,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import type { AccessScope } from "@/lib/security/access-scope";
+import { TSP_ONLY_TX_WHERE, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 
 // Origin of a hold-based review, derived from the free-text hold reason so the
@@ -75,7 +75,7 @@ function originFromReason(reason: string | null): ReviewOrigin {
 // scoping rule: agency viewers only see holds on files they progress themselves;
 // internal staff see their assigned / all files.
 function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
-  if (scope.kind === "all") return { status: "on_hold", serviceType: "outsourced" };
+  if (scope.kind === "all") return { status: "on_hold", serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { status: "on_hold", serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { status: "on_hold", serviceType: "outsourced", progressionBusinessId: scope.businessId };
   return { status: "on_hold", serviceType: "self_managed", agencyId: { in: scope.agencyIds } };
@@ -88,7 +88,7 @@ function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput 
 function reviewTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
   // Internal staff (all / assigned) only handle OUTSOURCED files; self-managed
   // files never appear on the internal side. Agency users keep their own.
-  if (scope.kind === "all") return { serviceType: "outsourced" };
+  if (scope.kind === "all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { progressionBusinessId: scope.businessId };
   return { agencyId: { in: scope.agencyIds } };

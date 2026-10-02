@@ -14,6 +14,7 @@ import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
 import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { enquiryNeedsAttention } from "@/lib/enquiries/tracker";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
@@ -55,7 +56,7 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
   // Internal staff paths — checked first; agent callers have internalMode undefined and skip these.
   // admin_all: internal team only touches outsourced files. Filter added
   // 2026-07-06 alongside sibling bugs in reminders.ts + work-queue.ts.
-  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths (director / negotiator) — unchanged.
   if (vis.seeAll) {
@@ -69,7 +70,7 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
 // Nested filter for relations (no agencyId — already on the parent model)
 function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths.
-  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" };
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths — unchanged.
   if (vis.seeAll) {
@@ -2332,7 +2333,7 @@ export async function getHubServiceSplit(vis: AgentVisibility): Promise<{
   // an assigned progressor still sees only their assigned book. (critique #18)
   const splitWhere =
     vis.internalMode === "admin_all"
-      ? { status: "active" as const, isDemo: false }
+      ? { status: "active" as const, isDemo: false, ...TSP_ONLY_TX_WHERE }
       : { ...txWhere, status: "active" as const };
   const files = await prisma.propertyTransaction.findMany({
     where: splitWhere,
@@ -3080,7 +3081,7 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
   // as getHubRelistsToAcknowledge). Everyone else gets nothing.
   let where: Prisma.PropertyTransactionWhereInput;
   if (vis.internalMode === "admin_all") {
-    where = { assignedUserId: null, status: "active", serviceType: "outsourced" };
+    where = { assignedUserId: null, status: "active", serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   } else if (vis.internalMode === "assigned" && vis.businessId) {
     where = { assignedUserId: null, status: "active", serviceType: "outsourced", progressionBusinessId: vis.businessId };
   } else {
@@ -3156,7 +3157,7 @@ export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<
   // assign card. Agency callers see nothing here.
   let txWhere: Prisma.PropertyTransactionWhereInput;
   if (vis.internalMode === "admin_all") {
-    txWhere = { serviceType: "outsourced", status: "active" };
+    txWhere = { serviceType: "outsourced", status: "active", ...TSP_ONLY_TX_WHERE };
   } else if (vis.internalMode === "assigned") {
     txWhere = { serviceType: "outsourced", status: "active", ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }) };
   } else {
@@ -3243,7 +3244,7 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
   if (vis.internalMode === "admin_all") {
     // Internal team only progresses outsourced files — same rule as
     // buildTxWhere above.
-    txWhere = { status: "active", chainSetupPending: true, serviceType: "outsourced" };
+    txWhere = { status: "active", chainSetupPending: true, serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   } else if (vis.internalMode === "assigned") {
     txWhere = { status: "active", chainSetupPending: true, ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }) };
   } else if (vis.seeAll) {

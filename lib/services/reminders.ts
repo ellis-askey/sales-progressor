@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import type { ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -353,7 +354,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     // own reminder queue — surfacing them here (bug pre-2026-07-06, spotted
     // via "8 Goodwins Mead" on Cesare & Co) forces the internal team to
     // wade past sales they don't touch.
-    txWhere = { status: "active" as const, serviceType: "outsourced" as const };
+    txWhere = { status: "active" as const, serviceType: "outsourced" as const, ...TSP_ONLY_TX_WHERE };
   } else if (vis.internalMode === "assigned") {
     txWhere = { ...(vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId }), status: "active" as const, serviceType: "outsourced" as const };
   } else {

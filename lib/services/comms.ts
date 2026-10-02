@@ -13,7 +13,7 @@ import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildClientUpdateEmail } from "@/lib/emails/client-update-email";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
-import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { scopeOwnershipWhere, TSP_ONLY_TX_WHERE, type AccessScope } from "@/lib/security/access-scope";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { postChaseEcho } from "@/lib/services/chase-echo";
@@ -1277,7 +1277,7 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
 export async function deleteCommunicationRecord(id: string, scope: AccessScope, userId: string) {
   // Verify the comm's transaction is in scope before deleting.
   const where =
-    scope.kind === "all"      ? { id } :
+    scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
@@ -1319,7 +1319,7 @@ export type UpdateCommInput = {
 export async function updateCommunicationRecord(input: UpdateCommInput) {
   const { id, content, contactIds, visibleToClient, scope, userId } = input;
   const where =
-    scope.kind === "all"      ? { id } :
+    scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };

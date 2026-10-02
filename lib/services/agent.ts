@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import type { TransactionStatus } from "@prisma/client";
+import type { TransactionStatus, Prisma } from "@prisma/client";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase, feeExVat } from "@/lib/services/fees";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
@@ -63,9 +64,11 @@ export function resolveInternalVisibility(
 }
 
 /** Build the Prisma `where` clause for PropertyTransaction based on visibility. */
-function txWhere(vis: AgentVisibility) {
+function txWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
-  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
+  // admin_all = TSP founder/admin: only TSP's own outsourced files, never an
+  // external progression business's (those live only in the Command Centre).
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths unchanged.
   if (vis.seeAll) {

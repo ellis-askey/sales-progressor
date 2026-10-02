@@ -3,7 +3,7 @@ import { calculateOurFee, feeExVat } from "@/lib/services/fees";
 import type { AgentVisibility } from "./agent";
 import type { Prisma, TransactionStatus, FeeVatTreatment } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
-import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
+import { scopeTransactionWhere, TSP_ONLY_TX_WHERE, type AccessScope } from "@/lib/security/access-scope";
 
 // "draft" exists in the DB enum but may not be in the generated Prisma client yet
 const DRAFT = "draft" as TransactionStatus;
@@ -26,7 +26,8 @@ const DRAFT = "draft" as TransactionStatus;
 
 function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
-  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
+  // admin_all = TSP: only TSP's own outsourced files, never an external business's.
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths. isDemo:false — the demo showcase file is never real activity
   // and must not count toward the agency's analytics (deal counts, pipeline

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNote, deleteNote } from "@/lib/services/transaction-notes";
-import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { getAccessScope, scopeOwnershipWhere, TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -46,7 +46,7 @@ export async function DELETE(req: NextRequest) {
 
   const scope = getAccessScope(session);
   const noteWhere =
-    scope.kind === "all"      ? { id } :
+    scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                  { id, transaction: { agencyId: scope.agencyIds[0] } };

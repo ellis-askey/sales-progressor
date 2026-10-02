@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
-import type { TransactionStatus } from "@prisma/client";
+import type { TransactionStatus, Prisma } from "@prisma/client";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { VENDOR_SOLICITOR_CODES, PURCHASER_SOLICITOR_CODES } from "@/lib/solicitor-confirm/codes";
 
 const DRAFT = "draft" as TransactionStatus;
@@ -32,13 +33,14 @@ export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg:
   stale:                     { label: "No progress for 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
 };
 
-export function txWhereWorkQueue(vis: AgentVisibility) {
+export function txWhereWorkQueue(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined.
   // admin_all: filter to outsourced only. Internal team never progresses
   // self_managed files (those belong to the customer agency and appear on
   // the agency's own work queue). Fixed 2026-07-06 alongside the sibling
   // bug in lib/services/reminders.ts:260.
-  if (vis.internalMode === "admin_all") return { serviceType: "outsourced" as const };
+  // admin_all = TSP: only TSP's own outsourced files, never an external business's.
+  if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   // Agent paths. serviceType: "self_managed" added 2026-08-09 (founder
   // rule): agencies only chase files they progress themselves — outsourced

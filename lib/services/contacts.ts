@@ -6,7 +6,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { ContactRole } from "@prisma/client";
-import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { scopeOwnershipWhere, TSP_ONLY_TX_WHERE, type AccessScope } from "@/lib/security/access-scope";
 
 export type CreateContactInput = {
   propertyTransactionId: string;
@@ -63,7 +63,7 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
 /** Delete a contact (scope-verified via transaction join) */
 export async function deleteContact(contactId: string, scope: AccessScope) {
   const where =
-    scope.kind === "all"      ? { id: contactId } :
+    scope.kind === "all"      ? { id: contactId, transaction: TSP_ONLY_TX_WHERE } :
     scope.kind === "assigned" ? { id: contactId, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id: contactId, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id: contactId, transaction: { agencyId: scope.agencyIds[0] } };

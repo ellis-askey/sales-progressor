@@ -22,6 +22,21 @@ export type AccessScope =
   | { kind: "assigned"; userId: string }        // TSP sales_progressor — own assigned files
   | { kind: "all" };                            // admin, superadmin — no agency filter
 
+// A TSP-only transaction filter. TSP's own files have progressionBusinessId null
+// (schema: null = TSP, no backfill) or, defensively, the seeded TSP business row
+// (isTsp). An EXTERNAL progression business's files (a non-TSP progressionBusiness)
+// must NEVER appear on TSP's own dashboard / lists / file access — two separate
+// businesses, no contamination. TSP sees an external business's data only in the
+// (separate, commandDb-backed) Command Centre, which does not use these helpers.
+// Applied to the admin/superadmin "all" scope below.
+// AND-wrapped so it is safe to SPREAD into a where that already has its own
+// top-level `OR` (e.g. round-scoping) — a second top-level `OR` would overwrite
+// the first, but an `AND` entry composes. Spread as `{ ...where, ...TSP_ONLY_TX_WHERE }`
+// or nest as `transaction: TSP_ONLY_TX_WHERE`.
+export const TSP_ONLY_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
+  AND: [{ OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }] }],
+};
+
 // ─── Derive scope from session ────────────────────────────────────────────────
 
 export function getAccessScope(session: Session): AccessScope {
@@ -74,7 +89,7 @@ export function scopeTransactionWhere(
   // explore the product, and that data must not pollute our cross-platform lists,
   // partner directories, or analytics. Agency users keep seeing their OWN demo
   // (they created it to look through), so the "agency" branch stays unfiltered.
-  if (scope.kind === "all")      return { isDemo: false };
+  if (scope.kind === "all")      return { isDemo: false, ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
   // External progression business — its own book only, keyed on the transaction
   // tag. Demo files are excluded like the other non-agency scopes.
@@ -94,7 +109,7 @@ export function scopeOwnershipWhere(
   scope: AccessScope,
   transactionId: string
 ): Prisma.PropertyTransactionWhereInput {
-  if (scope.kind === "all")      return { id: transactionId };
+  if (scope.kind === "all")      return { id: transactionId, ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { id: transactionId, assignedUserId: scope.userId };
   if (scope.kind === "business") return { id: transactionId, progressionBusinessId: scope.businessId };
   // agency — agencyIds always has exactly one entry for a non-internal user
@@ -109,7 +124,7 @@ export function scopeChaseTaskWhere(
   scope: AccessScope,
   taskId: string
 ): Prisma.ChaseTaskWhereInput {
-  if (scope.kind === "all")      return { id: taskId };
+  if (scope.kind === "all")      return { id: taskId, transaction: TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { id: taskId, transaction: { assignedUserId: scope.userId } };
   if (scope.kind === "business") return { id: taskId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: taskId, transaction: { agencyId: scope.agencyIds[0] } };
@@ -122,7 +137,7 @@ export function scopeReminderLogWhere(
   scope: AccessScope,
   logId: string
 ): Prisma.ReminderLogWhereInput {
-  if (scope.kind === "all")      return { id: logId };
+  if (scope.kind === "all")      return { id: logId, transaction: TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { id: logId, transaction: { assignedUserId: scope.userId } };
   if (scope.kind === "business") return { id: logId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: logId, transaction: { agencyId: scope.agencyIds[0] } };
@@ -142,7 +157,8 @@ export function canReadTransaction(
     progressionBusinessId?: string | null;
   }
 ): boolean {
-  if (scope.kind === "all")      return true;
+  // "all" (TSP admin) sees TSP's own files only, never an external business's.
+  if (scope.kind === "all")      return tx.progressionBusinessId == null;
   if (scope.kind === "assigned") return tx.assignedUserId === scope.userId;
   if (scope.kind === "business") return tx.progressionBusinessId === scope.businessId;
   return scope.agencyIds.includes(tx.agencyId);
