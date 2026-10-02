@@ -265,6 +265,12 @@ export async function SidebarPanel({
   const exchangeConfirmed = allMilestones.some(
     (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete,
   );
+  // Sale completed — status flipped to completed, or the completion milestone
+  // (VM20/PM27) is done. Drives the Sale-health label → "Completed" (critique
+  // 2026-10-02).
+  const saleCompleted = transaction.status === "completed" || allMilestones.some(
+    (m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete,
+  );
 
   const keyDates = allMilestones
     .filter((m) => m.eventDateRequired && m.completion?.eventDate)
@@ -403,6 +409,7 @@ export async function SidebarPanel({
       progress={progress}
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
+      completed={saleCompleted}
       fileTime={fileTime}
       isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}

@@ -93,6 +93,10 @@ type Props = {
   progress: ProgressResult;
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
+  // Sale has completed (status completed / VM20 / PM27). With exchangeConfirmed,
+  // drives the Sale-health label to a terminal "Exchanged" / "Completed" instead
+  // of a pace word (critique 2026-10-02).
+  completed?: boolean;
   showOurFee?: boolean;
   // Externally-progressed file: the managing progression business's name. When
   // set, the "Progressor fee" deduction uses that business's rate card (below)
@@ -206,6 +210,7 @@ export function AgentFileSidebar({
   progress,
   keyDates = [],
   exchangeConfirmed = false,
+  completed = false,
   showOurFee = true,
   progressorName = null,
   progressorRateCardFeePence = null,
@@ -227,6 +232,14 @@ export function AgentFileSidebar({
   const health = TRACK_HEALTH[progress.onTrack] ?? TRACK_HEALTH.unknown;
   const risk = riskInput ? calculateRiskScore(riskInput) : null;
   const riskConfig = risk && risk.level !== "no_data" ? RISK_CONFIG[risk.level] : null;
+
+  // Once a sale exchanges (then completes) the pace words "On track / Off track"
+  // are moot — it's over the line. The Sale-health label reads the terminal
+  // state instead, in a settled green (critique 2026-10-02). Completed wins over
+  // exchanged. The pace-driven glyph/label colour is swapped for the same green.
+  const terminalLabel = completed ? "Completed" : exchangeConfirmed ? "Exchanged" : null;
+  const healthLabel = terminalLabel ?? health.label;
+  const healthColor = terminalLabel ? "#047857" : health.color;
 
   // Externally-progressed file (managed by a non-TSP progression business): the
   // agency pays the progressor, not us, so the deduction is that business's own
@@ -325,13 +338,13 @@ export function AgentFileSidebar({
           <span style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 26, height: 26,
-            color: health.color,
+            color: healthColor,
           }}>
             <Heartbeat size={20} weight="regular" />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</p>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: health.color }}>{health.label}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: healthColor }}>{healthLabel}</p>
           </div>
         </div>
 
@@ -349,7 +362,7 @@ export function AgentFileSidebar({
           {progress.fileLevelPhase && (
             <SidebarRow label="Stage" value={PHASE_LABELS[progress.fileLevelPhase] ?? progress.fileLevelPhase} />
           )}
-          {riskConfig && (
+          {riskConfig && !exchangeConfirmed && (
             <SidebarRow
               label="Risk level"
               value={<span style={{
