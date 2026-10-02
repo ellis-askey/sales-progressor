@@ -729,6 +729,15 @@ export function OnwardPurchaseCard({
     );
   }
 
+  // ── Neighbour claimed by another agency: read-only, nothing to set up ─────────
+  // Another agent owns and progresses that sale now, so this reported tracker is
+  // read-only even if we never opened one. Without this, a claimed neighbour with
+  // no prior tracker fell through to the "set up tracking" CTA below — offering to
+  // set up a sale someone already owns (critique 2026-10-01).
+  if (view.neighbourClaimedByOther) {
+    return shell(<p style={{ margin: 0, fontSize: 13, color: MUTED }}>{txt.supersededBody}</p>, txt.supersededTag);
+  }
+
   // ── Superseded / abandoned: read-only status text ────────────────────────────
   if (view.exists && view.status === "superseded") {
     return shell(<p style={{ margin: 0, fontSize: 13, color: MUTED }}>{txt.supersededBody}</p>, txt.supersededTag);

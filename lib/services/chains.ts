@@ -683,7 +683,7 @@ export async function getChainV2(
           getRelatedSaleSignalForFile(txId).catch(() => ({ selling: false, relatedAddress: null })),
           getOnwardTrackerView(txId, "related_sale").catch(() => null),
         ]);
-        if (onwardSig.buyingOnward && !(onwardView && (onwardView.status === "superseded" || onwardView.status === "abandoned"))) {
+        if (onwardSig.buyingOnward && !(onwardView && (onwardView.status === "superseded" || onwardView.status === "abandoned" || onwardView.neighbourClaimedByOther))) {
           onwardByTx.set(txId, {
             address: onwardSig.onwardAddress,
             status: onwardView?.status ?? null,
@@ -692,7 +692,7 @@ export async function getChainV2(
             applicableCount: onwardView?.applicableCount ?? 0,
           });
         }
-        if (relatedSig.selling && !(relatedView && (relatedView.status === "superseded" || relatedView.status === "abandoned"))) {
+        if (relatedSig.selling && !(relatedView && (relatedView.status === "superseded" || relatedView.status === "abandoned" || relatedView.neighbourClaimedByOther))) {
           relatedByTx.set(txId, {
             address: relatedSig.relatedAddress,
             status: relatedView?.status ?? null,

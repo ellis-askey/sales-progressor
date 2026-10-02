@@ -143,6 +143,12 @@ export type OnwardTrackerView = {
   // transaction in the same agency). Gates the key-collection + surveyor-firm
   // capture — meaningless on another agency's listing or a neighbour's far side.
   isOwnAgencyFile: boolean;
+  // True when the adjacent sale (the onward above / related below) has been
+  // claimed by a DIFFERENT agency — another agent now owns and progresses it, so
+  // the reported tracker here is read-only and there's nothing for this agent to
+  // set up, even if a tracker row was never opened. A same-agency claim keeps the
+  // tracker (we run both sides). Critique 2026-10-01.
+  neighbourClaimedByOther: boolean;
 };
 
 // The survey pair a seller can opt out of, mirroring the buyer's manual skip
@@ -286,6 +292,10 @@ export async function getOnwardTrackerView(
     include: { steps: true },
   });
 
+  // Whether the neighbour sale has been claimed by another agency — drives the
+  // read-only slim-down, and is needed even when no tracker row exists.
+  const neighbourClaimedByOther = await isAdjacentClaimedByOtherAgency(transactionId, kind);
+
   if (!tracker) {
     return {
       exists: false,
@@ -300,6 +310,7 @@ export async function getOnwardTrackerView(
       applicableCount: 0,
       surveySkipped: false,
       isOwnAgencyFile: false,
+      neighbourClaimedByOther,
     };
   }
 
@@ -320,6 +331,7 @@ export async function getOnwardTrackerView(
       applicableCount: 0,
       surveySkipped: surveyOptOut(tracker.manualNrCodes),
       isOwnAgencyFile: false,
+      neighbourClaimedByOther,
     };
   }
 
@@ -406,6 +418,7 @@ export async function getOnwardTrackerView(
     applicableCount: steps.length,
     surveySkipped: surveyOptOut(tracker.manualNrCodes),
     isOwnAgencyFile,
+    neighbourClaimedByOther,
   };
 }
 
@@ -436,6 +449,41 @@ async function isLinkedSaleOwnAgency(
     select: { transaction: { select: { agencyId: true } } },
   });
   return adjacent?.transaction?.agencyId != null && adjacent.transaction.agencyId === tx.agencyId;
+}
+
+// Has the adjacent sale (onward above / related below) been claimed by ANOTHER
+// agency? Resolves the same adjacency as isLinkedSaleOwnAgency but for all four
+// kinds, and returns true only when the neighbour link points at a real
+// transaction whose agency is NOT ours. When true, that agent owns the updates,
+// so the reported tracker on this file is read-only and there's nothing to set
+// up here — even if no tracker row was ever opened. A same-agency claim returns
+// false (we run both sides, so the far-side tracker stays usable). Critique 2026-10-01.
+async function isAdjacentClaimedByOtherAgency(
+  transactionId: string,
+  kind: OnwardTrackerKind,
+): Promise<boolean> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agencyId: true, chainLinkId: true },
+  });
+  if (!tx?.chainLinkId) return false;
+  const link = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { position: true, chainId: true },
+  });
+  if (!link) return false;
+  const isOnward = kind === "onward_purchase" || kind === "onward_purchase_seller";
+  const adjacentPosition = isOnward ? link.position - 1 : link.position + 1;
+  const adjacent = await prisma.chainLink.findFirst({
+    where: { chainId: link.chainId, position: adjacentPosition },
+    select: { transactionId: true, transaction: { select: { agencyId: true } } },
+  });
+  const adjAgency = adjacent?.transaction?.agencyId ?? null;
+  // Claimed (has a real transaction) AND that transaction belongs to a different
+  // agency. If our own agency has no id (internal staff) the file's agencyId is
+  // null; an outsourced file carries the customer agency's id, so this still
+  // distinguishes "someone else's claimed sale" correctly.
+  return adjacent?.transactionId != null && adjAgency !== tx.agencyId;
 }
 
 /**
