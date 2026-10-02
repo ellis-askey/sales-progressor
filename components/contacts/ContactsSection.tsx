@@ -487,12 +487,18 @@ export function ContactsSection({
   photoUrl = null,
   embedded = false,
   isInternalStaff = false,
+  allowIntroCall = isInternalStaff,
 }: {
   transactionId: string;
   contacts: Contact[];
   // Internal team only: gates the per-contact "Intro call" action in each
   // client card's kebab menu (shown until the file's introduction is done).
   isInternalStaff?: boolean;
+  // Who may run the client intro call. Defaults to internal staff (TSP). The
+  // agent file also enables it for an agency on a fully in-house (self-managed)
+  // sale, since they progress it themselves. A progressor-managed file leaves
+  // the call to the progressor, so the agent doesn't get it there.
+  allowIntroCall?: boolean;
   // When true, render without the outer GlassCard shell (the PeoplePanel
   // wrapper provides the card + toggle). 2026-08-10.
   embedded?: boolean;
@@ -547,10 +553,10 @@ export function ContactsSection({
   const [introSide, setIntroSide] = useState<"vendor" | "purchaser" | null>(null);
 
   const loadIntro = useCallback(async () => {
-    if (!isInternalStaff) return;
+    if (!allowIntroCall) return;
     try { setIntroData(await getIntroCallDataAction(transactionId)); }
     catch { setIntroData(null); }
-  }, [isInternalStaff, transactionId]);
+  }, [allowIntroCall, transactionId]);
 
   useEffect(() => { void loadIntro(); }, [loadIntro]);
 
@@ -1053,7 +1059,7 @@ export function ContactsSection({
                           onEdit={() => startEdit(contact)}
                           onDelete={() => requestDelete(contact)}
                           onIntroCall={
-                            isInternalStaff && (role === "vendor" || role === "purchaser") &&
+                            allowIntroCall && (role === "vendor" || role === "purchaser") &&
                             !(role === "vendor" ? introData?.introDoneVendor : introData?.introDonePurchaser)
                               ? () => void openIntro(role as "vendor" | "purchaser")
                               : undefined

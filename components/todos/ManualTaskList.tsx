@@ -70,7 +70,7 @@ function timeAgo(date: Date): string {
   return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
+function AgentRequestRow({ task, progressorName }: { task: ManualTaskWithRelations; progressorName?: string | null }) {
   const isDone = task.status === "done";
   return (
     <div
@@ -110,7 +110,7 @@ function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
         {task.progressorNote && (
           <div className="mt-1.5 space-y-0.5">
             <p style={{ fontSize: 10, fontWeight: 600, color: "#059669", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Sales Progressor · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
+              {progressorName ?? "Sales Progressor"} · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
             </p>
             <p style={{ fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>{task.progressorNote}</p>
           </div>
@@ -132,6 +132,7 @@ export function ManualTaskList({
   showDone = true,
   showOwnership = false,
   perspective = "progressor",
+  progressorName = null,
 }: {
   initialTasks: ManualTaskWithRelations[];
   // Internal-self-assigned tasks for this transaction, visible to all
@@ -142,6 +143,9 @@ export function ManualTaskList({
   showDone?: boolean;
   showOwnership?: boolean;
   perspective?: "agent" | "progressor";
+  // External progressor's name, when this file is progressor-managed. Names the
+  // note author on agent-request rows instead of the generic "Sales Progressor".
+  progressorName?: string | null;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [internalTasks, setInternalTasks] = useState(initialInternalTasks);
@@ -343,7 +347,7 @@ export function ManualTaskList({
       <div>
         {agentOpen.map((task) => (
           perspective === "agent"
-            ? <AgentRequestRow key={task.id} task={task} />
+            ? <AgentRequestRow key={task.id} task={task} progressorName={progressorName} />
             : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
         ))}
         {agentOpen.length === 0 && (
@@ -362,7 +366,7 @@ export function ManualTaskList({
           >
             {agentDone.map((task) => (
               perspective === "agent"
-                ? <AgentRequestRow key={task.id} task={task} />
+                ? <AgentRequestRow key={task.id} task={task} progressorName={progressorName} />
                 : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
             ))}
           </DoneDisclosure>

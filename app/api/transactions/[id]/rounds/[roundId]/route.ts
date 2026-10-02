@@ -12,6 +12,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { getArchivedRoundData, getFileLevelDocumentsForArchive } from "@/lib/services/archived-round";
+import { fileProgressorLabel } from "@/lib/progression/identity";
 
 export async function GET(
   _req: Request,
@@ -25,9 +26,14 @@ export async function GET(
   // uses. Missing → 404 (not 403), matches the existing pattern.
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, id),
-    select: { id: true },
+    select: { id: true, progressionBusiness: { select: { name: true, shortName: true, isTsp: true } } },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Name for the automated-comms sender fallback in the timeline. Null = TSP file
+  // (the drawer then keeps its "TSP" fallback). An external progressor file names
+  // that business instead.
+  const progressorName = fileProgressorLabel(tx.progressionBusiness)?.name ?? null;
 
   // Agency-staff viewers (director/negotiator) don't see progression-business
   // private notes on the archived round either.
@@ -39,5 +45,6 @@ export async function GET(
   return NextResponse.json({
     ...data,
     fileDocuments,
+    progressorName,
   });
 }

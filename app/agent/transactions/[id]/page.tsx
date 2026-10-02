@@ -41,6 +41,7 @@ export default async function AgentTransactionOverviewPage({
         transaction={transaction}
         agencyId={session.user.agencyId}
         isInternalStaff={isInternalStaff}
+        allowIntroCall={isInternalStaff || transaction.serviceType === "self_managed"}
         isDirectorRole={isDirectorRole}
         currentUserId={session.user.id}
         currentUserRole={session.user.role}

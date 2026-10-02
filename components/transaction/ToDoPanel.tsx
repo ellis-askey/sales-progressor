@@ -18,6 +18,8 @@ type Props = {
   isInternalStaff: boolean;
   isProgressor: boolean;
   isAdminRole: boolean;
+  // External progressor's name when this file is progressor-managed; null = TSP.
+  progressorName?: string | null;
 };
 
 export async function ToDoPanel({
@@ -28,6 +30,7 @@ export async function ToDoPanel({
   isInternalStaff,
   isProgressor,
   isAdminRole,
+  progressorName = null,
 }: Props) {
   const [manualTasks, internalManualTasks] = await Promise.all([
     listManualTasksCached(transactionId, agencyId).catch(() => []),
@@ -51,6 +54,7 @@ export async function ToDoPanel({
         showDone
         showOwnership={serviceType === "outsourced" && !isProgressor && !isAdminRole}
         perspective={isInternalStaff ? "progressor" : "agent"}
+        progressorName={progressorName}
       />
     </>
   );

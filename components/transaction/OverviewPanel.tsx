@@ -102,6 +102,10 @@ type Props = {
   };
   agencyId: string;
   isInternalStaff: boolean;
+  // Whether the viewer may run the client intro call. Internal staff always;
+  // the agency on a fully in-house (self-managed) sale too. Forwarded to the
+  // ContactsSection intro-call gate.
+  allowIntroCall?: boolean;
   isDirectorRole: boolean;
   currentUserId: string;
   // Session role string — passed to the chain drawer so internal staff can edit
@@ -155,6 +159,7 @@ export async function OverviewPanel({
   transaction,
   agencyId,
   isInternalStaff,
+  allowIntroCall = false,
   isDirectorRole,
   currentUserId,
   currentUserRole,
@@ -477,6 +482,7 @@ export async function OverviewPanel({
             transactionId={transaction.id}
             contacts={clientContacts}
             isInternalStaff={isInternalStaff}
+            allowIntroCall={allowIntroCall}
             address={transaction.propertyAddress}
             portalViewDates={Object.fromEntries(
               clientContacts

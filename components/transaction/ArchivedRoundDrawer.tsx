@@ -125,6 +125,9 @@ export type ArchivedRoundPayload = {
   comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; senderLabel: string | null; visibleToClient: boolean; isAutomated: boolean }>;
   fileDocuments: Array<{ id: string; filename: string; mimeType: string | null; fileSize: number; source: string | null; createdAt: string; signedUrl: string | null }>;
   referrals: Array<{ id: string; kind: string; firmNameSnapshot: string; feePence: number | null; vat: string; status: string; earnedAt: string | null; receivedAt: string | null }>;
+  // Name for the automated-comms sender fallback in the timeline. Null = TSP
+  // file (keeps the "TSP" fallback); an external progressor file names it.
+  progressorName?: string | null;
 };
 
 // ─── Helpers (verbatim from the audited components) ──────────────────
@@ -592,7 +595,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     {data.comms.length === 0 ? (
                       <Empty text="Nothing recorded for this sale." />
                     ) : (
-                      <CommTimeline comms={data.comms} />
+                      <CommTimeline comms={data.comms} automatedSender={data.progressorName ?? "TSP"} />
                     )}
                   </>
                 )}
@@ -812,7 +815,7 @@ function commDotColor(c: ArchComm): string {
   return "rgba(100,116,139,0.5)";
 }
 
-function CommTimeline({ comms }: { comms: ArchComm[] }) {
+function CommTimeline({ comms, automatedSender = "TSP" }: { comms: ArchComm[]; automatedSender?: string }) {
   return (
     <div style={{ position: "relative", padding: "6px 16px 18px 18px" }}>
       <div aria-hidden style={{ position: "absolute", top: 12, bottom: 16, left: 21, width: 1, background: "var(--agent-border-default)" }} />
@@ -820,7 +823,7 @@ function CommTimeline({ comms }: { comms: ArchComm[] }) {
         {comms.map((c) => {
           const badge = getCommBadge({ type: c.type, method: c.method, isAutomated: c.isAutomated, senderLabel: c.senderLabel });
           const role: ActorRole = c.isAutomated ? "system" : "agent";
-          const name = c.senderLabel ?? c.createdByName ?? (c.isAutomated ? "TSP" : "You");
+          const name = c.senderLabel ?? c.createdByName ?? (c.isAutomated ? automatedSender : "You");
           return (
             <div key={c.id} style={{ position: "relative", display: "flex", gap: 12 }}>
               <div style={{ flexShrink: 0, zIndex: 1, marginTop: 12 }}>

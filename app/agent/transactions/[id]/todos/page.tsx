@@ -2,6 +2,7 @@
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { ToDoPanel } from "@/components/transaction/ToDoPanel";
 import { TabEnter } from "@/components/transaction/TabEnter";
+import { fileProgressorLabel } from "@/lib/progression/identity";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -18,6 +19,7 @@ export default async function TodosTabPage({ params }: { params: Promise<{ id: s
         isInternalStaff={isInternalStaff}
         isProgressor={isProgressor}
         isAdminRole={isAdminRole}
+        progressorName={fileProgressorLabel(transaction.progressionBusiness)?.name ?? null}
       />
     </TabEnter>
   );
