@@ -172,6 +172,10 @@ export type ClientOverviewRow = {
 };
 
 export type ClientsOverview = {
+  // The owner's own business identity, for the Clients-header settings control.
+  // shortName is the optional tight-UI label (e.g. the agent file's "Managed by"
+  // badge); null falls back to name.
+  business: { name: string; shortName: string | null };
   totals: { agencies: number; activeSales: number; pipelinePence: number; exchangedThisMonth: number };
   clients: ClientOverviewRow[];
 };
@@ -184,6 +188,11 @@ export type ClientsOverview = {
  * progressor's book is small, so this stays cheap.
  */
 export async function getClientsOverview(businessId: string): Promise<ClientsOverview> {
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { name: true, shortName: true },
+  });
+
   const links = await prisma.progressionBusinessClient.findMany({
     where: { progressionBusinessId: businessId },
     orderBy: { createdAt: "asc" },
@@ -258,6 +267,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
   });
 
   return {
+    business: { name: business?.name ?? "", shortName: business?.shortName ?? null },
     totals: { agencies: links.length, activeSales: totalActive, pipelinePence: totalPipeline, exchangedThisMonth },
     clients,
   };

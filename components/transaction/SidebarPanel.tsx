@@ -22,6 +22,8 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 import { countOverdue } from "@/lib/reminders/classify";
 import { requireSession } from "@/lib/session";
 import { getPreviousSales } from "@/lib/services/previous-sales";
+import { fileProgressorLabel } from "@/lib/progression/identity";
+import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
 import { AgentFileSidebar } from "@/components/transaction/AgentFileSidebar";
 import type { ClientType, PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
@@ -39,6 +41,8 @@ type SidebarTransaction = {
   createdAt: Date;
   lastActivityAt?: Date | null;
   serviceType: "self_managed" | "outsourced" | null;
+  progressionBusinessId?: string | null;
+  progressionBusiness?: { name: string; shortName: string | null; isTsp: boolean } | null;
   freeOnExchange?: boolean | null;
   firstOutsourcedFree?: boolean | null;
   agentFeeAmount: number | null;
@@ -327,6 +331,22 @@ export async function SidebarPanel({
     ? `/portal/${contactPortal.portalToken}`
     : null;
 
+  // Externally-progressed file: the fee the AGENT sees is what they owe their
+  // progressor (that business's rate card for this agency), not TSP's fee, and
+  // the "team" file-time belongs to the progressor's people. Null for TSP/self
+  // files, which keep the unchanged behaviour.
+  const fileProgressor = fileProgressorLabel(transaction.progressionBusiness ?? null);
+  let progressorRateCardFeePence: number | null = null;
+  if (fileProgressor && transaction.progressionBusinessId && transaction.serviceType === "outsourced") {
+    const link = await prisma.progressionBusinessClient
+      .findUnique({
+        where: { progressionBusinessId_agencyId: { progressionBusinessId: transaction.progressionBusinessId, agencyId: transaction.agencyId } },
+        select: { feeModel: true },
+      })
+      .catch(() => null);
+    progressorRateCardFeePence = calculateClientFee(parseFeeModel(link?.feeModel), transaction.purchasePrice ?? null);
+  }
+
   return (
     <AgentFileSidebar
       transaction={{
@@ -369,6 +389,8 @@ export async function SidebarPanel({
         },
       }}
       showOurFee={isDirectorRole || isAdminRole}
+      progressorName={fileProgressor?.name ?? null}
+      progressorRateCardFeePence={progressorRateCardFeePence}
       assignedUser={assignedUser}
       agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
       agentUser={agentUser}

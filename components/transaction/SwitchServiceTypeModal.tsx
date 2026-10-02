@@ -20,10 +20,14 @@ type Props = {
   // Reserved: whether a director is handing their own file over vs an internal
   // admin switch. The copy is unified across both now, so it's currently unused.
   agentHandover?: boolean;
+  // When a director hands their file to the agency's external progressor (not
+  // TSP), this names that business so the copy reads "Hand to {name}". Null
+  // keeps the unchanged TSP wording.
+  progressorName?: string | null;
   onClose: () => void;
 };
 
-export function SwitchServiceTypeModal({ open, transactionId, current, onClose }: Props) {
+export function SwitchServiceTypeModal({ open, transactionId, current, progressorName = null, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -32,15 +36,25 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
   const toTSP = target === "outsourced";
 
   // Direction-aware copy. Header carries the title + a one-line lead; the body
-  // says what happens next. Voice clean: no em-dashes.
-  const title = toTSP ? "Switch to TSP progression?" : "Switch to self-progress?";
-  const subtitle = toTSP
-    ? "We'll take over the progression of this sale."
-    : "You'll take the progression back over.";
-  const body = toTSP
-    ? "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen."
-    : "Our team will stop progressing this sale, but everything already recorded will stay exactly where it is. You can continue from where we left off.";
-  const confirmLabel = toTSP ? "Switch to TSP progression" : "Switch to self-progress";
+  // says what happens next. Voice clean: no em-dashes. When handing over to an
+  // external progression business (not TSP), the copy names that business.
+  const toProgressor = toTSP && !!progressorName;
+  const title = !toTSP
+    ? "Switch to self-progress?"
+    : toProgressor ? `Hand this file to ${progressorName}?` : "Switch to TSP progression?";
+  const subtitle = !toTSP
+    ? "You'll take the progression back over."
+    : toProgressor
+      ? `${progressorName} will take over the progression of this sale.`
+      : "We'll take over the progression of this sale.";
+  const body = !toTSP
+    ? "Our team will stop progressing this sale, but everything already recorded will stay exactly where it is. You can continue from where we left off."
+    : toProgressor
+      ? `${progressorName} will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.`
+      : "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.";
+  const confirmLabel = !toTSP
+    ? "Switch to self-progress"
+    : toProgressor ? `Hand to ${progressorName}` : "Switch to TSP progression";
 
   // Reset error when the modal opens or the direction changes.
   useEffect(() => {

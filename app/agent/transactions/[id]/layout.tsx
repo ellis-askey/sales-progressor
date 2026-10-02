@@ -24,6 +24,9 @@ import { getMilestonesCached } from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import { totalHoldMs } from "@/lib/services/hold-duration";
+import { fileProgressorLabel } from "@/lib/progression/identity";
+import { getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
 
@@ -200,6 +203,23 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     ? ((transaction.assignedUser as { image?: string | null } | null)?.image ?? null)
     : (agentUser?.image ?? null);
 
+  // Who is progressing this file, agent-facing. Null for a TSP/legacy file — the
+  // hero then keeps the unchanged "Managed by TSP" badge. For an external
+  // progression business it carries the short display name (+ full name for the
+  // tooltip) so the badge reads "Managed by {business}" instead of TSP.
+  const fileProgressor = fileProgressorLabel(transaction.progressionBusiness);
+
+  // A director may hand their OWN in-house file over to be progressed. When they
+  // can, resolve the agency's inviting progressor so the handover modal reads
+  // "Hand to {progressor}" and routes there; null (no progressor / flag off)
+  // keeps the unchanged "hand to TSP" wording and routing.
+  const canAgentHandOver =
+    session.user.role === "director" && transaction.serviceType === "self_managed" && transaction.status === "active";
+  const handoverProgressorName =
+    canAgentHandOver && progressionBusinessesEnabled() && session.user.agencyId
+      ? await getInvitingProgressorName(session.user.agencyId)
+      : null;
+
   const showChaseTimeline =
     isEllis || (!!session.user.agencyId && transaction.serviceType === "self_managed");
 
@@ -260,6 +280,8 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           createdAt: transaction.createdAt,
           lastActivityAt: transaction.lastActivityAt ?? null,
           serviceType: transaction.serviceType ?? null,
+          progressionBusinessId: transaction.progressionBusinessId ?? null,
+          progressionBusiness: transaction.progressionBusiness ?? null,
           freeOnExchange: transaction.freeOnExchange ?? null,
           firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,
           agentFeeAmount: transaction.agentFeeAmount ?? null,
@@ -385,6 +407,8 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             onTrack={progress.onTrack}
             serviceType={transaction.serviceType}
             hideServiceTypeBadge={false}
+            managedByName={fileProgressor?.name ?? null}
+            managedByFullName={fileProgressor?.fullName ?? null}
             backHref="/agent/transactions"
             assignedUserName={assignedDisplayName}
             assignedUserImage={assignedDisplayImage}
@@ -392,7 +416,8 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             transactionId={transaction.id}
             inChain={!!transaction.chainLinkId}
             isAdminViewer={isAdminRole}
-            canAgentHandOver={session.user.role === "director" && transaction.serviceType === "self_managed" && transaction.status === "active"}
+            canAgentHandOver={canAgentHandOver}
+            handoverProgressorName={handoverProgressorName}
             photoUrl={heroPhotoUrl}
             overridePredictedDate={transaction.overridePredictedDate ?? null}
             topRightSlot={heroTopRightSlot}

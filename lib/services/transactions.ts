@@ -320,6 +320,10 @@ export async function getTransaction(id: string, agencyId: string) {
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true } },
+      // Who's progressing this file. Null progressionBusinessId → TSP (or the
+      // seeded TSP row). A non-TSP business here drives the agent-facing
+      // "Managed by …" badge + progressor-aware copy. shortName falls back to name.
+      progressionBusiness: { select: { id: true, name: true, shortName: true, isTsp: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
@@ -353,6 +357,8 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true } },
+      // See getTransaction above — who's progressing this file (null → TSP).
+      progressionBusiness: { select: { id: true, name: true, shortName: true, isTsp: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },

@@ -8,8 +8,9 @@
 // /agent/clients/[agencyId].
 
 import Link from "next/link";
-import { useState } from "react";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake } from "@phosphor-icons/react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +18,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
+import { updateBusinessShortNameAction } from "@/app/actions/progression-clients";
 import { useAddClientForm } from "./useAddClientForm";
 
 function initials(name: string): string {
@@ -41,7 +43,8 @@ function Logo({ c }: { c: ClientOverviewRow }) {
 
 export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
   const [addOpen, setAddOpen] = useState(false);
-  const { totals, clients } = data;
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { business, totals, clients } = data;
 
   const cells = [
     { tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
@@ -58,10 +61,29 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
             <h1 className="cw-h1">Clients</h1>
             <p className="cw-sub">Manage and grow your book of agencies.</p>
           </div>
-          <Button variant="primary" size="md" className="cw-primary" onClick={() => setAddOpen(true)}>
-            <UserPlus size={16} weight="bold" />
-            Add a client
-          </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              title="Business settings"
+              aria-label="Business settings"
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 42, height: 42, borderRadius: 12,
+                border: "1px solid var(--agent-border-default)",
+                background: "var(--agent-surface)", color: "var(--agent-text-secondary)",
+                cursor: "pointer", transition: "border-color 160ms ease, color 160ms ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+            >
+              <Gear size={18} weight="bold" />
+            </button>
+            <Button variant="primary" size="md" className="cw-primary" onClick={() => setAddOpen(true)}>
+              <UserPlus size={16} weight="bold" />
+              Add a client
+            </Button>
+          </div>
         </div>
       </SectionReveal>
 
@@ -110,6 +132,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
       </SectionReveal>
 
       {addOpen && <AddClientModal onClose={() => setAddOpen(false)} />}
+      {settingsOpen && <BusinessSettingsModal business={business} onClose={() => setSettingsOpen(false)} />}
 
       <style>{`
         .cw { width: 100%; display: flex; flex-direction: column; gap: 22px; }
@@ -222,6 +245,60 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
         .cwm-primary { gap: 8px; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); }
         .cwm-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
         .cwm-primary:active:not(:disabled) { transform: scale(0.98); }
+      `}</style>
+    </Modal>
+  );
+}
+
+// ── Business settings modal ──────────────────────────────────────────────────
+// Owner-only. Sets the short display name used in tight UI (the agent file's
+// "Managed by …" badge). Blank clears the override so the full name is used.
+
+function BusinessSettingsModal({ business, onClose }: { business: { name: string; shortName: string | null }; onClose: () => void }) {
+  const router = useRouter();
+  const [value, setValue] = useState(business.shortName ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, startSave] = useTransition();
+
+  function save() {
+    setError(null);
+    startSave(async () => {
+      const res = await updateBusinessShortNameAction(value);
+      if (res.ok) { router.refresh(); onClose(); }
+      else setError(res.error);
+    });
+  }
+
+  return (
+    <Modal open onClose={onClose} ariaLabel="Business settings" size="md" closeTone="onDark">
+      <Modal.Header style={SHEET_BAND_STYLE}>
+        <SheetBandHeader icon={<Gear size={18} weight="bold" />} title="Business settings" subtitle="How your business appears to the agents you progress for." />
+      </Modal.Header>
+
+      <Modal.Body>
+        <div>
+          <label className="bsm-label" htmlFor="bsm-short">Short display name</label>
+          <input id="bsm-short" className="agent-input" value={value} onChange={(e) => setValue(e.target.value)} placeholder={business.name} maxLength={40} />
+          <p className="bsm-help">
+            Your full business name is <strong>{business.name}</strong>. In tight spots, like the &ldquo;Managed by&rdquo; badge on an agent&rsquo;s file, we&rsquo;ll show this shorter name instead. Leave it blank to use your full name.
+          </p>
+        </div>
+        {error && <p className="bsm-err">{error}</p>}
+      </Modal.Body>
+
+      <Modal.Footer>
+        <Button variant="secondary" size="md" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button variant="primary" size="md" className="bsm-primary" onClick={save} loading={saving}>Save</Button>
+      </Modal.Footer>
+
+      <style>{`
+        .bsm-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
+        .bsm-help { margin: 10px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
+        .bsm-help strong { color: var(--agent-text-secondary); font-weight: 600; }
+        .bsm-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
+        .bsm-primary { gap: 8px; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); }
+        .bsm-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
+        .bsm-primary:active:not(:disabled) { transform: scale(0.98); }
       `}</style>
     </Modal>
   );

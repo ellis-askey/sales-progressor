@@ -48,6 +48,12 @@ type Props = {
   roundChipSlot?: React.ReactNode;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
+  // Who is progressing an outsourced file, agent-facing. Null = TSP (the badge
+  // keeps "Managed by TSP"). Set to an external progression business's short
+  // display name to render "Managed by {name}" instead; managedByFullName is the
+  // untruncated name for the hover tooltip.
+  managedByName?: string | null;
+  managedByFullName?: string | null;
   createdAt?: Date | string | null;
   transactionId?: string;
   hideServiceTypeBadge?: boolean;
@@ -63,6 +69,10 @@ type Props = {
    *  director && serviceType === "self_managed" && status active. Directors
    *  never get the take-back direction — that stays internal-only. */
   canAgentHandOver?: boolean;
+  /** The agency's inviting progressor name, when a director can hand this
+   *  in-house file over to one. Drives the handover tooltip + modal copy
+   *  ("Hand to {name}"). Null → the unchanged "hand to TSP" wording. */
+  handoverProgressorName?: string | null;
   // 2026-08-08 hero redesign — signed URL for the property photo
   // (PropertyTransaction.photoStoragePath, signed server-side on read).
   // Null when no photo uploaded; the hero renders a coral gradient +
@@ -247,7 +257,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -350,10 +360,29 @@ export function PropertyHero({
     // the confirm-and-switch modal.
     const servicePill = !hideServiceTypeBadge && serviceType && (() => {
       const isSelf = serviceType === "self_managed";
+      // An outsourced file managed by an external progression business (not TSP)
+      // names that business instead of "TSP". The name is capped with an
+      // ellipsis so a long business name can't blow the pill out; the full name
+      // sits on the hover tooltip (title) below.
+      const isProgressorManaged = !isSelf && !!managedByName;
+      const nameClamp: React.CSSProperties = {
+        display: "inline-block",
+        maxWidth: 160,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        verticalAlign: "bottom",
+      };
       // Critique #129: TSP rebrand. Outsourced = a solid-coral pill reading
       // "Managed by TSP" on desktop/tablet, "TSP managed" on mobile; in-house =
-      // a quiet neutral outline ("In-house") that turns coral on hover.
-      const label: React.ReactNode = isSelf ? "In-house" : (
+      // a quiet neutral outline ("In-house") that turns coral on hover. For an
+      // external-progressor file the pill names that business.
+      const label: React.ReactNode = isSelf ? "In-house" : isProgressorManaged ? (
+        <>
+          <span className="hidden md:inline">Managed by <span style={nameClamp}>{managedByName}</span></span>
+          <span className="md:hidden" style={{ ...nameClamp, maxWidth: 120 }}>{managedByName}</span>
+        </>
+      ) : (
         <>
           <span className="hidden md:inline">Managed by TSP</span>
           <span className="md:hidden">TSP managed</span>
@@ -370,13 +399,13 @@ export function PropertyHero({
           : { color: "#fff", background: "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))", border: "1px solid transparent", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px rgba(var(--agent-coral-rgb), 0.30)" }),
       };
       if (!canSwitchService) {
-        return <span style={baseStyle}>{label}</span>;
+        return <span style={baseStyle} title={isProgressorManaged ? (managedByFullName ?? undefined) : undefined}>{label}</span>;
       }
       return (
         <button
           type="button"
           onClick={() => setSwitchModalOpen(true)}
-          title={isSelf ? "Switch to TSP" : "Switch to in-house"}
+          title={isSelf ? (handoverProgressorName ? `Hand to ${handoverProgressorName}` : "Switch to TSP") : "Switch to in-house"}
           className="v2-swap-btn"
           onMouseEnter={(e) => {
             if (isSelf) { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }
@@ -722,7 +751,7 @@ export function PropertyHero({
                 }}>?</span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)", lineHeight: 1.25 }}>
-                    Not assigned yet
+                    {managedByName ? "Awaiting assignment" : "Not assigned yet"}
                   </span>
                   <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>
                     Managing this file
@@ -918,6 +947,7 @@ export function PropertyHero({
             transactionId={transactionId}
             current={serviceType}
             agentHandover={!isAdminViewer && canAgentHandOver}
+            progressorName={handoverProgressorName}
             onClose={() => setSwitchModalOpen(false)}
           />
         )}

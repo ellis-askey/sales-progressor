@@ -1577,6 +1577,17 @@ export async function switchServiceTypeAction(
     }
   }
 
+  // Agent (director) handing their own file over: route it to the agency's
+  // inviting progression business when they have one, so it lands in that
+  // progressor's queue rather than with TSP. An agency with no progressor (a
+  // normal self-progress agency handing over to us) keeps progressionBusinessId
+  // null → TSP, exactly as before.
+  let handoverBusinessId: string | null = null;
+  if (isAgentHandover && target === "outsourced" && progressionBusinessesEnabled() && session.user.agencyId) {
+    const inviting = await getInvitingProgressor(session.user.agencyId);
+    handoverBusinessId = inviting?.businessId ?? null;
+  }
+
   const SERVICE_LABEL = { self_managed: "Self-managed", outsourced: "Outsourced" } as const;
   const prevLabel = SERVICE_LABEL[tx.serviceType as "self_managed" | "outsourced"];
   const nextLabel = SERVICE_LABEL[target];
@@ -1594,7 +1605,7 @@ export async function switchServiceTypeAction(
         // Switching TO outsourced (re)starts the SP waiting clock from now.
         ...(target === "self_managed"
           ? { assignedUserId: null, assignedAt: null }
-          : { outsourcedAt: new Date() }),
+          : { outsourcedAt: new Date(), ...(handoverBusinessId ? { progressionBusinessId: handoverBusinessId } : {}) }),
       },
     });
 

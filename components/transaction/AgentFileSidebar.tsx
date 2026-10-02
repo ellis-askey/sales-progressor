@@ -94,6 +94,12 @@ type Props = {
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
   showOurFee?: boolean;
+  // Externally-progressed file: the managing progression business's name. When
+  // set, the "Progressor fee" deduction uses that business's rate card (below)
+  // instead of TSP's fee, the time-split's team row names this business, and the
+  // TSP free-trial copy is suppressed. Null for TSP/self files (unchanged).
+  progressorName?: string | null;
+  progressorRateCardFeePence?: number | null;
   fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
   // Internal staff (SP/admin/superadmin) see the agent vs our-team time split.
   isInternal?: boolean;
@@ -197,6 +203,8 @@ export function AgentFileSidebar({
   keyDates = [],
   exchangeConfirmed = false,
   showOurFee = true,
+  progressorName = null,
+  progressorRateCardFeePence = null,
   recommendedFirms,
   fileTime,
   isInternal = false,
@@ -215,15 +223,24 @@ export function AgentFileSidebar({
   const risk = riskInput ? calculateRiskScore(riskInput) : null;
   const riskConfig = risk && risk.level !== "no_data" ? RISK_CONFIG[risk.level] : null;
 
+  // Externally-progressed file (managed by a non-TSP progression business): the
+  // agency pays the progressor, not us, so the deduction is that business's own
+  // rate-card fee and TSP's billing rules (free-on-exchange, first-outsourced-
+  // free trial, free-plan agency) don't apply.
+  const isProgressorManaged = !!progressorName && transaction.serviceType === "outsourced";
+
   // Fee arithmetic — self-progress is free (2026-08 model); outsourced honours
-  // SP override → agency legacy → sliding scale via calculateOurFee.
-  const ourFee = transaction.serviceType === "self_managed"
-    ? { fee: 0, label: "Free" }
-    : assignedUser
-      ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice, agencyFeeOverride ?? null)
-      : agencyFeeOverride?.feeTier === "legacy" && agencyFeeOverride.legacyOutsourcedFeePence != null
-        ? { fee: agencyFeeOverride.legacyOutsourcedFeePence, label: formatFee(agencyFeeOverride.legacyOutsourcedFeePence) }
-        : { fee: null, label: "" };
+  // SP override → agency legacy → sliding scale via calculateOurFee. An
+  // externally-progressed file uses the progressor's rate card instead.
+  const ourFee = isProgressorManaged
+    ? { fee: progressorRateCardFeePence, label: progressorRateCardFeePence != null ? formatFee(progressorRateCardFeePence) : "" }
+    : transaction.serviceType === "self_managed"
+      ? { fee: 0, label: "Free" }
+      : assignedUser
+        ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice, agencyFeeOverride ?? null)
+        : agencyFeeOverride?.feeTier === "legacy" && agencyFeeOverride.legacyOutsourcedFeePence != null
+          ? { fee: agencyFeeOverride.legacyOutsourcedFeePence, label: formatFee(agencyFeeOverride.legacyOutsourcedFeePence) }
+          : { fee: null, label: "" };
 
   const agentFeeCalcPence: number | null =
     transaction.agentFeeAmount != null
@@ -237,10 +254,14 @@ export function AgentFileSidebar({
   // even on files that pre-date the plan flip (whose freeOnExchange may still
   // be false until the retroactive stamp runs).
   const agencyIsFree = agencyFeeOverride?.feeTier === "free";
-  const progressorFeePence =
-    showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !transaction.firstOutsourcedFree && !agencyIsFree ? ourFee.fee : 0;
-  // Whether to surface a progressor-fee line at all (charged or "Free").
-  const showProgressorRow = showOurFee && ourFee.fee != null && !agencyIsFree;
+  const progressorFeePence = isProgressorManaged
+    ? (showOurFee && ourFee.fee != null ? ourFee.fee : 0)
+    : (showOurFee && ourFee.fee != null && !transaction.freeOnExchange && !transaction.firstOutsourcedFree && !agencyIsFree ? ourFee.fee : 0);
+  // Whether to surface a progressor-fee line at all (charged or "Free"). On an
+  // externally-progressed file the TSP free-plan rule doesn't gate it.
+  const showProgressorRow = isProgressorManaged
+    ? (showOurFee && ourFee.fee != null)
+    : (showOurFee && ourFee.fee != null && !agencyIsFree);
   const hasTotal = agentFeeCalcPence != null;
 
   const agentFeeValue = transaction.agentFeeAmount
@@ -314,10 +335,10 @@ export function AgentFileSidebar({
             + stats strip). Card is now pill + rows + link. */}
         <div style={{ marginTop: 4 }}>
           <SidebarRow label="Time on file" value={fileTime && fileTime.totalSeconds > 0 ? fmtTime(fileTime.totalSeconds) : formatElapsedDays(progress.daysElapsed)} />
-          {isInternal && fileTime && fileTime.totalSeconds > 0 && (
+          {(isInternal || isProgressorManaged) && fileTime && fileTime.totalSeconds > 0 && (
             <>
               <SidebarRow label="Agent" labelStyle={{ paddingLeft: 12 }} value={fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "–"} />
-              <SidebarRow label="Our team" labelStyle={{ paddingLeft: 12 }} value={fileTime.teamSeconds > 0 ? fmtTime(fileTime.teamSeconds) : "–"} />
+              <SidebarRow label={isProgressorManaged ? `${progressorName} team` : "Our team"} labelStyle={{ paddingLeft: 12 }} value={fileTime.teamSeconds > 0 ? fmtTime(fileTime.teamSeconds) : "–"} />
             </>
           )}
           {progress.fileLevelPhase && (
@@ -589,8 +610,8 @@ export function AgentFileSidebar({
               showProgressorRow && (
                 <SidebarRow
                   label="Progressor fee"
-                  value={<span style={{ color: "var(--agent-coral)" }} title={transaction.firstOutsourcedFree ? "Your agency's first outsourced sale is on us." : undefined}>
-                    {transaction.firstOutsourcedFree ? "Free (first file on us)" : "Free"}
+                  value={<span style={{ color: "var(--agent-coral)" }} title={!isProgressorManaged && transaction.firstOutsourcedFree ? "Your agency's first outsourced sale is on us." : undefined}>
+                    {!isProgressorManaged && transaction.firstOutsourcedFree ? "Free (first file on us)" : "Free"}
                   </span>}
                 />
               )

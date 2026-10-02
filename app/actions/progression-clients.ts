@@ -51,6 +51,28 @@ export async function addClientAgencyAction(formData: FormData): Promise<AddClie
   return { ok: true };
 }
 
+/**
+ * Set or clear the business's short display label — the tight-UI name used on the
+ * agent file's "Managed by …" badge (where the full business name can be long).
+ * Owner-gated. An empty value clears the override so the full name is used again.
+ */
+export async function updateBusinessShortNameAction(shortNameRaw: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  const trimmed = shortNameRaw.trim();
+  if (trimmed.length > 40) return { ok: false, error: "Keep the short name to 40 characters or fewer." };
+
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: { shortName: trimmed.length > 0 ? trimmed : null },
+  });
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
 /** Re-send the set-password invite to a client agency's agent. Owner-scoped. */
 export async function resendClientInviteAction(agencyId: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

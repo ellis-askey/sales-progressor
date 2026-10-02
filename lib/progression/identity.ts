@@ -64,6 +64,22 @@ export function clientFacingIdentity(
   };
 }
 
+// Agent-facing label for "who is progressing this file". Null for a TSP/legacy
+// file (null progressionBusinessId, or the seeded TSP row) so callers keep the
+// unchanged "Managed by TSP" / "our team" wording. For an external business it
+// returns the short display name (shortName when set, else the full name) plus
+// the full name for tooltips/aria. Pure — callers load the relation and pass it.
+export type FileProgressorLabel = { name: string; fullName: string } | null;
+
+export function fileProgressorLabel(
+  business: { name: string; shortName: string | null; isTsp: boolean } | null | undefined,
+): FileProgressorLabel {
+  if (!business || business.isTsp) return null;
+  const full = business.name;
+  const short = business.shortName?.trim();
+  return { name: short && short.length > 0 ? short : full, fullName: full };
+}
+
 /** wa.me link from a stored number (digits only). Null when no number set. */
 export function whatsappLink(contactWhatsapp: string | null): string | null {
   if (!contactWhatsapp) return null;

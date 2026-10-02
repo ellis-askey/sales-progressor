@@ -206,6 +206,10 @@ enum AgencyModeProfile {
 model ProgressionBusiness {
   id              String   @id @default(cuid())
   name            String
+  // Optional shortened label for tight UI (e.g. the agent file's "Managed by …"
+  // badge, where the full business name can be long). Falls back to `name` when
+  // null. Set by the business owner in their Clients workspace settings.
+  shortName       String?
   // Exactly one row is the platform operator's own business (The Sales
   // Progressor). Seeded by scripts/seed-progression-tsp.ts and used as the
   // fallback identity for null-progressionBusinessId (TSP) transactions.
