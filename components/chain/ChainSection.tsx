@@ -244,9 +244,7 @@ export function ChainSection({
   const dismissedRow = (
     <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--agent-text-muted)", background: "rgba(var(--agent-coral-rgb), 0.06)" }}>
-          <LinkSimple size={15} weight="regular" />
-        </span>
+        <LinkSimple size={18} weight="bold" color="var(--agent-coral-deep)" style={{ flexShrink: 0 }} />
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>Not in a chain</p>
       </div>
       <button

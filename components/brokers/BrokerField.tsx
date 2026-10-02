@@ -206,9 +206,7 @@ export function BrokerField({
                   /* ── Assigned broker ─────────────────────────────────── */
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(var(--agent-coral-base-rgb), 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Buildings size={12} weight="bold" color="var(--agent-coral-deep)" />
-                  </div>
+                  <Buildings size={18} weight="bold" color="var(--agent-coral-deep)" style={{ flexShrink: 0 }} />
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {value!.firmName}
                   </p>
