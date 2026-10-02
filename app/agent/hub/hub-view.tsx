@@ -22,7 +22,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import type { AgentVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubPipelineHealth, getHubAttentionItems, getHubWins,
-  getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivityFeed, getHubDiary,
+  getHubWeeklyForecast, getHubServiceSplit, getHubClientBreakdown, getHubRecentActivityFeed, getHubDiary,
   getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm, getStalledEnquiries,
   getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
@@ -499,7 +499,7 @@ function FullHubBody({
 
       {/* Unified attention card */}
       <Suspense fallback={<InlineLoadingCard label="Looking for anything needing attention…" minHeight={140} />}>
-        <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} />
+        <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} canSeeUnassigned={!(ctx.isExternalProgressor && !ctx.isBusinessOwner)} />
       </Suspense>
 
       {/* Triage cards — Bookings to confirm → Mortgage offers expiring →
@@ -524,12 +524,18 @@ function FullHubBody({
         </Suspense>
       </div>
 
-      {/* Exchange forecast + Service split grid */}
-      <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: (ctx.isProgressor && !ctx.isAdmin) ? "1fr" : "1fr 1fr", gap: 16 }}>
+      {/* Exchange forecast + (service split / your clients) grid. An external
+          progressor gets the "Your clients" card in the second column instead of
+          the TSP service-split card; a TSP progressor keeps a single column. */}
+      <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: (ctx.isProgressor && !ctx.isAdmin && !ctx.isExternalProgressor) ? "1fr" : "1fr 1fr", gap: 16 }}>
         <Suspense fallback={<InlineLoadingCard label="Loading exchange forecast…" minHeight={220} />}>
           <ExchangeForecastCard ctx={ctx} />
         </Suspense>
-        {(!ctx.isProgressor || ctx.isAdmin) && (
+        {ctx.isExternalProgressor ? (
+          <Suspense fallback={<InlineLoadingCard label="Loading your clients…" minHeight={220} />}>
+            <ClientsBreakdownCard ctx={ctx} />
+          </Suspense>
+        ) : (!ctx.isProgressor || ctx.isAdmin) && (
           <Suspense fallback={<InlineLoadingCard label="Loading service split…" minHeight={220} />}>
             <ServiceSplitCard ctx={ctx} />
           </Suspense>
@@ -564,10 +570,15 @@ async function DiarySlot({ vis }: { vis: AgentVisibility }) {
 }
 
 async function AttentionSlot({
-  vis, initialAttentionItems,
+  vis, initialAttentionItems, canSeeUnassigned = true,
 }: {
   vis: AgentVisibility;
   initialAttentionItems: Awaited<ReturnType<typeof getHubAttentionItems>>;
+  // Assigning files is owner-only for an external progression business, so a
+  // non-owner team member never sees the "needs assigning" queue (they add a sale
+  // and it's theirs; they aren't responsible for assigning agent-added files).
+  // True for everyone else (owner, TSP admin, agency users) — unchanged.
+  canSeeUnassigned?: boolean;
 }) {
   // Expired holds moved OUT of "Needs your attention" (2026-09-09): files on
   // hold with a return date are reviews, not steps to chase, so they now live
@@ -575,7 +586,7 @@ async function AttentionSlot({
   // ReviewsDuePointerSlot below). Needs-you is now cleanly reminders +
   // exchange-passed + the internal assign/relist/chain-setup queues.
   const [unassignedFiles, relistsToAcknowledge, chainSetupPending] = await Promise.all([
-    getHubUnassignedFiles(vis),
+    canSeeUnassigned ? getHubUnassignedFiles(vis) : Promise.resolve([] as Awaited<ReturnType<typeof getHubUnassignedFiles>>),
     getHubRelistsToAcknowledge(vis),
     getHubChainSetupPending(vis),
   ]);
@@ -1223,6 +1234,44 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
             </p>
           )}
         </div>
+      </GlassCard>
+    </SectionReveal>
+  );
+}
+
+// External progression business "Your clients" card — one row per client agency
+// they're actively progressing sales for: active-sale count + pipeline value for
+// everyone, plus the business's own fee income per client for the OWNER only.
+async function ClientsBreakdownCard({ ctx }: { ctx: Ctx }) {
+  const clients = await getHubClientBreakdown(ctx.vis);
+  const showFee = ctx.isBusinessOwner;
+  return (
+    <SectionReveal order={6}>
+      <GlassCard glassId="hub-your-clients" label="Hub · Your clients" defaultVariant="v05" data-testid="hub-your-clients" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
+        <div className="agent-card-hdr-internal">
+          <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Your clients</p>
+          <p className="agent-card-subtitle">Active sales you&rsquo;re progressing for each client.</p>
+        </div>
+        {clients.length === 0 ? (
+          <p style={{ margin: "16px 0 4px", fontSize: 13, color: "var(--agent-text-muted)" }}>No active sales with your clients yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 6 }}>
+              <span style={{ flex: 1, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600 }}>Client</span>
+              <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 54, textAlign: "right" }}>Active</span>
+              <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 64, textAlign: "right" }}>Pipeline</span>
+              {showFee && <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 56, textAlign: "right" }}>Your fee</span>}
+            </div>
+            {clients.map((c) => (
+              <div key={c.agencyId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agencyName}</span>
+                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 54, textAlign: "right" }}>{c.activeSales}</span>
+                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 64, textAlign: "right" }}>{fmtCompact(c.pipelinePence)}</span>
+                {showFee && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", minWidth: 56, textAlign: "right" }}>{fmtCompact(c.feePence)}</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </GlassCard>
     </SectionReveal>
   );

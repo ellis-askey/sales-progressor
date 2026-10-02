@@ -13,6 +13,7 @@ import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
+import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
 import { enquiryNeedsAttention } from "@/lib/enquiries/tracker";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
@@ -2266,6 +2267,40 @@ export async function getHubWeeklyForecast(
 }
 
 // ── Service split ─────────────────────────────────────────────────────────────
+
+/**
+ * External progression business "Your clients" hub card data: one row per client
+ * agency the business is actively progressing sales for, with the active-sale
+ * count, pipeline value, and the business's own rate-card fee income for that
+ * agency. The fee is computed for all rows but the hub card only shows it to the
+ * OWNER (team members see count + pipeline). Business-scoped via vis.businessId;
+ * returns [] for anyone without a business scope (TSP staff / agencies).
+ */
+export async function getHubClientBreakdown(
+  vis: AgentVisibility,
+): Promise<Array<{ agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number }>> {
+  if (!vis.businessId) return [];
+  const [txns, links] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: { progressionBusinessId: vis.businessId, status: "active", isDemo: false },
+      select: { agencyId: true, purchasePrice: true, agency: { select: { name: true } } },
+    }),
+    prisma.progressionBusinessClient.findMany({
+      where: { progressionBusinessId: vis.businessId },
+      select: { agencyId: true, feeModel: true },
+    }),
+  ]);
+  const feeModelByAgency = new Map(links.map((l) => [l.agencyId, parseFeeModel(l.feeModel)]));
+  const byAgency = new Map<string, { agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number }>();
+  for (const t of txns) {
+    const e = byAgency.get(t.agencyId) ?? { agencyId: t.agencyId, agencyName: t.agency.name, activeSales: 0, pipelinePence: 0, feePence: 0 };
+    e.activeSales += 1;
+    e.pipelinePence += t.purchasePrice ?? 0;
+    e.feePence += calculateClientFee(feeModelByAgency.get(t.agencyId) ?? null, t.purchasePrice ?? null) ?? 0;
+    byAgency.set(t.agencyId, e);
+  }
+  return [...byAgency.values()].sort((a, b) => b.activeSales - a.activeSales);
+}
 
 export async function getHubServiceSplit(vis: AgentVisibility): Promise<{
   selfManaged: number;
