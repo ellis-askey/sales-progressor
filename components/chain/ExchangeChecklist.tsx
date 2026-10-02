@@ -93,7 +93,7 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
           {allReady ? "Chain ready" : "Pushing for exchange"}
         </span>
         <h3 style={{ margin: "6px 0 3px", fontSize: 16.5, fontWeight: 730, color: "var(--agent-text-primary)" }}>
-          {allReady ? "The whole chain's ready to exchange." : "You're ready. The chain isn't — here's who's left."}
+          {allReady ? "The whole chain's ready to exchange." : "You're ready. The chain isn't yet. Here's who's left."}
         </h3>
         {!allReady && (
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
