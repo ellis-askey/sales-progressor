@@ -283,6 +283,9 @@ export async function listTransactions(
         // clock shouldn't feed the risk score. inChain only changes the wording.
         awaitingDeposit: nextTask?.reminderLog.reminderRule.targetMilestoneCode === "PM24",
         inChain: tx.chainLinkId != null,
+        // Exchanged files have crossed the finish line — the risk pill shows a
+        // calm "Exchanged" instead of a pace score (critique 2026-10-02).
+        exchanged: tx.exchangedAt != null,
       },
     };
   });
@@ -552,6 +555,9 @@ export async function listTransactionsByScope(scope: AccessScope) {
         // Critique #15: parked on the deposit (next chase targets PM24).
         awaitingDeposit: nextTask?.reminderLog.reminderRule.targetMilestoneCode === "PM24",
         inChain: tx.chainLinkId != null,
+        // Exchanged files have crossed the finish line — the risk pill shows a
+        // calm "Exchanged" instead of a pace score (critique 2026-10-02).
+        exchanged: tx.exchangedAt != null,
       },
     };
   });

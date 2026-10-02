@@ -83,6 +83,9 @@ export type HealthRaw = {
   // changes the status wording.
   awaitingDeposit?: boolean;
   inChain?: boolean;
+  // Contracts exchanged — the risk pill shows a calm "Exchanged" instead of a
+  // pace score (critique 2026-10-02).
+  exchanged?: boolean;
 };
 
 // The single definition of a row's risk level — the exact mapping the List's
@@ -100,6 +103,7 @@ export function riskLevelForRow(t: { health?: HealthRaw }): RiskLevel {
     daysStuckOnMilestone: t.health.daysStuckOnMilestone,
     awaitingDeposit: t.health.awaitingDeposit,
     inChain: t.health.inChain,
+    exchanged: t.health.exchanged,
   }).level;
 }
 

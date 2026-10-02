@@ -1,7 +1,7 @@
 // lib/services/risk.ts
 // Fall-through risk scoring for a transaction. Transparent — factors are exposed to the UI.
 
-export type RiskLevel = "low" | "medium" | "high" | "no_data";
+export type RiskLevel = "low" | "medium" | "high" | "no_data" | "exchanged";
 
 export type RiskFactor = {
   label: string;
@@ -38,6 +38,11 @@ export type RiskInput = {
   // Whether the file is in a chain (chainLinkId set). Only changes the wording
   // of the deposit status line.
   inChain?: boolean;
+  // The sale has exchanged contracts (exchangedAt set / VM19+PM26 done). Exchange
+  // is the finish line every file is racing to — a pace/fall-through score past
+  // that point is meaningless and reads as alarming, so when true the score is
+  // skipped entirely and a calm "Exchanged" state is returned (critique 2026-10-02).
+  exchanged?: boolean;
 };
 
 // Labels dropped from the score + the visible list when awaitingDeposit — all
@@ -46,6 +51,14 @@ const DEPOSIT_SUPPRESSED = new Set(["Overdue reminder", "Multiple overdue remind
 
 export function calculateRiskScore(input: RiskInput): RiskScore {
   const { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone } = input;
+
+  // Exchanged: contracts are exchanged, the sale is legally committed — the
+  // finish line every file races to. A fall-through score past that point is
+  // meaningless, so return a calm "Exchanged" state instead of a pace score
+  // (critique 2026-10-02). Checked first so it wins over every other signal.
+  if (input.exchanged === true) {
+    return { level: "exchanged", score: 0, factors: [] };
+  }
 
   // On hold: risk factors aren't accumulating (clock is frozen), so showing
   // a score would be misleading. Render the no_data state.
@@ -159,4 +172,7 @@ export const RISK_CONFIG: Record<RiskLevel, { label: string; color: string; bg: 
   medium:  { label: "Watch",       color: "text-amber-700",      bg: "bg-amber-50",    border: "border-amber-200",   dot: "bg-amber-400" },
   high:    { label: "At risk",     color: "text-red-700",        bg: "bg-red-50",      border: "border-red-200",     dot: "bg-red-500" },
   no_data: { label: "No data yet", color: "text-slate-500",      bg: "bg-slate-50",    border: "border-slate-200",   dot: "bg-slate-300" },
+  // Exchanged — a calm, settled green. The sale is over the line; this is good
+  // news, not a risk band (critique 2026-10-02).
+  exchanged: { label: "Exchanged", color: "text-emerald-700",   bg: "bg-emerald-50",  border: "border-emerald-200", dot: "bg-emerald-500" },
 };

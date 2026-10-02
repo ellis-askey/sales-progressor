@@ -17,6 +17,7 @@ function buildInput(raw: HealthRaw) {
     daysStuckOnMilestone: raw.daysStuckOnMilestone,
     awaitingDeposit: raw.awaitingDeposit, // critique #15
     inChain: raw.inChain,
+    exchanged: raw.exchanged, // critique 2026-10-02 — exchanged → "Exchanged" pill
   } as const;
 }
 
@@ -123,10 +124,17 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
           {/* Score header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span className={cfg.color} style={{ fontSize: 12, fontWeight: 600 }}>{cfg.label}</span>
-            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{risk.score}/100</span>
+            {risk.level !== "exchanged" && (
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{risk.score}/100</span>
+            )}
           </div>
 
-          {triggered.length === 0 ? (
+          {risk.level === "exchanged" ? (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-success)", display: "flex", alignItems: "flex-start", gap: 6, lineHeight: 1.4 }}>
+              <span>✓</span>
+              Contracts exchanged. This sale is legally committed.
+            </p>
+          ) : triggered.length === 0 ? (
             <p style={{ margin: 0, fontSize: 12, color: "var(--agent-success)", display: "flex", alignItems: "center", gap: 6 }}>
               <span>✓</span>
               No flags. All checks healthy.

@@ -26,6 +26,7 @@ function riskScore(tx: TransactionRow): number {
     daysStuckOnMilestone: tx.health.daysStuckOnMilestone,
     awaitingDeposit: tx.health.awaitingDeposit, // critique #15
     inChain: tx.health.inChain,
+    exchanged: tx.health.exchanged, // critique 2026-10-02
   }).score;
 }
 
