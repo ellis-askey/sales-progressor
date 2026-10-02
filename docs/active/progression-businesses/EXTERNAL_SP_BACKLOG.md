@@ -169,12 +169,25 @@ Deferred from Phase 1:
   fee instead. Founder: yes. Build: compute the business's own fee in
   `getHubWeeklyForecast` for a business viewer (per-file rate card by agency).
 
-Pending founder decision (described in chat 2026-10-02):
-- **P1-f — Agency-breakdown card.** Whether to show the business a "which agencies
-  make up my book" card on the hub (ServiceSplitCard — currently hidden for
-  progressors; its money framing is TSP-admin only).
-- **P1-g — Browser-tab title "Sales Progressor".** Whether the hub/list browser-tab
-  title stays "Sales Progressor" or white-labels.
+Shipped follow-up (commit after 2838d91e):
+- **Wording "book" → "pipeline"** across the hub strings (founder: "book" is
+  gimmicky). Final strings: hub subtitle "Here's what's happening across your
+  pipeline today."; pipeline card "Your pipeline at a glance."; exchange forecast
+  "Exchange forecast across your pipeline."; list subtitle "Every sale your business
+  is progressing." (unchanged).
+- **Team-member empty states (Option B)** shipped — hub: "No active sales yet / When
+  your business takes on sales, you'll see them here."; list: "No active sales yet /
+  Sales your business is progressing will show up here." Owner states unchanged.
+
+Pending founder decision:
+- **P1-f — "Your clients" card (NEW, replacement).** Founder clarified: an external
+  progressor only cares about THEIR outsourced sales per client agency — they are
+  NOT measuring the agencies' self-progressed sales (that self-progress is the
+  agents' own use). So the TSP ServiceSplitCard (self-vs-outsourced split, fee
+  income across everything) does NOT fit. Recommendation: build a NEW card for the
+  external progressor — per client agency, the active sales they're progressing,
+  with a metric per row. **Decide the metric(s):** active-sales count only, +
+  pipeline value, and/or their own fee income per agency. Then build.
 
 ---
 
@@ -189,6 +202,11 @@ Recommendation taken: leave broker-referral editing read-only for external
 progressors, mirroring how TSP's own team is treated (`canEdit = role !==
 "sales_progressor"`). Broker referral fees are the agency's commercial arrangement;
 this keeps the external progressor consistent with TSP and changes nothing for TSP.
+
+### P1-g. Browser-tab title "Sales Progressor" — KEEP (founder, 2026-10-02)
+The hub/list browser-tab title ("… · Sales Progressor") shows only in the browser
+tab/bookmarks, never on the page. Founder: keep it — it's the platform, TSP belongs
+somewhere. No change.
 
 ### 9. "TSP" / "our team" wording fallbacks — VERIFIED SAFE, no change
 An external progressor can only ever see their own files (business access scope),

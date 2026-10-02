@@ -124,7 +124,7 @@ async function getSubtitle(
   isExternalProgressor: boolean,
 ): Promise<string> {
   if (isAdmin) return "Here's what's happening across the platform today.";
-  if (isExternalProgressor) return "Here's what's happening across your book today.";
+  if (isExternalProgressor) return "Here's what's happening across your pipeline today.";
   if (isProgressor) return "Here's what's happening with your assigned files today.";
   try {
     return buildAgencySubtitle(await getHubSubtitleSignals(vis));
@@ -358,7 +358,7 @@ async function FullBodyGate({ ctx }: { ctx: Ctx }) {
 // ── Empty state — verbatim from previous implementation, no fade ────────────
 
 async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
-  const { isProgressor, canCreateSale, isBusinessOwner } = ctx;
+  const { isProgressor, isExternalProgressor, canCreateSale, isBusinessOwner } = ctx;
 
   // Progression-business owner: their pipeline starts with a client, so their
   // first-run state nudges "add your first client" rather than the passive
@@ -386,10 +386,10 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
     <div data-testid="hub-empty-state" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="agent-glass" style={{ padding: "26px 30px", borderRadius: "var(--agent-radius-xl)" }}>
           <p style={{ margin: "0 0 4px", fontSize: "var(--agent-text-h3)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-            No assigned files yet.
+            {isExternalProgressor ? "No active sales yet." : "No assigned files yet."}
           </p>
           <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-            Files assigned to you will appear here.
+            {isExternalProgressor ? "When your business takes on sales, you'll see them here." : "Files assigned to you will appear here."}
           </p>
         </div>
 
@@ -910,7 +910,7 @@ async function PipelineHealthCard({
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
             <p className="agent-card-subtitle">
-              {isAdmin ? "Platform-wide pipeline at a glance." : isExternalProgressor ? "Your book at a glance." : isProgressor ? "Your assigned files at a glance." : "Where your business stands today."}
+              {isAdmin ? "Platform-wide pipeline at a glance." : isExternalProgressor ? "Your pipeline at a glance." : isProgressor ? "Your assigned files at a glance." : "Where your business stands today."}
             </p>
           </div>
         </div>
@@ -1173,7 +1173,7 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
           <p className="agent-card-subtitle">
-            {isAdmin ? "Platform-wide exchange forecast." : isExternalProgressor ? "Exchange forecast across your book." : isProgressor ? "Exchange forecast for your assigned files." : "When your files are due to exchange."}
+            {isAdmin ? "Platform-wide exchange forecast." : isExternalProgressor ? "Exchange forecast across your pipeline." : isProgressor ? "Exchange forecast for your assigned files." : "When your files are due to exchange."}
           </p>
         </div>
 

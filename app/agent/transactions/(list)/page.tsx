@@ -319,10 +319,10 @@ export default async function AllTransactionsPage({
             {isProgressor ? (
               <>
                 <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  No files assigned yet
+                  {isExternalProgressor ? "No active sales yet" : "No files assigned yet"}
                 </p>
                 <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 300, lineHeight: 1.5 }}>
-                  Files assigned to you will appear here.
+                  {isExternalProgressor ? "Sales your business is progressing will show up here." : "Files assigned to you will appear here."}
                 </p>
               </>
             ) : (
