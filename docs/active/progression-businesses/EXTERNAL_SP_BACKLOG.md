@@ -186,8 +186,44 @@ Pending founder decision:
   agents' own use). So the TSP ServiceSplitCard (self-vs-outsourced split, fee
   income across everything) does NOT fit. Recommendation: build a NEW card for the
   external progressor — per client agency, the active sales they're progressing,
-  with a metric per row. **Decide the metric(s):** active-sales count only, +
-  pipeline value, and/or their own fee income per agency. Then build.
+  with a metric per row. **Metrics (founder, 2026-10-02):** team members see active-
+  sales count + pipeline value; the OWNER additionally sees their own fee income per
+  agency (fee is owner-only, consistent with #3). Ready to build.
+
+---
+
+## Phase 1 — round 2 (2026-10-02, after founder review of the build plan)
+
+Shipped (commit 195e8abf):
+- **Needs-assigning is owner-only** (supersedes P1-b). A non-owner team member no
+  longer sees the "needs assigning" queue on the hub. They add a sale and it's
+  theirs; they aren't responsible for assigning agent-added files.
+- **"Your clients" hub card** (was P1-f). Per client agency: active-sales count +
+  pipeline value for all members; the owner also sees their fee income per client.
+
+Refined scope / still to build:
+- **P1-e (TOP) — New-sale flow (refined by founder).** Entry rules: the OWNER always
+  has a New-sale entry (routes them to add a client if they have none, since only
+  the owner manages Clients). A TEAM MEMBER only sees the New-sale entry once the
+  business has ≥1 client (they can't add clients). In the flow, both owner and team
+  pick which client agency the sale is for (team members can see the client list in
+  the picker even though they don't manage the Clients page). A progressor-added
+  sale is assigned to its creator (they take it on; owner can reassign). Security:
+  the server must validate the chosen agency is genuinely one of the business's
+  clients for the actor.
+- **P1-d — Forecast fee (split by founder).** OWNER: show their own business fee
+  income on the hub exchange forecast (build). TEAM MEMBER: show THEIR pay, which
+  needs a team-member-pay model that doesn't exist yet → see P1-h; until then the
+  fee figure is hidden for team members (don't show the agency's commission).
+- **P1-a — See-all vs see-own (refined).** Mirror the agency team UI/flow exactly:
+  the owner sets, per team member, whether they see the whole pipeline or only their
+  own (reuse User.canViewAllFiles; make a business member's visibility honour it).
+
+New deferred item:
+- **P1-h — Team-member pay.** Let the owner set what each team member earns per sale
+  (e.g. £80 per exchange). The member sees their own pay; the owner sees the full
+  client fee (e.g. £350) AND what's paid out to team members. Feeds P1-d's
+  team-member figure and the "Your clients" card's member view. Not started.
 
 ---
 
