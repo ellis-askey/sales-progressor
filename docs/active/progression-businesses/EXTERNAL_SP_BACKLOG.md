@@ -119,6 +119,12 @@ Ties to #2 (assignment). Currently `showOwnership` is suppressed for progressors
 (`ToDoPanel` L55), so a multi-person business can't see task ownership. Needs the
 business-level permission model (owner = all; progressor = own; toggle option).
 
+### E1. Improve the invite email an external progressor sends to an agent
+**Status: deferred (entrance flow).**
+The email a progression business sends to invite one of its client agents in needs
+a copy/branding pass so it reads as coming from that business (and sells the value),
+rather than the generic setup email. Revisit when polishing the entrance flow.
+
 ### 10. `agencyId = ""` fragility in tab badge counts
 **Status: deferred (housekeeping).**
 `layout.tsx` passes `agencyId={session.user.agencyId ?? ""}` into `TabBadgeCounts`.
@@ -126,6 +132,49 @@ It's currently correct (the fetchers treat `""` as "no agency filter", which is
 right for internal staff), but it relies on `""` behaving like `null`. Proper fix:
 pass the access scope instead of a coerced agency id. No behaviour change today; do
 it as part of a scope-threading tidy-up.
+
+---
+
+## Phase 1 — Hub + file list (audited + actioned 2026-10-02)
+
+Shipped (commit 2838d91e), all gated to non-TSP external progressors:
+- **Assignment:** the business OWNER can assign a file to their own team (including
+  themselves), scoped strictly to their business; the picker is now business-scoped
+  (previous agencyId=null cross-business leak closed). Owner-only.
+- **Wording:** file list title "All Files", subtitle "Every sale your business is
+  progressing"; hub subtitle + pipeline + exchange-forecast cards say "your book".
+  A TSP progressor keeps the "assigned files" wording.
+- **"Assigned to" column** restored on the file list for an external progressor.
+
+Deferred from Phase 1:
+- **P1-e (TOP PRIORITY) — Progressor "new sale" entry + agency selection.** The
+  server already supports a progressor creating a sale for a client
+  (`?clientAgencyId`), but there is no generic "New sale" entry for a progressor and
+  no in-flow agency selector. Intended model (founder): progressor clicks New sale →
+  if they have no clients, routed to add a client first; if they have clients, they
+  pick which agency the sale is for. Build: a New-sale entry for progressors + a
+  client/agency selector in the flow + the add-a-client redirect when none.
+- **P1-a — Per-member "see all vs see own" visibility option.** Let the business
+  owner choose, per team member, whether they see the whole book or only their own
+  files (like agencies' `canViewAllFiles`). Ties to #7.
+- **P1-b — Hide the "Assign" button from non-owner members.** Assignment is
+  owner-only and secure (action rejects non-owners; picker is business-scoped), but
+  a non-owner still sees the button and gets a "forbidden" toast. Gate the button to
+  the owner for clean UX (thread isBusinessOwner to the hub AttentionCard).
+- **P1-c — Agency context on hub cards.** Most hub cards show an address but not the
+  agency. Founder decision: leave it — the progressor knows, and it's on the file.
+  NOT DOING.
+- **P1-d — Forecast "fees" shows THEIR figure.** The hub exchange-forecast "£X in
+  fees" shows the agency's commission; show the progression business's own rate-card
+  fee instead. Founder: yes. Build: compute the business's own fee in
+  `getHubWeeklyForecast` for a business viewer (per-file rate card by agency).
+
+Pending founder decision (described in chat 2026-10-02):
+- **P1-f — Agency-breakdown card.** Whether to show the business a "which agencies
+  make up my book" card on the hub (ServiceSplitCard — currently hidden for
+  progressors; its money framing is TSP-admin only).
+- **P1-g — Browser-tab title "Sales Progressor".** Whether the hub/list browser-tab
+  title stays "Sales Progressor" or white-labels.
 
 ---
 
