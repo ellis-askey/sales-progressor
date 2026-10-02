@@ -631,7 +631,10 @@ export async function OverviewPanel({
 
       {/* Solicitors + broker now live in the PeoplePanel "Professionals" tab above. */}
 
-      <RiskScoreWidget input={riskInput} />
+      {/* Once contracts exchange the sale is legally committed — there's no
+          fall-through left to assess, so the risk card simply goes rather than
+          showing a stale pace reading (critique 2026-10-02). */}
+      {!isExchangedOrDone && <RiskScoreWidget input={riskInput} />}
       <PropertyIntelCard transactionId={transaction.id} />
 
       {/* Email + hold controls moved off the Overview tail into the

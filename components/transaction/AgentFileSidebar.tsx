@@ -359,53 +359,61 @@ export function AgentFileSidebar({
           )}
         </div>
 
-        {/* Health meter - subtle bar at the bottom of the card, tinted by
-            onTrack. Not a duplicate of the hero ring (that's the number
-            reading); this is a color-coded visual health indicator for
-            the whole card. 2026-07-06 mock addition. */}
-        <div style={{
-          marginTop: 12,
-          height: 4,
-          background: "rgba(15, 23, 42, 0.05)",
-          borderRadius: 999,
-          overflow: "hidden",
-        }}>
-          <div style={{
-            height: "100%",
-            width: `${Math.max(progress.percent, 4)}%`,
-            background: progress.onTrack === "on_track" ? "var(--agent-success, #10b981)"
-              : progress.onTrack === "at_risk" ? "var(--agent-warning, #f59e0b)"
-              : progress.onTrack === "off_track" ? "var(--agent-danger, #ef4444)"
-              : "rgba(15, 23, 42, 0.2)",
-            borderRadius: 999,
-            transition: "width 700ms ease-out",
-          }} />
-        </div>
+        {/* Health meter + "View health details" link. Both are a fall-through
+            health readout, so once contracts exchange they go — the sale is
+            committed and there's nothing left to assess. The Overview risk card
+            they linked to is hidden at the same point (critique 2026-10-02). */}
+        {!exchangeConfirmed && (
+          <>
+            {/* Health meter - subtle bar at the bottom of the card, tinted by
+                onTrack. Not a duplicate of the hero ring (that's the number
+                reading); this is a color-coded visual health indicator for
+                the whole card. 2026-07-06 mock addition. */}
+            <div style={{
+              marginTop: 12,
+              height: 4,
+              background: "rgba(15, 23, 42, 0.05)",
+              borderRadius: 999,
+              overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.max(progress.percent, 4)}%`,
+                background: progress.onTrack === "on_track" ? "var(--agent-success, #10b981)"
+                  : progress.onTrack === "at_risk" ? "var(--agent-warning, #f59e0b)"
+                  : progress.onTrack === "off_track" ? "var(--agent-danger, #ef4444)"
+                  : "rgba(15, 23, 42, 0.2)",
+                borderRadius: 999,
+                transition: "width 700ms ease-out",
+              }} />
+            </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            // Scroll to the risk score widget on the Overview tab.
-            const el = document.getElementById("risk-score");
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-            } else {
-              setActiveTab("overview");
-            }
-          }}
-          className="agent-link"
-          style={{
-            fontSize: 11,
-            marginTop: 10,
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          View health details <LinkArrow />
-        </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Scroll to the risk score widget on the Overview tab.
+                const el = document.getElementById("risk-score");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                  setActiveTab("overview");
+                }
+              }}
+              className="agent-link"
+              style={{
+                fontSize: 11,
+                marginTop: 10,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              View health details <LinkArrow />
+            </button>
+          </>
+        )}
       </GlassCard>
 
       {/* ─── 2. Key dates ─────────────────────────────────────────────── */}
