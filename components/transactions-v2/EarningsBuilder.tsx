@@ -13,6 +13,7 @@ import { useState } from "react";
 import type { ClientType } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { calculateOurFee } from "@/lib/services/fees";
+import { calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { getVisibleMilestones, type MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
@@ -57,6 +58,7 @@ function Row({ label, value, tone }: { label: React.ReactNode; value: React.Reac
 
 export function EarningsBuilder({
   fields, onUpdate, feeTier, legacyOutsourcedFeePence, withinTrial, allMilestoneDefinitions,
+  progressorName = null, progressorFeeModel = null,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
@@ -64,6 +66,10 @@ export function EarningsBuilder({
   legacyOutsourcedFeePence: number | null;
   withinTrial: boolean;
   allMilestoneDefinitions: MilestoneDefinitionSlim[];
+  // Invited-agent routing: when set, "Sent to us" is their progression business,
+  // priced off that business's per-client rate card instead of TSP's fee.
+  progressorName?: string | null;
+  progressorFeeModel?: ClientFeeModel | null;
 }) {
   const [showMs, setShowMs] = useState(false);
   const { surfaceClass, tag } = useCardSurface("new-sale-file-worth", "New sale · File worth", "agent-glass");
@@ -83,13 +89,24 @@ export function EarningsBuilder({
   const brokRef = fields.brokerReferralFee ?? 0;
   const onwardBrokRef = fields.onwardBrokerReferralFee ?? 0;
 
-  // ── Progression cost ── self-progress = free; sent-to-us = our fee, but free
-  // for the first outsourced sale and for free-plan agencies (mirrors the file).
+  // ── Progression cost ── self-progress = free. Sent to us: for an invited agent
+  // it routes to their progression business and prices off that business's
+  // per-client rate card; otherwise it's TSP's outsourced fee (free on the first
+  // outsourced sale and for free-plan agencies).
   const outsourced = fields.progressedBy === "progressor";
-  const chargeable = outsourced && !withinTrial && feeTier !== "free";
-  const progressionCost = chargeable
-    ? (calculateOurFee(feeTier as ClientType, null, price, { feeTier: feeTier as ClientType, legacyOutsourcedFeePence }).fee ?? 0)
-    : 0;
+  const toProgressor = outsourced && !!progressorName;
+  let progressionCost = 0;
+  let costLabel = "Self-progress";
+  if (toProgressor) {
+    costLabel = `Sent to ${progressorName}`;
+    progressionCost = calculateClientFee(progressorFeeModel ?? null, price ?? null) ?? 0;
+  } else if (outsourced) {
+    costLabel = "Sent to us";
+    const chargeable = !withinTrial && feeTier !== "free";
+    progressionCost = chargeable
+      ? (calculateOurFee(feeTier as ClientType, null, price, { feeTier: feeTier as ClientType, legacyOutsourcedFeePence }).fee ?? 0)
+      : 0;
+  }
 
   const net: number | null = feeIncVatP != null ? feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost : null;
 
@@ -127,11 +144,11 @@ export function EarningsBuilder({
         {brokRef > 0 && <Row label="Broker referral" value={`+${fmt(brokRef)}`} tone="income" />}
         {onwardBrokRef > 0 && <Row label="Seller's broker referral" value={`+${fmt(onwardBrokRef)}`} tone="income" />}
         <Row
-          label={outsourced ? "Sent to us" : "Self-progress"}
-          value={outsourced ? (chargeable ? `−${fmt(progressionCost)}` : "Free") : "Free"}
-          tone={outsourced && chargeable ? "cost" : "muted"}
+          label={costLabel}
+          value={progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
+          tone={progressionCost > 0 ? "cost" : "muted"}
         />
-        {outsourced && withinTrial && feeTier !== "free" && (
+        {outsourced && !toProgressor && withinTrial && feeTier !== "free" && (
           <p style={{ margin: "-2px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
             Your first sale is on us
           </p>

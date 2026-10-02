@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, getInvitingProgressor } from "@/lib/services/progression-clients";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
@@ -223,6 +223,18 @@ export async function createTransactionAction(input: {
     clientCreate = { agencyId: input.clientAgencyId, agentUserId: director?.id ?? null, progressionBusinessId: owner.businessId };
   }
 
+  // Invited-agent "Send to us": an ordinary agent whose agency was set up by a
+  // progression business routes this sale TO that progressor — tag it with their
+  // progressionBusinessId (resolved server-side from the agency's own invite link,
+  // never trusted from the client) and leave it unassigned, so it lands in the
+  // progressor's "needs assigning" queue exactly like a TSP handover. Distinct
+  // from clientCreate (which is the owner acting FOR a client).
+  let invitingProgressorBusinessId: string | null = null;
+  if (isAgent && resolvedProgressedBy === "progressor" && !clientCreate && progressionBusinessesEnabled()) {
+    const inviting = await getInvitingProgressor(session.user.agencyId);
+    invitingProgressorBusinessId = inviting?.businessId ?? null;
+  }
+
   // Universal solicitor invariant (founder decision 2026-09-18): a firm may
   // never be attached without a named case handler, on ANY service type.
   // Migration imports stay exempt (historical records may be sparse).
@@ -246,7 +258,7 @@ export async function createTransactionAction(input: {
   // a file to a progression team. When a progression business creates its OWN
   // file (clientCreate), it is the team from the start, so the gate is skipped
   // (like migration) — the solicitor pair invariant above still applies.
-  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride && !clientCreate) {
+  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride && !clientCreate && !invitingProgressorBusinessId) {
     const readiness = checkOutsourcedHandoverReadiness({
       tenure: input.tenure,
       purchaseType: input.purchaseType,
@@ -320,7 +332,7 @@ export async function createTransactionAction(input: {
     agencyId: effectiveAgencyId,
     assignedUserId: effectiveAssignedUserId,
     agentUserId: effectiveAgentUserId,
-    progressionBusinessId: clientCreate?.progressionBusinessId ?? null,
+    progressionBusinessId: clientCreate?.progressionBusinessId ?? invitingProgressorBusinessId ?? null,
     createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,

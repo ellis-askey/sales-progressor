@@ -312,11 +312,17 @@ type Props = {
   // assigned to the actor). Hides the "self-progress / send to us" toggle — an
   // external business is always the progressor — and is validated server-side.
   clientAgencyId?: string;
+  // Invited-agent routing: the progression business that set up this agency (name
+  // for the "Send to us" label, per-client rate card for the earnings panel). Null
+  // when the agency self-signed-up. "Send to us" then routes to them + prices off
+  // the card (handled server-side in createTransactionAction).
+  progressorName?: string | null;
+  progressorFeeModel?: import("@/lib/progression/client-fees").ClientFeeModel | null;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -1213,6 +1219,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
             canOutsource={!clientAgencyId}
+            progressorName={progressorName}
           />
         </div>
       )}
@@ -1369,6 +1376,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 legacyOutsourcedFeePence={legacyOutsourcedFeePence}
                 withinTrial={withinTrial}
                 allMilestoneDefinitions={allMilestoneDefinitions}
+                progressorName={progressorName}
+                progressorFeeModel={progressorFeeModel}
               />
             ) : intel.state === "success" && intel.data ? (
               <PropertyDossier

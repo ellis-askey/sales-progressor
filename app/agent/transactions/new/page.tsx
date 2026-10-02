@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, getInvitingProgressor } from "@/lib/services/progression-clients";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -53,10 +53,13 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
         select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true },
       })
     : null;
-  const defaultProgressedBy = deriveDefaultProgressedBy(
-    agencyRow?.name,
-    agencyRow?.modeProfile,
-  );
+  // Invited-agent routing: if this agency was set up by a progression business,
+  // "Send to us" means "send to them" — resolve their name + per-client rate card
+  // (for the earnings panel) and default the toggle to the progressor.
+  const invitingProgressor = session.user.agencyId ? await getInvitingProgressor(session.user.agencyId) : null;
+  const defaultProgressedBy = invitingProgressor
+    ? "progressor"
+    : deriveDefaultProgressedBy(agencyRow?.name, agencyRow?.modeProfile);
   // Earnings-builder fee config. Under the 2026-08 model, sending a sale to us
   // is free when it would be the agency's FIRST outsourced file (D3) — i.e. no
   // prior outsourced sale has exchanged yet. (feeTier="free" comped agencies are
@@ -266,6 +269,8 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           legacyOutsourcedFeePence={legacyOutsourcedFeePence}
           withinTrial={withinTrial}
           clientAgencyId={clientAgencyId}
+          progressorName={invitingProgressor?.name ?? null}
+          progressorFeeModel={invitingProgressor?.feeModel ?? null}
         />
       </div>
     </>

@@ -3040,9 +3040,19 @@ export type HubUnassignedFile = {
 };
 
 export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUnassignedFile[]> {
-  if (vis.internalMode !== "admin_all") return [];
+  // TSP admin sees every unassigned outsourced file platform-wide; a progression-
+  // business owner sees only their own business's unassigned files (same pattern
+  // as getHubRelistsToAcknowledge). Everyone else gets nothing.
+  let where: Prisma.PropertyTransactionWhereInput;
+  if (vis.internalMode === "admin_all") {
+    where = { assignedUserId: null, status: "active", serviceType: "outsourced" };
+  } else if (vis.internalMode === "assigned" && vis.businessId) {
+    where = { assignedUserId: null, status: "active", serviceType: "outsourced", progressionBusinessId: vis.businessId };
+  } else {
+    return [];
+  }
   const files = await prisma.propertyTransaction.findMany({
-    where: { assignedUserId: null, status: "active", serviceType: "outsourced" },
+    where,
     take: 20,
     select: {
       id: true,
