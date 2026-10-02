@@ -66,12 +66,20 @@ export function greetingName(name?: string | null): string {
 
 /**
  * Full name with any leading honorific/professional title removed, for inline
- * body sentences like "{name} has invited you". Keeps the surname.
+ * body sentences like "{name} has invited you". Keeps the surname — and keeps
+ * the title when that's all that would be left, so a contact with no first name
+ * on file never collapses to a blunt bare surname.
  * "Mrs Sarah Bennett" → "Sarah Bennett" · "Sarah Bennett" → "Sarah Bennett"
+ * "Mrs Harvey" → "Mrs Harvey" (title + surname only — keep the title). Critique 2026-10-02.
  */
 export function nameWithoutTitle(name?: string | null): string {
   if (!name || !name.trim()) return "";
-  return parseName(name).rest.join(" ") || name.trim();
+  const { prefix, rest } = parseName(name);
+  if (rest.length === 0) return prefix ?? name.trim();
+  // Only a title + surname → keep the title (mirrors getShortName /
+  // extractFirstName), so "Mrs Harvey" never reduces to "Harvey".
+  if (prefix && rest.length === 1) return `${prefix} ${rest[0]}`;
+  return rest.join(" ");
 }
 
 /**
