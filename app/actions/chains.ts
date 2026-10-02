@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
-import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { getAccessScope, scopeOwnershipWhere, scopeTransactionWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/services/activity";
 
@@ -52,4 +52,26 @@ export async function undoNoChainAction(transactionId: string): Promise<void> {
   // The file's Overview chain card reads this flag too — keep an open file tab in sync.
   revalidatePath(`/agent/transactions/${transactionId}`, "page");
   revalidatePath(`/transactions/${transactionId}`, "page");
+}
+
+// Mark that we've chased another agent about their sale in one of our chains —
+// stamps ChainLink.lastAgentChasedAt so it drops down the Check-ins list and the
+// "chased N ago" reads true. Scope-guarded: the link's chain must contain one of
+// the caller's in-scope sales, so you can only touch chains you're actually in.
+// (critique 2026-10-02)
+export async function markChainLinkChasedAction(
+  chainLinkId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const link = await prisma.chainLink.findUnique({ where: { id: chainLinkId }, select: { chainId: true } });
+  if (!link) return { ok: false, error: "That link no longer exists." };
+  const inScope = await prisma.propertyTransaction.findFirst({
+    where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+    select: { id: true },
+  });
+  if (!inScope) return { ok: false, error: "That chain isn't one of yours." };
+  await prisma.chainLink.update({ where: { id: chainLinkId }, data: { lastAgentChasedAt: new Date() } });
+  revalidatePath("/agent/chains");
+  return { ok: true };
 }

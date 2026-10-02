@@ -26,10 +26,11 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
+import { CheckInsList } from "@/components/chain/CheckInsList";
 import { confirmNoChainAction, undoNoChainAction } from "@/app/actions/chains";
-import type { ChainsWorkspaceChain, NoChainSale } from "@/lib/services/chains";
+import type { ChainsWorkspaceChain, NoChainSale, CheckInRow } from "@/lib/services/chains";
 
-type Tab = "chains" | "needs" | "nochain";
+type Tab = "chains" | "needs" | "nochain" | "checkins";
 type ChainSort = "attention" | "length" | "recent";
 type NeedsSort = "oldest" | "newest";
 
@@ -245,11 +246,13 @@ function FilterCheck({ label, checked, onClick }: { label: string; checked: bool
 export function ChainsWorkspace({
   chains,
   noChain,
+  checkIns,
   currentUserId,
   currentUserRole,
 }: {
   chains: ChainsWorkspaceChain[];
   noChain: NoChainSale[];
+  checkIns: CheckInRow[];
   currentUserId: string;
   currentUserRole?: string | null;
 }) {
@@ -337,8 +340,18 @@ export function ChainsWorkspace({
     return [...list].sort((a, b) => (b.noChainConfirmedAt ?? "").localeCompare(a.noChainConfirmedAt ?? ""));
   }, [noChainAll, q]);
 
+  // Check-ins search (address / agent / firm). The list is pre-sorted
+  // least-recently-touched first by the service, so there's no sort control.
+  const visibleCheckIns = useMemo(() => {
+    if (!q) return checkIns;
+    return checkIns.filter((r) =>
+      `${r.address} ${r.agentName ?? ""} ${r.firmName ?? ""}`.toLowerCase().includes(q),
+    );
+  }, [checkIns, q]);
+
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "chains", label: "In chains", count: chains.length },
+    { key: "checkins", label: "Check-ins", count: checkIns.length },
     { key: "needs", label: "Needs chain setup", count: needsSetupAll.length },
     { key: "nochain", label: "No chain", count: noChainAll.length },
   ];
@@ -519,7 +532,7 @@ export function ChainsWorkspace({
             )}
           </div>
 
-          {tab !== "nochain" && (
+          {tab !== "nochain" && tab !== "checkins" && (
             <FilterPopover
               tab={tab}
               chainSort={chainSort}
@@ -577,6 +590,19 @@ export function ChainsWorkspace({
               />
             ))}
           </div>
+        )
+      ) : tab === "checkins" ? (
+        checkIns.length === 0 ? (
+          <EmptyState
+            compact
+            iconBg="var(--agent-success-bg)"
+            title="No one to chase"
+            description="Other agents' sales in your chains show here, quietest first, so you always know who to chase for an update."
+          />
+        ) : visibleCheckIns.length === 0 ? (
+          <EmptyState compact title="No matches" description="No sales match your search." />
+        ) : (
+          <CheckInsList rows={visibleCheckIns} />
         )
       ) : noChainAll.length === 0 ? (
         <EmptyState

@@ -2060,6 +2060,100 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
     .filter((c) => c.openTransactionId);
 }
 
+// One "check-in" row: a CLAIMED sale in the viewer's chains that isn't theirs —
+// another agent's file. Drives the chase-prioritisation list. (critique 2026-10-02)
+export type CheckInRow = {
+  linkId: string;
+  transactionId: string;
+  address: string;
+  agentName: string | null; // the agent to chase (the claiming agent)
+  firmName: string | null;
+  progressPercent: number | null; // cross-agency-safe (same as the ring)
+  // C: the sale's real last-activity date. Only populated for internal TSP
+  // viewers (scope all/assigned), who sit outside the agency privacy wall and
+  // see every file. Null for a customer agency — they can't see across it.
+  lastActivityAt: string | null; // ISO
+  // A: when WE last chased this neighbour's agent — a non-private working stamp,
+  // the privacy-safe staleness signal every viewer gets.
+  lastChasedAt: string | null; // ISO
+  chainName: string | null;
+};
+
+// Check-ins: every claimed sale in the viewer's chains owned by ANOTHER agency,
+// as a "who do I chase next" list, sorted least-recently-touched first. Reuses
+// the listChainsForScope pattern (our chained files → their chains → that
+// chain's links) then keeps only the links that aren't ours.
+export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInRow[]> {
+  const ourTxns = await prisma.propertyTransaction.findMany({
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
+    select: { id: true, chainLink: { select: { chainId: true } } },
+  });
+  const ourTxIds = new Set(ourTxns.map((t) => t.id));
+  const chainIds = [...new Set(ourTxns.map((t) => t.chainLink?.chainId).filter((x): x is string => !!x))];
+  if (chainIds.length === 0) return [];
+  // Internal staff see across the agency wall (canViewNodeIntel). Customer
+  // agencies do not, so they never get another agency's real last-activity.
+  const seeAllActivity = scope.kind === "all" || scope.kind === "assigned";
+
+  const chains = await prisma.propertyChain.findMany({
+    where: { id: { in: chainIds } },
+    select: {
+      name: true,
+      links: {
+        where: { transactionId: { not: null } },
+        select: {
+          id: true,
+          transactionId: true,
+          lastAgentChasedAt: true,
+          claimedBy: { select: { name: true, firmName: true } },
+          transaction: {
+            select: {
+              id: true,
+              propertyAddress: true,
+              lastActivityAt: true,
+              milestoneCompletions: {
+                select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const rows: CheckInRow[] = [];
+  for (const chain of chains) {
+    for (const l of chain.links) {
+      if (!l.transactionId || ourTxIds.has(l.transactionId) || !l.transaction) continue; // only others' claimed links
+      rows.push({
+        linkId: l.id,
+        transactionId: l.transactionId,
+        address: l.transaction.propertyAddress,
+        agentName: l.claimedBy?.name ?? null,
+        firmName: l.claimedBy?.firmName ?? null,
+        progressPercent: computeWeightedProgress(l.transaction.milestoneCompletions),
+        lastActivityAt: seeAllActivity ? (l.transaction.lastActivityAt?.toISOString() ?? null) : null,
+        lastChasedAt: l.lastAgentChasedAt?.toISOString() ?? null,
+        chainName: chain.name,
+      });
+    }
+  }
+
+  // Least-recently-touched first. Staleness = the real last-activity (internal)
+  // or, failing that, when we last chased them. A sale neither touched nor
+  // chased sorts to the very top — quietest/longest unchased. ISO strings
+  // compare chronologically.
+  const touch = (r: CheckInRow) => r.lastActivityAt ?? r.lastChasedAt;
+  rows.sort((a, b) => {
+    const ka = touch(a), kb = touch(b);
+    if (!ka && !kb) return 0;
+    if (!ka) return -1;
+    if (!kb) return 1;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  return rows;
+}
+
 // Nav badge: live sales that still need chain setup — no chain linked and not
 // yet confirmed "no chain needed". (The stale-confirmation "resurfaced" edge is
 // omitted for the count; the queue itself handles it.)
