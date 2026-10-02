@@ -185,7 +185,10 @@ export function chainStatusMeta(link: ChainLinkV2, currentUserId: string): strin
     { transactionId: link.transactionId, claimedByUserId: link.claimedByUserId, stubAgentEmail: link.stubAgentEmail, inviteStatus: link.inviteStatus },
     currentUserId,
   );
-  if (status.kind === "invited") return `Invite sent · ${relativeTime(link.inviteSentAt)}`;
+  // The "Invited" status pill already names the invite — the meta line just
+  // carries the timing, so it reads "Invited · just now" not "Invited · Invite
+  // sent · just now" (critique 2026-10-02).
+  if (status.kind === "invited") return relativeTime(link.inviteSentAt);
   if (status.kind === "bounced") return "Email bounced";
   if (status.kind === "declined") return `Agent declined · ${relativeTime(link.inviteDeclinedAt)}`;
   // "Email needed" is dropped — the "Add email to invite" CTA already says it.
@@ -915,7 +918,8 @@ export function LinkCard({
 
   // Meta descriptor for the bottom bar (left side).
   let meta = "";
-  if (status.kind === "invited") meta = `Invite sent · ${relativeTime(link.inviteSentAt)}`;
+  // "Invited" pill carries the word; the meta is just the timing (critique 2026-10-02).
+  if (status.kind === "invited") meta = relativeTime(link.inviteSentAt);
   else if (status.kind === "bounced") meta = "Email bounced";
   else if (status.kind === "declined") meta = `Agent declined · ${relativeTime(link.inviteDeclinedAt)}`;
   else if (status.kind === "unclaimed_no_email") meta = "Email needed";

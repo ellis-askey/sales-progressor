@@ -533,29 +533,34 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     </p>
                   )}
                 </div>
+              </div>
+              {/* Foot row — pill (+ memo link) on the left, date bottom-right
+                  opposite the pill, matching the comm card so the two never
+                  disagree on where the date sits (critique 2026-10-02). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+                  <Pill glass tone={entry.isNotRequired ? "default" : "success"} size="sm">
+                    {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
+                  </Pill>
+                  {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
+                    <a
+                      href={mosDocUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 transition-colors whitespace-nowrap"
+                      style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6" }}
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      View Memo
+                    </a>
+                  )}
+                </div>
                 {entry.at && (
-                  <time style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", marginTop: 3 }}>
+                  <time style={{ flexShrink: 0, fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
                     {formatTimestamp(entry.at)}
                   </time>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                <Pill glass tone={entry.isNotRequired ? "default" : "success"} size="sm">
-                  {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
-                </Pill>
-                {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
-                  <a
-                    href={mosDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 transition-colors whitespace-nowrap"
-                    style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6", marginLeft: "auto" }}
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    View Memo
-                  </a>
                 )}
               </div>
             </GlassCard>
