@@ -44,6 +44,24 @@ export async function isBusinessOwnerViewer(session: Session): Promise<boolean> 
   return (await resolveBusinessOwner(session)) !== null;
 }
 
+/**
+ * Is the viewer a member (owner OR team) of an EXTERNAL progression business —
+ * i.e. a sales_progressor whose business is not TSP? True for anyone who sees a
+ * whole business book rather than TSP's per-user assigned work. Used to pick
+ * business-book framing (titles/columns/empty states) without ever touching TSP
+ * staff: a TSP sales_progressor (isTsp business, or none) returns false. Flag off
+ * short-circuits with no query.
+ */
+export async function isExternalProgressorViewer(session: Session): Promise<boolean> {
+  if (!progressionBusinessesEnabled()) return false;
+  if (session.user.role !== "sales_progressor") return false;
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { progressionBusiness: { select: { isTsp: true } } },
+  });
+  return !!me?.progressionBusiness && !me.progressionBusiness.isTsp;
+}
+
 export type AddClientAgencyInput = {
   owner: BusinessOwner;
   agentName: string;

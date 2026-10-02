@@ -33,7 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -121,8 +121,10 @@ async function getSubtitle(
   vis: AgentVisibility,
   isAdmin: boolean,
   isProgressor: boolean,
+  isExternalProgressor: boolean,
 ): Promise<string> {
   if (isAdmin) return "Here's what's happening across the platform today.";
+  if (isExternalProgressor) return "Here's what's happening across your book today.";
   if (isProgressor) return "Here's what's happening with your assigned files today.";
   try {
     return buildAgencySubtitle(await getHubSubtitleSignals(vis));
@@ -182,6 +184,9 @@ type Ctx = {
   role: string;
   isInternalStaff: boolean;
   isProgressor: boolean;
+  // Member (owner or team) of an external, non-TSP progression business — sees
+  // the whole business book. Drives business-book copy; TSP progressors are false.
+  isExternalProgressor: boolean;
   isAdmin: boolean;
   canCreateSale: boolean;
   // True only for a progression-business OWNER (flag-gated), whose first-run
@@ -222,6 +227,10 @@ export default async function Hub() {
   // Flag-gated + DB-checked: only a genuine progression-business owner. The
   // helper short-circuits (no query) when the flag is off.
   const isBusinessOwner   = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // External progression business member (owner or team): sees the whole business
+  // book, not TSP's per-user "assigned files". Reframes hub copy for them; a TSP
+  // progressor returns false and keeps the existing "assigned files" wording.
+  const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
 
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
@@ -229,13 +238,13 @@ export default async function Hub() {
 
   const greeting = getGreeting(session.user.name ?? "there");
   const [subtitle, claimedFirstSale] = await Promise.all([
-    getSubtitle(vis, isAdmin, isProgressor),
+    getSubtitle(vis, isAdmin, isProgressor, isExternalProgressor),
     // Agency users only; a claimed single sale flips the header CTA to a
     // profile nudge and drives the welcome hero further down.
     isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(vis).catch(() => null),
   ]);
 
-  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isAdmin, canCreateSale, isBusinessOwner, claimedFirstSale };
+  const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isExternalProgressor, isAdmin, canCreateSale, isBusinessOwner, claimedFirstSale };
 
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -868,7 +877,7 @@ async function PipelineHealthCard({
   const health = await getHubPipelineHealth(ctx.vis);
   const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
   const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
-  const { isAdmin, isProgressor } = ctx;
+  const { isAdmin, isProgressor, isExternalProgressor } = ctx;
 
   // Momentum: last 30 days vs the previous 30 (fair like-for-like, unlike a
   // month-to-date comparison). Only shown with a real base (avoids "↑100%" off
@@ -901,7 +910,7 @@ async function PipelineHealthCard({
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
             <p className="agent-card-subtitle">
-              {isAdmin ? "Platform-wide pipeline at a glance." : isProgressor ? "Your assigned files at a glance." : "Where your business stands today."}
+              {isAdmin ? "Platform-wide pipeline at a glance." : isExternalProgressor ? "Your book at a glance." : isProgressor ? "Your assigned files at a glance." : "Where your business stands today."}
             </p>
           </div>
         </div>
@@ -1157,14 +1166,14 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
   const busiestWhen = busiest?.isCurrentWeek
     ? "this week"
     : busiestWeeksOut === 1 ? "next week" : `${busiestWeeksOut} weeks out`;
-  const { isAdmin, isProgressor } = ctx;
+  const { isAdmin, isProgressor, isExternalProgressor } = ctx;
   return (
     <SectionReveal order={5}>
       <GlassCard glassId="hub-exchange-forecast" label="Hub · Exchange forecast" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
           <p className="agent-card-subtitle">
-            {isAdmin ? "Platform-wide exchange forecast." : isProgressor ? "Exchange forecast for your assigned files." : "When your files are due to exchange."}
+            {isAdmin ? "Platform-wide exchange forecast." : isExternalProgressor ? "Exchange forecast across your book." : isProgressor ? "Exchange forecast for your assigned files." : "When your files are due to exchange."}
           </p>
         </div>
 

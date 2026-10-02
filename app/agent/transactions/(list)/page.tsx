@@ -12,7 +12,7 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -104,10 +104,17 @@ export default async function AllTransactionsPage({
   // A progression-business owner's files come from clients they add, not from
   // being assigned work, so their empty state points at Clients (not "assigned").
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // An external progression business member (owner or team) sees their whole
+  // business book across client agencies — NOT files "assigned to them". This
+  // flag reframes the title/subtitle/column for them. It is strictly non-TSP: a
+  // TSP sales_progressor returns false and keeps the "assigned to you" framing.
+  const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
   // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
   // their own name, which is redundant. Directors and internal staff see files belonging to multiple
-  // people, so the column is meaningful for them.
-  const showAssignedToColumn = session.user.role !== "negotiator" && session.user.role !== "sales_progressor";
+  // people, so the column is meaningful for them. An external progressor also sees a multi-teammate
+  // book, so the column is restored for them (but stays hidden for a TSP progressor).
+  const showAssignedToColumn = session.user.role !== "negotiator"
+    && (session.user.role !== "sales_progressor" || isExternalProgressor);
 
   // Three-way filter priority: hubFilter → monthFilter → statusFilter.
   // Only the highest-priority filter that resolves is used.
@@ -194,10 +201,11 @@ export default async function AllTransactionsPage({
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
        * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
       <PageHeader
-        title={isDirector || isAdminPowers ? "All Files" : "My Files"}
+        title={isDirector || isAdminPowers || isExternalProgressor ? "All Files" : "My Files"}
         subtitle={
           isAdminPowers                      ? "Every file across every agency." :
           isDirector                         ? "Every file across the agency." :
+          isExternalProgressor               ? "Every sale your business is progressing." :
           session.user.role === "sales_progressor" ? "Files assigned to you." :
           "Files assigned to you."
         }

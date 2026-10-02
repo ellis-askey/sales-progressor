@@ -1446,13 +1446,26 @@ export async function reassignAgentAction(transactionId: string, newAgentUserId:
 export async function assignUserAction(transactionId: string, assignedUserId: string | null) {
   const session = await requireSession();
   const scope = getAccessScope(session);
-  if (scope.kind !== "all") throw new Error("Forbidden: only admin can assign a progressor");
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
     select: { id: true, assignedUserId: true, progressionBusinessId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Who may assign: a TSP admin (scope "all") on any file; OR the OWNER of the
+  // external progression business that owns THIS file — they manage their own
+  // team's workload. Regular business members and agency users cannot (owner-only
+  // for now; widening to members is a tracked backlog decision). The owner is
+  // bound to their own business: the check below fails for any file outside it,
+  // and for TSP files (progressionBusinessId = null) only the admin branch passes,
+  // so nothing changes for TSP.
+  let allowed = scope.kind === "all";
+  if (!allowed && tx.progressionBusinessId && progressionBusinessesEnabled()) {
+    const owner = await resolveBusinessOwner(session);
+    allowed = !!owner && owner.businessId === tx.progressionBusinessId;
+  }
+  if (!allowed) throw new Error("Forbidden: only an admin or the file's progression-business owner can assign it");
 
   // Forward-safety for the multi-progression-business model: a file owned by an
   // external progression business may only be assigned to a member of THAT
