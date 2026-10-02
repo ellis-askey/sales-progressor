@@ -75,3 +75,32 @@ export async function markChainLinkChasedAction(
   revalidatePath("/agent/chains");
   return { ok: true };
 }
+
+// Exchange-push: confirm (or un-confirm) that another sale in one of our chains
+// is ready to exchange — our manual override, set as we chase round. Stamps
+// ChainLink.exchangeReadyConfirmedAt. Scope-guarded to chains the caller is in.
+// Used by both the file Overview panel and the chains "Push to exchange" tab, so
+// a tick in one shows in the other. (critique 2026-10-02)
+export async function setChainLinkExchangeReadyAction(
+  chainLinkId: string,
+  ready: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const link = await prisma.chainLink.findUnique({ where: { id: chainLinkId }, select: { chainId: true } });
+  if (!link) return { ok: false, error: "That link no longer exists." };
+  const inScope = await prisma.propertyTransaction.findFirst({
+    where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+    select: { id: true },
+  });
+  if (!inScope) return { ok: false, error: "That chain isn't one of yours." };
+  await prisma.chainLink.update({
+    where: { id: chainLinkId },
+    data: {
+      exchangeReadyConfirmedAt: ready ? new Date() : null,
+      exchangeReadyConfirmedById: ready ? session.user.id : null,
+    },
+  });
+  revalidatePath("/agent/chains");
+  return { ok: true };
+}

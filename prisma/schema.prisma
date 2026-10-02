@@ -2594,6 +2594,12 @@ model ChainLink {
   // When our team last chased this neighbour's agent for an update (the manual
   // chain-neighbour chase). Powers the "chased X ago" hint + a resend dedup guard.
   lastAgentChasedAt    DateTime?
+  // Exchange-push: when WE manually confirmed this link is ready to exchange
+  // (e.g. agreed on the phone). The agent-maintained override that covers lazy
+  // agents + not-joined stubs, alongside the auto-read of an on-platform file's
+  // own VM18+PM25. Null = not confirmed by us. Critique 2026-10-02.
+  exchangeReadyConfirmedAt   DateTime?
+  exchangeReadyConfirmedById String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

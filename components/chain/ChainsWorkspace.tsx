@@ -27,10 +27,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
 import { CheckInsList } from "@/components/chain/CheckInsList";
+import { ExchangePushList } from "@/components/chain/ExchangePushList";
 import { confirmNoChainAction, undoNoChainAction } from "@/app/actions/chains";
 import type { ChainsWorkspaceChain, NoChainSale, CheckInRow } from "@/lib/services/chains";
+import type { ExchangePushSummary } from "@/lib/services/exchange-push";
 
-type Tab = "chains" | "needs" | "nochain" | "checkins";
+type Tab = "chains" | "needs" | "nochain" | "checkins" | "pushexchange";
 type ChainSort = "attention" | "length" | "recent";
 type NeedsSort = "oldest" | "newest";
 
@@ -247,12 +249,14 @@ export function ChainsWorkspace({
   chains,
   noChain,
   checkIns,
+  exchangePush,
   currentUserId,
   currentUserRole,
 }: {
   chains: ChainsWorkspaceChain[];
   noChain: NoChainSale[];
   checkIns: CheckInRow[];
+  exchangePush: ExchangePushSummary[];
   currentUserId: string;
   currentUserRole?: string | null;
 }) {
@@ -352,6 +356,7 @@ export function ChainsWorkspace({
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "chains", label: "In chains", count: chains.length },
     { key: "checkins", label: "Check-ins", count: checkIns.length },
+    { key: "pushexchange", label: "Push to exchange", count: exchangePush.length },
     { key: "needs", label: "Needs chain setup", count: needsSetupAll.length },
     { key: "nochain", label: "No chain", count: noChainAll.length },
   ];
@@ -532,7 +537,7 @@ export function ChainsWorkspace({
             )}
           </div>
 
-          {tab !== "nochain" && tab !== "checkins" && (
+          {tab !== "nochain" && tab !== "checkins" && tab !== "pushexchange" && (
             <FilterPopover
               tab={tab}
               chainSort={chainSort}
@@ -590,6 +595,17 @@ export function ChainsWorkspace({
               />
             ))}
           </div>
+        )
+      ) : tab === "pushexchange" ? (
+        exchangePush.length === 0 ? (
+          <EmptyState
+            compact
+            iconBg="var(--agent-success-bg)"
+            title="Nothing waiting to exchange"
+            description="When a sale is ready on both sides but waiting on its chain, it shows here so you can chase the rest over the line."
+          />
+        ) : (
+          <ExchangePushList files={exchangePush} />
         )
       ) : tab === "checkins" ? (
         checkIns.length === 0 ? (

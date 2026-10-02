@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope, listCheckInsForScope } from "@/lib/services/chains";
+import { listExchangePushForScope } from "@/lib/services/exchange-push";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -34,10 +35,11 @@ export default async function AgentChainsPage() {
   const isProgressor = session.user.role === "sales_progressor";
   const isAllScope = scope.kind === "all";
 
-  const [chains, noChain, checkIns] = await Promise.all([
+  const [chains, noChain, checkIns, exchangePush] = await Promise.all([
     listChainsForScope(scope),
     listNoChainSalesForScope(scope),
     listCheckInsForScope(scope),
+    listExchangePushForScope(scope),
   ]);
 
   const subtitle = isAllScope
@@ -55,6 +57,7 @@ export default async function AgentChainsPage() {
           chains={chains}
           noChain={noChain}
           checkIns={checkIns}
+          exchangePush={exchangePush}
           currentUserId={session.user.id}
           currentUserRole={session.user.role}
         />

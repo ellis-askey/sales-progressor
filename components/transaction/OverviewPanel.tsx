@@ -36,7 +36,9 @@ import type { MilestoneSideState } from "@/components/transaction/NextMilestoneW
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
 import { ActivityNotesCard } from "@/components/transaction/ActivityNotesCard";
 import { CheckpointsCard } from "@/components/transaction/CheckpointsCard";
+import { Suspense } from "react";
 import { PropertyChainCard } from "@/components/transaction/PropertyChainCard";
+import { ExchangePushPanel } from "@/components/transaction/ExchangePushPanel";
 import { getOnwardTrackerView, getOnwardSignalForFile, getRelatedSaleSignalForFile } from "@/lib/services/onward";
 import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
@@ -573,6 +575,13 @@ export async function OverviewPanel({
       {/* AI summary hidden 2026-09-02 — not polished enough to show yet.
           Re-enable by removing the `false &&`. Tracked in docs/active/TODO.md. */}
       {false && isEllis && <AiSummaryCard transactionId={transaction.id} />}
+
+      {/* Exchange-push: when this sale is ready on both sides but waiting on its
+          chain, the "chase the chain to exchange" checklist leads the chain area
+          (returns null otherwise). Critique 2026-10-02. */}
+      <Suspense fallback={null}>
+        <ExchangePushPanel transactionId={transaction.id} />
+      </Suspense>
 
       {/* Chain spine card, moved up into the old AI-summary slot (2026-09-02):
           onward above, this sale in the middle, related below, neighbours nudge

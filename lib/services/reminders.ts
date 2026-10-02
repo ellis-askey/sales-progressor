@@ -894,6 +894,21 @@ export async function evaluateTransactionReminders(
       const vm18At = vm18!.eventDate ?? vm18!.completedAt ?? null;
       const pm25At = pm25!.eventDate ?? pm25!.completedAt ?? null;
       exchangeReadyAnchor = vm18At && pm25At ? (vm18At > pm25At ? vm18At : pm25At) : (vm18At ?? pm25At ?? null);
+
+      // Exchange-push stand-down: both sides are ready AND this sale is in a
+      // chain, so the "chase the chain to exchange" surface (file panel + the
+      // chains "Push to exchange" tab) now owns the chase. Retire the weekly
+      // "Awaiting exchange" reminder so the agent isn't nagged while they work
+      // the chain. A sale with no chain keeps the reminder — there's no chain to
+      // chase. Critique 2026-10-02.
+      const inChain = await prisma.propertyTransaction.findFirst({
+        where: { id: transactionId, chainLinkId: { not: null } },
+        select: { id: true },
+      });
+      if (inChain) {
+        await deactivateLog(transactionId, rule.id, "In exchange-push: chasing the chain to exchange", assignedUserId, activeLogByRuleId.get(rule.id) ?? null);
+        continue;
+      }
     }
 
     // Check if target milestone is already confirmed — if so, deactivate
