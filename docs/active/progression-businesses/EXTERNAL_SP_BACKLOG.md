@@ -254,6 +254,34 @@ view-only for TSP on external nodes.
 
 ---
 
+## P1-e — Progressor new-sale flow (investigated 2026-10-03, ready to build)
+
+Founder decisions: team members have NO "New sale" entry until the owner has added
+≥1 client; the owner always has it (routes to add-a-client if they have none).
+Both owner and team members can add a sale and **choose which client agency** it is
+for (a dropdown, best at the end of the add flow — reuse the control agents already
+use to assign a sale). A progressor-added sale is **assigned to its creator by
+default**, with the option to **choose a team member** (owner picking for the team).
+
+Build pieces (all gated to non-TSP external progressors):
+1. **Entry gating** — show "New sale" to a progressor when: owner (always), or team
+   member AND the business has ≥1 client. Currently hidden for all sales_progressor
+   on hub (`hub-view.tsx` canCreateSale) + list (`(list)/page.tsx`).
+2. **In-flow client-agency picker** — a dropdown listing the business's client
+   agencies, setting `clientAgencyId` (today that only comes from `?clientAgencyId`
+   in the URL when launched from inside a client). Needs a "my business's client
+   agencies" data function (reuse getClientsOverview).
+3. **Generalise the create path** — `createTransactionAction` `clientCreate` is
+   OWNER-only (`resolveBusinessOwner`). Generalise to ANY business member: validate
+   the chosen agency is a client of the ACTOR'S business (owner or member), via a
+   new `resolveBusinessMember(session)` helper. Security boundary stays: the agency
+   must be the business's client; assignee must be a member of the business.
+4. **Assign control** — reuse `assignToUserId` + `assignableAgents` (the director
+   assign-to-colleague control), populated with the BUSINESS's members; default to
+   the creator (self-assign). Validate assignToUserId ∈ business server-side.
+
+---
+
 ## Decided — no change (recorded so they're not re-raised)
 
 ### 5. "Managed by {their own business}" hero badge — KEEP
