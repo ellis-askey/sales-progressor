@@ -8,7 +8,7 @@ import { SessionProvider } from "@/components/layout/SessionProvider";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { CookieConsentBanner } from "@/components/analytics/CookieConsentBanner";
 import { getSession } from "@/lib/session";
-import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { canUseCritique } from "@/lib/agent-session";
 import { CritiqueLauncher } from "@/components/command/critique/CritiqueLauncher";
 
 const geistSans = Geist({
@@ -69,10 +69,10 @@ export default async function RootLayout({
 }) {
   const session = await getSession();
   const isInternalStaff = session?.user?.role === "admin" || session?.user?.role === "sales_progressor" || session?.user?.role === "superadmin";
-  // Founder Critique launcher: superadmin-only, mounted here at the app root so
-  // it's available above everything on every surface (not rendered for anyone
-  // else, so the screenshot lib never enters their bundle).
-  const isSuperadmin = !!session && hasSuperAdminPowers(session);
+  // Founder Critique launcher: superadmin (or an allowlisted founder test account),
+  // mounted here at the app root so it's available above everything on every surface
+  // (not rendered for anyone else, so the screenshot lib never enters their bundle).
+  const showCritique = !!session && canUseCritique(session);
 
   return (
     // suppressHydrationWarning: the ThemeModeBoot inline script mutates
@@ -85,7 +85,7 @@ export default async function RootLayout({
           <PostHogProvider>
             {!isInternalStaff && <CookieConsentBanner />}
             {children}
-            {isSuperadmin && <CritiqueLauncher />}
+            {showCritique && <CritiqueLauncher />}
           </PostHogProvider>
         </SessionProvider>
       </body>

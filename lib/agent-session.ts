@@ -51,7 +51,7 @@ const AGENT_ROLES = new Set<UserRole>([
 // (edge-safe, no Node imports) so the middleware can read the same lists. Keep
 // both allowlists tiny — they exist as a per-user exception, not a policy.
 
-import { isHybridAdminEmail, isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
+import { isHybridAdminEmail, isHybridSuperadminEmail, isCritiqueTesterEmail } from "@/lib/security/hybrid-emails";
 
 export function hasAdminPowers(session: Session): boolean {
   const role = session.user.role as UserRole;
@@ -67,6 +67,14 @@ export function hasSuperAdminPowers(session: Session): boolean {
   if (session.user.role === "superadmin") return true;
   if (isHybridSuperadminEmail(session.user.email)) return true;
   return false;
+}
+
+// Who may fire a Critique note. Superadmins always can; plus the founder test
+// accounts (isCritiqueTesterEmail) so the external progression business + its
+// client agency can be critiqued from their own production logins. This grants
+// ONLY the critique capability — nothing else in the command centre.
+export function canUseCritique(session: Session): boolean {
+  return hasSuperAdminPowers(session) || isCritiqueTesterEmail(session.user.email);
 }
 
 export type AgentSessionContext = {

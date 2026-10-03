@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { canUseCritique } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import { createCritiqueUploadUrl, critiqueObjectExists } from "@/lib/command/critique-storage";
 
@@ -16,7 +16,11 @@ import { createCritiqueUploadUrl, critiqueObjectExists } from "@/lib/command/cri
 
 async function guard() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !hasSuperAdminPowers(session)) return null;
+  // Critique capture is open to superadmins AND the allowlisted founder test
+  // accounts (so the external progression business + its client agency can be
+  // critiqued live). commandDb is a full-access client, but this route only ever
+  // writes a CritiqueNote + a screenshot — no other tenant data is touched.
+  if (!session?.user || !canUseCritique(session)) return null;
   return session;
 }
 

@@ -192,6 +192,13 @@ The full external-progressor programme (Clients CRM, business settings, two-tier
 4. **No new env vars / integrations** — reuses the existing SendGrid account + `CRON_SECRET`/`NEXTAUTH_*`.
 - **Note (not a kill-switch):** turning the flag OFF *after* a pilot business is onboarded does NOT hide that business's already-created data (the isolation layer stays on by design); it only re-blocks the gated entry points (onboarding, client mgmt, settings, new-sale). The flag is a clean pre-launch gate, a partial post-onboarding rollback.
 
+#### Production test round (critique from the test logins)
+To critique the external-progressor surfaces live from the test accounts:
+1. **Deploy the code to prod** (staging → master) and set `PROGRESSION_BUSINESSES_ENABLED=true` on prod, so signup account-type + Clients/Team pages work.
+2. **Sign up the two test accounts** on prod: the external business with `ellisaskey+testprog@googlemail.com`, then add a client agency with `ellisaskey+testclient@googlemail.com`.
+3. **Critique button** now appears for both (they're on a temporary allowlist in `lib/security/hybrid-emails.ts` → `CRITIQUE_TESTER_EMAILS`). Notes land in the same place as your superadmin critiques (Command Centre → Critique). It only grants critique capture, nothing else in the command centre.
+4. **CLEANUP after the test:** remove the two emails from `CRITIQUE_TESTER_EMAILS` (and optionally delete the test accounts/business — note the RESTRICT FKs, so offboard their files/users first).
+
 ### Business billing (#3) — DARK; go-live steps when you want to charge external businesses
 The business billing is built but **not taking any money** — it computes + shows the bill (£59 base + £39/extra member + £5/sale) and accrues the £5-per-sale at exchange, but creates no Stripe objects and charges nothing until you flip the collection switch. To go live:
 1. **In Stripe:** create two **recurring (monthly) Prices** — one at £59 (the base/main user) and one at £39 (per team member seat). Copy their price IDs.
