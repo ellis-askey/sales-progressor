@@ -66,6 +66,58 @@ Not a leak, not TSP-misrouted — a surfacing gap. Deferred.
 
 ---
 
+## Capstone audit — open items (2026-10-03)
+
+A 4-sweep final audit (lifecycle, security, commercial, feature/launch). The
+unambiguous must-dos (internal-task write isolation, reminder-count TSP filter,
+enquiry-footer leak) were FIXED (commit 37099921). The below need a founder
+decision or are consciously deferred.
+
+### Needs a founder decision (potential launch-shapers)
+1. **OAuth signup makes a progressor into an AGENCY, not a business.**
+   `app/actions/complete-oauth-signup.ts:55` hardcodes `createDirectorWithAgency`;
+   no account-type branch. Password signup is correct; Google/Microsoft is not.
+   Decide: wire the business branch (the `userId` path in
+   `create-progression-business-with-owner.ts:56` is dead code waiting), OR disable
+   OAuth for progressor signup. Launch-blocking only if OAuth is offered to progressors.
+2. **No "invite a team member" flow for a business's OWN staff (Arc T).** `/agent/team`
+   only toggles see-all/see-own; no add/invite/remove-member action. Solo-owner pilot
+   is fine; a 2+ person business can't onboard a second seat. Decide: build Arc T now,
+   or launch solo-owner only. (When built, member removal MUST bump `sessionVersion` —
+   `progressionBusinessId`/`role` are only read at login, not re-read per request.)
+3. **Commercial model is unbuilt (the big one).** TSP charges the external business
+   NOTHING — no subscription/per-sale/seat billing keyed to `ProgressionBusiness`
+   (the `billing-trigger.ts:68` comment claims a "B3" per-sale record that doesn't
+   exist). The rate card is display-only; the business invoices clients off-platform.
+   Decide: the pricing model (spec: £59 + £39/seat + £5/sale) and whether V1 bills the
+   business at all. Billing tab is an intentional empty placeholder.
+4. **Multi-business client routing is nondeterministic.** Schema allows one agency to
+   be a client of two businesses; `getInvitingProgressor` uses `findFirst` with no
+   ordering → a "Send to us" file tags to whichever link Postgres returns first. Also
+   `addClientAgency` REFUSES an existing email (`:153`), so you can't add an
+   on-platform / already-TSP-outsourced agency as a client. Decide: is a shared /
+   existing client agency a real scenario?
+
+### Verify / lower-severity
+5. **Hard-deleting a business is destructive** (no flow exists, but): FK is
+   `ON DELETE SET NULL` — deleting a `ProgressionBusiness` converts all its files to
+   `progressionBusinessId=null` (= TSP files) and orphans users/verifiedDomains.
+   Document "never hard-delete", or add a guarded offboarding path.
+6. **Removed client vanishes from the Clients CRM** while historical files persist in
+   the file list. Confirm "history leaves the CRM but survives in files" is intended.
+7. **Comped-agency trial-metric display leak** — `freeOnExchange` external files of a
+   comped client count toward that agency's "saved via trial" figures. Display-only,
+   no money; add a `progressionBusinessId` filter if it matters.
+8. **Progressor welcome email (Arc S6) unbuilt** — new owner lands on an empty hub,
+   no onboarding email. Confirm acceptable for the first test.
+9. **Flag is not a post-onboarding kill-switch** (by design) — see ELLIS_MANUAL_TODO.
+
+### Fixed in the capstone pass (for the record)
+Internal-task write/create cross-tenant isolation; reminder-count "all" TSP filter;
+enquiry raise-chase buyer-email TSP support footer. (commit 37099921)
+
+---
+
 ## Shipped
 
 - **Agent-facing file audit (items 1-8):** badge, assignee wording, hand-over,
