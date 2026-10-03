@@ -14,6 +14,10 @@ export type ProgressionBusinessIdentityInput = {
   contactWhatsapp: string | null;
   senderEmail: string | null;
   senderDomain: string | null;
+  // Bulletproof-sender gate: the business's own sender is used ONLY when this is
+  // true (domain/address verified). Callers MUST select it; when absent it reads
+  // as undefined and fails closed to the platform fallback.
+  senderVerified?: boolean;
   isTsp: boolean;
 } | null;
 
@@ -55,11 +59,17 @@ export function clientFacingIdentity(
   business: ProgressionBusinessIdentityInput,
 ): ProgressionIdentity {
   if (!business || business.isTsp) return TSP_IDENTITY;
+  // Bulletproof-sender: use the business's OWN sending address only when it is
+  // verified AND both parts are set. Otherwise fall back to the neutral platform
+  // address — never send from an address the business hasn't proven it owns. The
+  // client-facing from-NAME stays white-labelled (the agency's) regardless; only
+  // the sending address differs (see resolveAgencySenderForTransaction).
+  const useOwnSender = business.senderVerified === true && !!business.senderEmail && !!business.senderDomain;
   return {
     orgName: business.name,
     contactWhatsapp: business.contactWhatsapp,
-    senderEmail: business.senderEmail ?? PLATFORM_FALLBACK_SENDER,
-    senderDomain: business.senderDomain ?? PLATFORM_FALLBACK_DOMAIN,
+    senderEmail: useOwnSender ? business.senderEmail! : PLATFORM_FALLBACK_SENDER,
+    senderDomain: useOwnSender ? business.senderDomain! : PLATFORM_FALLBACK_DOMAIN,
     isTsp: false,
   };
 }

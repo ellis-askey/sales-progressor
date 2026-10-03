@@ -574,7 +574,7 @@ export async function getPortalTeam(
         purchaserSolicitorContact: { select: { id: true, email: true, secondaryEmail: true } },
         agency: { select: { quoteSenderEmail: true } },
         agencyId: true,
-        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
+        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
         // buyerRoundId selected so the mailto-subject names can be filtered to the
         // active round below — otherwise a relisted file leaks the previous
         // buyer's name into the conveyancer email subject.
@@ -719,7 +719,7 @@ export async function getPortalVCardData(
       assignedUser: { select: { name: true, phone: true } },
       agentUser:    { select: { name: true, phone: true } },
       agency: { select: { name: true, quoteSenderEmail: true } },
-      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
+      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       vendorSolicitorContact:    { select: { name: true, email: true, phone: true } },

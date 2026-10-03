@@ -144,7 +144,7 @@ export async function resolveAgencySenderForTransaction(
       },
       agentUser: { select: { name: true, email: true } },
       assignedUser: { select: { email: true, name: true } },
-      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
+      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);

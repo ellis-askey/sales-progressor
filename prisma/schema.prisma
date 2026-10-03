@@ -222,6 +222,15 @@ model ProgressionBusiness {
   contactWhatsapp String?
   senderEmail     String?
   senderDomain    String?
+  // Bulletproof-sender gate (mirrors Agency.quoteSenderVerified). The business's
+  // own senderEmail/senderDomain are ONLY used for client-facing sends once this
+  // is true — stamped when the business verifies its domain/address (SendGrid
+  // domain auth or single-sender), checked nightly by the check-domains cron.
+  // Until then clientFacingIdentity falls back to the neutral platform address,
+  // so we never send from an address the business hasn't proven it owns. The TSP
+  // row short-circuits before this check, so TSP is unaffected.
+  senderVerified   Boolean  @default(false)
+  senderVerifiedAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

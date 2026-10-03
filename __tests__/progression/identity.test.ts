@@ -34,12 +34,13 @@ describe("clientFacingIdentity", () => {
     expect(clientFacingIdentity(tsp).orgName).toBe("The Sales Progressor");
   });
 
-  it("an external business uses its OWN identity", () => {
+  it("an external business with a VERIFIED sender uses its OWN identity", () => {
     const sarah = {
       name: "Sarah's Progression Co",
       contactWhatsapp: "+447900000000",
       senderEmail: "sarah@sarahprogression.co.uk",
       senderDomain: "sarahprogression.co.uk",
+      senderVerified: true,
       isTsp: false,
     };
     expect(clientFacingIdentity(sarah)).toEqual({
@@ -49,6 +50,34 @@ describe("clientFacingIdentity", () => {
       senderDomain: "sarahprogression.co.uk",
       isTsp: false,
     });
+  });
+
+  it("bulletproof-sender gate: an UNVERIFIED sender is NOT used — falls back to the platform address", () => {
+    const sarahUnverified = {
+      name: "Sarah's Progression Co",
+      contactWhatsapp: "+447900000000",
+      senderEmail: "sarah@sarahprogression.co.uk",
+      senderDomain: "sarahprogression.co.uk",
+      senderVerified: false,
+      isTsp: false,
+    };
+    const id = clientFacingIdentity(sarahUnverified);
+    expect(id.senderEmail).toBe("updates@thesalesprogressor.co.uk");
+    expect(id.senderDomain).toBe("thesalesprogressor.co.uk");
+    // The org name + WhatsApp still come from the business (only the sending
+    // address is gated); the white-label from-NAME is applied by the resolver.
+    expect(id.orgName).toBe("Sarah's Progression Co");
+  });
+
+  it("gate also fails closed when senderVerified is absent (undefined)", () => {
+    const sarahNoFlag = {
+      name: "Sarah's Progression Co",
+      contactWhatsapp: null,
+      senderEmail: "sarah@sarahprogression.co.uk",
+      senderDomain: "sarahprogression.co.uk",
+      isTsp: false,
+    };
+    expect(clientFacingIdentity(sarahNoFlag).senderEmail).toBe("updates@thesalesprogressor.co.uk");
   });
 
   it("an external business with no configured sender falls back to the platform address, NOT a personal TSP one", () => {
@@ -90,6 +119,7 @@ describe("progressorSenderAddress", () => {
       contactWhatsapp: null,
       senderEmail: "sarah@sarahprogression.co.uk",
       senderDomain: "sarahprogression.co.uk",
+      senderVerified: true,
       isTsp: false,
     });
     expect(progressorSenderAddress(sarah, "kim@sarahprogression.co.uk")).toBe("kim@sarahprogression.co.uk");

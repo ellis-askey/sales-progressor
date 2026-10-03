@@ -100,7 +100,7 @@ export async function sendOutsourceIntroForTransaction(
         propertyAddress: true,
         agencyId: true,
         agency: { select: { name: true } },
-        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, isTsp: true } },
+        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
         serviceType: true,
         contacts: {
           where: { roleType: { in: ["vendor", "purchaser"] } },
