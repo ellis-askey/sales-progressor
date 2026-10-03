@@ -74,6 +74,45 @@ export async function adoptVerifiedDomainAsAgencySender(agencyId: string, domain
   });
 }
 
+// ─── Domain queries — external progression business (its OWN default sender) ────
+// Mirror the agency queries but keyed on progressionBusinessId. The business is
+// the OTHER owner a VerifiedDomain can have (polymorphic). Used to set up a
+// progression business's own default sending domain (the tier beneath a client
+// agency's own verified sender in resolveAgencySenderForTransaction).
+
+export async function getVerifiedDomainForBusiness(businessId: string, domain: string) {
+  return prisma.verifiedDomain.findUnique({
+    where: { progressionBusinessId_domain: { progressionBusinessId: businessId, domain } },
+  });
+}
+
+export async function listVerifiedDomainsForBusiness(businessId: string) {
+  return prisma.verifiedDomain.findMany({
+    where: { progressionBusinessId: businessId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/**
+ * Business sibling of adoptVerifiedDomainAsAgencySender: when a progression
+ * business's own domain becomes verified, adopt updates@<domain> as its sending
+ * address (ProgressionBusiness.senderEmail + senderDomain). Only fills blanks —
+ * never overrides. senderVerified itself is stamped by the check-domains cron
+ * (mirrors how Agency.quoteSenderVerified is stamped). Idempotent.
+ */
+export async function adoptVerifiedDomainAsBusinessSender(businessId: string, domain: string): Promise<void> {
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { senderEmail: true, senderDomain: true },
+  });
+  if (!business || business.senderEmail) return;
+  const d = domain.toLowerCase();
+  await prisma.progressionBusiness.update({
+    where: { id: businessId },
+    data: { senderEmail: `updates@${d}`, senderDomain: d },
+  });
+}
+
 // ─── User email queries ───────────────────────────────────────────────────────
 
 export async function listVerifiedEmailsForUser(userId: string) {

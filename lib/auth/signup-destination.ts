@@ -25,11 +25,15 @@ export async function resolveSignupDestination(email: string): Promise<SignupDes
   const domain = email.split("@")[1]?.trim().toLowerCase();
   if (!domain) return { kind: "new_agency" };
 
+  // Agency-owned verified domains only — a progression business's own verified
+  // domain (agencyId null) must never trigger "join this agency" by email domain.
   const matches = await prisma.verifiedDomain.findMany({
-    where: { domain, status: "verified" },
+    where: { domain, status: "verified", agencyId: { not: null } },
     select: { agencyId: true, agency: { select: { name: true } } },
   });
   // 0 = normal signup; >1 = ambiguous, never guess.
   if (matches.length !== 1) return { kind: "new_agency" };
-  return { kind: "join_request", agencyId: matches[0].agencyId, agencyName: matches[0].agency.name };
+  const m = matches[0];
+  if (!m.agencyId || !m.agency) return { kind: "new_agency" };
+  return { kind: "join_request", agencyId: m.agencyId, agencyName: m.agency.name };
 }

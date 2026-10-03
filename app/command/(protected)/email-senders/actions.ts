@@ -109,8 +109,10 @@ export async function checkAgencyDomainAction(verifiedDomainId: string): Promise
     },
   });
 
-  // Newly verified → adopt it as the agency's sending address (if none yet).
-  if (result.valid) await adoptVerifiedDomainAsAgencySender(vd.agencyId, vd.domain);
+  // Newly verified → adopt it as the agency's sending address (if none yet). A
+  // domain owned by a progression business (agencyId null) isn't an agency sender,
+  // so skip — the business's self-serve flow adopts it.
+  if (result.valid && vd.agencyId) await adoptVerifiedDomainAsAgencySender(vd.agencyId, vd.domain);
 
   revalidatePath("/command/email-senders");
   return { ok: true, domain: serialize(updated), valid: result.valid };

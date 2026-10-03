@@ -234,9 +234,10 @@ model ProgressionBusiness {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  members      User[]
-  transactions PropertyTransaction[]
-  clients      ProgressionBusinessClient[]
+  members         User[]
+  transactions    PropertyTransaction[]
+  clients         ProgressionBusinessClient[]
+  verifiedDomains VerifiedDomain[]
 
   @@index([isTsp])
 }
@@ -2820,7 +2821,12 @@ model DirectorInvitation {
 
 model VerifiedDomain {
   id               String       @id @default(cuid())
-  agencyId         String
+  // Owner is EITHER an agency (the original case) OR an external progression
+  // business (its own default sending domain). Exactly one is set. agencyId was
+  // widened to optional to carry the business case; every existing row keeps its
+  // agencyId, so the agency flow is unchanged.
+  agencyId         String?
+  progressionBusinessId String?
   domain           String
   sendgridDomainId Int
   status           DomainStatus @default(pending)
@@ -2832,12 +2838,15 @@ model VerifiedDomain {
   createdByUserId  String
   createdAt        DateTime     @default(now())
 
-  agency     Agency              @relation(fields: [agencyId], references: [id])
-  createdBy  User                @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
-  userEmails UserVerifiedEmail[]
+  agency              Agency?              @relation(fields: [agencyId], references: [id])
+  progressionBusiness ProgressionBusiness? @relation(fields: [progressionBusinessId], references: [id])
+  createdBy           User                 @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
+  userEmails          UserVerifiedEmail[]
 
   @@unique([agencyId, domain])
+  @@unique([progressionBusinessId, domain])
   @@index([agencyId, domain])
+  @@index([progressionBusinessId])
 }
 
 enum DomainStatus {

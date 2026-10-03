@@ -4,7 +4,7 @@ import { validateAuthenticatedDomain, listVerifiedSingleSenders } from "@/lib/se
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildDomainAuth } from "@/lib/emails/domain-auth";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
+import { adoptVerifiedDomainAsAgencySender, adoptVerifiedDomainAsBusinessSender } from "@/lib/services/verified-emails";
 import { runJob } from "@/lib/cron/run-job";
 
 // Called nightly by Vercel Cron. Protected by CRON_SECRET header.
@@ -44,9 +44,14 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      // Newly verified → adopt as the agency's sending address (if none yet).
-      if (nowValid && domain.agencyId) {
-        await adoptVerifiedDomainAsAgencySender(domain.agencyId, domain.domain);
+      // Newly verified → adopt as the owner's sending address (if none yet). The
+      // owner is EITHER an agency OR an external progression business (polymorphic).
+      if (nowValid) {
+        if (domain.progressionBusinessId) {
+          await adoptVerifiedDomainAsBusinessSender(domain.progressionBusinessId, domain.domain);
+        } else if (domain.agencyId) {
+          await adoptVerifiedDomainAsAgencySender(domain.agencyId, domain.domain);
+        }
       }
 
       // If a previously working domain has broken, email all affected users
@@ -112,6 +117,33 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ checked: results.length, results, senderStamped });
+  // ── Stamp each external progression business's senderVerified, by the SAME
+  // rule as agencies: sendable = its sending domain is authenticated (a verified
+  // VerifiedDomain) OR it's a verified single sender. This is what the read-side
+  // gate in clientFacingIdentity requires before a business's own sender is used.
+  // TSP is excluded (its identity is hardcoded, never gated).
+  let businessSenderStamped = 0;
+  const senderBusinesses = await prisma.progressionBusiness.findMany({
+    where: { senderEmail: { not: null }, isTsp: false },
+    select: { id: true, senderEmail: true, senderVerified: true },
+  });
+  for (const b of senderBusinesses) {
+    const email = b.senderEmail!.toLowerCase();
+    const domain = email.split("@")[1];
+    const domainAuthed = domain ? verifiedDomainNames.has(domain) : false;
+    const sendable = domainAuthed || singleSenders.has(email);
+    // Same guard as agencies: don't downgrade a previously-verified sender we
+    // can't re-confirm this run because the single-sender list failed to load.
+    if (!sendable && !singleSenderFetchOk && b.senderVerified && !domainAuthed) continue;
+    if (sendable !== b.senderVerified) {
+      await prisma.progressionBusiness.update({
+        where: { id: b.id },
+        data: { senderVerified: sendable, senderVerifiedAt: sendable ? new Date() : null },
+      });
+      businessSenderStamped++;
+    }
+  }
+
+  return NextResponse.json({ checked: results.length, results, senderStamped, businessSenderStamped });
   });
 }
