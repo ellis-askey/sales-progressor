@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner, getInvitingProgressor } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor } from "@/lib/services/progression-clients";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
@@ -204,12 +204,12 @@ export async function createTransactionAction(input: {
     if (!progressionBusinessesEnabled()) {
       throw new Error("Progression businesses are not enabled.");
     }
-    const owner = await resolveBusinessOwner(session);
-    if (!owner) {
-      throw new Error("Only a progression-business owner can create a sale for a client.");
+    const member = await resolveBusinessMember(session);
+    if (!member) {
+      throw new Error("Only a progression-business member can create a sale for a client.");
     }
     const link = await prisma.progressionBusinessClient.findUnique({
-      where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId: input.clientAgencyId } },
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: member.businessId, agencyId: input.clientAgencyId } },
       select: { id: true },
     });
     if (!link) {
@@ -220,7 +220,7 @@ export async function createTransactionAction(input: {
       orderBy: { createdAt: "asc" },
       select: { id: true },
     });
-    clientCreate = { agencyId: input.clientAgencyId, agentUserId: director?.id ?? null, progressionBusinessId: owner.businessId };
+    clientCreate = { agencyId: input.clientAgencyId, agentUserId: director?.id ?? null, progressionBusinessId: member.businessId };
   }
 
   // Invited-agent "Send to us": an ordinary agent whose agency was set up by a
@@ -276,7 +276,7 @@ export async function createTransactionAction(input: {
   if (!effectiveAgencyId) {
     throw new Error("Cannot create transaction without an agency");
   }
-  const effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
+  let effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
 
   // Director-only assignment: validate the picked user is a director or
   // negotiator in the SAME agency and override the file owner. Negotiators
@@ -295,6 +295,21 @@ export async function createTransactionAction(input: {
       throw new Error("Cannot assign to a non-agent user");
     }
     effectiveAgentUserId = target.id;
+  }
+
+  // Progression-business assignment: a progressor creating a sale for a client may
+  // assign it to a member of their OWN business (default is the creator, self-
+  // assigned above). Validated to the file's business — never another business's
+  // user. Distinct from the director branch (which sets the AGENCY-side owner).
+  if (clientCreate && input.assignToUserId) {
+    const target = await prisma.user.findUnique({
+      where: { id: input.assignToUserId },
+      select: { id: true, progressionBusinessId: true },
+    });
+    if (!target || target.progressionBusinessId !== clientCreate.progressionBusinessId) {
+      throw new Error("Cannot assign to a user outside your progression business");
+    }
+    effectiveAssignedUserId = target.id;
   }
 
   // Duplicate address guard: normalise and check within agency for active files.

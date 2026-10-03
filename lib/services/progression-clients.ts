@@ -33,6 +33,24 @@ export async function resolveBusinessOwner(session: Session): Promise<BusinessOw
   return { businessId: me.progressionBusinessId, userId: session.user.id };
 }
 
+export type BusinessMember = { businessId: string; userId: string; isOwner: boolean };
+
+/**
+ * Resolve the actor as a member (owner OR team) of an EXTERNAL progression
+ * business. Unlike resolveBusinessOwner this admits non-owner team members, so
+ * both can add a sale for a client (the creator is self-assigned). Null for TSP
+ * staff (isTsp business or none) and non-progressors.
+ */
+export async function resolveBusinessMember(session: Session): Promise<BusinessMember | null> {
+  if (session.user.role !== "sales_progressor") return null;
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { progressionBusinessId: true, progressionBusinessRole: true, progressionBusiness: { select: { isTsp: true } } },
+  });
+  if (!me?.progressionBusinessId || !me.progressionBusiness || me.progressionBusiness.isTsp) return null;
+  return { businessId: me.progressionBusinessId, userId: session.user.id, isOwner: me.progressionBusinessRole === "owner" };
+}
+
 /**
  * Flag-gated boolean: is the viewer a progression-business owner? Used to pick
  * owner-facing empty-state copy (their files come from clients they add, not
