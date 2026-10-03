@@ -242,13 +242,15 @@ reminders, reviews, work-queue, analytics) and the inline "all" delete/edit guar
 (comms, contacts, transaction-notes). New `TSP_ONLY_TX_WHERE` primitive +
 regression test `__tests__/progression/tsp-isolation.test.ts`.
 
-Tracked follow-up:
-- **P1-i — Chain-intel cross-business.** `lib/chain/intel.ts` canViewNodeIntel /
-  canEditNodeIntel still grant a TSP "all" viewer view/edit on ANY chain node,
-  including an external business's. Excluding external nodes needs the node's
-  business threaded through `ChainNodeOwnership`. Chains are inherently cross-party
-  (a chain legitimately spans agencies/businesses), so this needs a deliberate
-  decision on what TSP should see of a shared chain, not a blanket block.
+- **P1-i — Chain-intel cross-business: DONE (read-only, commit 1cfc57bb).** Founder
+  decision 2026-10-03: in a shared chain, TSP keeps VIEW on an external business's
+  node (read-only, to coordinate the chain) but can no longer EDIT it.
+  ChainNodeOwnership now carries txProgressionBusinessId; canEditNodeIntel "all"
+  returns false for an external node. Test added.
+
+The isolation boundary is now complete: every TSP "see everything" query excludes
+external files, canReadTransaction excludes them in-memory, and chain intel is
+view-only for TSP on external nodes.
 
 ---
 
