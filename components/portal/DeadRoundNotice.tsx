@@ -60,7 +60,7 @@ export function DeadRoundNotice({
         If you're still involved with this sale, please contact {agencyName} for a fresh link.
       </p>
       <p style={{ margin: 0, fontSize: 12, color: "#9aa0bd" }}>
-        Sales Progressor
+        {agencyName}
       </p>
     </div>
   );

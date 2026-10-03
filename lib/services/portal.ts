@@ -731,14 +731,17 @@ export async function getPortalVCardData(
   const isOutsourced = tx.serviceType !== "self_managed";
   const person = isOutsourced ? tx.assignedUser : tx.agentUser;
   const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
-  // Org + WhatsApp on an outsourced file come from the responsible progression
-  // business (null = TSP → "The Sales Progressor" / +447508862929, unchanged).
+  // WhatsApp on an outsourced file comes from the responsible progression business
+  // (null = TSP → +447508862929, unchanged). The vCard the buyer/seller SAVES is
+  // the person (the progressor's name) under the AGENCY's name — the progression
+  // business stays behind the scenes; the client knows their agency (founder,
+  // 2026-10-03), so org is always the agency, never the progression business.
   const identity = clientFacingIdentity(tx.progressionBusiness);
 
   const progressor: PortalVCard | null = person
     ? {
         fn: person.name,
-        org: isOutsourced ? identity.orgName : (tx.agency?.name ?? null),
+        org: tx.agency?.name ?? null,
         email: agencyEmail,
         // The progression business's WhatsApp line on outsourced files, else the
         // agent's own number if they've entered one.
@@ -3430,7 +3433,13 @@ export async function getPortalSurveyState(token: string): Promise<PortalSurveyS
   }
 
   const managing = tx && tx.serviceType !== "self_managed" ? tx.assignedUser : tx?.agentUser;
-  const progressorEmail = tx?.agency?.quoteSenderEmail?.trim() || managing?.email || null;
+  // Buyer/seller-facing "email your progressor" address: the agency's verified
+  // sender. On an OUTSOURCED file never fall back to the progressor's raw inbox
+  // (that would expose the external business's / TSP's own address) — match the
+  // portal Team card's no-fallback rule. A self-managed file may fall back to the
+  // agent's own address (it's the agent the client deals with).
+  const progressorEmail = tx?.agency?.quoteSenderEmail?.trim()
+    || (tx?.serviceType === "self_managed" ? managing?.email ?? null : null);
 
   return {
     applicable: true,
