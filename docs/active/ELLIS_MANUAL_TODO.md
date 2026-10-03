@@ -192,6 +192,14 @@ The full external-progressor programme (Clients CRM, business settings, two-tier
 4. **No new env vars / integrations** — reuses the existing SendGrid account + `CRON_SECRET`/`NEXTAUTH_*`.
 - **Note (not a kill-switch):** turning the flag OFF *after* a pilot business is onboarded does NOT hide that business's already-created data (the isolation layer stays on by design); it only re-blocks the gated entry points (onboarding, client mgmt, settings, new-sale). The flag is a clean pre-launch gate, a partial post-onboarding rollback.
 
+### Business billing (#3) — DARK; go-live steps when you want to charge external businesses
+The business billing is built but **not taking any money** — it computes + shows the bill (£59 base + £39/extra member + £5/sale) and accrues the £5-per-sale at exchange, but creates no Stripe objects and charges nothing until you flip the collection switch. To go live:
+1. **In Stripe:** create two **recurring (monthly) Prices** — one at £59 (the base/main user) and one at £39 (per team member seat). Copy their price IDs.
+2. **Env vars (prod):** `STRIPE_PRICE_BUSINESS_BASE=<£59 price id>`, `STRIPE_PRICE_BUSINESS_SEAT=<£39 price id>`, and `PROGRESSION_BILLING_COLLECT=true`. (Stripe keys + webhook are already set from the agency billing.)
+3. **Verify in Stripe TEST mode first** — this payments code is written but has NOT been run against Stripe. Before prod: with test keys + test prices, add a card for a test business, confirm the subscription is created with the right seat quantity, that a £5 per-sale item rides the next invoice, and that the webhook clears/sets `paymentFailedAt`.
+4. **Still to wire at go-live (small):** the card-capture UI on the Billing tab (reuse the agency Stripe-Elements form), the trigger that syncs the subscription seat count when the team changes (`syncBusinessSubscription`), and a daily cron that pushes the £5 per-sale items (`pushPendingPerSaleItems`). The building blocks exist in `lib/progression/business-stripe.ts`; they just need their callers wired + tested.
+- **Part B (business invoices its own client agencies):** separate, off-Stripe (the business collects from its agencies outside the platform) — see the billing page / Clients workspace.
+
 ---
 
 ## Content — connect a publishing platform + schedule the reminder cron (2026-09-11)

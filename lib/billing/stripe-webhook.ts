@@ -64,7 +64,20 @@ async function handleInvoicePaymentSucceeded(event: StripeWebhookEvent): Promise
     where: { stripeInvoiceId },
     select: { id: true, agencyId: true, status: true },
   });
-  if (!invoice) return { handled: true, action: "noop_invoice_not_found" };
+  if (!invoice) {
+    // Not one of our agency invoices — it may be a progression-business
+    // subscription invoice (Stripe manages those; we match by customer). Clear
+    // the business's dunning flags on a successful payment.
+    const customerId = typeof event.data.object.customer === "string" ? event.data.object.customer : null;
+    if (customerId) {
+      const r = await prisma.progressionBusiness.updateMany({
+        where: { stripeCustomerId: customerId },
+        data: { paymentFailedAt: null, newFileCreationBlockedAt: null },
+      });
+      if (r.count > 0) return { handled: true, action: "marked_paid" };
+    }
+    return { handled: true, action: "noop_invoice_not_found" };
+  }
 
   await prisma.$transaction(async (tx) => {
     // Mark invoice paid — guarded so re-delivery doesn't churn the timestamp.
@@ -89,7 +102,19 @@ async function handleInvoicePaymentFailed(event: StripeWebhookEvent): Promise<Pr
     where: { stripeInvoiceId },
     select: { id: true, agencyId: true, status: true },
   });
-  if (!invoice) return { handled: true, action: "noop_invoice_not_found" };
+  if (!invoice) {
+    // Progression-business subscription invoice — record the first failure on the
+    // business (the grace window starts at the first failure, not each retry).
+    const customerId = typeof event.data.object.customer === "string" ? event.data.object.customer : null;
+    if (customerId) {
+      const r = await prisma.progressionBusiness.updateMany({
+        where: { stripeCustomerId: customerId, paymentFailedAt: null },
+        data: { paymentFailedAt: eventTimestamp },
+      });
+      if (r.count > 0) return { handled: true, action: "marked_failed" };
+    }
+    return { handled: true, action: "noop_invoice_not_found" };
+  }
 
   await prisma.$transaction(async (tx) => {
     // Status flip: building/issued → failed (only if not already paid).

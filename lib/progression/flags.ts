@@ -10,3 +10,12 @@
 export function progressionBusinessesEnabled(): boolean {
   return process.env.PROGRESSION_BUSINESSES_ENABLED === "true";
 }
+
+// Collection switch for business->TSP billing (Arc B4). When OFF (default), the
+// billing is DARK: the bill is computed + shown, the £5/sale is accrued, but no
+// Stripe customer/subscription is created and no money is taken. Flip ON (plus the
+// STRIPE_PRICE_BUSINESS_* env vars) to start charging — exactly like the agency
+// BILLING_AUTO_ISSUE_ENABLED switch. Nothing charges until this is true.
+export function progressionBillingCollectEnabled(): boolean {
+  return process.env.PROGRESSION_BILLING_COLLECT === "true";
+}

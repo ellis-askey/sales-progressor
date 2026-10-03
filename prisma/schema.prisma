@@ -231,6 +231,15 @@ model ProgressionBusiness {
   // row short-circuits before this check, so TSP is unaffected.
   senderVerified   Boolean  @default(false)
   senderVerifiedAt DateTime?
+
+  // Billing — what the business pays TSP (£59 base + £39/extra member + £5/sale).
+  // Mirrors the Agency Stripe fields. DARK until PROGRESSION_BILLING_COLLECT is on;
+  // these stay null until the business adds a card + the subscription is created.
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  paymentFailedAt          DateTime? // set by the Stripe webhook on invoice.payment_failed
+  newFileCreationBlockedAt DateTime? // reserved for a future dunning block
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -795,6 +804,11 @@ model PropertyTransaction {
   // business to TSP. Set on exchange in maybeStampExchange for non-TSP, non-demo
   // files; null for TSP/agency files. Bilateral-safe via a NULL guard.
   businessBilledAtExchange DateTime?
+
+  // Set once the £5 per-sale charge has been pushed to Stripe as a pending invoice
+  // item (so it rides the business's next subscription invoice). Prevents a
+  // double-charge. Null = accrued but not yet sent to Stripe (or collection dark).
+  businessPerSaleInvoicedAt DateTime?
 
   // Snapshot of purchasePrice at the moment of exchange. Billing reads from this
   // snapshot, not the live purchasePrice field — immune to later price edits.

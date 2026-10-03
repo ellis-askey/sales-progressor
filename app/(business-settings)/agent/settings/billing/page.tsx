@@ -8,7 +8,7 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
 import { fmtCurrencyPence } from "@/lib/utils";
@@ -24,6 +24,7 @@ export default async function BusinessBillingPage() {
 
   const s = await getBusinessBillingSummary(owner.businessId);
   const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const collecting = progressionBillingCollectEnabled();
 
   return (
     <>
@@ -40,8 +41,9 @@ export default async function BusinessBillingPage() {
         }}>
           <span aria-hidden style={{ color: "var(--agent-info, #2563eb)", flexShrink: 0, marginTop: 1, fontWeight: 800 }}>i</span>
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>
-            This is what your plan works out to. <strong>We&rsquo;re not taking any payment yet</strong> — we&rsquo;ll
-            let you know and ask for a card before billing goes live.
+            {collecting
+              ? <>Your plan is live. We charge the card on file each month for your subscription and completed sales.</>
+              : <>This is what your plan works out to. <strong>We&rsquo;re not taking any payment yet.</strong> We&rsquo;ll let you know and ask for a card before billing goes live.</>}
           </p>
         </div>
 
