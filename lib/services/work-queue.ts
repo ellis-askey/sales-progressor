@@ -7,31 +7,13 @@ import { VENDOR_SOLICITOR_CODES, PURCHASER_SOLICITOR_CODES } from "@/lib/solicit
 
 const DRAFT = "draft" as TransactionStatus;
 
-export type AlertType =
-  | "missing_vendor_solicitor"
-  | "missing_purchaser_solicitor"
-  | "overdue_exchange"
-  | "stale";
-
-export type WorkQueueItem = {
-  id: string;
-  propertyAddress: string;
-  status: TransactionStatus;
-  expectedExchangeDate: Date | null;
-  alerts: AlertType[];
-  vendors: string[];
-  purchasers: string[];
-  lastActivityAt: Date | null;
-  agentUser: { id: string; name: string } | null;
-  createdAt: Date;
-};
-
-export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg: string; border: string }> = {
-  overdue_exchange:          { label: "Exchange date overdue",       color: "var(--agent-danger)",  bg: "var(--agent-danger-bg)",  border: "var(--agent-danger-border)"  },
-  missing_vendor_solicitor:  { label: "Seller's solicitor unreachable",    color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
-  missing_purchaser_solicitor: { label: "Buyer's solicitor unreachable", color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" },
-  stale:                     { label: "No progress for 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
-};
+// Alert types + ALERT_CONFIG now live in the client-safe lib/services/work-queue-
+// alerts module (so client components can import them without pulling this server
+// module's graph into the browser bundle). Re-exported here so existing server-side
+// importers of work-queue keep their import path unchanged.
+export { ALERT_CONFIG } from "./work-queue-alerts";
+export type { AlertType, WorkQueueItem } from "./work-queue-alerts";
+import type { AlertType, WorkQueueItem } from "./work-queue-alerts";
 
 export function txWhereWorkQueue(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // Internal staff paths — checked first; agent callers have internalMode undefined.

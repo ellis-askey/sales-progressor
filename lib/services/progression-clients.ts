@@ -566,37 +566,13 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   };
 }
 
-/**
- * The name of the progression business that invited this agency (its
- * ProgressionBusinessClient link), or null if the agency self-signed-up. Used to
- * tailor onboarding copy for a progressor-invited agent. One cheap lookup.
- */
-export async function getInvitingProgressorName(agencyId: string | null | undefined): Promise<string | null> {
-  if (!agencyId) return null;
-  const link = await prisma.progressionBusinessClient.findFirst({
-    where: { agencyId },
-    select: { progressionBusiness: { select: { name: true } } },
-  });
-  return link?.progressionBusiness?.name ?? null;
-}
-
-export type InvitingProgressor = { businessId: string; name: string; feeModel: ClientFeeModel | null };
-
-/**
- * The full inviting-progressor context for an agency: the business id (to tag a
- * sale's progressionBusinessId when the agent sends it to them), the name (for
- * copy) and the per-client rate card (to price the sale from the agent's side).
- * Null when the agency self-signed-up. Used by the New Sale flow.
- */
-export async function getInvitingProgressor(agencyId: string | null | undefined): Promise<InvitingProgressor | null> {
-  if (!agencyId) return null;
-  const link = await prisma.progressionBusinessClient.findFirst({
-    where: { agencyId },
-    select: { progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
-  });
-  if (!link) return null;
-  return { businessId: link.progressionBusinessId, name: link.progressionBusiness.name, feeModel: parseFeeModel(link.feeModel) };
-}
+// The inviting-progressor read helpers live in the lean lib/progression/inviting
+// module (prisma only, no email). Re-exported here so existing server-side callers
+// keep their import path. agent-session imports them DIRECTLY from the lean module,
+// never via this file, because this file statically pulls the email/SMTP sender
+// chain (which would break the client bundle — see lib/progression/inviting).
+export { getInvitingProgressorName, getInvitingProgressor } from "@/lib/progression/inviting";
+export type { InvitingProgressor } from "@/lib/progression/inviting";
 
 /** Owner-scoped guard: resolve the business owner AND confirm the agency is their client. */
 export async function assertOwnerOfClient(session: Session, agencyId: string): Promise<BusinessOwner | null> {

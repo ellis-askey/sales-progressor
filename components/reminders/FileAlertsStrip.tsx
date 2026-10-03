@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { CaretDown, Warning } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
-import { ALERT_CONFIG } from "@/lib/services/work-queue";
-import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
+import { ALERT_CONFIG } from "@/lib/services/work-queue-alerts";
+import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue-alerts";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 

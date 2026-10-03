@@ -23,7 +23,11 @@ const cache: typeof reactCache =
   typeof reactCache === "function" ? reactCache : ((fn: never) => fn) as typeof reactCache;
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getInvitingProgressorName } from "@/lib/services/progression-clients";
+// Import from the LEAN inviting module, NOT lib/services/progression-clients: that
+// service statically pulls the email/SMTP sender chain (node-only net/tls/dns), and
+// agent-session reaches the client bundle via access-scope, so importing it from the
+// heavy service breaks the Turbopack build. See lib/progression/inviting.
+import { getInvitingProgressorName } from "@/lib/progression/inviting";
 import {
   getAgentTheme,
   getBrandColor,

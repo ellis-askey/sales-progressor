@@ -79,7 +79,7 @@ import type {
   AutomationBanner as AutomationBannerData,
   NeedsAttention,
 } from "@/lib/services/automated-emails-overview";
-import type { WorkQueueItem } from "@/lib/services/work-queue";
+import type { WorkQueueItem } from "@/lib/services/work-queue-alerts";
 import type { NoChainSale } from "@/lib/services/chains";
 
 // ── Local fixtures ──────────────────────────────────────────────────────────
