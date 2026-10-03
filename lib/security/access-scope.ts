@@ -40,7 +40,7 @@ export const TSP_ONLY_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
 // ─── Derive scope from session ────────────────────────────────────────────────
 
 export function getAccessScope(session: Session): AccessScope {
-  const { role, agencyId, id, progressionBusinessId } = session.user;
+  const { role, agencyId, id, progressionBusinessId, progressionBusinessRole, canViewAllFiles } = session.user;
 
   // hasAdminPowers covers admin, superadmin, and the hybrid sales_progressor
   // exception (ellis). Hybrid users get full-platform visibility while keeping
@@ -60,7 +60,13 @@ export function getAccessScope(session: Session): AccessScope {
   // business id to a user — TSP members must stay null (see
   // docs/active/progression-businesses/00-spec.md).
   if (role === "sales_progressor" && progressionBusinessId) {
-    return { kind: "business", businessId: progressionBusinessId };
+    // See-all (the whole business book) for the OWNER, or a team member the owner
+    // has granted it. Otherwise see-own: only the files assigned to them. Fail-
+    // closed — anything other than owner/explicit-true resolves to see-own.
+    const seeAll = progressionBusinessRole === "owner" || canViewAllFiles === true;
+    return seeAll
+      ? { kind: "business", businessId: progressionBusinessId }
+      : { kind: "assigned", userId: id };
   }
 
   if (role === "sales_progressor") {

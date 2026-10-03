@@ -94,7 +94,7 @@ export default async function AllTransactionsPage({
   // Internal staff use resolveInternalVisibility (for hub-filtered ID queries).
   // Agent callers use the original resolver unchanged.
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, isAdminPowers, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdminPowers, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const opts = !isInternalStaff && vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;

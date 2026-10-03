@@ -49,17 +49,24 @@ export function resolveInternalVisibility(
   role: string,
   hasAdminPowers: boolean = false,
   progressionBusinessId?: string | null,
+  progressionBusinessRole?: "owner" | "progressor" | null,
+  canViewAllFiles?: boolean,
 ): AgentVisibility {
   const isAdmin = role === "admin" || hasAdminPowers;
+  // A business member sees the whole book (businessId scope) only as OWNER, or
+  // when the owner has granted see-all. Otherwise see-own: businessId stays
+  // undefined and the "assigned" branch scopes to their own assignedUserId.
+  // Fail-closed — anything other than owner/explicit-true is see-own.
+  const businessSeeAll = progressionBusinessRole === "owner" || canViewAllFiles === true;
   return {
     userId,
     agencyId: "",
     seeAll: false,
     firmName: null,
     internalMode: isAdmin ? "admin_all" : "assigned",
-    // A non-admin progression-business member: widen "assigned" to the business
-    // book. TSP internal staff (null) keep per-user assigned scope.
-    businessId: !isAdmin && progressionBusinessId ? progressionBusinessId : undefined,
+    // A non-admin progression-business member with see-all: widen "assigned" to
+    // the business book. TSP internal staff (null) keep per-user assigned scope.
+    businessId: !isAdmin && progressionBusinessId && businessSeeAll ? progressionBusinessId : undefined,
   };
 }
 

@@ -26,6 +26,12 @@ declare module "next-auth" {
       // progression-business members). Drives the "business" access scope in
       // lib/security/access-scope.ts. TSP internal staff stay null.
       progressionBusinessId: string | null;
+      // The member's role within their progression business, and whether a
+      // non-owner member may see the whole business book vs only their own
+      // assigned files. Together they decide see-all vs see-own in the access
+      // scope. Null / false for everyone who isn't a progression-business member.
+      progressionBusinessRole: "owner" | "progressor" | null;
+      canViewAllFiles: boolean;
     };
   }
   interface User {
@@ -37,6 +43,8 @@ declare module "next-auth" {
     firmName: string | null;
     sessionVersion?: number;
     progressionBusinessId?: string | null;
+    progressionBusinessRole?: "owner" | "progressor" | null;
+    canViewAllFiles?: boolean;
   }
 }
 
@@ -49,6 +57,8 @@ declare module "next-auth/jwt" {
     needsSignupCompletion: boolean;
     sessionVersion?: number;
     progressionBusinessId?: string | null;
+    progressionBusinessRole?: "owner" | "progressor" | null;
+    canViewAllFiles?: boolean;
   }
 }
 
@@ -138,6 +148,8 @@ export const authOptions: NextAuthOptions = {
           firmName: user.firmName ?? null,
           sessionVersion: user.sessionVersion,
           progressionBusinessId: user.progressionBusinessId ?? null,
+          progressionBusinessRole: user.progressionBusinessRole ?? null,
+          canViewAllFiles: user.canViewAllFiles ?? false,
         };
       },
     }),
@@ -194,11 +206,15 @@ export const authOptions: NextAuthOptions = {
           token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
           token.progressionBusinessId =
             (user as { progressionBusinessId?: string | null }).progressionBusinessId ?? null;
+          token.progressionBusinessRole =
+            (user as { progressionBusinessRole?: "owner" | "progressor" | null }).progressionBusinessRole ?? null;
+          token.canViewAllFiles =
+            (user as { canViewAllFiles?: boolean }).canViewAllFiles ?? false;
         } else if (account) {
           // OAuth: fetch role/agencyId/firmName from DB.
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            select: { role: true, agencyId: true, firmName: true, sessionVersion: true, deactivatedAt: true, progressionBusinessId: true },
+            select: { role: true, agencyId: true, firmName: true, sessionVersion: true, deactivatedAt: true, progressionBusinessId: true, progressionBusinessRole: true, canViewAllFiles: true },
           });
           // Removed team members can't come back in through OAuth either.
           if (dbUser?.deactivatedAt) token.id = "";
@@ -209,6 +225,8 @@ export const authOptions: NextAuthOptions = {
           token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
           token.sessionVersion = dbUser?.sessionVersion ?? 0;
           token.progressionBusinessId = dbUser?.progressionBusinessId ?? null;
+          token.progressionBusinessRole = dbUser?.progressionBusinessRole ?? null;
+          token.canViewAllFiles = dbUser?.canViewAllFiles ?? false;
         }
 
         // Command Centre event log — fires only on initial sign-in (when
@@ -249,7 +267,7 @@ export const authOptions: NextAuthOptions = {
       // can't lock everyone out.
       if (!user && token.id) {
         try {
-          const cur = await prisma.user.findUnique({ where: { id: token.id }, select: { sessionVersion: true, deactivatedAt: true } });
+          const cur = await prisma.user.findUnique({ where: { id: token.id }, select: { sessionVersion: true, deactivatedAt: true, canViewAllFiles: true, progressionBusinessRole: true } });
           if (cur) {
             // Removed team member: kill the live session on its next refresh
             // (removal also bumps sessionVersion, so this is belt-and-braces).
@@ -259,6 +277,13 @@ export const authOptions: NextAuthOptions = {
               token.sessionVersion = cur.sessionVersion;
             } else if (token.sessionVersion !== cur.sessionVersion) {
               token.id = "";
+            }
+            // Keep visibility fresh so an owner's see-all / see-own toggle on a
+            // team member takes effect on that member's NEXT page load, without a
+            // re-login. Reuses this already-running per-request read, no extra query.
+            if (token.id) {
+              token.canViewAllFiles = cur.canViewAllFiles;
+              token.progressionBusinessRole = cur.progressionBusinessRole ?? null;
             }
           }
         } catch {
@@ -278,6 +303,9 @@ export const authOptions: NextAuthOptions = {
       // Absent on tokens minted before this field existed → null (fail-closed:
       // getAccessScope treats null as "no external business" = today's behaviour).
       session.user.progressionBusinessId = token.progressionBusinessId ?? null;
+      session.user.progressionBusinessRole = token.progressionBusinessRole ?? null;
+      // Default false (see-own) when absent — fail-closed to the tighter scope.
+      session.user.canViewAllFiles = token.canViewAllFiles ?? false;
       return session;
     },
   },

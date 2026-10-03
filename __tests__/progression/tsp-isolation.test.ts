@@ -9,6 +9,7 @@
 jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
 
 import {
+  getAccessScope,
   canReadTransaction,
   scopeTransactionWhere,
   scopeOwnershipWhere,
@@ -17,6 +18,7 @@ import {
   TSP_ONLY_TX_WHERE,
   type AccessScope,
 } from "@/lib/security/access-scope";
+import type { Session } from "next-auth";
 
 const ALL: AccessScope = { kind: "all" };
 
@@ -67,5 +69,42 @@ describe("TSP ↔ external-business isolation (admin 'all' scope)", () => {
     expect(biz).toEqual({ progressionBusinessId: "ext-biz-1", isDemo: false });
     const agency = scopeTransactionWhere({ kind: "agency", agencyIds: ["a1"] });
     expect(agency).toEqual({ agencyId: { in: ["a1"] } });
+  });
+});
+
+describe("Business member see-all vs see-own (getAccessScope)", () => {
+  function session(user: Record<string, unknown>): Session {
+    return {
+      user: {
+        id: "u1", role: "sales_progressor", agencyId: null,
+        progressionBusinessId: null, progressionBusinessRole: null, canViewAllFiles: false,
+        ...user,
+      },
+    } as unknown as Session;
+  }
+
+  it("owner → the whole business book", () => {
+    const s = session({ id: "owner1", progressionBusinessId: "biz1", progressionBusinessRole: "owner", canViewAllFiles: false });
+    expect(getAccessScope(s)).toEqual({ kind: "business", businessId: "biz1" });
+  });
+
+  it("team member on see-own → only their own assigned files", () => {
+    const s = session({ id: "m1", progressionBusinessId: "biz1", progressionBusinessRole: "progressor", canViewAllFiles: false });
+    expect(getAccessScope(s)).toEqual({ kind: "assigned", userId: "m1" });
+  });
+
+  it("team member granted see-all → the whole business book", () => {
+    const s = session({ id: "m2", progressionBusinessId: "biz1", progressionBusinessRole: "progressor", canViewAllFiles: true });
+    expect(getAccessScope(s)).toEqual({ kind: "business", businessId: "biz1" });
+  });
+
+  it("a TSP progressor (no business) → their own assigned files, unchanged", () => {
+    const s = session({ id: "tsp1", progressionBusinessId: null, progressionBusinessRole: null });
+    expect(getAccessScope(s)).toEqual({ kind: "assigned", userId: "tsp1" });
+  });
+
+  it("fail-closed: a member with an unknown role + false flag is see-own", () => {
+    const s = session({ id: "m3", progressionBusinessId: "biz1", progressionBusinessRole: null, canViewAllFiles: false });
+    expect(getAccessScope(s)).toEqual({ kind: "assigned", userId: "m3" });
   });
 });

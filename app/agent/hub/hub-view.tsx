@@ -237,7 +237,7 @@ export default async function Hub() {
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin" || progressorCanCreate;
 
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const greeting = getGreeting(session.user.name ?? "there");
@@ -529,22 +529,31 @@ function FullHubBody({
       </div>
 
       {/* Exchange forecast + (service split / your clients) grid. An external
-          progressor gets the "Your clients" card in the second column instead of
-          the TSP service-split card; a TSP progressor keeps a single column. */}
-      <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: (ctx.isProgressor && !ctx.isAdmin && !ctx.isExternalProgressor) ? "1fr" : "1fr 1fr", gap: 16 }}>
-        <Suspense fallback={<InlineLoadingCard label="Loading exchange forecast…" minHeight={220} />}>
-          <ExchangeForecastCard ctx={ctx} />
-        </Suspense>
-        {ctx.isExternalProgressor ? (
-          <Suspense fallback={<InlineLoadingCard label="Loading your clients…" minHeight={220} />}>
-            <ClientsBreakdownCard ctx={ctx} />
-          </Suspense>
-        ) : (!ctx.isProgressor || ctx.isAdmin) && (
-          <Suspense fallback={<InlineLoadingCard label="Loading service split…" minHeight={220} />}>
-            <ServiceSplitCard ctx={ctx} />
-          </Suspense>
-        )}
-      </div>
+          progressor who sees the whole book (owner or granted see-all) gets the
+          "Your clients" card in the second column instead of the TSP service-split
+          card. A see-own member (or a TSP progressor) keeps a single column —
+          their hub is scoped to their own files, so a cross-client breakdown
+          doesn't apply. vis.businessId is set only for a whole-book viewer. */}
+      {(() => {
+        const showClientsCard = ctx.isExternalProgressor && !!ctx.vis.businessId;
+        const twoCol = !(ctx.isProgressor && !ctx.isAdmin && !showClientsCard);
+        return (
+          <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr", gap: 16 }}>
+            <Suspense fallback={<InlineLoadingCard label="Loading exchange forecast…" minHeight={220} />}>
+              <ExchangeForecastCard ctx={ctx} />
+            </Suspense>
+            {showClientsCard ? (
+              <Suspense fallback={<InlineLoadingCard label="Loading your clients…" minHeight={220} />}>
+                <ClientsBreakdownCard ctx={ctx} />
+              </Suspense>
+            ) : (!ctx.isProgressor || ctx.isAdmin) && (
+              <Suspense fallback={<InlineLoadingCard label="Loading service split…" minHeight={220} />}>
+                <ServiceSplitCard ctx={ctx} />
+              </Suspense>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Recent activity feed */}
       <Suspense fallback={null}>
