@@ -31,12 +31,17 @@ const labelStyle: React.CSSProperties = {
 interface Props {
   defaultName: string;
   email: string;
+  // When true, offer "Estate agency" vs "Progression business" account types
+  // (the external-progressor programme flag). Mirrors the password register form.
+  progressorEnabled?: boolean;
 }
 
-export function CompleteSignupForm({ defaultName, email }: Props) {
+export function CompleteSignupForm({ defaultName, email, progressorEnabled = false }: Props) {
   const [name, setName] = useState(defaultName);
+  const [accountType, setAccountType] = useState<"agency" | "progressor">("agency");
   const [role, setRole] = useState<"director" | "negotiator">("director");
   const [agencyName, setAgencyName] = useState("");
+  const isProgressor = progressorEnabled && accountType === "progressor";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // Counter — bumped each time the user hovers the disabled submit while
@@ -55,6 +60,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
 
     const fd = new FormData();
     fd.append("name", name);
+    fd.append("accountType", isProgressor ? "progressor" : "agency");
     fd.append("role", role);
     fd.append("agencyName", agencyName);
 
@@ -163,7 +169,47 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
               />
             </div>
 
-            {/* Role */}
+            {/* Account type — estate agency vs progression business (flag-gated) */}
+            {progressorEnabled && (
+              <div>
+                <p style={{ ...labelStyle, marginBottom: "10px" }}>I&rsquo;m signing up as…</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {([
+                    { value: "agency" as const, label: "An estate agency", sub: "I run or work at an estate agency" },
+                    { value: "progressor" as const, label: "A progression business", sub: "I progress sales on behalf of estate agencies" },
+                  ] as const).map(({ value, label, sub }) => (
+                    <label key={value} style={{
+                      display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
+                      borderRadius: "10px", cursor: "pointer",
+                      border: `1.5px solid ${accountType === value ? "#D85A35" : "rgba(255,255,255,0.50)"}`,
+                      background: accountType === value ? "rgba(216,90,53,0.08)" : "rgba(255,255,255,0.30)",
+                      transition: "all 0.15s ease",
+                    }}>
+                      <div style={{ position: "relative", marginTop: "2px", flexShrink: 0 }}>
+                        <input type="radio" name="accountType" value={value} checked={accountType === value} onChange={() => setAccountType(value)}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                        <div style={{
+                          width: "16px", height: "16px", borderRadius: "50%",
+                          border: `2px solid ${accountType === value ? "#D85A35" : "rgba(61,31,14,0.30)"}`,
+                          background: accountType === value ? "#D85A35" : "rgba(255,255,255,0.50)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "all 0.15s ease",
+                        }}>
+                          {accountType === value && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "white" }} />}
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#3D1F0E" }}>{label}</p>
+                        <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)", lineHeight: 1.4 }}>{sub}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Role — estate agency only */}
+            {!isProgressor && (
             <div>
               <p style={{ ...labelStyle, marginBottom: "10px" }}>I am a…</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -199,11 +245,12 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
                 ))}
               </div>
             </div>
+            )}
 
-            {/* Agency name */}
+            {/* Agency / business name */}
             <div>
               <label style={labelStyle}>
-                Agency name
+                {isProgressor ? "Business name" : "Agency name"}
               </label>
               {/* Wrapper carries the one-shot cs-nudge animation; key bump
                   re-mounts only the wrapper so the input keeps its focus. */}
@@ -215,7 +262,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
                   onChange={e => setAgencyName(e.target.value)}
                   onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCaseKeepAcronyms(e.target.value)); }}
                   autoComplete="organization"
-                  placeholder="e.g. Hartwell & Partners"
+                  placeholder={isProgressor ? "e.g. Hamptons Progression" : "e.g. Hartwell & Partners"}
                   required
                   style={inputStyle}
                 />

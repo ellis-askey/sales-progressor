@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { CompleteSignupForm } from "./CompleteSignupForm";
 import { resolveSignupDestination } from "@/lib/auth/signup-destination";
 import { createJoinRequest, getLatestJoinRequestForUser } from "@/lib/services/agency-join-requests";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 
 export default async function CompleteSignupPage() {
   const session = await getServerSession(authOptions);
@@ -44,6 +45,7 @@ export default async function CompleteSignupPage() {
     <CompleteSignupForm
       defaultName={session.user.name ?? ""}
       email={session.user.email}
+      progressorEnabled={progressionBusinessesEnabled()}
     />
   );
 }
