@@ -28,6 +28,8 @@ export function ProfileFormPlain({
   initialDirectMobile = "",
   initialImage = null,
   role,
+  roleLabel,
+  hideRoleNote = false,
 }: {
   initialName: string;
   initialEmail: string;
@@ -36,6 +38,12 @@ export function ProfileFormPlain({
   initialDirectMobile?: string;
   initialImage?: string | null;
   role: string;
+  /** Override the role shown in the identity block (e.g. "Owner" for a
+   *  progression-business owner). Defaults to Director/Negotiator by role. */
+  roleLabel?: string;
+  /** Hide the "Role changes are managed by your director" note (true for a
+   *  business owner, who has no director above them). */
+  hideRoleNote?: boolean;
 }) {
   const { toast } = useAgentToast();
   const router = useRouter();
@@ -230,7 +238,7 @@ export function ProfileFormPlain({
               {name.trim() || "Your name"}
             </span>
             <span style={{ fontSize: 13, color: "#6b7280" }}>
-              {isDirector ? "Director" : "Negotiator"}
+              {roleLabel ?? (isDirector ? "Director" : "Negotiator")}
               {jobTitle.trim() ? ` · ${jobTitle.trim()}` : ""}
             </span>
             <div style={{ marginTop: 8 }}>
@@ -328,7 +336,7 @@ export function ProfileFormPlain({
           </div>
         </div>
 
-        {!isDirector && (
+        {!isDirector && !hideRoleNote && (
           <span style={{ fontSize: 11.5, color: "#9ca3af" }}>
             Role changes are managed by your director.
           </span>

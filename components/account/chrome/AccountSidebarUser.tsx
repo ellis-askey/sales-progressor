@@ -24,10 +24,13 @@ export function AccountSidebarUser({
   name,
   role,
   image,
+  roleLabel,
 }: {
   name: string;
   role: string;
   image: string | null;
+  /** Override the role caption (e.g. "Business owner"). Defaults to ROLE_LABEL. */
+  roleLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -120,7 +123,7 @@ export function AccountSidebarUser({
             {name}
           </span>
           <span style={{ display: "block", fontSize: 11.5, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {ROLE_LABEL[role] ?? role}
+            {roleLabel ?? ROLE_LABEL[role] ?? role}
           </span>
         </span>
         <CaretUp

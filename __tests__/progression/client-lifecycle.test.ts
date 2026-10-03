@@ -17,6 +17,7 @@ jest.mock("@/lib/services/progression-clients", () => ({
   resolveBusinessOwner: jest.fn(),
   addClientAgency: jest.fn(),
 }));
+// updateBusinessIdentityAction resolves the owner via resolveBusinessOwner.
 jest.mock("@/lib/emails/client-agent-invite", () => ({ sendClientAgentSetupEmail: jest.fn(), mintClientSetupLink: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -24,13 +25,14 @@ jest.mock("@/lib/prisma", () => ({
     agency: { update: jest.fn() },
     propertyTransaction: { count: jest.fn() },
     progressionBusinessClient: { delete: jest.fn() },
+    progressionBusiness: { update: jest.fn() },
   },
 }));
 
-import { renameClientAgencyAction, removeClientAgencyAction } from "@/app/actions/progression-clients";
+import { renameClientAgencyAction, removeClientAgencyAction, updateBusinessIdentityAction } from "@/app/actions/progression-clients";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { assertOwnerOfClient } from "@/lib/services/progression-clients";
+import { assertOwnerOfClient, resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
 
@@ -46,6 +48,7 @@ beforeEach(() => {
   (requireSession as jest.Mock).mockResolvedValue(session);
   (progressionBusinessesEnabled as jest.Mock).mockReturnValue(true);
   (assertOwnerOfClient as jest.Mock).mockResolvedValue(owner);
+  (resolveBusinessOwner as jest.Mock).mockResolvedValue(owner);
 });
 
 describe("renameClientAgencyAction", () => {
@@ -122,5 +125,50 @@ describe("removeClientAgencyAction", () => {
     const res = await removeClientAgencyAction("ag1");
     expect(res.ok).toBe(false);
     expect(p.progressionBusinessClient.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateBusinessIdentityAction", () => {
+  it("saves the business name + short name (owner)", async () => {
+    const res = await updateBusinessIdentityAction("  Hamptons Progression  ", "  Hamptons  ");
+    expect(res.ok).toBe(true);
+    expect(p.progressionBusiness.update).toHaveBeenCalledWith({
+      where: { id: "biz1" },
+      data: { name: "Hamptons Progression", shortName: "Hamptons" },
+    });
+  });
+
+  it("clears the short name to null when blank", async () => {
+    await updateBusinessIdentityAction("Hamptons Progression", "   ");
+    expect(p.progressionBusiness.update).toHaveBeenCalledWith({
+      where: { id: "biz1" },
+      data: { name: "Hamptons Progression", shortName: null },
+    });
+  });
+
+  it("rejects a non-owner (resolveBusinessOwner null)", async () => {
+    (resolveBusinessOwner as jest.Mock).mockResolvedValue(null);
+    const res = await updateBusinessIdentityAction("Hamptons", "");
+    expect(res).toEqual({ ok: false, error: expect.stringMatching(/owner/i) });
+    expect(p.progressionBusiness.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty business name", async () => {
+    const res = await updateBusinessIdentityAction("   ", "");
+    expect(res.ok).toBe(false);
+    expect(p.progressionBusiness.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a short name over 40 chars", async () => {
+    const res = await updateBusinessIdentityAction("Hamptons Progression", "x".repeat(41));
+    expect(res.ok).toBe(false);
+    expect(p.progressionBusiness.update).not.toHaveBeenCalled();
+  });
+
+  it("is flag-gated", async () => {
+    (progressionBusinessesEnabled as jest.Mock).mockReturnValue(false);
+    const res = await updateBusinessIdentityAction("Hamptons", "");
+    expect(res.ok).toBe(false);
+    expect(p.progressionBusiness.update).not.toHaveBeenCalled();
   });
 });

@@ -19,6 +19,7 @@ import { List, X } from "@phosphor-icons/react";
 import type { UserRole } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { AccountLeftNav } from "./AccountLeftNav";
+import { BusinessSettingsNav } from "./BusinessSettingsNav";
 import { AccountSidebarUser } from "./AccountSidebarUser";
 
 export function AccountShell({
@@ -27,6 +28,8 @@ export function AccountShell({
   displayName,
   image,
   theme,
+  variant = "agency",
+  roleLabel,
   children,
 }: {
   role: UserRole;
@@ -34,6 +37,12 @@ export function AccountShell({
   displayName: string;
   image: string | null;
   theme: string;
+  /** "agency" (default) = the agency account nav; "business" = the external
+   *  progression-business owner's settings nav. Additive — the agency path is
+   *  unchanged when omitted. */
+  variant?: "agency" | "business";
+  /** Role caption for the sidebar user chip (business variant passes "Owner"). */
+  roleLabel?: string;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -99,15 +108,19 @@ export function AccountShell({
         </div>
 
         <div className="account-nav-scroll">
-          <AccountLeftNav
-            role={role}
-            agencyHasDirector={agencyHasDirector}
-            onNavigate={() => setMobileOpen(false)}
-          />
+          {variant === "business" ? (
+            <BusinessSettingsNav onNavigate={() => setMobileOpen(false)} />
+          ) : (
+            <AccountLeftNav
+              role={role}
+              agencyHasDirector={agencyHasDirector}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          )}
         </div>
 
         <div className="account-user-slot">
-          <AccountSidebarUser name={displayName} role={role} image={image} />
+          <AccountSidebarUser name={displayName} role={role} image={image} roleLabel={roleLabel} />
         </div>
       </aside>
 

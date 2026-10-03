@@ -106,7 +106,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   viewer:           "Viewer",
 };
 
-function UserDropdown({ session, role, userName, userImage }: { session: Session; role: UserRole; userName: string; userImage?: string | null }) {
+function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean }) {
   const [open, setOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -114,6 +114,10 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
   // and admins have no billing because they don't own an agency that's
   // being charged. Show the entry only for those two roles.
   const showBillingEntry = role === "director" || role === "negotiator";
+  // A progression-business owner's Account + Billing point at their OWN settings
+  // area (/agent/settings/*), not the agency account area (which has no agency
+  // for them). Owner-gated, so nothing changes for agency users.
+  const accountHref = isBusinessOwner ? "/agent/settings/profile" : "/agent/account/profile";
 
   useEffect(() => {
     if (!open) return;
@@ -194,7 +198,7 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
               </p>
               <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
               <Link
-                href="/agent/account/profile"
+                href={accountHref}
                 onClick={() => setOpen(false)}
                 style={{
                   display: "flex", alignItems: "center", gap: 9,
@@ -205,8 +209,24 @@ function UserDropdown({ session, role, userName, userImage }: { session: Session
                 className="agent-hover-row"
               >
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
-                Account
+                {isBusinessOwner ? "Business settings" : "Account"}
               </Link>
+              {isBusinessOwner && (
+                <Link
+                  href="/agent/settings/billing"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 9,
+                    padding: "8px 10px", borderRadius: 8,
+                    textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
+                    transition: "background 150ms",
+                  }}
+                  className="agent-hover-row"
+                >
+                  <CreditCard weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
+                  Billing
+                </Link>
+              )}
               {showBillingEntry && (
                 role === "director" ? (
                   <Link
@@ -410,7 +430,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
           <AgentBell initialClearedAt={agentBellClearedAt} />
-          <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} /></div>
+          <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} /></div>
         </div>
       </header>
 
@@ -597,7 +617,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <Link
-              href="/agent/account/profile"
+              href={showClientsNav ? "/agent/settings/profile" : "/agent/account/profile"}
               onClick={() => setMobileOpen(false)}
               className="agent-hover-row"
               style={{
@@ -608,7 +628,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               }}
             >
               <GearSix weight="regular" style={{ width: 14, height: 14, flexShrink: 0 }} />
-              Account
+              {showClientsNav ? "Settings" : "Account"}
             </Link>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}

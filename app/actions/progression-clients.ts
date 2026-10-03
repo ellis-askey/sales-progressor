@@ -139,6 +139,33 @@ export async function updateBusinessShortNameAction(shortNameRaw: string): Promi
 }
 
 /**
+ * Save the business's own identity (name + short display label) from the Business
+ * settings area. Owner-gated. The name is the business's full name (used in
+ * client-facing copy, invite emails, the "Managed by …" badge fallback); the
+ * short name is the tight-UI label used where the full name is too long. An empty
+ * short name clears the override so the full name is used again.
+ */
+export async function updateBusinessIdentityAction(nameRaw: string, shortNameRaw: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  const name = nameRaw.trim();
+  if (!name || name.length > 120) return { ok: false, error: "Please enter your business name (120 characters or fewer)." };
+  const shortName = shortNameRaw.trim();
+  if (shortName.length > 40) return { ok: false, error: "Keep the short name to 40 characters or fewer." };
+
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: { name, shortName: shortName.length > 0 ? shortName : null },
+  });
+  revalidatePath("/agent/settings/business");
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/**
  * Set whether a team member sees the whole business book (see-all) or only their
  * own assigned files (see-own). Owner-only. The member must be in the owner's own
  * business; the owner's own row can't be changed (they always see all). Takes
