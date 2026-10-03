@@ -344,6 +344,94 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   return { subject, html, text, fromDisplayName: "Sales Progressor" };
 }
 
+// ─── Progression-business welcome ────────────────────────────────────────────
+// Sent to a NEW external progression-business OWNER at signup, in place of
+// activation_day_1 (whose "add your first sale / first outsourced free" copy is
+// written for agencies, not progressors). Same shell + the same welcomeEmailSentAt
+// guard; the copy + CTA point at adding their first CLIENT. From Sales Progressor
+// (the platform), like every welcome.
+export function buildProgressionWelcome(vars: TemplateVars): RetentionEmailResult {
+  const { firstName, ctaUrl = "", unsubscribeUrl = "" } = vars;
+  const subject = "Welcome to Sales Progressor";
+
+  const hero = `<img src="${EMAIL_ASSET}/hero-welcome-full.png" alt="Welcome to Sales Progressor." style="display:block;width:100%;max-width:100%;border:0;">`;
+
+  const wcol = (icon: string, title: string, sub: string) =>
+    `<img src="${EMAIL_ASSET}/${icon}" width="54" height="54" alt="" style="border:0;"><div style="text-align:center;font-family:${FONT_STACK};font-size:14px;font-weight:700;color:#1a1d29;line-height:1.35;margin-top:12px;">${title}</div><div style="text-align:center;font-family:${FONT_STACK};font-size:12.5px;color:#8a93a3;line-height:1.45;margin-top:5px;">${sub}</div>`;
+  const PEACH = "background:#FDF0EA;background:linear-gradient(180deg,#FEF4EF 0%,#FBE6DC 100%);border:1px solid #FBE1D5;border-radius:16px;box-shadow:0 2px 12px rgba(216,90,53,0.07);";
+  const wfeatures = `<div class="wf-desk" style="${PEACH}padding:24px 6px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;width:100%;"><tr>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;">${wcol("icon-people-line.png", "All your clients in one place", "Every agency you work with, together.")}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-home-line.png", "A portal for every sale", "Buyers and sellers follow progress online.")}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-chat-line.png", "Nothing slips", "Reminders flag anything that needs you.")}</td>
+    </tr></table>
+  </div>
+  <div class="wf-mob" style="display:none;${PEACH}padding:26px 18px;">
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-people-line.png", "All your clients in one place", "Every agency you work with, together.")}</div>
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-home-line.png", "A portal for every sale", "Buyers and sellers follow progress online.")}</div>
+    <div style="text-align:center;">${wcol("icon-chat-line.png", "Nothing slips", "Reminders flag anything that needs you.")}</div>
+  </div>`;
+
+  const body = [
+    `<tr><td style="padding:22px 2px 0;font-family:${FONT_STACK};font-size:15.5px;line-height:1.6;color:#374151;">
+      <p style="margin:0 0 16px;">Welcome ${firstName} 👋</p>
+      <p style="margin:0 0 16px;">You&rsquo;re all set up. Your workspace is ready for you to start progressing sales for your client agencies.</p>
+      <p style="margin:0 0 16px;">Add your first client, then add their sales, keep each one on track, and give their buyers and sellers a portal to follow progress.</p>
+      <p style="margin:0;">We&rsquo;re always improving Sales Progressor, so if there&rsquo;s something you&rsquo;d love to see, just let us know. We&rsquo;d genuinely love to hear from you.</p>
+    </td></tr>`,
+    `<tr><td style="padding:24px 0 0;">${wfeatures}</td></tr>`,
+    `<tr><td style="padding:28px 0 0;">
+      <div style="background:#FF6B4A;background:linear-gradient(180deg,#FF7E57 0%,#F0511A 100%);border-radius:16px;text-align:center;box-shadow:0 6px 16px rgba(240,81,26,0.34);">
+        <a href="${ctaUrl}" style="display:block;padding:17px 20px;font-family:${FONT_STACK};font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;">Add your first client  &rarr;</a>
+      </div>
+    </td></tr>`,
+    `<tr><td style="padding:18px 0 0;">
+      <div style="background:#F3F5F7;border-radius:14px;padding:15px 18px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td valign="middle" width="52"><img src="${EMAIL_ASSET}/icon-chat-line.png" width="42" height="42" alt="" style="display:block;border:0;"></td>
+          <td valign="middle" style="padding-left:13px;">
+            <div style="font-family:${FONT_STACK};font-size:15px;font-weight:700;color:#1a1d29;">Need a hand getting set up?</div>
+            <div style="font-family:${FONT_STACK};font-size:13.5px;color:#7a8493;margin-top:2px;">Just reply to this email and we&rsquo;ll be happy to help.</div>
+          </td>
+        </tr></table>
+      </div>
+    </td></tr>`,
+    pageFooter(unsubscribeUrl),
+  ].join("");
+
+  const html = `<!DOCTYPE html><html lang="en">${emailHead()}<body style="margin:0;padding:0;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:24px 14px 22px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:22px;overflow:hidden;border:1px solid #EAE6E1;box-shadow:0 6px 26px rgba(17,24,39,0.07);">
+        <tr><td class="px" style="padding:30px 32px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${emailHeaderRow("A simpler, better way<br>to progress property sales.")}</table>
+        </td></tr>
+        <tr><td style="padding:0;">${hero}</td></tr>
+        <tr><td class="px" style="padding:6px 34px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${body}</table>
+        </td></tr>
+      </table>
+    </td></tr></table>
+  </body></html>`;
+
+  const text = [
+    `Welcome ${firstName} 👋`,
+    ``,
+    `You're all set up. Your workspace is ready for you to start progressing sales for your client agencies.`,
+    ``,
+    `Add your first client, then add their sales, keep each one on track, and give their buyers and sellers a portal to follow progress.`,
+    ``,
+    `We're always improving Sales Progressor, so if there's something you'd love to see, just let us know. We'd genuinely love to hear from you.`,
+    ``,
+    `Add your first client: ${ctaUrl}`,
+    ``,
+    `Need a hand getting set up? Just reply to this email.`,
+    ``,
+    `Sales Progressor`,
+  ].join("\n");
+
+  return { subject, html, text, fromDisplayName: "Sales Progressor" };
+}
+
 // ─── Email 1b — claim_welcome ────────────────────────────────────────────────
 // Sent in place of activation_day_1 when the account is created via the chain
 // claim cycle (invited via a chain link, claimed their sale, signed up).

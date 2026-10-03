@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
+import { sendWelcomeEmailIfNotSent, sendProgressionWelcomeIfNotSent } from "@/lib/emails/send-welcome";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -81,6 +81,7 @@ export async function completeOAuthSignup(formData: FormData): Promise<
         source: attribution?.source ?? null,
         marketing_distinct_id: attribution?.marketingDistinctId ?? null,
       });
+      void sendProgressionWelcomeIfNotSent(session.user.id);
       return { ok: true };
     }
 

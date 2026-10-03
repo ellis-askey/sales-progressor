@@ -10,7 +10,7 @@ import { createJoinRequest } from "@/lib/services/agency-join-requests";
 import type { UserRole } from "@prisma/client";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
+import { sendWelcomeEmailIfNotSent, sendProgressionWelcomeIfNotSent } from "@/lib/emails/send-welcome";
 import { convertProspectFromSignup } from "@/lib/prospects/signup-convert";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
@@ -85,6 +85,10 @@ export async function POST(req: NextRequest) {
         source: attribution?.source ?? null,
         marketing_distinct_id: attribution?.marketingDistinctId ?? null,
       });
+      // Progressor-specific welcome ("add your first client"), replacing the
+      // agent welcome (whose "add your first sale / first outsourced free" copy is
+      // for agencies). Fire-and-forget; the welcomeEmailSentAt guard dedupes.
+      void sendProgressionWelcomeIfNotSent(userId);
       const res = NextResponse.json({ ok: true, id: userId }, { status: 201 });
       res.cookies.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 });
       return res;

@@ -16,7 +16,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
-import { buildActivationDay1 } from "@/lib/emails/retention";
+import { buildActivationDay1, buildProgressionWelcome } from "@/lib/emails/retention";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
@@ -59,5 +59,33 @@ export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
     console.log(`[sendWelcomeEmail] sent to userId=${userId}`);
   } catch (err) {
     console.error(`[sendWelcomeEmail] failed for userId=${userId}:`, err);
+  }
+}
+
+// Welcome for a NEW external progression-business OWNER. Same atomic
+// welcomeEmailSentAt guard as the agent welcome (a user gets at most one welcome
+// of either flavour), but progressor copy + a CTA to add their first client.
+export async function sendProgressionWelcomeIfNotSent(userId: string): Promise<void> {
+  try {
+    const result = await prisma.user.updateMany({
+      where: { id: userId, welcomeEmailSentAt: null },
+      data: { welcomeEmailSentAt: new Date() },
+    });
+    if (result.count === 0) return;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+    if (!user?.email) {
+      console.error(`[sendProgressionWelcome] user ${userId} stamped but has no email — welcome NOT sent`);
+      return;
+    }
+
+    const firstName = user.name?.trim() ? extractFirstName(user.name) : "there";
+    const ctaUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/clients`;
+    const built = buildProgressionWelcome({ firstName, ctaUrl });
+
+    await sendAgentEmail({ to: user.email, subject: built.subject, text: built.text, html: built.html, kind: "welcome", userId });
+    console.log(`[sendProgressionWelcome] sent to userId=${userId}`);
+  } catch (err) {
+    console.error(`[sendProgressionWelcome] failed for userId=${userId}:`, err);
   }
 }
