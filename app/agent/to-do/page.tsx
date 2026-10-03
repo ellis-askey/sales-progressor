@@ -12,7 +12,7 @@ import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { NoCommsCard } from "@/components/todos/NoCommsCard";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
@@ -82,6 +82,11 @@ export default async function AgentTodoPage() {
   // "Your progressor" wording + controls only make sense once the agency has a
   // file being progressed by our team. Self-managed-only agencies never see it.
   const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);
+  // The business progressing this agency's files (null = TSP-outsourced /
+  // self-signup → keeps "our team"/"TSP" framing). Only an invited agency needs it.
+  const progressorName = !isProgressor && hasOutsourced
+    ? await getInvitingProgressorName(session.user.agencyId)
+    : null;
 
   const todayStr = toUKDateStr(new Date());
 
@@ -126,7 +131,7 @@ export default async function AgentTodoPage() {
         // empty state. An owner has no TSP progressor to send to, so the
         // "send to your progressor" card is off for them.
         <div className="px-4 md:px-8 py-2 md:py-4">
-          <TodoEmptyState canUseProgressor={isBusinessOwner ? false : hasOutsourced} />
+          <TodoEmptyState canUseProgressor={isBusinessOwner ? false : hasOutsourced} progressorName={progressorName} />
         </div>
       ) : (
         <div className="px-4 md:px-8 py-2 md:py-4 todo-cols">
@@ -134,7 +139,7 @@ export default async function AgentTodoPage() {
             {hasReviews && (
               <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
             )}
-            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} photoByTx={taskPhotoByTx} attachableFiles={attachableFiles} />
+            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} photoByTx={taskPhotoByTx} attachableFiles={attachableFiles} progressorName={progressorName} />
           </div>
           {noCommsItems.length > 0 && (
             <div className="todo-col-side">

@@ -12,7 +12,7 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -88,6 +88,12 @@ export default async function AllTransactionsPage({
   // "Send a note to our team" only routes somewhere if the agency has a file with
   // our team. Hide it for self-managed-only agencies (it would file to nobody).
   const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);
+  // Name the "send a note" button after the business progressing this agency's
+  // files (null = TSP-outsourced / self-signup → "our team"). Internal staff don't
+  // see the button, so their null agencyId resolving to "our team" is harmless.
+  const noteTeamLabel = hasOutsourced
+    ? (await getInvitingProgressorName(session.user.agencyId)) ?? "our team"
+    : "our team";
   const isAdminPowers = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
@@ -230,7 +236,7 @@ export default async function AllTransactionsPage({
         {/* AgentFlagButton — agent-only, and only when there's a team to receive
             it (an active outsourced sale). */}
         {!isInternalStaff && hasOutsourced && (
-          <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+          <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
       </PageHeader>
 

@@ -113,8 +113,11 @@ const DueDateContext = createContext<((id: string, dueDate: string | null) => vo
 // Property photos keyed by transaction id (signed on the page) — consumed by
 // TaskGroup for its file-group header thumbnail.
 const PhotoContext = createContext<Map<string, string | null> | null>(null);
+// The business progressing this agency's files (null = TSP/self-signup → "our
+// team"). Consumed deep in TaskRow for the "… is on it" reassurance line.
+const ProgressorNameContext = createContext<string | null>(null);
 
-export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photoByTx, attachableFiles }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean; photoByTx?: Map<string, string | null>; attachableFiles?: { id: string; propertyAddress: string }[] }) {
+export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photoByTx, attachableFiles, progressorName = null }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean; photoByTx?: Map<string, string | null>; attachableFiles?: { id: string; propertyAddress: string }[]; progressorName?: string | null }) {
   const isProgressor = role === "sales_progressor";
   // Only offer the "assign to your progressor" flow (and its wording) when the
   // agency actually has a file with our team. Self-managed-only agencies just
@@ -246,6 +249,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 
   return (
     <PhotoContext.Provider value={photoByTx ?? null}>
+    <ProgressorNameContext.Provider value={progressorName}>
     <DueDateContext.Provider value={handleDueDate}>
     <div className="space-y-8">
       {/* Agency users get the regular Add form; internal staff see an
@@ -297,7 +301,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
         <Section
           id="section-progressor"
           title={isProgressor ? "From agents" : "With your progressor"}
-          subtitle={isProgressor ? "Requests from your agents." : "Requests you've sent our team."}
+          subtitle={isProgressor ? "Requests from your agents." : `Requests you've sent ${progressorName ?? "our team"}.`}
           icon={<UsersThree size={22} weight="regular" />}
           overdueGroups={groupByTransaction(progOverdue)}
           openGroups={groupByTransaction(progUpcoming)}
@@ -313,6 +317,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       )}
     </div>
     </DueDateContext.Provider>
+    </ProgressorNameContext.Provider>
     </PhotoContext.Provider>
   );
 }
@@ -490,6 +495,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
   const [hovered, setHovered] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const onDueDate = useContext(DueDateContext);
+  const progressorName = useContext(ProgressorNameContext);
   const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
 
   async function toggle() {
@@ -606,7 +612,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
             )}
             {progressor && dueStatus?.reassure && !isProgressorView && (
               <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
-                Our team is on it
+                {progressorName ?? "Our team"} is on it
               </p>
             )}
           </>

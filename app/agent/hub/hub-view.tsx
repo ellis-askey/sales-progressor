@@ -250,6 +250,12 @@ export default async function Hub() {
 
   const ctx: Ctx = { session, vis, role, isInternalStaff, isProgressor, isExternalProgressor, isAdmin, canCreateSale, isBusinessOwner, claimedFirstSale };
 
+  // The business progressing this agency's files (null = TSP-outsourced /
+  // self-signup → keeps the "our team" framing). Names the "send a note" button.
+  const noteTeamLabel = !isInternalStaff && hasOutsourced
+    ? (await getInvitingProgressorName(session.user.agencyId)) ?? "our team"
+    : "our team";
+
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
@@ -274,7 +280,7 @@ export default async function Hub() {
           </Link>
         ) : null}
         {!isInternalStaff && hasOutsourced && (
-          <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+          <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
       </PageHeader>
 
@@ -1297,12 +1303,19 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
   const serviceSplit = await getHubServiceSplit(ctx.vis);
   const savedHours = Math.round(serviceSplit.outsourced * 2.5);
   const { isAdmin } = ctx;
+  // For an invited agency, "our team" is actually the external business that
+  // progresses their files; name it. Null (TSP-outsourced / self-signup) keeps
+  // "our team" / "Our team" unchanged. Admins never see these (they get the
+  // internal "us"/"we're progressing" copy below).
+  const progressorName = isAdmin ? null : await getInvitingProgressorName(ctx.session.user.agencyId);
+  const team = progressorName ?? "our team";
+  const Team = progressorName ?? "Our team";
   return (
     <SectionReveal order={6}>
       <GlassCard glassId="hub-service-split" label="Hub · Service split" defaultVariant="v05" data-testid="hub-service-split" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who's managing"}</p>
-          <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : "Files you manage and files our team handles."}</p>
+          <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : `Files you manage and files ${team} handles.`}</p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>
@@ -1315,7 +1328,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
               const total = serviceSplit.selfManaged + serviceSplit.outsourced;
               return [
                 { label: isAdmin ? "Self-managed" : "Managed by you", count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
-                { label: isAdmin ? "Outsourced to us" : "Our team",   count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
+                { label: isAdmin ? "Outsourced to us" : Team,   count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
               ].map(({ label, count, color }) => {
                 const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                 return (
@@ -1407,7 +1420,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
                     {" "}across all client agencies.
                   </>
                 ) : (
-                  <>Our team is handling{" "}
+                  <>{Team} is handling{" "}
                     <strong style={{ color: "var(--agent-text-primary)" }}>
                       {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
                     </strong>
@@ -1428,7 +1441,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
             <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
               {isAdmin
                 ? "All files are self-managed by their agencies."
-                : `You're managing all ${serviceSplit.selfManaged} ${serviceSplit.selfManaged === 1 ? "file" : "files"} yourself. Hand any over to our team any time.`}
+                : `You're managing all ${serviceSplit.selfManaged} ${serviceSplit.selfManaged === 1 ? "file" : "files"} yourself. Hand any over to ${team} any time.`}
             </p>
           )}
         </div>

@@ -108,6 +108,7 @@ export function WelcomeModal({
           <div style={{ padding: 24 }}>
             <TourSlides
               agencyModeProfile={agencyModeProfile}
+              progressorName={progressorName}
               onClose={close}
               onFinish={() => {
                 setVisible(false);
@@ -154,7 +155,7 @@ export function WelcomeModal({
                 You&apos;re in
               </span>
               <h2 style={{ margin: "12px 0 0", fontSize: 32, lineHeight: 1.1, fontWeight: 800, letterSpacing: "-0.6px", color: "#0F1B2D" }}>
-                Welcome to TSP{firstName ? `, ${firstName}` : ""}.
+                Welcome to {progressorName ?? "TSP"}{firstName ? `, ${firstName}` : ""}.
               </h2>
               <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "#54617d" }}>
                 {progressorName

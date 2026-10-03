@@ -52,6 +52,18 @@ left as "part-done pending Ellis's check", not finished. The rest of Phase 2
 (PR1–PR3: CRM gaps, business settings, the full two-tier sender identity) is
 shipped to staging; this is the one remaining Phase-2 item.
 
+### General (non-file) agent-note routing to an external business. VERIFY.
+Found during the Phase 4 audit. The "Send a note to {business}" button (hub + All
+Files, `transactionId: null`) creates a `manualTask` via `app/api/agent/flag/route.ts`
+assigned to `agentUser.progressorId`. It is NOT misrouted to TSP (no TSP hardcoding —
+it stays in the invited agency's own pool). BUT a GENERAL note (no transaction) is
+surfaced to progressors via `listProgressorInboxTasks`, which filters on
+`transaction.assignedUserId` — so a null-transaction note may not reliably surface
+in the external business's inbox. File-specific notes are fine (the file is assigned
+to a business member). **Action:** confirm where a general note lands for an external
+business and, if it doesn't surface, route it (e.g. to the business owner's inbox).
+Not a leak, not TSP-misrouted — a surfacing gap. Deferred.
+
 ---
 
 ## Shipped

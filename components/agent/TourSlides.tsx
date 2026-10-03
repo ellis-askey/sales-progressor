@@ -10,7 +10,7 @@ type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
 // only true for outsourced (progressor_managed) agencies. Mixed and the
 // default self_progressed fall through to the self-managed copy: it
 // accurately describes the surface the agent themselves uses.
-function buildSlides(mode: AgencyModeProfile) {
+function buildSlides(mode: AgencyModeProfile, teamLabel: string) {
   const outsourced = mode === "progressor_managed";
   return [
     {
@@ -21,7 +21,7 @@ function buildSlides(mode: AgencyModeProfile) {
     {
       title: "Always know where a sale stands",
       description: outsourced
-        ? "Every sale has a step-by-step tracker. Our team keeps it updated as things happen, so you always know where the sale stands."
+        ? `Every sale has a step-by-step tracker. ${teamLabel} keeps it updated as things happen, so you always know where the sale stands.`
         : "Every sale has a step-by-step tracker. Tick off each step as it happens and the file stays current. No spreadsheet, no guesswork.",
       Visual: FileVisual,
     },
@@ -33,16 +33,16 @@ function buildSlides(mode: AgencyModeProfile) {
     {
       title: "Nothing slips through",
       description: outsourced
-        ? "The Reminders tab flags any sale that needs attention before it turns into a problem. Our team keeps an eye out too."
+        ? `The Reminders tab flags any sale that needs attention before it turns into a problem. ${teamLabel} keeps an eye out too.`
         : "The Reminders tab flags any sale that needs attention before it turns into a problem.",
       Visual: WorkQueueVisual,
     },
   ];
 }
 
-export function TourSlides({ onClose, onFinish, agencyModeProfile = "self_progressed" }: { onClose: () => void; onFinish: () => void; agencyModeProfile?: AgencyModeProfile }) {
+export function TourSlides({ onClose, onFinish, agencyModeProfile = "self_progressed", progressorName = null }: { onClose: () => void; onFinish: () => void; agencyModeProfile?: AgencyModeProfile; progressorName?: string | null }) {
   const [slide, setSlide] = useState(0);
-  const slides = buildSlides(agencyModeProfile);
+  const slides = buildSlides(agencyModeProfile, progressorName ?? "Our team");
   const current = slides[slide]!;
   const isLast = slide === slides.length - 1;
   const isFirst = slide === 0;

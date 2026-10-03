@@ -25,7 +25,7 @@ type AddInput = {
 // empty state. The CTAs reveal the add form inline; adding refreshes the page so
 // the real list renders. The "Send to your progressor" card only shows when the
 // agency has an outsourced file (there's a progressor to send to).
-export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean }) {
+export function TodoEmptyState({ canUseProgressor, progressorName = null }: { canUseProgressor: boolean; progressorName?: string | null }) {
   const [adding, setAdding] = useState(false);
 
   async function handleAdd(input: AddInput) {
@@ -107,7 +107,7 @@ export function TodoEmptyState({ canUseProgressor }: { canUseProgressor: boolean
               iconSrc="/todo-progressor.png"
               tint="green"
               title="Send a task to your progressor"
-              desc="For sales you're sending to TSP, add a task directly for your sales progressor to pick up."
+              desc={`For sales you're sending to ${progressorName ?? "TSP"}, add a task directly for your sales progressor to pick up.`}
               cta="Add a request"
               onClick={() => setAdding(true)}
             />
