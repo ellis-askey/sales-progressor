@@ -56,6 +56,7 @@ describe("canEditNodeIntel: unclaimed stub (the rule canManageStub uses)", () =>
     txAgencyId: null,
     txAssignedUserId: null,
     txAgentUserId: null,
+    txProgressionBusinessId: null,
   });
 
   it("allows the stub's creator", () => {
@@ -87,11 +88,13 @@ describe("node intel: external progression-business member bounding (Phase 2c)",
   const sarahOwnNode: ChainNodeOwnership = {
     transactionId: "tx_sarah", linkCreatedByUserId: "u_sarah", linkCreatedByAgencyId: null,
     txAgencyId: "ag_donna", txAssignedUserId: "u_sarah", txAgentUserId: "u_donna",
+    txProgressionBusinessId: "biz_sarah",
   };
-  // Another node in the same chain, owned by a different agency / business.
+  // Another node in the same chain, owned by a different external business.
   const foreignNode: ChainNodeOwnership = {
     transactionId: "tx_other", linkCreatedByUserId: "u_someone", linkCreatedByAgencyId: "ag_x",
     txAgencyId: "ag_x", txAssignedUserId: "u_other", txAgentUserId: "u_x",
+    txProgressionBusinessId: "biz_other",
   };
   const sarah: IntelViewer = {
     userId: "u_sarah", role: "sales_progressor", agencyId: null, scope: businessScope("biz_sarah"),
@@ -110,11 +113,11 @@ describe("node intel: external progression-business member bounding (Phase 2c)",
   it("a business member can manage only an unclaimed stub they created themselves", () => {
     const ownStub: ChainNodeOwnership = {
       transactionId: null, linkCreatedByUserId: "u_sarah", linkCreatedByAgencyId: null,
-      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null,
+      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null, txProgressionBusinessId: null,
     };
     const foreignStub: ChainNodeOwnership = {
       transactionId: null, linkCreatedByUserId: "u_other", linkCreatedByAgencyId: "ag_x",
-      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null,
+      txAgencyId: null, txAssignedUserId: null, txAgentUserId: null, txProgressionBusinessId: null,
     };
     expect(canEditNodeIntel(sarah, ownStub)).toBe(true);
     expect(canEditNodeIntel(sarah, foreignStub)).toBe(false);
@@ -126,5 +129,18 @@ describe("node intel: external progression-business member bounding (Phase 2c)",
     };
     expect(canViewNodeIntel(tsp, sarahOwnNode)).toBe(true);
     expect(canViewNodeIntel(tsp, foreignNode)).toBe(true);
+  });
+
+  it("TSP (admin 'all') is read-only on an external business's node: can view, cannot edit", () => {
+    const tspAll: IntelViewer = { userId: "u_admin", role: "admin", agencyId: null, scope: { kind: "all" } };
+    // foreignNode belongs to an external business (biz_other).
+    expect(canViewNodeIntel(tspAll, foreignNode)).toBe(true);   // read-only: can see it
+    expect(canEditNodeIntel(tspAll, foreignNode)).toBe(false);  // but not edit it
+    // A TSP / agency node (no external business) stays fully editable by TSP.
+    const tspNode: ChainNodeOwnership = {
+      transactionId: "tx_tsp", linkCreatedByUserId: "u_x", linkCreatedByAgencyId: "ag_x",
+      txAgencyId: "ag_x", txAssignedUserId: "u_tsp", txAgentUserId: "u_x", txProgressionBusinessId: null,
+    };
+    expect(canEditNodeIntel(tspAll, tspNode)).toBe(true);
   });
 });

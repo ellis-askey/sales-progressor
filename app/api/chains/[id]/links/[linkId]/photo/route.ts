@@ -39,7 +39,7 @@ async function loadLink(linkId: string) {
       stubPhotoStoragePath: true,
       // Ownership facts for the agency-aware stub gate (canManageStub).
       createdBy: { select: { agencyId: true } },
-      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
     },
   });
 }

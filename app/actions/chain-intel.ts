@@ -25,7 +25,7 @@ async function requireChainNodeEdit(
       transactionId: true,
       createdBy: { select: { agencyId: true } },
       transaction: {
-        select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true },
+        select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true },
       },
     },
   });
@@ -45,6 +45,7 @@ async function requireChainNodeEdit(
     txAgencyId: link.transaction?.agencyId ?? null,
     txAssignedUserId: link.transaction?.assignedUserId ?? null,
     txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
   };
   if (!canEditNodeIntel(viewer, ownership)) {
     throw new Error("You don't have permission to edit this chain node.");

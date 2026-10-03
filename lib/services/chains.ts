@@ -377,6 +377,7 @@ const LINK_V2_SELECT = {
       // wire in getChainV2 (never exposed to the client).
       assignedUserId: true,
       agentUserId: true,
+      progressionBusinessId: true,
       purchasePrice: true,
       photoStoragePath: true,
       createdAt: true,
@@ -663,6 +664,7 @@ export async function getChainV2(
               txAgencyId: l.transaction?.agencyId ?? null,
               txAssignedUserId: l.transaction?.assignedUserId ?? null,
               txAgentUserId: l.transaction?.agentUserId ?? null,
+              txProgressionBusinessId: l.transaction?.progressionBusinessId ?? null,
             });
           }
           return l.claimedByUserId === viewerUserId;
@@ -757,6 +759,7 @@ export async function getChainV2(
         txAgencyId: rawTx?.agencyId ?? null,
         txAssignedUserId: rawTx?.assignedUserId ?? null,
         txAgentUserId: rawTx?.agentUserId ?? null,
+        txProgressionBusinessId: rawTx?.progressionBusinessId ?? null,
       };
       const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
       // Stub details are editable only on an UNCLAIMED link, by the same owner

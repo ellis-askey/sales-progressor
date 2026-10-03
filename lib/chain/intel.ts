@@ -34,6 +34,10 @@ export type ChainNodeOwnership = {
   txAgencyId: string | null;
   txAssignedUserId: string | null;
   txAgentUserId: string | null;
+  // The node's progression business (null = TSP / agency file). A TSP "all" viewer
+  // may VIEW any node (read-only across a shared chain they coordinate) but may NOT
+  // EDIT an external progression business's node — that stays theirs to change.
+  txProgressionBusinessId: string | null;
 };
 
 // The shape a client sends when saving intel (dates as ISO strings). Kept here so
@@ -83,7 +87,9 @@ export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
     return v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId;
   }
   // Claimed node.
-  if (v.scope.kind === "all") return true; // admin / superadmin / hybrid
+  // TSP ("all") edits only its OWN nodes; an external business's node is read-only
+  // to TSP (view stays open above). admin / superadmin / hybrid.
+  if (v.scope.kind === "all") return o.txProgressionBusinessId == null;
   if (v.scope.kind === "assigned") {
     // sales_progressor: only on the file assigned to them.
     return o.txAssignedUserId === v.scope.userId;

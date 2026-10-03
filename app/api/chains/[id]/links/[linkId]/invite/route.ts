@@ -30,7 +30,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       inviteResendCount: true,
       // Ownership facts for the agency-aware stub gate (canManageStub).
       createdBy: { select: { agencyId: true } },
-      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
       chain: {
         select: {
           createdByUserId: true,

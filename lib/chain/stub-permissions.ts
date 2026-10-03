@@ -21,7 +21,7 @@ export type StubLinkRow = {
   transactionId: string | null;
   createdByUserId: string | null;
   createdBy: { agencyId: string | null } | null;
-  transaction: { agencyId: string | null; assignedUserId: string | null; agentUserId: string | null } | null;
+  transaction: { agencyId: string | null; assignedUserId: string | null; agentUserId: string | null; progressionBusinessId: string | null } | null;
 };
 
 export function ownershipFromLinkRow(link: StubLinkRow): ChainNodeOwnership {
@@ -32,6 +32,7 @@ export function ownershipFromLinkRow(link: StubLinkRow): ChainNodeOwnership {
     txAgencyId: link.transaction?.agencyId ?? null,
     txAssignedUserId: link.transaction?.assignedUserId ?? null,
     txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
   };
 }
 
