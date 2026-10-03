@@ -18,6 +18,7 @@ import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgen
 import { UserAvatar } from "@/components/ui/Avatar";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
+import { ClientSenderSection } from "./ClientSenderSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
@@ -174,6 +175,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 initial={detail.branding}
                 endpoint={`/api/agent/clients/${detail.agencyId}/logo`}
               />
+              <ClientSenderSection agencyId={detail.agencyId} agencyName={detail.name} />
             </div>
           )}
 

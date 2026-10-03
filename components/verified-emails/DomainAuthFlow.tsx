@@ -18,9 +18,13 @@ type DomainRecord = {
 type Props = {
   domain: DomainRecord;
   onVerified: () => void;
+  // Base path for the "check DNS" call. Defaults to the agency's own route; a
+  // progression-business owner setting up a CLIENT's domain passes the owner-
+  // scoped client route instead. Additive — the agency flow is unchanged.
+  checkBase?: string;
 };
 
-export function DomainAuthFlow({ domain, onVerified }: Props) {
+export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/verified-emails/domain" }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<null | { valid: boolean }>(null);
@@ -62,7 +66,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
   async function checkDns() {
     setChecking(true);
     setCheckResult(null);
-    const res = await fetch(`/api/agent/verified-emails/domain/${domain.id}/check`, { method: "POST" });
+    const res = await fetch(`${checkBase}/${domain.id}/check`, { method: "POST" });
     const data = await res.json();
     setChecking(false);
     setCheckResult({ valid: data.valid });
