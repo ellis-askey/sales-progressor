@@ -122,9 +122,20 @@ async function getSubtitle(
   isAdmin: boolean,
   isProgressor: boolean,
   isExternalProgressor: boolean,
+  isBusinessOwner: boolean,
+  progressorHasClients: boolean,
 ): Promise<string> {
   if (isAdmin) return "Here's what's happening across the platform today.";
-  if (isExternalProgressor) return "Here's what's happening across your pipeline today.";
+  if (isExternalProgressor) {
+    // Situation-aware, like the agency hub: onboarding lines first (clients →
+    // first sale), then the identical today/attention/baseline journey once sales
+    // exist. Falls back to the standard pipeline line if signals fail to load.
+    try {
+      return buildProgressorSubtitle(await getHubSubtitleSignals(vis), { isOwner: isBusinessOwner, hasClients: progressorHasClients });
+    } catch {
+      return "Here's what's happening across your pipeline today.";
+    }
+  }
   if (isProgressor) return "Here's what's happening with your assigned files today.";
   try {
     return buildAgencySubtitle(await getHubSubtitleSignals(vis));
@@ -132,6 +143,24 @@ async function getSubtitle(
     // Safe fallback (the previous static agency line) if signals fail to load.
     return "Here's what's happening across your pipeline today.";
   }
+}
+
+// External progression-business subtitle. Before any sales: the owner is guided to
+// add a client, then a first sale; a team member (who can't add clients) is told
+// assigned work will appear. Once sales exist, the journey is identical to the
+// agency hub, so we reuse buildAgencySubtitle (its realSales === 0 branch is never
+// reached here).
+function buildProgressorSubtitle(
+  s: HubSubtitleSignals,
+  ctx: { isOwner: boolean; hasClients: boolean },
+): string {
+  if (s.realSales === 0) {
+    if (!ctx.isOwner) return "Sales assigned to you will show up here.";
+    return ctx.hasClients
+      ? "Add your first sale for a client to get going."
+      : "Start by adding your first client agency.";
+  }
+  return buildAgencySubtitle(s);
 }
 
 // Promoted to lib/utils (fmtCurrencyPence) so WinsCard + the forecast band
@@ -230,10 +259,15 @@ export default async function Hub() {
   // book, not TSP's per-user "assigned files". Reframes hub copy for them; a TSP
   // progressor returns false and keeps the existing "assigned files" wording.
   const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
+  // Whether the business has ≥1 client. Gates the team-member "New sale" entry (they
+  // can't add clients themselves) AND the owner's onboarding subtitle (add-a-client
+  // vs add-a-sale). Queried once, only for an external progressor.
+  const progressorHasClients = isExternalProgressor && !!session.user.progressionBusinessId
+    ? await businessHasClients(session.user.progressionBusinessId)
+    : false;
   // A progressor gets a "New sale" entry: the owner always; a team member only
-  // once the business has ≥1 client (they can't add clients themselves).
-  const progressorCanCreate = isExternalProgressor
-    && (isBusinessOwner || (!!session.user.progressionBusinessId && await businessHasClients(session.user.progressionBusinessId)));
+  // once the business has ≥1 client.
+  const progressorCanCreate = isExternalProgressor && (isBusinessOwner || progressorHasClients);
   const canCreateSale     = role === "director" || role === "negotiator" || role === "admin" || progressorCanCreate;
 
   const vis = isInternalStaff
@@ -242,7 +276,7 @@ export default async function Hub() {
 
   const greeting = getGreeting(session.user.name ?? "there");
   const [subtitle, claimedFirstSale] = await Promise.all([
-    getSubtitle(vis, isAdmin, isProgressor, isExternalProgressor),
+    getSubtitle(vis, isAdmin, isProgressor, isExternalProgressor, isBusinessOwner, progressorHasClients),
     // Agency users only; a claimed single sale flips the header CTA to a
     // profile nudge and drives the welcome hero further down.
     isInternalStaff ? Promise.resolve(null) : getClaimedFirstSale(vis).catch(() => null),
