@@ -33,8 +33,8 @@ Status key: ⬜ not started · 🔍 audited (awaiting decisions) · 🔨 buildin
 |---|---|---|---|---|
 | 1 | Progressor Hub + their file list | Progressor | ✅ | assign + wording + column shipped (2838d91e). Deferred Phase-1 builds now shipped: new-sale flow for progressors (d1569abc + e31fc998), owner sees own fee on hub forecast (6b992827), see-all/see-own per team member (797ca892 + 7e54e90a). P1-d/e/h still deferred — see backlog |
 | 2 | Clients CRM + "who emails send as" setup | Progressor | ✅ | SHIPPED (staging, unpushed): PR1 remove/rename client (bc5a1f00); PR2 business settings area (174d6224); PR3a sender verified-gate + migration (9589ead0); PR3c per-client sending domain (2a1ac6e4); PR3b business default sending domain + cron (18421eb9). Both migrations on staging. Remaining: PR4 invite-email branding (part-done, flagged) |
-| 3 | Other pages — Completions, Updates, Analytics, Partners, Enquiries, Chains, To-Do, Reminders | Progressor | ⬜ | team-visibility model (backlog #7) threads here |
-| 4 | Account + settings (own business identity, security, email connect) | Progressor | ⬜ | |
+| 3 | Other pages — Completions, Updates, Analytics, Partners, Enquiries, Chains, To-Do, Reminders | Progressor | ✅ | Audited 2026-10-03 (2 parallel sweeps). Enquiries/Chains/Partners already correct. PR A (905650b0): closed To-Do internal-task cross-business LEAK (listInternalSelfAssignedTasks was unscoped). PR B (3a278910): owners/see-all now see whole book on 9 internal surfaces (resolveInternalVisibility under-called with 4 args) + "assigned" wording tidy. Analytics/Partners confirmed relevant (kept), income gated off |
+| 4 | Account + settings (own business identity, security, email connect) | Progressor | ✅ | Absorbed into Phase 2 PR2 (business settings area, 174d6224) + PR3b (email connect / sending domain). Owner-only /agent/settings/* |
 | 5 | Other pages beyond the file | Invited agent | ⬜ | lighter — mostly a normal agent |
 | 6 | Client-facing — buyer/seller portal + client emails | Clients | ⬜ | progression-business branding, not TSP; CRM emails stay TSP |
 
