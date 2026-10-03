@@ -3,7 +3,8 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients } from "@/lib/services/progression-clients";
+import { RemindersEmptyState } from "@/components/agent/RemindersEmptyState";
 import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
@@ -79,6 +80,13 @@ export default async function WorkQueuePage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // External progression business (the only user who reaches the empty state — an
+  // agency agent is gated out of Reminders until they have active self-progressed
+  // sales). Drives the polished hero empty state + its client/sale CTA.
+  const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
+  const progressorHasClients = isExternalProgressor && !!session.user.progressionBusinessId
+    ? await businessHasClients(session.user.progressionBusinessId)
+    : false;
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -178,19 +186,21 @@ export default async function WorkQueuePage() {
       <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
+          isExternalProgressor ? (
+            // Polished hero empty state — the only audience that reaches this fresh.
+            <RemindersEmptyState isOwner={isBusinessOwner} hasClients={progressorHasClients} />
+          ) : (
           <>
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                {isBusinessOwner ? "No files yet" : isProgressor ? "No files assigned yet" : "Your reminders will appear here"}
+                {isProgressor ? "No files assigned yet" : "Your reminders will appear here"}
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {/* OLD: "Once you create a sale, we'll surface chases and follow-ups as files progress." — Rule 1 (VOICE_GUIDELINES.md pre-catalogued) */}
-                {isBusinessOwner
-                  ? "Reminders appear here as your clients' sales move forward."
-                  : isProgressor
-                    ? "Reminders for your assigned files will appear here."
-                    : "Chases and follow-ups appear here as your files move forward."}
+                {isProgressor
+                  ? "Reminders for your assigned files will appear here."
+                  : "Chases and follow-ups appear here as your files move forward."}
               </p>
             </div>
 
@@ -225,6 +235,7 @@ export default async function WorkQueuePage() {
               ))}
             </div>
           </>
+          )
         ) : (
           <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
         )}
