@@ -52,6 +52,30 @@ export async function getClientAgenciesForBusiness(businessId: string): Promise<
   return links.map((l) => ({ id: l.agency.id, name: l.agency.name }));
 }
 
+export type BusinessTeamMember = {
+  id: string; name: string; email: string;
+  role: "owner" | "progressor";
+  canViewAllFiles: boolean;
+  isYou: boolean;
+};
+
+/** The business's own team (owner + progressors), for the owner's "Your team" page. */
+export async function listBusinessTeam(businessId: string, viewerUserId: string): Promise<BusinessTeamMember[]> {
+  const members = await prisma.user.findMany({
+    where: { progressionBusinessId: businessId, deactivatedAt: null },
+    select: { id: true, name: true, email: true, progressionBusinessRole: true, canViewAllFiles: true },
+    orderBy: [{ progressionBusinessRole: "asc" }, { name: "asc" }],
+  });
+  return members.map((m) => ({
+    id: m.id,
+    name: m.name ?? m.email,
+    email: m.email,
+    role: m.progressionBusinessRole === "owner" ? "owner" : "progressor",
+    canViewAllFiles: m.canViewAllFiles,
+    isYou: m.id === viewerUserId,
+  }));
+}
+
 /** Members (owner + team) of a progression business, for the new-sale assign dropdown. */
 export async function getBusinessMembersForAssign(businessId: string): Promise<Array<{ id: string; name: string }>> {
   const members = await prisma.user.findMany({

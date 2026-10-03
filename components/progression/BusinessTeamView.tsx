@@ -1,0 +1,151 @@
+"use client";
+
+// The owner's "Your team" roster: one row per business member with a two-way
+// Own-files / All-sales toggle. The owner's own row is locked to All sales. Visual
+// language + hover-lift rows + SectionReveal entrance match the Clients workspace;
+// the segmented toggle reuses the app's coral/cream treatment.
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { SectionReveal } from "@/components/hub/SectionReveal";
+import { useAgentToast } from "@/components/agent/AgentToaster";
+import { setBusinessMemberViewAllAction } from "@/app/actions/progression-clients";
+import type { BusinessTeamMember } from "@/lib/services/progression-clients";
+
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+}
+
+export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
+  const router = useRouter();
+  const { toast } = useAgentToast();
+  const [pending, startTransition] = useTransition();
+  // Optimistic see-all state per member, so the toggle responds instantly.
+  const [viewAll, setViewAll] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(team.map((m) => [m.id, m.canViewAllFiles])),
+  );
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  function setMember(member: BusinessTeamMember, next: boolean) {
+    if (member.role === "owner" || viewAll[member.id] === next || pending) return;
+    const prev = viewAll[member.id];
+    setViewAll((v) => ({ ...v, [member.id]: next }));
+    setSavingId(member.id);
+    startTransition(async () => {
+      const res = await setBusinessMemberViewAllAction(member.id, next);
+      setSavingId(null);
+      if (res.ok) {
+        router.refresh();
+      } else {
+        setViewAll((v) => ({ ...v, [member.id]: prev })); // revert
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <div className="bt">
+      <SectionReveal order={0}>
+        <div className="bt-top">
+          <h1 className="bt-h1">Your team</h1>
+          <p className="bt-sub">Who&rsquo;s in your business, and how much of your book each person can see.</p>
+        </div>
+      </SectionReveal>
+
+      <SectionReveal order={1}>
+        <div className="bt-rows">
+          {team.map((m) => {
+            const on = viewAll[m.id];
+            const isOwner = m.role === "owner";
+            return (
+              <div key={m.id} className="bt-row">
+                <span className={`bt-av${isOwner ? " bt-av-owner" : ""}`}>{initials(m.name)}</span>
+                <div className="bt-main">
+                  <div className="bt-name">{m.name}{m.isYou && <span className="bt-you">You</span>}</div>
+                  <div className="bt-email">{m.email}</div>
+                </div>
+                <span className={`bt-role${isOwner ? " is-owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
+                <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
+                  <button
+                    type="button"
+                    className={`bt-seg-btn${!on && !isOwner ? " on-own" : ""}`}
+                    aria-pressed={!on}
+                    disabled={isOwner || pending}
+                    onClick={() => setMember(m, false)}
+                  >
+                    Own files
+                  </button>
+                  <button
+                    type="button"
+                    className={`bt-seg-btn${on || isOwner ? " on-all" : ""}`}
+                    aria-pressed={on || isOwner}
+                    disabled={isOwner || pending}
+                    onClick={() => setMember(m, true)}
+                  >
+                    All sales
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </SectionReveal>
+
+      <SectionReveal order={2}>
+        <p className="bt-foot">A team member on <strong>Own files</strong> sees only the sales assigned to them. The change takes effect the next time they open a page. The owner always sees everything.</p>
+      </SectionReveal>
+
+      <style>{`
+        .bt { width: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
+        .bt-top { }
+        .bt-h1 { margin: 0 0 3px; font-size: clamp(24px, 4vw, 32px); font-weight: 820; letter-spacing: -0.03em; color: var(--agent-text-primary); }
+        .bt-sub { margin: 0; font-size: 14px; color: var(--agent-text-secondary); }
+
+        .bt-rows { display: flex; flex-direction: column; gap: 10px; }
+        .bt-row {
+          display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-radius: 16px;
+          border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5));
+          -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+          transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s, border-color .2s;
+        }
+        .bt-row:hover { transform: translateY(-2px); border-color: var(--agent-border-default, rgba(0,0,0,0.12)); box-shadow: 0 16px 34px -20px rgba(40,26,20,0.38); }
+        :root[data-theme="dark"] .bt-row:hover { box-shadow: 0 18px 36px -20px rgba(0,0,0,0.6); }
+
+        .bt-av { width: 42px; height: 42px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; font-size: 14px; font-weight: 800; letter-spacing: -0.01em; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
+        .bt-av-owner { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
+
+        .bt-main { min-width: 0; flex: 1; }
+        .bt-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
+        .bt-you { font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb),0.12); padding: 1px 6px; border-radius: 999px; }
+        .bt-email { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+        .bt-role { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; color: var(--agent-text-muted); background: var(--agent-surface-overlay, rgba(0,0,0,0.04)); flex-shrink: 0; }
+        .bt-role.is-owner { color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb),0.12); }
+
+        .bt-seg { display: inline-flex; border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 999px; overflow: hidden; background: var(--agent-surface-overlay, rgba(0,0,0,0.03)); flex-shrink: 0; transition: opacity .15s; }
+        .bt-seg.saving { opacity: 0.6; }
+        .bt-seg-btn {
+          font-family: inherit; font-size: 12px; font-weight: 650; padding: 7px 14px; border: none;
+          background: transparent; color: var(--agent-text-secondary); cursor: pointer; white-space: nowrap;
+          transition: background .18s ease, color .18s ease;
+        }
+        .bt-seg-btn:not(:disabled):hover { background: var(--agent-hover-tint, rgba(255,107,74,0.08)); color: var(--agent-coral-deep); }
+        .bt-seg-btn:disabled { cursor: default; }
+        .bt-seg-btn.on-own { background: var(--agent-info, #2563eb); color: #fff; }
+        .bt-seg-btn.on-all { background: var(--agent-success, #2F7D53); color: #fff; }
+        .bt-seg.locked .bt-seg-btn.on-all { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); }
+        .bt-seg-btn.on-own:hover, .bt-seg-btn.on-all:hover { background: var(--agent-info); color: #fff; } /* active side ignores hover tint */
+        .bt-seg-btn.on-all:hover { background: var(--agent-success); }
+
+        .bt-foot { margin: 4px 2px 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.55; }
+        .bt-foot strong { color: var(--agent-text-secondary); font-weight: 600; }
+
+        @media (max-width: 560px) {
+          .bt-row { flex-wrap: wrap; }
+          .bt-role { order: 3; }
+          .bt-seg { order: 4; margin-left: auto; }
+        }
+      `}</style>
+    </div>
+  );
+}

@@ -73,6 +73,35 @@ export async function updateBusinessShortNameAction(shortNameRaw: string): Promi
   return { ok: true };
 }
 
+/**
+ * Set whether a team member sees the whole business book (see-all) or only their
+ * own assigned files (see-own). Owner-only. The member must be in the owner's own
+ * business; the owner's own row can't be changed (they always see all). Takes
+ * effect on the member's next page load — the session re-reads canViewAllFiles, so
+ * no re-login and no sessionVersion bump (which would log them out).
+ */
+export async function setBusinessMemberViewAllAction(memberId: string, canViewAll: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  const member = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { progressionBusinessId: true, progressionBusinessRole: true },
+  });
+  if (!member || member.progressionBusinessId !== owner.businessId) {
+    return { ok: false, error: "That isn't one of your team members." };
+  }
+  if (member.progressionBusinessRole === "owner") {
+    return { ok: false, error: "The owner always sees all sales." };
+  }
+
+  await prisma.user.update({ where: { id: memberId }, data: { canViewAllFiles: canViewAll } });
+  revalidatePath("/agent/team");
+  return { ok: true };
+}
+
 /** Re-send the set-password invite to a client agency's agent. Owner-scoped. */
 export async function resendClientInviteAction(agencyId: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

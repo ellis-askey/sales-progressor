@@ -2,16 +2,17 @@
  * @jest-environment node
  *
  * Create-sale-for-client (Phase 5). Proves the security gates on the new
- * createTransactionAction branch: it is flag-gated, owner-gated, and the chosen
- * agency must be one of the actor's own clients. These throw before any file is
- * created, so a progression business can never create a file into an agency it
- * has no client relationship with.
+ * createTransactionAction branch: it is flag-gated, member-gated (any member of
+ * the progression business, not only the owner), and the chosen agency must be
+ * one of the actor's own clients. These throw before any file is created, so a
+ * progression business can never create a file into an agency it has no client
+ * relationship with.
  */
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("next/server", () => ({ after: (fn: () => void) => { void fn; } }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
 jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn() }));
-jest.mock("@/lib/services/progression-clients", () => ({ resolveBusinessOwner: jest.fn() }));
+jest.mock("@/lib/services/progression-clients", () => ({ resolveBusinessMember: jest.fn() }));
 jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -34,7 +35,7 @@ jest.mock("@/lib/services/handover-readiness", () => ({
 import { createTransactionAction } from "@/app/actions/transactions";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { createTransaction } from "@/lib/services/transactions";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
@@ -67,7 +68,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (requireSession as jest.Mock).mockResolvedValue(sarahSession);
   (progressionBusinessesEnabled as jest.Mock).mockReturnValue(true);
-  (resolveBusinessOwner as jest.Mock).mockResolvedValue({ businessId: "biz_sarah", userId: "u_sarah" });
+  (resolveBusinessMember as jest.Mock).mockResolvedValue({ businessId: "biz_sarah", userId: "u_sarah" });
   p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1" });
   p.user.findFirst.mockResolvedValue({ id: "u_donna" });
 });
@@ -79,9 +80,9 @@ describe("createTransactionAction: create-for-client gates", () => {
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  it("throws when the actor is not a progression-business owner", async () => {
-    (resolveBusinessOwner as jest.Mock).mockResolvedValue(null);
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/owner/i);
+  it("throws when the actor is not a progression-business member", async () => {
+    (resolveBusinessMember as jest.Mock).mockResolvedValue(null);
+    await expect(createTransactionAction(baseInput)).rejects.toThrow(/member/i);
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
@@ -106,7 +107,7 @@ describe("createTransactionAction: create-for-client ownership", () => {
     );
   });
 
-  it("only checks the owner's OWN business link (no cross-business lookup)", async () => {
+  it("only checks the member's OWN business link (no cross-business lookup)", async () => {
     await createTransactionAction(baseInput);
     expect(p.progressionBusinessClient.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({

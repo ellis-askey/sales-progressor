@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -62,6 +62,23 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
             <p className="cw-sub">Manage and grow your book of agencies.</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Link
+              href="/agent/team"
+              title="Your team"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                height: 42, padding: "0 15px", borderRadius: 12,
+                border: "1px solid var(--agent-border-default)",
+                background: "var(--agent-surface)", color: "var(--agent-text-secondary)",
+                fontSize: 13, fontWeight: 650, textDecoration: "none",
+                transition: "border-color 160ms ease, color 160ms ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+            >
+              <UsersThree size={17} weight="bold" />
+              Team
+            </Link>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
