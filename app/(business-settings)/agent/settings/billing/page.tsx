@@ -1,14 +1,17 @@
-// /agent/settings/billing — placeholder for the owner's business billing.
+// /agent/settings/billing — what the progression business pays TSP for the
+// platform: £59 base + £39 per extra team member + £5 per completed sale.
 //
-// Founder decision (2026-10-03): keep Billing visible (nav tab + main-menu item)
-// but show an honest empty state — what a progression business ↔ TSP billing view
-// should contain is still to be designed (tracked in EXTERNAL_SP_BACKLOG P2).
-// This is a real empty state with real copy, not a dead/disabled control.
+// DARK by design (founder, 2026-10-03): this shows the bill but no money is taken
+// yet — collection (the Stripe subscription + charging) lands behind a billing
+// switch, exactly like the agency billing. The copy makes that clear so a pilot
+// owner isn't surprised. Owner-gated.
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
+import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Receipt } from "@phosphor-icons/react/dist/ssr";
@@ -19,32 +22,67 @@ export default async function BusinessBillingPage() {
   const owner = await resolveBusinessOwner(session);
   if (!owner) notFound();
 
+  const s = await getBusinessBillingSummary(owner.businessId);
+  const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
   return (
     <>
       <AccountPageHeader
         title="Billing"
-        subtitle="Your invoices and payment details for your business."
+        subtitle="What your business pays for using Sales Progressor."
       />
-      <AccountCard>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12, padding: "28px 20px" }}>
-          <span
-            aria-hidden
-            style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 52, height: 52, borderRadius: 14,
-              background: "rgba(255,107,74,0.10)", color: "var(--agent-coral-deep, #E2452A)",
-            }}
-          >
-            <Receipt size={26} weight="bold" />
-          </span>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
-            Nothing to see here yet
-          </h2>
-          <p style={{ margin: 0, maxWidth: 420, fontSize: 13.5, lineHeight: 1.6, color: "#6b7280" }}>
-            When billing for your business is ready, your invoices and payment details will live here. There&rsquo;s nothing you need to do for now.
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* Not-live notice */}
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 16px", borderRadius: 13,
+          background: "rgba(37,99,235,0.06)", border: "0.5px solid rgba(37,99,235,0.2)",
+        }}>
+          <span aria-hidden style={{ color: "var(--agent-info, #2563eb)", flexShrink: 0, marginTop: 1, fontWeight: 800 }}>i</span>
+          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>
+            This is what your plan works out to. <strong>We&rsquo;re not taking any payment yet</strong> — we&rsquo;ll
+            let you know and ask for a card before billing goes live.
           </p>
         </div>
-      </AccountCard>
+
+        <AccountCard
+          icon={<Receipt size={18} weight="bold" />}
+          title={`This month · ${month}`}
+          subtitle="£59 for you, £39 per team member, and £5 per completed sale."
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {s.lines.map((line, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                padding: "11px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)",
+              }}>
+                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {line.description}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                  {fmtCurrencyPence(line.amountPence)}
+                </span>
+              </div>
+            ))}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+              padding: "13px 0 2px", marginTop: 4, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))",
+            }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+                Total this month
+              </span>
+              <span style={{ fontSize: 17, fontWeight: 820, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>
+                {fmtCurrencyPence(s.totalPence)}
+              </span>
+            </div>
+          </div>
+          <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+            {s.saleCount === 0
+              ? "No completed sales yet this month. Sales are added here as they exchange."
+              : `${s.saleCount} completed ${s.saleCount === 1 ? "sale" : "sales"} this month at £5 each.`}
+          </p>
+        </AccountCard>
+      </div>
     </>
   );
 }

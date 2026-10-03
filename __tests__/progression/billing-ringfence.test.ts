@@ -37,6 +37,11 @@ function billedAgency(): boolean {
 function stampedExchange(): boolean {
   return prismaMock.propertyTransaction.updateMany.mock.calls.some((c) => "exchangedAt" in dataOf(c));
 }
+/** Did any updateMany call stamp businessBilledAtExchange (the £5 per-sale charge
+ *  to the progression business)? */
+function billedBusiness(): boolean {
+  return prismaMock.propertyTransaction.updateMany.mock.calls.some((c) => "businessBilledAtExchange" in dataOf(c));
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -47,18 +52,27 @@ beforeEach(() => {
 });
 
 describe("maybeStampExchange: external progression-business ring-fence (B1)", () => {
-  it("records the exchange but does NOT bill the client agency for an external-business file", async () => {
+  it("records the exchange + the £5 business per-sale, but does NOT bill the client agency", async () => {
     prismaMock.propertyTransaction.findUnique.mockResolvedValue({ ...base, progressionBusinessId: "sarah-biz" });
     await maybeStampExchange("tx1", "VM19");
-    expect(stampedExchange()).toBe(true);  // it did exchange
-    expect(billedAgency()).toBe(false);    // but the agency is never billed
+    expect(stampedExchange()).toBe(true);   // it did exchange
+    expect(billedBusiness()).toBe(true);    // the £5 is charged to the business
+    expect(billedAgency()).toBe(false);     // but the agency is never billed
   });
 
-  it("bills normally for a TSP file (progressionBusinessId = null)", async () => {
+  it("does NOT bill the business for a DEMO external file", async () => {
+    prismaMock.propertyTransaction.findUnique.mockResolvedValue({ ...base, isDemo: true, progressionBusinessId: "sarah-biz" });
+    await maybeStampExchange("tx1", "VM19");
+    expect(billedBusiness()).toBe(false);
+    expect(billedAgency()).toBe(false);
+  });
+
+  it("bills normally for a TSP file (progressionBusinessId = null) — no business per-sale", async () => {
     prismaMock.propertyTransaction.findUnique.mockResolvedValue({ ...base, progressionBusinessId: null });
     await maybeStampExchange("tx1", "VM19");
     expect(stampedExchange()).toBe(true);
     expect(billedAgency()).toBe(true);
+    expect(billedBusiness()).toBe(false);
   });
 
   it("bills normally for a file on the TSP progression-business row", async () => {

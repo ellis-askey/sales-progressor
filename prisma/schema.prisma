@@ -789,6 +789,13 @@ model PropertyTransaction {
   // "Did this file bill?" — answer.
   billedAtExchange DateTime?
 
+  // The EXTERNAL-progression-business equivalent of billedAtExchange. An external
+  // business's file never sets billedAtExchange (ring-fenced — the agency isn't
+  // charged); instead this records the £5 per-sale charge owed by the progression
+  // business to TSP. Set on exchange in maybeStampExchange for non-TSP, non-demo
+  // files; null for TSP/agency files. Bilateral-safe via a NULL guard.
+  businessBilledAtExchange DateTime?
+
   // Snapshot of purchasePrice at the moment of exchange. Billing reads from this
   // snapshot, not the live purchasePrice field — immune to later price edits.
   priceAtExchange Int? // pence
