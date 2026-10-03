@@ -338,3 +338,91 @@ and those always carry their business name, so they never hit the "Managed by TS
 / "Our team" fallback. Those words only appear on genuine TSP files, where they're
 correct and must stay. Changing the TSP-file fallback would alter TSP's own view,
 which must not change. Verified safe; no code change.
+
+---
+
+## Phase 2 — Clients CRM gaps + business settings + email sender identity (audited 2026-10-03)
+
+Audit map (what already exists): the Clients CRM is ~80% built (landing, per-client
+workspace with Overview/Branding/Sales/People/Access tabs, add-client + invite,
+rate-card editor, people management). The genuinely-missing work is (A) two small
+CRM gaps, and (B) the business's own settings area — which does not exist at all —
+with the email sender identity as its security-sensitive core. Full map in session
+2026-10-03; key file refs: `components/progression/{ClientsWorkspace,AgencyWorkspace}.tsx`,
+`lib/services/progression-clients.ts`, `lib/progression/identity.ts`,
+`lib/email/agency-sender.ts`, `lib/services/verified-emails.ts`,
+`ProgressionBusiness` (`schema.prisma:206-233`).
+
+**Hard rule unchanged:** everything gates on a non-TSP business. TSP files keep
+`ellis@` / `updates@`; agencies keep their existing `quoteSenderEmail` flow
+untouched; free self-signup agents unaffected.
+
+### Founder decisions (2026-10-03)
+
+**P2-1 — Remove client (CRM gap).** Build it. Owner-only, flag-gated. **Blocked
+with a clear message if the client still has active (non-completed) sales** — never
+orphan live files. Removal unlinks the `ProgressionBusinessClient` relationship only;
+the agency row and any completed historical files remain (access is by the file's
+`progressionBusinessId`, not the link). Reversible by re-adding. Word is "remove",
+never "delete" (Law 21).
+
+**P2-2 — Edit client name (CRM gap).** The client is a real `Agency` row (same one
+the agency edits once it logs in). Single source of truth. **Progressor can edit the
+name only while the client is PENDING** (invited, no director password yet). Once the
+agency activates, the name is theirs and shows **read-only** on the progressor side.
+
+**P2-3 — Business settings area (NEW surface).** Build an owner-only settings area
+modelled on the agent account area (`app/(account)/agent/account/*`), reusing the
+existing UI but **repointing the data layer from `agencyId` to `progressionBusinessId`**
+(the real work — the screens are done, the plumbing is not). Tab disposition:
+- **Profile** (name/email/phone/photo/writing style) — keep; reword "managed by your
+  director" → "managed by your business owner".
+- **Security** (password) — keep as-is.
+- **Connections** (connect own mailbox) — keep as-is.
+- **Email branding + identity** — keep; becomes the home for the business sender
+  domain (P2-4).
+- **Team** — link to the existing `/agent/team` (built in #4); do not duplicate.
+- **Client portal** — **hidden at business level** (per-client for a progressor;
+  lives in the per-client workspace).
+- **Billing** — **kept as a visible tab AND a main-nav dropdown item**, but the page
+  renders an honest empty state (no agency billing data). Clicking Billing in the
+  main menu routes to that empty settings tab. **TODO (founder, later): design what a
+  progression business↔TSP billing view should contain.** Deliberate placeholder, not
+  a dead control — real empty state with real copy (Law 13 compliant).
+
+**P2-4 / P2-5 / P2-6 — Email sender identity + verification (the core).** Confirmed
+two-tier model with fallback:
+1. **Business main settings:** owner sets + verifies their OWN domain
+   (e.g. `sarahprogression.co.uk`) → default client-facing sender
+   `sarah@sarahprogression.co.uk`.
+2. **Per client (in that client's workspace):** owner can ALSO connect the CLIENT
+   AGENCY's own address (on the agency's domain, e.g. `sarah@janesestateagents.co.uk`)
+   → files for that client send fully as the agency.
+3. **Resolution order per email:** verified client-agency address → verified business
+   address → neutral platform `updates@thesalesprogressor.co.uk`.
+4. **From-NAME is always white-labelled** to the client's agency:
+   `"{progressor first name} at {client agency name}"` (e.g. "Sarah at Jane's Estate
+   Agents") across ALL tiers — confirmed acceptable even where the display name and
+   sending domain differ at the business/fallback tiers.
+- **Verification is non-negotiable and ships WITH the "set your sender" UI** — the
+  bulletproof-sender hard rule. `identity.ts:clientFacingIdentity` currently trusts
+  `business.senderEmail`/`senderDomain` blindly with no verified gate; that is only
+  safe today because no UI sets them. Must add a `senderVerified` field on
+  `ProgressionBusiness` (mirroring `Agency.quoteSenderVerified`), reuse the agency
+  verification flows (DNS domain-auth + emailed-code single-sender) pointed at the
+  business, bring the business into the nightly `check-domains` cron, and gate
+  `clientFacingIdentity` on verified. Build + explain fully once done (founder: "do
+  what you need to, just explain once built").
+
+**P2-7 — Invite email branding (was E1).** Brand the client-agency invite email as
+coming from the progression business. **Partially-done flag:** do a first pass now,
+but mark it as needing a founder content/branding review later (founder asked for a
+reminder).
+
+### Sequencing (one concern per PR, Law 5)
+1. **PR1 — CRM gaps:** remove client + edit-name (pending-only). Small, no schema.
+2. **PR2 — Business settings shell:** new owner-only account area, tabs repointed to
+   the business, Billing/Client-portal disposition, short-name moved in.
+3. **PR3 — Sender identity + verification:** schema field + reused verify flows +
+   cron + verified gate + resolver changes + per-client sender. Careful + tested.
+4. **PR4 — Invite email branding** (part-done, flagged for review).
