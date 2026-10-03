@@ -99,18 +99,39 @@ decision or are consciously deferred.
    existing client agency a real scenario?
 
 ### Verify / lower-severity
-5. **Hard-deleting a business is destructive** (no flow exists, but): FK is
-   `ON DELETE SET NULL` — deleting a `ProgressionBusiness` converts all its files to
-   `progressionBusinessId=null` (= TSP files) and orphans users/verifiedDomains.
-   Document "never hard-delete", or add a guarded offboarding path.
-6. **Removed client vanishes from the Clients CRM** while historical files persist in
-   the file list. Confirm "history leaves the CRM but survives in files" is intended.
-7. **Comped-agency trial-metric display leak** — `freeOnExchange` external files of a
-   comped client count toward that agency's "saved via trial" figures. Display-only,
-   no money; add a `progressionBusinessId` filter if it matters.
-8. **Progressor welcome email (Arc S6) unbuilt** — new owner lands on an empty hub,
-   no onboarding email. Confirm acceptable for the first test.
-9. **Flag is not a post-onboarding kill-switch** (by design) — see ELLIS_MANUAL_TODO.
+5. **[SHIPPED]** Hard-deleting a business was destructive (`ON DELETE SET NULL`
+   orphaned files/users). The three owner FKs (PropertyTransaction, User,
+   VerifiedDomain → progressionBusinessId) are now `ON DELETE RESTRICT`: a business
+   can't be deleted while anything references it — offboard first. Migration
+   `20261003200000_restrict_business_delete` applied to staging.
+6. **[SHIPPED]** Removing a client is now a soft ARCHIVE (ProgressionBusinessClient
+   .removedAt), not a hard delete. Archived clients render greyed under "Removed" on
+   the Clients list with a reinstate control (and in the agency workspace footer),
+   drop out of book totals + the new-sale picker, and keep their rate card + history.
+   Migration `20261003210000_client_archive_removed`.
+7. **[DECISION: non-issue, no build]** Comped-agency trial-metric "display leak" —
+   a `freeOnExchange` external file of a comped client agency would count toward that
+   AGENCY's "saved via trial" figure. Founder (2026-10-03): progression businesses
+   don't run free trials, so there's no "trial savings" concept for them — and the
+   figure lives on the client agency's OWN billing view, not any progressor surface.
+   It only moves at all if TSP manually comps that client agency (rare, internal).
+   Display-only, no money. Not filtering. Revisit only if a comped agency is ever
+   also an external-progression client and the number visibly misleads.
+8. **[SHIPPED]** Progressor welcome email built (`buildProgressionWelcome` +
+   `sendProgressionWelcomeIfNotSent`), wired into both signup paths. Progressor copy
+   + "Add your first client" CTA. Same atomic welcomeEmailSentAt guard as the agent
+   welcome (one welcome of either flavour).
+9. **[DECISION: by design, documented]** `PROGRESSION_BUSINESSES_ENABLED` gates the
+   NEW external-facing entry points (signup account-type, Clients/Team pages, add-
+   client + new-sale-for-client flows). Turning it OFF after a business has onboarded
+   is a partial rollback, NOT a clean kill-switch: existing businesses + their tagged
+   files, users and client links REMAIN in the DB. What flipping off does: hides the
+   new UI/actions (they `notFound()` or no-op) and stops new progressor signups — but
+   an already-created progressor still logs in as a `sales_progressor` and still sees
+   the sales assigned to them (that path isn't flag-gated, by design, so we never
+   strand live work mid-transaction). To truly wind a business down you offboard it
+   (reassign/close its files, deactivate its users), not just toggle the flag. Noted
+   in ELLIS_MANUAL_TODO.
 
 ### Fixed in the capstone pass (for the record)
 Internal-task write/create cross-tenant isolation; reminder-count "all" TSP filter;
