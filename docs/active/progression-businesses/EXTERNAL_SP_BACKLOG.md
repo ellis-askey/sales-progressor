@@ -32,6 +32,28 @@ flag and is pre-launch.
 
 ---
 
+## Important but deferred
+
+Things that matter and should be picked up, but are consciously parked (not dropped).
+
+### PR4 — Invite email branding (a.k.a. E1). NOT STARTED.
+The email a progression business sends to invite one of its client agencies still
+reads as coming from the **platform**, not from the business. Today
+(`lib/emails/client-agent-invite.ts`): subject "You've been set up on Sales
+Progressor", footer "Sales Progressor", `replyTo: support@thesalesprogressor.co.uk`;
+the business name only appears inline in one intro sentence.
+
+**Wanted:** a copy + branding pass so the invite reads as coming from that business
+and sells the value of what they do, rather than the generic setup email.
+
+**Status (founder, 2026-10-03):** do a FIRST pass, then flag it for a founder
+content/branding review before it's considered done — i.e. this is deliberately
+left as "part-done pending Ellis's check", not finished. The rest of Phase 2
+(PR1–PR3: CRM gaps, business settings, the full two-tier sender identity) is
+shipped to staging; this is the one remaining Phase-2 item.
+
+---
+
 ## Shipped
 
 - **Agent-facing file audit (items 1-8):** badge, assignee wording, hand-over,
