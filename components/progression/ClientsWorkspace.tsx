@@ -10,7 +10,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -18,7 +19,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
-import { updateBusinessShortNameAction } from "@/app/actions/progression-clients";
+import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { useAddClientForm } from "./useAddClientForm";
 
 function initials(name: string): string {
@@ -41,10 +42,39 @@ function Logo({ c }: { c: ClientOverviewRow }) {
   return <span className="cw-logo cw-logo-mono">{initials(c.name)}</span>;
 }
 
+// A greyed, non-navigating row for an archived client, with an inline reinstate.
+function RemovedRow({ c }: { c: ClientOverviewRow }) {
+  const router = useRouter();
+  const { toast } = useAgentToast();
+  const [pending, start] = useTransition();
+  function reinstate() {
+    start(async () => {
+      const res = await reinstateClientAgencyAction(c.agencyId);
+      if (res.ok) { toast.success(`${c.name} reinstated`); router.refresh(); }
+      else toast.error(res.error);
+    });
+  }
+  return (
+    <div className="cw-row removed">
+      <Logo c={c} />
+      <div className="cw-main">
+        <div className="cw-name">{c.name}</div>
+        <div className="cw-meta">{c.contact ?? "Agent"} · Removed</div>
+      </div>
+      <button type="button" className="cw-reinstate" onClick={reinstate} disabled={pending}>
+        <ArrowCounterClockwise size={14} weight="bold" />
+        {pending ? "Reinstating…" : "Reinstate"}
+      </button>
+    </div>
+  );
+}
+
 export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { business, totals, clients } = data;
+  const activeClients = clients.filter((c) => !c.removed);
+  const removedClients = clients.filter((c) => c.removed);
 
   const cells = [
     { tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
@@ -124,7 +154,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
       <SectionReveal order={2}>
         <p className="cw-label">Your agencies</p>
         <div className="cw-rows">
-          {clients.map((c) => (
+          {activeClients.map((c) => (
             <Link key={c.linkId} href={`/agent/clients/${c.agencyId}`} className="cw-row">
               <Logo c={c} />
               <div className="cw-main">
@@ -146,6 +176,17 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
             </Link>
           ))}
         </div>
+
+        {removedClients.length > 0 && (
+          <div className="cw-removed">
+            <p className="cw-label">Removed</p>
+            <div className="cw-rows">
+              {removedClients.map((c) => (
+                <RemovedRow key={c.linkId} c={c} />
+              ))}
+            </div>
+          </div>
+        )}
       </SectionReveal>
 
       {addOpen && <AddClientModal onClose={() => setAddOpen(false)} />}
@@ -206,6 +247,22 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-chev { color: var(--agent-text-muted); flex-shrink: 0; transition: transform .2s, color .2s; }
         .cw-row:hover .cw-chev { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }
         @media (max-width: 760px) { .cw-mstats { display: none; } }
+
+        /* Removed (archived) clients — greyed, non-navigating, reinstate-only. */
+        .cw-removed { margin-top: 22px; }
+        .cw-removed .cw-label { margin-bottom: 12px; }
+        .cw-row.removed { cursor: default; opacity: 0.62; }
+        .cw-row.removed:hover { transform: none; border-color: var(--agent-border-subtle); box-shadow: none; }
+        .cw-row.removed .cw-logo { filter: grayscale(1); }
+        .cw-reinstate {
+          display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+          height: 34px; padding: 0 13px; border-radius: 10px; cursor: pointer;
+          border: 1px solid var(--agent-border-default); background: var(--agent-surface);
+          color: var(--agent-text-secondary); font-size: 12.5px; font-weight: 650;
+          transition: border-color 160ms ease, color 160ms ease;
+        }
+        .cw-reinstate:hover:not(:disabled) { border-color: var(--agent-coral); color: var(--agent-coral-deep); }
+        .cw-reinstate:disabled { opacity: 0.6; cursor: default; }
       `}</style>
     </div>
   );

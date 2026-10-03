@@ -268,6 +268,13 @@ model ProgressionBusinessClient {
   // (ClientFeeModel: flat | tiered | percent). Null = no fee model set yet.
   feeModel Json?
 
+  // Archive (soft-remove) instead of deleting the link. A removed client drops off
+  // the active Clients list and the new-sale picker, but the link row survives so
+  // the rate card + history are intact and the owner can reinstate (removedAt back
+  // to null). The @@unique([agencyId]) still holds the slot while archived — so
+  // reinstate, not re-add, is the way back.
+  removedAt DateTime?
+
   progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
   agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 

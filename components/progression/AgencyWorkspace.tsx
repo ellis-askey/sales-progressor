@@ -14,7 +14,7 @@ import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, Pencil
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction } from "@/app/actions/progression-clients";
+import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
@@ -69,6 +69,14 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
     setRemoving(false);
     if (res.ok) { toast.success(`${detail.name} removed`); router.push("/agent/clients"); }
     else { setConfirmRemove(false); toast.error(res.error); }
+  }
+
+  async function reinstateClient() {
+    setRemoving(true);
+    const res = await reinstateClientAgencyAction(detail.agencyId);
+    setRemoving(false);
+    if (res.ok) { toast.success(`${detail.name} reinstated`); router.refresh(); }
+    else toast.error(res.error);
   }
 
   async function resend() {
@@ -244,11 +252,19 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
             </div>
 
             <div className="aw-removezone">
-              {!confirmRemove ? (
+              {detail.removed ? (
+                <div className="aw-removerow">
+                  <div className="aw-removetxt">
+                    <span className="t">This client is removed</span>
+                    <span className="d">{detail.name} is off your active Clients list. Reinstate them to start progressing sales for them again.</span>
+                  </div>
+                  <button type="button" className="aw-reinstatebtn" onClick={reinstateClient} disabled={removing}>{removing ? "Reinstating…" : "Reinstate client"}</button>
+                </div>
+              ) : !confirmRemove ? (
                 <div className="aw-removerow">
                   <div className="aw-removetxt">
                     <span className="t">Remove this client</span>
-                    <span className="d">Takes {detail.name} off your Clients list. Their completed sales and account stay; you can add them again later.</span>
+                    <span className="d">Takes {detail.name} off your Clients list. Their completed sales and account stay, and you can reinstate them any time.</span>
                   </div>
                   <button type="button" className="aw-removebtn" onClick={() => setConfirmRemove(true)}>Remove client</button>
                 </div>
@@ -256,7 +272,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 <div className="aw-removerow confirm">
                   <div className="aw-removetxt">
                     <span className="t">Remove {detail.name}?</span>
-                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"} — you'll need to complete or withdraw those first.` : "This can't be undone from here, but you can re-add them any time."}</span>
+                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"}, so you'll need to complete or withdraw those first.` : "They'll move to your Removed list, where you can reinstate them any time."}</span>
                   </div>
                   <div className="aw-removeactions">
                     <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancel</button>
@@ -369,6 +385,9 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-removebtn.danger { background: var(--agent-coral-ink, #BE3C1C); color: #fff; border-color: transparent; }
         .aw-removebtn.danger:hover:not(:disabled) { background: #a3300f; }
         .aw-removebtn:disabled { opacity: 0.55; cursor: default; }
+        .aw-reinstatebtn { font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 8px 15px; border-radius: 10px; border: 1px solid transparent; background: var(--agent-coral-deep, #E2452A); color: #fff; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .15s, filter .15s; }
+        .aw-reinstatebtn:hover:not(:disabled) { filter: brightness(1.05); }
+        .aw-reinstatebtn:disabled { opacity: 0.6; cursor: default; }
 
         @media (prefers-reduced-motion: reduce) { .aw-panel { animation: none; } .aw-meter i { transition: none; } .aw-nameedit-btn, .aw-namebtn, .aw-removerow, .aw-removebtn { transition: none; } }
       `}</style>

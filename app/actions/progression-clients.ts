@@ -85,12 +85,13 @@ export async function renameClientAgencyAction(agencyId: string, nameRaw: string
 }
 
 /**
- * Remove a client agency from the business's book. Owner-scoped. BLOCKED while the
- * client still has active sales — we never orphan live files. Removal unlinks the
- * ProgressionBusinessClient relationship only: the Agency row and any completed
- * historical files remain (file access is keyed on the transaction's
- * progressionBusinessId, not this link), and the client can be re-added later.
- * Not "delete" (Law 21) — nothing of the agency's own data is destroyed.
+ * Remove (archive) a client agency from the business's book. Owner-scoped. BLOCKED
+ * while the client still has active sales — we never orphan live files. This is a
+ * SOFT remove: it sets removedAt, so the link row, the rate card and all history
+ * survive. The client drops off the active Clients list and the new-sale picker,
+ * renders greyed under "Removed", and can be reinstated at any time. Nothing of the
+ * agency's own data is touched (file access is keyed on the transaction's
+ * progressionBusinessId, not this link).
  */
 export async function removeClientAgencyAction(agencyId: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
@@ -108,11 +109,34 @@ export async function removeClientAgencyAction(agencyId: string): Promise<Action
     };
   }
 
-  await prisma.progressionBusinessClient.delete({
+  await prisma.progressionBusinessClient.update({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+    data: { removedAt: new Date() },
   });
   console.log(`[AUDIT] progression_client_removed businessId=${owner.businessId} agencyId=${agencyId} by=${owner.userId}`);
   revalidatePath("/agent/clients");
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/**
+ * Reinstate a previously-removed client agency. Owner-scoped. Clears removedAt so
+ * the client returns to the active book (and the new-sale picker) with its rate
+ * card and history intact. No-op-safe if the client was already active.
+ */
+export async function reinstateClientAgencyAction(agencyId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  await prisma.progressionBusinessClient.update({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+    data: { removedAt: null },
+  });
+  console.log(`[AUDIT] progression_client_reinstated businessId=${owner.businessId} agencyId=${agencyId} by=${owner.userId}`);
+  revalidatePath("/agent/clients");
+  revalidatePath(`/agent/clients/${agencyId}`);
   return { ok: true };
 }
 

@@ -7,7 +7,8 @@
  *  - rename only works while the client is PENDING (director has no password);
  *    once the agency activates, its name is theirs and the action refuses.
  *  - remove is BLOCKED while the client still has active sales (never orphan
- *    live files); otherwise it unlinks the ProgressionBusinessClient row only.
+ *    live files); otherwise it ARCHIVES the ProgressionBusinessClient (sets
+ *    removedAt) rather than deleting it, and reinstate clears removedAt.
  */
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
@@ -24,12 +25,12 @@ jest.mock("@/lib/prisma", () => ({
     user: { findFirst: jest.fn() },
     agency: { update: jest.fn() },
     propertyTransaction: { count: jest.fn() },
-    progressionBusinessClient: { delete: jest.fn() },
+    progressionBusinessClient: { update: jest.fn() },
     progressionBusiness: { update: jest.fn() },
   },
 }));
 
-import { renameClientAgencyAction, removeClientAgencyAction, updateBusinessIdentityAction } from "@/app/actions/progression-clients";
+import { renameClientAgencyAction, removeClientAgencyAction, reinstateClientAgencyAction, updateBusinessIdentityAction } from "@/app/actions/progression-clients";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { assertOwnerOfClient, resolveBusinessOwner } from "@/lib/services/progression-clients";
@@ -88,12 +89,13 @@ describe("renameClientAgencyAction", () => {
 });
 
 describe("removeClientAgencyAction", () => {
-  it("removes (unlinks) when there are no active sales", async () => {
+  it("archives (sets removedAt) when there are no active sales", async () => {
     p.propertyTransaction.count.mockResolvedValue(0);
     const res = await removeClientAgencyAction("ag1");
     expect(res.ok).toBe(true);
-    expect(p.progressionBusinessClient.delete).toHaveBeenCalledWith({
+    expect(p.progressionBusinessClient.update).toHaveBeenCalledWith({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: "biz1", agencyId: "ag1" } },
+      data: { removedAt: expect.any(Date) },
     });
   });
 
@@ -105,11 +107,11 @@ describe("removeClientAgencyAction", () => {
     });
   });
 
-  it("is BLOCKED when the client still has active sales (no unlink)", async () => {
+  it("is BLOCKED when the client still has active sales (no archive)", async () => {
     p.propertyTransaction.count.mockResolvedValue(3);
     const res = await removeClientAgencyAction("ag1");
     expect(res).toEqual({ ok: false, error: expect.stringMatching(/3 active sales/i) });
-    expect(p.progressionBusinessClient.delete).not.toHaveBeenCalled();
+    expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
   });
 
   it("rejects a non-owner / non-client before counting anything", async () => {
@@ -117,14 +119,39 @@ describe("removeClientAgencyAction", () => {
     const res = await removeClientAgencyAction("ag1");
     expect(res).toEqual({ ok: false, error: expect.stringMatching(/isn't one of your clients/i) });
     expect(p.propertyTransaction.count).not.toHaveBeenCalled();
-    expect(p.progressionBusinessClient.delete).not.toHaveBeenCalled();
+    expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
   });
 
   it("is flag-gated", async () => {
     (progressionBusinessesEnabled as jest.Mock).mockReturnValue(false);
     const res = await removeClientAgencyAction("ag1");
     expect(res.ok).toBe(false);
-    expect(p.progressionBusinessClient.delete).not.toHaveBeenCalled();
+    expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("reinstateClientAgencyAction", () => {
+  it("clears removedAt (owner)", async () => {
+    const res = await reinstateClientAgencyAction("ag1");
+    expect(res.ok).toBe(true);
+    expect(p.progressionBusinessClient.update).toHaveBeenCalledWith({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: "biz1", agencyId: "ag1" } },
+      data: { removedAt: null },
+    });
+  });
+
+  it("rejects a non-owner / non-client", async () => {
+    (assertOwnerOfClient as jest.Mock).mockResolvedValue(null);
+    const res = await reinstateClientAgencyAction("ag1");
+    expect(res).toEqual({ ok: false, error: expect.stringMatching(/isn't one of your clients/i) });
+    expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
+  });
+
+  it("is flag-gated", async () => {
+    (progressionBusinessesEnabled as jest.Mock).mockReturnValue(false);
+    const res = await reinstateClientAgencyAction("ag1");
+    expect(res.ok).toBe(false);
+    expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
   });
 });
 

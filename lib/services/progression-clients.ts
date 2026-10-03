@@ -38,14 +38,14 @@ export type BusinessMember = { businessId: string; userId: string; isOwner: bool
 /** Does this business have at least one client agency? Gates the team-member
  *  "New sale" entry (hidden until the owner has added a client). */
 export async function businessHasClients(businessId: string): Promise<boolean> {
-  const count = await prisma.progressionBusinessClient.count({ where: { progressionBusinessId: businessId } });
+  const count = await prisma.progressionBusinessClient.count({ where: { progressionBusinessId: businessId, removedAt: null } });
   return count > 0;
 }
 
 /** Client agencies of a progression business, for the new-sale "which client?" picker. */
 export async function getClientAgenciesForBusiness(businessId: string): Promise<Array<{ id: string; name: string }>> {
   const links = await prisma.progressionBusinessClient.findMany({
-    where: { progressionBusinessId: businessId },
+    where: { progressionBusinessId: businessId, removedAt: null },
     select: { agency: { select: { id: true, name: true } } },
     orderBy: { agency: { name: "asc" } },
   });
@@ -261,7 +261,8 @@ export type ClientOverviewRow = {
   active: number;
   pipelinePence: number;
   exchanged: number;
-  status: "active" | "invite";
+  status: "active" | "invite" | "removed";
+  removed: boolean; // archived (removedAt set) — rendered greyed, reinstate-only
 };
 
 export type ClientsOverview = {
@@ -286,11 +287,14 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
     select: { name: true, shortName: true },
   });
 
+  // Both active and archived links — archived ones render greyed with a reinstate
+  // control, and drop out of the book totals below.
   const links = await prisma.progressionBusinessClient.findMany({
     where: { progressionBusinessId: businessId },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      removedAt: true,
       agency: {
         select: {
           id: true,
@@ -308,6 +312,8 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
       },
     },
   });
+  // Agencies still active (not archived) — totals are summed over these only.
+  const activeAgencyIds = new Set(links.filter((l) => !l.removedAt).map((l) => l.agency.id));
 
   const txns = await prisma.propertyTransaction.findMany({
     where: { progressionBusinessId: businessId, isDemo: false, isMigrated: false },
@@ -325,15 +331,17 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
 
   for (const t of txns) {
     const a = byAgency.get(t.agencyId) ?? { active: 0, pipeline: 0, exchanged: 0 };
+    // Per-row stats are kept for every agency (so an archived row can still show
+    // its history), but book-wide totals only count agencies still on the list.
+    const counts = activeAgencyIds.has(t.agencyId);
     if (t.status === "active") {
       a.active += 1;
       a.pipeline += t.purchasePrice ?? 0;
-      totalActive += 1;
-      totalPipeline += t.purchasePrice ?? 0;
+      if (counts) { totalActive += 1; totalPipeline += t.purchasePrice ?? 0; }
     }
     if (t.exchangedAt) {
       a.exchanged += 1;
-      if (new Date(t.exchangedAt) >= monthStart) exchangedThisMonth += 1;
+      if (counts && new Date(t.exchangedAt) >= monthStart) exchangedThisMonth += 1;
     }
     byAgency.set(t.agencyId, a);
   }
@@ -342,6 +350,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
     const d = l.agency.users[0] ?? null;
     const agg = byAgency.get(l.agency.id) ?? { active: 0, pipeline: 0, exchanged: 0 };
     const pending = d ? !d.password : true;
+    const removed = !!l.removedAt;
     return {
       linkId: l.id,
       agencyId: l.agency.id,
@@ -355,13 +364,14 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
       active: agg.active,
       pipelinePence: agg.pipeline,
       exchanged: agg.exchanged,
-      status: pending ? "invite" : "active",
+      status: removed ? "removed" : pending ? "invite" : "active",
+      removed,
     };
   });
 
   return {
     business: { name: business?.name ?? "", shortName: business?.shortName ?? null },
-    totals: { agencies: links.length, activeSales: totalActive, pipelinePence: totalPipeline, exchangedThisMonth },
+    totals: { agencies: activeAgencyIds.size, activeSales: totalActive, pipelinePence: totalPipeline, exchangedThisMonth },
     clients,
   };
 }
@@ -404,6 +414,7 @@ export type ClientAgencyDetail = {
   email: string | null;
   pending: boolean;
   status: "active" | "invite";
+  removed: boolean; // archived client — workspace shows a reinstate zone, not remove
   active: number;
   pipelinePence: number;
   exchanged: number;
@@ -431,7 +442,7 @@ export type ClientAgencyDetail = {
 export async function getClientAgencyDetail(businessId: string, agencyId: string): Promise<ClientAgencyDetail | null> {
   const link = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
-    select: { id: true, feeModel: true },
+    select: { id: true, feeModel: true, removedAt: true },
   });
   if (!link) return null;
   const feeModel = parseFeeModel(link.feeModel);
@@ -523,6 +534,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     email: director?.email ?? null,
     pending,
     status: pending ? "invite" : "active",
+    removed: !!link.removedAt,
     active, pipelinePence: pipeline, exchanged,
     completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
