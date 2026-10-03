@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X } from "@phosphor-icons/react";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -181,7 +181,12 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
 
           {tab === "Sales" && (
             <div className="aw-card full">
-              <h4>Their sales · {detail.active} active</h4>
+              <div className="aw-sales-hdr">
+                <h4>Their sales · {detail.active} active</h4>
+                <a href={`/api/agent/clients/${detail.agencyId}/invoice`} className="aw-invoice-link" title="Download this month's invoice for this client">
+                  <DownloadSimple size={14} weight="bold" /> Download invoice
+                </a>
+              </div>
               {detail.sales.length === 0
                 ? <p className="aw-empty">No sales yet. Add their first sale to get started.</p>
                 : detail.sales.map((s) => {
@@ -302,6 +307,10 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-card { background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle); border-radius: 15px; padding: 17px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
         .aw-card.full { grid-column: 1 / -1; }
         .aw-card h4 { margin: 0 0 13px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
+        .aw-sales-hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .aw-sales-hdr h4 { margin: 0 0 13px; }
+        .aw-invoice-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); text-decoration: none; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); transition: border-color .15s, background .15s; }
+        .aw-invoice-link:hover { border-color: var(--agent-coral); background: rgba(var(--agent-coral-rgb),0.06); }
         .aw-empty { font-size: 13px; color: var(--agent-text-muted); margin: 0; }
 
         .aw-ov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

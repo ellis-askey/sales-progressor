@@ -41,6 +41,10 @@ export type PdfInvoiceInput = {
   creditsAppliedPence: number;
   totalPence: number;
   generatedAt: string;
+  // Who the invoice is FROM. Defaults to "The Sales Progressor" (agency billing,
+  // unchanged). A progression business invoicing its own client agency passes its
+  // own name so the brand + footer read as the business, not TSP.
+  issuerName?: string;
 };
 
 // A4 in PDF points (1 pt = 1/72 inch)
@@ -116,9 +120,9 @@ function topY(cursorFromTop: number, textSize: number): number {
   return PAGE_H - cursorFromTop - textSize;
 }
 
-function drawHeader(page: PDFPage, fonts: Fonts, agencyName: string, yTop: number): number {
+function drawHeader(page: PDFPage, fonts: Fonts, agencyName: string, yTop: number, issuer: string): number {
   // Left brand block
-  page.drawText("The Sales Progressor", {
+  page.drawText(issuer, {
     x: CONTENT_LEFT, y: topY(yTop, 14), size: 14, font: fonts.bold, color: COLOR_CORAL,
   });
   const line2Y = yTop + 14 + 4;
@@ -320,7 +324,7 @@ function drawTotals(page: PDFPage, fonts: Fonts, input: PdfInvoiceInput, yTop: n
   return y + 14;
 }
 
-function drawFooter(page: PDFPage, fonts: Fonts, generatedAt: string): void {
+function drawFooter(page: PDFPage, fonts: Fonts, generatedAt: string, issuerFooter: string): void {
   const baseY = MARGIN_BOTTOM - 16;
   // Divider above the footer text
   page.drawLine({
@@ -329,7 +333,7 @@ function drawFooter(page: PDFPage, fonts: Fonts, generatedAt: string): void {
     color: COLOR_BORDER,
     thickness: 0.5,
   });
-  page.drawText("The Sales Progressor · thesalesprogressor.co.uk", {
+  page.drawText(issuerFooter, {
     x: CONTENT_LEFT, y: baseY, size: 8, font: fonts.regular, color: COLOR_AMOUNT_MUTED,
   });
   const gw = fonts.regular.widthOfTextAtSize(generatedAt, 8);
@@ -347,11 +351,14 @@ export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> 
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const fonts: Fonts = { regular, bold };
 
+  const issuer = input.issuerName ?? "The Sales Progressor";
+  const issuerFooter = input.issuerName ?? "The Sales Progressor · thesalesprogressor.co.uk";
+
   let page = doc.addPage([PAGE_W, PAGE_H]);
-  drawFooter(page, fonts, input.generatedAt);
+  drawFooter(page, fonts, input.generatedAt, issuerFooter);
 
   let cursor = MARGIN_TOP;
-  cursor = drawHeader(page, fonts, input.agencyName, cursor);
+  cursor = drawHeader(page, fonts, input.agencyName, cursor, issuer);
   cursor += 32;
   cursor = drawTitle(page, fonts, input.periodLabel, cursor);
   cursor += 28;
@@ -365,7 +372,7 @@ export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> 
   for (const line of input.lines) {
     if (cursor + ROW_HEIGHT > ROW_BOTTOM_LIMIT) {
       page = doc.addPage([PAGE_W, PAGE_H]);
-      drawFooter(page, fonts, input.generatedAt);
+      drawFooter(page, fonts, input.generatedAt, issuerFooter);
       cursor = MARGIN_TOP;
       cursor = drawTableHeader(page, fonts, cursor);
     }
@@ -375,7 +382,7 @@ export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> 
   // Totals need ~140pt; new page if no room.
   if (cursor + 140 > ROW_BOTTOM_LIMIT) {
     page = doc.addPage([PAGE_W, PAGE_H]);
-    drawFooter(page, fonts, input.generatedAt);
+    drawFooter(page, fonts, input.generatedAt, issuerFooter);
     cursor = MARGIN_TOP;
   }
   drawTotals(page, fonts, input, cursor);
