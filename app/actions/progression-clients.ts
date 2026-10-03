@@ -194,6 +194,89 @@ export async function setBusinessMemberViewAllAction(memberId: string, canViewAl
   return { ok: true };
 }
 
+/**
+ * Invite a progressor onto the OWN business team (distinct from inviteClient
+ * colleague, which adds a negotiator to a CLIENT agency). Owner-gated. Creates a
+ * pending `sales_progressor` in the owner's business, see-own by default (the owner
+ * grants see-all on the team screen), and emails them a set-up link.
+ */
+export async function inviteTeamMemberAction(formData: FormData): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a business owner can invite team members." };
+
+  const name = (formData.get("name") as string | null)?.trim() ?? "";
+  const email = ((formData.get("email") as string | null)?.trim() ?? "").toLowerCase();
+  if (!name || name.length > 100) return { ok: false, error: "Please enter their name." };
+  if (!email || email.length > 255 || !EMAIL_RE.test(email)) return { ok: false, error: "Please enter a valid email address." };
+
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) return { ok: false, error: "An account already exists for that email." };
+
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      password: null, // pending until they set one via the invite link
+      role: "sales_progressor",
+      agencyId: null,
+      progressionBusinessId: owner.businessId,
+      progressionBusinessRole: "progressor",
+      canViewAllFiles: false, // see-own by default; owner grants see-all on /agent/team
+    },
+    select: { id: true },
+  });
+
+  try {
+    await sendClientAgentSetupEmail({ userId: user.id, email, businessName: await businessName(owner.businessId) });
+  } catch (err) {
+    console.error(`[progression] teammate setup email failed for ${email}`, err);
+  }
+  console.log(`[AUDIT] progression_teammate_invited businessId=${owner.businessId} userId=${user.id} by=${owner.userId}`);
+  revalidatePath("/agent/team");
+  return { ok: true };
+}
+
+/**
+ * Remove a progressor from the OWN business team. Owner-gated; can't remove the
+ * owner. Deactivates them (the jwt callback kills the session on deactivatedAt /
+ * a sessionVersion bump, so they're locked out immediately) AND unassigns their
+ * files in the business — so nothing is orphaned to a user who can no longer log
+ * in; those files return to the owner's "needs assigning" queue.
+ */
+export async function removeTeamMemberAction(memberId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a business owner can remove team members." };
+
+  const member = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { progressionBusinessId: true, progressionBusinessRole: true },
+  });
+  if (!member || member.progressionBusinessId !== owner.businessId) {
+    return { ok: false, error: "That isn't one of your team members." };
+  }
+  if (member.progressionBusinessRole === "owner") {
+    return { ok: false, error: "You can't remove the business owner." };
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: memberId },
+      data: { deactivatedAt: new Date(), sessionVersion: { increment: 1 } },
+    }),
+    prisma.propertyTransaction.updateMany({
+      where: { progressionBusinessId: owner.businessId, assignedUserId: memberId },
+      data: { assignedUserId: null },
+    }),
+  ]);
+  console.log(`[AUDIT] progression_teammate_removed businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
+  revalidatePath("/agent/team");
+  return { ok: true };
+}
+
 /** Re-send the set-password invite to a client agency's agent. Owner-scoped. */
 export async function resendClientInviteAction(agencyId: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

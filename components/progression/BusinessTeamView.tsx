@@ -7,9 +7,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { UserPlus, Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { setBusinessMemberViewAllAction } from "@/app/actions/progression-clients";
+import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
 function initials(name: string): string {
@@ -25,6 +26,40 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
     () => Object.fromEntries(team.map((m) => [m.id, m.canViewAllFiles])),
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  // Invite form + per-row remove confirm.
+  const [inviting, setInviting] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+
+  function invite() {
+    const name = inviteName.trim();
+    const email = inviteEmail.trim();
+    if (!name || !email || pending) return;
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("email", email);
+    startTransition(async () => {
+      const res = await inviteTeamMemberAction(fd);
+      if (res.ok) {
+        setInviting(false); setInviteName(""); setInviteEmail("");
+        toast.success("Invite sent", { description: `We've emailed ${email} a set-up link.` });
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  function remove(member: BusinessTeamMember) {
+    if (pending) return;
+    startTransition(async () => {
+      const res = await removeTeamMemberAction(member.id);
+      setConfirmRemoveId(null);
+      if (res.ok) { toast.success(`${member.name} removed`); router.refresh(); }
+      else { toast.error(res.error); }
+    });
+  }
 
   function setMember(member: BusinessTeamMember, next: boolean) {
     if (member.role === "owner" || viewAll[member.id] === next || pending) return;
@@ -47,8 +82,34 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
     <div className="bt">
       <SectionReveal order={0}>
         <div className="bt-top">
-          <h1 className="bt-h1">Your team</h1>
-          <p className="bt-sub">Who&rsquo;s in your business, and how much of your book each person can see.</p>
+          <div className="bt-top-head">
+            <div>
+              <h1 className="bt-h1">Your team</h1>
+              <p className="bt-sub">Who&rsquo;s in your business, and how much of your book each person can see.</p>
+            </div>
+            <button type="button" className="bt-invite-btn" onClick={() => setInviting((v) => !v)}>
+              <UserPlus size={16} weight="bold" /> Invite teammate
+            </button>
+          </div>
+          {inviting && (
+            <div className="bt-invite-form">
+              <input
+                className="bt-inp" placeholder="Their name" value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)} disabled={pending} autoFocus
+              />
+              <input
+                className="bt-inp" type="email" placeholder="their@email.co.uk" value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") invite(); }} disabled={pending}
+              />
+              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={invite} disabled={pending || !inviteName.trim() || !inviteEmail.trim()}>
+                {pending ? "Sending…" : "Send invite"}
+              </button>
+              <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => { setInviting(false); setInviteName(""); setInviteEmail(""); }} disabled={pending}>
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </SectionReveal>
 
@@ -64,6 +125,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                   <div className="bt-name">{m.name}{m.isYou && <span className="bt-you">You</span>}</div>
                   <div className="bt-email">{m.email}</div>
                 </div>
+                {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
                 <span className={`bt-role${isOwner ? " is-owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
                 <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
                   <button
@@ -85,6 +147,16 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                     All sales
                   </button>
                 </div>
+                {!isOwner && (
+                  confirmRemoveId === m.id ? (
+                    <div className="bt-rm-confirm">
+                      <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
+                      <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
+                  )
+                )}
               </div>
             );
           })}
@@ -97,9 +169,23 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
       <style>{`
         .bt { width: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
-        .bt-top { }
+        .bt-top-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
         .bt-h1 { margin: 0 0 3px; font-size: clamp(24px, 4vw, 32px); font-weight: 820; letter-spacing: -0.03em; color: var(--agent-text-primary); }
         .bt-sub { margin: 0; font-size: 14px; color: var(--agent-text-secondary); }
+        .bt-invite-btn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 1px solid var(--agent-coral); background: rgba(var(--agent-coral-rgb),0.08); color: var(--agent-coral-deep, #E2452A); font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: background .15s, transform .15s; }
+        .bt-invite-btn:hover { background: rgba(var(--agent-coral-rgb),0.14); transform: translateY(-1px); }
+        .bt-invite-form { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); }
+        .bt-inp { flex: 1; min-width: 160px; padding: 9px 12px; font-size: 13.5px; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 9px; outline: none; }
+        .bt-inp:focus { border-color: var(--agent-coral); }
+
+        .bt-pending { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #B5831E; background: rgba(181,131,30,0.12); padding: 3px 8px; border-radius: 999px; flex-shrink: 0; }
+        :root[data-theme="dark"] .bt-pending { color: #E0B050; }
+        .bt-rm { font-family: inherit; font-size: 12px; font-weight: 650; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); background: transparent; color: var(--agent-text-muted); cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s; }
+        .bt-rm:hover { color: var(--agent-coral-ink, #BE3C1C); border-color: var(--agent-coral-ink, #BE3C1C); }
+        .bt-rm-confirm { display: inline-flex; gap: 6px; flex-shrink: 0; }
+        .bt-rm-yes { font-family: inherit; font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 9px; border: none; background: var(--agent-coral-ink, #BE3C1C); color: #fff; cursor: pointer; }
+        .bt-rm-yes:disabled { opacity: 0.6; cursor: default; }
+        .bt-rm-no { font-family: inherit; font-size: 12px; font-weight: 650; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); background: transparent; color: var(--agent-text-muted); cursor: pointer; }
 
         .bt-rows { display: flex; flex-direction: column; gap: 10px; }
         .bt-row {
