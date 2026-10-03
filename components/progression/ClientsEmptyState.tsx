@@ -60,9 +60,11 @@ export function ClientsEmptyState() {
             </Button>
           </div>
 
-          {/* Decorative roster — each card lifts as the cursor passes over it */}
+          {/* Decorative roster — each card lifts as the cursor passes over it.
+              No "Your clients" label here: with no clients yet it read as if these
+              illustrative agencies were real. The real label returns with the
+              populated ClientsWorkspace once a client is added. */}
           <aside className="cwg-roster" aria-hidden>
-            <p className="cwg-roster-title">Your clients</p>
             <div className="cwg-stack">
               {ROSTER.map((r, i) => (
                 <div className={`cwg-rcard agent-glass cwg-rcard-${i}`} key={r.name}>
@@ -136,7 +138,6 @@ export function ClientsEmptyState() {
 
         /* Roster — subtle scattered glass cards; each lifts on hover */
         .cwg-roster { position: relative; animation: cwg-float 6s ease-in-out infinite; }
-        .cwg-roster-title { margin: 0 0 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: var(--agent-text-secondary); padding-left: 4px; }
         @keyframes cwg-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         .cwg-stack { display: flex; flex-direction: column; gap: 12px; }
         .cwg-rcard {
