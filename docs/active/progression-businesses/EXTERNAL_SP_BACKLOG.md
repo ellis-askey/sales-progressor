@@ -420,9 +420,24 @@ but mark it as needing a founder content/branding review later (founder asked fo
 reminder).
 
 ### Sequencing (one concern per PR, Law 5)
-1. **PR1 — CRM gaps:** remove client + edit-name (pending-only). Small, no schema.
-2. **PR2 — Business settings shell:** new owner-only account area, tabs repointed to
-   the business, Billing/Client-portal disposition, short-name moved in.
-3. **PR3 — Sender identity + verification:** schema field + reused verify flows +
-   cron + verified gate + resolver changes + per-client sender. Careful + tested.
-4. **PR4 — Invite email branding** (part-done, flagged for review).
+1. **PR1 — CRM gaps:** remove client + edit-name (pending-only). SHIPPED bc5a1f00.
+2. **PR2 — Business settings shell:** new owner-only account area. SHIPPED 174d6224.
+3. **PR3 — Sender identity + verification** (split a/c/b):
+   - **PR3a (9589ead0)** — bulletproof-sender gate: `ProgressionBusiness.senderVerified`
+     + the gate in `clientFacingIdentity` (own sender used only when verified).
+     Migration on staging. Surprise finding: the white-label from-NAME + two-tier
+     address resolution were ALREADY in `resolveAgencySenderForTransaction`.
+   - **PR3c (2a1ac6e4)** — per-client sending domain on the client page (Branding
+     tab). Reuses the agency DKIM flow pointed at the client agency (owner-scoped
+     routes). No schema/cron change — the resolver already uses the client agency's
+     verified sender as the top tier.
+   - **PR3b (18421eb9)** — business default sending domain (settings → Emails).
+     `VerifiedDomain` made polymorphic (agency OR business); business adopt + cron
+     stamping of `senderVerified`; shared `SenderDomainSection` for both placements.
+     Migration on staging.
+4. **PR4 — Invite email branding** (part-done, flagged for review). NOT STARTED.
+
+**Prod note:** both PR3 migrations (`20261003100000_progression_business_sender_verified`,
+`20261003140000_verified_domain_business_owner`) are applied to STAGING only; prod
+applies them on deploy via `migrate deploy`. Verify Vercel green after the next deploy.
+No new env vars / integrations (reuses the existing SendGrid account).

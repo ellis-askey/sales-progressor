@@ -32,7 +32,7 @@ Status key: ⬜ not started · 🔍 audited (awaiting decisions) · 🔨 buildin
 | # | Surface / journey | Who | Status | Notes |
 |---|---|---|---|---|
 | 1 | Progressor Hub + their file list | Progressor | ✅ | assign + wording + column shipped (2838d91e). Deferred Phase-1 builds now shipped: new-sale flow for progressors (d1569abc + e31fc998), owner sees own fee on hub forecast (6b992827), see-all/see-own per team member (797ca892 + 7e54e90a). P1-d/e/h still deferred — see backlog |
-| 2 | Clients CRM + "who emails send as" setup | Progressor | 🔨 | Audited 2026-10-03: CRM ~80% already built; real gap = business settings area + sender identity. Decisions logged (P2-1..P2-7); 4-PR sequence. Building PR1 (CRM gaps) |
+| 2 | Clients CRM + "who emails send as" setup | Progressor | ✅ | SHIPPED (staging, unpushed): PR1 remove/rename client (bc5a1f00); PR2 business settings area (174d6224); PR3a sender verified-gate + migration (9589ead0); PR3c per-client sending domain (2a1ac6e4); PR3b business default sending domain + cron (18421eb9). Both migrations on staging. Remaining: PR4 invite-email branding (part-done, flagged) |
 | 3 | Other pages — Completions, Updates, Analytics, Partners, Enquiries, Chains, To-Do, Reminders | Progressor | ⬜ | team-visibility model (backlog #7) threads here |
 | 4 | Account + settings (own business identity, security, email connect) | Progressor | ⬜ | |
 | 5 | Other pages beyond the file | Invited agent | ⬜ | lighter — mostly a normal agent |
