@@ -348,7 +348,10 @@ model User {
   updatedAt               DateTime                 @updatedAt
 
   agency               Agency?               @relation(fields: [agencyId], references: [id])
-  progressionBusiness  ProgressionBusiness?  @relation(fields: [progressionBusinessId], references: [id])
+  // Restrict (not SetNull): a ProgressionBusiness can't be deleted while a member
+  // still references it — stops a hand-delete silently orphaning the owner. To
+  // close a business, offboard its people first (see EXTERNAL_SP_BACKLOG #5).
+  progressionBusiness  ProgressionBusiness?  @relation(fields: [progressionBusinessId], references: [id], onDelete: Restrict)
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
   managedAgents        User[]                @relation("ProgressorAgents")
   assignedTransactions PropertyTransaction[] @relation("AssignedUser")
@@ -834,7 +837,9 @@ model PropertyTransaction {
   updatedAt DateTime @updatedAt
 
   agency                           Agency                            @relation(fields: [agencyId], references: [id])
-  progressionBusiness              ProgressionBusiness?              @relation(fields: [progressionBusinessId], references: [id])
+  // Restrict (not SetNull): a ProgressionBusiness can't be deleted while it still
+  // has files — stops a hand-delete silently turning its files into TSP files.
+  progressionBusiness              ProgressionBusiness?              @relation(fields: [progressionBusinessId], references: [id], onDelete: Restrict)
   assignedUser                     User?                             @relation("AssignedUser", fields: [assignedUserId], references: [id])
   agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
   pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
@@ -2865,7 +2870,9 @@ model VerifiedDomain {
   createdAt        DateTime     @default(now())
 
   agency              Agency?              @relation(fields: [agencyId], references: [id])
-  progressionBusiness ProgressionBusiness? @relation(fields: [progressionBusinessId], references: [id])
+  // Restrict (not SetNull): a ProgressionBusiness can't be deleted while it still
+  // owns a verified sending domain — stops a hand-delete orphaning the domain row.
+  progressionBusiness ProgressionBusiness? @relation(fields: [progressionBusinessId], references: [id], onDelete: Restrict)
   createdBy           User                 @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
   userEmails          UserVerifiedEmail[]
 
