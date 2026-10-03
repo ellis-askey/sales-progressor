@@ -12,7 +12,7 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -109,6 +109,10 @@ export default async function AllTransactionsPage({
   // flag reframes the title/subtitle/column for them. It is strictly non-TSP: a
   // TSP sales_progressor returns false and keeps the "assigned to you" framing.
   const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
+  // A progressor gets a "New sale" entry: the owner always; a team member only
+  // once the business has ≥1 client (they can't add clients themselves).
+  const progressorCanCreate = isExternalProgressor
+    && (isBusinessOwner || (!!session.user.progressionBusinessId && await businessHasClients(session.user.progressionBusinessId)));
   // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
   // their own name, which is redundant. Directors and internal staff see files belonging to multiple
   // people, so the column is meaningful for them. An external progressor also sees a multi-teammate
@@ -210,8 +214,10 @@ export default async function AllTransactionsPage({
           "Files assigned to you."
         }
       >
-        {/* "New sale" — available to agents and admin; hidden for sales_progressor */}
-        {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
+        {/* "New sale" — agents + admin; also an external progressor who can create
+            (owner always, team member once a client exists). Hidden for TSP
+            progressors and viewers. */}
+        {((session.user.role !== "sales_progressor" && session.user.role !== "viewer") || progressorCanCreate) && (
           <Link
             href="/agent/transactions/new"
             className="agent-btn agent-btn-primary agent-btn-sm"

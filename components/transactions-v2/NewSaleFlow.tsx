@@ -318,11 +318,17 @@ type Props = {
   // the card (handled server-side in createTransactionAction).
   progressorName?: string | null;
   progressorFeeModel?: import("@/lib/progression/client-fees").ClientFeeModel | null;
+  // Progressor (owner or team member) creating a sale for one of their clients.
+  // They pick which client agency the sale is for and who to assign it to, in the
+  // flow. The file is always outsourced to their business (no self-progress toggle).
+  isProgressorCreate?: boolean;
+  clientAgencies?: Array<{ id: string; name: string }>;
+  businessMembers?: Array<{ id: string; name: string }>;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [] }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -336,6 +342,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // ── Form state ────────────────────────────────────────────────────────────
   const [formFields, setFormFields] = useState<FormFields>(() => defaultFormFields(defaultProgressedBy));
   const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
+
+  // Progressor create: which client agency this sale is for. Pre-set when launched
+  // from inside a client (clientAgencyId prop); otherwise chosen from the in-flow
+  // dropdown. `effectiveClientAgencyId` is what the submit sends.
+  const [selectedClientAgencyId, setSelectedClientAgencyId] = useState<string>(clientAgencyId ?? "");
+  const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
   const [solFillingVendor, setSolFillingVendor] = useState(false);
@@ -951,7 +963,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         assignToUserId: formFields.assignToUserId || undefined,
         // Progression-business create-for-client. Server validates it's one of
         // the actor's clients; ignored (undefined) on the normal agency flow.
-        clientAgencyId: clientAgencyId || undefined,
+        clientAgencyId: effectiveClientAgencyId || undefined,
         chain: formFields.chainStubs.length > 0
           ? { stubs: formFields.chainStubs, sendInvites: true }
           : undefined,
@@ -1063,7 +1075,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     };
   })();
 
-  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict;
+  // A progressor must choose which client agency the sale is for before creating.
+  const progressorAgencyMissing = isProgressorCreate && !effectiveClientAgencyId;
+  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1159,6 +1173,39 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         )}
       </div>
       <div className="chain-submit-wrap" style={{ marginTop: 20 }}>
+        {isProgressorCreate && (
+          <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            {!clientAgencyId && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
+                <select
+                  className="agent-input"
+                  value={selectedClientAgencyId}
+                  onChange={(e) => setSelectedClientAgencyId(e.target.value)}
+                >
+                  <option value="">Select a client…</option>
+                  {clientAgencies.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {businessMembers.length > 1 && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
+                <select
+                  className="agent-input"
+                  value={formFields.assignToUserId || currentUserId}
+                  onChange={(e) => updateFormFields({ assignToUserId: e.target.value })}
+                >
+                  {businessMembers.map((m) => (
+                    <option key={m.id} value={m.id}>{m.id === currentUserId ? `${m.name} (you)` : m.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
         {isDirector && !isOutsourced && assignableAgents.length > 1 && (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
             <AgentPicker
@@ -1218,7 +1265,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             ensureDraft={ensureDraft}
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
-            canOutsource={!clientAgencyId}
+            canOutsource={!clientAgencyId && !isProgressorCreate}
             progressorName={progressorName}
           />
         </div>

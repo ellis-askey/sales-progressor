@@ -35,6 +35,33 @@ export async function resolveBusinessOwner(session: Session): Promise<BusinessOw
 
 export type BusinessMember = { businessId: string; userId: string; isOwner: boolean };
 
+/** Does this business have at least one client agency? Gates the team-member
+ *  "New sale" entry (hidden until the owner has added a client). */
+export async function businessHasClients(businessId: string): Promise<boolean> {
+  const count = await prisma.progressionBusinessClient.count({ where: { progressionBusinessId: businessId } });
+  return count > 0;
+}
+
+/** Client agencies of a progression business, for the new-sale "which client?" picker. */
+export async function getClientAgenciesForBusiness(businessId: string): Promise<Array<{ id: string; name: string }>> {
+  const links = await prisma.progressionBusinessClient.findMany({
+    where: { progressionBusinessId: businessId },
+    select: { agency: { select: { id: true, name: true } } },
+    orderBy: { agency: { name: "asc" } },
+  });
+  return links.map((l) => ({ id: l.agency.id, name: l.agency.name }));
+}
+
+/** Members (owner + team) of a progression business, for the new-sale assign dropdown. */
+export async function getBusinessMembersForAssign(businessId: string): Promise<Array<{ id: string; name: string }>> {
+  const members = await prisma.user.findMany({
+    where: { progressionBusinessId: businessId },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: "asc" },
+  });
+  return members.map((m) => ({ id: m.id, name: m.name ?? m.email }));
+}
+
 /**
  * Resolve the actor as a member (owner OR team) of an EXTERNAL progression
  * business. Unlike resolveBusinessOwner this admits non-owner team members, so

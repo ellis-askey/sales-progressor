@@ -1,10 +1,11 @@
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
-import { resolveBusinessOwner, getInvitingProgressor } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -37,6 +38,25 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
     }
   }
 
+  // Progressor adding a sale (owner OR team member of an external business): they
+  // pick which client agency the sale is for, and who to assign it to, inside the
+  // flow. Load the business's client agencies + members. A team member who has no
+  // client yet never reaches here (the New-sale entry is hidden until the owner
+  // adds one); an owner with none is routed to add a client by the empty states.
+  const businessMember = await resolveBusinessMember(session);
+  const isProgressorCreate = !!businessMember;
+  const [progressorClientAgencies, progressorMembers] = businessMember
+    ? await Promise.all([
+        getClientAgenciesForBusiness(businessMember.businessId),
+        getBusinessMembersForAssign(businessMember.businessId),
+      ])
+    : [[], []];
+  // A progressor can't add a sale with no client to attach it to. Send an owner to
+  // add their first client; a team member (who can't add clients) back to the hub.
+  if (isProgressorCreate && progressorClientAgencies.length === 0) {
+    redirect(businessMember!.isOwner ? "/agent/clients" : "/agent/hub");
+  }
+
   // Pricing migration (2026-08): there is no trial gate any more. Self-progress
   // is free, so a self-progressing agency is never blocked from adding a sale.
   // A card is needed only for billable outsourcing (beyond the free first file),
@@ -57,9 +77,11 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   // "Send to us" means "send to them" — resolve their name + per-client rate card
   // (for the earnings panel) and default the toggle to the progressor.
   const invitingProgressor = session.user.agencyId ? await getInvitingProgressor(session.user.agencyId) : null;
-  const defaultProgressedBy = invitingProgressor
-    ? "progressor"
-    : deriveDefaultProgressedBy(agencyRow?.name, agencyRow?.modeProfile);
+  const defaultProgressedBy = isProgressorCreate
+    ? "progressor" // a progression business IS the progressor; no self-progress option
+    : invitingProgressor
+      ? "progressor"
+      : deriveDefaultProgressedBy(agencyRow?.name, agencyRow?.modeProfile);
   // Earnings-builder fee config. Under the 2026-08 model, sending a sale to us
   // is free when it would be the agency's FIRST outsourced file (D3) — i.e. no
   // prior outsourced sale has exchanged yet. (feeTier="free" comped agencies are
@@ -271,6 +293,9 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           clientAgencyId={clientAgencyId}
           progressorName={invitingProgressor?.name ?? null}
           progressorFeeModel={invitingProgressor?.feeModel ?? null}
+          isProgressorCreate={isProgressorCreate}
+          clientAgencies={progressorClientAgencies}
+          businessMembers={progressorMembers}
         />
       </div>
     </>

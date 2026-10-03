@@ -33,7 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName, businessHasClients } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -223,7 +223,6 @@ export default async function Hub() {
   const hasOutsourced     = await agencyHasActiveOutsourcedFile(session.user.agencyId);
   const isProgressor      = role === "sales_progressor";
   const isAdmin           = hasAdminPowers(session);
-  const canCreateSale     = role === "director" || role === "negotiator" || role === "admin";
   // Flag-gated + DB-checked: only a genuine progression-business owner. The
   // helper short-circuits (no query) when the flag is off.
   const isBusinessOwner   = isProgressor ? await isBusinessOwnerViewer(session) : false;
@@ -231,6 +230,11 @@ export default async function Hub() {
   // book, not TSP's per-user "assigned files". Reframes hub copy for them; a TSP
   // progressor returns false and keeps the existing "assigned files" wording.
   const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
+  // A progressor gets a "New sale" entry: the owner always; a team member only
+  // once the business has ≥1 client (they can't add clients themselves).
+  const progressorCanCreate = isExternalProgressor
+    && (isBusinessOwner || (!!session.user.progressionBusinessId && await businessHasClients(session.user.progressionBusinessId)));
+  const canCreateSale     = role === "director" || role === "negotiator" || role === "admin" || progressorCanCreate;
 
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
