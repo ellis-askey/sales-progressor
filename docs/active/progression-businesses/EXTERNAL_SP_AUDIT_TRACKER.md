@@ -31,7 +31,7 @@ Status key: ⬜ not started · 🔍 audited (awaiting decisions) · 🔨 buildin
 
 | # | Surface / journey | Who | Status | Notes |
 |---|---|---|---|---|
-| 1 | Progressor Hub + their file list | Progressor | ✅ core / 🔍 tail | assign + wording + column shipped (2838d91e); P1-d/e deferred, P1-f/g + empty-state wording awaiting founder — see backlog |
+| 1 | Progressor Hub + their file list | Progressor | ✅ | assign + wording + column shipped (2838d91e). Deferred Phase-1 builds now shipped: new-sale flow for progressors (d1569abc + e31fc998), owner sees own fee on hub forecast (6b992827), see-all/see-own per team member (797ca892 + 7e54e90a). P1-d/e/h still deferred — see backlog |
 | 2 | Clients CRM + "who emails send as" setup | Progressor | ⬜ | biggest build; backlog #4 |
 | 3 | Other pages — Completions, Updates, Analytics, Partners, Enquiries, Chains, To-Do, Reminders | Progressor | ⬜ | team-visibility model (backlog #7) threads here |
 | 4 | Account + settings (own business identity, security, email connect) | Progressor | ⬜ | |
