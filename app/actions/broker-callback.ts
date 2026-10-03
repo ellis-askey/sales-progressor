@@ -177,6 +177,7 @@ export async function requestBrokerCallbackAction(
       purchaseType: true,
       tenure: true,
       isShareOfFreehold: true,
+      progressionBusinessId: true,
       brokerFirmId: true,
       brokerFirm: { select: { name: true } },
       purchasePrice: true,

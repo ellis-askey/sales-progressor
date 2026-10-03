@@ -3,9 +3,12 @@
 // The buyer portal shows one mortgage broker to mortgage buyers. Which broker
 // depends on the file:
 //   1. The agent set a broker on the file  -> that broker ("agent" source).
-//   2. Otherwise, an outsourced file        -> the TSP-default broker provider
-//      ("tsp" source).
-//   3. Otherwise (self-managed, no broker)  -> nothing.
+//   2. Otherwise, a TSP-outsourced file     -> the TSP-default broker provider
+//      ("tsp" source). ONLY TSP's own files — never an external progression
+//      business's file (its buyers must not be recommended TSP's broker, nor the
+//      referral routed to TSP). An external business's own default broker is a
+//      later feature; until then its no-agent-broker files show nothing.
+//   3. Otherwise (self-managed, or external with no agent broker) -> nothing.
 //
 // Only ever relevant to mortgage buyers (purchaseType = mortgage); cash buyers
 // have no mortgage milestones and never see it. Milestone/side/hidden gating
@@ -13,6 +16,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
+import { isTspBusiness } from "@/lib/progression/business";
 import type { QuoteContactMethod, ProviderServiceType } from "@prisma/client";
 
 export type BrokerSource = "agent" | "tsp";
@@ -35,11 +39,16 @@ export async function resolveBroker(tx: {
   serviceType: string | null;
   brokerFirmId: string | null;
   brokerFirm: { name: string } | null;
+  // Null = TSP's own file; a non-null external business id means the TSP-default
+  // fallback must NOT apply (isTspBusiness(null) is true, so TSP files are unchanged).
+  progressionBusinessId: string | null;
 }): Promise<ResolvedBroker | null> {
   if (tx.brokerFirmId && tx.brokerFirm) {
     return { source: "agent", firmName: tx.brokerFirm.name, providerId: null, brokerEmail: null, logoUrl: null };
   }
-  if (tx.serviceType !== "self_managed") {
+  // TSP-default broker only on TSP's OWN outsourced files — never an external
+  // business's (see the header note).
+  if (tx.serviceType !== "self_managed" && (await isTspBusiness(tx.progressionBusinessId))) {
     const tsp = await prisma.providerFirm.findFirst({
       where: { kind: "mortgage_broker", tspDefault: true, active: true },
       select: { id: true, name: true, email: true, logoPath: true },
@@ -81,6 +90,7 @@ export async function getPortalBrokerCard(
     select: {
       serviceType: true,
       purchaseType: true,
+      progressionBusinessId: true,
       brokerFirmId: true,
       brokerFirm: { select: { name: true } },
       agency: { select: { name: true } },
