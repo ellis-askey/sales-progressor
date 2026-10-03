@@ -1181,7 +1181,10 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
   const busiestWhen = busiest?.isCurrentWeek
     ? "this week"
     : busiestWeeksOut === 1 ? "next week" : `${busiestWeeksOut} weeks out`;
-  const { isAdmin, isProgressor, isExternalProgressor } = ctx;
+  const { isAdmin, isProgressor, isExternalProgressor, isBusinessOwner } = ctx;
+  // A progression business's own fee is shown only to the OWNER. Team members
+  // don't see fee figures (their per-sale pay is a separate, not-yet-built model).
+  const showForecastFee = !isExternalProgressor || isBusinessOwner;
   return (
     <SectionReveal order={5}>
       <GlassCard glassId="hub-exchange-forecast" label="Hub · Exchange forecast" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
@@ -1202,7 +1205,7 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
             {busiest && busiest.count > 0 && (
               <p style={{ margin: "10px 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>
                 Your biggest week is {busiestWhen}: {busiest.count} {busiest.count === 1 ? "exchange" : "exchanges"}
-                {busiest.feesPence > 0 && `, ${fmtCurrency(busiest.feesPence)} in fees`}.
+                {showForecastFee && busiest.feesPence > 0 && `, ${fmtCurrency(busiest.feesPence)} in fees`}.
               </p>
             )}
           </>

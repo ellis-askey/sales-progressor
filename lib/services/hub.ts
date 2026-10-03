@@ -2223,6 +2223,9 @@ export async function getHubWeeklyForecast(
     },
     select: {
       overridePredictedDate: true, expectedExchangeDate: true, propertyAddress: true,
+      // agencyId: for an external-business viewer the forecast fee is that
+      // business's rate-card fee for the file's agency, not the agency commission.
+      agencyId: true,
       // Per-file fee inputs — same sum as the property-file Fees card
       // (calculateFileFeesPence). Commission + referrals − our fee.
       purchasePrice: true, agentFeeAmount: true, agentFeePercent: true,
@@ -2233,6 +2236,18 @@ export async function getHubWeeklyForecast(
     },
   });
 
+  // External progression business viewer: the forecast "fees" are the business's
+  // OWN rate-card fees per file (by the file's agency), not the agency commission.
+  // null for TSP/agency viewers, who keep calculateFileFeesPence below.
+  const feeModelByAgency = vis.businessId
+    ? new Map(
+        (await prisma.progressionBusinessClient.findMany({
+          where: { progressionBusinessId: vis.businessId },
+          select: { agencyId: true, feeModel: true },
+        })).map((l) => [l.agencyId, parseFeeModel(l.feeModel)]),
+      )
+    : null;
+
   return weeks.map(({ start, end, label, isCurrentWeek }) => {
     const inWeek = transactions.filter((tx) => {
       const d = tx.overridePredictedDate ?? tx.expectedExchangeDate;
@@ -2241,7 +2256,9 @@ export async function getHubWeeklyForecast(
     const files = inWeek
       .map((tx) => ({
         address: tx.propertyAddress,
-        feePence: calculateFileFeesPence({
+        feePence: feeModelByAgency
+          ? (calculateClientFee(feeModelByAgency.get(tx.agencyId) ?? null, tx.purchasePrice) ?? 0)
+          : calculateFileFeesPence({
           purchasePrice: tx.purchasePrice,
           agentFeeAmount: tx.agentFeeAmount,
           agentFeePercent: tx.agentFeePercent,
