@@ -45,6 +45,12 @@ export type PdfInvoiceInput = {
   // unchanged). A progression business invoicing its own client agency passes its
   // own name so the brand + footer read as the business, not TSP.
   issuerName?: string;
+  // Header sub-lines under the issuer name. Default to TSP's strapline + email
+  // (agency billing, unchanged). A progression business passes its own so a client
+  // invoice never shows TSP's tagline/contact. An empty issuerContact drops the
+  // contact line entirely (a business may not have published a contact email).
+  issuerTagline?: string;
+  issuerContact?: string;
 };
 
 // A4 in PDF points (1 pt = 1/72 inch)
@@ -120,19 +126,22 @@ function topY(cursorFromTop: number, textSize: number): number {
   return PAGE_H - cursorFromTop - textSize;
 }
 
-function drawHeader(page: PDFPage, fonts: Fonts, agencyName: string, yTop: number, issuer: string): number {
+function drawHeader(page: PDFPage, fonts: Fonts, agencyName: string, yTop: number, issuer: string, tagline: string, contact: string): number {
   // Left brand block
   page.drawText(issuer, {
     x: CONTENT_LEFT, y: topY(yTop, 14), size: 14, font: fonts.bold, color: COLOR_CORAL,
   });
   const line2Y = yTop + 14 + 4;
-  page.drawText("Sales progression for UK estate agencies", {
+  page.drawText(tagline, {
     x: CONTENT_LEFT, y: topY(line2Y, 9), size: 9, font: fonts.regular, color: COLOR_MUTED,
   });
   const line3Y = line2Y + 9 + 2;
-  page.drawText("updates@thesalesprogressor.co.uk", {
-    x: CONTENT_LEFT, y: topY(line3Y, 9), size: 9, font: fonts.regular, color: COLOR_MUTED,
-  });
+  // Contact line is optional — a progression business may not publish one.
+  if (contact) {
+    page.drawText(contact, {
+      x: CONTENT_LEFT, y: topY(line3Y, 9), size: 9, font: fonts.regular, color: COLOR_MUTED,
+    });
+  }
 
   // Right agency block (right-aligned, aligned with top of brand block)
   const labelText = "BILLED TO";
@@ -352,13 +361,15 @@ export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> 
   const fonts: Fonts = { regular, bold };
 
   const issuer = input.issuerName ?? "The Sales Progressor";
+  const issuerTagline = input.issuerTagline ?? "Sales progression for UK estate agencies";
+  const issuerContact = input.issuerContact ?? "updates@thesalesprogressor.co.uk";
   const issuerFooter = input.issuerName ?? "The Sales Progressor · thesalesprogressor.co.uk";
 
   let page = doc.addPage([PAGE_W, PAGE_H]);
   drawFooter(page, fonts, input.generatedAt, issuerFooter);
 
   let cursor = MARGIN_TOP;
-  cursor = drawHeader(page, fonts, input.agencyName, cursor, issuer);
+  cursor = drawHeader(page, fonts, input.agencyName, cursor, issuer, issuerTagline, issuerContact);
   cursor += 32;
   cursor = drawTitle(page, fonts, input.periodLabel, cursor);
   cursor += 28;

@@ -21,7 +21,7 @@ export async function buildBusinessClientInvoice(
 ): Promise<PdfInvoiceInput | null> {
   const { start, end } = billingMonthRange(now);
   const [business, agency, link, sales] = await Promise.all([
-    prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true } }),
+    prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true } }),
     prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
     prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
@@ -65,5 +65,9 @@ export async function buildBusinessClientInvoice(
     totalPence: subtotal,
     generatedAt: now.toLocaleDateString("en-GB"),
     issuerName: business.name,
+    // The business's own strapline + contact, so a client invoice never shows TSP's.
+    // No published contact email → the contact line is dropped (handled downstream).
+    issuerTagline: "Property sales progression",
+    issuerContact: business.senderEmail ?? "",
   };
 }
