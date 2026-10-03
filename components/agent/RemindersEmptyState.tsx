@@ -25,31 +25,31 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
       : null;
 
   const subtext = hasClients
-    ? "As your clients' sales progress, we'll surface every chase and follow-up here, so nothing slips through."
+    ? "As your clients' sales progress, every chase and follow-up lands here, so nothing slips."
     : isOwner
-      ? "Add your first client and create their sales, and we'll surface every chase and follow-up across your book, so nothing slips through."
-      : "Chases and follow-ups across your business's sales will appear here as they progress.";
+      ? "Add your first client and create their sales, and we'll surface every chase across your book."
+      : "Chases and follow-ups across your business's sales appear here as they progress.";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Hero */}
+      {/* Hero — matches the Enquiries / Completions empty-state hero treatment. */}
       <div
         style={{
           position: "relative", overflow: "hidden",
-          borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "30px 32px",
+          borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "28px 30px",
           border: "1px solid var(--agent-border-subtle)",
           background: "linear-gradient(100deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.05) 52%, transparent 78%)",
         }}
       >
-        <HeroArt light="/reminders-hero.png" dark="/reminders-hero-dark.png" maxWidth="44%" maskStart="42%" />
-        <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+        <HeroArt light="/reminders-hero.png" dark="/reminders-hero-dark.png" maxWidth="46%" maskStart="42%" />
+        <div style={{ position: "relative", maxWidth: 480 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
             No reminders yet
           </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             Your chases will land here
           </p>
-          <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
+          <p style={{ margin: cta ? "0 0 20px" : 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
             {subtext}
           </p>
           {cta && (

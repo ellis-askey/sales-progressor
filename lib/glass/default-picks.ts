@@ -108,4 +108,18 @@ export const DEFAULT_PICKS: GlassPicks = {
   // (dark v04, light stays v00) so the how-it-works cards render identically.
   "empty-enquiries-overview": { dark: "v04" },
   "empty-enquiries-chasing": { dark: "v04" },
+
+  // Progression-business empty-state variants (Hub owner, Completions owner,
+  // Reminders) — these were missing, so their cards fell to v00 (solid dark) while
+  // the agency equivalents rendered v04 (frosted). Matched to v04 (dark only, light
+  // stays v00) so an external progressor's empty-state cards render identically to
+  // every other page. 2026-10-03.
+  "empty-hub-prog-clients": { dark: "v04" },
+  "empty-hub-prog-sales": { dark: "v04" },
+  "empty-hub-prog-picture": { dark: "v04" },
+  "empty-completions-add-clients": { dark: "v04" },
+  "empty-completions-profile-prog": { dark: "v04" },
+  "empty-reminders-chase": { dark: "v04" },
+  "empty-reminders-who": { dark: "v04" },
+  "empty-reminders-cold": { dark: "v04" },
 };
