@@ -30,7 +30,7 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const [todoBase, reviews, enquiries, chains, completions, reminders] = await Promise.all([
-    role === "admin" ? Promise.resolve(0) : countAgentDueOrOverdue(session.user.id, session.user.agencyId, role),
+    role === "admin" ? Promise.resolve(0) : countAgentDueOrOverdue(session.user.id, session.user.agencyId, role, scope),
     role === "admin" ? Promise.resolve(0) : countReviewsDue(scope).catch(() => 0),
     showSelfPages ? countEscalatedEnquiries(scope).catch(() => 0) : Promise.resolve(0),
     canSeeChains(role, session.user.email, hasSelfManagedFiles) ? countChainsNeedsSetup(scope).catch(() => 0) : Promise.resolve(0),

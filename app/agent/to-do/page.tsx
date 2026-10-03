@@ -25,21 +25,25 @@ export default async function AgentTodoPage() {
   const isProgressor = role === "sales_progressor";
   const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // The viewer's access scope — bounds the internal-task bucket to their OWN book
+  // (TSP's own files for admins, this business's files for a progressor), so no
+  // internal task ever leaks across businesses or between TSP and a business.
+  const scope = getAccessScope(session);
 
   // Agent-side tasks are agency-scoped; internal staff have agencyId=null
-  // so listAllTasksForAgent returns empty for them. Internal tasks come
-  // from listInternalSelfAssignedTasks (no agency filter).
+  // so listAllTasksForAgent returns empty for them. Internal self-assigned tasks
+  // come from listInternalSelfAssignedTasks, scoped to the viewer's book.
   const ownTasks = session.user.agencyId
     ? await listAllTasksForAgent(session.user.id, session.user.agencyId)
     : [];
   const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
-  const internalTasks = isInternal ? await listInternalSelfAssignedTasks() : [];
+  const internalTasks = isInternal ? await listInternalSelfAssignedTasks(scope) : [];
   const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
 
   // "Reviews due" — files on hold with a return date (incl. chain-collapse
   // waits + remarketing) plus hand-typed reviews, scoped to what this user can
   // see. Read straight from the hold periods, so no duplicate rows to sync.
-  const reviews = await listReviews(getAccessScope(session));
+  const reviews = await listReviews(scope);
   const reviewsDueCount = reviews.items.filter(
     (i) => i.reviewDate && toUKDateStr(i.reviewDate) <= toUKDateStr(new Date()),
   ).length;

@@ -1,6 +1,8 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 import { toUKDateStr } from "@/lib/utils";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
 export type ManualTaskWithRelations = {
   id: string;
@@ -97,12 +99,22 @@ export async function createManualTask(data: {
   return task;
 }
 
-// Internal-staff self-assigned to-dos — visible to all internal staff,
-// regardless of creator. Used by the third bucket on /agent/to-do and on
-// the property-file To-Do tab when viewed by internal staff.
-export async function listInternalSelfAssignedTasks(): Promise<ManualTaskWithRelations[]> {
+// Internal-staff self-assigned to-dos, SCOPED to the viewer's book. Used by the
+// third bucket on /agent/to-do and the nav badge. Scope matters because an
+// external progression business must never see TSP's (or another business's)
+// internal tasks, and vice versa — this is the same isolation boundary as
+// TSP_ONLY_TX_WHERE. "all" (TSP admin) sees TSP's own files plus general
+// (no-transaction) internal tasks; a business/see-own viewer sees only tasks on
+// transactions in their scope.
+export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise<ManualTaskWithRelations[]> {
+  const where: Prisma.ManualTaskWhereInput = { isInternalSelfAssigned: true };
+  if (scope.kind === "all") {
+    where.OR = [{ transaction: scopeTransactionWhere(scope) }, { transactionId: null }];
+  } else {
+    where.transaction = scopeTransactionWhere(scope);
+  }
   return prisma.manualTask.findMany({
-    where: { isInternalSelfAssigned: true },
+    where,
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },
@@ -286,13 +298,13 @@ export async function updateManualTaskAsProgressor(
  * exactly (own agency tasks + progressor inbox + internal self-assigned) so the
  * badge and the list never disagree.
  */
-export async function countAgentDueOrOverdue(userId: string, agencyId: string | null, role: string): Promise<number> {
+export async function countAgentDueOrOverdue(userId: string, agencyId: string | null, role: string, scope: AccessScope): Promise<number> {
   const isProgressor = role === "sales_progressor";
   const isInternal = isProgressor || role === "admin" || role === "superadmin";
   const [own, inbox, internal] = await Promise.all([
     agencyId ? listAllTasksForAgent(userId, agencyId) : Promise.resolve([]),
     isProgressor ? listProgressorInboxTasks(userId) : Promise.resolve([]),
-    isInternal ? listInternalSelfAssignedTasks() : Promise.resolve([]),
+    isInternal ? listInternalSelfAssignedTasks(scope) : Promise.resolve([]),
   ]);
   const todayStr = toUKDateStr(new Date());
   const seen = new Set<string>();
