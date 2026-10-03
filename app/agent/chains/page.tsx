@@ -5,6 +5,7 @@ import { listChainsForScope, listNoChainSalesForScope, listCheckInsForScope } fr
 import { listExchangePushForScope } from "@/lib/services/exchange-push";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
+import { isExternalProgressorViewer, isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
 import { PageReveal } from "@/components/agent/PageReveal";
@@ -48,6 +49,22 @@ export default async function AgentChainsPage() {
       ? "Chain position at a glance for your sales, and what needs your attention."
       : "See your chain position at a glance and spot what needs your attention.";
 
+  // CTA on the empty chains state, for an EXTERNAL progression business only (agents
+  // / TSP keep the unchanged empty state). Owner with no clients -> add a client;
+  // otherwise (owner/member whose business has clients) -> add a sale; a team member
+  // whose business has no clients can do neither, so no CTA.
+  let emptyCta: { label: string; href: string } | null = null;
+  if (await isExternalProgressorViewer(session)) {
+    const hasClients = session.user.progressionBusinessId
+      ? await businessHasClients(session.user.progressionBusinessId)
+      : false;
+    if (hasClients) {
+      emptyCta = { label: "Add a new sale", href: "/agent/transactions/new" };
+    } else if (await isBusinessOwnerViewer(session)) {
+      emptyCta = { label: "Add a client", href: "/agent/clients" };
+    }
+  }
+
   return (
     <>
       <PageHeader title="Chains" subtitle={subtitle} />
@@ -60,6 +77,7 @@ export default async function AgentChainsPage() {
           exchangePush={exchangePush}
           currentUserId={session.user.id}
           currentUserRole={session.user.role}
+          emptyCta={emptyCta}
         />
       </div>
       </PageReveal>

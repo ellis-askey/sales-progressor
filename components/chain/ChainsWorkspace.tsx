@@ -7,6 +7,7 @@
 // Setting up / inviting happens in the ChainDrawer; confirming "no chain" clears a
 // sale from the queue so it can reach zero. Scoped upstream by the page.
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MagnifyingGlass,
@@ -252,6 +253,7 @@ export function ChainsWorkspace({
   exchangePush,
   currentUserId,
   currentUserRole,
+  emptyCta,
 }: {
   chains: ChainsWorkspaceChain[];
   noChain: NoChainSale[];
@@ -259,6 +261,8 @@ export function ChainsWorkspace({
   exchangePush: ExchangePushSummary[];
   currentUserId: string;
   currentUserRole?: string | null;
+  // Optional CTA on the "No chains yet" state (external progression business only).
+  emptyCta?: { label: string; href: string } | null;
 }) {
   const { toast } = useAgentToast();
 
@@ -372,6 +376,21 @@ export function ChainsWorkspace({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
+        /* Empty-state CTA (external progression business) — the polished coral pill
+           matching .cw-primary / .enq-btn-primary2. */
+        .chains-empty-cta {
+          display: inline-flex; align-items: center; gap: 8px;
+          height: 40px; padding: 0 18px; border-radius: 12px;
+          font-size: 13.5px; font-weight: 650; text-decoration: none; color: #fff;
+          background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28);
+          transition: filter 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+        }
+        .chains-empty-cta:hover { filter: brightness(1.04); transform: translateY(-1px);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
+        .chains-empty-cta:active { transform: scale(0.98); }
+        @media (prefers-reduced-motion: reduce) { .chains-empty-cta { transition: none; } }
+
         .chains-summary-card { container-type: inline-size; }
         .chains-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
         .chains-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
@@ -560,6 +579,9 @@ export function ChainsWorkspace({
             iconBg="rgba(var(--agent-coral-base-rgb), 0.12)"
             title="No chains yet"
             description="Sales you link into a chain will show here. Set one up from a sale in the Needs chain setup tab."
+            action={emptyCta ? (
+              <Link href={emptyCta.href} className="chains-empty-cta">{emptyCta.label}</Link>
+            ) : undefined}
           />
         ) : visibleChains.length === 0 ? (
           <EmptyState compact title="No matches" description="No chains match your search or filters." />
