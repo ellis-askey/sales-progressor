@@ -40,8 +40,11 @@ describe("resolveSignupDestination", () => {
     p.verifiedDomain.findMany.mockResolvedValue([{ agencyId: "A", agency: { name: "Hartwell & Partners" } }]);
     const d = await resolveSignupDestination("Sam@Hartwell.co.uk");
     expect(d).toEqual({ kind: "join_request", agencyId: "A", agencyName: "Hartwell & Partners" });
-    // domain is lower-cased for the lookup
-    expect(p.verifiedDomain.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { domain: "hartwell.co.uk", status: "verified" } }));
+    // domain is lower-cased for the lookup. agencyId: { not: null } restricts the
+    // match to AGENCY-owned verified domains — a progression business's own verified
+    // domain (polymorphic VerifiedDomain) must never route a new signup into a join
+    // request.
+    expect(p.verifiedDomain.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { domain: "hartwell.co.uk", status: "verified", agencyId: { not: null } } }));
   });
 
   it("returns new_agency on no match (e.g. a gmail address)", async () => {

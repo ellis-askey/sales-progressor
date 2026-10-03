@@ -15,6 +15,7 @@ import {
   scopeChaseTaskWhere,
   scopeReminderLogWhere,
   canReadTransaction,
+  TSP_ONLY_TX_WHERE,
   type AccessScope,
 } from "@/lib/security/access-scope";
 
@@ -61,8 +62,8 @@ describe("agency scope always restricts by agencyId (never unscoped)", () => {
 });
 
 describe("internal staff never see demo files (agency users keep their own demo)", () => {
-  test("all scope (founder/admin) excludes demo files", () => {
-    expect(scopeTransactionWhere(allScope)).toEqual({ isDemo: false });
+  test("all scope (founder/admin) excludes demo files and is scoped to TSP's own files", () => {
+    expect(scopeTransactionWhere(allScope)).toEqual({ isDemo: false, ...TSP_ONLY_TX_WHERE });
   });
   test("assigned scope (internal progressor) excludes demo files", () => {
     expect(scopeTransactionWhere(assignedScope)).toEqual({ assignedUserId: "sp-user", isDemo: false });

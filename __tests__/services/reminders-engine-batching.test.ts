@@ -39,6 +39,9 @@ const prismaMock = {
     create: jest.fn(async () => ({})),
   },
   outboundMessage: { create: jest.fn(async () => ({})) },
+  // The enquiry-satisfied gate (evaluateTransactionReminders) looks up the tracker;
+  // null = no gate active, which is the default these batching tests assume.
+  enquiryTracker: { findUnique: jest.fn(async () => null) },
 };
 jest.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 

@@ -21,6 +21,11 @@ jest.mock("@/lib/prisma", () => ({
     portalMessage: { create: jest.fn() },
   },
 }));
+// The portal action chain imports lib/email (runs sgMail.setApiKey at module load,
+// which throws without a key) and lib/portal/preview (uses React cache(), undefined
+// under the jest node env). Mock both to the single export each is used for.
+jest.mock("@/lib/email", () => ({ sendEmail: jest.fn().mockResolvedValue(undefined) }));
+jest.mock("@/lib/portal/preview", () => ({ isAgentPortalView: jest.fn().mockResolvedValue(false) }));
 
 import { assertLivePortalRound, PORTAL_DEAD_ROUND_ERROR } from "@/lib/portal/round-guard";
 import { portalSaveCostsAction } from "@/app/actions/portal";

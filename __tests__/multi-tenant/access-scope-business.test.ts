@@ -2,13 +2,16 @@
  * @jest-environment node
  *
  * Progression-business access boundary (Phase 2a). Proves the primitive:
- *   1. getAccessScope derives the right scope per user type (existing roles
- *      UNCHANGED; external progression-business members get {kind:"business"}).
+ *   1. getAccessScope derives the right scope per user type. A business OWNER (or a
+ *      team member granted see-all) gets {kind:"business"}; a see-own member gets
+ *      {kind:"assigned"}. agency/assigned roles unchanged.
  *   2. The scope->where helpers emit progressionBusinessId filters for a business
- *      scope and are byte-identical for all/assigned/agency.
+ *      scope; 'all' is scoped to TSP's own files (isolation); assigned/agency
+ *      unchanged.
  *   3. canReadTransaction enforces the fixture isolation matrix - Sarah cannot
  *      read TSP files, another business's files, or a client's self-progressed
- *      files, purely from the transaction tag (no UI involved).
+ *      files, and a TSP admin cannot read an external business's files, purely from
+ *      the transaction tag (no UI involved).
  *
  * Fixture matrix mirrors docs/active/progression-businesses/00-spec.md.
  */
@@ -21,6 +24,7 @@ import {
   scopeChaseTaskWhere,
   scopeReminderLogWhere,
   canReadTransaction,
+  TSP_ONLY_TX_WHERE,
   type AccessScope,
 } from "@/lib/security/access-scope";
 
@@ -32,6 +36,8 @@ function makeSession(u: {
   role: UserRole;
   agencyId?: string;
   progressionBusinessId?: string | null;
+  progressionBusinessRole?: "owner" | "progressor" | null;
+  canViewAllFiles?: boolean;
 }): Session {
   return {
     user: {
@@ -43,6 +49,8 @@ function makeSession(u: {
       firmName: null,
       needsSignupCompletion: false,
       progressionBusinessId: u.progressionBusinessId ?? null,
+      progressionBusinessRole: u.progressionBusinessRole ?? null,
+      canViewAllFiles: u.canViewAllFiles ?? false,
     },
   } as Session;
 }
@@ -60,11 +68,25 @@ describe("getAccessScope - derivation per user type", () => {
     expect(scope).toEqual({ kind: "assigned", userId: "u_tsp_prog" });
   });
 
-  it("an external progression-business member gets {kind:'business'}", () => {
+  it("an external business OWNER gets the whole book {kind:'business'}", () => {
     const scope = getAccessScope(
-      makeSession({ id: "u_sarah", role: "sales_progressor", progressionBusinessId: "biz_sarah" }),
+      makeSession({ id: "u_sarah", role: "sales_progressor", progressionBusinessId: "biz_sarah", progressionBusinessRole: "owner" }),
     );
     expect(scope).toEqual({ kind: "business", businessId: "biz_sarah" });
+  });
+
+  it("an external business team member with see-all granted gets {kind:'business'}", () => {
+    const scope = getAccessScope(
+      makeSession({ id: "u_t", role: "sales_progressor", progressionBusinessId: "biz_sarah", progressionBusinessRole: "progressor", canViewAllFiles: true }),
+    );
+    expect(scope).toEqual({ kind: "business", businessId: "biz_sarah" });
+  });
+
+  it("an external business team member without see-all gets see-own {kind:'assigned'} (fail-closed)", () => {
+    const scope = getAccessScope(
+      makeSession({ id: "u_t", role: "sales_progressor", progressionBusinessId: "biz_sarah", progressionBusinessRole: "progressor", canViewAllFiles: false }),
+    );
+    expect(scope).toEqual({ kind: "assigned", userId: "u_t" });
   });
 
   it("director and negotiator get {kind:'agency'} - UNCHANGED", () => {
@@ -102,8 +124,11 @@ describe("scope -> where helpers", () => {
     });
   });
 
-  it("scopeTransactionWhere is UNCHANGED for all/assigned/agency", () => {
-    expect(scopeTransactionWhere({ kind: "all" })).toEqual({ isDemo: false });
+  it("scopeTransactionWhere: 'all' is scoped to TSP's own files; assigned/agency unchanged", () => {
+    // TSP admin ('all') is now bounded to TSP's own files (null progressionBusinessId
+    // or the seeded TSP business) so external businesses' files never leak onto a TSP
+    // list. assigned/agency are untouched.
+    expect(scopeTransactionWhere({ kind: "all" })).toEqual({ isDemo: false, ...TSP_ONLY_TX_WHERE });
     expect(scopeTransactionWhere({ kind: "assigned", userId: "u_x" })).toEqual({
       assignedUserId: "u_x",
       isDemo: false,
@@ -177,8 +202,12 @@ describe("canReadTransaction - fixture isolation matrix", () => {
     expect(readable(tspProg)).toEqual(["T3", "T6"]);
   });
 
-  it("a TSP admin (platform operator) sees everything", () => {
-    expect(readable(tspAdmin)).toEqual(["T1", "T2", "T3", "T4", "T5", "T6", "T7"]);
+  it("a TSP admin sees only TSP's own files (null business), never an external business's", () => {
+    // Isolation: T2/T4 (Sarah) and T7 (other business) are external -> hidden from TSP.
+    // T1/T3/T5/T6 all have null progressionBusinessId (TSP) -> visible.
+    expect(readable(tspAdmin)).toEqual(["T1", "T3", "T5", "T6"]);
+    expect(canReadTransaction(tspAdmin, T2)).toBe(false); // Sarah's file
+    expect(canReadTransaction(tspAdmin, T7)).toBe(false); // another business's file
   });
 
   it("Donna (agency) sees all her agency's files incl. ones she handed out (T1, T2, T3), not James's or Sarah's other client", () => {
