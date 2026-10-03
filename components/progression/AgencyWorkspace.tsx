@@ -9,11 +9,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { resendClientInviteAction, createClientSetupLinkAction } from "@/app/actions/progression-clients";
+import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction } from "@/app/actions/progression-clients";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
@@ -35,12 +36,39 @@ function initials(name: string): string {
 
 export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   const { toast } = useAgentToast();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
   const [resending, setResending] = useState(false);
   const [copying, setCopying] = useState(false);
+  // Rename (pending clients only): the agency is a real Agency row the agency edits
+  // once it logs in, so we only let the progressor correct the name while pending.
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(detail.name);
+  const [savingName, setSavingName] = useState(false);
+  // Remove client: two-step inline confirm, blocked server-side if active sales.
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const activeIdx = TABS.indexOf(tab);
   const { btnRefs, ind } = useTabIndicator(activeIdx);
   const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  async function saveName() {
+    const next = nameDraft.trim();
+    if (!next || next === detail.name) { setEditingName(false); setNameDraft(detail.name); return; }
+    setSavingName(true);
+    const res = await renameClientAgencyAction(detail.agencyId, next);
+    setSavingName(false);
+    if (res.ok) { setEditingName(false); toast.success("Client renamed"); router.refresh(); }
+    else { toast.error(res.error); }
+  }
+
+  async function removeClient() {
+    setRemoving(true);
+    const res = await removeClientAgencyAction(detail.agencyId);
+    setRemoving(false);
+    if (res.ok) { toast.success(`${detail.name} removed`); router.push("/agent/clients"); }
+    else { setConfirmRemove(false); toast.error(res.error); }
+  }
 
   async function resend() {
     setResending(true);
@@ -77,7 +105,31 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
           <div className="aw-who">
             {logo}
             <div>
-              <h1 className="aw-name">{detail.name}</h1>
+              {editingName ? (
+                <div className="aw-nameedit">
+                  <input
+                    autoFocus
+                    className="aw-nameinput"
+                    value={nameDraft}
+                    maxLength={120}
+                    disabled={savingName}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") { setEditingName(false); setNameDraft(detail.name); } }}
+                    aria-label="Agency name"
+                  />
+                  <button type="button" className="aw-namebtn save" onClick={saveName} disabled={savingName} aria-label="Save name"><Check size={15} weight="bold" /></button>
+                  <button type="button" className="aw-namebtn" onClick={() => { setEditingName(false); setNameDraft(detail.name); }} disabled={savingName} aria-label="Cancel"><X size={15} weight="bold" /></button>
+                </div>
+              ) : (
+                <h1 className="aw-name">
+                  {detail.name}
+                  {detail.pending && (
+                    <button type="button" className="aw-nameedit-btn" onClick={() => { setNameDraft(detail.name); setEditingName(true); }} title="Rename client" aria-label="Rename client">
+                      <PencilSimple size={15} weight="bold" />
+                    </button>
+                  )}
+                </h1>
+              )}
               <div className="aw-csub">
                 <UserAvatar user={{ name: detail.contact ?? "Agent", image: contactPerson?.image ?? null }} size={20} />
                 <span>{detail.contact ?? "Agent"}</span>
@@ -148,6 +200,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
           )}
 
           {tab === "Access" && (
+            <>
             <div className="aw-cards">
               <div className="aw-card">
                 <h4>Login &amp; access</h4>
@@ -182,6 +235,30 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 </ul>
               </div>
             </div>
+
+            <div className="aw-removezone">
+              {!confirmRemove ? (
+                <div className="aw-removerow">
+                  <div className="aw-removetxt">
+                    <span className="t">Remove this client</span>
+                    <span className="d">Takes {detail.name} off your Clients list. Their completed sales and account stay; you can add them again later.</span>
+                  </div>
+                  <button type="button" className="aw-removebtn" onClick={() => setConfirmRemove(true)}>Remove client</button>
+                </div>
+              ) : (
+                <div className="aw-removerow confirm">
+                  <div className="aw-removetxt">
+                    <span className="t">Remove {detail.name}?</span>
+                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"} — you'll need to complete or withdraw those first.` : "This can't be undone from here, but you can re-add them any time."}</span>
+                  </div>
+                  <div className="aw-removeactions">
+                    <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancel</button>
+                    <button type="button" className="aw-removebtn danger" onClick={removeClient} disabled={removing}>{removing ? "Removing…" : "Yes, remove"}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+            </>
           )}
         </div>
       </SectionReveal>
@@ -254,7 +331,35 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
         .aw-can li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; }
         .aw-can li svg { color: var(--agent-coral-deep, #E2452A); flex-shrink: 0; margin-top: 1px; }
 
-        @media (prefers-reduced-motion: reduce) { .aw-panel { animation: none; } .aw-meter i { transition: none; } }
+        /* Inline rename (pending clients only) */
+        .aw-name { display: inline-flex; align-items: center; gap: 9px; }
+        .aw-nameedit-btn { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--agent-border-subtle); background: var(--agent-surface, transparent); color: var(--agent-text-muted); cursor: pointer; opacity: 0; transform: translateY(1px); transition: opacity .15s, color .15s, border-color .15s; }
+        .aw-who:hover .aw-nameedit-btn, .aw-nameedit-btn:focus-visible { opacity: 1; }
+        .aw-nameedit-btn:hover { color: var(--agent-coral-deep, #E2452A); border-color: var(--agent-coral); }
+        .aw-nameedit { display: flex; align-items: center; gap: 7px; margin: 0 0 3px; }
+        .aw-nameinput { font-size: clamp(20px, 3.2vw, 26px); font-weight: 820; letter-spacing: -0.02em; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1px solid var(--agent-coral); border-radius: 10px; padding: 3px 10px; max-width: 420px; outline: none; font-family: inherit; }
+        .aw-nameinput:disabled { opacity: 0.6; }
+        .aw-namebtn { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); background: var(--agent-surface, transparent); color: var(--agent-text-muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+        .aw-namebtn:hover:not(:disabled) { color: var(--agent-text-primary); border-color: var(--agent-border-strong, rgba(0,0,0,0.2)); }
+        .aw-namebtn.save { color: #fff; background: var(--agent-coral-deep, #E2452A); border-color: transparent; }
+        .aw-namebtn.save:hover:not(:disabled) { background: var(--agent-coral, #FF6B4A); color: #fff; }
+        .aw-namebtn:disabled { opacity: 0.55; cursor: default; }
+
+        /* Remove client (Access tab footer) */
+        .aw-removezone { margin-top: 16px; }
+        .aw-removerow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 15px 17px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: border-color .18s; }
+        .aw-removerow.confirm { border-color: rgba(190,60,28,0.4); background: rgba(190,60,28,0.05); }
+        .aw-removetxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .aw-removetxt .t { font-size: 13.5px; font-weight: 750; color: var(--agent-text-primary); }
+        .aw-removetxt .d { font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; max-width: 64ch; }
+        .aw-removeactions { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+        .aw-removebtn { font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 8px 15px; border-radius: 10px; border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); background: var(--agent-surface, transparent); color: var(--agent-coral-ink, #BE3C1C); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .15s, border-color .15s, color .15s; }
+        .aw-removebtn:hover:not(:disabled) { border-color: var(--agent-coral-ink, #BE3C1C); background: rgba(190,60,28,0.06); }
+        .aw-removebtn.danger { background: var(--agent-coral-ink, #BE3C1C); color: #fff; border-color: transparent; }
+        .aw-removebtn.danger:hover:not(:disabled) { background: #a3300f; }
+        .aw-removebtn:disabled { opacity: 0.55; cursor: default; }
+
+        @media (prefers-reduced-motion: reduce) { .aw-panel { animation: none; } .aw-meter i { transition: none; } .aw-nameedit-btn, .aw-namebtn, .aw-removerow, .aw-removebtn { transition: none; } }
       `}</style>
     </div>
   );

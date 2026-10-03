@@ -52,6 +52,71 @@ export async function addClientAgencyAction(formData: FormData): Promise<AddClie
 }
 
 /**
+ * Rename a client agency. Owner-scoped. The client is a real Agency row — the SAME
+ * one the agency edits once it logs in — so there's a single source of truth. The
+ * progressor may only correct the name while the client is PENDING (its director
+ * hasn't set a password). Once the agency activates, the name is theirs; the
+ * progressor's edit control is hidden and this action refuses.
+ */
+export async function renameClientAgencyAction(agencyId: string, nameRaw: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const name = nameRaw.trim();
+  if (!name || name.length > 120) return { ok: false, error: "Please enter the agency name (120 characters or fewer)." };
+
+  // Pending = the agency's director hasn't set a password yet. Once they have, the
+  // name belongs to them and we don't overwrite it from the progressor's side.
+  const director = await prisma.user.findFirst({
+    where: { agencyId, role: "director" },
+    orderBy: { createdAt: "asc" },
+    select: { password: true },
+  });
+  if (director?.password) {
+    return { ok: false, error: "They've set up their login, so they manage their agency name now." };
+  }
+
+  await prisma.agency.update({ where: { id: agencyId }, data: { name } });
+  revalidatePath("/agent/clients");
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/**
+ * Remove a client agency from the business's book. Owner-scoped. BLOCKED while the
+ * client still has active sales — we never orphan live files. Removal unlinks the
+ * ProgressionBusinessClient relationship only: the Agency row and any completed
+ * historical files remain (file access is keyed on the transaction's
+ * progressionBusinessId, not this link), and the client can be re-added later.
+ * Not "delete" (Law 21) — nothing of the agency's own data is destroyed.
+ */
+export async function removeClientAgencyAction(agencyId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const activeCount = await prisma.propertyTransaction.count({
+    where: { progressionBusinessId: owner.businessId, agencyId, status: "active", isDemo: false },
+  });
+  if (activeCount > 0) {
+    return {
+      ok: false,
+      error: `You can't remove this client while they have ${activeCount} active ${activeCount === 1 ? "sale" : "sales"}. Remove them once those have completed or been withdrawn.`,
+    };
+  }
+
+  await prisma.progressionBusinessClient.delete({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+  });
+  console.log(`[AUDIT] progression_client_removed businessId=${owner.businessId} agencyId=${agencyId} by=${owner.userId}`);
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/**
  * Set or clear the business's short display label — the tight-UI name used on the
  * agent file's "Managed by …" badge (where the full business name can be long).
  * Owner-gated. An empty value clears the override so the full name is used again.
