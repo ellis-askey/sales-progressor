@@ -57,7 +57,7 @@ export default async function AgentCompletionsPage() {
   const isAdmin = hasAdminPowers(session);
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [files, completedFiles, momentum] = await Promise.all([
     getAgentCompletions(vis),
@@ -195,7 +195,7 @@ export default async function AgentCompletionsPage() {
         title="Completions"
         subtitle={
           isAdmin      ? "All exchanged files across every agency." :
-          isProgressor ? "Your assigned outsourced files, tracking to completion." :
+          isProgressor ? "Your outsourced files, tracking to completion." :
                          "Exchanged files, tracking to completion."
         }
       >

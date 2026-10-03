@@ -80,7 +80,7 @@ export default async function WorkQueuePage() {
   const isProgressor = session.user.role === "sales_progressor";
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [reminderLogs, activeFileCount] = await Promise.all([
     getAgentReminderLogs(vis),
@@ -167,7 +167,7 @@ export default async function WorkQueuePage() {
       <PageHeader
         title="Reminders"
         subtitle={isProgressor
-          ? "What needs chasing across your assigned files."
+          ? "What needs chasing across your files."
           : "What needs chasing, today and ahead."}
       >
         {statSegments.map(seg => (

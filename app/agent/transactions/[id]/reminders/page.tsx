@@ -34,7 +34,7 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
   // Same visibility resolution the work-queue Reminders page uses, then scope the
   // fetch to this one (already-authorised) file.
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, isAdminRole, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdminRole, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const reminderLogs = await getAgentReminderLogs(vis, { transactionId: transaction.id });

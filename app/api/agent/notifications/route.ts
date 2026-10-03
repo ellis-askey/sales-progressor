@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
   const isAdmin = hasAdminPowers(session);
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const milestones = await getAgentMilestoneActivity(vis, false);

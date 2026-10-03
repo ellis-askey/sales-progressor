@@ -66,7 +66,7 @@ export default async function AgentAnalyticsPage({
     : "month";
 
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const effectiveVis = isDirector && filterUserId
     ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }

@@ -100,7 +100,7 @@ export default async function AgentPartnersPage() {
       <>
         <PageHeader
           title="Partners"
-          subtitle={scope.kind === "all" ? "Solicitors and brokers across every file on the platform." : "Solicitors and brokers on the files assigned to you."}
+          subtitle={scope.kind === "all" ? "Solicitors and brokers across every file on the platform." : "Solicitors and brokers on your files."}
         />
         <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
           {empty ? (

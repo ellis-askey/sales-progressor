@@ -60,7 +60,7 @@ export default async function AgentCommsPage() {
   const isAdmin = hasAdminPowers(session);
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const entries = await getAgentUpdatesFeed(vis);
@@ -117,7 +117,7 @@ export default async function AgentCommsPage() {
         title="Updates"
         subtitle={
           isAdmin      ? "What's happened across the platform." :
-          isProgressor ? "What's happened on your assigned files." :
+          isProgressor ? "What's happened across your files." :
                          "What's happened across your files."
         }
       />

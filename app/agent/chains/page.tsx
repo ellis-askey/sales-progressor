@@ -45,7 +45,7 @@ export default async function AgentChainsPage() {
   const subtitle = isAllScope
     ? "Chain positions across the platform, and what needs attention."
     : isProgressor
-      ? "Chain position at a glance for your assigned sales, and what needs your attention."
+      ? "Chain position at a glance for your sales, and what needs your attention."
       : "See your chain position at a glance and spot what needs your attention.";
 
   return (
