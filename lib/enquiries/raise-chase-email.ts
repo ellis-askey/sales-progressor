@@ -91,9 +91,7 @@ export function buildRaiseBuyerEmail(input: {
           ${signature}
         </td></tr>
       </table>
-      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
-        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
-      </p>
+      ${agencyName ? `<p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">${esc(agencyName)}</p>` : ""}
     </td></tr>
   </table>
 </body>

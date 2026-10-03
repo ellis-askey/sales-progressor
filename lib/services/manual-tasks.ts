@@ -99,22 +99,24 @@ export async function createManualTask(data: {
   return task;
 }
 
-// Internal-staff self-assigned to-dos, SCOPED to the viewer's book. Used by the
-// third bucket on /agent/to-do and the nav badge. Scope matters because an
-// external progression business must never see TSP's (or another business's)
-// internal tasks, and vice versa — this is the same isolation boundary as
-// TSP_ONLY_TX_WHERE. "all" (TSP admin) sees TSP's own files plus general
-// (no-transaction) internal tasks; a business/see-own viewer sees only tasks on
-// transactions in their scope.
-export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise<ManualTaskWithRelations[]> {
-  const where: Prisma.ManualTaskWhereInput = { isInternalSelfAssigned: true };
+// Bound an internal-self-assigned-task query to the viewer's book — the SAME
+// isolation boundary as TSP_ONLY_TX_WHERE. "all" (TSP admin) sees TSP's own files
+// plus general (no-transaction) internal tasks; a business / see-own viewer sees
+// only tasks on transactions in their scope. Shared by the list AND the
+// update/delete ownership guards, so a business can never read, edit or delete
+// another tenant's (or TSP's) internal task by guessing an id.
+function internalTaskScopeWhere(scope: AccessScope): Prisma.ManualTaskWhereInput {
   if (scope.kind === "all") {
-    where.OR = [{ transaction: scopeTransactionWhere(scope) }, { transactionId: null }];
-  } else {
-    where.transaction = scopeTransactionWhere(scope);
+    return { OR: [{ transaction: scopeTransactionWhere(scope) }, { transactionId: null }] };
   }
+  return { transaction: scopeTransactionWhere(scope) };
+}
+
+// Internal-staff self-assigned to-dos, SCOPED to the viewer's book. Used by the
+// third bucket on /agent/to-do and the nav badge.
+export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise<ManualTaskWithRelations[]> {
   return prisma.manualTask.findMany({
-    where,
+    where: { isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },
@@ -136,16 +138,18 @@ export async function listInternalSelfAssignedTasksForTransaction(transactionId:
   }) as Promise<ManualTaskWithRelations[]>;
 }
 
-// Mutation helper for internal tasks — ownership shape is role-based
-// (any internal staff member can touch any internal task), not
-// agencyId-based. The API route is responsible for the role check
-// before calling this.
+// Mutation helper for internal tasks. The caller (action) role-gates to internal
+// staff; this additionally binds the task to the caller's AccessScope so an
+// external business can only edit internal tasks on its OWN files — never TSP's
+// or another business's (the role gate alone is insufficient now that external
+// progressors are "internal staff").
 export async function updateInternalManualTask(
   id: string,
+  scope: AccessScope,
   data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null }>
 ) {
   const task = await prisma.manualTask.findFirst({
-    where: { id, isInternalSelfAssigned: true },
+    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
   });
   if (!task) throw new Error("Task not found");
 
@@ -167,9 +171,9 @@ export async function updateInternalManualTask(
   return updated;
 }
 
-export async function deleteInternalManualTask(id: string) {
+export async function deleteInternalManualTask(id: string, scope: AccessScope) {
   const task = await prisma.manualTask.findFirst({
-    where: { id, isInternalSelfAssigned: true },
+    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
   });
   if (!task) throw new Error("Task not found");
   await prisma.manualTask.delete({ where: { id } });

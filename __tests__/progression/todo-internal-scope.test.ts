@@ -9,9 +9,9 @@
  */
 jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/services/activity", () => ({ touchLastActivity: jest.fn() }));
-jest.mock("@/lib/prisma", () => ({ prisma: { manualTask: { findMany: jest.fn(async () => []) } } }));
+jest.mock("@/lib/prisma", () => ({ prisma: { manualTask: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null), update: jest.fn(), delete: jest.fn() } } }));
 
-import { listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
+import { listInternalSelfAssignedTasks, updateInternalManualTask, deleteInternalManualTask } from "@/lib/services/manual-tasks";
 import { prisma } from "@/lib/prisma";
 import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 
@@ -42,4 +42,44 @@ it("TSP 'all' scope → TSP-only files (never external), plus general no-tx task
     { transaction: { isDemo: false, ...TSP_ONLY_TX_WHERE } },
     { transactionId: null },
   ]);
+});
+
+// The MUTATION guards must bind to the same scope so a business can't edit/delete
+// another tenant's internal task by guessing an id (the capstone security fix).
+describe("internal-task mutation scope guards", () => {
+  const findFirstWhere = () => p.manualTask.findFirst.mock.calls.at(-1)![0].where;
+
+  it("updateInternalManualTask binds to the business's own files", async () => {
+    p.manualTask.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      updateInternalManualTask("t1", { kind: "business", businessId: "biz1" }, { title: "x" }),
+    ).rejects.toThrow(/not found/i);
+    expect(findFirstWhere()).toEqual({
+      id: "t1", isInternalSelfAssigned: true,
+      transaction: { progressionBusinessId: "biz1", isDemo: false },
+    });
+    expect(p.manualTask.update).not.toHaveBeenCalled();
+  });
+
+  it("deleteInternalManualTask (see-own) binds to the viewer's own files", async () => {
+    p.manualTask.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      deleteInternalManualTask("t1", { kind: "assigned", userId: "u1" }),
+    ).rejects.toThrow(/not found/i);
+    expect(findFirstWhere()).toEqual({
+      id: "t1", isInternalSelfAssigned: true,
+      transaction: { assignedUserId: "u1", isDemo: false },
+    });
+    expect(p.manualTask.delete).not.toHaveBeenCalled();
+  });
+
+  it("TSP 'all' delete allows TSP files OR general no-tx tasks", async () => {
+    p.manualTask.findFirst.mockResolvedValueOnce(null);
+    await expect(deleteInternalManualTask("t1", { kind: "all" })).rejects.toThrow(/not found/i);
+    const w = findFirstWhere();
+    expect(w.OR).toEqual([
+      { transaction: { isDemo: false, ...TSP_ONLY_TX_WHERE } },
+      { transactionId: null },
+    ]);
+  });
 });

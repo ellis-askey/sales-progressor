@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { requireSession } from "@/lib/session";
-import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
+import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere, TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { completeChaseTask, advanceChaseTask, advanceChasesForMilestones, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders, setUkChaseTime, isUniqueViolation, type SnoozeWake, type SnoozeResult } from "@/lib/services/reminders";
 import { completeMilestone, maybeAutoCompleteTransaction } from "@/lib/services/milestones";
 import { sendMilestoneConfirmationNotifications } from "@/lib/services/milestone-confirm-notify";
@@ -530,7 +530,7 @@ export async function getTransactionReminderCountAction(transactionId: string): 
   const session = await requireSession();
   const scope = getAccessScope(session);
   const where = scope.kind === "all"
-    ? { transactionId }
+    ? { transactionId, transaction: TSP_ONLY_TX_WHERE }
     : scope.kind === "assigned"
     ? { transactionId, transaction: { assignedUserId: scope.userId } }
     : scope.kind === "business"

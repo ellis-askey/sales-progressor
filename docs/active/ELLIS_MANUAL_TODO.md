@@ -181,6 +181,17 @@ We're generalising our internal progression operation so external progression bu
 - **Phase 1 (schema foundation) — no visible change.** Adds the `ProgressionBusiness` model and a nullable `progressionBusinessId` on transactions/users. A null `progressionBusinessId` means TSP — existing files are NOT backfilled.
 - **Manual step for STAGING:** after the schema syncs (`prisma db push`), run `npm run db:seed` (or `npx ts-node scripts/seed-progression-tsp.ts`) so the TSP `ProgressionBusiness` row exists. Production gets that row automatically from the Phase 1 migration — no manual step there.
 
+### Phase 2–5 shipped to staging (2026-10-03) — prod deploy checklist
+The full external-progressor programme (Clients CRM, business settings, two-tier sender identity + verification, invited-agent + client-facing de-TSP'ing, isolation hardening) is on `staging`, behind the flag. Before flipping the flag ON in prod:
+1. **Two new prod migrations apply on the next `migrate deploy`** (both additive, applied to STAGING only so far via the pooler):
+   - `20261003100000_progression_business_sender_verified` (adds `senderVerified`/`senderVerifiedAt`)
+   - `20261003140000_verified_domain_business_owner` (nullable `VerifiedDomain.agencyId` + polymorphic `progressionBusinessId`)
+   **Verify the Vercel build is green after the staging→master push.**
+2. **Confirm the TSP `ProgressionBusiness` row exists in prod** (the identity resolver `getTspBusiness()` throws platform-wide if absent — it should already be there from the Phase 1 foundation migration; just confirm).
+3. **`check-domains` cron must be live** (it stamps `senderVerified`, the gate the sender identity depends on) — already registered in `vercel.json` (`0 2 * * *`).
+4. **No new env vars / integrations** — reuses the existing SendGrid account + `CRON_SECRET`/`NEXTAUTH_*`.
+- **Note (not a kill-switch):** turning the flag OFF *after* a pilot business is onboarded does NOT hide that business's already-created data (the isolation layer stays on by design); it only re-blocks the gated entry points (onboarding, client mgmt, settings, new-sale). The flag is a clean pre-launch gate, a partial post-onboarding rollback.
+
 ---
 
 ## Content — connect a publishing platform + schedule the reminder cron (2026-09-11)

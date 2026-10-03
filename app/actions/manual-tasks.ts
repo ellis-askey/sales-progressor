@@ -16,6 +16,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toUKDateStr } from "@/lib/utils";
+import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
 import {
   createManualTask,
   updateManualTask,
@@ -74,11 +75,16 @@ export async function createManualTaskAction(
     }
     let resolvedAgencyId: string | null = null;
     if (transactionId) {
-      const tx = await prisma.propertyTransaction.findUnique({
-        where: { id: transactionId },
+      // The linked transaction MUST be in the caller's access scope — else a
+      // crafted transactionId would plant an internal task on another tenant's
+      // file (cross-tenant injection into their To-Do list). Mirrors the Law 7
+      // guard on the agent path below.
+      const owned = await prisma.propertyTransaction.findFirst({
+        where: { id: transactionId, ...scopeTransactionWhere(getAccessScope(session)) },
         select: { agencyId: true },
       });
-      resolvedAgencyId = tx?.agencyId ?? null;
+      if (!owned) throw new Error("Transaction not found");
+      resolvedAgencyId = owned.agencyId;
     }
     const task = await createManualTask({
       agencyId: resolvedAgencyId,
@@ -151,7 +157,7 @@ export async function updateManualTaskAction(
     if (!isInternalRole(session.user.role)) {
       throw new Error("Forbidden");
     }
-    const task = await updateInternalManualTask(id, data);
+    const task = await updateInternalManualTask(id, getAccessScope(session), data);
     revalidateTodos();
     return task as ManualTaskWithRelations;
   }
@@ -175,7 +181,7 @@ export async function deleteManualTaskAction(id: string): Promise<void> {
     if (!isInternalRole(session.user.role)) {
       throw new Error("Forbidden");
     }
-    await deleteInternalManualTask(id);
+    await deleteInternalManualTask(id, getAccessScope(session));
     revalidateTodos();
     return;
   }
