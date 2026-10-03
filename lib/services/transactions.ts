@@ -1080,6 +1080,14 @@ export async function createTransaction(input: CreateTransactionInput) {
       assignedAt: input.assignedUserId ? (input.createdAt ?? new Date()) : null,
       agentUserId: input.agentUserId ?? null,
       progressionBusinessId: input.progressionBusinessId ?? null,
+      // TSP's £5 per-sale charge to an EXTERNAL progression business is billed when
+      // the sale is ADDED (here), not at exchange — a non-null progressionBusinessId
+      // means an external business (TSP's own files are null). Demo + migrated
+      // (historical import) files never bill. Anchored to createdAt like outsourcedAt.
+      businessPerSaleChargedAt:
+        input.progressionBusinessId && !(input.isDemo ?? false) && !(input.isMigrated ?? false)
+          ? (input.createdAt ?? new Date())
+          : null,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
       // Pricing migration (2026-08): a self-run sale is free by type; an

@@ -42,7 +42,7 @@ export default async function BusinessBillingPage() {
           <span aria-hidden style={{ color: "var(--agent-info, #2563eb)", flexShrink: 0, marginTop: 1, fontWeight: 800 }}>i</span>
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>
             {collecting
-              ? <>Your plan is live. We charge the card on file each month for your subscription and completed sales.</>
+              ? <>Your plan is live. We charge the card on file each month for your subscription and the sales you add.</>
               : <>This is what your plan works out to. <strong>We&rsquo;re not taking any payment yet.</strong> We&rsquo;ll let you know and ask for a card before billing goes live.</>}
           </p>
         </div>
@@ -50,7 +50,7 @@ export default async function BusinessBillingPage() {
         <AccountCard
           icon={<Receipt size={18} weight="bold" />}
           title={`This month · ${month}`}
-          subtitle="£59 for you, £39 per team member, and £5 per completed sale."
+          subtitle="£59 for you, £39 per team member, and £5 per sale you add."
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
             {s.lines.map((line, i) => (
@@ -80,8 +80,8 @@ export default async function BusinessBillingPage() {
           </div>
           <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
             {s.saleCount === 0
-              ? "No completed sales yet this month. Sales are added here as they exchange."
-              : `${s.saleCount} completed ${s.saleCount === 1 ? "sale" : "sales"} this month at £5 each.`}
+              ? "No sales added yet this month. Each sale you add is £5, added here."
+              : `${s.saleCount} ${s.saleCount === 1 ? "sale" : "sales"} added this month at £5 each.`}
           </p>
         </AccountCard>
       </div>

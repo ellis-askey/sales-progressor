@@ -65,21 +65,11 @@ export async function maybeStampExchange(
   // never set and the agency accrual (lib/billing/accrual.ts keys on
   // billedAtExchange) never picks it up. TSP files (progressionBusinessId = null)
   // and normal agency files fall through unchanged — isTspBusiness(null) returns
-  // true with no query, so the common path pays no cost. The per-sale charge to
-  // the progression business (£5, Arc B3) is recorded here on businessBilledAtExchange
-  // (the business equivalent of billedAtExchange) — never on the agency's. Demo
-  // files never bill. Bilateral/race-safe via the NULL guard; priceAtExchange is
-  // snapshotted for the invoice line description. Collection stays dark until the
-  // billing switch is flipped (see lib/progression/business-billing.ts).
-  if (!(await isTspBusiness(txn.progressionBusinessId))) {
-    if (txn.progressionBusinessId && !txn.isDemo && txn.serviceType === "outsourced") {
-      await db.propertyTransaction.updateMany({
-        where: { id: transactionId, businessBilledAtExchange: null },
-        data: { businessBilledAtExchange: now, priceAtExchange: txn.purchasePrice },
-      });
-    }
-    return;
-  }
+  // true with no query, so the common path pays no cost. (TSP's £5 per-sale charge
+  // to the business is billed when the sale is ADDED, in createTransaction — not
+  // here. The business's own rate-card fee to the agency IS at exchange, computed
+  // off exchangedAt in lib/progression/business-client-invoice.ts.)
+  if (!(await isTspBusiness(txn.progressionBusinessId))) return;
 
   // 2a. Demo showcase files never bill (guarding the source here keeps every
   // downstream billing reader safe — a demo never gets billedAtExchange set).

@@ -1,8 +1,8 @@
 // What an EXTERNAL progression business owes TSP for using the platform.
 //
 // Model (founder, 2026-10-03): a monthly subscription of £59 for the owner +
-// £39 per additional active team member, PLUS £5 per completed sale (recorded at
-// exchange on PropertyTransaction.businessBilledAtExchange by maybeStampExchange).
+// £39 per additional active team member, PLUS £5 per sale ADDED (recorded at sale
+// creation on PropertyTransaction.businessPerSaleChargedAt — NOT at exchange).
 //
 // This is DISPLAY + ACCRUAL only — it computes the bill; it does NOT take money.
 // Collection (the Stripe subscription + charging) lands behind a billing switch
@@ -17,7 +17,7 @@ import { billingMonthRange } from "@/lib/billing/period";
 
 export const BUSINESS_BASE_PENCE = 5900;        // £59 — the owner / main user
 export const BUSINESS_PER_MEMBER_PENCE = 3900;  // £39 — each additional active member
-export const BUSINESS_PER_SALE_PENCE = 500;     // £5  — each completed (exchanged) sale
+export const BUSINESS_PER_SALE_PENCE = 500;     // £5  — each sale added for the business
 
 export type BusinessBillingLine = {
   kind: "subscription_base" | "subscription_seat" | "per_sale";
@@ -33,9 +33,9 @@ export type BusinessBillingSummary = {
   extraMembers: number;        // billable seats beyond the owner
   basePence: number;
   seatsPence: number;
-  // Per-sale
+  // Per-sale (sales ADDED this month)
   saleCount: number;
-  perSalePence: number;        // total for all sales this month
+  perSalePence: number;        // total for all sales added this month
   // Rolled up
   lines: BusinessBillingLine[];
   subtotalPence: number;       // == totalPence (no VAT, no credits yet)
@@ -55,11 +55,11 @@ export async function getBusinessBillingSummary(businessId: string, now: Date = 
     prisma.user.count({
       where: { progressionBusinessId: businessId, deactivatedAt: null },
     }),
-    // This month's completed sales for the business (the £5-per-sale lines).
+    // This month's ADDED sales for the business (the £5-per-sale lines).
     prisma.propertyTransaction.findMany({
-      where: { progressionBusinessId: businessId, businessBilledAtExchange: { gte: start, lt: end } },
-      select: { id: true, propertyAddress: true, businessBilledAtExchange: true },
-      orderBy: { businessBilledAtExchange: "asc" },
+      where: { progressionBusinessId: businessId, businessPerSaleChargedAt: { gte: start, lt: end } },
+      select: { id: true, propertyAddress: true, businessPerSaleChargedAt: true },
+      orderBy: { businessPerSaleChargedAt: "asc" },
     }),
   ]);
 

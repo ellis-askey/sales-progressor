@@ -95,7 +95,7 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
   if (!business?.stripeCustomerId) return 0;
 
   const sales = await prisma.propertyTransaction.findMany({
-    where: { progressionBusinessId: businessId, businessBilledAtExchange: { not: null }, businessPerSaleInvoicedAt: null },
+    where: { progressionBusinessId: businessId, businessPerSaleChargedAt: { not: null }, businessPerSaleInvoicedAt: null },
     select: { id: true, propertyAddress: true },
   });
   if (sales.length === 0) return 0;
@@ -107,7 +107,7 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
       customer: business.stripeCustomerId,
       amount: BUSINESS_PER_SALE_PENCE,
       currency: "gbp",
-      description: `Sale progressed — ${s.propertyAddress}`,
+      description: `Sale added — ${s.propertyAddress}`,
       metadata: { progressionBusinessId: businessId, transactionId: s.id },
     });
     await prisma.propertyTransaction.update({ where: { id: s.id }, data: { businessPerSaleInvoicedAt: new Date() } });

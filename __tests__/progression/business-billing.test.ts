@@ -2,8 +2,8 @@
  * @jest-environment node
  *
  * What a progression business owes TSP (capstone #3a): £59 base (owner) + £39 per
- * ADDITIONAL active member + £5 per completed sale this month. Display/accrual
- * only — no money moves here.
+ * ADDITIONAL active member + £5 per sale ADDED this month. Display/accrual only —
+ * no money moves here.
  */
 jest.mock("@/lib/billing/period", () => ({
   billingMonthRange: () => ({ start: new Date("2026-10-01T00:00:00Z"), end: new Date("2026-11-01T00:00:00Z") }),
@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma";
 const p = prisma as any;
 beforeEach(() => jest.clearAllMocks());
 
-it("solo owner, no sales → just the £59 base", async () => {
+it("solo owner, no sales added → just the £59 base", async () => {
   p.user.count.mockResolvedValue(1);
   p.propertyTransaction.findMany.mockResolvedValue([]);
   const s = await getBusinessBillingSummary("biz1");
@@ -31,11 +31,11 @@ it("solo owner, no sales → just the £59 base", async () => {
   expect(s.lines).toHaveLength(1); // base only
 });
 
-it("owner + 2 members + 2 sales → 5900 + 2*3900 + 2*500", async () => {
+it("owner + 2 members + 2 sales added → 5900 + 2*3900 + 2*500", async () => {
   p.user.count.mockResolvedValue(3);
   p.propertyTransaction.findMany.mockResolvedValue([
-    { id: "t1", propertyAddress: "1 A St", businessBilledAtExchange: new Date() },
-    { id: "t2", propertyAddress: "2 B St", businessBilledAtExchange: new Date() },
+    { id: "t1", propertyAddress: "1 A St", businessPerSaleChargedAt: new Date() },
+    { id: "t2", propertyAddress: "2 B St", businessPerSaleChargedAt: new Date() },
   ]);
   const s = await getBusinessBillingSummary("biz1");
   expect(s.extraMembers).toBe(2);
@@ -47,14 +47,14 @@ it("owner + 2 members + 2 sales → 5900 + 2*3900 + 2*500", async () => {
   expect(s.lines).toHaveLength(4);
 });
 
-it("counts THIS business's exchanged files for the month", async () => {
+it("counts THIS business's files ADDED in the month", async () => {
   p.user.count.mockResolvedValue(1);
   p.propertyTransaction.findMany.mockResolvedValue([]);
   await getBusinessBillingSummary("biz1");
   expect(p.propertyTransaction.findMany).toHaveBeenCalledWith(expect.objectContaining({
     where: {
       progressionBusinessId: "biz1",
-      businessBilledAtExchange: { gte: new Date("2026-10-01T00:00:00Z"), lt: new Date("2026-11-01T00:00:00Z") },
+      businessPerSaleChargedAt: { gte: new Date("2026-10-01T00:00:00Z"), lt: new Date("2026-11-01T00:00:00Z") },
     },
   }));
   expect(p.user.count).toHaveBeenCalledWith({ where: { progressionBusinessId: "biz1", deactivatedAt: null } });

@@ -798,12 +798,13 @@ model PropertyTransaction {
   // "Did this file bill?" — answer.
   billedAtExchange DateTime?
 
-  // The EXTERNAL-progression-business equivalent of billedAtExchange. An external
-  // business's file never sets billedAtExchange (ring-fenced — the agency isn't
-  // charged); instead this records the £5 per-sale charge owed by the progression
-  // business to TSP. Set on exchange in maybeStampExchange for non-TSP, non-demo
-  // files; null for TSP/agency files. Bilateral-safe via a NULL guard.
-  businessBilledAtExchange DateTime?
+  // Records TSP's £5 per-sale charge to an EXTERNAL progression business. Billed
+  // when the sale is ADDED (set in createTransaction for a non-null, non-demo,
+  // non-migrated progressionBusinessId), NOT at exchange — exchange is only the
+  // business's own rate-card fee to the agency. The client agency is never charged
+  // for these files (that stays ring-fenced in maybeStampExchange). Null for
+  // TSP/agency files.
+  businessPerSaleChargedAt DateTime?
 
   // Set once the £5 per-sale charge has been pushed to Stripe as a pending invoice
   // item (so it rides the business's next subscription invoice). Prevents a
