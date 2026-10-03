@@ -263,7 +263,11 @@ model ProgressionBusinessClient {
   agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
   @@unique([progressionBusinessId, agencyId])
-  @@index([agencyId])
+  // V1 rule (founder, 2026-10-03): an agency belongs to AT MOST ONE progression
+  // business, so routing (getInvitingProgressor) is deterministic. Allowing an
+  // agency to be a client of multiple businesses is a deferred growth feature —
+  // see EXTERNAL_SP_BACKLOG "Capstone audit — open items" #4.
+  @@unique([agencyId])
 }
 
 // A member's role WITHIN their progression business (business administration),

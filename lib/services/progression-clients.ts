@@ -152,7 +152,11 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
 
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) {
-    return { ok: false, error: "An account already exists for that email." };
+    // V1: a client agency must be NEW to the platform (one agency belongs to one
+    // progression business — see the @@unique on ProgressionBusinessClient.agencyId).
+    // Adding an agency that already exists (their own account, or another business's
+    // client) is a deferred growth feature.
+    return { ok: false, error: "That email already has an account. For now, each client agency must be new to Sales Progressor." };
   }
 
   // Reuses the canonical agency+director creator (atomic). No password → the
