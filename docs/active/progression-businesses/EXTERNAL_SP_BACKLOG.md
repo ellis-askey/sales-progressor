@@ -254,6 +254,39 @@ view-only for TSP on external nodes.
 
 ---
 
+## P1-a / #4 — See-all vs see-own per team member (investigated 2026-10-03)
+
+Founder target: the OWNER sees the whole book; a team member sees ONLY their own
+assigned files by DEFAULT; the owner can grant a member see-all. Mirror the agency
+team UI/flow (User.canViewAllFiles).
+
+This touches the auth session and the access-scope BOUNDARY we just hardened, so it
+must be done carefully + tested (a mistake here leaks data). Two parts:
+
+Part A — visibility mechanism (backend):
+- Add `canViewAllFiles` + `progressionBusinessRole` to the session (auth.ts jwt +
+  session callbacks already query dbUser; add to that select + the type decls).
+- `getAccessScope`: a business member resolves to `{kind:"business"}` only when
+  owner OR canViewAllFiles; otherwise `{kind:"assigned", userId}` (their own files).
+- `resolveInternalVisibility`: same — set `businessId` only for owner/see-all; else
+  fall through to `assignedUserId`.
+- Default is see-own for team members (canViewAllFiles defaults false), which is the
+  intended behaviour change. Owner always sees all.
+- Add scope unit tests (owner → business; member see-own → assigned; member
+  see-all → business). Extends __tests__/progression/tsp-isolation.test.ts style.
+
+Part B — owner team UI (new surface; none exists for the business's own team):
+- A "Your team" page for the owner: list business members (owner + progressors)
+  with a per-member see-all / see-own toggle. Mirror /agent/account/team +
+  TeamManagementPlain, but business-scoped (progressionBusinessId, not agencyId).
+- An owner-gated action setBusinessMemberViewAll(memberId, canViewAll), validated to
+  the owner's business. New data function listBusinessTeam(businessId).
+
+Status: NOT built — deferred for a focused session rather than rushed at the tail of
+a long one, because it modifies the access-scope boundary.
+
+---
+
 ## P1-e — Progressor new-sale flow (investigated 2026-10-03, ready to build)
 
 Founder decisions: team members have NO "New sale" entry until the owner has added
