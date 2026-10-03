@@ -72,6 +72,32 @@ describe("TSP ↔ external-business isolation (admin 'all' scope)", () => {
   });
 });
 
+describe("external-business isolation (reverse + cross-business directions)", () => {
+  const BIZ_A = { kind: "business", businessId: "ext-biz-A" } as const;
+
+  it("canReadTransaction: an external business CAN read its OWN file", () => {
+    expect(
+      canReadTransaction(BIZ_A, { agencyId: "a1", assignedUserId: null, progressionBusinessId: "ext-biz-A" }),
+    ).toBe(true);
+  });
+
+  it("canReadTransaction: an external business CANNOT read a TSP file (null business)", () => {
+    expect(
+      canReadTransaction(BIZ_A, { agencyId: "a1", assignedUserId: null, progressionBusinessId: null }),
+    ).toBe(false);
+  });
+
+  it("canReadTransaction: an external business CANNOT read ANOTHER external business's file", () => {
+    expect(
+      canReadTransaction(BIZ_A, { agencyId: "a1", assignedUserId: null, progressionBusinessId: "ext-biz-B" }),
+    ).toBe(false);
+  });
+
+  it("scopeOwnershipWhere('business') is keyed to the OWN business id only", () => {
+    expect(scopeOwnershipWhere(BIZ_A, "tx1")).toEqual({ id: "tx1", progressionBusinessId: "ext-biz-A" });
+  });
+});
+
 describe("Business member see-all vs see-own (getAccessScope)", () => {
   function session(user: Record<string, unknown>): Session {
     return {
