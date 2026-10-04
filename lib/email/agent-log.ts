@@ -44,10 +44,13 @@ export type AgentEmailKind =
   | "password_reset"
   // Onboarding email for a progression business's newly-added client agent:
   // carries a live set-password link (so it's redacted like password_reset).
-  | "client_agent_setup";
+  | "client_agent_setup"
+  // Onboarding email for a progression business's newly-added TEAM member
+  // (a progressor colleague): also carries a live set-password link.
+  | "teammate_setup";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
-const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup"]);
+const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup", "teammate_setup"]);
 
 type SendAgentEmailParams = {
   // Passthrough to sendEmail.

@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
+import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
 import { parseFeeModel } from "@/lib/progression/client-fees";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -253,7 +254,7 @@ export async function inviteTeamMemberAction(formData: FormData): Promise<Action
   });
 
   try {
-    await sendClientAgentSetupEmail({ userId: user.id, email, businessName: await businessName(owner.businessId) });
+    await sendTeammateSetupEmail({ userId: user.id, email, name, businessName: await businessName(owner.businessId) });
   } catch (err) {
     console.error(`[progression] teammate setup email failed for ${email}`, err);
   }
