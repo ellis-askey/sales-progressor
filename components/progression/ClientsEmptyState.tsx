@@ -94,6 +94,13 @@ export function ClientsEmptyState() {
             linear-gradient(305deg, rgba(64,116,214,0.09), transparent 55%),
             rgba(255,255,255,0.32);
           box-shadow: 0 26px 62px -34px rgba(40,26,20,0.30);
+          /* Keep .cwg promoted to its own compositing layer at ALL times. The
+             blurred blobs + will-change roster cards each become their own layer,
+             and WebKit/Chrome only clip composited children to a rounded parent
+             when the parent is itself a layer. Without this the right corners
+             (top: coral blob, bottom: roster) escape the border-radius clip once
+             the entrance animation settles to transform:none and read as square. */
+          transform: translateZ(0);
           animation: cwg-in 420ms cubic-bezier(0.16,1,0.3,1) both;
         }
         :root[data-theme="dark"] .cwg {
@@ -103,7 +110,7 @@ export function ClientsEmptyState() {
             rgba(255,255,255,0.03);
           box-shadow: 0 34px 74px -38px rgba(0,0,0,0.72);
         }
-        @keyframes cwg-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes cwg-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateZ(0); } }
 
         .cwg-blob { position: absolute; border-radius: 50%; filter: blur(66px); pointer-events: none; z-index: 0; }
         .cwg-blob-1 { width: 360px; height: 360px; top: -120px; right: -70px; opacity: 0.5;
