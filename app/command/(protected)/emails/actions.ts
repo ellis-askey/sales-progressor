@@ -1,9 +1,11 @@
 "use server";
 
 import { getServerSession } from "next-auth";
+import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { findSpecimen } from "@/lib/command/email-catalogue/registry";
+import { specimenContentHash } from "@/lib/command/email-catalogue/review";
 import { resolveCatalogueIdentity, describeSignature, audienceBucketFor, AUDIENCE_LABEL, LOCKED_BUCKETS, type Scenario, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 
 export type RenderResult =
@@ -55,4 +57,30 @@ export async function renderSpecimenAction(id: string, scenario: Scenario): Prom
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Render failed." };
   }
+}
+
+// Tick / untick an email as reviewed + OK'd. Stored in the database (shared +
+// auditable), not the browser. Ticking captures the email's current content hash
+// so a later copy change re-flags it for review. Superadmin-only.
+export async function setSpecimenReviewed(id: string, reviewed: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !hasSuperAdminPowers(session)) {
+    return { ok: false, error: "Not authorised." };
+  }
+  if (!findSpecimen(id)) return { ok: false, error: "Unknown email." };
+
+  if (!reviewed) {
+    await prisma.emailCatalogueReview.deleteMany({ where: { specimenId: id } });
+    return { ok: true };
+  }
+
+  const contentHash = specimenContentHash(id);
+  const by = session.user.id ?? null;
+  const byEmail = session.user.email ?? null;
+  await prisma.emailCatalogueReview.upsert({
+    where: { specimenId: id },
+    create: { specimenId: id, reviewedBy: by, reviewedByEmail: byEmail, contentHash },
+    update: { reviewedBy: by, reviewedByEmail: byEmail, contentHash, reviewedAt: new Date() },
+  });
+  return { ok: true };
 }

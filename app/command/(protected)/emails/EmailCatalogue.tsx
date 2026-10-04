@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { renderSpecimenAction, type RenderResult } from "./actions";
+import { useRouter } from "next/navigation";
+import { renderSpecimenAction, setSpecimenReviewed, type RenderResult } from "./actions";
 import { DEFAULT_SCENARIO, AUDIENCE_LABEL, type Scenario, type EmailCategory, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 import type { SpecimenMeta } from "@/lib/command/email-catalogue/registry";
 
@@ -28,7 +29,21 @@ const CATEGORY_LABEL: Record<EmailCategory, string> = {
 };
 
 const MILESTONE_CODES = ["VM3", "VM7", "VM18", "VM19", "PM5", "PM9", "PM14", "PM25", "PM26"];
-const STORAGE_KEY = "email-catalogue-reviewed-v1";
+
+// Review state for one email, resolved on the server (DB-backed).
+export type ReviewInfo = { reviewedAt: string; by: string | null; stale: boolean };
+
+const AMBER = "#f59e0b";
+
+function whenLabel(iso: string): string {
+  // Compact "4 Oct" style; avoids locale surprises in the dark CC chrome.
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return "";
+  }
+}
 
 // Standard preview widths. Desktop = full pane (email max-width centres itself).
 type Device = "desktop" | "tablet" | "mobile";
@@ -92,12 +107,17 @@ function Tier({ t }: { t: IdentityTier }) {
   );
 }
 
-export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
+export function EmailCatalogue({ specimens, initialReviews }: { specimens: SpecimenMeta[]; initialReviews: Record<string, ReviewInfo> }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string>(specimens[0]?.id ?? "");
   const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
   const [result, setResult] = useState<RenderResult | null>(null);
   const [pending, startTransition] = useTransition();
-  const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [savingReview, setSavingReview] = useState(false);
+  // Review state comes from the DB (shared + auditable). reviewed = set of ids.
+  const reviews = initialReviews;
+  const reviewed = useMemo(() => new Set(Object.keys(reviews)), [reviews]);
+  const staleCount = useMemo(() => Object.values(reviews).filter((r) => r.stale).length, [reviews]);
   // Preview width. Defaults to desktop and is NOT persisted (fresh load = desktop);
   // stays put as you move between emails within a session, for a polish sweep.
   const [device, setDevice] = useState<Device>("desktop");
@@ -117,27 +137,13 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
     return CATEGORY_ORDER.filter((c) => map.has(c)).map((c) => ({ category: c, items: map.get(c)! }));
   }, [specimens, bucketFilter]);
 
-  // Load the reviewed set from localStorage (per-browser, for your own tracking).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setReviewed(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   function toggleReviewed(id: string) {
-    setReviewed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
-      } catch {
-        /* ignore */
-      }
-      return next;
+    if (savingReview) return;
+    const next = !reviewed.has(id);
+    setSavingReview(true);
+    void setSpecimenReviewed(id, next).then((r) => {
+      setSavingReview(false);
+      if (r.ok) router.refresh();
     });
   }
 
@@ -151,13 +157,20 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
 
   const has = (axis: string) => selected?.axes.includes(axis as never) ?? false;
   const isReviewed = selectedId ? reviewed.has(selectedId) : false;
+  const selectedReview = selectedId ? reviews[selectedId] : undefined;
+  const isStale = selectedReview?.stale ?? false;
 
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
         <div className="text-[22px] font-semibold text-neutral-100">Email catalogue</div>
-        <div className="text-[12px] text-neutral-400">
-          Reviewed <span className="text-neutral-100 font-semibold">{reviewed.size}</span> / {specimens.length}
+        <div className="text-[12px] text-neutral-400 flex items-center gap-3">
+          <span>
+            Reviewed <span className="text-neutral-100 font-semibold">{reviewed.size}</span> / {specimens.length}
+          </span>
+          {staleCount > 0 && (
+            <span style={{ color: AMBER }}>{staleCount} need re-review</span>
+          )}
         </div>
       </div>
       <p className="mb-6 text-[13px] text-neutral-400 max-w-2xl">
@@ -201,6 +214,8 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
                 {g.items.map((s) => {
                   const active = s.id === selectedId;
                   const done = reviewed.has(s.id);
+                  const stale = reviews[s.id]?.stale ?? false;
+                  const dotColor = stale ? AMBER : done ? GREEN : "transparent";
                   return (
                     <button
                       key={s.id}
@@ -210,9 +225,10 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
                     >
                       <span
                         className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 text-[9px]"
-                        style={{ background: done ? GREEN : "transparent", border: done ? "none" : `1px solid ${BORDER}`, color: "#0a0a0a" }}
+                        style={{ background: dotColor, border: done || stale ? "none" : `1px solid ${BORDER}`, color: "#0a0a0a" }}
+                        title={stale ? "Reviewed, but the copy changed — needs re-review" : done ? "Reviewed & OK'd" : "Not reviewed"}
                       >
-                        {done ? "✓" : ""}
+                        {stale ? "!" : done ? "✓" : ""}
                       </span>
                       <span className="text-[13px] text-neutral-100">{s.name}</span>
                     </button>
@@ -226,25 +242,35 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
         {/* Right — scenario + render */}
         <div className="flex-1 min-w-0">
           {/* Header: name + Reviewed toggle */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-4">
             <div className="text-[15px] font-semibold text-neutral-100">{selected?.name}</div>
-            <button
-              onClick={() => selectedId && toggleReviewed(selectedId)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors"
-              style={{
-                background: isReviewed ? "rgba(34,197,94,0.12)" : "#111",
-                border: `1px solid ${isReviewed ? GREEN : BORDER}`,
-                color: isReviewed ? GREEN : "#a3a3a3",
-              }}
-            >
-              <span
-                className="w-4 h-4 rounded flex items-center justify-center text-[10px]"
-                style={{ background: isReviewed ? GREEN : "transparent", border: isReviewed ? "none" : `1px solid ${BORDER}`, color: "#0a0a0a" }}
+            <div className="flex items-center gap-3 shrink-0">
+              {isReviewed && selectedReview && (
+                <span className="text-[11px] text-neutral-500">
+                  {isStale ? "last reviewed" : "reviewed"} {whenLabel(selectedReview.reviewedAt)}
+                  {selectedReview.by ? ` · ${selectedReview.by}` : ""}
+                </span>
+              )}
+              <button
+                onClick={() => selectedId && toggleReviewed(selectedId)}
+                disabled={savingReview}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors"
+                style={{
+                  background: isStale ? "rgba(245,158,11,0.12)" : isReviewed ? "rgba(34,197,94,0.12)" : "#111",
+                  border: `1px solid ${isStale ? AMBER : isReviewed ? GREEN : BORDER}`,
+                  color: isStale ? AMBER : isReviewed ? GREEN : "#a3a3a3",
+                  opacity: savingReview ? 0.6 : 1,
+                }}
               >
-                {isReviewed ? "✓" : ""}
-              </span>
-              {isReviewed ? "Reviewed & OK'd" : "Mark reviewed"}
-            </button>
+                <span
+                  className="w-4 h-4 rounded flex items-center justify-center text-[10px]"
+                  style={{ background: isStale ? AMBER : isReviewed ? GREEN : "transparent", border: isReviewed || isStale ? "none" : `1px solid ${BORDER}`, color: "#0a0a0a" }}
+                >
+                  {isStale ? "!" : isReviewed ? "✓" : ""}
+                </span>
+                {savingReview ? "Saving…" : isStale ? "Needs re-review — re-OK" : isReviewed ? "Reviewed & OK'd" : "Mark reviewed"}
+              </button>
+            </div>
           </div>
 
           {/* Scenario toolbar */}

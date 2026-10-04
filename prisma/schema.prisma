@@ -3535,6 +3535,20 @@ model CritiqueNote {
   @@index([resolvedAt, createdAt])
 }
 
+// Review state for the Command Centre Email Catalogue (/command/emails). One row
+// per catalogued email specimen once a superadmin has reviewed + OK'd it.
+// contentHash is a hash of the email rendered at the canonical scenario, so a
+// later copy change flips the row to "needs re-review" instead of silently
+// keeping the tick. Superadmin-only writes.
+model EmailCatalogueReview {
+  id              String   @id @default(cuid())
+  specimenId      String   @unique
+  reviewedAt      DateTime @default(now())
+  reviewedBy      String? // user id
+  reviewedByEmail String?
+  contentHash     String // hash of subject+html at the canonical scenario when reviewed
+}
+
 // Durable cache of HM Land Registry registered-sale counts per postcode
 // district, for the All Files → Map view's market-share bars. The Land
 // Registry SPARQL endpoint is ~30s per outcode, so a live fetch on page load
