@@ -5,8 +5,7 @@
 // transparent at rest AND on hover (no grey fill); on hover the arrow slides
 // left and eases back on leave. Keyboard focus mirrors hover.
 
-import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
 export function AccountPageHeader({
   title,
@@ -43,10 +42,10 @@ export function AccountPageHeader({
         )}
       </div>
 
-      <Link href={backHref} className="account-back-link">
-        <ArrowLeft weight="bold" className="account-back-arrow" style={{ width: 14, height: 14 }} />
-        {backLabel}
-      </Link>
+      {/* Back goes to the page you came from (critique #187), falling back to the
+          hub; label/href default to the agency wording, overridden by the business
+          settings pages. */}
+      <SettingsBackLink label={backLabel} className="account-back-link" arrowClassName="account-back-arrow" fallbackHref={backHref} />
 
       <style>{`
         .account-back-link {

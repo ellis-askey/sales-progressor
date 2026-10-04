@@ -24,6 +24,7 @@ import { FloatingThoughtCapture } from "@/components/command/content/FloatingTho
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
+import { AppPathRecorder } from "@/components/agent/AppPathRecorder";
 import { PullToRefresh } from "@/components/agent/PullToRefresh";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { canSeeChains } from "@/lib/chain/chains-access";
@@ -646,6 +647,10 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </div>
         </div>
       </aside>
+
+      {/* Records the last non-settings page, so the settings Back link can return
+          here instead of always the hub (critique #187). */}
+      <AppPathRecorder />
 
       {/* Pull-to-refresh (touch mobile/tablet) — a home-screen PWA has no
           browser refresh, so drag-down-from-top reloads the page. */}

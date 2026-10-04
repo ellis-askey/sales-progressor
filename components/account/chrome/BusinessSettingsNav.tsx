@@ -10,10 +10,10 @@
 // Client-portal is intentionally absent (portal settings are per-client, managed
 // in each client's workspace). Owner-only; mounted by AccountShell variant="business".
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, ArrowLeft } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
+import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
 // Render order = display order.
 const ITEMS: NavRailItem[] = [
@@ -33,13 +33,9 @@ export function BusinessSettingsNav({ onNavigate }: { onNavigate?: () => void })
     <nav aria-label="Business settings navigation">
       <AgentNavRail items={ITEMS} pathname={pathname} onNavigate={onNavigate} />
 
-      {/* A consistent way back out of settings, below the last tab — mirrors the
-          per-page "Back to progression" link (critique #183). The hub is the
-          owner's main progression workspace. */}
-      <Link href="/agent/hub" className="bsn-back" onClick={onNavigate}>
-        <ArrowLeft size={15} weight="bold" className="bsn-back-arrow" />
-        Back to progression
-      </Link>
+      {/* A consistent way back out of settings, below the last tab (critique #183).
+          Returns to the page you came from, falling back to the hub (critique #187). */}
+      <SettingsBackLink label="Back to progression" className="bsn-back" arrowClassName="bsn-back-arrow" arrowSize={15} onNavigate={onNavigate} />
 
       <style>{`
         .bsn-back {
