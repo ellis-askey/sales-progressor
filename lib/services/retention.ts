@@ -340,6 +340,16 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
   // the "one email per user per run" rule across priority bands.
   const assignedUserIds = new Set<string>();
 
+  // Never let our own win-back / marketing emails reach an agency that belongs to
+  // an external progression business — those are that business's clients, not ours
+  // to re-engage (it would poach our customer's clients under our name). Release
+  // audit B1. The link row survives archival, so a removed client stays excluded.
+  const externalClientLinks = await prisma.progressionBusinessClient.findMany({
+    where: { progressionBusiness: { isTsp: false } },
+    select: { agencyId: true },
+  });
+  const externalClientAgencyIds = [...new Set(externalClientLinks.map((l) => l.agencyId))];
+
   // Helper: get users who have NOT yet received a given emailKey
   // and have NOT been assigned an email this run
   async function getEligibleBase(emailKey: RetentionEmailKey, allowOptOut: boolean) {
@@ -350,9 +360,11 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
         agencyId: { not: null },
         email: { not: "" },
         ...(isTransactional || allowOptOut ? {} : { retentionEmailOptOut: false }),
-        NOT: {
-          retentionEmailLogs: { some: { emailKey } },
-        },
+        NOT: [
+          { retentionEmailLogs: { some: { emailKey } } },
+          // B1 — suppress every agency owned by an external progression business.
+          ...(externalClientAgencyIds.length ? [{ agencyId: { in: externalClientAgencyIds } }] : []),
+        ],
       },
       select: { id: true, email: true, name: true, agencyId: true },
     });
