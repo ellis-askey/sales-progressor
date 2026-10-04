@@ -14,7 +14,11 @@ export function OutsourcedBanner() {
   const { surfaceClass, tag, picked } = useCardSurface("new-sale-outsourced-banner", "New sale · Outsourced banner", "");
   return (
     <div
-      className={`agent-reveal-in ${surfaceClass}`.trim()}
+      // Surface (light white / dark "coral wash") lives in .outsourced-banner CSS
+      // so it can switch by theme (critique #193). A Design Lab pick takes over the
+      // surface via surfaceClass. Text colours are on .ob-banner so they apply in
+      // both cases.
+      className={`agent-reveal-in ob-banner ${picked ? "" : "outsourced-banner"} ${surfaceClass}`.trim()}
       {...tag}
       role="status"
       style={{
@@ -23,49 +27,21 @@ export function OutsourcedBanner() {
         display: "flex",
         alignItems: "flex-start",
         gap: 12,
-        // Coral banner recipe by default; a Design Lab pick takes over.
-        ...(picked ? {} : {
-          background: "rgba(255, 255, 255, 0.90)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border: "1px solid rgba(var(--agent-coral-base-rgb), 0.50)",
-          boxShadow: "0 1px 3px rgba(var(--agent-coral-base-rgb), 0.10)",
-        }),
       }}
     >
       <span
         aria-hidden
-        style={{
-          flexShrink: 0,
-          marginTop: 1,
-          color: "var(--agent-coral-deep)",
-          display: "flex",
-          alignItems: "center",
-        }}
+        className="ob-icon"
+        style={{ flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center" }}
       >
         <Headset size={16} weight="fill" />
       </span>
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--agent-coral-deep)",
-            lineHeight: 1.35,
-          }}
-        >
+        <p className="ob-title" style={{ margin: 0, fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
           Our team is handling this sale.
         </p>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: "var(--agent-text-secondary)",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="ob-sub" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
           Add at least one seller and one buyer, with a name and either a phone number or email address.
         </p>
       </div>

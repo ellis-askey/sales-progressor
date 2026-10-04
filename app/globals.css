@@ -2708,6 +2708,26 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
 .nv2-night[data-night] .border-white\/20    { border-color: rgba(255,255,255,0.07); }
 .nv2-night[data-night] .hover\:bg-white\/20:hover { background-color: rgba(30,41,59,0.35); }
 
+/* Autofill: kill the browser's yellow highlight EVERYWHERE (login, new-sale,
+   every form) while keeping autofill fully functional (critique #191). The very
+   long background-color transition means the yellow never actually paints, so
+   the field keeps its own background; -webkit-text-fill-color: currentColor keeps
+   the text the correct colour in both light and dark. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: currentColor !important;
+  transition: background-color 600000s 0s, color 600000s 0s;
+  caret-color: currentColor;
+}
+
 /* Onboarding empty-state setup-card grids (Completions / To-Do / Updates).
    Stack full-width at the breakpoints Ellis specified (2026-08-30). */
 .setup-cards-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }

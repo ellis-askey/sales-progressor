@@ -161,7 +161,8 @@ export function SolicitorSection({
 }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    {/* Two columns on desktop; stacks to one on mobile (critique #195). */}
+    <div className="sol-two-col" style={{ display: "grid", gap: 20 }}>
 
       {/* Seller's solicitor */}
       <div>

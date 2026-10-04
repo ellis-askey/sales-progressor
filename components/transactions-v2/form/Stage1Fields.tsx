@@ -36,7 +36,10 @@ function Pill({
           ? "2px solid var(--agent-coral-deep)"
           : hovered
           ? "2px solid var(--agent-coral)"
-          : "2px solid var(--agent-border-default)",
+          // Resting: light keeps --agent-border-default; dark bumps to a visibly
+          // stronger border via --stage1-pill-border so the pills still read as
+          // tappable (critique #192). The dark override lives in agent-system.css.
+          : "2px solid var(--stage1-pill-border, var(--agent-border-default))",
         background: selected || hovered
           ? "var(--agent-coral-bg-tint)"
           : (isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)"),
