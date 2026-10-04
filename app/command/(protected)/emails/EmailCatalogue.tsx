@@ -107,7 +107,14 @@ function Tier({ t }: { t: IdentityTier }) {
   );
 }
 
-export function EmailCatalogue({ specimens, initialReviews, bucketStates }: { specimens: SpecimenMeta[]; initialReviews: Record<string, ReviewInfo>; bucketStates: Record<AudienceBucket, boolean> }) {
+export type CoverageSummary = {
+  total: number;
+  catalogued: number;
+  missing: { kind: string; note?: string }[];
+  brokenRefs: { kind: string; specimenId: string }[];
+};
+
+export function EmailCatalogue({ specimens, initialReviews, bucketStates, coverage }: { specimens: SpecimenMeta[]; initialReviews: Record<string, ReviewInfo>; bucketStates: Record<AudienceBucket, boolean>; coverage: CoverageSummary }) {
   const router = useRouter();
   const [savingBucket, setSavingBucket] = useState<AudienceBucket | null>(null);
 
@@ -188,6 +195,28 @@ export function EmailCatalogue({ specimens, initialReviews, bucketStates }: { sp
         Every email the portal can send, rendered from the real builders under the scenario you pick.
         Tick each one once you&apos;ve reviewed and OK&apos;d it. Preview data only, nothing is sent.
       </p>
+
+      {/* Completeness: every taxonomy'd agent/system email kind is accounted for
+          (enforced at the type level). Shows how many map to a catalogue email and
+          flags any not yet catalogued, so a new email can't silently skip here. */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
+        <span className="text-neutral-400">
+          Coverage: <span className="text-neutral-100 font-semibold">{coverage.catalogued}</span> / {coverage.total} email kinds catalogued
+        </span>
+        {coverage.missing.length > 0 && (
+          <span style={{ color: AMBER }}>
+            {coverage.missing.length} not yet catalogued: {coverage.missing.map((m) => m.kind).join(", ")}
+          </span>
+        )}
+        {coverage.brokenRefs.length > 0 && (
+          <span style={{ color: "#f87171" }}>
+            broken refs: {coverage.brokenRefs.map((b) => `${b.kind}→${b.specimenId}`).join(", ")}
+          </span>
+        )}
+        {coverage.missing.length === 0 && coverage.brokenRefs.length === 0 && (
+          <span style={{ color: GREEN }}>all mapped ✓</span>
+        )}
+      </div>
 
       {/* "Who it's for" filter — the five audience buckets the on/off switches act
           on. A file-driven email (client/solicitor/on-file) shows under any of the
