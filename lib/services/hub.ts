@@ -2254,6 +2254,9 @@ export async function getHubWeeklyForecast(
       return d && d >= start && d <= end;
     });
     const files = inWeek
+      // A business file with no rate card set is left OUT of the forecast (F2): we
+      // can't forecast a fee that isn't set, and a £0 would read as "free".
+      .filter((tx) => !feeModelByAgency || feeModelByAgency.get(tx.agencyId) != null)
       .map((tx) => ({
         address: tx.propertyAddress,
         feePence: feeModelByAgency
@@ -2277,7 +2280,7 @@ export async function getHubWeeklyForecast(
     return {
       label,
       isCurrentWeek,
-      count: inWeek.length,
+      count: files.length,
       feesPence: files.reduce((s, f) => s + f.feePence, 0),
       files,
     };

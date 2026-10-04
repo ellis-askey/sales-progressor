@@ -108,7 +108,11 @@ export function EarningsBuilder({
       : 0;
   }
 
-  const net: number | null = feeIncVatP != null ? feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost : null;
+  // A file routed to a progressor who has no rate card set yet is NOT free — show
+  // "Fee not set" and hold the net until the fee is set, never a £0 that reads free.
+  const feeNotSet = toProgressor && progressorFeeModel == null;
+
+  const net: number | null = feeNotSet || feeIncVatP == null ? null : feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost;
 
   const milestones = getVisibleMilestones(allMilestoneDefinitions, fields);
 
@@ -145,8 +149,8 @@ export function EarningsBuilder({
         {onwardBrokRef > 0 && <Row label="Seller's broker referral" value={`+${fmt(onwardBrokRef)}`} tone="income" />}
         <Row
           label={costLabel}
-          value={progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
-          tone={progressionCost > 0 ? "cost" : "muted"}
+          value={feeNotSet ? "Fee not set" : progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
+          tone={feeNotSet ? "muted" : progressionCost > 0 ? "cost" : "muted"}
         />
         {outsourced && !toProgressor && withinTrial && feeTier !== "free" && (
           <p style={{ margin: "-2px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
@@ -159,7 +163,7 @@ export function EarningsBuilder({
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, paddingTop: 12, borderTop: "0.5px solid var(--nv2-border-dark)" }}>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Net to your agency</span>
         {net == null ? (
-          <span style={{ fontSize: 13, color: "var(--nv2-text-ghost)" }}>{!price ? "Add a price" : "Add a commission"}</span>
+          <span style={{ fontSize: 13, color: "var(--nv2-text-ghost)" }}>{feeNotSet ? "Fee not set" : !price ? "Add a price" : "Add a commission"}</span>
         ) : (
           <span style={{ fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmt(net)}</span>
         )}

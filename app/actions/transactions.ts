@@ -12,6 +12,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor } from "@/lib/services/progression-clients";
+import { parseFeeModel } from "@/lib/progression/client-fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
@@ -210,10 +211,17 @@ export async function createTransactionAction(input: {
     }
     const link = await prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: member.businessId, agencyId: input.clientAgencyId } },
-      select: { id: true },
+      select: { id: true, feeModel: true },
     });
     if (!link) {
       throw new Error("That agency is not one of your clients.");
+    }
+    // Server-side backstop for the add-sale fee gate (F3): the fee shows on the
+    // agent's own file, so a sale can't be created for a client with no rate set
+    // (the UI already blocks this; this catches a crafted request or a fee cleared
+    // between page-load and submit).
+    if (!parseFeeModel(link.feeModel)) {
+      throw new Error("Set your fee for this client before adding a sale.");
     }
     const director = await prisma.user.findFirst({
       where: { agencyId: input.clientAgencyId, role: "director" },

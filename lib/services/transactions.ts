@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { rollToBusinessDay, calculateProgressionFeePence } from "@/lib/services/fees";
+import { parseFeeModel, calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow } from "@/lib/services/referrals";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
@@ -61,6 +62,18 @@ export async function listTransactions(
   // buyerRoundId === its own tx's activeBuyerRoundId" because BuyerRound
   // ids are globally unique cuids.
   const activeRoundIds = await loadActiveRoundIds(whereClause);
+
+  // External progression business viewer: the workspace fee is their per-client
+  // rate card (by the file's agency), not our progression scale (audit F1). Loaded
+  // once, keyed by agency; null for TSP/agency viewers, who keep the branches below.
+  const businessFeeByAgency = scope?.kind === "business"
+    ? new Map<string, ClientFeeModel | null>(
+        (await prisma.progressionBusinessClient.findMany({
+          where: { progressionBusinessId: scope.businessId },
+          select: { agencyId: true, feeModel: true },
+        })).map((l) => [l.agencyId, parseFeeModel(l.feeModel)]),
+      )
+    : null;
 
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
@@ -244,8 +257,12 @@ export async function listTransactions(
     // here where the viewer's scope is known, so every fee display reads one
     // number. scope is only passed for internal staff; agency callers hit the
     // agencyId branches with no scope → their own gross fee.
-    const feeIsOurs = !!scope && scope.kind !== "agency";
-    const feePence = feeIsOurs
+    // External business viewer → their rate card for this file's agency (F1).
+    const useBusinessRate = businessFeeByAgency != null;
+    const feeIsOurs = !!scope && scope.kind !== "agency" && !useBusinessRate;
+    const feePence = useBusinessRate
+      ? (calculateClientFee(businessFeeByAgency.get(tx.agencyId) ?? null, tx.purchasePrice ?? null) ?? 0)
+      : feeIsOurs
       ? calculateProgressionFeePence({
           purchasePrice: tx.purchasePrice ?? null,
           agentFeeAmount: agentFeeAmountNum,
