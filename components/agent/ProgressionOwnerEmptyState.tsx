@@ -24,11 +24,13 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
 
   const pillText = hasClients ? "Next step" : "New here?";
   const heroTitle = hasClients ? "Now add their first sale" : "Your pipeline starts with your first client";
-  const heroSub = hasClients
-    ? stage.pending > 0
-      ? `You've added ${who}. You can start progressing their sales now; they don't need to accept their invite first. We'll track what's happening, what's outstanding and what needs your attention.`
-      : `Add a sale for ${who} and run it through to completion. We'll track what's happening, what's outstanding and what needs your attention.`
-    : "Add an estate agent you work with, then create their first sale. We'll start tracking what's happening, what's outstanding and what needs your attention.";
+  // The invited-but-not-yet-accepted sub gets a shorter line on mobile.
+  const invitedPending = hasClients && stage.pending > 0;
+  const deskSub = `You've added ${who}. You can start progressing their sales straight away, without waiting for them to accept their invite. We'll keep track of what's happening, what's outstanding and what needs your attention.`;
+  const mobSub = `${who} is ready to go. You can start progressing their sales straight away, without waiting for them to accept their invite.`;
+  const heroSub = !hasClients
+    ? "Add an estate agent you work with, then create their first sale. We'll start tracking what's happening, what's outstanding and what needs your attention."
+    : `Add a sale for ${who} and run it through to completion. We'll track what's happening, what's outstanding and what needs your attention.`;
   const ctaHref = hasClients ? "/agent/transactions/new" : "/agent/clients";
   const ctaLabel = hasClients ? "Add a sale" : "Add your first client";
 
@@ -52,7 +54,12 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
             {heroTitle}
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 460 }}>
-            {heroSub}
+            {invitedPending ? (
+              <>
+                <span className="poes-desk">{deskSub}</span>
+                <span className="poes-mob">{mobSub}</span>
+              </>
+            ) : heroSub}
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link
@@ -97,6 +104,14 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
           />
         </div>
       </div>
+
+      <style>{`
+        .poes-mob { display: none; }
+        @media (max-width: 600px) {
+          .poes-desk { display: none; }
+          .poes-mob { display: inline; }
+        }
+      `}</style>
     </div>
   );
 }
