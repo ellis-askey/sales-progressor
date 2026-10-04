@@ -240,6 +240,15 @@ model ProgressionBusiness {
   paymentFailedAt          DateTime? // set by the Stripe webhook on invoice.payment_failed
   newFileCreationBlockedAt DateTime? // reserved for a future dunning block
 
+  // VAT on the invoices the business sends ITS clients (audit C2b). Mirrors the
+  // Agency VAT scaffolding. While vatRegisteredAt is null the client invoice shows
+  // the rate-card fee as the total (no VAT line); when set, the invoice adds VAT at
+  // vatRateBps on top and prints the VAT number. Independent of what the business
+  // pays TSP above (that bill is not VAT-split — TSP's own VAT status is separate).
+  vatRegisteredAt DateTime?
+  vatRateBps      Int?     // basis points: 2000 = 20%
+  vatNumber       String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

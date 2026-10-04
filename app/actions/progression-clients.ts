@@ -198,6 +198,53 @@ export async function updateBusinessIdentityAction(nameRaw: string, shortNameRaw
 }
 
 /**
+ * Set the business's VAT registration for the invoices it sends its CLIENTS (audit
+ * C2b). Owner-only. Registered = VAT added on top of the rate-card fee at vatRateBps,
+ * with the VAT number printed on the client invoice. Unregistered = no VAT line
+ * (today's behaviour). Independent of what the business pays TSP.
+ */
+export async function updateBusinessVatAction(
+  registered: boolean,
+  vatNumberRaw: string,
+  ratePercentRaw: string,
+): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  if (!registered) {
+    await prisma.progressionBusiness.update({
+      where: { id: owner.businessId },
+      data: { vatRegisteredAt: null, vatRateBps: null, vatNumber: null },
+    });
+    revalidatePath("/agent/settings/business");
+    return { ok: true };
+  }
+
+  const vatNumber = vatNumberRaw.trim();
+  if (!vatNumber || vatNumber.length > 30) return { ok: false, error: "Please enter your VAT number." };
+  const rate = parseFloat(ratePercentRaw);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) return { ok: false, error: "Enter a VAT rate between 0 and 100." };
+
+  // Preserve the original registration date once set (it's a point-in-time fact).
+  const existing = await prisma.progressionBusiness.findUnique({
+    where: { id: owner.businessId },
+    select: { vatRegisteredAt: true },
+  });
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: {
+      vatRegisteredAt: existing?.vatRegisteredAt ?? new Date(),
+      vatRateBps: Math.round(rate * 100),
+      vatNumber,
+    },
+  });
+  revalidatePath("/agent/settings/business");
+  return { ok: true };
+}
+
+/**
  * Set whether a team member sees the whole business book (see-all) or only their
  * own assigned files (see-own). Owner-only. The member must be in the owner's own
  * business; the owner's own row can't be changed (they always see all). Takes

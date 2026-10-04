@@ -48,10 +48,14 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 - [ ] **W2 — A client agency that already has an account can't be added.** *(DEFERRED — do last)*
   Decision (founder, 2026-10-04): leave as-is for launch. Pilot clients are net-new to the platform, so the block is fine. Onboarding an agency that already exists (a merge/claim path) is a later growth feature, scheduled last on this list.
 
+- [ ] **D1 — Billing point: charge the agent at exchange or at completion.** *(DEFERRED — post-launch, external progressors)*
+  Raised by C2a (founder, 2026-10-04). Today the business's client invoice bills a sale when it **exchanges**. Some businesses will want to bill at **completion** instead. Add a per-business setting (Settings → Business or Billing) to choose the fee's lock/charge point — exchange (current) or completion — and drive the invoice's included-sales window off it. Not needed for the pilot.
+
 ## 🟠 Should-fix — billing (not blocking a free pilot)
 
-- [ ] **C1 — Payment collection isn't wired up.** The bill is shown honestly ("not taking payment yet") but there's no card entry and the Stripe side has no triggers. Must be built + tested before we ever turn collection on. *(Intended off for a free pilot.)*
-- [ ] **C2 — The client invoice has no VAT option and can include migrated files.** A VAT-registered business can't bill VAT; an imported file could wrongly appear as a line.
+- [ ] **C1 — Payment collection isn't wired up.** *(DEFERRED — do last)* The bill is shown honestly ("not taking payment yet") but there's no card entry and the Stripe side has no triggers. Decision (founder): we wire it up and make a test payment ourselves as the final step before charging businesses. Intended off for a free pilot.
+- [x] **C2a — Migrated files on the client invoice.** *(no change — confirmed correct)* Decision (founder, 2026-10-04): a migrated sale IS billable — the business charges its agent whenever a sale exchanges, whether or not it started on the platform. So migrated sales correctly stay on the invoice (only demo files are excluded). No code change. See the new deferred item below for the exchange-vs-completion billing-point setting this raised.
+- [x] **C2b — VAT on the client invoice.** *(built, pending prod deploy)* A VAT-registered business can now add VAT to the invoices it sends its clients. Set it at **Settings → Business → VAT** (toggle "VAT registered", VAT number, rate — default 20%). When on, the invoice adds VAT on top of the rate-card fees and prints the VAT number; when off, nothing changes. Adds `vatRegisteredAt` / `vatRateBps` / `vatNumber` to the business (migration `20261004120000_progression_business_vat`, applied to staging; lands on prod on deploy).
 
 ## 🟡 Verify — quick checks
 

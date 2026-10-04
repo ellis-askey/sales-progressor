@@ -51,6 +51,9 @@ export type PdfInvoiceInput = {
   // contact line entirely (a business may not have published a contact email).
   issuerTagline?: string;
   issuerContact?: string;
+  // A VAT-registered progression business passes its VAT number so the client
+  // invoice shows it in the footer (audit C2b). Absent/empty → no VAT line is drawn.
+  issuerVatNumber?: string;
 };
 
 // A4 in PDF points (1 pt = 1/72 inch)
@@ -295,18 +298,19 @@ function drawTotals(page: PDFPage, fonts: Fonts, input: PdfInvoiceInput, yTop: n
     y += 10 + 8;
   };
 
-  // Subtotal + Credits rows only render when credits apply (math has to read).
-  // Otherwise the totals block collapses to just the grand Total. vatActive /
-  // vatPence are intentionally not rendered: Sales Progressor is not
-  // VAT-registered and the headline fee IS the price (no breakdown, no
-  // disclaimer). The fields remain on PdfInvoiceInput so route handlers stay
-  // unchanged; they are dormant until VAT registration ever happens.
-  //
-  // Subtotal here means "sum of gross line fees before credits" — computed
-  // as totalPence + creditsAppliedPence rather than read from the dormant
-  // input.subtotalPence (which on VAT-on agencies is the ex-VAT amount and
-  // would visibly fail to add up with Credits to Total).
-  if (input.creditsAppliedPence > 0) {
+  // When VAT is active (a VAT-registered progression business invoicing its client,
+  // audit C2b) the block reads Subtotal + VAT + Total so the maths is visible. When
+  // VAT is off, the behaviour is unchanged: TSP's own invoices are not VAT-split, so
+  // the block collapses to just the grand Total, with a Subtotal/Credits pair only
+  // when credits apply. For the credits-only case Subtotal is "gross line fees before
+  // credits" (totalPence + creditsAppliedPence), not the dormant input.subtotalPence.
+  if (input.vatActive && input.vatPence > 0) {
+    drawTotalRow("Subtotal", fmtPence(input.subtotalPence));
+    drawTotalRow("VAT", fmtPence(input.vatPence));
+    if (input.creditsAppliedPence > 0) {
+      drawTotalRow("Credits applied", `-${fmtPence(input.creditsAppliedPence)}`, COLOR_CREDIT_GREEN);
+    }
+  } else if (input.creditsAppliedPence > 0) {
     const grossBeforeCredits = input.totalPence + input.creditsAppliedPence;
     drawTotalRow("Subtotal", fmtPence(grossBeforeCredits));
     drawTotalRow("Credits applied", `-${fmtPence(input.creditsAppliedPence)}`, COLOR_CREDIT_GREEN);
@@ -363,7 +367,8 @@ export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> 
   const issuer = input.issuerName ?? "The Sales Progressor";
   const issuerTagline = input.issuerTagline ?? "Sales progression for UK estate agencies";
   const issuerContact = input.issuerContact ?? "updates@thesalesprogressor.co.uk";
-  const issuerFooter = input.issuerName ?? "The Sales Progressor · thesalesprogressor.co.uk";
+  const issuerFooterBase = input.issuerName ?? "The Sales Progressor · thesalesprogressor.co.uk";
+  const issuerFooter = input.issuerVatNumber ? `${issuerFooterBase} · VAT ${input.issuerVatNumber}` : issuerFooterBase;
 
   let page = doc.addPage([PAGE_W, PAGE_H]);
   drawFooter(page, fonts, input.generatedAt, issuerFooter);

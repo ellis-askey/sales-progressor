@@ -25,7 +25,7 @@ export async function buildBusinessClientInvoice(
 ): Promise<BusinessInvoiceResult> {
   const { start, end } = billingMonthRange(now);
   const [business, agency, link, sales] = await Promise.all([
-    prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true } }),
+    prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true } }),
     prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
     prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
@@ -58,6 +58,11 @@ export async function buildBusinessClientInvoice(
     });
   }
 
+  // VAT: added on top of the rate-card fees when the business is VAT registered
+  // (audit C2b). Off → the fee IS the total, unchanged.
+  const vatActive = business.vatRegisteredAt != null && (business.vatRateBps ?? 0) > 0;
+  const vatPence = vatActive ? Math.round(subtotal * (business.vatRateBps! / 10000)) : 0;
+
   const monthLabel = start.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const ref = `${start.toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace(" ", "-").toUpperCase()}`;
   return {
@@ -69,16 +74,17 @@ export async function buildBusinessClientInvoice(
       agencyName: agency.name,
       lines,
       subtotalPence: subtotal,
-      vatPence: 0,
-      vatActive: false,
+      vatPence,
+      vatActive,
       creditsAppliedPence: 0,
-      totalPence: subtotal,
+      totalPence: subtotal + vatPence,
       generatedAt: now.toLocaleDateString("en-GB"),
       issuerName: business.name,
       // The business's own strapline + contact, so a client invoice never shows TSP's.
       // No published contact email → the contact line is dropped (handled downstream).
       issuerTagline: "Property sales progression",
       issuerContact: business.senderEmail ?? "",
+      issuerVatNumber: vatActive ? business.vatNumber ?? undefined : undefined,
     },
   };
 }
