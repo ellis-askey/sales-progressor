@@ -38,15 +38,15 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 
 ## 🟠 Should-fix — white-label & onboarding
 
-- [ ] **W1 — The client-invite email still looks like it's from us, not the business.**
-  The first email a new client agency receives says "Sales Progressor", with our footer and reply address — not the business's identity.
-  *Fix:* re-brand that email to the business (name, footer, reply-to). **Needs new strings — confirm copy.**
+- [x] **W1 — The client-invite email still looks like it's from us, not the business.** *(built, pending prod deploy)*
+  The first email a new client agency receives said "Sales Progressor", with our footer and reply address — not the business's identity.
+  *Fix shipped:* the invite is now white-labelled to the business — its name as the wordmark (no Sales Progressor hero/logo), subject "You've been set up with {business}", replies to the business's own address (neutral fallback), and a light "powered by Sales Progressor" footer. Our visual style, their identity. The email catalogue specimen renders the same builder, so it shows the new version.
 
-- [ ] **W2 — A client agency that already has an account can't be added.** *(Decision needed)*
-  *Fix/decision:* decide whether pilot clients must be new to the platform (leave as-is) or whether existing agencies can be onboarded (needs work).
+- [x] **W3 — An invited client-agency colleague can see files in lists but can't open them.** *(built, pending prod deploy)*
+  *Fix shipped:* the file-open check now honours the "can see all the agency's files" flag (and firm scope) the list already uses, so a file visible in the list is openable.
 
-- [ ] **W3 — An invited client-agency colleague can see files in lists but can't open them.**
-  *Fix:* let the file-open check respect the same "can see all the agency's files" flag the list already uses.
+- [ ] **W2 — A client agency that already has an account can't be added.** *(DEFERRED — do last)*
+  Decision (founder, 2026-10-04): leave as-is for launch. Pilot clients are net-new to the platform, so the block is fine. Onboarding an agency that already exists (a merge/claim path) is a later growth feature, scheduled last on this list.
 
 ## 🟠 Should-fix — billing (not blocking a free pilot)
 
