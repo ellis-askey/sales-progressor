@@ -20,6 +20,8 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getTransactionCached, getTransactionByScopeCached } from "@/lib/services/cached-fetchers";
+import { resolveAgentVisibility } from "@/lib/services/agent";
+import { prisma } from "@/lib/prisma";
 
 type FileTransaction = NonNullable<Awaited<ReturnType<typeof getTransactionCached>>>;
 type FileSession = Awaited<ReturnType<typeof requireSession>>;
@@ -61,9 +63,29 @@ export const loadFilePageContext = cache(async (id: string): Promise<FilePageCon
 
   const isDirectorRole = session.user.role === "director";
   const isAgentRole = isDirectorRole || session.user.role === "negotiator";
-  // Agent ownership: director sees all agency files; negotiator only their own.
-  // Internal staff are already scoped by getTransactionByScope above.
-  if (!isInternalStaff && !isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
+  // Agent ownership: director sees all agency files; a negotiator sees their own —
+  // plus, if they have "see all" (canViewAllFiles, e.g. a colleague set to follow
+  // the sales the agency's progressor runs), any file their list shows. The old
+  // check ignored that flag, so a colleague could see a file in the list but hit
+  // not-found opening it (audit W3). Internal staff are already scoped above.
+  if (!isInternalStaff && !isDirectorRole) {
+    let canOpen = transaction.agentUserId === session.user.id;
+    if (!canOpen && session.user.agencyId) {
+      const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+      if (vis.seeAll) {
+        if (!vis.firmName) {
+          canOpen = true; // sees the whole agency's book
+        } else {
+          // Firm-scoped colleague: only files owned by their firm (mirrors the list).
+          const owner = transaction.agentUserId
+            ? await prisma.user.findUnique({ where: { id: transaction.agentUserId }, select: { firmName: true } })
+            : null;
+          canOpen = owner?.firmName === vis.firmName;
+        }
+      }
+    }
+    if (!canOpen) notFound();
+  }
 
   return {
     session,
