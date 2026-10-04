@@ -209,7 +209,7 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
                 className="agent-hover-row"
               >
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
-                {isBusinessOwner ? "Business settings" : "Account"}
+                {isBusinessOwner ? "Settings" : "Account"}
               </Link>
               {isBusinessOwner && (
                 <Link
