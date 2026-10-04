@@ -125,38 +125,40 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                   <div className="bt-name">{m.name}{m.isYou && <span className="bt-you">You</span>}</div>
                   <div className="bt-email">{m.email}</div>
                 </div>
-                {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
-                <span className={`bt-role${isOwner ? " is-owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
-                <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
-                  <button
-                    type="button"
-                    className={`bt-seg-btn${!on && !isOwner ? " on-own" : ""}`}
-                    aria-pressed={!on}
-                    disabled={isOwner || pending}
-                    onClick={() => setMember(m, false)}
-                  >
-                    Own files
-                  </button>
-                  <button
-                    type="button"
-                    className={`bt-seg-btn${on || isOwner ? " on-all" : ""}`}
-                    aria-pressed={on || isOwner}
-                    disabled={isOwner || pending}
-                    onClick={() => setMember(m, true)}
-                  >
-                    All sales
-                  </button>
+                <div className="bt-rowside">
+                  {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
+                  <span className={`bt-role${isOwner ? " is-owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
+                  <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
+                    <button
+                      type="button"
+                      className={`bt-seg-btn${!on && !isOwner ? " on-own" : ""}`}
+                      aria-pressed={!on}
+                      disabled={isOwner || pending}
+                      onClick={() => setMember(m, false)}
+                    >
+                      Own files
+                    </button>
+                    <button
+                      type="button"
+                      className={`bt-seg-btn${on || isOwner ? " on-all" : ""}`}
+                      aria-pressed={on || isOwner}
+                      disabled={isOwner || pending}
+                      onClick={() => setMember(m, true)}
+                    >
+                      All sales
+                    </button>
+                  </div>
+                  {!isOwner && (
+                    confirmRemoveId === m.id ? (
+                      <div className="bt-rm-confirm">
+                        <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
+                        <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
+                    )
+                  )}
                 </div>
-                {!isOwner && (
-                  confirmRemoveId === m.id ? (
-                    <div className="bt-rm-confirm">
-                      <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
-                      <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
-                  )
-                )}
               </div>
             );
           })}
@@ -223,13 +225,20 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-seg-btn.on-own:hover, .bt-seg-btn.on-all:hover { background: var(--agent-info); color: #fff; } /* active side ignores hover tint */
         .bt-seg-btn.on-all:hover { background: var(--agent-success); }
 
+        /* Right-side controls (role pill + visibility toggle + remove). One flex
+           child of the row so it can drop to its own line on mobile as a unit. */
+        .bt-rowside { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
         .bt-foot { margin: 4px 2px 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.55; }
         .bt-foot strong { color: var(--agent-text-secondary); font-weight: 600; }
 
         @media (max-width: 560px) {
+          /* Avatar + name/email keep the full first line (no more truncation to
+             "Ti" / "e…"); the controls wrap to a second line, indented under the
+             name (avatar 42 + gap 14). */
           .bt-row { flex-wrap: wrap; }
-          .bt-role { order: 3; }
-          .bt-seg { order: 4; margin-left: auto; }
+          .bt-rowside { width: 100%; padding-left: 56px; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
+          .bt-seg { margin-left: 0; }
         }
       `}</style>
     </div>

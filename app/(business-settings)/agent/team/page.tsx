@@ -2,6 +2,12 @@
 // member, whether they see the whole business book (see-all) or only their own
 // assigned files (see-own). Flag- and owner-gated. The access rule itself lives in
 // lib/security/access-scope.ts + resolveInternalVisibility.
+//
+// Lives under the (business-settings) route group so it renders inside the settings
+// shell (AccountShell variant="business") with the settings nav — the mobile menu
+// then shows the settings tabs, not the main app nav (critique #175). The URL stays
+// /agent/team (route groups don't affect the path). BusinessTeamView carries its own
+// header, so no AccountPageHeader here.
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
@@ -18,9 +24,5 @@ export default async function AgentTeamPage() {
 
   const team = await listBusinessTeam(owner.businessId, session.user.id);
 
-  return (
-    <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
-      <BusinessTeamView team={team} />
-    </div>
-  );
+  return <BusinessTeamView team={team} />;
 }
