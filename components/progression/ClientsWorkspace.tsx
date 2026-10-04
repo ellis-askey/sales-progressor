@@ -158,7 +158,14 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
             <Link key={c.linkId} href={`/agent/clients/${c.agencyId}`} className="cw-row">
               <Logo c={c} />
               <div className="cw-main">
-                <div className="cw-name">{c.name}</div>
+                {/* Status moves up level with the name, right-aligned, as plain
+                    text (no faded pill) so the name gets the full width (#186). */}
+                <div className="cw-head">
+                  <div className="cw-name">{c.name}</div>
+                  {c.status === "active"
+                    ? <span className="cw-status active"><span className="dot" />Active</span>
+                    : <span className="cw-status invite"><Clock size={12} weight="bold" />Invite sent</span>}
+                </div>
                 <div className="cw-meta">
                   {c.contact ?? "Agent"}
                   {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
@@ -169,9 +176,6 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
                 <div className="ms"><div className="n">{fmtCurrencyPence(c.pipelinePence)}</div><div className="l">pipeline</div></div>
                 <div className="ms"><div className="n">{c.exchanged}</div><div className="l">exchanged</div></div>
               </div>
-              {c.status === "active"
-                ? <span className="cw-pill active"><span className="dot" />Active</span>
-                : <span className="cw-pill invite"><Clock size={11} weight="bold" />Invite sent</span>}
               <CaretRight size={19} weight="bold" className="cw-chev" />
             </Link>
           ))}
@@ -233,17 +237,19 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
         .cw-logo-mono { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
         .cw-main { min-width: 0; flex: 1; }
-        .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
         .cw-meta { font-size: 12.5px; color: var(--agent-text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .cw-mstats { display: flex; gap: 26px; flex-shrink: 0; }
         .cw-mstats .ms { text-align: right; }
         .cw-mstats .n { font-size: 16.5px; font-weight: 800; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
         .cw-mstats .l { font-size: 10px; color: var(--agent-text-faint, var(--agent-text-muted)); margin-top: 4px; }
-        .cw-pill { font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
-        .cw-pill.active { color: var(--agent-success, #2F7D53); background: rgba(47,125,83,0.13); }
-        .cw-pill.invite { color: #B5831E; background: rgba(181,131,30,0.14); }
-        :root[data-theme="dark"] .cw-pill.invite { color: #E0B050; background: rgba(224,176,80,0.16); }
-        .cw-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+        /* Status as plain text (no pill background), level with the name (#186). */
+        .cw-status { font-size: 11px; font-weight: 650; letter-spacing: 0.01em; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .cw-status.active { color: var(--agent-success, #2F7D53); }
+        .cw-status.invite { color: #B5831E; }
+        :root[data-theme="dark"] .cw-status.invite { color: #E0B050; }
+        .cw-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
         .cw-chev { color: var(--agent-text-muted); flex-shrink: 0; transition: transform .2s, color .2s; }
         .cw-row:hover .cw-chev { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }
         @media (max-width: 760px) { .cw-mstats { display: none; } }
@@ -346,7 +352,7 @@ function BusinessSettingsModal({ business, onClose }: { business: { name: string
   return (
     <Modal open onClose={onClose} ariaLabel="Business settings" size="md" closeTone="onDark">
       <Modal.Header style={SHEET_BAND_STYLE}>
-        <SheetBandHeader icon={<Gear size={18} weight="bold" />} title="Business settings" subtitle="How your business appears to the agents you progress for." />
+        <SheetBandHeader iconBare icon={<Gear size={24} weight="bold" />} title="Business settings" subtitle="How your business appears to the agents you work with." />
       </Modal.Header>
 
       <Modal.Body>

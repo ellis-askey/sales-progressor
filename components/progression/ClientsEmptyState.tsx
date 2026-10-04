@@ -30,7 +30,7 @@ export function ClientsEmptyState() {
 
       <div className="cwg-inner">
         <h1 className="cwg-title">Add your first client</h1>
-        <p className="cwg-sub">Add the agents and agencies you progress sales for, and manage everything in one place.</p>
+        <p className="cwg-sub">Add the agents and agencies you work with, and manage everything in one place.</p>
 
         <div className="cwg-cols">
           {/* Form */}
