@@ -394,11 +394,13 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       )}
 
       {/* Hidden file input */}
+      {/* No `capture` attribute: on mobile this opens the normal picker (Photo
+          Library / Take Photo / Choose File) rather than forcing the camera, so
+          a saved memo can be chosen too (critique #190). */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*,application/pdf"
-        capture="environment"
         onChange={onInputChange}
         style={{ display: "none" }}
         aria-hidden="true"
