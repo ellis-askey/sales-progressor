@@ -4073,6 +4073,15 @@
     .sol-two-col { grid-template-columns: 1fr; }
   }
 
+  /* Checkpoints presets: pills on desktop/tablet, one full-width dropdown on
+     mobile so they don't wrap awkwardly (critique #199). */
+  .ckp-preset-pills { display: flex; }
+  .ckp-preset-select { display: none; width: 100%; }
+  @media (max-width: 640px) {
+    .ckp-preset-pills { display: none; }
+    .ckp-preset-select { display: block; }
+  }
+
   /* "Our team is handling this sale" banner (OutsourcedBanner). Default surface:
      white in light, a dark "coral wash" in dark — the same treatment used on the
      app's dark drawer/modal headers (critique #193, option 1). Text colours sit on

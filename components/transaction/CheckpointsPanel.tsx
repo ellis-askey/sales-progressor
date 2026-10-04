@@ -282,11 +282,24 @@ export function CheckpointsPanel({
         {/* composer */}
         {adding && (
           <div style={{ borderTop: "1px solid var(--agent-border-subtle)", marginTop: items.length ? 8 : 4, paddingTop: 14 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+            {/* Desktop/tablet: preset pills (click a selected one again to clear
+                it). Mobile: one full-width dropdown instead, so they don't wrap.
+                Both drive the same `label`, so editing the input below unselects
+                either (it's then bespoke). Critique #199. */}
+            <div className="ckp-preset-pills" style={{ flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
               {PICKLIST.map((p) => (
-                <button key={p} type="button" style={pillStyle(label === p)} onClick={() => setLabel(p)}>{p}</button>
+                <button key={p} type="button" style={pillStyle(label === p)} onClick={() => setLabel(label === p ? "" : p)}>{p}</button>
               ))}
             </div>
+            <select
+              className="agent-input ckp-preset-select"
+              value={PICKLIST.includes(label) ? label : ""}
+              onChange={(e) => setLabel(e.target.value)}
+              style={{ marginBottom: 12 }}
+            >
+              <option value="">Choose what needs confirming…</option>
+              {PICKLIST.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
             <input className="agent-input" placeholder="What needs confirming?" value={label} onChange={(e) => setLabel(e.target.value)} style={{ marginBottom: 12 }} />
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
               <div>

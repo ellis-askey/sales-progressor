@@ -237,6 +237,9 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
            clip on either edge when the channel buttons wrap (critique #7a). */
         @media (max-width: 520px) {
           .ce-menu { left:0; right:0; min-width:0; max-width:none; }
+          /* Hide the "More" word on mobile, leaving just the chevron, so the three
+             composer buttons fit on one row (critique #198). */
+          .ce-more-label { display:none; }
         }
         @media (prefers-reduced-motion: reduce) {
           .ce-seg-slide { transition:none; }
@@ -258,8 +261,8 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
 
         {/* More — everything you log after the fact */}
         <div ref={overflowRef} style={{ position: "relative" }}>
-          <button onClick={() => setShowOverflow((v) => !v)} className="ce-ghost" data-open={showOverflow} data-on={moreActive} aria-haspopup="menu" aria-expanded={showOverflow}>
-            More <span className="ce-caret">▼</span>
+          <button onClick={() => setShowOverflow((v) => !v)} className="ce-ghost" data-open={showOverflow} data-on={moreActive} aria-haspopup="menu" aria-expanded={showOverflow} aria-label="More">
+            <span className="ce-more-label">More</span><span className="ce-caret">▼</span>
           </button>
           {showOverflow && (
             <div className="ce-menu agent-dropdown-in" role="menu">
