@@ -14,6 +14,7 @@ import { Buildings } from "@phosphor-icons/react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateBusinessIdentityAction } from "@/app/actions/progression-clients";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 export function BusinessIdentityForm({
   initialName,
@@ -77,6 +78,7 @@ export function BusinessIdentityForm({
               value={name}
               maxLength={120}
               onChange={(e) => setName(e.target.value)}
+              onBlur={() => setName((t) => titleCaseKeepAcronyms(t))}
               placeholder="e.g. Hamptons Progression"
               className="account-input"
               style={fieldStyle}
@@ -89,6 +91,7 @@ export function BusinessIdentityForm({
               value={shortName}
               maxLength={40}
               onChange={(e) => setShortName(e.target.value)}
+              onBlur={() => setShortName((t) => titleCaseKeepAcronyms(t))}
               placeholder="A shorter label for tight spaces"
               className="account-input"
               style={fieldStyle}

@@ -59,6 +59,16 @@ export function ProfileFormPlain({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Role-aware job-title placeholder. The job title renders in the white-label
+  // chase signature (lib/email/chase-signature) under the AGENCY name, so for a
+  // progressor it must read as their function (Sales Progressor), never "Founder"
+  // (which would read as founder of the client agency).
+  const jobTitlePlaceholder =
+    role === "director" ? "e.g. Director"
+      : role === "negotiator" ? "e.g. Sales Negotiator"
+        : role === "sales_progressor" ? "e.g. Sales Progressor"
+          : "e.g. Sales Manager";
+
   const isDirector = role === "director";
 
   async function handlePhotoPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -293,7 +303,7 @@ export function ProfileFormPlain({
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
               onBlur={() => setJobTitle((t) => titleCaseKeepAcronyms(t))}
-              placeholder="e.g. Sales Manager"
+              placeholder={jobTitlePlaceholder}
               className="account-input"
               style={fieldStyle}
             />
