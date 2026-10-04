@@ -20,11 +20,8 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
 import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
+import { AgencyMeshMark } from "./AgencyMeshMark";
 import { useAddClientForm } from "./useAddClientForm";
-
-function initials(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
-}
 
 // Compact money for the totals bar (matches CompletionsMomentum): £1.2M / £45k / £0.
 function fmtCompact(pence: number): string {
@@ -39,7 +36,8 @@ function Logo({ c }: { c: ClientOverviewRow }) {
     // eslint-disable-next-line @next/next/no-img-element
     return <span className="cw-logo" style={{ background: c.tileColor ?? "#ffffff" }}><img src={c.logoUrl} alt="" /></span>;
   }
-  return <span className="cw-logo cw-logo-mono">{initials(c.name)}</span>;
+  // No logo: a generated mesh-monogram mark (critique #186), not plain initials.
+  return <span className="cw-logo"><AgencyMeshMark name={c.name} size={52} /></span>;
 }
 
 // A greyed, non-navigating row for an archived client, with an inline reinstate.
@@ -235,7 +233,6 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-row:active { transform: translateY(-1px) scale(.996); }
         .cw-logo { width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
         .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
-        .cw-logo-mono { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
         .cw-main { min-width: 0; flex: 1; }
         .cw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
