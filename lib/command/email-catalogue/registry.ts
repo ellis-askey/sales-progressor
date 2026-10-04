@@ -14,12 +14,14 @@ import {
   type SignatureBehaviour,
   type ScenarioAxis,
   type Side,
+  type AudienceBucket,
 } from "./scenario";
 import {
   CATALOGUE_BASE,
   FIXTURE_AGENCY,
   FIXTURE_AGENT,
   FIXTURE_PROGRESSOR,
+  FIXTURE_BUSINESS,
   FIXTURE_PROPERTY,
   FIXTURE_VENDORS,
   FIXTURE_PURCHASERS,
@@ -68,6 +70,9 @@ import { buildMorningBrief } from "@/lib/emails/morning-brief";
 import { buildWeeklyBrief } from "@/lib/emails/weekly-brief";
 import { buildRetentionEmail, RETENTION_EMAIL_KEYS } from "@/lib/emails/retention";
 import { buildMailboxSendingTest, buildMailboxSendingStopped } from "@/lib/email/mailbox-sending-notices";
+import { buildClientAgentInvite } from "@/lib/emails/client-agent-invite";
+import { buildTeammateInvite } from "@/lib/emails/teammate-invite";
+import { buildProgressionWelcome } from "@/lib/emails/retention";
 
 export type RenderedEmail = { subject: string; html: string };
 
@@ -80,6 +85,10 @@ export type SpecimenMeta = {
   axes: ScenarioAxis[];
   senderKind: SenderKind;
   signatureBehaviour: SignatureBehaviour;
+  // Fixed audience bucket. Omit for a FILE-DRIVEN email (client / solicitor /
+  // on-file notification) — its bucket follows who runs the file
+  // (free_agency / tsp_outsourced / external_progression). See audienceBucketFor.
+  bucket?: AudienceBucket;
 };
 
 export type EmailSpecimen = SpecimenMeta & {
@@ -679,6 +688,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "morning-brief",
+    bucket: "free_agency",
     category: "perfected",
     name: "Morning brief",
     description: "The daily 7am digest of what needs the agent today.",
@@ -724,6 +734,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "weekly-brief",
+    bucket: "free_agency",
     category: "perfected",
     name: "Weekly brief",
     description: "The Friday pipeline summary across the agent's active sales.",
@@ -750,6 +761,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "team-invitation",
+    bucket: "free_agency",
     category: "perfected",
     name: "Team invite",
     description: "Invites a colleague to join the agency's account.",
@@ -770,6 +782,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "team-joined",
+    bucket: "free_agency",
     category: "perfected",
     name: "Team joined",
     description: "Tells the inviter a colleague has accepted and joined.",
@@ -789,9 +802,68 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
       ),
   },
 
+  // ── Progression business (invites it sends) ──────────────────────────────────
+  {
+    id: "progression-client-agent-invite",
+    bucket: "progression_invite",
+    category: "perfected",
+    name: "Client agent invite",
+    description: "Sets up an estate agent's login when a progression business adds them as a client.",
+    trigger: "A progression business adds an agency agent as a client.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildClientAgentInvite({
+          setupUrl: `${CATALOGUE_BASE}/reset-password?token=PREVIEW`,
+          businessName: FIXTURE_BUSINESS.name,
+        }),
+      ),
+  },
+  {
+    id: "progression-teammate-invite",
+    bucket: "progression_invite",
+    category: "perfected",
+    name: "Teammate invite",
+    description: "Sets up a progressor colleague's login when a business adds them to its team. Greets by first name, colleague-framed (critique #180).",
+    trigger: "A progression-business owner invites a teammate on /agent/team.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildTeammateInvite({
+          setupUrl: `${CATALOGUE_BASE}/reset-password?token=PREVIEW`,
+          businessName: FIXTURE_BUSINESS.name,
+          firstName: "Alex",
+        }),
+      ),
+  },
+  {
+    id: "progression-welcome",
+    bucket: "progression_invite",
+    category: "perfected",
+    name: "Business welcome",
+    description: "Welcomes a new progression-business owner and points them at adding their first client.",
+    trigger: "A new progression business completes sign-up.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildProgressionWelcome({
+          firstName: FIXTURE_BUSINESS.owner.firstName,
+          ctaUrl: `${CATALOGUE_BASE}/agent/clients`,
+          unsubscribeUrl: `${CATALOGUE_BASE}/unsubscribe/PREVIEW`,
+        }),
+      ),
+  },
+
   // ── Chain ────────────────────────────────────────────────────────────────────
   {
     id: "chain-invite",
+    bucket: "free_agency",
     category: "perfected",
     name: "Chain invite",
     description: "Invites a neighbouring agent to connect their sale into the chain.",
@@ -812,6 +884,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-overview",
+    bucket: "free_agency",
     category: "perfected",
     name: "Chain overview",
     description: "Shows a connected agent the shape of the chain they're in.",
@@ -833,6 +906,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-update",
+    bucket: "free_agency",
     category: "perfected",
     name: "Chain update",
     description: "Tells connected agents a step moved on a linked sale.",
@@ -855,6 +929,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "chain-still-moving",
+    bucket: "free_agency",
     category: "perfected",
     name: "Chain still moving",
     description: "A gentle nudge to an agent who hasn't connected yet.",
@@ -907,6 +982,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "password-reset",
+    bucket: "platform_admin",
     category: "perfected",
     name: "Password reset",
     description: "The reset-password link.",
@@ -918,6 +994,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "email-verification",
+    bucket: "platform_admin",
     category: "perfected",
     name: "Email verification",
     description: "Confirms a new account's email address.",
@@ -930,6 +1007,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "domain-auth",
+    bucket: "platform_admin",
     category: "perfected",
     name: "Domain authentication alert",
     description: "Tells an agency their sending domain needs DNS attention.",
@@ -942,6 +1020,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "agency-invitation",
+    bucket: "platform_admin",
     category: "perfected",
     name: "Agency invitation",
     description: "Invites a new agency to set up their account.",
@@ -953,6 +1032,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   },
   {
     id: "first-exchange",
+    bucket: "free_agency",
     category: "perfected",
     name: "First exchange celebration",
     description: "Celebrates an agency's first exchange on the platform.",
@@ -974,6 +1054,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
   ...RETENTION_EMAIL_KEYS.map(
     (key): EmailSpecimen => ({
       id: `retention-${key}`,
+      bucket: "free_agency",
       category: "perfected",
       name: RETENTION_LABELS[key] ?? `Retention · ${key}`,
       description: "A lifecycle nudge in the retention series.",

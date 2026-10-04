@@ -7,14 +7,53 @@
 // lib/email/agent-signature-for-file.ts using the fixtures — see SPEC.md for the
 // tracked follow-up to share one pure core so they cannot drift.
 
-import { FIXTURE_AGENCY, FIXTURE_AGENT, FIXTURE_PROGRESSOR } from "./fixtures";
+import { FIXTURE_AGENCY, FIXTURE_AGENT, FIXTURE_PROGRESSOR, FIXTURE_BUSINESS } from "./fixtures";
 
 export type EmailCategory = "client" | "agent" | "internal" | "solicitor" | "provider" | "perfected" | "chain" | "platform";
 
-export type FileType = "self_managed" | "outsourced";
+// Who runs the file the email belongs to:
+//  - self_managed       — the agency progresses it themselves
+//  - outsourced         — Sales Progressor (us) progresses it
+//  - outsourced_external — an outside progression business progresses it
+export type FileType = "self_managed" | "outsourced" | "outsourced_external";
 export type Side = "vendor" | "purchaser";
 export type ThemeKind = "coral" | "custom";
 export type ScenarioAxis = "fileType" | "side" | "theme" | "milestoneCode";
+
+// The five "who is this for" buckets the on/off switches act on. A file-driven
+// email (client/solicitor/on-file notification) has no fixed bucket — it belongs
+// to free_agency / tsp_outsourced / external_progression depending on who runs
+// the file (see audienceBucketFor). Everything else carries a fixed bucket.
+export type AudienceBucket =
+  | "platform_admin" // password reset, verification, domain auth — always on, locked
+  | "tsp_outsourced" // client-facing emails on files WE progress
+  | "free_agency" // emails for self-managed agencies (their client + lifecycle emails)
+  | "progression_invite" // invites an external business sends (client agent + teammate + welcome)
+  | "external_progression"; // client-facing emails on files an EXTERNAL business progresses
+
+export const AUDIENCE_LABEL: Record<AudienceBucket, string> = {
+  platform_admin: "TSP admin",
+  tsp_outsourced: "TSP outsourced sales",
+  free_agency: "Free-agency emails",
+  progression_invite: "Progression-business invites",
+  external_progression: "External progression",
+};
+
+// Buckets whose emails can never be switched off (the product breaks without them).
+export const LOCKED_BUCKETS: ReadonlySet<AudienceBucket> = new Set(["platform_admin"]);
+
+// The three buckets a file-driven email can land in, by who runs the file.
+const FILE_BUCKET: Record<FileType, AudienceBucket> = {
+  self_managed: "free_agency",
+  outsourced: "tsp_outsourced",
+  outsourced_external: "external_progression",
+};
+
+// Resolve the effective bucket for an email under a file type. A fixed bucket
+// (invites, admin, lifecycle) always wins; otherwise it follows the file.
+export function audienceBucketFor(fixed: AudienceBucket | undefined, fileType: FileType): AudienceBucket {
+  return fixed ?? FILE_BUCKET[fileType];
+}
 
 export type Scenario = {
   fileType: FileType;
@@ -91,9 +130,25 @@ export function resolveCatalogueIdentity(kind: SenderKind, fileType: FileType): 
     return {
       fromTiers: [
         { label: "Self-managed", template: `{Agency name} <quotes@thesalesprogressor.co.uk>`, value: `${FIXTURE_AGENCY.name} <${QUOTES}>`, condition: "on a self-managed file, sent via our quotes mailbox", active: fileType === "self_managed" },
-        { label: "Outsourced", template: `{Agency name} <{Assigned progressor's email}>`, value: `${FIXTURE_AGENCY.name} <${ELLIS}>`, condition: "on an outsourced file, sent via the assigned progressor's address", active: fileType === "outsourced" },
+        { label: "Outsourced", template: `{Agency name} <{Assigned progressor's email}>`, value: `${FIXTURE_AGENCY.name} <${ELLIS}>`, condition: "on an outsourced file, sent via the assigned progressor's address", active: fileType !== "self_managed" },
       ],
       replyToTiers: [{ label: "Always", template: "{Client's email}", value: "the client's own email", condition: "so the surveyor firm replies to the client directly", active: true }],
+    };
+  }
+
+  if (fileType === "outsourced_external") {
+    // An outside progression business runs the file: client-facing + solicitor
+    // mail goes out white-labelled as THAT business, from its own verified sender.
+    const brandBiz = `${FIXTURE_BUSINESS.owner.firstName} at ${FIXTURE_BUSINESS.name}`;
+    return {
+      fromTiers: [
+        { label: "Best", template: `{Progressor first name} at {Business name} <{Business verified sender}>`, value: `${brandBiz} <${FIXTURE_BUSINESS.senderEmail}>`, condition: "the progression business's own verified sending address", active: true },
+        { label: "Next best", template: `{Progressor first name} at {Business name} <{Progressor's @thesalesprogressor.co.uk}>`, value: `${brandBiz} <${SP_ADDRESS}>`, condition: "if the business has no verified sender: our sending address, still showing the business name", active: false },
+      ],
+      replyToTiers: [
+        { label: "Best", template: "{Assigned progressor's email}", value: FIXTURE_BUSINESS.owner.email, condition: "the progressor handling the file, so replies reach the business", active: true },
+        { label: "Fallback", template: "noreply@thesalesprogressor.co.uk", value: NOREPLY, condition: "only if the progressor has no email on file", active: false },
+      ],
     };
   }
 
@@ -140,9 +195,9 @@ export function describeSignature(behaviour: SignatureBehaviour, fileType: FileT
     case "sp":
       return "Sales Progressor sign-off";
     case "agent_or_inhouse":
-      return fileType === "self_managed"
-        ? `Agent's own signature (${FIXTURE_AGENT.name})`
-        : `In-house block (${FIXTURE_PROGRESSOR.name} · ${FIXTURE_AGENCY.name})`;
+      if (fileType === "self_managed") return `Agent's own signature (${FIXTURE_AGENT.name})`;
+      if (fileType === "outsourced_external") return `In-house block (${FIXTURE_BUSINESS.owner.name} · ${FIXTURE_BUSINESS.name})`;
+      return `In-house block (${FIXTURE_PROGRESSOR.name} · ${FIXTURE_AGENCY.name})`;
     case "agent_or_none":
       return fileType === "self_managed"
         ? `Agent's own signature (${FIXTURE_AGENT.name})`

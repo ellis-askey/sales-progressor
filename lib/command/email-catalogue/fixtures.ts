@@ -43,6 +43,23 @@ export const FIXTURE_PROGRESSOR = {
   phone: "+44 117 900 1234",
 };
 
+// A fake EXTERNAL progression business (for the "outsourced by an outside firm"
+// lens). Clearly fake. Represents a business that progresses sales for agencies
+// and sends client-facing mail white-labelled as itself.
+export const FIXTURE_BUSINESS = {
+  name: "Meridian Progression",
+  shortName: "Meridian",
+  senderEmail: "team@meridianprogression.co.uk", // as if verified in SendGrid
+  senderVerified: true,
+  domain: "meridianprogression.co.uk",
+  owner: {
+    name: "Dawn Carter",
+    firstName: "Dawn",
+    email: "dawn@meridianprogression.co.uk",
+    phone: "+44 161 555 0133",
+  },
+};
+
 export const FIXTURE_PROPERTY = {
   address: "12 Oakfield Road, Wandsworth",
   addressShort: "12 Oakfield Road",

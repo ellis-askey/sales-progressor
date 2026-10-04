@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { findSpecimen } from "@/lib/command/email-catalogue/registry";
-import { resolveCatalogueIdentity, describeSignature, type Scenario, type IdentityTier } from "@/lib/command/email-catalogue/scenario";
+import { resolveCatalogueIdentity, describeSignature, audienceBucketFor, AUDIENCE_LABEL, LOCKED_BUCKETS, type Scenario, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 
 export type RenderResult =
   | {
@@ -15,6 +15,9 @@ export type RenderResult =
       replyToTiers: IdentityTier[];
       signature: string;
       themeLabel: string;
+      bucket: AudienceBucket;
+      bucketLabel: string;
+      bucketLocked: boolean;
     }
   | { ok: false; error: string };
 
@@ -36,6 +39,7 @@ export async function renderSpecimenAction(id: string, scenario: Scenario): Prom
         ? "Custom (navy / teal sample)"
         : "Coral (default)"
       : "Not themed";
+    const bucket = audienceBucketFor(spec.bucket, scenario.fileType);
     return {
       ok: true,
       subject: r.subject,
@@ -44,6 +48,9 @@ export async function renderSpecimenAction(id: string, scenario: Scenario): Prom
       replyToTiers: identity.replyToTiers,
       signature,
       themeLabel,
+      bucket,
+      bucketLabel: AUDIENCE_LABEL[bucket],
+      bucketLocked: LOCKED_BUCKETS.has(bucket),
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Render failed." };

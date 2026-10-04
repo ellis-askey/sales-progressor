@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { renderSpecimenAction, type RenderResult } from "./actions";
-import { DEFAULT_SCENARIO, type Scenario, type EmailCategory, type IdentityTier } from "@/lib/command/email-catalogue/scenario";
+import { DEFAULT_SCENARIO, AUDIENCE_LABEL, type Scenario, type EmailCategory, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 import type { SpecimenMeta } from "@/lib/command/email-catalogue/registry";
+
+// A file-driven email (no fixed bucket) belongs to all three "who runs the file"
+// buckets, so the filter shows it under any of them.
+const FILE_BUCKETS: ReadonlySet<AudienceBucket> = new Set(["free_agency", "tsp_outsourced", "external_progression"]);
+function matchesBucket(meta: SpecimenMeta, filter: AudienceBucket | "all"): boolean {
+  if (filter === "all") return true;
+  if (meta.bucket) return meta.bucket === filter;
+  return FILE_BUCKETS.has(filter);
+}
+const BUCKET_ORDER: AudienceBucket[] = ["platform_admin", "tsp_outsourced", "free_agency", "progression_invite", "external_progression"];
 
 const CATEGORY_ORDER: EmailCategory[] = ["client", "solicitor", "provider", "agent", "internal", "perfected"];
 const CATEGORY_LABEL: Record<EmailCategory, string> = {
@@ -91,6 +101,7 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
   // Preview width. Defaults to desktop and is NOT persisted (fresh load = desktop);
   // stays put as you move between emails within a session, for a polish sweep.
   const [device, setDevice] = useState<Device>("desktop");
+  const [bucketFilter, setBucketFilter] = useState<AudienceBucket | "all">("all");
   const deviceWidth = DEVICE_WIDTHS[device];
 
   const selected = useMemo(() => specimens.find((s) => s.id === selectedId), [specimens, selectedId]);
@@ -98,12 +109,13 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
   const grouped = useMemo(() => {
     const map = new Map<EmailCategory, SpecimenMeta[]>();
     for (const s of specimens) {
+      if (!matchesBucket(s, bucketFilter)) continue;
       const arr = map.get(s.category) ?? [];
       arr.push(s);
       map.set(s.category, arr);
     }
     return CATEGORY_ORDER.filter((c) => map.has(c)).map((c) => ({ category: c, items: map.get(c)! }));
-  }, [specimens]);
+  }, [specimens, bucketFilter]);
 
   // Load the reviewed set from localStorage (per-browser, for your own tracking).
   useEffect(() => {
@@ -152,6 +164,29 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
         Every email the portal can send, rendered from the real builders under the scenario you pick.
         Tick each one once you&apos;ve reviewed and OK&apos;d it. Preview data only, nothing is sent.
       </p>
+
+      {/* "Who it's for" filter — the five audience buckets the on/off switches act
+          on. A file-driven email (client/solicitor/on-file) shows under any of the
+          three file buckets, since who it's for follows who runs the file. */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="text-[10px] uppercase tracking-wider text-neutral-500 mr-1">Who it&apos;s for</span>
+        {(["all", ...BUCKET_ORDER] as const).map((b) => {
+          const active = bucketFilter === b;
+          const count = b === "all" ? specimens.length : specimens.filter((s) => matchesBucket(s, b)).length;
+          const label = b === "all" ? "All" : AUDIENCE_LABEL[b];
+          return (
+            <button
+              key={b}
+              onClick={() => setBucketFilter(b)}
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors flex items-center gap-1.5"
+              style={{ background: active ? ACCENT : "#111", border: `1px solid ${active ? ACCENT : BORDER}`, color: active ? "#fff" : "#a3a3a3" }}
+            >
+              {label}
+              <span className="text-[10px]" style={{ color: active ? "rgba(255,255,255,0.7)" : "#525252" }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex gap-6" style={{ minHeight: 640 }}>
         {/* Left — specimen list */}
@@ -214,7 +249,7 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
 
           {/* Scenario toolbar */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4 rounded-lg mb-4" style={{ background: "#111", border: `1px solid ${BORDER}` }}>
-            {has("fileType") && (
+            {(has("fileType") || (selected && !selected.bucket)) && (
               <label className="flex items-center gap-2">
                 <span className="text-[11px] text-neutral-500">File</span>
                 <Seg
@@ -222,7 +257,8 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
                   onChange={(v) => setScenario((s) => ({ ...s, fileType: v }))}
                   options={[
                     { value: "self_managed", label: "Self-managed" },
-                    { value: "outsourced", label: "Outsourced" },
+                    { value: "outsourced", label: "Outsourced (us)" },
+                    { value: "outsourced_external", label: "External business" },
                   ]}
                 />
               </label>
@@ -291,7 +327,7 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
               <div className="text-[13px] text-neutral-500 py-2">…</div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 pt-3 mt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+            <div className="grid grid-cols-3 gap-4 pt-3 mt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-neutral-500">Signature</div>
                 <div className="text-[13px] text-neutral-200">{result?.ok ? result.signature : "…"}</div>
@@ -299,6 +335,17 @@ export function EmailCatalogue({ specimens }: { specimens: SpecimenMeta[] }) {
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-neutral-500">Brand theme</div>
                 <div className="text-[13px] text-neutral-200">{result?.ok ? result.themeLabel : "…"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-neutral-500">Who it&apos;s for</div>
+                <div className="text-[13px] text-neutral-200 flex items-center gap-1.5">
+                  {result?.ok ? result.bucketLabel : "…"}
+                  {result?.ok && result.bucketLocked && (
+                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold" style={{ background: "#1a1a1a", color: "#737373" }}>
+                      always on
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
