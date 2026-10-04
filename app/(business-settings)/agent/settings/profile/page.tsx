@@ -37,6 +37,7 @@ export default async function BusinessProfilePage() {
       <AccountPageHeader
         title="Profile"
         subtitle="Manage your personal details and app preferences."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <ProfileFormPlain

@@ -21,6 +21,7 @@ export default async function BusinessSecurityPage() {
       <AccountPageHeader
         title="Security"
         subtitle="Manage how you sign in to Sales Progressor."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <ChangePasswordCard />

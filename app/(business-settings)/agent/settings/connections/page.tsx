@@ -26,6 +26,7 @@ export default async function BusinessConnectionsPage() {
       <AccountPageHeader
         title="Connections"
         subtitle="Connect your email inbox so replies on the sales you progress are saved to the file, and you can send from your own address."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <Suspense

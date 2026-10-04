@@ -10,8 +10,9 @@
 // Client-portal is intentionally absent (portal settings are per-client, managed
 // in each client's workspace). Owner-only; mounted by AccountShell variant="business".
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, ArrowLeft } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 
 // Render order = display order.
@@ -31,6 +32,28 @@ export function BusinessSettingsNav({ onNavigate }: { onNavigate?: () => void })
   return (
     <nav aria-label="Business settings navigation">
       <AgentNavRail items={ITEMS} pathname={pathname} onNavigate={onNavigate} />
+
+      {/* A consistent way back out of settings, below the last tab — mirrors the
+          per-page "Back to progression" link (critique #183). The hub is the
+          owner's main progression workspace. */}
+      <Link href="/agent/hub" className="bsn-back" onClick={onNavigate}>
+        <ArrowLeft size={15} weight="bold" className="bsn-back-arrow" />
+        Back to progression
+      </Link>
+
+      <style>{`
+        .bsn-back {
+          display: flex; align-items: center; gap: 9px;
+          margin-top: 8px; padding: 10px 12px;
+          border-top: 0.5px solid rgba(0,0,0,0.07);
+          font-size: 13px; font-weight: 600; color: #6b7280;
+          text-decoration: none;
+          transition: color 150ms ease;
+        }
+        .bsn-back:hover, .bsn-back:focus-visible { color: #111827; outline: none; }
+        .bsn-back-arrow { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); flex-shrink: 0; }
+        .bsn-back:hover .bsn-back-arrow, .bsn-back:focus-visible .bsn-back-arrow { transform: translateX(-3px); }
+      `}</style>
     </nav>
   );
 }

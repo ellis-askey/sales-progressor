@@ -34,6 +34,7 @@ export default async function BusinessEmailsPage() {
       <AccountPageHeader
         title="Emails"
         subtitle="The client emails that send on the sales you progress, and how they're sent."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard

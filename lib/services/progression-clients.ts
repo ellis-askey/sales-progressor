@@ -58,13 +58,16 @@ export type BusinessTeamMember = {
   canViewAllFiles: boolean;
   isYou: boolean;
   pending: boolean; // invited but hasn't set a password yet
+  image: string | null; // uploaded photo, if any (else the row shows the default avatar)
+  imageFocusX: number;
+  imageFocusY: number;
 };
 
 /** The business's own team (owner + progressors), for the owner's "Your team" page. */
 export async function listBusinessTeam(businessId: string, viewerUserId: string): Promise<BusinessTeamMember[]> {
   const members = await prisma.user.findMany({
     where: { progressionBusinessId: businessId, deactivatedAt: null },
-    select: { id: true, name: true, email: true, progressionBusinessRole: true, canViewAllFiles: true, password: true },
+    select: { id: true, name: true, email: true, progressionBusinessRole: true, canViewAllFiles: true, password: true, image: true, imageFocusX: true, imageFocusY: true },
     orderBy: [{ progressionBusinessRole: "asc" }, { name: "asc" }],
   });
   return members.map((m) => ({
@@ -75,6 +78,9 @@ export async function listBusinessTeam(businessId: string, viewerUserId: string)
     canViewAllFiles: m.canViewAllFiles,
     isYou: m.id === viewerUserId,
     pending: !m.password,
+    image: m.image ?? null,
+    imageFocusX: m.imageFocusX ?? 50,
+    imageFocusY: m.imageFocusY ?? 50,
   }));
 }
 

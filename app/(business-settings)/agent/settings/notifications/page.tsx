@@ -42,6 +42,7 @@ export default async function BusinessNotificationsPage() {
       <AccountPageHeader
         title="Notifications"
         subtitle="Choose how and when Sales Progressor gets your attention."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <EmailNotificationsSectionPlain initialPrefs={notificationPrefs} />

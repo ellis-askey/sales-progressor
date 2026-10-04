@@ -27,6 +27,7 @@ export default async function BusinessIdentityPage() {
       <AccountPageHeader
         title="Business"
         subtitle="Your business name and how it appears to clients."
+        backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <BusinessIdentityForm

@@ -8,7 +8,20 @@
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 
-export function AccountPageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function AccountPageHeader({
+  title,
+  subtitle,
+  backLabel = "Back to Sales Progressor",
+  backHref = "/agent/hub",
+}: {
+  title: string;
+  subtitle?: string;
+  // The external progression-business settings area passes "Back to progression"
+  // so the link reads in the owner's own terms; the agency account area keeps
+  // the default. Both point at the hub.
+  backLabel?: string;
+  backHref?: string;
+}) {
   return (
     <div
       style={{
@@ -30,9 +43,9 @@ export function AccountPageHeader({ title, subtitle }: { title: string; subtitle
         )}
       </div>
 
-      <Link href="/agent/hub" className="account-back-link">
+      <Link href={backHref} className="account-back-link">
         <ArrowLeft weight="bold" className="account-back-arrow" style={{ width: 14, height: 14 }} />
-        Back to Sales Progressor
+        {backLabel}
       </Link>
 
       <style>{`

@@ -4,12 +4,21 @@
 // Own-files / All-sales toggle. The owner's own row is locked to All sales. Visual
 // language + hover-lift rows + SectionReveal entrance match the Clients workspace;
 // the segmented toggle reuses the app's coral/cream treatment.
+//
+// Header is AccountPageHeader (same as every other settings tab) with a
+// "Back to progression" link top-right, so the Back affordance is consistent
+// across the settings area (critique #183). The invite control sits in its own
+// actions row above the list.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { Pill } from "@/components/ui/Pill";
+import { UserAvatar } from "@/components/ui/Avatar";
+import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
@@ -80,26 +89,29 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
   return (
     <div className="bt">
+      <AccountPageHeader
+        title="Your team"
+        subtitle="Who's in your business, and how much of your book each person can see."
+        backLabel="Back to progression"
+      />
+
       <SectionReveal order={0}>
-        <div className="bt-top">
-          <div className="bt-top-head">
-            <div>
-              <h1 className="bt-h1">Your team</h1>
-              <p className="bt-sub">Who&rsquo;s in your business, and how much of your book each person can see.</p>
-            </div>
-            <button type="button" className="bt-invite-btn" onClick={() => setInviting((v) => !v)}>
-              <span className="bt-invite-ico" aria-hidden>👤</span> Invite teammate
-            </button>
-          </div>
+        <div className="bt-actions">
+          <button type="button" className="bt-invite-btn" onClick={() => setInviting((v) => !v)}>
+            <span className="bt-invite-ico" aria-hidden>👤</span> Invite teammate
+          </button>
           {inviting && (
             <div className="bt-invite-form">
               <input
                 className="bt-inp" placeholder="Their name" value={inviteName}
-                onChange={(e) => setInviteName(e.target.value)} disabled={pending} autoFocus
+                onChange={(e) => setInviteName(e.target.value)}
+                onBlur={() => setInviteName((n) => titleCaseKeepAcronyms(n))}
+                disabled={pending} autoFocus
               />
               <input
                 className="bt-inp" type="email" placeholder="their@email.co.uk" value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
+                onBlur={() => setInviteEmail((v) => v.trim().toLowerCase())}
                 onKeyDown={(e) => { if (e.key === "Enter") invite(); }} disabled={pending}
               />
               <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={invite} disabled={pending || !inviteName.trim() || !inviteEmail.trim()}>
@@ -120,44 +132,66 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
             const isOwner = m.role === "owner";
             return (
               <div key={m.id} className="bt-row">
-                <span className={`bt-av${isOwner ? " bt-av-owner" : ""}`}>{initials(m.name)}</span>
-                <div className="bt-main">
-                  <div className="bt-name">{m.name}{m.isYou && <span className="bt-you">You</span>}</div>
-                  <div className="bt-email">{m.email}</div>
-                </div>
-                <div className="bt-rowside">
-                  {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
-                  <span className={`bt-role${isOwner ? " is-owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
-                  <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
-                    <button
-                      type="button"
-                      className={`bt-seg-btn${!on && !isOwner ? " on-own" : ""}`}
-                      aria-pressed={!on}
-                      disabled={isOwner || pending}
-                      onClick={() => setMember(m, false)}
-                    >
-                      Own files
-                    </button>
-                    <button
-                      type="button"
-                      className={`bt-seg-btn${on || isOwner ? " on-all" : ""}`}
-                      aria-pressed={on || isOwner}
-                      disabled={isOwner || pending}
-                      onClick={() => setMember(m, true)}
-                    >
-                      All sales
-                    </button>
+                {/* Owners keep the polished coral initials circle (their photo if
+                    they have one); team members use the usual default avatar art,
+                    which swaps to their photo once they upload one (critique #182). */}
+                {isOwner ? (
+                  <span className="bt-av bt-av-owner">
+                    {m.image
+                      ? <img src={m.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${m.imageFocusX}% ${m.imageFocusY}%`, display: "block" }} />
+                      : initials(m.name)}
+                  </span>
+                ) : (
+                  <UserAvatar user={{ name: m.name, image: m.image, imageFocusX: m.imageFocusX, imageFocusY: m.imageFocusY }} size={42} className="bt-av-shell" />
+                )}
+
+                <div className="bt-body">
+                  <div className="bt-head">
+                    <div className="bt-id">
+                      <div className="bt-name">{m.name}</div>
+                      <div className="bt-email">{m.email}</div>
+                    </div>
+                    {/* Role as a proper solid pill, top-right on the name's line
+                        (critique #181): Owner in coral, Progressor neutral. The
+                        old faded inline "You" pill + grey role chip are gone. */}
+                    <Pill tone={isOwner ? "brand" : "default"} size="md" className="bt-role-pill">
+                      {isOwner ? "Owner" : "Progressor"}
+                    </Pill>
                   </div>
-                  {!isOwner && (
-                    confirmRemoveId === m.id ? (
-                      <div className="bt-rm-confirm">
-                        <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
-                        <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
-                      </div>
-                    ) : (
-                      <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
-                    )
-                  )}
+
+                  <div className="bt-controls">
+                    {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
+                    <div className={`bt-seg${isOwner ? " locked" : ""}${savingId === m.id ? " saving" : ""}`} role="group" aria-label="File visibility">
+                      <button
+                        type="button"
+                        className={`bt-seg-btn${!on && !isOwner ? " on-own" : ""}`}
+                        aria-pressed={!on}
+                        disabled={isOwner || pending}
+                        onClick={() => setMember(m, false)}
+                      >
+                        Own files
+                      </button>
+                      <button
+                        type="button"
+                        className={`bt-seg-btn${on || isOwner ? " on-all" : ""}`}
+                        aria-pressed={on || isOwner}
+                        disabled={isOwner || pending}
+                        onClick={() => setMember(m, true)}
+                      >
+                        All sales
+                      </button>
+                    </div>
+                    {!isOwner && (
+                      confirmRemoveId === m.id ? (
+                        <div className="bt-rm-confirm">
+                          <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
+                          <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -171,9 +205,9 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
       <style>{`
         .bt { width: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
-        .bt-top-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-        .bt-h1 { margin: 0 0 3px; font-size: clamp(24px, 4vw, 32px); font-weight: 820; letter-spacing: -0.03em; color: var(--agent-text-primary); }
-        .bt-sub { margin: 0; font-size: 14px; color: var(--agent-text-secondary); }
+
+        /* Invite control row (above the list) */
+        .bt-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
         /* Exactly the client-page "Invite a colleague" button (.cp-primary): coral
            gradient + top sheen, with the 👤 bust emoji (renders as a dark/navy
            avatar). agent-btn-sm dimensions. */
@@ -181,7 +215,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-invite-btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
         .bt-invite-btn:active { transform: scale(0.98); }
         .bt-invite-ico { font-size: 14px; line-height: 1; }
-        .bt-invite-form { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); }
+        .bt-invite-form { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); align-self: stretch; }
         .bt-inp { flex: 1; min-width: 160px; padding: 9px 12px; font-size: 13.5px; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 9px; outline: none; }
         .bt-inp:focus { border-color: var(--agent-coral); }
 
@@ -196,7 +230,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
         .bt-rows { display: flex; flex-direction: column; gap: 10px; }
         .bt-row {
-          display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-radius: 16px;
+          display: flex; align-items: flex-start; gap: 14px; padding: 13px 16px; border-radius: 16px;
           border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5));
           -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
           transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s, border-color .2s;
@@ -204,16 +238,19 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-row:hover { transform: translateY(-2px); border-color: var(--agent-border-default, rgba(0,0,0,0.12)); box-shadow: 0 16px 34px -20px rgba(40,26,20,0.38); }
         :root[data-theme="dark"] .bt-row:hover { box-shadow: 0 18px 36px -20px rgba(0,0,0,0.6); }
 
-        .bt-av { width: 42px; height: 42px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; font-size: 14px; font-weight: 800; letter-spacing: -0.01em; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
+        .bt-av { width: 42px; height: 42px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; font-size: 14px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
         .bt-av-owner { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
+        .bt-av-shell { flex-shrink: 0; }
 
-        .bt-main { min-width: 0; flex: 1; }
-        .bt-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
-        .bt-you { font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb),0.12); padding: 1px 6px; border-radius: 999px; }
+        /* Body: top line (name/email + role pill) then the controls line. */
+        .bt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+        .bt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .bt-id { min-width: 0; }
+        .bt-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bt-email { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .bt-role-pill { flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
 
-        .bt-role { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; color: var(--agent-text-muted); background: var(--agent-surface-overlay, rgba(0,0,0,0.04)); flex-shrink: 0; }
-        .bt-role.is-owner { color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb),0.12); }
+        .bt-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
         .bt-seg { display: inline-flex; border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 999px; overflow: hidden; background: var(--agent-surface-overlay, rgba(0,0,0,0.03)); flex-shrink: 0; transition: opacity .15s; }
         .bt-seg.saving { opacity: 0.6; }
@@ -230,21 +267,8 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-seg-btn.on-own:hover, .bt-seg-btn.on-all:hover { background: var(--agent-info); color: #fff; } /* active side ignores hover tint */
         .bt-seg-btn.on-all:hover { background: var(--agent-success); }
 
-        /* Right-side controls (role pill + visibility toggle + remove). One flex
-           child of the row so it can drop to its own line on mobile as a unit. */
-        .bt-rowside { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
         .bt-foot { margin: 4px 2px 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.55; }
         .bt-foot strong { color: var(--agent-text-secondary); font-weight: 600; }
-
-        @media (max-width: 560px) {
-          /* Avatar + name/email keep the full first line (no more truncation to
-             "Ti" / "e…"); the controls wrap to a second line, indented under the
-             name (avatar 42 + gap 14). */
-          .bt-row { flex-wrap: wrap; }
-          .bt-rowside { width: 100%; padding-left: 56px; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
-          .bt-seg { margin-left: 0; }
-        }
       `}</style>
     </div>
   );

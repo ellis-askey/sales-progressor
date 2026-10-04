@@ -31,6 +31,7 @@ export default async function BusinessBillingPage() {
       <AccountPageHeader
         title="Billing"
         subtitle="What your business pays for using Sales Progressor."
+        backLabel="Back to progression"
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
