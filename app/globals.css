@@ -2654,6 +2654,15 @@ html.welcome-modal-open [data-glass-id="nav-sidebar"] {
   --nv2-border-solid:    rgba(15,23,42,0.12);    /* solid mode border, matches existing isSolid borders */
   --nv2-skeleton:        rgba(15,23,42,0.08);    /* loader shimmer fill */
   --nv2-border-modal:    rgba(15,23,42,0.08);    /* modal outer border, replaces rgba(0,0,0,0.08) */
+  /* Coral brand tokens. Portalled content (dropdowns, modals in document.body)
+     sits OUTSIDE the agent shell, so it never inherits the shell's --agent-coral*
+     tokens — and the dark portal block below only redefines the greys, not coral.
+     That left text-[var(--agent-coral-deep)] (e.g. the solicitor picker's "Add as
+     new firm" row) resolving to nothing and rendering near-black on the dark
+     dropdown. Define them here so every portalled surface gets the coral accent. */
+  --agent-coral:       #FF8A65;
+  --agent-coral-deep:  #FF6B4A;
+  --agent-coral-rgb:   255, 107, 74;
 }
 
 /* Dark mode overrides — fires for elements inside a dark shell
