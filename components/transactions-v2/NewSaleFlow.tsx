@@ -440,7 +440,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     if (flowState === "manual" && stage === 1 && stage1Valid) setStage(2);
   }, [flowState, stage, stage1Valid]);
 
-  const isOutsourced = formFields.progressedBy === "progressor";
+  // A progression business creating their OWN sale is NOT an agency submitting a
+  // file to us, so it shouldn't carry the strict "add-to-us" restraints (required
+  // contacts, both solicitors fully set up). Treat it like a self-progress sale —
+  // if they want to start with partial info, that's their call (critique #196).
+  // Only a genuine agency->TSP outsource (progressedBy=progressor on an agency's
+  // own new-sale page, isProgressorCreate=false) keeps the strict rules.
+  const isOutsourced = formFields.progressedBy === "progressor" && !isProgressorCreate;
 
   // Form is considered dirty if the user has moved past the hero screen
   const formIsDirty = flowState !== "hero" && flowState !== "extracting";

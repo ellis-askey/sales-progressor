@@ -39,22 +39,34 @@ function isSectionFilled(contacts: ContactEntry[]): boolean {
 
 // ── Section pill badge ────────────────────────────────────────────────────────
 
-function SectionPill({ progressedBy, filled }: { progressedBy: "agent" | "progressor"; filled: boolean }) {
-  if (progressedBy === "progressor") {
-    return (
-      <Pill glass tone={filled ? "brand" : "warning"} size="sm" style={{ marginLeft: 5, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle" }}>
+// "Needed" pill, shown only in the strict (outsourced) context. Once the section
+// is valid (a name + a contact method) it fades and collapses away, so the box
+// tightens rather than leaving a stale "Needed" badge (critique #194).
+function SectionPill({ isOutsourced, filled }: { isOutsourced: boolean; filled: boolean }) {
+  if (!isOutsourced) return null;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        overflow: "hidden",
+        opacity: filled ? 0 : 1,
+        maxWidth: filled ? 0 : 90,
+        marginLeft: filled ? 0 : 5,
+        transition: "opacity 200ms ease, max-width 260ms ease, margin-left 260ms ease",
+      }}
+    >
+      <Pill glass tone="warning" size="sm" style={{ flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle", whiteSpace: "nowrap" }}>
         Needed
       </Pill>
-    );
-  }
-  return null;
+    </span>
+  );
 }
 
 // ── Empty state (count === 0) ─────────────────────────────────────────────────
 
-function EmptyStateCard({ progressedBy, label }: { progressedBy: "agent" | "progressor"; label: string }) {
+function EmptyStateCard({ isOutsourced, label }: { isOutsourced: boolean; label: string }) {
   const singular = label.slice(0, -1).toLowerCase();
-  if (progressedBy === "progressor") {
+  if (isOutsourced) {
     return (
       <div style={{
         textAlign: "center",
@@ -104,7 +116,7 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
       <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
         {label}
         {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
-        <SectionPill progressedBy={progressedBy} filled={filled} />
+        <SectionPill isOutsourced={isOutsourced} filled={filled} />
         <FieldIndicator source={memoSource} />
       </p>
       {canAdd && (
@@ -220,7 +232,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           progressedBy={progressedBy}
           filled={false}
         />
-        <EmptyStateCard progressedBy={progressedBy} label={label} />
+        <EmptyStateCard isOutsourced={isOutsourced} label={label} />
         <FieldHint source={memoSource} failedText="Couldn't read this. Add contact details manually." />
       </div>
     );
@@ -240,11 +252,20 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           progressedBy={progressedBy}
           filled={filled}
         />
-        {isOutsourced && (
-          <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--agent-warning)" }}>
+        {/* Fades + collapses once the section is valid, so the box tightens (#194). */}
+        <div
+          style={{
+            overflow: "hidden",
+            maxHeight: isOutsourced && !filled ? 40 : 0,
+            opacity: isOutsourced && !filled ? 1 : 0,
+            marginBottom: isOutsourced && !filled ? 10 : 0,
+            transition: "max-height 260ms ease, opacity 200ms ease, margin-bottom 260ms ease",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-warning)" }}>
             Add at least one {singular} with a name and a way to contact them
           </p>
-        )}
+        </div>
         {error && (
           <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
         )}
@@ -277,7 +298,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
-          <SectionPill progressedBy={progressedBy} filled={filled} />
+          <SectionPill isOutsourced={isOutsourced} filled={filled} />
           <FieldIndicator source={memoSource} />
         </p>
       </div>
