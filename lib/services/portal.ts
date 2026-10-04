@@ -1440,6 +1440,9 @@ export async function logPortalMilestoneConfirm(
       // Nullable on the schema; null short-circuits the assembler path.
       tenure: true,
       purchaseType: true,
+      // Picks the email-copy override layer: an external business's own copy on
+      // the files they progress, else the agency/SP-default layer.
+      progressionBusinessId: true,
       // Added 2026-06-17: VM19.vendorAgent ("Completion is set for
       // {completionDate}.") references the recorded completion date.
       // Without this select the var is undefined and the placeholder
@@ -1596,7 +1599,7 @@ export async function logPortalMilestoneConfirm(
       ? applyOverridesToEmailCopy(
           baseRichCopy,
           { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },
-          await getOverridesForCode(milestoneCode, tx.agencyId ?? null)
+          await getOverridesForCode(milestoneCode, tx.progressionBusinessId ? { progressionBusinessId: tx.progressionBusinessId } : { agencyId: tx.agencyId ?? null })
         )
       : baseRichCopy;
 
@@ -2307,6 +2310,8 @@ async function sendRichMilestoneEmails(
       // by returning legacy copy when shape can't be constructed.
       tenure: true,
       purchaseType: true,
+      // Picks the email-copy override layer (business vs agency/SP-default).
+      progressionBusinessId: true,
       // Added 2026-05-29: needed for the staleness check on the four
       // exchange/completion codes (VM19/PM26/VM20/PM27) — see
       // isExchangeCompletionStale in exchange-completion-rules.ts.
@@ -2331,7 +2336,7 @@ async function sendRichMilestoneEmails(
   // Command Centre copy overrides — merge any saved, scenario-scoped edits over
   // the code default before anything is interpolated/enqueued. Uses the file's
   // real tenure + purchase type to pick the most-specific saved version.
-  const overrideRows = await getOverridesForCode(milestoneCode, tx.agencyId ?? null);
+  const overrideRows = await getOverridesForCode(milestoneCode, tx.progressionBusinessId ? { progressionBusinessId: tx.progressionBusinessId } : { agencyId: tx.agencyId ?? null });
   const effectiveEmailCopy = applyOverridesToEmailCopy(
     emailCopy,
     { tenure: normalizeTenure(tx.tenure), method: normalizeMethod(tx.purchaseType) },

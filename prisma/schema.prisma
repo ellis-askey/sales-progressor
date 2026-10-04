@@ -247,6 +247,7 @@ model ProgressionBusiness {
   transactions    PropertyTransaction[]
   clients         ProgressionBusinessClient[]
   verifiedDomains VerifiedDomain[]
+  milestoneEmailOverrides MilestoneEmailOverride[]
 
   @@index([isTsp])
 }
@@ -3357,6 +3358,17 @@ model MilestoneEmailOverride {
   agencyId String?
   agency   Agency? @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
+  // A non-null progressionBusinessId = an external progression business's own
+  // override, which applies to the files THEY progress (resolved before the SP
+  // default, just like the agency layer). Exactly one of agencyId /
+  // progressionBusinessId is ever set on a row: agencyId for a self-managed
+  // agency's copy, progressionBusinessId for a business's copy, both null for the
+  // SP (TSP) default. Send-time resolution picks the layer by the file:
+  // tx.progressionBusinessId ? business layer : agency layer (TSP + self-managed
+  // files have a null progressionBusinessId, so their behaviour is unchanged).
+  progressionBusinessId String?
+  progressionBusiness   ProgressionBusiness? @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
+
   // The six editable fields of a RecipientEmailCopy.
   subject      String
   heroLabel    String
@@ -3369,9 +3381,14 @@ model MilestoneEmailOverride {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Unchanged compound unique (agency + SP-default layers; the agency upsert key
+  // relies on it). The business layer (agencyId NULL, progressionBusinessId set)
+  // is NOT covered here — like the SP-default layer, its one-row-per-scenario
+  // guarantee is enforced in the save route (find-then-upsert).
   @@unique([code, side, tenure, purchaseType, agencyId])
   @@index([code, side])
   @@index([agencyId])
+  @@index([progressionBusinessId])
 }
 
 // Per-agency override of a non-milestone ("Tier-2") automated email's editable

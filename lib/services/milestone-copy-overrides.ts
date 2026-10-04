@@ -39,6 +39,7 @@ export function normalizeTenure(t: Tenure | null | undefined): ScenarioTenure {
 
 type OverrideRow = {
   agencyId: string | null;
+  progressionBusinessId: string | null;
   side: string;
   tenure: string;
   purchaseType: string;
@@ -84,10 +85,12 @@ function pickBest(rows: OverrideRow[], side: CopySide, scenario: Scenario): Over
       axisMatch(r.purchaseType, scenario.method)
   );
   if (matching.length === 0) return null;
+  const isOverride = (r: OverrideRow) => r.agencyId != null || r.progressionBusinessId != null;
   matching.sort((a, b) => {
-    // Agency layer beats the SP-default layer, regardless of scenario specificity.
-    const agencyDelta = (b.agencyId ? 1 : 0) - (a.agencyId ? 1 : 0);
-    if (agencyDelta !== 0) return agencyDelta;
+    // The override layer (agency OR business) beats the SP-default layer,
+    // regardless of scenario specificity.
+    const layerDelta = (isOverride(b) ? 1 : 0) - (isOverride(a) ? 1 : 0);
+    if (layerDelta !== 0) return layerDelta;
     const d = score(b) - score(a);
     if (d !== 0) return d;
     return b.updatedAt.getTime() - a.updatedAt.getTime();
@@ -95,23 +98,34 @@ function pickBest(rows: OverrideRow[], side: CopySide, scenario: Scenario): Over
   return matching[0];
 }
 
+export type OverrideScope = { agencyId?: string | null; progressionBusinessId?: string | null };
+
 /**
- * Override rows for a milestone code (both sides).
- * - agencyId omitted/null → the Sales Progressor default layer only (used by the
- *   Command Centre matrix, which edits the defaults).
- * - agencyId set → that agency's rows PLUS the default rows, so pickBest can
- *   resolve agency-first-then-default at send time.
+ * Override rows for a milestone code (both sides), scoped to the layer that
+ * applies to a file. The SP default (agencyId NULL AND progressionBusinessId
+ * NULL) is always included; on top we add exactly ONE override layer:
+ * - { progressionBusinessId } → that external business's rows (its outsourced
+ *   files). Picked for a file whose progressionBusinessId is set.
+ * - { agencyId }              → that agency's rows (self-managed / TSP files).
+ * - {} (neither)              → SP-default layer only (Command Centre matrix).
+ * The explicit progressionBusinessId: null on the agency/default predicates is
+ * what keeps a business's rows (agencyId NULL) out of the agency layer.
  */
 export async function getOverridesForCode(
   code: string,
-  agencyId: string | null = null,
+  scope: OverrideScope = {},
 ): Promise<OverrideRow[]> {
+  const tspDefault = { agencyId: null, progressionBusinessId: null };
+  const where = scope.progressionBusinessId
+    ? { code, OR: [tspDefault, { agencyId: null, progressionBusinessId: scope.progressionBusinessId }] }
+    : scope.agencyId
+      ? { code, OR: [tspDefault, { agencyId: scope.agencyId, progressionBusinessId: null }] }
+      : { code, ...tspDefault };
   return prisma.milestoneEmailOverride.findMany({
-    where: agencyId
-      ? { code, OR: [{ agencyId: null }, { agencyId }] }
-      : { code, agencyId: null },
+    where,
     select: {
       agencyId: true,
+      progressionBusinessId: true,
       side: true,
       tenure: true,
       purchaseType: true,
@@ -205,19 +219,53 @@ export async function describeEffectiveForAgency(
   scenario: Scenario,
   agencyId: string
 ): Promise<AgencyEffectiveDescription> {
-  const rows = await getOverridesForCode(code, agencyId); // agency rows + SP-default (null) rows
+  const rows = await getOverridesForCode(code, { agencyId }); // agency rows + SP-default rows
   const codeDefault = getMilestoneCopy(code).emailCopy?.[side] ?? null;
 
   // Effective across both layers — pickBest ranks the agency layer first.
   const best = pickBest(rows, side, scenario);
-  // What a reset reverts to: best of the SP-default (null) rows, else code default.
-  const spBest = pickBest(rows.filter((r) => r.agencyId === null), side, scenario);
+  // What a reset reverts to: best of the SP-default (all-null) rows, else code default.
+  const spBest = pickBest(rows.filter((r) => r.agencyId === null && r.progressionBusinessId === null), side, scenario);
   const resetBase = spBest ? toCopy(spBest) : codeDefault;
 
   if (best && best.agencyId === agencyId) {
     return {
       effective: toCopy(best),
       source: "agency",
+      matchedTenure: best.tenure,
+      matchedMethod: best.purchaseType,
+      resetBase,
+    };
+  }
+  if (best) {
+    return { effective: toCopy(best), source: "sp_default", resetBase };
+  }
+  return { effective: codeDefault, source: "default", resetBase };
+}
+
+/**
+ * Full description for the PROGRESSION-BUSINESS editor: the copy that would send
+ * on a file this business progresses — their own version / our default / the
+ * built-in default — and what a reset reverts to. Mirrors describeEffectiveForAgency
+ * but on the business layer (agencyId NULL, progressionBusinessId set).
+ */
+export async function describeEffectiveForBusiness(
+  code: string,
+  side: CopySide,
+  scenario: Scenario,
+  progressionBusinessId: string,
+): Promise<AgencyEffectiveDescription> {
+  const rows = await getOverridesForCode(code, { progressionBusinessId }); // business rows + SP-default rows
+  const codeDefault = getMilestoneCopy(code).emailCopy?.[side] ?? null;
+
+  const best = pickBest(rows, side, scenario);
+  const spBest = pickBest(rows.filter((r) => r.agencyId === null && r.progressionBusinessId === null), side, scenario);
+  const resetBase = spBest ? toCopy(spBest) : codeDefault;
+
+  if (best && best.progressionBusinessId === progressionBusinessId) {
+    return {
+      effective: toCopy(best),
+      source: "agency", // "your version" in the editor UI (shared shape with the agency editor)
       matchedTenure: best.tenure,
       matchedMethod: best.purchaseType,
       resetBase,
