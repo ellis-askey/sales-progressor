@@ -7,7 +7,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Clock } from "@phosphor-icons/react";
+import { Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
@@ -88,7 +88,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
               <p className="bt-sub">Who&rsquo;s in your business, and how much of your book each person can see.</p>
             </div>
             <button type="button" className="bt-invite-btn" onClick={() => setInviting((v) => !v)}>
-              <UserPlus size={16} weight="bold" /> Invite teammate
+              <span className="bt-invite-ico" aria-hidden>👤</span> Invite teammate
             </button>
           </div>
           {inviting && (
@@ -174,8 +174,13 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-top-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
         .bt-h1 { margin: 0 0 3px; font-size: clamp(24px, 4vw, 32px); font-weight: 820; letter-spacing: -0.03em; color: var(--agent-text-primary); }
         .bt-sub { margin: 0; font-size: 14px; color: var(--agent-text-secondary); }
-        .bt-invite-btn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 1px solid var(--agent-coral); background: rgba(var(--agent-coral-rgb),0.08); color: var(--agent-coral-deep, #E2452A); font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: background .15s, transform .15s; }
-        .bt-invite-btn:hover { background: rgba(var(--agent-coral-rgb),0.14); transform: translateY(-1px); }
+        /* Exactly the client-page "Invite a colleague" button (.cp-primary): coral
+           gradient + top sheen, with the 👤 bust emoji (renders as a dark/navy
+           avatar). agent-btn-sm dimensions. */
+        .bt-invite-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: var(--agent-radius-md, 8px); border: none; font-family: inherit; font-size: var(--agent-text-body-sm, 13px); font-weight: 600; line-height: 1; white-space: nowrap; color: var(--agent-text-on-coral, #fff); cursor: pointer; flex-shrink: 0; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); transition: filter .14s ease, transform .14s ease, box-shadow .14s ease; }
+        .bt-invite-btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
+        .bt-invite-btn:active { transform: scale(0.98); }
+        .bt-invite-ico { font-size: 14px; line-height: 1; }
         .bt-invite-form { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); }
         .bt-inp { flex: 1; min-width: 160px; padding: 9px 12px; font-size: 13.5px; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 9px; outline: none; }
         .bt-inp:focus { border-color: var(--agent-coral); }
