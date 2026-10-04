@@ -19,16 +19,16 @@ import { verifyOutlookState, OUTLOOK_STATE_COOKIE } from "@/lib/integrations/out
 
 // Send agency users back to the Account area, internal staff to the Command
 // Centre, so the flow returns to the surface it started from.
-function returnPathFor(role: string): string {
-  return role === "director" || role === "negotiator"
-    ? "/agent/account/connections"
-    : "/command/settings/connections";
+function returnPathFor(user: { role?: string | null; progressionBusinessId?: string | null }): string {
+  if (user.role === "director" || user.role === "negotiator") return "/agent/account/connections";
+  if (user.role === "sales_progressor" && user.progressionBusinessId) return "/agent/settings/connections";
+  return "/command/settings/connections";
 }
 
 export async function GET(req: Request) {
   const session = await requireSession();
   const url = new URL(req.url);
-  const back = new URL(returnPathFor(session.user.role), url.origin);
+  const back = new URL(returnPathFor(session.user), url.origin);
 
   // Always clear the one-shot state cookie on the way out.
   const finish = (params: Record<string, string>) => {

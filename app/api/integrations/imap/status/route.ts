@@ -3,12 +3,12 @@
 // `configured` is true to mirror the Outlook status shape for the UI.
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
+import { canUseAgentMailbox } from "@/lib/integrations/mailbox-access";
 import { getMyImapStatus } from "@/lib/integrations/imap/connections";
 
 export async function GET() {
   const session = await requireSession();
-  const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") {
+  if (!canUseAgentMailbox(session.user)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const status = await getMyImapStatus(session.user.id);

@@ -7,11 +7,11 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { connectImapMailbox } from "@/lib/integrations/imap/connections";
+import { canUseAgentMailbox } from "@/lib/integrations/mailbox-access";
 
 export async function POST(req: Request) {
   const session = await requireSession();
-  const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") {
+  if (!canUseAgentMailbox(session.user)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

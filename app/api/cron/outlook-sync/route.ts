@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const connections = await prisma.outlookConnection.findMany({
     select: {
       id: true, email: true, accessToken: true, refreshToken: true, tokenExpiresAt: true, scope: true, lastSentSyncAt: true,
-      user: { select: { id: true, role: true, agencyId: true, email: true } },
+      user: { select: { id: true, role: true, agencyId: true, email: true, progressionBusinessId: true, progressionBusinessRole: true, canViewAllFiles: true } },
     },
   });
 
@@ -36,10 +36,11 @@ export async function GET(req: NextRequest) {
   let logged = 0;
   let unmatched = 0;
   for (const conn of connections) {
-    // Minimal session standing in for the connection owner — getAccessScope /
-    // hasAdminPowers only read user.{id, role, agencyId, email}.
+    // Minimal session standing in for the connection owner. getAccessScope reads
+    // the progression fields too, so a business owner's mailbox scopes to their
+    // whole book (not just assigned files); hasAdminPowers reads id/role/email.
     const session = {
-      user: { id: conn.user.id, role: conn.user.role, agencyId: conn.user.agencyId ?? "", email: conn.user.email },
+      user: { id: conn.user.id, role: conn.user.role, agencyId: conn.user.agencyId ?? "", email: conn.user.email, progressionBusinessId: conn.user.progressionBusinessId ?? null, progressionBusinessRole: conn.user.progressionBusinessRole ?? null, canViewAllFiles: conn.user.canViewAllFiles ?? false },
     } as unknown as Session;
     try {
       const summary = await syncOutlookMailbox(
@@ -59,12 +60,12 @@ export async function GET(req: NextRequest) {
   const imapConns = await prisma.imapConnection.findMany({
     select: {
       id: true, email: true, provider: true, host: true, port: true, secure: true, encryptedPassword: true, lastSentSyncAt: true,
-      user: { select: { id: true, role: true, agencyId: true, email: true } },
+      user: { select: { id: true, role: true, agencyId: true, email: true, progressionBusinessId: true, progressionBusinessRole: true, canViewAllFiles: true } },
     },
   });
   for (const conn of imapConns) {
     const session = {
-      user: { id: conn.user.id, role: conn.user.role, agencyId: conn.user.agencyId ?? "", email: conn.user.email },
+      user: { id: conn.user.id, role: conn.user.role, agencyId: conn.user.agencyId ?? "", email: conn.user.email, progressionBusinessId: conn.user.progressionBusinessId ?? null, progressionBusinessRole: conn.user.progressionBusinessRole ?? null, canViewAllFiles: conn.user.canViewAllFiles ?? false },
     } as unknown as Session;
     try {
       const summary = await syncImapMailbox(

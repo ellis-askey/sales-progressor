@@ -11,7 +11,7 @@
 // in each client's workspace). Owner-only; mounted by AccountShell variant="business".
 
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 
 // Render order = display order.
@@ -20,6 +20,7 @@ const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
   { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/team", label: "Team", Icon: UsersThree },
+  { href: "/agent/settings/connections", label: "Connections", Icon: PlugsConnected },
   { href: "/agent/settings/notifications", label: "Notifications", Icon: Bell },
   { href: "/agent/settings/security", label: "Security", Icon: Lock },
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },

@@ -16,10 +16,10 @@ import {
 // Agency users (director/negotiator) manage their inbox from the Account area;
 // internal staff use the Command Centre. Send each back to their own surface so
 // the OAuth flow doesn't dead-end on a page they can't see.
-function returnPathFor(role: string): string {
-  return role === "director" || role === "negotiator"
-    ? "/agent/account/connections"
-    : "/command/settings/connections";
+function returnPathFor(user: { role?: string | null; progressionBusinessId?: string | null }): string {
+  if (user.role === "director" || user.role === "negotiator") return "/agent/account/connections";
+  if (user.role === "sales_progressor" && user.progressionBusinessId) return "/agent/settings/connections";
+  return "/command/settings/connections";
 }
 
 export async function GET(req: Request) {
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
   const reqUrl = new URL(req.url);
   const origin = reqUrl.origin;
-  const settingsPath = returnPathFor(session.user.role);
+  const settingsPath = returnPathFor(session.user);
   // Optional: pre-target a specific mailbox (from a roster row's Connect button).
   const loginHint = reqUrl.searchParams.get("email") ?? undefined;
 

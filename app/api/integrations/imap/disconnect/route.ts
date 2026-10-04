@@ -5,12 +5,12 @@
 // ever disconnect their own mailbox.
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
+import { canUseAgentMailbox } from "@/lib/integrations/mailbox-access";
 import { disconnectImap } from "@/lib/integrations/imap/connections";
 
 export async function POST(req: Request) {
   const session = await requireSession();
-  const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") {
+  if (!canUseAgentMailbox(session.user)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
