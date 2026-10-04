@@ -14,11 +14,15 @@ import type { PdfInvoiceInput, PdfLine } from "@/lib/billing/invoice-pdf";
  * one line per sale that exchanged this month × the rate-card fee. Returns null if
  * the business/agency/link is missing (the caller has already authorised the pair).
  */
+export type BusinessInvoiceResult =
+  | { ok: true; input: PdfInvoiceInput }
+  | { ok: false; reason: "not_found" | "fee_not_set" };
+
 export async function buildBusinessClientInvoice(
   businessId: string,
   agencyId: string,
   now: Date = new Date(),
-): Promise<PdfInvoiceInput | null> {
+): Promise<BusinessInvoiceResult> {
   const { start, end } = billingMonthRange(now);
   const [business, agency, link, sales] = await Promise.all([
     prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true } }),
@@ -33,9 +37,13 @@ export async function buildBusinessClientInvoice(
       orderBy: { exchangedAt: "asc" },
     }),
   ]);
-  if (!business || !agency || !link) return null;
+  if (!business || !agency || !link) return { ok: false, reason: "not_found" };
 
+  // No rate set for this client — never invoice £0. The owner is prompted to set
+  // their fee first (the invoice route surfaces this).
   const feeModel = parseFeeModel(link.feeModel);
+  if (!feeModel) return { ok: false, reason: "fee_not_set" };
+
   const lines: PdfLine[] = [];
   let subtotal = 0;
   for (const s of sales) {
@@ -53,21 +61,24 @@ export async function buildBusinessClientInvoice(
   const monthLabel = start.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const ref = `${start.toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace(" ", "-").toUpperCase()}`;
   return {
-    invoiceLabel: ref,
-    periodLabel: monthLabel,
-    status: "issued",
-    agencyName: agency.name,
-    lines,
-    subtotalPence: subtotal,
-    vatPence: 0,
-    vatActive: false,
-    creditsAppliedPence: 0,
-    totalPence: subtotal,
-    generatedAt: now.toLocaleDateString("en-GB"),
-    issuerName: business.name,
-    // The business's own strapline + contact, so a client invoice never shows TSP's.
-    // No published contact email → the contact line is dropped (handled downstream).
-    issuerTagline: "Property sales progression",
-    issuerContact: business.senderEmail ?? "",
+    ok: true,
+    input: {
+      invoiceLabel: ref,
+      periodLabel: monthLabel,
+      status: "issued",
+      agencyName: agency.name,
+      lines,
+      subtotalPence: subtotal,
+      vatPence: 0,
+      vatActive: false,
+      creditsAppliedPence: 0,
+      totalPence: subtotal,
+      generatedAt: now.toLocaleDateString("en-GB"),
+      issuerName: business.name,
+      // The business's own strapline + contact, so a client invoice never shows TSP's.
+      // No published contact email → the contact line is dropped (handled downstream).
+      issuerTagline: "Property sales progression",
+      issuerContact: business.senderEmail ?? "",
+    },
   };
 }

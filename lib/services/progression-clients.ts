@@ -43,13 +43,15 @@ export async function businessHasClients(businessId: string): Promise<boolean> {
 }
 
 /** Client agencies of a progression business, for the new-sale "which client?" picker. */
-export async function getClientAgenciesForBusiness(businessId: string): Promise<Array<{ id: string; name: string }>> {
+export async function getClientAgenciesForBusiness(businessId: string): Promise<Array<{ id: string; name: string; feeSet: boolean }>> {
   const links = await prisma.progressionBusinessClient.findMany({
     where: { progressionBusinessId: businessId, removedAt: null },
-    select: { agency: { select: { id: true, name: true } } },
+    select: { feeModel: true, agency: { select: { id: true, name: true } } },
     orderBy: { agency: { name: "asc" } },
   });
-  return links.map((l) => ({ id: l.agency.id, name: l.agency.name }));
+  // feeSet gates add-sale: a client with no rate set can't have a sale created
+  // until the owner sets it (critique: never a wrong/empty fee on the agent's file).
+  return links.map((l) => ({ id: l.agency.id, name: l.agency.name, feeSet: parseFeeModel(l.feeModel) != null }));
 }
 
 export type BusinessTeamMember = {
@@ -144,6 +146,10 @@ export type AddClientAgencyInput = {
   agentName: string;
   agentEmail: string;
   agencyName: string;
+  // How the business charges this client, captured at add time. Null = not set
+  // yet (the owner can set it on the client's page, and adding a sale is gated
+  // on it). A flat rate is the common case captured in the modal.
+  feeModel?: ClientFeeModel | null;
 };
 
 export type AddClientAgencyResult =
@@ -177,7 +183,13 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
   });
 
   await prisma.progressionBusinessClient.create({
-    data: { progressionBusinessId: input.owner.businessId, agencyId },
+    data: {
+      progressionBusinessId: input.owner.businessId,
+      agencyId,
+      // Only store a fee if one was entered; otherwise it stays unset and the
+      // owner is prompted to set it (and add-sale is gated).
+      ...(input.feeModel ? { feeModel: input.feeModel as object } : {}),
+    },
   });
 
   // Best-effort onboarding email with a set-password link. A send failure is

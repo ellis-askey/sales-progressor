@@ -64,8 +64,10 @@ export function FeeEngine({
 }) {
   const router = useRouter();
   const { toast } = useAgentToast();
-  const [saved, setSaved] = useState<ClientFeeModel>(initial ?? DEF.flat);
-  const [model, setModel] = useState<ClientFeeModel>(initial ?? DEF.flat);
+  // Null = no fee set yet. We no longer pre-fill £300 as a default display (it
+  // looked set but wasn't saved); the editor starts empty until a type is picked.
+  const [saved, setSaved] = useState<ClientFeeModel | null>(initial);
+  const [model, setModel] = useState<ClientFeeModel | null>(initial);
   const [editing, setEditing] = useState(false);
   const [previewPounds, setPreviewPounds] = useState(450000);
   const [status, setStatus] = useState<"saved" | "saving">("saved");
@@ -75,7 +77,7 @@ export function FeeEngine({
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    if (JSON.stringify(model) === JSON.stringify(saved)) return;
+    if (!model || JSON.stringify(model) === JSON.stringify(saved)) return;
     setStatus("saving");
     const id = setTimeout(async () => {
       const res = await setClientFeeModelAction(agencyId, model);
@@ -86,13 +88,13 @@ export function FeeEngine({
   }, [model, saved, agencyId, router, toast]);
 
   function pickType(t: FeeType) {
-    if (t !== model.type) { setModel(DEF[t]); setEditing(true); }
+    if (!model || t !== model.type) { setModel(DEF[t]); setEditing(true); }
     else setEditing((e) => !e);
   }
   function setBands(bands: TieredBand[]) { setModel({ type: "tiered", bands }); }
   function resetDefault() { setModel(DEFAULT_FEE_MODEL); setEditing(false); }
 
-  const tiered = model.type === "tiered" ? model : null;
+  const tiered = model?.type === "tiered" ? model : null;
   const lastBounded = tiered ? [...tiered.bands].filter((b) => b.uptoPence != null).sort((a, b) => (a.uptoPence! - b.uptoPence!)).slice(-1)[0] : null;
   const previewFee = calculateClientFee(model, Math.round(previewPounds * 100));
 
@@ -110,7 +112,7 @@ export function FeeEngine({
           <p className="fe-calc-k">Fee calculator</p>
           <p className="fe-calc-sub">See what you&rsquo;ll earn at different sale prices.</p>
         </div>
-        {model.type === "tiered" && editBtn("Edit bands", "sm")}
+        {model?.type === "tiered" && editBtn("Edit bands", "sm")}
       </div>
       <div className="fe-calc-in">
         <span className="fe-calc-lbl">Sale price</span>
@@ -145,7 +147,7 @@ export function FeeEngine({
 
       <div className="fe-cards">
         {TYPES.map(({ t, label, sub, icon }) => {
-          const on = t === model.type;
+          const on = t === model?.type;
           return (
             <button key={t} type="button" role="radio" aria-checked={on} className={`fe-card ${on ? "on" : ""}`} onClick={() => pickType(t)}>
               <span className="fe-orb">{icon}</span>
@@ -160,7 +162,12 @@ export function FeeEngine({
       </div>
 
       {/* ── Hero band: rate/bands (left) + fee calculator (right) ── */}
-      {model.type === "flat" ? (
+      {!model ? (
+        <div className="fe-unset">
+          <p className="fe-unset-h">No fee set yet</p>
+          <p className="fe-unset-sub">Pick how you charge {name} above, then set a rate. It applies to every sale you add for them, and you&rsquo;ll need a fee set before you can add their first sale.</p>
+        </div>
+      ) : model.type === "flat" ? (
         <div className="fe-hero fe-hero-flat" key="flat">
           <div className="fe-rl">
             <p className="fe-rate-k">Your rate</p>
@@ -292,6 +299,11 @@ export function FeeEngine({
         .fe-radio { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--agent-border-strong, rgba(0,0,0,0.22)); display: grid; place-items: center; transition: border-color .16s; }
         .fe-radio-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--agent-coral-deep); transform: scale(0); opacity: 0; transition: transform .22s cubic-bezier(.16,1,.3,1), opacity .16s; }
         .fe-card.on .fe-radio { border-color: #fff; } .fe-card.on .fe-radio-dot { background: #fff; transform: scale(1); opacity: 1; }
+
+        /* Unset state — no fee chosen yet */
+        .fe-unset { border-radius: 15px; padding: 18px 20px; margin-bottom: 18px; border: 1px dashed rgba(var(--agent-coral-rgb),0.32); background: rgba(var(--agent-coral-rgb),0.04); }
+        .fe-unset-h { margin: 0 0 4px; font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--agent-coral-ink, #BE3C1C); }
+        .fe-unset-sub { margin: 0; font-size: 12.5px; color: var(--agent-text-secondary); line-height: 1.55; max-width: 62ch; }
 
         /* Hero band */
         .fe-hero { position: relative; border-radius: 15px; padding: 18px 20px; margin-bottom: 18px;

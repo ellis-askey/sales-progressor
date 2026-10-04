@@ -322,7 +322,7 @@ type Props = {
   // They pick which client agency the sale is for and who to assign it to, in the
   // flow. The file is always outsourced to their business (no self-progress toggle).
   isProgressorCreate?: boolean;
-  clientAgencies?: Array<{ id: string; name: string }>;
+  clientAgencies?: Array<{ id: string; name: string; feeSet: boolean }>;
   businessMembers?: Array<{ id: string; name: string }>;
 };
 
@@ -1083,7 +1083,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // A progressor must choose which client agency the sale is for before creating.
   const progressorAgencyMissing = isProgressorCreate && !effectiveClientAgencyId;
-  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing;
+  // A sale can't be created for a client with no fee set — the fee shows on the
+  // agent's own file, so it must never be empty/wrong (fees-accuracy fix).
+  const selectedClient = clientAgencies.find((a) => a.id === effectiveClientAgencyId);
+  const selectedClientFeeSet = clientAgencyId ? progressorFeeModel != null : (selectedClient?.feeSet ?? false);
+  const progressorFeeMissing = isProgressorCreate && !!effectiveClientAgencyId && !selectedClientFeeSet;
+  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1191,10 +1196,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 >
                   <option value="">Select a client…</option>
                   {clientAgencies.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
+                    <option key={a.id} value={a.id}>{a.name}{a.feeSet ? "" : " · fee not set"}</option>
                   ))}
                 </select>
               </label>
+            )}
+            {progressorFeeMissing && (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
+                Set your fee for {selectedClient?.name ?? "this client"} before adding a sale.
+                {effectiveClientAgencyId && <a href={`/agent/clients/${effectiveClientAgencyId}`} className="agent-link" style={{ fontWeight: 600 }}>Set fee →</a>}
+              </p>
             )}
             {businessMembers.length > 1 && (
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>

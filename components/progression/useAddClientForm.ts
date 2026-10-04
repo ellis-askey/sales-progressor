@@ -21,6 +21,9 @@ export function useAddClientForm(onDone?: () => void) {
   const [agentName, setAgentName] = useState("");
   const [agentEmail, setAgentEmail] = useState("");
   const [agencyName, setAgencyName] = useState("");
+  // Flat fee per sale, in pounds (digits only). Empty = not set yet; the owner
+  // can set it on the client page, and adding a sale is gated until they do.
+  const [feePounds, setFeePounds] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +41,7 @@ export function useAddClientForm(onDone?: () => void) {
     setAgentName("");
     setAgentEmail("");
     setAgencyName("");
+    setFeePounds("");
     setError(null);
   }
 
@@ -55,6 +59,9 @@ export function useAddClientForm(onDone?: () => void) {
     fd.set("agentName", cleanName);
     fd.set("agentEmail", cleanEmail);
     fd.set("agencyName", cleanAgency);
+    // Flat fee in pence (digits only). Omitted when blank.
+    const feeDigits = feePounds.replace(/[^0-9]/g, "");
+    if (feeDigits) fd.set("feePence", String(parseInt(feeDigits, 10) * 100));
 
     const res = await addClientAgencyAction(fd);
     setAdding(false);
@@ -75,6 +82,7 @@ export function useAddClientForm(onDone?: () => void) {
     agentName, setAgentName,
     agentEmail, setAgentEmail,
     agencyName, setAgencyName,
+    feePounds, setFeePounds,
     adding, error, canSubmit, emailInvalid,
     blurName, blurAgency, blurEmail,
     submit, reset,

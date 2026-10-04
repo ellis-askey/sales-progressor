@@ -299,6 +299,15 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <div className="cwm-field">
+          <label className="cwm-label" htmlFor="cwm-fee">Your fee per sale <span className="cwm-opt">optional</span></label>
+          <div className="cwm-money">
+            <span className="cwm-money-sym">£</span>
+            <input id="cwm-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+          </div>
+          <p className="cwm-feehint">A flat amount for every sale you progress for them. Prefer tiered or % pricing? Set it on their page. You&rsquo;ll need a fee set before you can add a sale.</p>
+        </div>
+
         {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
         {f.error && <p className="cwm-err">{f.error}</p>}
         <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
@@ -316,6 +325,11 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
         .cwm-field { margin-bottom: 12px; }
         .cwm-field:last-child { margin-bottom: 0; }
         .cwm-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
+        .cwm-opt { font-weight: 400; font-size: 11px; color: var(--agent-text-muted); margin-left: 4px; }
+        .cwm-money { position: relative; }
+        .cwm-money-sym { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--agent-text-muted); font-weight: 600; pointer-events: none; }
+        .cwm-money .agent-input { padding-left: 24px; }
+        .cwm-feehint { margin: 7px 0 0; font-size: 11.5px; color: var(--agent-text-muted); line-height: 1.5; }
         .cwm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         @media (max-width: 460px) { .cwm-row { grid-template-columns: 1fr; } }
         .cwm-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }

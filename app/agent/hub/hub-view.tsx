@@ -1330,7 +1330,11 @@ async function ClientsBreakdownCard({ ctx }: { ctx: Ctx }) {
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agencyName}</span>
                 <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 54, textAlign: "right" }}>{c.activeSales}</span>
                 <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 64, textAlign: "right" }}>{fmtCompact(c.pipelinePence)}</span>
-                {showFee && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", minWidth: 56, textAlign: "right" }}>{fmtCompact(c.feePence)}</span>}
+                {showFee && (
+                  c.feeSet
+                    ? <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", minWidth: 56, textAlign: "right" }}>{fmtCompact(c.feePence)}</span>
+                    : <Link href={`/agent/clients/${c.agencyId}`} className="agent-link" style={{ fontSize: 12, fontWeight: 600, minWidth: 56, textAlign: "right" }}>Set fee</Link>
+                )}
               </div>
             ))}
           </div>

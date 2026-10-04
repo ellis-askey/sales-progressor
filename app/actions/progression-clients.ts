@@ -8,7 +8,7 @@ import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
-import { parseFeeModel } from "@/lib/progression/client-fees";
+import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,7 +45,14 @@ export async function addClientAgencyAction(formData: FormData): Promise<AddClie
     return { ok: false, error: "Please enter the agency name." };
   }
 
-  const result = await addClientAgency({ owner, agentName, agentEmail, agencyName });
+  // Optional flat fee captured in the add-client form. Empty = not set (the owner
+  // sets it on the client page later; adding a sale is gated until they do).
+  const feePenceRaw = (formData.get("feePence") as string | null)?.trim() ?? "";
+  const feePence = feePenceRaw ? parseInt(feePenceRaw, 10) : null;
+  const feeModel: ClientFeeModel | null =
+    feePence != null && Number.isFinite(feePence) && feePence > 0 ? { type: "flat", pence: feePence } : null;
+
+  const result = await addClientAgency({ owner, agentName, agentEmail, agencyName, feeModel });
   if (!result.ok) return result;
 
   revalidatePath("/agent/clients");

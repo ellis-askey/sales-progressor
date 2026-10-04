@@ -2296,7 +2296,7 @@ export async function getHubWeeklyForecast(
  */
 export async function getHubClientBreakdown(
   vis: AgentVisibility,
-): Promise<Array<{ agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number }>> {
+): Promise<Array<{ agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number; feeSet: boolean }>> {
   if (!vis.businessId) return [];
   const [txns, links] = await Promise.all([
     prisma.propertyTransaction.findMany({
@@ -2309,12 +2309,15 @@ export async function getHubClientBreakdown(
     }),
   ]);
   const feeModelByAgency = new Map(links.map((l) => [l.agencyId, parseFeeModel(l.feeModel)]));
-  const byAgency = new Map<string, { agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number }>();
+  const byAgency = new Map<string, { agencyId: string; agencyName: string; activeSales: number; pipelinePence: number; feePence: number; feeSet: boolean }>();
   for (const t of txns) {
-    const e = byAgency.get(t.agencyId) ?? { agencyId: t.agencyId, agencyName: t.agency.name, activeSales: 0, pipelinePence: 0, feePence: 0 };
+    const model = feeModelByAgency.get(t.agencyId) ?? null;
+    // feeSet drives whether the hub shows the amount or a "Set fee" prompt — a
+    // null fee is never shown as £0 (critique: that read as "free").
+    const e = byAgency.get(t.agencyId) ?? { agencyId: t.agencyId, agencyName: t.agency.name, activeSales: 0, pipelinePence: 0, feePence: 0, feeSet: model != null };
     e.activeSales += 1;
     e.pipelinePence += t.purchasePrice ?? 0;
-    e.feePence += calculateClientFee(feeModelByAgency.get(t.agencyId) ?? null, t.purchasePrice ?? null) ?? 0;
+    e.feePence += calculateClientFee(model, t.purchasePrice ?? null) ?? 0;
     byAgency.set(t.agencyId, e);
   }
   return [...byAgency.values()].sort((a, b) => b.activeSales - a.activeSales);

@@ -19,9 +19,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
   const owner = await assertOwnerOfClient(session, agencyId);
   if (!owner) return NextResponse.json({ error: "That isn't one of your clients." }, { status: 403 });
 
-  const input = await buildBusinessClientInvoice(owner.businessId, agencyId);
-  if (!input) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const res = await buildBusinessClientInvoice(owner.businessId, agencyId);
+  if (!res.ok) {
+    if (res.reason === "fee_not_set") {
+      return NextResponse.json({ error: "Set your fee for this client before generating an invoice." }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
+  const input = res.input;
   const pdf = await renderInvoicePdf(input);
   const filename = `invoice-${input.periodLabel.replace(/\s+/g, "-").toLowerCase()}.pdf`;
   return new NextResponse(new Uint8Array(pdf), {

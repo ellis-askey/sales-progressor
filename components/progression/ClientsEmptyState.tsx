@@ -50,6 +50,15 @@ export function ClientsEmptyState() {
               </div>
             </div>
 
+            <div className="cwg-field">
+              <label className="cwg-label" htmlFor="cwg-fee">Your fee per sale <span className="cwg-opt">optional</span></label>
+              <div className="cwg-money">
+                <span className="cwg-money-sym">£</span>
+                <input id="cwg-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+              </div>
+              <p className="cwg-feehint">A flat amount per sale. You can set this (or tiered / % pricing) on their page later. A fee is needed before adding a sale.</p>
+            </div>
+
             {f.emailInvalid && <p className="cwg-err">Enter a valid email address.</p>}
             {f.error && <p className="cwg-err">{f.error}</p>}
             <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
@@ -131,6 +140,11 @@ export function ClientsEmptyState() {
         .cwg-field { margin-bottom: 12px; }
         .cwg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .cwg-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
+        .cwg-opt { font-weight: 400; font-size: 11px; color: var(--agent-text-muted); margin-left: 4px; }
+        .cwg-money { position: relative; }
+        .cwg-money-sym { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--agent-text-muted); font-weight: 600; pointer-events: none; }
+        .cwg-money .agent-input { padding-left: 24px; }
+        .cwg-feehint { margin: 7px 0 0; font-size: 11px; color: var(--agent-text-muted); line-height: 1.5; }
         .cwg-err { margin: 12px 0 0; font-size: 12.5px; color: #C7401F; }
         .cwg-help { margin: 12px 0 0; font-size: 12px; color: var(--agent-text-muted); line-height: 1.5; }
 
