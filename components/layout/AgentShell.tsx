@@ -107,7 +107,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   viewer:           "Viewer",
 };
 
-function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean }) {
+function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false, isBusinessMember = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean; isBusinessMember?: boolean }) {
   const [open, setOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -115,10 +115,11 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   // and admins have no billing because they don't own an agency that's
   // being charged. Show the entry only for those two roles.
   const showBillingEntry = role === "director" || role === "negotiator";
-  // A progression-business owner's Account + Billing point at their OWN settings
-  // area (/agent/settings/*), not the agency account area (which has no agency
-  // for them). Owner-gated, so nothing changes for agency users.
-  const accountHref = isBusinessOwner ? "/agent/settings/profile" : "/agent/account/profile";
+  // A progression-business member's Account points at their OWN settings area
+  // (/agent/settings/*), not the agency account area (which has no agency for
+  // them). Owner OR team member → their settings. The owner-only Billing quick-link
+  // below stays gated on isBusinessOwner. Nothing changes for agency users.
+  const accountHref = isBusinessMember ? "/agent/settings/profile" : "/agent/account/profile";
 
   useEffect(() => {
     if (!open) return;
@@ -210,7 +211,7 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
                 className="agent-hover-row"
               >
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
-                {isBusinessOwner ? "Settings" : "Account"}
+                {isBusinessMember ? "Settings" : "Account"}
               </Link>
               {isBusinessOwner && (
                 <Link
@@ -287,7 +288,7 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -431,7 +432,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
             <div className="hidden md:block"><DesignLabToggle /></div>
           )}
           <AgentBell initialClearedAt={agentBellClearedAt} />
-          <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} /></div>
+          <div className="hidden md:block"><UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} isBusinessMember={isBusinessMember} /></div>
         </div>
       </header>
 
@@ -618,7 +619,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <Link
-              href={showClientsNav ? "/agent/settings/profile" : "/agent/account/profile"}
+              href={isBusinessMember ? "/agent/settings/profile" : "/agent/account/profile"}
               onClick={() => setMobileOpen(false)}
               className="agent-hover-row"
               style={{
@@ -629,7 +630,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               }}
             >
               <GearSix weight="regular" style={{ width: 14, height: 14, flexShrink: 0 }} />
-              {showClientsNav ? "Settings" : "Account"}
+              {isBusinessMember ? "Settings" : "Account"}
             </Link>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}

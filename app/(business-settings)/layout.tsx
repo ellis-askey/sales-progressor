@@ -16,7 +16,7 @@
 import { notFound } from "next/navigation";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { prisma } from "@/lib/prisma";
 import { AccountShell } from "@/components/account/chrome/AccountShell";
 import "@/app/agent/styles/themes.css";
@@ -26,8 +26,11 @@ export default async function BusinessSettingsLayout({ children }: { children: R
   if (!progressionBusinessesEnabled()) notFound();
 
   const { role, theme, session } = await resolveAgentSession();
-  const owner = await resolveBusinessOwner(session);
-  if (!owner) notFound();
+  // Admit team members too (not just the owner). Owner-only pages (Business,
+  // Emails, Team, Billing) still 404 for a member via their own resolveBusinessOwner
+  // guard, and the nav hides those tabs (isOwner below).
+  const member = await resolveBusinessMember(session);
+  if (!member) notFound();
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -43,7 +46,8 @@ export default async function BusinessSettingsLayout({ children }: { children: R
       image={userRecord?.image ?? null}
       theme={theme}
       variant="business"
-      roleLabel="Business owner"
+      roleLabel={member.isOwner ? "Business owner" : "Team member"}
+      isOwner={member.isOwner}
     >
       {children}
     </AccountShell>

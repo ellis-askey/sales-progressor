@@ -30,6 +30,7 @@ export function AccountShell({
   theme,
   variant = "agency",
   roleLabel,
+  isOwner = true,
   children,
 }: {
   role: UserRole;
@@ -43,6 +44,9 @@ export function AccountShell({
   variant?: "agency" | "business";
   /** Role caption for the sidebar user chip (business variant passes "Owner"). */
   roleLabel?: string;
+  /** business variant only: owners see all tabs; team members see the four
+   *  self-service tabs (Profile / Connections / Notifications / Security). */
+  isOwner?: boolean;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -109,7 +113,7 @@ export function AccountShell({
 
         <div className="account-nav-scroll">
           {variant === "business" ? (
-            <BusinessSettingsNav onNavigate={() => setMobileOpen(false)} />
+            <BusinessSettingsNav isOwner={isOwner} onNavigate={() => setMobileOpen(false)} />
           ) : (
             <AccountLeftNav
               role={role}

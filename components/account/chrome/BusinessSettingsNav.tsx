@@ -27,11 +27,22 @@ const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },
 ];
 
-export function BusinessSettingsNav({ onNavigate }: { onNavigate?: () => void }) {
+// A team member (non-owner) only manages themselves — the business-level tabs
+// (Business, Emails, Team, Billing) are owner-only and the pages 404 for them, so
+// we hide those tabs rather than show links that dead-end.
+const MEMBER_HREFS = new Set([
+  "/agent/settings/profile",
+  "/agent/settings/connections",
+  "/agent/settings/notifications",
+  "/agent/settings/security",
+]);
+
+export function BusinessSettingsNav({ isOwner = true, onNavigate }: { isOwner?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const items = isOwner ? ITEMS : ITEMS.filter((i) => MEMBER_HREFS.has(i.href));
   return (
     <nav aria-label="Business settings navigation">
-      <AgentNavRail items={ITEMS} pathname={pathname} onNavigate={onNavigate} />
+      <AgentNavRail items={items} pathname={pathname} onNavigate={onNavigate} />
 
       {/* A consistent way back out of settings, below the last tab (critique #183).
           Returns to the page you came from, falling back to the hub (critique #187). */}

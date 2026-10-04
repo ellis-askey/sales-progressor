@@ -7,7 +7,7 @@ import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { getBrandColor } from "@/lib/agent/themes";
 import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
 import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
@@ -20,8 +20,8 @@ import { Palette, Database } from "@phosphor-icons/react/dist/ssr";
 export default async function BusinessProfilePage() {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
-  const owner = await resolveBusinessOwner(session);
-  if (!owner) notFound();
+  const member = await resolveBusinessMember(session);
+  if (!member) notFound();
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -48,7 +48,7 @@ export default async function BusinessProfilePage() {
           initialDirectMobile={userRecord?.directMobile ?? ""}
           initialImage={userRecord?.image ?? null}
           role={session.user.role}
-          roleLabel="Owner"
+          roleLabel={member.isOwner ? "Owner" : "Team member"}
           hideRoleNote
         />
 

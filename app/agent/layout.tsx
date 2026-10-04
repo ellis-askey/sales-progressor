@@ -8,7 +8,7 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -65,12 +65,13 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   // lib/agent/nav-badges.ts.
   const badges = await computeNavBadgeCounts(session, hasSelfManagedFiles);
 
-  // "Clients" nav item — progression-business owners only, and only when the
-  // feature is enabled. The flag is checked first so there is NO extra query in
-  // production (feature off) until it is switched on.
-  const showClientsNav = progressionBusinessesEnabled()
-    ? !!(await resolveBusinessOwner(session))
-    : false;
+  // One lookup, two uses. "Clients" nav + new-sale→clients stay owner-only
+  // (showClientsNav). isBusinessMember (owner OR team) points the Account link at
+  // the member's own settings area instead of the blank agency account. The flag
+  // is checked first so there is NO extra query in production until switched on.
+  const businessMember = progressionBusinessesEnabled() ? await resolveBusinessMember(session) : null;
+  const showClientsNav = !!businessMember?.isOwner;
+  const isBusinessMember = !!businessMember;
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
@@ -93,7 +94,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

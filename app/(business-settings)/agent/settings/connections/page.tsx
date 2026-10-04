@@ -10,7 +10,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountConnectionsCard } from "@/components/account/AccountConnectionsCard";
 import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
@@ -18,8 +18,8 @@ import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
 export default async function BusinessConnectionsPage() {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
-  const owner = await resolveBusinessOwner(session);
-  if (!owner) notFound();
+  const member = await resolveBusinessMember(session);
+  if (!member) notFound();
 
   return (
     <>

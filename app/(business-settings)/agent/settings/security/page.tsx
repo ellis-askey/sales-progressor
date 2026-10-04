@@ -4,7 +4,7 @@
 import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { ChangePasswordCard } from "@/components/account/v2/ChangePasswordCard";
 import { TwoFactorCard } from "@/components/account/v2/TwoFactorCard";
 import { SessionsCard } from "@/components/account/v2/SessionsCard";
@@ -13,8 +13,8 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 export default async function BusinessSecurityPage() {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
-  const owner = await resolveBusinessOwner(session);
-  if (!owner) notFound();
+  const member = await resolveBusinessMember(session);
+  if (!member) notFound();
 
   return (
     <>

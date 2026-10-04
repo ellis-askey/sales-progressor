@@ -11,7 +11,7 @@
 import { requireSession } from "@/lib/session";
 import { notFound } from "next/navigation";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { prisma } from "@/lib/prisma";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 import { EmailNotificationsSectionPlain } from "@/components/account/v2/EmailNotificationsSectionPlain";
@@ -21,8 +21,8 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 export default async function BusinessNotificationsPage() {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
-  const owner = await resolveBusinessOwner(session);
-  if (!owner) notFound();
+  const member = await resolveBusinessMember(session);
+  if (!member) notFound();
 
   const [notificationPrefs, pushDevicesRaw] = await Promise.all([
     getNotificationPrefs(session.user.id),
