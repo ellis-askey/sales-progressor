@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { findSpecimen } from "@/lib/command/email-catalogue/registry";
 import { specimenContentHash } from "@/lib/command/email-catalogue/review";
+import { setBucketEnabled } from "@/lib/email/bucket-toggles";
 import { resolveCatalogueIdentity, describeSignature, audienceBucketFor, AUDIENCE_LABEL, LOCKED_BUCKETS, type Scenario, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 
 export type RenderResult =
@@ -82,5 +83,16 @@ export async function setSpecimenReviewed(id: string, reviewed: boolean): Promis
     create: { specimenId: id, reviewedBy: by, reviewedByEmail: byEmail, contentHash },
     update: { reviewedBy: by, reviewedByEmail: byEmail, contentHash, reviewedAt: new Date() },
   });
+  return { ok: true };
+}
+
+// Flip a whole audience bucket on or off platform-wide. When off, every email in
+// that bucket stops sending (locked buckets can't be switched off). Superadmin-only.
+export async function setBucketEnabledAction(bucket: AudienceBucket, enabled: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !hasSuperAdminPowers(session)) {
+    return { ok: false, error: "Not authorised." };
+  }
+  await setBucketEnabled(bucket, enabled, session.user.id ?? null);
   return { ok: true };
 }

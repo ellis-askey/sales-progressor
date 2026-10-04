@@ -3,6 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { isAudienceBucketEnabled } from "@/lib/email/bucket-toggles";
+import type { AudienceBucket } from "@/lib/email/audience-buckets";
+
+// Returned by sendEmail when a send was intentionally skipped because its
+// audience bucket is switched off. Callers that record a "sent" row (e.g.
+// trySendClientEmail) check for this so a suppressed send is never logged as
+// delivered.
+export type SuppressedResult = { suppressedBucket: AudienceBucket };
+export function isSuppressed(r: unknown): r is SuppressedResult {
+  return !!r && typeof r === "object" && "suppressedBucket" in r;
+}
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
@@ -233,6 +244,7 @@ export async function sendEmail({
   templateVersion,
   attachments,
   messageId,
+  audienceBucket,
 }: {
   to: string;
   cc?: string[];
@@ -242,6 +254,10 @@ export async function sendEmail({
   from?: string;
   replyTo?: string;
   attachments?: EmailAttachment[];
+  // Which audience bucket this send belongs to. When set AND that bucket is
+  // switched off (platform kill switch), the send is skipped and a
+  // SuppressedResult is returned. Omit = always send (default, unchanged).
+  audienceBucket?: AudienceBucket;
   // Echoes back on every SendGrid Event Webhook event for this message
   // via customArgs. /api/webhooks/sendgrid-bounce uses it to join events
   // to the originating OutboundEmailQueue row for delivery-status writes.
@@ -261,6 +277,12 @@ export async function sendEmail({
   if (isNonDeliverableRecipient(to)) {
     console.log(`[email] skipped reserved recipient to=${to} subject="${subject}"`);
     return;
+  }
+  // Platform kill switch: if this send's audience bucket is switched off, skip it
+  // and tell the caller it was suppressed (so it isn't logged as delivered).
+  if (audienceBucket && !(await isAudienceBucketEnabled(audienceBucket))) {
+    console.log(`[email] suppressed by bucket toggle bucket=${audienceBucket} to=${to} subject="${subject}"`);
+    return { suppressedBucket: audienceBucket };
   }
   const tags = analyticsTags(emailType, templateVersion);
   const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };

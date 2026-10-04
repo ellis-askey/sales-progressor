@@ -15,9 +15,11 @@
 // Redaction: password_reset bodies carry a live reset link, so those rows store
 // kind + subject + recipient only (text/html NULL). See REDACTED_KINDS.
 
-import { sendEmail, type EmailAttachment } from "@/lib/email";
+import { sendEmail, isSuppressed, type EmailAttachment } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { type AudienceBucket } from "@/lib/email/audience-buckets";
+import { resolveFileBucketByTransaction } from "@/lib/email/bucket-toggles";
 
 export type AgentEmailKind =
   | "weekly_brief"
@@ -51,6 +53,37 @@ export type AgentEmailKind =
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
 const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup", "teammate_setup"]);
+
+// Fixed audience bucket per kind, for the platform on/off switches. Kinds NOT
+// listed are FILE-DRIVEN (milestone_agent / milestone_progressor / portal_message)
+// and resolve their bucket from the transaction at send time. See
+// lib/email/audience-buckets.ts.
+const FIXED_BUCKET: Partial<Record<AgentEmailKind, AudienceBucket>> = {
+  password_reset: "platform_admin",
+  verified_email: "platform_admin",
+  domain_auth: "platform_admin",
+  client_agent_setup: "progression_invite",
+  teammate_setup: "progression_invite",
+  weekly_brief: "free_agency",
+  morning_digest: "free_agency",
+  retention: "free_agency",
+  welcome: "free_agency",
+  claim_welcome: "free_agency",
+  team_invite: "free_agency",
+  team_accepted: "free_agency",
+  booking_diary: "free_agency",
+  booking_morning: "free_agency",
+  chain_invite: "free_agency",
+  chain_invite_nudge: "free_agency",
+  chain_neighbour_update: "free_agency",
+  chain_neighbour_chase: "free_agency",
+};
+
+async function resolveBucketForKind(kind: AgentEmailKind, transactionId: string | null): Promise<AudienceBucket> {
+  const fixed = FIXED_BUCKET[kind];
+  if (fixed) return fixed;
+  return transactionId ? resolveFileBucketByTransaction(transactionId) : "free_agency";
+}
 
 type SendAgentEmailParams = {
   // Passthrough to sendEmail.
@@ -91,8 +124,16 @@ export async function sendAgentEmail(params: SendAgentEmailParams) {
     meta,
   } = params;
 
+  // Resolve this send's audience bucket so the platform kill switch applies.
+  // Fixed-bucket kinds map directly; the file-driven ones (milestone / portal
+  // message) follow who runs the file.
+  const bucket = await resolveBucketForKind(kind, transactionId ?? null);
+
   // Send first; a send failure propagates exactly as with a bare sendEmail.
-  const result = await sendEmail({ to, subject, text, html, from, replyTo, cc, emailType, templateVersion, attachments });
+  const result = await sendEmail({ to, subject, text, html, from, replyTo, cc, emailType, templateVersion, attachments, audienceBucket: bucket });
+
+  // If the bucket is switched off the send was skipped; don't log it as sent.
+  if (isSuppressed(result)) return result;
 
   // Then log, best-effort. Never let a logging failure surface to the caller.
   try {

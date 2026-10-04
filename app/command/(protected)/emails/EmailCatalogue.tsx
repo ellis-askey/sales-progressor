@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { renderSpecimenAction, setSpecimenReviewed, type RenderResult } from "./actions";
-import { DEFAULT_SCENARIO, AUDIENCE_LABEL, type Scenario, type EmailCategory, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
+import { renderSpecimenAction, setSpecimenReviewed, setBucketEnabledAction, type RenderResult } from "./actions";
+import { DEFAULT_SCENARIO, AUDIENCE_LABEL, LOCKED_BUCKETS, type Scenario, type EmailCategory, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 import type { SpecimenMeta } from "@/lib/command/email-catalogue/registry";
 
 // A file-driven email (no fixed bucket) belongs to all three "who runs the file"
@@ -107,8 +107,19 @@ function Tier({ t }: { t: IdentityTier }) {
   );
 }
 
-export function EmailCatalogue({ specimens, initialReviews }: { specimens: SpecimenMeta[]; initialReviews: Record<string, ReviewInfo> }) {
+export function EmailCatalogue({ specimens, initialReviews, bucketStates }: { specimens: SpecimenMeta[]; initialReviews: Record<string, ReviewInfo>; bucketStates: Record<AudienceBucket, boolean> }) {
   const router = useRouter();
+  const [savingBucket, setSavingBucket] = useState<AudienceBucket | null>(null);
+
+  function toggleBucket(b: AudienceBucket, next: boolean) {
+    if (LOCKED_BUCKETS.has(b) || savingBucket) return;
+    setSavingBucket(b);
+    void setBucketEnabledAction(b, next).then((r) => {
+      setSavingBucket(null);
+      if (r.ok) router.refresh();
+    });
+  }
+
   const [selectedId, setSelectedId] = useState<string>(specimens[0]?.id ?? "");
   const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
   const [result, setResult] = useState<RenderResult | null>(null);
@@ -201,6 +212,37 @@ export function EmailCatalogue({ specimens, initialReviews }: { specimens: Speci
         })}
       </div>
 
+      {/* Sending switches — the platform kill switches. Off = those emails stop
+          sending immediately (locked buckets can't be switched off). */}
+      <div className="mb-6 p-4 rounded-lg" style={{ background: "#111", border: `1px solid ${BORDER}` }}>
+        <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-2.5">Sending switches — turn a whole bucket off platform-wide</div>
+        <div className="flex flex-wrap gap-2">
+          {BUCKET_ORDER.map((b) => {
+            const locked = LOCKED_BUCKETS.has(b);
+            const on = bucketStates[b];
+            const saving = savingBucket === b;
+            return (
+              <div key={b} className="flex items-center gap-2 px-3 py-2 rounded-md" style={{ background: "#0a0a0a", border: `1px solid ${on ? BORDER : "#7f1d1d"}` }}>
+                <span className="text-[12px]" style={{ color: on ? "#e5e5e5" : "#f87171" }}>{AUDIENCE_LABEL[b]}</span>
+                {locked ? (
+                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold" style={{ background: "#1a1a1a", color: "#737373" }}>always on</span>
+                ) : (
+                  <button
+                    onClick={() => toggleBucket(b, !on)}
+                    disabled={saving}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded transition-colors"
+                    style={{ background: on ? "rgba(34,197,94,0.14)" : "rgba(248,113,113,0.14)", color: on ? GREEN : "#f87171", border: `1px solid ${on ? GREEN : "#f87171"}`, opacity: saving ? 0.6 : 1 }}
+                  >
+                    {saving ? "…" : on ? "On" : "Off"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-[11px] text-neutral-500 mt-2.5">Off = those emails stop sending immediately. Security emails (TSP admin) can&apos;t be switched off.</div>
+      </div>
+
       <div className="flex gap-6" style={{ minHeight: 640 }}>
         {/* Left — specimen list */}
         <div className="w-72 shrink-0 space-y-5">
@@ -226,7 +268,7 @@ export function EmailCatalogue({ specimens, initialReviews }: { specimens: Speci
                       <span
                         className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 text-[9px]"
                         style={{ background: dotColor, border: done || stale ? "none" : `1px solid ${BORDER}`, color: "#0a0a0a" }}
-                        title={stale ? "Reviewed, but the copy changed — needs re-review" : done ? "Reviewed & OK'd" : "Not reviewed"}
+                        title={stale ? "Reviewed, but the copy changed; needs re-review" : done ? "Reviewed & OK'd" : "Not reviewed"}
                       >
                         {stale ? "!" : done ? "✓" : ""}
                       </span>
@@ -268,7 +310,7 @@ export function EmailCatalogue({ specimens, initialReviews }: { specimens: Speci
                 >
                   {isStale ? "!" : isReviewed ? "✓" : ""}
                 </span>
-                {savingReview ? "Saving…" : isStale ? "Needs re-review — re-OK" : isReviewed ? "Reviewed & OK'd" : "Mark reviewed"}
+                {savingReview ? "Saving…" : isStale ? "Needs re-review" : isReviewed ? "Reviewed & OK'd" : "Mark reviewed"}
               </button>
             </div>
           </div>
@@ -369,6 +411,11 @@ export function EmailCatalogue({ specimens, initialReviews }: { specimens: Speci
                   {result?.ok && result.bucketLocked && (
                     <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold" style={{ background: "#1a1a1a", color: "#737373" }}>
                       always on
+                    </span>
+                  )}
+                  {result?.ok && !result.bucketLocked && bucketStates[result.bucket] === false && (
+                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold" style={{ background: "rgba(248,113,113,0.14)", color: "#f87171" }}>
+                      switched off
                     </span>
                   )}
                 </div>

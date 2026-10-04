@@ -4,7 +4,8 @@ import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { getBookedSurveyorName } from "@/lib/services/survey-booking";
 import { preheader } from "@/lib/email/preheader";
 import { extractPostcode } from "@/lib/services/property-intel";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, isSuppressed } from "@/lib/email";
+import { resolveFileBucketByTransaction } from "@/lib/email/bucket-toggles";
 import { resolveSolicitorCc } from "@/lib/services/solicitor-cc";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -175,7 +176,13 @@ export async function trySendClientEmail(
   ctx?: { transactionId?: string; subject?: string },
 ): Promise<boolean> {
   try {
-    await sendEmail(args);
+    // Client-facing emails are file-driven: resolve their audience bucket from
+    // the transaction so the platform kill switch (free_agency / tsp_outsourced /
+    // external_progression) applies. A suppressed send returns false, so the
+    // caller never records it as delivered.
+    const audienceBucket = ctx?.transactionId ? await resolveFileBucketByTransaction(ctx.transactionId) : undefined;
+    const r = await sendEmail({ ...args, audienceBucket });
+    if (isSuppressed(r)) return false;
     return true;
   } catch (err) {
     console.error(

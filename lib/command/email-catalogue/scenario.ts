@@ -20,29 +20,17 @@ export type Side = "vendor" | "purchaser";
 export type ThemeKind = "coral" | "custom";
 export type ScenarioAxis = "fileType" | "side" | "theme" | "milestoneCode";
 
-// The five "who is this for" buckets the on/off switches act on. A file-driven
-// email (client/solicitor/on-file notification) has no fixed bucket — it belongs
-// to free_agency / tsp_outsourced / external_progression depending on who runs
-// the file (see audienceBucketFor). Everything else carries a fixed bucket.
-export type AudienceBucket =
-  | "platform_admin" // password reset, verification, domain auth — always on, locked
-  | "tsp_outsourced" // client-facing emails on files WE progress
-  | "free_agency" // emails for self-managed agencies (their client + lifecycle emails)
-  | "progression_invite" // invites an external business sends (client agent + teammate + welcome)
-  | "external_progression"; // client-facing emails on files an EXTERNAL business progresses
+// The five "who is this for" buckets are defined canonically in lib/email so the
+// send pipeline can share them (Law 8 — the catalogue can't own send-time logic).
+// A file-driven email (client/solicitor/on-file notification) has no fixed bucket
+// — it belongs to free_agency / tsp_outsourced / external_progression depending on
+// who runs the file (see audienceBucketFor). Everything else carries a fixed one.
+export { AUDIENCE_LABEL, LOCKED_BUCKETS } from "@/lib/email/audience-buckets";
+export type { AudienceBucket } from "@/lib/email/audience-buckets";
+import type { AudienceBucket } from "@/lib/email/audience-buckets";
 
-export const AUDIENCE_LABEL: Record<AudienceBucket, string> = {
-  platform_admin: "TSP admin",
-  tsp_outsourced: "TSP outsourced sales",
-  free_agency: "Free-agency emails",
-  progression_invite: "Progression-business invites",
-  external_progression: "External progression",
-};
-
-// Buckets whose emails can never be switched off (the product breaks without them).
-export const LOCKED_BUCKETS: ReadonlySet<AudienceBucket> = new Set(["platform_admin"]);
-
-// The three buckets a file-driven email can land in, by who runs the file.
+// The three buckets a file-driven email can land in, by the catalogue's file-type
+// scenario axis (mirrors fileBucket() in lib/email/audience-buckets).
 const FILE_BUCKET: Record<FileType, AudienceBucket> = {
   self_managed: "free_agency",
   outsourced: "tsp_outsourced",

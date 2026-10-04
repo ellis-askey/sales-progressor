@@ -1,5 +1,6 @@
 import { specimenIndex } from "@/lib/command/email-catalogue/registry";
 import { allContentHashes } from "@/lib/command/email-catalogue/review";
+import { getAllBucketStates } from "@/lib/email/bucket-toggles";
 import { prisma } from "@/lib/prisma";
 import { EmailCatalogue, type ReviewInfo } from "./EmailCatalogue";
 
@@ -28,5 +29,7 @@ export default async function CommandEmailsPage() {
     };
   }
 
-  return <EmailCatalogue specimens={specimens} initialReviews={reviews} />;
+  const bucketStates = await getAllBucketStates();
+
+  return <EmailCatalogue specimens={specimens} initialReviews={reviews} bucketStates={bucketStates} />;
 }

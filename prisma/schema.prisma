@@ -3549,6 +3549,17 @@ model EmailCatalogueReview {
   contentHash     String // hash of subject+html at the canonical scenario when reviewed
 }
 
+// Platform on/off switches for the five email audience buckets (see
+// lib/email/audience-buckets.ts). A row exists only when a superadmin has
+// flipped a bucket OFF; absence means ON (the safe default). platform_admin can
+// never be stored off (enforced in code). Superadmin-only writes.
+model EmailBucketToggle {
+  bucket    String   @id // AudienceBucket value
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  updatedBy String? // user id who last changed it
+}
+
 // Durable cache of HM Land Registry registered-sale counts per postcode
 // district, for the All Files → Map view's market-share bars. The Land
 // Registry SPARQL endpoint is ~30s per outcode, so a live fetch on page load
