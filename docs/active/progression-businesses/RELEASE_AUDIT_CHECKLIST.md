@@ -20,21 +20,21 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 
 ## 🟠 Should-fix — fee accuracy (same class as the £0 bug just fixed)
 
-- [ ] **F1 — The sales list shows the business the wrong fee.**
+- [x] **F1 — The sales list shows the business the wrong fee.** *(built, pending prod deploy)*
   On the transactions list (stat strip / forecast / pipeline / map) an external owner is shown *our* fee calculation, not their own rate card. Wrong number on their own files.
-  *Fix:* use the client rate card for external businesses on this path, the way the hub already does.
+  *Fix shipped:* the list now computes an external business's fee from their per-client rate card (loaded once, keyed by the file's agency), matching the hub and file views.
 
-- [ ] **F2 — Two more places still show £0 for an unset fee.**
+- [x] **F2 — Two more places still show £0 for an unset fee.** *(built, pending prod deploy)*
   The hub weekly forecast and the add-a-sale cost line both silently show £0 when a client has no fee set, instead of prompting to set it.
-  *Fix:* apply the same "fee not set" guard used elsewhere.
+  *Fix shipped:* the add-a-sale card shows "Fee not set" (and holds the net) rather than "Free"; the hub forecast leaves unset-fee files out entirely (count + total) instead of counting them as £0.
 
-- [ ] **F3 — The "fee must be set" rule isn't enforced on the server.**
+- [x] **F3 — The "fee must be set" rule isn't enforced on the server.** *(built, pending prod deploy)*
   Adding a sale is only blocked in the browser. If the fee is cleared between opening the page and submitting, a £0 file can still be created.
-  *Fix:* re-check the fee is set when the sale is actually created.
+  *Fix shipped:* the create action re-checks the client has a fee set and refuses with "Set your fee for this client before adding a sale." if not.
 
-- [ ] **F4 — Tiered/percent invoices can change after they're issued.**
+- [x] **F4 — Tiered/percent invoices can change after they're issued.** *(built, pending prod deploy)*
   The price a tiered or percentage fee is based on is never locked at exchange for external files, so editing the price later silently changes an already-issued invoice. (Flat fees are unaffected.)
-  *Fix:* lock the price at exchange for external files too.
+  *Fix shipped:* exchange now stamps the sale price for external-business files too (ring-fenced — it's not a billing trigger), so the invoice snapshot is fixed at exchange.
 
 ## 🟠 Should-fix — white-label & onboarding
 
