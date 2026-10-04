@@ -16,7 +16,6 @@ import { Clock } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
-import { Pill } from "@/components/ui/Pill";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
@@ -146,18 +145,14 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                 )}
 
                 <div className="bt-body">
+                  {/* Role as plain text, top-right on the name's line (critique
+                      #184): no pill background, sentence case. Owner coral,
+                      Progressor muted. The email then gets the full row width. */}
                   <div className="bt-head">
-                    <div className="bt-id">
-                      <div className="bt-name">{m.name}</div>
-                      <div className="bt-email">{m.email}</div>
-                    </div>
-                    {/* Role as a proper solid pill, top-right on the name's line
-                        (critique #181): Owner in coral, Progressor neutral. The
-                        old faded inline "You" pill + grey role chip are gone. */}
-                    <Pill tone={isOwner ? "brand" : "default"} size="md" className="bt-role-pill">
-                      {isOwner ? "Owner" : "Progressor"}
-                    </Pill>
+                    <div className="bt-name">{m.name}</div>
+                    <span className={`bt-role${isOwner ? " owner" : ""}`}>{isOwner ? "Owner" : "Progressor"}</span>
                   </div>
+                  <div className="bt-email">{m.email}</div>
 
                   <div className="bt-controls">
                     {m.pending && <span className="bt-pending"><Clock size={11} weight="bold" /> Invite sent</span>}
@@ -242,15 +237,15 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-av-owner { background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); }
         .bt-av-shell { flex-shrink: 0; }
 
-        /* Body: top line (name/email + role pill) then the controls line. */
-        .bt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-        .bt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-        .bt-id { min-width: 0; }
-        .bt-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bt-email { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-        .bt-role-pill { flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
+        /* Body: name + role line, the full-width email, then the controls line. */
+        .bt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .bt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .bt-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+        .bt-role { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--agent-text-muted); }
+        .bt-role.owner { color: var(--agent-coral-deep, #E2452A); }
+        .bt-email { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .bt-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .bt-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }
 
         .bt-seg { display: inline-flex; border: 1px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 999px; overflow: hidden; background: var(--agent-surface-overlay, rgba(0,0,0,0.03)); flex-shrink: 0; transition: opacity .15s; }
         .bt-seg.saving { opacity: 0.6; }
