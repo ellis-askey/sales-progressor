@@ -30,7 +30,7 @@ import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
-import { buildOnwardNudgeEmail, type OnwardNudgeDirection, type OnwardNudgeMode } from "@/lib/emails/onward-nudge";
+import { buildOnwardNudgeEmail, type OnwardNudgeDirection, type OnwardNudgeMode, type OnwardNudgeCopy } from "@/lib/emails/onward-nudge";
 import { resolveOnwardNudgeContent } from "@/lib/agency-email/templates";
 
 function revalidateTx(id: string) {
@@ -333,12 +333,30 @@ export async function undoRelatedBuyerStepAction(input: {
 // panel they already have. "onward" = the SELLER's onward purchase (contact is a
 // vendor); "related" = the BUYER's own sale (contact is a purchaser). The send is
 // logged to the file activity like every other client email.
-export async function sendOnwardNudgeAction(input: {
+type NudgeInput = {
   transactionId: string;
   contactId: string;
   direction: OnwardNudgeDirection;
   mode: OnwardNudgeMode;
-}): Promise<{ ok: boolean; error?: string }> {
+};
+
+type NudgeContext = {
+  txId: string;
+  agencyId: string;
+  agencyName: string;
+  contact: { id: string; name: string; email: string };
+  portalUrl: string;
+  greeting: string;
+  propertyAddress: string | null;
+  theme: { buttonBg: string; buttonText: string };
+  from?: string;
+  replyTo?: string;
+  agencyCopy: OnwardNudgeCopy;
+};
+
+// Shared resolution for both the preview and the send, so the modal previews the
+// exact inputs that will send (scope-checked; Law 7).
+async function loadNudgeContext(input: NudgeInput): Promise<{ ok: true; ctx: NudgeContext } | { ok: false; error: string }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
@@ -359,7 +377,6 @@ export async function sendOnwardNudgeAction(input: {
   if (contact.unsubscribedAt) return { ok: false, error: "This client has opted out of emails." };
   if (!contact.portalToken) return { ok: false, error: "This client has no portal access yet." };
 
-  // The onward/related property's address, when the agent has recorded it.
   const kind: OnwardTrackerKind = input.direction === "onward" ? "onward_purchase" : "related_sale";
   const tracker = await prisma.onwardTracker.findUnique({
     where: { transactionId_kind: { transactionId: tx.id, kind } },
@@ -367,25 +384,91 @@ export async function sendOnwardNudgeAction(input: {
   });
 
   const base = process.env.NEXTAUTH_URL ?? "";
-  const portalUrl = `${base}/portal/${contact.portalToken}`;
   const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id);
   const emailTheme = theme ?? resolveEmailTheme(null);
-  // Agency-editable copy (onward_nudge family) → built-in default per field.
-  const copy = await resolveOnwardNudgeContent(tx.agencyId, input.direction, input.mode);
+  const agencyCopy = await resolveOnwardNudgeContent(tx.agencyId, input.direction, input.mode);
+
+  return {
+    ok: true,
+    ctx: {
+      txId: tx.id,
+      agencyId: tx.agencyId,
+      agencyName: tx.agency?.name ?? "your agent",
+      contact: { id: contact.id, name: contact.name, email: contact.email },
+      portalUrl: `${base}/portal/${contact.portalToken}`,
+      greeting: buildGreeting(contact.name),
+      propertyAddress: tracker?.relatedPropertyAddress ?? null,
+      theme: { buttonBg: emailTheme.buttonBg, buttonText: emailTheme.buttonText },
+      from,
+      replyTo,
+      agencyCopy,
+    },
+  };
+}
+
+// Per-send edits win over the agency copy, which wins over the built-in default.
+// Empty edited fields are ignored so a blank box never wipes an agency override.
+function mergeNudgeCopy(base: OnwardNudgeCopy, edits?: Partial<OnwardNudgeCopy>): OnwardNudgeCopy {
+  if (!edits) return base;
+  const out = { ...base };
+  (["subject", "lead", "body", "cta"] as const).forEach((k) => {
+    const v = edits[k];
+    if (typeof v === "string" && v.trim()) out[k] = v.trim();
+  });
+  return out;
+}
+
+export type OnwardNudgePreview = {
+  recipientName: string;
+  recipientEmail: string;
+  agencyName: string;
+  greeting: string;
+  propertyAddress: string | null;
+  portalUrl: string;
+  theme: { buttonBg: string; buttonText: string };
+  copy: OnwardNudgeCopy;
+};
+
+// Resolve everything the review-and-send modal needs to render + edit the email
+// client-side (buildOnwardNudgeEmail is pure), so the preview can't drift from
+// the real send. No email is sent.
+export async function previewOnwardNudgeAction(input: NudgeInput): Promise<{ ok: true; data: OnwardNudgePreview } | { ok: false; error: string }> {
+  const loaded = await loadNudgeContext(input);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const { ctx } = loaded;
+  return {
+    ok: true,
+    data: {
+      recipientName: ctx.contact.name,
+      recipientEmail: ctx.contact.email,
+      agencyName: ctx.agencyName,
+      greeting: ctx.greeting,
+      propertyAddress: ctx.propertyAddress,
+      portalUrl: ctx.portalUrl,
+      theme: ctx.theme,
+      copy: ctx.agencyCopy,
+    },
+  };
+}
+
+export async function sendOnwardNudgeAction(input: NudgeInput & { copy?: Partial<OnwardNudgeCopy> }): Promise<{ ok: boolean; error?: string }> {
+  const loaded = await loadNudgeContext(input);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const { ctx } = loaded;
 
   const { subject, text, html } = buildOnwardNudgeEmail({
-    agencyName: tx.agency?.name ?? "your agent",
-    greeting: buildGreeting(contact.name),
+    agencyName: ctx.agencyName,
+    greeting: ctx.greeting,
     direction: input.direction,
     mode: input.mode,
-    propertyAddress: tracker?.relatedPropertyAddress ?? null,
-    portalUrl,
-    theme: { buttonBg: emailTheme.buttonBg, buttonText: emailTheme.buttonText },
-    copy,
+    propertyAddress: ctx.propertyAddress,
+    portalUrl: ctx.portalUrl,
+    theme: ctx.theme,
+    copy: mergeNudgeCopy(ctx.agencyCopy, input.copy),
   });
 
   try {
-    await sendEmail({ to: contact.email, subject, text, html, from, replyTo });
+    await sendEmail({ to: ctx.contact.email, subject, text, html, from: ctx.from, replyTo: ctx.replyTo });
   } catch {
     return { ok: false, error: "We couldn't send that email just now. Please try again." };
   }
@@ -395,8 +478,8 @@ export async function sendOnwardNudgeAction(input: {
   // the agent (isAutomated: false) rather than a scheduled job.
   await prisma.outboundMessage.create({
     data: {
-      transactionId: tx.id,
-      agencyId: tx.agencyId,
+      transactionId: ctx.txId,
+      agencyId: ctx.agencyId,
       type: "outbound",
       method: "email",
       channel: "email",
@@ -404,8 +487,8 @@ export async function sendOnwardNudgeAction(input: {
       status: "sent",
       subject,
       content: text,
-      contactIds: [contact.id],
-      recipientEmail: contact.email,
+      contactIds: [ctx.contact.id],
+      recipientEmail: ctx.contact.email,
       isAutomated: false,
       visibleToClient: true,
       sentAt: new Date(),

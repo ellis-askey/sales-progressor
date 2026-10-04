@@ -43,8 +43,8 @@ import {
   confirmRelatedBuyerStepAction,
   undoRelatedBuyerStepAction,
   setOnwardRelatedAddressAction,
-  sendOnwardNudgeAction,
 } from "@/app/actions/onward";
+import { OnwardNudgeModal } from "./OnwardNudgeModal";
 import type { OnwardTrackerKind } from "@prisma/client";
 import type {
   OnwardTrackerView,
@@ -554,28 +554,17 @@ export function OnwardPurchaseCard({
   // button; several → a chevron menu that targets each person (own portal token).
   const canNudge = (direction === "onward" || direction === "related") && nudgeClients.length > 0;
   const nudgeNoun = direction === "related" ? "buyer" : "seller";
-  const [nudgeSendingId, setNudgeSendingId] = useState<string | null>(null);
+  // Sending state + send errors now live in the review-and-send modal; these
+  // remain only to satisfy the menu-row API + the (dormant) card-level error slots.
+  const [nudgeSendingId] = useState<string | null>(null);
+  const [nudgeError] = useState<string | null>(null);
   const [nudgeSent, setNudgeSent] = useState<Record<string, boolean>>({});
-  const [nudgeError, setNudgeError] = useState<string | null>(null);
+  const [nudgeModal, setNudgeModal] = useState<{ contactId: string; mode: "setup" | "update" } | null>(null);
 
-  async function sendNudge(contactId: string, mode: "setup" | "update") {
-    if (nudgeSendingId) return;
-    setNudgeError(null);
-    setNudgeSendingId(contactId);
-    try {
-      const res = await sendOnwardNudgeAction({
-        transactionId,
-        contactId,
-        direction: direction as "onward" | "related",
-        mode,
-      });
-      if (res.ok) setNudgeSent((p) => ({ ...p, [contactId]: true }));
-      else setNudgeError(res.error ?? "Couldn't send that just now.");
-    } catch {
-      setNudgeError("Something went wrong. Try again.");
-    } finally {
-      setNudgeSendingId(null);
-    }
+  // Open the review-and-send modal (critique #197): the agent sees + can edit
+  // exactly what the client will receive before it sends. The modal owns the send.
+  function openNudge(contactId: string, mode: "setup" | "update") {
+    setNudgeModal({ contactId, mode });
   }
 
   // Setup-state control: a secondary button (one client) or a chevron menu
@@ -587,7 +576,7 @@ export function OnwardPurchaseCard({
       const first = extractFirstName(c.name);
       if (nudgeSent[c.id]) return <span style={{ fontSize: 12, color: MUTED }}>Link sent to {first}</span>;
       return (
-        <Button variant="secondary" size="sm" loading={nudgeSendingId === c.id} onClick={() => sendNudge(c.id, "setup")}>
+        <Button variant="secondary" size="sm" loading={nudgeSendingId === c.id} onClick={() => openNudge(c.id, "setup")}>
           <MailGlyph /> Ask {first} to set it up
         </Button>
       );
@@ -602,7 +591,7 @@ export function OnwardPurchaseCard({
           </span>
         )}
       >
-        {() => <NudgeMenuRows clients={nudgeClients} mode="setup" sent={nudgeSent} sendingId={nudgeSendingId} onSend={sendNudge} />}
+        {() => <NudgeMenuRows clients={nudgeClients} mode="setup" sent={nudgeSent} sendingId={nudgeSendingId} onSend={openNudge} />}
       </Dropdown>
     );
   }
@@ -632,7 +621,7 @@ export function OnwardPurchaseCard({
               }}
             />
             {canNudge && (
-              <NudgeMenuRows clients={nudgeClients} mode="update" sent={nudgeSent} sendingId={nudgeSendingId} onSend={sendNudge} firstIsTop={false} />
+              <NudgeMenuRows clients={nudgeClients} mode="update" sent={nudgeSent} sendingId={nudgeSendingId} onSend={openNudge} firstIsTop={false} />
             )}
           </>
         )}
@@ -717,15 +706,34 @@ export function OnwardPurchaseCard({
   // Wrap a state's body in the right shell: bare div when embedded (the spine
   // supplies the title + padding), the full Card + title header otherwise.
   function shell(body: React.ReactNode, tag?: React.ReactNode) {
-    if (embedded) return <div style={{ padding: "0 4px" }}>{body}</div>;
+    // The review-and-send modal portals to the body; mount it here so it is
+    // available in every state (both the setup CTA and the kebab's "update").
+    let nudgeModalEl: React.ReactNode = null;
+    if (nudgeModal) {
+      const cid = nudgeModal.contactId;
+      nudgeModalEl = (
+        <OnwardNudgeModal
+          transactionId={transactionId}
+          contactId={cid}
+          direction={direction as "onward" | "related"}
+          mode={nudgeModal.mode}
+          onClose={() => setNudgeModal(null)}
+          onSent={() => setNudgeSent((p) => ({ ...p, [cid]: true }))}
+        />
+      );
+    }
+    if (embedded) return <>{<div style={{ padding: "0 4px" }}>{body}</div>}{nudgeModalEl}</>;
     return (
-      <Card id={sectionId} padding="none">
-        <div style={cardHeaderStyle}>
-          <h3 style={titleStyle}>{txt.title}</h3>
-          {tag && <span style={{ fontSize: 11, color: MUTED }}>{tag}</span>}
-        </div>
-        <div style={{ padding: "0 16px 14px" }}>{body}</div>
-      </Card>
+      <>
+        <Card id={sectionId} padding="none">
+          <div style={cardHeaderStyle}>
+            <h3 style={titleStyle}>{txt.title}</h3>
+            {tag && <span style={{ fontSize: 11, color: MUTED }}>{tag}</span>}
+          </div>
+          <div style={{ padding: "0 16px 14px" }}>{body}</div>
+        </Card>
+        {nudgeModalEl}
+      </>
     );
   }
 
