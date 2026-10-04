@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { fileFeePence, type PipelineRow } from "../PipelineBoard";
 import { gbpCompact } from "../money";
 import { toMapFile, groupByOutcode } from "@/lib/services/map-data";
@@ -272,7 +273,7 @@ export function MapView({
           )}
         </div>
 
-        <div className="map-panel">
+        <GlassCard glassId="files-map-patches" label="Map · Your patches" className="map-panel">
           <h3 className="map-panel-t">Your patches</h3>
           <p className="map-panel-s">Ranked by sales. Bar = your share of that district&rsquo;s registered market.</p>
           <div className="map-board">
@@ -304,7 +305,7 @@ export function MapView({
             ))}
           </div>
           <p className="map-attr">Market data: HM Land Registry (registered sales). Geocoding: postcodes.io.</p>
-        </div>
+        </GlassCard>
       </div>
 
       {/* Street View — portalled to <body> so the full-page blur sits above the

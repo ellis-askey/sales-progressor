@@ -21,6 +21,14 @@ export const DEFAULT_PICKS: GlassPicks = {
   "hub-attention": { light: "v28", dark: "v05" },
   "hub-diary": { light: "v27", dark: "v11" },
   "myfiles-table": { light: "v05", dark: "v05" },
+  // My Files · Pipeline / Forecast / Map — these views were left off the glass
+  // phase (hardcoded translucent-white surfaces that washed out in dark mode).
+  // Matched to the house frosted default (v05) so they read consistently in both
+  // modes; Ellis re-picks per card in the Design Lab. 2026-10-04.
+  "files-pipeline-column": { light: "v05", dark: "v05" },
+  "files-pipeline-card": { light: "v05", dark: "v05" },
+  "files-forecast": { light: "v05", dark: "v05" },
+  "files-map-patches": { light: "v05", dark: "v05" },
   "overview-risk": { light: "v05", dark: "v05" },
   "property-hero": { light: "v08", dark: "v04" },
   "sidebar-agent": { light: "v06", dark: "v05" },

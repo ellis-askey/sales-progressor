@@ -4928,9 +4928,9 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .pboard-col {
   display: flex; flex-direction: column; border-radius: 16px;
-  background: rgba(255, 255, 255, 0.34);
-  border: 0.5px solid var(--agent-border-subtle);
-  box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  /* Surface (background/border/shadow) owned by the glass variant — Design Lab
+     pickable via glassId="files-pipeline-column". Was a hardcoded translucent
+     white, which read washed-out in dark mode (the "left off dark mode" bug). */
 }
 .pboard-col.busy {
   border-color: rgba(var(--agent-warning-rgb), 0.45);
@@ -4970,12 +4970,15 @@ body[data-demo-file] [data-onboarding-checklist] {
 /* Card — content height; photo + address one tight left group; pills with depth */
 .pboard-card {
   display: block; text-decoration: none; padding: 9px 10px 10px; border-radius: 11px;
-  background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-subtle);
-  box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.05);
+  /* Surface owned by the glass variant — Design Lab pickable
+     (glassId="files-pipeline-card"). */
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 .pboard-card:hover {
-  transform: translateY(-2px); box-shadow: 0 6px 16px rgba(var(--agent-shadow-rgb), 0.12);
+  transform: translateY(-2px);
+  /* !important so the hover lift survives the cards-on-cards shadow strip in
+     glass.css ([data-glass-id] [data-glass-id] { box-shadow: none !important }). */
+  box-shadow: 0 6px 16px rgba(var(--agent-shadow-rgb), 0.12) !important;
   border-color: rgba(var(--agent-coral-rgb), 0.35);
 }
 .pboard-card-id { display: flex; align-items: center; gap: 9px; }
@@ -5147,9 +5150,10 @@ body[data-demo-file] [data-onboarding-checklist] {
 /* ── All Files · Forecast view ───────────────────────────────────────────────
    The active book bucketed by predicted exchange month, on proportional fee
    bars. See ForecastView.tsx. */
-.fc { border-radius: var(--agent-radius-xl); background: rgba(255, 255, 255, 0.42);
-  border: 0.5px solid var(--agent-border-subtle); overflow: hidden;
-  box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.fc { border-radius: var(--agent-radius-xl); overflow: hidden;
+  /* Surface owned by the glass variant — Design Lab pickable
+     (glassId="files-forecast"). Was a hardcoded translucent white (washed-out
+     in dark mode). */ }
 .fc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
   padding: 16px 18px; border-bottom: 0.5px solid var(--agent-border-subtle); }
 .fc-title { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
@@ -5279,7 +5283,10 @@ body[data-demo-file] [data-onboarding-checklist] {
 .map-loading { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; color: var(--agent-text-muted); background: var(--agent-bg-mid, rgba(0,0,0,0.03)); }
 .map-note { position: absolute; left: 12px; bottom: 12px; z-index: 2; font-size: 11px; color: var(--agent-text-secondary); background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-subtle); border-radius: 8px; padding: 5px 10px; box-shadow: var(--agent-glass-shadow, 0 2px 8px rgba(0,0,0,0.1)); }
 
-.map-panel { border-radius: 16px; background: rgba(255, 255, 255, 0.42); border: 0.5px solid var(--agent-border-subtle); box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.05), inset 0 1px 0 rgba(255,255,255,0.4); padding: 16px; display: flex; flex-direction: column; overflow: hidden; }
+.map-panel { border-radius: 16px; padding: 16px; display: flex; flex-direction: column; overflow: hidden;
+  /* Surface owned by the glass variant — Design Lab pickable
+     (glassId="files-map-patches"). Was a hardcoded translucent white
+     (washed-out in dark mode). */ }
 .map-panel-t { margin: 0 0 3px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-text-primary); }
 .map-panel-s { margin: 0 0 12px; font-size: 11.5px; color: var(--agent-text-muted); line-height: 1.4; }
 .map-board { display: flex; flex-direction: column; gap: 1px; overflow-y: auto; max-height: 470px; }

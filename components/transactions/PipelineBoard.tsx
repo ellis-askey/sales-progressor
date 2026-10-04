@@ -15,6 +15,9 @@ import type { TransactionRow } from "./TransactionTable";
 import { riskLevelForRow } from "./TransactionRowView";
 import { gbpCompact } from "./money";
 import { useEdgeFadeMask } from "@/lib/agent/use-edge-fade";
+import { GlassCard } from "@/components/glass/GlassCard";
+import { usePickForCard } from "@/lib/glass/context";
+import { classFor, DEFAULT_VARIANT } from "@/lib/glass/variants";
 
 // The board reads a few fee/price fields that aren't on the shared
 // TransactionRow type but ARE present on the live rows (listTransactions
@@ -97,6 +100,11 @@ export function PipelineBoard({
   // Completion cards when you're against that side). Hook must run before the
   // empty-state early return below.
   const { ref: scrollRef, onScroll, mask } = useEdgeFadeMask();
+  // One shared pick for every property card (Design Lab · "Pipeline · property
+  // card"). The hook runs once at the top (not per-card) so it obeys the rules
+  // of hooks; all cards render the chosen variant. The column cards use
+  // <GlassCard> directly.
+  const cardVariant = usePickForCard("files-pipeline-card") ?? DEFAULT_VARIANT;
 
   const active = transactions.filter((t) => t.status === "active");
 
@@ -140,7 +148,7 @@ export function PipelineBoard({
           const Icon = STAGE_ICON[col.key];
           const busy = col.key === busyKey;
           return (
-            <div key={col.key} className={`pboard-col${busy ? " busy" : ""}`}>
+            <GlassCard key={col.key} glassId="files-pipeline-column" label="Pipeline · stage column" className={`pboard-col${busy ? " busy" : ""}`}>
               <div className="pboard-ch">
                 <div className="pboard-ch-top">
                   <span className={`pboard-ic pboard-ic--${col.key}`} aria-hidden><Icon size={18} weight="regular" /></span>
@@ -171,7 +179,14 @@ export function PipelineBoard({
                     const rt = riskTag(f);
                     const fee = fileFeePence(f);
                     return (
-                      <Link key={f.id} href={`${basePath}/${f.id}`} className="pboard-card">
+                      <Link
+                        key={f.id}
+                        href={`${basePath}/${f.id}`}
+                        className={`pboard-card ${classFor(cardVariant)}`}
+                        data-glass-id="files-pipeline-card"
+                        data-glass-label="Pipeline · property card"
+                        data-glass-variant={cardVariant}
+                      >
                         <div className="pboard-card-id">
                           <PropertyThumb photoUrl={f.photoUrl ?? null} size={34} />
                           <span className="pboard-card-txt">
@@ -194,7 +209,7 @@ export function PipelineBoard({
                   })
                 )}
               </div>
-            </div>
+            </GlassCard>
           );
         })}
       </div>

@@ -20,6 +20,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { GlassCard } from "@/components/glass/GlassCard";
 import { fileFeePence, type PipelineRow } from "./PipelineBoard";
 import { riskLevelForRow } from "./TransactionRowView";
 import { MonthlyTargetMenu } from "./MonthlyTargetMenu";
@@ -173,7 +174,7 @@ export function ForecastView({
   const targetPct = mode === "fees" && target != null ? Math.min(100, (target / maxBar) * 100) : null;
 
   return (
-    <div className="fc">
+    <GlassCard glassId="files-forecast" label="My files · Forecast" className="fc">
       <div className="fc-head">
         <div style={{ minWidth: 0 }}>
           <p className="fc-title">Exchange forecast</p>
@@ -305,6 +306,6 @@ export function ForecastView({
         <span><span className="fc-sw fc-sw-risk" />{mode === "fees" ? "At risk — early or shaky" : "Shaky date — early or shaky"}</span>
         <span><span className="fc-sw fc-sw-band" />Confidence band</span>
       </div>
-    </div>
+    </GlassCard>
   );
 }
