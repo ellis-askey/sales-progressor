@@ -250,7 +250,13 @@ export async function listProgressorInboxTasks(progressorId: string) {
     where: {
       isAgentRequest: true,
       status: "open",
-      transaction: { assignedUserId: progressorId },
+      // A sale-attached note rides its sale's assignment; a general (no-sale) note
+      // is addressed to a person via assignedToId — include both, or general notes
+      // reach nobody (audit V1).
+      OR: [
+        { transaction: { assignedUserId: progressorId } },
+        { assignedToId: progressorId },
+      ],
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
     include: {
@@ -273,6 +279,7 @@ export async function updateManualTaskAsProgressor(
       OR: [
         { createdById: progressorId, isAgentRequest: false },
         { isAgentRequest: true, transaction: { assignedUserId: progressorId } },
+        { isAgentRequest: true, assignedToId: progressorId }, // general (no-sale) note (audit V1)
       ],
     },
   });

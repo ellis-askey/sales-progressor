@@ -26,13 +26,32 @@ export async function POST(req: NextRequest) {
     if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Resolve who a GENERAL (no-sale) note goes to. A file note rides its sale's
+  // assignment; a general note must be addressed to a person, or it reaches nobody
+  // (audit V1). progressorId covers TSP-outsourced agencies; an external-business
+  // client agency routes its general note to the business owner.
+  let assignedToId: string | null = agentUser?.progressorId ?? null;
+  if (!transactionId && !assignedToId && agentUser?.agencyId) {
+    const link = await prisma.progressionBusinessClient.findFirst({
+      where: { agencyId: agentUser.agencyId },
+      select: { progressionBusinessId: true },
+    });
+    if (link) {
+      const owner = await prisma.user.findFirst({
+        where: { progressionBusinessId: link.progressionBusinessId, progressionBusinessRole: "owner" },
+        select: { id: true },
+      });
+      assignedToId = owner?.id ?? null;
+    }
+  }
+
   await prisma.manualTask.create({
     data: {
       agencyId: agentUser!.agencyId ?? "",
       transactionId: transactionId ?? null,
       title: message.trim(),
       isAgentRequest: true,
-      assignedToId: agentUser?.progressorId ?? null,
+      assignedToId,
       createdById: session.user.id,
     },
   });
