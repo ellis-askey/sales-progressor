@@ -3033,9 +3033,15 @@
 
   /* Settings text input: coral focus ring (replaces the bare outline:none). */
   .account-input { transition: border-color 120ms ease, box-shadow 120ms ease; }
-  .account-input:focus {
+  /* Crisp thin border (matches .agent-input, e.g. the new-sale Property Research
+     input): coral on hover, darker coral-deep on focus — NOT the old washed-out
+     3px coral glow (critique #171). */
+  .account-input:hover:not(:disabled):not(:focus) {
     border-color: var(--agent-coral, #FF6B4A) !important;
-    box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb, 255,107,74), 0.15);
+  }
+  .account-input:focus {
+    border-color: var(--agent-coral-deep, #E2452A) !important;
+    box-shadow: none;
   }
 
   /* Coral-outline settings button (e.g. Add team member): coral tint on hover,
