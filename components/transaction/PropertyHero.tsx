@@ -380,7 +380,11 @@ export function PropertyHero({
       const label: React.ReactNode = isSelf ? "In-house" : isProgressorManaged ? (
         <>
           <span className="hidden md:inline">Managed by <span style={nameClamp}>{managedByName}</span></span>
-          <span className="md:hidden" style={{ ...nameClamp, maxWidth: 120 }}>{managedByName}</span>
+          {/* Clamp lives on an INNER span so the outer md:hidden can win. An
+              inline `display` on this span would override md:hidden (inline
+              style beats the utility class) and the mobile label would also
+              show on desktop — the "name rendered twice" bug. */}
+          <span className="md:hidden"><span style={{ ...nameClamp, maxWidth: 120 }}>{managedByName}</span></span>
         </>
       ) : (
         <>
