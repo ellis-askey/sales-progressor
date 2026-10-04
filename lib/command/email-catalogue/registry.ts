@@ -808,7 +808,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
     bucket: "progression_invite",
     category: "perfected",
     name: "Client agent invite",
-    description: "Sets up an estate agent's login when a progression business adds them as a client.",
+    description: "Sets up an estate agent's login when a progression business adds them as a client. White-labelled to the business (its name as wordmark, no Sales Progressor hero/logo), replies to the business's own address, with a light 'powered by Sales Progressor' footer (audit W1).",
     trigger: "A progression business adds an agency agent as a client.",
     axes: [],
     senderKind: "platform",

@@ -197,9 +197,14 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
   try {
     const business = await prisma.progressionBusiness.findUnique({
       where: { id: input.owner.businessId },
-      select: { name: true },
+      select: { name: true, senderEmail: true },
     });
-    await sendClientAgentSetupEmail({ userId, email, businessName: business?.name ?? "Your progressor" });
+    await sendClientAgentSetupEmail({
+      userId,
+      email,
+      businessName: business?.name ?? "Your progressor",
+      senderEmail: business?.senderEmail ?? null,
+    });
   } catch (err) {
     console.error(`[progression] client_agent_setup email failed for ${email}`, err);
   }
