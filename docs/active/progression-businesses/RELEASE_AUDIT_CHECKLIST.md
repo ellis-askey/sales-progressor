@@ -55,8 +55,8 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 
 ## 🟡 Verify — quick checks
 
-- [ ] **V1 — Do general (non-file) messages from a client reach the business inbox?** A message not attached to a specific sale may never surface. Confirm.
-- [ ] **V2 — Does the agency analytics "our fees" figure wrongly include externally-progressed files?** Confirm who sees it and whether it over-counts.
+- [ ] **V1 — Do general (non-file) messages from a client reach the business inbox?** **CONFIRMED BROKEN (2026-10-04).** A "Send a note to {progressor}" message with no sale attached is created as a task with no transaction, but the progressor inbox only lists tasks that have a transaction assigned to them — so general notes reach nobody (not the inbox, not a notifications page). Affects TSP-outsourced agencies too, not just external businesses. Fix proposed; awaiting go.
+- [x] **V2 — Does the agency analytics "our fees" figure wrongly include externally-progressed files?** *(confirmed + guarded, pending prod deploy)* It *would* over-count (no exclusion), but `getAnalytics` has no consumer anywhere in the repo — it's unused, so nothing shows a wrong number today. Added a defensive guard that excludes external-business files, so it's correct if ever wired up.
 
 ## ⚪ Polish — last
 

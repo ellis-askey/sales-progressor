@@ -87,6 +87,9 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         completionDate: true,
         assignedUser: { select: { id: true, name: true, clientType: true, legacyFee: true } },
         agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
+        // Audit V2: used only to exclude EXTERNAL-business files from "our fees".
+        progressionBusinessId: true,
+        progressionBusiness: { select: { isTsp: true } },
         agentFeeAmount: true,
         agentFeePercent: true,
         // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
@@ -114,6 +117,11 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
   let ourFeesPipeline = 0;
   let ourFeesTxCount = 0;
   for (const t of active) {
+    // Exclude files progressed by an EXTERNAL progression business — we earn nothing
+    // from the agency on those (the business pays us, the agency pays the business),
+    // so they must never inflate "our fees" (audit V2). This figure isn't surfaced
+    // anywhere today; the guard keeps it honest if it's ever wired up.
+    if (t.progressionBusinessId && !t.progressionBusiness?.isTsp) continue;
     const { fee } = calculateOurFee(
       t.assignedUser?.clientType ?? "standard",
       t.assignedUser?.legacyFee ?? null,
