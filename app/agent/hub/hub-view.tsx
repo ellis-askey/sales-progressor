@@ -307,7 +307,9 @@ export default async function Hub() {
             <UserCircle size={15} weight="regular" />
             Complete your profile
           </Link>
-        ) : canCreateSale ? (
+        ) : canCreateSale && !isExternalProgressor ? (
+          // External progressors already have a "New sale" in the sidebar — a second
+          // one up here read as too many CTAs (critique #169).
           <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
             <Plus size={14} weight="bold" />
             New sale
