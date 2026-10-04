@@ -78,7 +78,10 @@ function voiceWarnings(draft: Copy): string[] {
   return w;
 }
 
-export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
+// `base` points at the resolve/save/reset routes. Defaults to the agency routes;
+// a progression business passes "/api/agent/settings/milestone-emails" so its own
+// edits are saved as the business layer.
+export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/milestone-emails" }: { steps: StepMeta[]; base?: string }) {
   const [side, setSide] = useState<Side>("purchaser");
   const [tenure, setTenure] = useState<"freehold" | "leasehold">("freehold");
   const [method, setMethod] = useState<"mortgage" | "cash">("mortgage");
@@ -115,7 +118,7 @@ export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
     setEditing(false);
     try {
       const res = await fetch(
-        `/api/agent/milestone-emails/resolve?code=${encodeURIComponent(code)}&side=${side}&tenure=${tenure}&method=${method}`
+        `${base}/resolve?code=${encodeURIComponent(code)}&side=${side}&tenure=${tenure}&method=${method}`
       );
       if (res.ok) setResolved(await res.json());
     } finally {
@@ -139,7 +142,7 @@ export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
     if (!draft) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/agent/milestone-emails/save", {
+      const res = await fetch(`${base}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -166,7 +169,7 @@ export function AgencyMilestoneEmailsEditor({ steps }: { steps: StepMeta[] }) {
     if (!resolved || !resolved.exists || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      await fetch("/api/agent/milestone-emails/reset", {
+      await fetch(`${base}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
