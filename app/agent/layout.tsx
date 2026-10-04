@@ -8,7 +8,7 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessMember } from "@/lib/services/progression-clients";
+import { resolveBusinessMember, businessHasClients } from "@/lib/services/progression-clients";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -72,6 +72,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const businessMember = progressionBusinessesEnabled() ? await resolveBusinessMember(session) : null;
   const showClientsNav = !!businessMember?.isOwner;
   const isBusinessMember = !!businessMember;
+  // A non-owner team member's "New sale" dead-ends (bounces to the hub) until the
+  // business has a client to attach a sale to — hide it until then (P1). Owners go
+  // via the Clients screen, which is never a dead-end, so they're unaffected.
+  const businessMemberHasClients = businessMember && !businessMember.isOwner
+    ? await businessHasClients(businessMember.businessId)
+    : true;
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
@@ -94,7 +100,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

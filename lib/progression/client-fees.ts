@@ -48,13 +48,18 @@ export function parseFeeModel(raw: unknown): ClientFeeModel | null {
     return { type: "percent", bps: Math.round(o.bps) };
   }
   if (o.type === "tiered" && Array.isArray(o.bands)) {
-    const bands: TieredBand[] = o.bands
-      .filter((b): b is Record<string, unknown> => !!b && typeof b === "object")
-      .map((b) => ({
-        uptoPence: typeof b.uptoPence === "number" ? Math.round(b.uptoPence) : null,
-        pence: typeof b.pence === "number" && b.pence >= 0 ? Math.round(b.pence) : 0,
-      }));
-    if (bands.length) return { type: "tiered", bands };
+    const rawBands = o.bands.filter((b): b is Record<string, unknown> => !!b && typeof b === "object");
+    // A malformed band must invalidate the whole rate card (→ treated as "fee not
+    // set"), never silently become a £0 band that reads as "free" (audit P5).
+    const bands: TieredBand[] = [];
+    let valid = rawBands.length > 0;
+    for (const b of rawBands) {
+      const uptoOk = b.uptoPence == null || (typeof b.uptoPence === "number" && b.uptoPence >= 0);
+      const penceOk = typeof b.pence === "number" && b.pence >= 0;
+      if (!uptoOk || !penceOk) { valid = false; break; }
+      bands.push({ uptoPence: typeof b.uptoPence === "number" ? Math.round(b.uptoPence) : null, pence: Math.round(b.pence as number) });
+    }
+    if (valid && bands.length) return { type: "tiered", bands };
   }
   return null;
 }

@@ -51,6 +51,9 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 - [ ] **D1 — Billing point: charge the agent at exchange or at completion.** *(DEFERRED — post-launch, external progressors)*
   Raised by C2a (founder, 2026-10-04). Today the business's client invoice bills a sale when it **exchanges**. Some businesses will want to bill at **completion** instead. Add a per-business setting (Settings → Business or Billing) to choose the fee's lock/charge point — exchange (current) or completion — and drive the invoice's included-sales window off it. Not needed for the pilot.
 
+- [ ] **D2 — White-label the agent-facing app per business.** *(DEFERRED — decision pending, ties to critique #178)*
+  Was P4. Today the app the agents log into is Sales-Progressor-branded (loading mark, "install Sales Progressor" copy, app name) — the client-facing side (emails, portal) is what's white-labelled. Whether the agent-facing shell should also be per-business branded is an undecided product call the founder is holding, tied in with critique #178. Scope as its own project if taken on.
+
 ## 🟠 Should-fix — billing (not blocking a free pilot)
 
 - [ ] **C1 — Payment collection isn't wired up.** *(DEFERRED — do last)* The bill is shown honestly ("not taking payment yet") but there's no card entry and the Stripe side has no triggers. Decision (founder): we wire it up and make a test payment ourselves as the final step before charging businesses. Intended off for a free pilot.
@@ -64,11 +67,11 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 
 ## ⚪ Polish — last
 
-- [ ] **P1 — "New sale" button dead-ends for a team member with no clients yet** (bounces to the hub). Hide it until there's a client.
-- [ ] **P2 — One hub list path doesn't exclude demo files** (harmless today, inconsistent).
-- [ ] **P3 — No per-file email silencing for a business** (owner can't mute one sale's emails).
-- [ ] **P4 — Our name/logo appears on the shared app loader and push-setup copy** (platform chrome; only matters if the agent app is meant to be white-labelled too).
-- [ ] **P5 — A malformed tiered fee band silently becomes £0** (data-hygiene edge case).
+- [x] **P1 — "New sale" button dead-ends for a team member with no clients yet.** *(built, pending prod deploy)* Hidden for a team member until the business has a client to attach a sale to (owners are unaffected — they route via the Clients screen).
+- [x] **P2 — One hub list path doesn't exclude demo files.** *(built, pending prod deploy)* Added the same no-demo filter every other query uses.
+- [x] **P3 — No per-file email silencing for a business.** *(built, pending prod deploy)* Added the "silenced files" picker to the business notifications page, business-scoped (owner/see-all → whole book, see-own → own files), reusing the existing pause/resume actions. A business can now mute the automated client emails on a specific sale.
+- [x] **P5 — A malformed tiered fee band silently becomes £0.** *(built, pending prod deploy)* A malformed tiered rate card is now treated as "fee not set" (shows "Set fee"), never a silent £0.
+- **P4 → moved to the deferred list (D2).**
 
 ## 🔧 Pre-launch ops — gate the flag flip (not code)
 

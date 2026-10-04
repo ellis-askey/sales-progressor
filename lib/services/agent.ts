@@ -76,7 +76,7 @@ function txWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // admin_all = TSP founder/admin: only TSP's own outsourced files, never an
   // external progression business's (those live only in the Command Centre).
   if (vis.internalMode === "admin_all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
-  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
+  if (vis.internalMode === "assigned")  return vis.businessId ? { progressionBusinessId: vis.businessId, isDemo: false } : { assignedUserId: vis.userId };
   // Agent paths unchanged.
   if (vis.seeAll) {
     if (vis.firmName) {
