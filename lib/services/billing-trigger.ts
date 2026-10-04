@@ -69,7 +69,20 @@ export async function maybeStampExchange(
   // to the business is billed when the sale is ADDED, in createTransaction — not
   // here. The business's own rate-card fee to the agency IS at exchange, computed
   // off exchangedAt in lib/progression/business-client-invoice.ts.)
-  if (!(await isTspBusiness(txn.progressionBusinessId))) return;
+  if (!(await isTspBusiness(txn.progressionBusinessId))) {
+    // Lock the sale price for the business's own rate-card invoice (audit F4): a
+    // tiered/percent fee must not move if purchasePrice is edited after exchange.
+    // Flat fees don't depend on price, but stamping unconditionally keeps the
+    // invoice snapshot honest for every fee type. priceAtExchange is NOT a billing
+    // trigger — agency accrual + the running total key on billedAtExchange, which is
+    // never set here — so this stays fully ring-fenced. Race/bilateral-safe via the
+    // NULL guard.
+    await db.propertyTransaction.updateMany({
+      where: { id: transactionId, priceAtExchange: null },
+      data: { priceAtExchange: txn.purchasePrice },
+    });
+    return;
+  }
 
   // 2a. Demo showcase files never bill (guarding the source here keeps every
   // downstream billing reader safe — a demo never gets billedAtExchange set).
