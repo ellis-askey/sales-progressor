@@ -156,17 +156,18 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
             <Link key={c.linkId} href={`/agent/clients/${c.agencyId}`} className="cw-row">
               <Logo c={c} />
               <div className="cw-main">
-                {/* Status moves up level with the name, right-aligned, as plain
-                    text (no faded pill) so the name gets the full width (#186). */}
-                <div className="cw-head">
-                  <div className="cw-name">{c.name}</div>
+                {/* Agency names run long, so they take the full top line; the
+                    status sits on the bottom row with the (shorter) agent name,
+                    right-aligned, which truncates far less often. */}
+                <div className="cw-name">{c.name}</div>
+                <div className="cw-metarow">
+                  <div className="cw-meta">
+                    {c.contact ?? "Agent"}
+                    {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
+                  </div>
                   {c.status === "active"
                     ? <span className="cw-status active"><span className="dot" />Active</span>
                     : <span className="cw-status invite"><Clock size={12} weight="bold" />Invite sent</span>}
-                </div>
-                <div className="cw-meta">
-                  {c.contact ?? "Agent"}
-                  {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
                 </div>
               </div>
               <div className="cw-mstats">
@@ -234,9 +235,9 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-logo { width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
         .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
         .cw-main { min-width: 0; flex: 1; }
-        .cw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-        .cw-meta { font-size: 12.5px; color: var(--agent-text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cw-name { font-size: 16px; font-weight: 760; letter-spacing: -0.01em; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cw-metarow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 1px; }
+        .cw-meta { font-size: 12.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
         .cw-mstats { display: flex; gap: 26px; flex-shrink: 0; }
         .cw-mstats .ms { text-align: right; }
         .cw-mstats .n { font-size: 16.5px; font-weight: 800; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
