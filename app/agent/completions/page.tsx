@@ -5,7 +5,7 @@ import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, getAgentCompletedFiles, getCompletionsMomentum, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import {
   CompletionsGroupList,
   type CompletionGroup,
@@ -56,6 +56,11 @@ export default async function AgentCompletionsPage() {
   const isProgressor = session.user.role === "sales_progressor";
   const isAdmin = hasAdminPowers(session);
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // Owner with a client already added -> empty-state CTA flips to "Add a sale" (#188).
+  const ownerHasClients = isBusinessOwner && session.user.progressionBusinessId
+    ? await businessHasClients(session.user.progressionBusinessId)
+    : false;
+  const ownerNeedsSale = isBusinessOwner && ownerHasClients;
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -231,9 +236,9 @@ export default async function AgentCompletionsPage() {
                     ? "Once your clients' sales exchange, they'll appear here and you'll be able to track them all the way to completion."
                     : "Once files are exchanged, they'll appear here and you'll be able to track them all the way to completion."}
                 </p>
-                <Link href={isBusinessOwner ? "/agent/clients" : "/agent/transactions/new"} className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
+                <Link href={!isBusinessOwner || ownerNeedsSale ? "/agent/transactions/new" : "/agent/clients"} className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
                   <Plus size={16} weight="bold" />
-                  {isBusinessOwner ? "Add your first client" : "Add your first sale"}
+                  {!isBusinessOwner ? "Add your first sale" : ownerNeedsSale ? "Add a sale" : "Add your first client"}
                 </Link>
               </div>
             </div>
@@ -249,7 +254,7 @@ export default async function AgentCompletionsPage() {
                     iconSrc="/setup-agency.png"
                     tint="coral"
                     title="Add your clients"
-                    desc="Add the estate agents you progress sales for. Each gets their own login and sees only their own sales."
+                    desc="Add the estate agents you work with. Each gets their own login and sees only their own sales."
                     cta="Add a client"
                     href="/agent/clients"
                   />

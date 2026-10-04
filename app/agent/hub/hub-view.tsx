@@ -33,7 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName, businessHasClients } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName, businessHasClients, getBusinessClientStage } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -410,9 +410,14 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
   // first-run state nudges "add your first client" rather than the passive
   // assigned-files copy below (which is right for a TSP internal progressor).
   if (isBusinessOwner) {
+    // Stage-aware copy: no clients -> add first client; clients added, no sales
+    // yet -> add their first sale (critique #188).
+    const stage = ctx.session.user.progressionBusinessId
+      ? await getBusinessClientStage(ctx.session.user.progressionBusinessId)
+      : { total: 0, pending: 0, sampleName: null };
     return (
       <div data-testid="hub-empty-state">
-        <ProgressionOwnerEmptyState />
+        <ProgressionOwnerEmptyState stage={stage} />
       </div>
     );
   }

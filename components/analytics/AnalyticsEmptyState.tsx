@@ -21,9 +21,13 @@ const SHOW_DEMO_ANALYTICS = false;
 
 // `audience` picks the copy + primary CTA (see AllFilesEmptyState). A progression
 // business measures across its clients' sales and starts by adding a client.
-export function AnalyticsEmptyState({ audience = "agency" }: { audience?: "agency" | "progressor" }) {
+export function AnalyticsEmptyState({ audience = "agency", hasClients = false }: { audience?: "agency" | "progressor"; hasClients?: boolean }) {
   const { launch, node } = useDemoExplore();
   const isProg = audience === "progressor";
+  // Client already added -> the next step is a sale, not a client (critique #188).
+  const progNeedsSale = isProg && hasClients;
+  const ctaHref = !isProg || progNeedsSale ? "/agent/transactions/new" : "/agent/clients";
+  const ctaLabel = !isProg ? "Add your first sale" : progNeedsSale ? "Add a sale" : "Add your first client";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -45,17 +49,19 @@ export function AnalyticsEmptyState({ audience = "agency" }: { audience?: "agenc
             {isProg ? "See what's really happening across your sales" : "See what's really happening in your agency"}
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 380 }}>
-            {isProg
-              ? "Add a client and start progressing their sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."
-              : "Add your sales and Sales Progressor starts turning every exchange, delay and fee into something you can measure."}
+            {!isProg
+              ? "Add your sales and Sales Progressor starts turning every exchange, delay and fee into something you can measure."
+              : progNeedsSale
+                ? "Start progressing your clients' sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."
+                : "Add a client and start progressing their sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."}
           </p>
           <Link
-            href={isProg ? "/agent/clients" : "/agent/transactions/new"}
+            href={ctaHref}
             className="agent-btn agent-btn-primary agent-btn-md"
             style={{ textDecoration: "none", width: "fit-content" }}
           >
             <Plus size={16} weight="bold" />
-            {isProg ? "Add your first client" : "Add your first sale"}
+            {ctaLabel}
           </Link>
         </div>
       </div>

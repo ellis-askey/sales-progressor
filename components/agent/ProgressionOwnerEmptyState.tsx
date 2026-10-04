@@ -8,12 +8,30 @@
 // primitives; the copy and the CTA target are what differ.
 
 import Link from "next/link";
-import { Handshake, ListChecks, UsersThree } from "@phosphor-icons/react";
+import { Handshake, ListChecks, UsersThree, Plus } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
+import type { BusinessClientStage } from "@/lib/services/progression-clients";
 
-export function ProgressionOwnerEmptyState() {
+export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientStage }) {
+  // Three onboarding stages (critique #188):
+  //  - no clients yet            -> add your first client
+  //  - client(s) added, no sales -> add their first sale (you can start before
+  //                                 their agent accepts the invite)
+  const hasClients = stage.total > 0;
+  const who = stage.sampleName ?? "your client";
+
+  const pillText = hasClients ? "Next step" : "New here?";
+  const heroTitle = hasClients ? "Now add their first sale" : "Your pipeline starts with your first client";
+  const heroSub = hasClients
+    ? stage.pending > 0
+      ? `You've added ${who}. You can start progressing their sales now; they don't need to accept their invite first. We'll track what's happening, what's outstanding and what needs your attention.`
+      : `Add a sale for ${who} and run it through to completion. We'll track what's happening, what's outstanding and what needs your attention.`
+    : "Add an estate agent you work with, then create their first sale. We'll start tracking what's happening, what's outstanding and what needs your attention.";
+  const ctaHref = hasClients ? "/agent/transactions/new" : "/agent/clients";
+  const ctaLabel = hasClients ? "Add a sale" : "Add your first client";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
@@ -28,22 +46,22 @@ export function ProgressionOwnerEmptyState() {
         <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
           <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-            New here?
+            {pillText}
           </Pill>
           <p style={{ margin: "0 0 10px", fontSize: 29, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
-            Your pipeline starts with your first client
+            {heroTitle}
           </p>
-          <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 440 }}>
-            Add an estate agent you progress sales for, then create their first sale. We&apos;ll start tracking what&apos;s happening, what&apos;s outstanding and what needs your attention.
+          <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 460 }}>
+            {heroSub}
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link
-              href="/agent/clients"
+              href={ctaHref}
               className="agent-btn agent-btn-primary agent-btn-md"
               style={{ textDecoration: "none" }}
             >
-              <Handshake size={16} weight="bold" />
-              Add your first client
+              {hasClients ? <Plus size={16} weight="bold" /> : <Handshake size={16} weight="bold" />}
+              {ctaLabel}
             </Link>
           </div>
         </div>
@@ -58,7 +76,7 @@ export function ProgressionOwnerEmptyState() {
             label="Hub empty · Your clients"
             tint="coral"
             icon={<Handshake size={20} weight="regular" />}
-            title="Add the agents you work for"
+            title="Add the agents you work with"
             desc="Each agent gets their own login and sees only their own sales. You see your whole book across every client."
           />
           <SetupCard

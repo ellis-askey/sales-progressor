@@ -252,6 +252,27 @@ export async function listClientsForBusiness(businessId: string): Promise<Progre
   });
 }
 
+// Lightweight onboarding-stage signal for the hub empty state (critique #188):
+// how many clients the business has, how many are still awaiting their agent's
+// sign-up (pending = director has no password yet), and one sample name for copy.
+// Cheap: one query, used only when a business owner has no sales yet.
+export type BusinessClientStage = { total: number; pending: number; sampleName: string | null };
+
+export async function getBusinessClientStage(businessId: string): Promise<BusinessClientStage> {
+  const links = await prisma.progressionBusinessClient.findMany({
+    where: { progressionBusinessId: businessId, removedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      agency: {
+        select: { name: true, users: { where: { role: "director" }, orderBy: { createdAt: "asc" }, take: 1, select: { password: true } } },
+      },
+    },
+  });
+  let pending = 0;
+  for (const l of links) if (!l.agency.users[0]?.password) pending++;
+  return { total: links.length, pending, sampleName: links[0]?.agency.name ?? null };
+}
+
 // ─── Clients workspace: the richer overview powering /agent/clients ───────────
 
 export type ClientOverviewRow = {

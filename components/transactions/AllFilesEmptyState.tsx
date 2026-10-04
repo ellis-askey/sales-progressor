@@ -16,9 +16,14 @@ import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 // `audience` picks the copy + primary CTA. A progression-business owner starts
 // with a CLIENT (their sales hang off clients they add), so their hero points
 // at /agent/clients; an agency starts with a sale. Everything else is shared.
-export function AllFilesEmptyState({ audience = "agency" }: { audience?: "agency" | "progressor" }) {
+export function AllFilesEmptyState({ audience = "agency", hasClients = false }: { audience?: "agency" | "progressor"; hasClients?: boolean }) {
   const { launch, node } = useDemoExplore();
   const isProg = audience === "progressor";
+  // A progressor who's already added a client now needs a SALE, not a client
+  // (critique #188), so the hero flips to "Add a sale".
+  const progNeedsSale = isProg && hasClients;
+  const ctaHref = !isProg || progNeedsSale ? "/agent/transactions/new" : "/agent/clients";
+  const ctaLabel = !isProg ? "Add your first sale" : progNeedsSale ? "Add a sale" : "Add your first client";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -40,17 +45,19 @@ export function AllFilesEmptyState({ audience = "agency" }: { audience?: "agency
             Your pipeline starts here
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-            {isProg
-              ? "Add a client and create their first sale, and we'll keep everything around it together, from offer agreed through to completion."
-              : "Add your first sale and we'll keep everything around it together, from offer agreed through to completion."}
+            {!isProg
+              ? "Add your first sale and we'll keep everything around it together, from offer agreed through to completion."
+              : progNeedsSale
+                ? "Create a sale for one of your clients and we'll keep everything around it together, from offer agreed through to completion."
+                : "Add a client and create their first sale, and we'll keep everything around it together, from offer agreed through to completion."}
           </p>
           <Link
-            href={isProg ? "/agent/clients" : "/agent/transactions/new"}
+            href={ctaHref}
             className="agent-btn agent-btn-primary agent-btn-md"
             style={{ textDecoration: "none", width: "fit-content" }}
           >
             <Plus size={16} weight="bold" />
-            {isProg ? "Add your first client" : "Add your first sale"}
+            {ctaLabel}
           </Link>
         </div>
       </div>

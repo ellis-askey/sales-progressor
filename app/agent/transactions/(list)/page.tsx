@@ -110,6 +110,10 @@ export default async function AllTransactionsPage({
   // A progression-business owner's files come from clients they add, not from
   // being assigned work, so their empty state points at Clients (not "assigned").
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
+  // Owner with a client already added -> empty-state CTA flips to "Add a sale" (#188).
+  const ownerHasClients = isBusinessOwner && session.user.progressionBusinessId
+    ? await businessHasClients(session.user.progressionBusinessId)
+    : false;
   // An external progression business member (owner or team) sees their whole
   // business book across client agencies — NOT files "assigned to them". This
   // flag reframes the title/subtitle/column for them. It is strictly non-TSP: a
@@ -314,7 +318,7 @@ export default async function AllTransactionsPage({
           !isInternalStaff || isBusinessOwner ? (
             // Agency users AND progression-business owners get the onboarding
             // hero; the owner variant points its CTA at Clients.
-            <AllFilesEmptyState audience={isBusinessOwner ? "progressor" : "agency"} />
+            <AllFilesEmptyState audience={isBusinessOwner ? "progressor" : "agency"} hasClients={ownerHasClients} />
           ) : (
           <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
             <HouseLine

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
-import { isBusinessOwnerViewer } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, getReferralStats, getBrokerReferralStats } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
@@ -60,6 +60,11 @@ export default async function AgentAnalyticsPage({
   const isDirector = session.user.role === "director";
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isBusinessOwner = session.user.role === "sales_progressor" ? await isBusinessOwnerViewer(session) : false;
+  // Whether the owner has added a client yet, so the empty-state CTA flips from
+  // "Add your first client" to "Add a sale" once they have one (critique #188).
+  const ownerHasClients = isBusinessOwner && session.user.progressionBusinessId
+    ? await businessHasClients(session.user.progressionBusinessId)
+    : false;
 
   const period = (["week", "month", "year", "all"] as string[]).includes(rawPeriod ?? "")
     ? rawPeriod!
@@ -105,7 +110,7 @@ export default async function AgentAnalyticsPage({
         <>
           <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
           <div className="px-4 py-5 sm:px-8">
-            <AnalyticsEmptyState audience={isBusinessOwner ? "progressor" : "agency"} />
+            <AnalyticsEmptyState audience={isBusinessOwner ? "progressor" : "agency"} hasClients={ownerHasClients} />
           </div>
         </>
       );
