@@ -298,13 +298,13 @@ function drawTotals(page: PDFPage, fonts: Fonts, input: PdfInvoiceInput, yTop: n
     y += 10 + 8;
   };
 
-  // When VAT is active (a VAT-registered progression business invoicing its client,
-  // audit C2b) the block reads Subtotal + VAT + Total so the maths is visible. When
-  // VAT is off, the behaviour is unchanged: TSP's own invoices are not VAT-split, so
-  // the block collapses to just the grand Total, with a Subtotal/Credits pair only
-  // when credits apply. For the credits-only case Subtotal is "gross line fees before
-  // credits" (totalPence + creditsAppliedPence), not the dormant input.subtotalPence.
-  if (input.vatActive && input.vatPence > 0) {
+  // VAT breakdown renders ONLY for an issuer that is itself VAT-registered — i.e. a
+  // progression business invoicing its client, which supplies issuerVatNumber (audit
+  // C2b). TSP's own agency invoices never pass issuerVatNumber: TSP is not
+  // VAT-registered, so their VAT fields (set from an agency's own VAT status) must
+  // stay dormant exactly as before, or we'd print a VAT line + no VAT number on a
+  // TSP-issued document. Gating on issuerVatNumber keeps the agency path byte-identical.
+  if (input.vatActive && input.vatPence > 0 && input.issuerVatNumber) {
     drawTotalRow("Subtotal", fmtPence(input.subtotalPence));
     drawTotalRow("VAT", fmtPence(input.vatPence));
     if (input.creditsAppliedPence > 0) {
