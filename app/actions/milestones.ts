@@ -4,8 +4,13 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 function revalidateTx(id: string) {
-  revalidatePath(`/transactions/${id}`, "page");
-  revalidatePath(`/agent/transactions/${id}`, "page");
+  // "layout" (not "page") so EVERY tab under the file refreshes, not just the parent.
+  // Confirming a step can unlock a counterpart step on another tab (e.g. seller
+  // "management pack received" unlocks the buyer's step); with "page" that tab served
+  // stale until its cache expired, so the newly-unlocked confirm button took a long
+  // time to appear (critique: management pack slow to unlock).
+  revalidatePath(`/transactions/${id}`, "layout");
+  revalidatePath(`/agent/transactions/${id}`, "layout");
 }
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
