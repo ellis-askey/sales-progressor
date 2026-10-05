@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink, addChainBranch, addAboveLink, insertLinkAdjacent, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
 import { isInternalStaff } from "@/lib/chain/permissions";
+import { externalMemberChainAccess } from "@/lib/chain/external-scope";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
@@ -45,8 +46,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (!chain) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Must be able to work this chain (internal, or the viewer's agency owns/created
-  // a link in it). Agency-aware so a director can add to a colleague's chain.
-  if (!(await canManageChain(session, chainId))) {
+  // a link in it). Agency-aware so a director can add to a colleague's chain. An
+  // external business member is NOT internal staff here — they can only work a chain
+  // one of their own sales is in (B1).
+  const ext = await externalMemberChainAccess(session, chainId);
+  const canManage = ext ? ext.participates : await canManageChain(session, chainId);
+  if (!canManage) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

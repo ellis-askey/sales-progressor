@@ -9,6 +9,7 @@ import {
   deleteChainLink,
 } from "@/lib/services/chains";
 import { canViewChain, isInternalStaff } from "@/lib/chain/permissions";
+import { externalMemberChainAccess } from "@/lib/chain/external-scope";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -26,7 +27,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     createdByUserId: l.createdByUserId,
     txAgencyId: l.transaction?.agencyId ?? null,
   }));
-  if (!canViewChain(allLinks, session.user.id, session.user.role, session.user.agencyId ?? null)) {
+  // An external business member is scoped to chains their own sales are in (B1);
+  // everyone else uses the role/agency participant check.
+  const ext = await externalMemberChainAccess(session, id);
+  const canView = ext
+    ? ext.participates
+    : canViewChain(allLinks, session.user.id, session.user.role, session.user.agencyId ?? null);
+  if (!canView) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,11 +50,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     where: { id },
     select: { agencyId: true },
   });
+  if (!chain) return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Internal staff (agencyId null) manage any chain; a customer agency user is
   // scoped to their own agency's chain. The old `chain.agencyId !==
   // session.user.agencyId` check wrongly locked out internal staff (null !== a
-  // set agencyId), the exact ad-hoc pattern Law 7 bans.
-  if (!chain || (!isInternalStaff(session.user.role) && chain.agencyId !== session.user.agencyId)) {
+  // set agencyId), the exact ad-hoc pattern Law 7 bans. An external business member
+  // is NOT internal staff here — they're scoped to chains their own sales are in (B1).
+  const ext = await externalMemberChainAccess(session, id);
+  const canEdit = ext ? ext.participates : (isInternalStaff(session.user.role) || chain.agencyId === session.user.agencyId);
+  if (!canEdit) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -97,7 +108,14 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const isCreator = chain.createdByUserId === session.user.id;
   const isOwningDirector =
     session.user.role === "director" && !!chain.agencyId && chain.agencyId === session.user.agencyId;
-  if (!isCreator && !isInternalStaff(session.user.role) && !isOwningDirector) {
+  // An external business member may delete only a chain they created AND one of their
+  // own sales is in — never via the internal-staff shortcut (B1). A multi-tenant
+  // chain is destructive to delete, so this is deliberately the tightest gate.
+  const ext = await externalMemberChainAccess(session, id);
+  const canDelete = ext
+    ? (ext.isCreator && ext.participates)
+    : (isCreator || isInternalStaff(session.user.role) || isOwningDirector);
+  if (!canDelete) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
