@@ -11,6 +11,8 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
+import { nextCronRun, CLIENT_CRON } from "@/lib/services/reminder-autopilot";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
@@ -73,6 +75,7 @@ async function buildAutoChasePreview(
   const log = await prisma.reminderLog.findFirst({
     where: scopeReminderLogWhere(scope, logId),
     select: {
+      nextDueDate: true,
       reminderRule: { select: { targetMilestoneCode: true, anchorMilestone: { select: { name: true } } } },
       transaction: {
         select: {
@@ -148,6 +151,42 @@ async function buildAutoChasePreview(
   const contact = tx.contacts.find((c) => c.roleType === clientRole && c.portalToken);
   if (!contact || !contact.portalToken) return { ok: false, error: "No client with portal access to preview." };
 
+  // Digest grouping (critique 2026-10-05): the real send combines every client
+  // chase due to the SAME contact at the SAME cron run into one email, so a
+  // single-milestone preview misrepresents what actually lands. Gather the
+  // sibling client chases for this transaction + side whose next send falls on
+  // the same run as this one, and preview the combined digest. If nothing else
+  // is due in that run (e.g. the others got completed), this collapses back to
+  // the one step — which is exactly the adaptive behaviour we want.
+  const thisSend = nextCronRun(new Date(log.nextDueDate), CLIENT_CRON);
+  const siblings = await prisma.reminderLog.findMany({
+    where: {
+      transactionId: tx.id,
+      status: "active",
+      id: { not: logId },
+      // Drop rows the digest won't send: an escalated or handed-back chase has
+      // left autopilot. A merely manually-chased row is kept — the cron still
+      // sends it, so it really would be in the same digest.
+      chaseTasks: { none: { status: "pending", OR: [{ priority: "escalated" }, { fallbackKind: { not: null } }] } },
+    },
+    select: { nextDueDate: true, reminderRule: { select: { targetMilestoneCode: true } } },
+  });
+
+  // Collect this step plus the same-run siblings on this side, earliest-due
+  // first, deduped by code.
+  const dueByCode = new Map<string, Date>();
+  dueByCode.set(code, new Date(log.nextDueDate));
+  for (const s of siblings) {
+    const sc = s.reminderRule.targetMilestoneCode;
+    if (!sc || sideForCode(sc) !== side || !isClientChaseable(sc)) continue;
+    if (nextCronRun(new Date(s.nextDueDate), CLIENT_CRON) !== thisSend) continue;
+    const existing = dueByCode.get(sc);
+    if (!existing || s.nextDueDate < existing) dueByCode.set(sc, new Date(s.nextDueDate));
+  }
+  const orderedCodes = [...dueByCode.entries()]
+    .sort((a, b) => a[1].getTime() - b[1].getTime())
+    .map(([c]) => c);
+
   // The agency's own client-chase copy from settings (subject/intro/outro) — an
   // empty result falls back to our rotating default inside assembleDigestPayload,
   // so this is exactly what the send would use.
@@ -155,7 +194,7 @@ async function buildAutoChasePreview(
   const { subject, html } = assembleDigestPayload({
     transaction: { id: tx.id, propertyAddress: tx.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
-    milestones: [{ code }],
+    milestones: orderedCodes.map((c) => ({ code: c })),
     agencyName: brand,
     recipientSide: side,
     agencyCopy,

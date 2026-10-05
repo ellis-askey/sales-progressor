@@ -69,10 +69,12 @@ interface LogShape {
   };
 }
 
-const CLIENT_CRON = { hour: 9, minute: 30, days: [1, 2, 3, 4, 5, 6] }; // Mon–Sat
+export const CLIENT_CRON = { hour: 9, minute: 30, days: [1, 2, 3, 4, 5, 6] }; // Mon–Sat
 const SOLICITOR_CRON = { hour: 9, minute: 0, days: [1, 2, 3, 4, 5] }; // Mon–Fri
 
-function nextCronRun(dueDate: Date, cron: { hour: number; minute: number; days: number[] }): string {
+// Exported so the auto-chase preview can group sibling chases by the same send
+// run the way the real digest does (critique 2026-10-05).
+export function nextCronRun(dueDate: Date, cron: { hour: number; minute: number; days: number[] }): string {
   const now = new Date();
   const base = dueDate > now ? dueDate : now; // due items chase at the next run from now
   const d = new Date(base);
