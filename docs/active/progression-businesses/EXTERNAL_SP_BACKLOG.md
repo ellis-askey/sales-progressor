@@ -496,6 +496,14 @@ existing UI but **repointing the data layer from `agencyId` to `progressionBusin
   main menu routes to that empty settings tab. **TODO (founder, later): design what a
   progression business↔TSP billing view should contain.** Deliberate placeholder, not
   a dead control — real empty state with real copy (Law 13 compliant).
+  - **Founder note (2026-10-04, from critique) — the open billing questions to answer
+    when we build this:** (1) *When* do we ask a progression business for card
+    details, and what's shown on that screen? (2) The cross-party payment path: a
+    progression business adds a client agency → that client agency adds a sale → the
+    agency wants to send the sale to the progressor. How is payment taken / who pays
+    whom in that chain, and how do we guarantee it's collected? This is the "doing
+    last" billing work — park here, pick up when the business↔TSP billing model is
+    designed (ties to Capstone audit #3, "commercial model is unbuilt").
 
 **P2-4 / P2-5 / P2-6 — Email sender identity + verification (the core).** Confirmed
 two-tier model with fallback:
@@ -548,3 +556,20 @@ reminder).
 `20261003140000_verified_domain_business_owner`) are applied to STAGING only; prod
 applies them on deploy via `migrate deploy`. Verify Vercel green after the next deploy.
 No new env vars / integrations (reuses the existing SendGrid account).
+
+---
+
+## Footnotes (open musings — not yet decisions)
+
+[^brand] **White-label the whole product, not just emails? (founder musing,
+2026-10-04, from critique).** Today we show "Sales Progressor" top-left to
+progressors. Question to resolve when we do the branding/entrance work: do we want
+that TSP mark showing for *everybody*, or do we go fully white-label — every
+customer (agents AND progression businesses) gets *their own* logo on the software,
+so each feels like they're using their own bespoke system even though it's all the
+same interwoven platform? If we do that, how (and whether) does anyone know it's
+TSP underneath — and does that even matter once they're paying? Open question: does
+this "everyone sees their own brand" direction clash with anything else (e.g. the
+P1-g decision to KEEP the "Sales Progressor" browser-tab title, the "Managed by
+{business}" hero badge, or the two-tier email sender identity)? Decide before any
+white-label build. Don't lose this when we pick up the branding/entrance pass.
