@@ -1112,6 +1112,10 @@ export type CompleteMilestoneInput = {
   // set it — Prisma then leaves the column untouched. See the booking
   // reminders plan (docs/active/booking-reminders/00-plan.md).
   keyCollectionRequired?: boolean | null;
+  // Contract signed in person with the solicitor (VM16/PM22 confirm with the tick,
+  // critique #3). Persisted on the step and carried to the auto-completed "returned"
+  // step; drives the in-person client emails. Omit/null for the normal flow.
+  signedInPerson?: boolean | null;
   // Set true only when a BUYER logs a PM6/PM9 booking on their portal: the
   // step shows complete to them, but the booking is provisional and every
   // outbound email is held until our side confirms it (releaseProvisionalBooking
@@ -1315,6 +1319,7 @@ export async function completeMilestone(
         eventDate: input.eventDate ?? null,
         // undefined = leave untouched (non-booking steps never pass it).
         keyCollectionRequired: input.keyCollectionRequired ?? undefined,
+        signedInPerson: input.signedInPerson ?? undefined,
         awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? undefined,
         completedById,
         confirmedByPortal,
@@ -1348,6 +1353,7 @@ export async function completeMilestone(
           completedAt: input.completedAt ?? new Date(),
           eventDate: input.eventDate ?? null,
           keyCollectionRequired: input.keyCollectionRequired ?? undefined,
+          signedInPerson: input.signedInPerson ?? undefined,
           awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? undefined,
           completedById,
           confirmedByPortal,
@@ -1583,6 +1589,39 @@ export async function completeMilestone(
       }
     } catch (err) {
       console.error(`[completeMilestone] ${def.code}→${dcpCounterpart} contract-pack reflection failed:`, err);
+    }
+  }
+
+  // Signed-in-person (critique #3): confirming the "contract issued" step (VM16/PM22)
+  // with the signed-with-solicitor tick auto-completes the SAME side's "returned" step
+  // (VM17/PM23), carrying the flag so its client emails use the in-person variant. The
+  // mirrored step is email-silent at this layer (emails are driven by the action's
+  // after() block); its prereq (the step being confirmed now) is satisfied, so
+  // bypassPrereqs is defence-in-depth.
+  const sipNext = input.signedInPerson ? (def.code === "VM16" ? "VM17" : def.code === "PM22" ? "PM23" : null) : null;
+  if (sipNext) {
+    try {
+      const next = await db.milestoneDefinition.findFirst({
+        where: { code: sipNext },
+        select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
+      });
+      if (next) {
+        await completeMilestone(
+          {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: next.id,
+            confirmer: { kind: "auto" },
+            eventDate: input.eventDate,
+            completedAt: input.completedAt,
+            signedInPerson: true,
+            bypassPrereqs: true,
+          },
+          tx,
+          { def: next, activeBuyerRoundId },
+        );
+      }
+    } catch (err) {
+      console.error(`[completeMilestone] ${def.code}→${sipNext} signed-in-person reflection failed:`, err);
     }
   }
 

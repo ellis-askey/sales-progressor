@@ -15,7 +15,7 @@ import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-them
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
-import { getMilestoneCopy, buildGreeting, PM6_DESKTOP_PURCHASER, PM6_DESKTOP_VENDOR, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, buildGreeting, PM6_DESKTOP_PURCHASER, PM6_DESKTOP_VENDOR, CONTRACT_SIGNED_IN_PERSON, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import {
   getOverridesForCode,
   applyOverridesToEmailCopy,
@@ -1870,6 +1870,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   confirmerId?: string,
   confirmerRoute?: ConfirmerRoute,
   handoffDirection?: HandoffDirection,
+  signedInPerson?: boolean,
 ): Promise<void> {
   // 2026-05-29: delegation to sendExchangeCompletionPack removed. The
   // FINAL VM19/PM26 skeletons were dead code under the old delegation.
@@ -1904,7 +1905,15 @@ export async function sendAdminMilestoneNotificationToPortal(
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
   if (milestoneCopy.emailCopy) {
-    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate, confirmerRoute, handoffDirection);
+    // Signed-in-person variant (critique #3): on the returned step (VM17/PM23), swap
+    // the client (vendor/purchaser) copy for the "signed and held on file" bodies;
+    // the agent/progressor copies are left as-is. Normal flow untouched.
+    let effectiveCopy = milestoneCopy.emailCopy;
+    if (signedInPerson && (milestoneCode === "VM17" || milestoneCode === "PM23")) {
+      const v = CONTRACT_SIGNED_IN_PERSON[milestoneCode];
+      effectiveCopy = { ...milestoneCopy.emailCopy, vendor: v.vendor, purchaser: v.purchaser };
+    }
+    await sendRichMilestoneEmails(transactionId, milestoneCode, effectiveCopy, confirmerId, eventDate, confirmerRoute, handoffDirection);
     return;
   }
 

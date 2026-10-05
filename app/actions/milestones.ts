@@ -80,6 +80,10 @@ export async function confirmMilestoneAction(input: {
   // PM6: the valuer / lender's surveyor firm, captured inline the same way.
   // Saved to bookedValuerName. Ignored for other steps.
   valuerName?: string | null;
+  // VM16/PM22 only (critique #3): the contract was signed in person with the solicitor.
+  // Auto-completes the "returned" step and sends the in-person client emails instead of
+  // the normal "ready to sign" + "signed and returned" ones.
+  signedInPerson?: boolean | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -155,6 +159,7 @@ export async function confirmMilestoneAction(input: {
       confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
       keyCollectionRequired: input.keyCollectionRequired,
+      signedInPerson: input.signedInPerson,
     }, ptx, { def: def ?? undefined, activeBuyerRoundId });
 
     // PM9 no-quote route: persist the inline surveyor firm so the completed
@@ -370,28 +375,44 @@ export async function confirmMilestoneAction(input: {
       // side effects of a confirm (chain notifications, celebrations, SP
       // bell, reminder engine knock-on) still fire.
       if (!tx.suppressPortalConfirmEmails) {
-        await sendAdminMilestoneNotificationToPortal(
-          input.transactionId,
-          code,
-          input.eventDate ?? null,
-          session.user.id,
-          confirmerRoute_self,
-          handoffDirection_self,
-        ).catch(() => {});
+        // Signed-in-person (critique #3): on a VM16/PM22 confirm with the tick, suppress
+        // the "ready to sign" email and send the "signed and held on file" variant on the
+        // auto-completed returned step (VM17/PM23) instead of the normal flow.
+        const sip = !!input.signedInPerson && (code === "VM16" || code === "PM22");
+        if (sip) {
+          await sendAdminMilestoneNotificationToPortal(
+            input.transactionId,
+            code === "VM16" ? "VM17" : "PM23",
+            input.eventDate ?? null,
+            session.user.id,
+            confirmerRoute_self,
+            handoffDirection_self,
+            true,
+          ).catch(() => {});
+        } else {
+          await sendAdminMilestoneNotificationToPortal(
+            input.transactionId,
+            code,
+            input.eventDate ?? null,
+            session.user.id,
+            confirmerRoute_self,
+            handoffDirection_self,
+          ).catch(() => {});
 
-        // Auto-counterpart fan-out for the four exchange/completion codes
-        // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
-        // completed inside the prisma.$transaction above; this fires its
-        // customer-facing email so the non-confirming side is notified.
-        // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
-        // to keep queue-bypass + staleness + suppression rules in one place.
-        // Non-counterpart codes are a no-op inside the helper.
-        await fireAutoCounterpartEmails(
-          input.transactionId,
-          code,
-          session.user.id,
-          confirmerRoute_self,
-        ).catch(() => {});
+          // Auto-counterpart fan-out for the four exchange/completion codes
+          // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
+          // completed inside the prisma.$transaction above; this fires its
+          // customer-facing email so the non-confirming side is notified.
+          // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
+          // to keep queue-bypass + staleness + suppression rules in one place.
+          // Non-counterpart codes are a no-op inside the helper.
+          await fireAutoCounterpartEmails(
+            input.transactionId,
+            code,
+            session.user.id,
+            confirmerRoute_self,
+          ).catch(() => {});
+        }
 
         // Completion-pack scheduling for exchange confirmations only.
         // Fires now (E2/E3), schedules for completionDate - 3 days (E1),

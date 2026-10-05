@@ -173,6 +173,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // from the branch? Ticked = keys from us; left unticked = straight to the
   // property. Drives the keys line and whether the diary email sends.
   const [keyCollection, setKeyCollection] = useState(false);
+  // Contract issued steps (VM16 seller / PM22 buyer) only: was the contract
+  // signed in person with the solicitor and held on file? Ticked = auto-complete
+  // the matching returned step (VM17/PM23) and send the "held on file" email
+  // variant instead of the normal "ready to sign" flow. (critique #3)
+  const [signedInPerson, setSignedInPerson] = useState(false);
   // PM9 no-quote route: capture the surveyor firm inline (no modal). Saved to
   // transaction.bookedSurveyorName, which the completed panel then shows.
   const [surveyorName, setSurveyorName] = useState("");
@@ -300,6 +305,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setDesktopValuation(false);
     setSurveyorName("");
     setError(null);
+    const sipAtClick = signedInPerson;
+    setSignedInPerson(false);
 
     if (RECONCILIATION_CODES.has(def.code)) {
       setLoading(true);
@@ -330,6 +337,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           keyCollectionRequired: (isPM6 || isPM9) ? keyCollection : undefined,
           surveyorName: isPM9 && surveyorName.trim() ? surveyorName.trim() : undefined,
           valuerName: isPM6 && surveyorName.trim() ? surveyorName.trim() : undefined,
+          signedInPerson: (isVM16 || isPM22) ? sipAtClick : undefined,
         });
         // Prereq gate (2026-06-05): the action returns a structured failure
         // when the user clicks Confirm before a prereq has been committed
@@ -542,6 +550,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   }
 
   const isPM6 = def.code === "PM6";
+  const isVM16 = def.code === "VM16";
+  const isPM22 = def.code === "PM22";
   const isBlocked = !isDone && !effectivelyAvailable;
   const isCashFile = purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds";
   const canBeNR = NR_ALLOWED_BASE.has(def.code) || (isCashFile && NR_ALLOWED_CASH.has(def.code));
@@ -827,6 +837,24 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     className="rounded"
                   />
                   {isPM6 ? "Valuer collecting keys from the branch" : "Surveyor collecting keys from the branch"}
+                </label>
+              )}
+              {/* Signed in person (critique #3). Ticking this records that the
+                  contract was signed with the solicitor in branch and is held
+                  on file, so the returned step (VM17/PM23) auto-completes and
+                  both sides get the "held on file" email instead of "ready to sign". */}
+              {(isVM16 || isPM22) && (
+                <label
+                  className="flex items-center gap-2 text-xs text-slate-900/50 cursor-pointer select-none"
+                  title="Tick if the contract was signed in person with the solicitor and is now held on file. This also marks the signed-and-returned step as done."
+                >
+                  <input
+                    type="checkbox"
+                    checked={signedInPerson}
+                    onChange={(e) => setSignedInPerson(e.target.checked)}
+                    className="rounded"
+                  />
+                  Signed in person with the solicitor, held on file
                 </label>
               )}
             </div>

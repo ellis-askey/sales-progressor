@@ -1759,6 +1759,51 @@ export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }
 
+// "Signed in person with the solicitor" variant copy (critique #3). When VM16/PM22 is
+// confirmed with the signed-in-person tick, the "returned" step (VM17/PM23) emails to
+// the clients use these instead of the normal "signed and returned" copy, and the
+// "ready to sign" (VM16/PM22) emails are suppressed. Keyed by the returned-step code.
+export const CONTRACT_SIGNED_IN_PERSON: Record<"VM17" | "PM23", { vendor: RecipientEmailCopy; purchaser: RecipientEmailCopy }> = {
+  // Seller signed → VM17 (returned). Seller = A, Buyer = B.
+  VM17: {
+    vendor: {
+      subject: "Contract signed and held on file: {address}",
+      heroLabel: "Contract signed",
+      opening: "Your contract is signed and safely on file.",
+      whatHappened: "You've signed your contract documents with your solicitor. They'll now hold these on file, so there's nothing further for you to sign or return at this stage.",
+      whatNext: "Your solicitor will continue working towards exchange and, once everything is ready across the transaction, they can coordinate exchange and confirm the completion date. We'll keep you updated as things progress.",
+      action: "View your portal",
+    },
+    purchaser: {
+      subject: "The seller has signed their contract: {address}",
+      heroLabel: "Seller contract signed",
+      opening: "Another step forward with your purchase.",
+      whatHappened: "The seller has now signed their contract documents with their solicitor, who will hold them on file ahead of exchange.",
+      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place on both sides, they'll be able to coordinate exchange and agree the completion date. We'll keep you updated as things progress.",
+      action: "View your portal",
+    },
+  },
+  // Buyer signed → PM23 (returned). Buyer = C, Seller = D.
+  PM23: {
+    purchaser: {
+      subject: "Contract signed and held on file: {address}",
+      heroLabel: "Contract signed",
+      opening: "Your contract is signed and safely on file.",
+      whatHappened: "You've signed your contract documents with your solicitor. They'll now hold these on file, so there's nothing further for you to sign or return at this stage.",
+      whatNext: "If you haven't already, make sure you follow your solicitor's instructions for transferring your deposit. They'll need the required cleared funds in place before exchange can take place. We'll keep you updated as everything comes together.",
+      action: "View your portal",
+    },
+    vendor: {
+      subject: "The buyer has signed their contract: {address}",
+      heroLabel: "Buyer contract signed",
+      opening: "Another step forward with your sale.",
+      whatHappened: "The buyer has now signed their contract documents with their solicitor, who will hold them on file ahead of exchange.",
+      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place and both sides are ready, they'll be able to coordinate exchange and agree the completion date. We'll keep you updated as things progress.",
+      action: "View your portal",
+    },
+  },
+};
+
 // A lender DESKTOP valuation (no visit) — the buyer's opening + body differ from
 // the physical version (whole sentences, not a clause), so the render swaps these
 // two fields in when the confirmer picks "Desktop valuation". whatNext is shared
