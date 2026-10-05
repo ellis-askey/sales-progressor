@@ -168,7 +168,7 @@ export default async function AllTransactionsPage({
   const [photoMap, stageMap, quietFiles, workQueue] = await Promise.all([
     getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath)),
     getPipelineStageMap(clientTransactions.filter((t) => t.status === "active").map((t) => t.id)),
-    inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis).catch(() => []),
+    inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis, [], { isExternalProgressor }).catch(() => []),
     inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
   ]);
   const rowsWithPhotos = clientTransactions.map((t) => ({

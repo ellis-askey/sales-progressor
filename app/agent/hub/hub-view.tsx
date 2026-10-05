@@ -836,8 +836,14 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
   ]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
   // Gone quiet shows for self-managed agencies and internal staff alike
-  // (getGoneQuietFiles scopes by agency vs assigned inside).
-  const goneQuiet = await getGoneQuietFiles(vis, [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds]);
+  // (getGoneQuietFiles scopes by agency vs assigned inside). Which signals it
+  // returns depends on the audience (critique 2026-10-05) — isExternalProgressor
+  // tells it an external, paying progression business from TSP's own team.
+  const goneQuiet = await getGoneQuietFiles(
+    vis,
+    [...attentionTxIds, ...bookingTxIds, ...mortgageTxIds],
+    { isExternalProgressor: ctx.isExternalProgressor },
+  );
   // Enquiry loops silent past the escalation threshold — the safety net that shows
   // even when auto-chasing is off for the agency (getStalledEnquiries computes it).
   const stalledEnquiries = await getStalledEnquiries(vis);
@@ -903,8 +909,14 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             cardKind="gone_quiet"
             iconName="clock"
             headerTone="muted"
-            title="Gone quiet"
-            subtitle="Quiet for a while and may need a personal nudge."
+            // Floating agents (self-managed) only ever see the "a client who
+            // was engaged went quiet" signal, framed as an action not a verdict.
+            // Internal team + external progression businesses keep the work-queue
+            // framing (critique 2026-10-05).
+            title={vis.internalMode ? "Gone quiet" : "Worth a nudge"}
+            subtitle={vis.internalMode
+              ? "Quiet for a while and may need a personal nudge."
+              : "A client who was previously engaged has gone quiet. A quick personal check-in can help re-engage them."}
             rows={buildGoneQuietRows(goneQuiet, photoMap)}
             defaultCollapsed={startCollapsed}
           />

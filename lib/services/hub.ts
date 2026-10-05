@@ -706,9 +706,31 @@ const GONE_QUIET_PILL: Record<string, string> = {
 // surfacing of the nightly problem-detection flags, which otherwise only reach
 // the weekly email. Deliberately separate from the attention card: an overdue
 // step is a different thing from a whole file going quiet.
-export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<GoneQuietItem[]> {
+export async function getGoneQuietFiles(
+  vis: AgentVisibility,
+  excludeTxIds: string[] = [],
+  opts: { isExternalProgressor?: boolean } = {},
+): Promise<GoneQuietItem[]> {
   const txNested = buildTxNested(vis);
   const now = new Date();
+  // Which signals surface, per audience (critique 2026-10-05):
+  //  - Floating agents (self-managed, internalMode undefined): ONLY "gone quiet"
+  //    (a client who was engaging, then went quiet). "Never engaged" is hidden
+  //    (not their fault, reads as "the portal isn't working") and "No contact"
+  //    is hidden (noisy — agencies talk to clients off-platform, so nothing's
+  //    logged and it would flag files they're actively working).
+  //  - External progression businesses (paying customers too): "gone quiet" +
+  //    "No contact" (they DO log their comms). "Never engaged" hidden for the
+  //    same morale reason as agencies.
+  //  - TSP's own internal team: all three — it's their work queue, not a
+  //    product they pay for.
+  const isAgency = !vis.internalMode;
+  const isExternalBusiness = !!vis.internalMode && opts.isExternalProgressor === true;
+  const kinds = GONE_QUIET_KINDS.filter((k) => {
+    if (k === "long_silence") return !isAgency;                             // internal only (TSP + external)
+    if (k === "no_portal_activity") return !isAgency && !isExternalBusiness; // TSP internal only
+    return true;                                                            // portal_gone_quiet: everyone
+  });
   // Exchange = the finish line for "gone quiet" (see below). "Exchanged" is the
   // exchange milestone (VM19/PM26) complete on the ACTIVE round — the same
   // definition the pipeline uses (getHubPipelineStages), round-scoped so an
@@ -717,7 +739,7 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
   const flags = await prisma.transactionFlag.findMany({
     where: {
       resolvedAt: null,
-      kind: { in: [...GONE_QUIET_KINDS] },
+      kind: { in: [...kinds] },
       transaction: {
         status: "active",
         // Once a file has exchanged, client portal silence is expected (nothing
@@ -874,7 +896,7 @@ export async function getGoneQuietFiles(vis: AgentVisibility, excludeTxIds: stri
       // then a generic label.
       const q = quietClient(tx.contacts);
       const named = q?.name ?? who;
-      subtext = `${named ?? "A client"} was checking the portal regularly, then stopped.`;
+      subtext = `${named ?? "A client"} was keeping up with the portal, then went quiet.`;
       // The last day they opened the portal — from the quiet contact, else the
       // sole buyer's own visit record.
       const lastDay = q?.lastDay ?? (buyers.length === 1 ? visitByContact.get(buyers[0].id)?.lastDay ?? null : null);
