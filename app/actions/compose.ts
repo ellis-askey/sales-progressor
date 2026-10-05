@@ -26,12 +26,17 @@ export type SendResult = { ok: true } | { ok: false; error: string };
 export async function searchComposeSales(query: string): Promise<ComposeSaleResult[]> {
   const session = await requireSession();
   const scope = getAccessScope(session);
-  const q = query.trim();
+  // Match each word of the query independently (AND), so "ake" finds "Akeman"
+  // and "36 n" finds "36 Akeman Lane" — order and completeness don't matter.
+  // Scope is nested as its own AND element so the token clauses can never clobber
+  // the tenant filter (Law 7).
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
   const where: Prisma.PropertyTransactionWhereInput = {
-    ...scopeTransactionWhere(scope),
-    status: "active",
-    isDemo: false,
-    ...(q ? { propertyAddress: { contains: q, mode: "insensitive" } } : {}),
+    AND: [
+      scopeTransactionWhere(scope),
+      { status: "active", isDemo: false },
+      ...tokens.map((t): Prisma.PropertyTransactionWhereInput => ({ propertyAddress: { contains: t, mode: "insensitive" } })),
+    ],
   };
   const rows = await prisma.propertyTransaction.findMany({
     where,

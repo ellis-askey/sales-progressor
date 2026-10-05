@@ -353,17 +353,19 @@ export function ComposeEmailModal({
                   <span className="cem-sicon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg></span>
                   <input autoFocus value={query} placeholder="Search your sales by address…" onChange={(e) => setQuery(e.target.value)} />
                 </div>
-                {(results.length > 0 || loadingSale) && (
-                  <div className="cem-menu cem-menu-inline">
-                    {results.map((r) => (
-                      <button key={r.id} className="cem-mi" onClick={() => selectSale(r.id)}>
-                        <span className="cem-pthumb sm">{r.photoUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={r.photoUrl} alt="" /> : <PropFallback />}</span>
-                        <span className="cem-nm"><span className="cem-n">{r.line1}</span><span className="cem-r">{r.location}</span></span>
-                      </button>
-                    ))}
-                    {!results.length && <div className="cem-mgroup" style={{ padding: "12px 10px" }}>No sales match.</div>}
+                <div className={`cem-sale-reveal${(results.length > 0 || loadingSale || query.trim().length > 0) ? " open" : ""}`}>
+                  <div className="cem-sale-reveal-in">
+                    <div className="cem-menu cem-menu-inline">
+                      {results.map((r) => (
+                        <button key={r.id} className="cem-mi" onClick={() => selectSale(r.id)}>
+                          <span className="cem-pthumb sm">{r.photoUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={r.photoUrl} alt="" /> : <PropFallback />}</span>
+                          <span className="cem-nm"><span className="cem-n">{r.line1}</span><span className="cem-r">{r.location}</span></span>
+                        </button>
+                      ))}
+                      {!results.length && !loadingSale && <div className="cem-mgroup" style={{ padding: "12px 10px" }}>No sales match “{query.trim()}”.</div>}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -541,6 +543,9 @@ const CEM_CSS = `
 .cem-pill .cem-x:hover{background:rgba(199,62,62,0.12);color:var(--agent-danger)}
 .cem-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;max-height:280px;overflow-y:auto;box-shadow:0 14px 40px rgba(45,24,16,0.16);animation:cemMenuin .16s ease both}
 .cem-menu-inline{position:static;top:auto;left:auto;right:auto;margin-top:6px;box-shadow:0 6px 18px rgba(45,24,16,0.08);animation:none}
+.cem-sale-reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s ease}
+.cem-sale-reveal.open{grid-template-rows:1fr;opacity:1}
+.cem-sale-reveal-in{overflow:hidden;min-height:0}
 .cem-mgroup{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);padding:8px 9px 4px}
 .cem-mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:7px 9px;border-radius:9px;font-family:inherit;transition:background .12s}
 .cem-mi:hover{background:rgba(255,138,101,0.09)}
