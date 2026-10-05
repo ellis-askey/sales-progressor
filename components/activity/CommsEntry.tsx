@@ -375,8 +375,13 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
                           onClick={() => toggleContact(s.id)}
                           style={pillStyle(on)}
                         >
+                          {/* Solicitors get the id-card avatar tinted to the side
+                              they act for (seller blue / buyer green), matching the
+                              professionals card on Overview — not the client person
+                              icon they wrongly used before (critique 2026-10-05). */}
                           <ContactAvatar
-                            contact={{ name: s.name, roleType: s.role === "Vendor solicitor" ? "vendor" : "purchaser" }}
+                            contact={{ name: s.name, roleType: "solicitor" }}
+                            sideTint={s.role === "Vendor solicitor" ? "vendor" : "purchaser"}
                             size={16}
                           />
                           {s.name}
