@@ -146,7 +146,15 @@ export async function sendOutsourceIntroForTransaction(
     // number set sends the intro with no WhatsApp block rather than TSP's line.
     const whatsappUrl = whatsappLink(clientFacingIdentity(tx.progressionBusiness).contactWhatsapp);
 
-    const fromAddress = await resolveAgentSenderAddress(creatorUserId, tx.agencyId);
+    let fromAddress = await resolveAgentSenderAddress(creatorUserId, tx.agencyId);
+    // A file progressed by a VERIFIED external business sends from the business's own
+    // address (bulletproof-sender gated), not the platform fallback — matching every
+    // other per-file email via resolveAgencySenderForTransaction (audit SP-12). TSP
+    // files (isTsp) and agencies with their own verified sender are unchanged.
+    const biz = tx.progressionBusiness;
+    if (fromAddress === DEFAULT_FROM_ADDRESS && biz && !biz.isTsp && biz.senderVerified && biz.senderEmail) {
+      fromAddress = biz.senderEmail;
+    }
     const fromName = `${agentFirstName}${agentLastName ? " " + agentLastName : ""}, ${agencyName}`;
     const fromHeader = `${fromName} <${fromAddress}>`;
     const replyTo = creator.email ?? DEFAULT_FROM_ADDRESS;

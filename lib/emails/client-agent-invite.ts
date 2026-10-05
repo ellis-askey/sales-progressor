@@ -106,11 +106,17 @@ export async function sendClientAgentSetupEmail(input: {
   const setupUrl = await mintClientSetupLink(email);
   const built = buildClientAgentInvite({ setupUrl, businessName: input.businessName });
 
+  // The inbox "From" shows the BUSINESS, not "Sales Progressor" — our verified
+  // platform address stays behind it for deliverability (audit SP-10 / W1 follow-on).
+  // Strip header-breaking characters from the name.
+  const fromName = input.businessName.replace(/["<>\r\n]/g, "").trim() || "Your progressor";
+
   await sendAgentEmail({
     to: email,
     kind: "client_agent_setup",
     userId: input.userId,
     agencyId: null,
+    from: `${fromName} <updates@thesalesprogressor.co.uk>`,
     subject: built.subject,
     text: built.text,
     html: built.html,
