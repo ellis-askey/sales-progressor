@@ -62,9 +62,14 @@ export async function enqueueOnwardNeighbourUpdate(
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: sellerTransactionId },
-    select: { chainLinkId: true, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
+    select: { chainLinkId: true, progressionBusinessId: true, progressionBusiness: { select: { isTsp: true, chainUpdatesEnabled: true } }, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
   });
-  if (!tx?.chainLinkId || !tx.agency?.chainNeighbourUpdatesEnabled) return;
+  if (!tx?.chainLinkId) return;
+  // A non-TSP business controls chain updates for its own files (business automation);
+  // otherwise the owning agency's opt-in applies, unchanged.
+  const chainBiz = tx.progressionBusiness;
+  const chainUpdatesOn = chainBiz && !chainBiz.isTsp ? chainBiz.chainUpdatesEnabled : tx.agency?.chainNeighbourUpdatesEnabled;
+  if (!chainUpdatesOn) return;
 
   const ownLink = await prisma.chainLink.findUnique({
     where: { id: tx.chainLinkId },
@@ -106,9 +111,14 @@ export async function enqueueRelatedSaleNeighbourUpdate(
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: buyerTransactionId },
-    select: { chainLinkId: true, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
+    select: { chainLinkId: true, progressionBusinessId: true, progressionBusiness: { select: { isTsp: true, chainUpdatesEnabled: true } }, agency: { select: { chainNeighbourUpdatesEnabled: true } } },
   });
-  if (!tx?.chainLinkId || !tx.agency?.chainNeighbourUpdatesEnabled) return;
+  if (!tx?.chainLinkId) return;
+  // A non-TSP business controls chain updates for its own files (business automation);
+  // otherwise the owning agency's opt-in applies, unchanged.
+  const chainBiz = tx.progressionBusiness;
+  const chainUpdatesOn = chainBiz && !chainBiz.isTsp ? chainBiz.chainUpdatesEnabled : tx.agency?.chainNeighbourUpdatesEnabled;
+  if (!chainUpdatesOn) return;
 
   const ownLink = await prisma.chainLink.findUnique({
     where: { id: tx.chainLinkId },

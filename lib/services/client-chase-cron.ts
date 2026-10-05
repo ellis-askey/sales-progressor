@@ -35,6 +35,7 @@ import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
 import { createAgentChaseTaskForMilestone, clearFallbackForMilestone, EXPECTED_DATE_GRACE_DAYS } from "@/lib/services/reminders";
+import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import type { ContactRole } from "@prisma/client";
 
 export const CLIENT_CHASE_GRACE_FLOOR_DAYS = 1;
@@ -207,6 +208,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       // vendorEmailsPaused / purchaserEmailsPaused columns are no longer
       // read here.
       clientEmailsPaused: true,
+      // An external business can switch client chases off for its whole book
+      // (business automation settings) — gated like the agency master toggle below.
+      progressionBusinessId: true,
       chaseRuleSnapshot: true,
       // Needed for the purchaser contact-scoping below. After a relist,
       // old buyers stay attached to the file (Contact.propertyTransactionId
@@ -231,6 +235,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     select: { id: true, chaseEmailsEnabled: true },
   });
   const agencyChaseEnabled = new Map(agencies.map((a) => [a.id, a.chaseEmailsEnabled]));
+  // Business master toggle (external progression businesses): client chases off for
+  // a non-TSP business's files behaves like the agency master toggle off.
+  const businessGate = await loadBusinessChaseGate(transactions.map((t) => t.progressionBusinessId));
 
   // Exchange-readiness map (per-tx). Computed the same way the agent
   // reminder engine does it: all blocksExchange milestones are complete
@@ -426,7 +433,8 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     // path (createAgentChaseTaskForMilestone → "client_emails_paused" chip)
     // instead of enqueueing a digest. ClientChaseState is left untouched,
     // so unpausing/re-enabling picks the schedule back up from where it was.
-    const agencyOff = agencyChaseEnabled.get(transaction.agencyId) === false;
+    const agencyOff = agencyChaseEnabled.get(transaction.agencyId) === false
+      || !businessChaseAllows(businessGate, transaction.progressionBusinessId, "client");
     // File-level pause is now resolved per side (below, once we know the
     // chase's side) so seller-only / buyer-only toggles take effect
     // independently. agencyOff is file-wide and computed here.

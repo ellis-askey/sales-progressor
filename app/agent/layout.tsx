@@ -9,6 +9,8 @@ import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessMember, businessHasClients } from "@/lib/services/progression-clients";
+import { getProgressorWelcomeState } from "@/lib/services/progressor-chase-prefs";
+import { ProgressorWelcomeModal } from "@/components/agent/ProgressorWelcomeModal";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -79,6 +81,11 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     ? await businessHasClients(businessMember.businessId)
     : true;
 
+  // First-run welcome for an external progression-business OWNER (critiques #1+#3).
+  // Resolved only for owners (so no extra query for anyone else), and returns null
+  // once seen. Agents / TSP staff never qualify.
+  const progressorWelcome = businessMember?.isOwner ? await getProgressorWelcomeState(session) : null;
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's brand colour, derived into the full token set at render
@@ -114,6 +121,14 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           <PageFadeIn>{children}</PageFadeIn>
         </AgentShell>
         {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
+        {progressorWelcome && (
+          <ProgressorWelcomeModal
+            businessName={progressorWelcome.businessName}
+            userName={userName}
+            initialPrefs={progressorWelcome.prefs}
+            themeMode={themeMode}
+          />
+        )}
         <AgentInstallPrompt />
       </AgentToaster>
       </GlassPicksProvider>

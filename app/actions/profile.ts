@@ -12,6 +12,17 @@ export async function markWelcomeSeenAction() {
   });
 }
 
+// First-run welcome for an external progression-business owner (separate flag so
+// it never collides with the agent welcome above). Fired on mount, so the modal
+// shows exactly once.
+export async function markProgressorWelcomeSeenAction() {
+  const session = await requireSession();
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { hasSeenProgressorWelcome: true },
+  });
+}
+
 export async function updateProfileAction(data: {
   name: string;
   email: string;

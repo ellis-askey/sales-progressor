@@ -18,6 +18,7 @@
 // OFF by default. See docs/active/enquiries-stage-rework-SPEC.md.
 
 import { prisma } from "@/lib/prisma";
+import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
@@ -106,6 +107,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           id: true,
           propertyAddress: true,
           agencyId: true,
+          progressionBusinessId: true, // business can switch enquiry chases off (escalation still fires)
           assignedUserId: true,
           agentUserId: true,
           agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
@@ -123,6 +125,10 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       },
     },
   });
+
+  // A non-TSP business can switch enquiry CHASES off. Escalation still fires (the
+  // owner is still raised to on a stall); only the email-the-solicitor send is gated.
+  const businessGate = await loadBusinessChaseGate(trackers.map((t) => t.transaction?.progressionBusinessId));
 
   let sent = 0;
   let escalated = 0;
@@ -164,6 +170,10 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
         escalated++;
       }
     }
+
+    // Enquiry CHASES (emails to solicitors) off for a non-TSP business → don't send;
+    // escalation above has already fired, so a stall is still raised to the owner.
+    if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "enquiries")) continue;
 
     if (!chaseDue) continue;
 

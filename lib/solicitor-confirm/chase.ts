@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
@@ -224,6 +225,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       activeBuyerRoundId: true,
       lastActivityAt: true,
       createdAt: true,
+      progressionBusinessId: true, // business can switch solicitor chases off (business automation)
       // Exchange-day suppression (see docs/active/exchange-day-SPEC.md).
       exchangeDayStartedAt: true,
       exchangeDayCancelledAt: true,
@@ -252,9 +254,14 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
     },
   });
 
+  // A non-TSP business can switch solicitor chases off for its own files (future-only;
+  // the agency-level gate is in the query above).
+  const businessGate = await loadBusinessChaseGate(txs.map((t) => t.progressionBusinessId));
+
   const out: DueGroup[] = [];
 
   for (const tx of txs) {
+    if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "solicitor")) continue;
     // Exchange-day: don't chase solicitors on a file that's aiming to exchange
     // today — the exchange-day sequence handles them instead.
     if (isExchangeDayActive(tx)) continue;

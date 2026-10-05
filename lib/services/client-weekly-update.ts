@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
@@ -50,6 +51,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       overridePredictedDate: true,
       completionDate: true,
       activeBuyerRoundId: true,
+      progressionBusinessId: true, // business can switch weekly updates off (business automation)
       agentUser: { select: { name: true } },
       assignedUser: { select: { name: true } },
       agency: { select: { name: true } },
@@ -66,10 +68,15 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
     },
   });
 
+  // A non-TSP business can switch weekly client updates off for its own files, even
+  // though this cron runs per client agency (future-only; agency-level toggle above).
+  const businessGate = await loadBusinessChaseGate(transactions.map((t) => t.progressionBusinessId));
+
   let sent = 0;
   const base = process.env.NEXTAUTH_URL ?? "";
 
   for (const tx of transactions) {
+    if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "weekly")) continue;
     // Skip if there was recent outbound communication — they've already heard from us
     if (tx.communications.length > 0) continue;
     // Skip if no eligible contacts with email
