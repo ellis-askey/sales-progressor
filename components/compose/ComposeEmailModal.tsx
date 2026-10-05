@@ -31,6 +31,13 @@ const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
 function fmtWhen(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
+// Current local time as a datetime-local value ("YYYY-MM-DDTHH:mm") — the min for
+// the custom picker so you can't schedule in the past.
+function nowLocalDT(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
 function schedulePresets(): { label: string; when: Date }[] {
   const now = new Date();
   const later = new Date(now); later.setHours(17, 0, 0, 0); if (later <= now) later.setDate(later.getDate() + 1);
@@ -45,6 +52,7 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
       background: "linear-gradient(135deg,#FAEEDA,#FAC775)", color: "#633806", fontWeight: 700, fontSize: Math.round(size * 0.44) }}>@</span>
   );
   if (rec.kind === "team") return <UserAvatar user={{ name: rec.name, image: rec.avatarUrl }} size={size} />;
+  if (rec.kind === "agent") return <ContactAvatar contact={{ name: rec.name, roleType: "agent" }} sideTint="agent" size={size} image={rec.avatarUrl} />;
   if (rec.kind === "solicitor") return <ContactAvatar contact={{ name: rec.name, roleType: "solicitor" }} sideTint={rec.side ?? undefined} size={size} image={rec.avatarUrl} />;
   return <ContactAvatar contact={{ name: rec.name, roleType: rec.kind }} size={size} image={rec.avatarUrl} />;
 }
@@ -67,6 +75,17 @@ export function ComposeEmailModal({
   const [tokens, setTokens] = useState<Record<Field, Token[]>>({ to: [], cc: [], bcc: [] });
   const [openField, setOpenField] = useState<Field | null>(null);
   const [fieldQuery, setFieldQuery] = useState("");
+  // Close an open recipient picker on any click outside a field (critique fix).
+  useEffect(() => {
+    if (!openField) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest && t.closest(".cem-field")) return;
+      setOpenField(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [openField]);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
@@ -89,6 +108,7 @@ export function ComposeEmailModal({
   // schedule (phase 2)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
   const [schedOpen, setSchedOpen] = useState(false);
+  const [customDT, setCustomDT] = useState("");
   const [scheduledList, setScheduledList] = useState<ScheduledComposeRow[]>([]);
 
   function refreshScheduled() { listScheduledComposeEmailsAction().then(setScheduledList).catch(() => {}); }
@@ -152,11 +172,18 @@ export function ComposeEmailModal({
     if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
   }
 
-  const usedEmails = new Set([...tokens.to, ...tokens.cc, ...tokens.bcc].map((t) => t.email.toLowerCase()));
+  const allTokens = [...tokens.to, ...tokens.cc, ...tokens.bcc];
+  const usedEmails = new Set(allTokens.map((t) => t.email.toLowerCase()));
+  // Once a side-bearing person (seller/buyer/their solicitor/broker) is added,
+  // the sale is locked to that side — the other side drops out of every picker
+  // until all recipients are cleared. Side-less people (agent, team) stay.
+  const lockedSide: "vendor" | "purchaser" | null =
+    allTokens.map((t) => t.rec?.side).find((s): s is "vendor" | "purchaser" => s === "vendor" || s === "purchaser") ?? null;
   function candidates(): ComposeRecipient[] {
     if (!ctx) return [];
     const q = fieldQuery.trim().toLowerCase();
     return ctx.recipients.filter((r) => !usedEmails.has(r.email.toLowerCase())
+      && (lockedSide === null || r.side === null || r.side === lockedSide)
       && (!q || r.name.toLowerCase().includes(q) || r.roleLabel.toLowerCase().includes(q) || r.email.toLowerCase().includes(q)));
   }
   function addRecipient(field: Field, rec: ComposeRecipient) {
@@ -164,12 +191,14 @@ export function ComposeEmailModal({
     setTimeout(() => setJustAdded(null), 320);
     setTokens((prev) => ({ ...prev, [field]: [...prev[field], { email: rec.email, name: rec.name, rec }] }));
     setFieldQuery("");
+    setOpenField(null); // close the picker on select
   }
   function addFree(field: Field, email: string) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
     if (usedEmails.has(email.toLowerCase())) { setFieldQuery(""); return; }
     setTokens((prev) => ({ ...prev, [field]: [...prev[field], { email, name: email, rec: null }] }));
     setFieldQuery("");
+    setOpenField(null);
   }
   function removeToken(field: Field, email: string) {
     setTokens((prev) => ({ ...prev, [field]: prev[field].filter((t) => t.email !== email) }));
@@ -325,7 +354,7 @@ export function ComposeEmailModal({
                   <input autoFocus value={query} placeholder="Search your sales by address…" onChange={(e) => setQuery(e.target.value)} />
                 </div>
                 {(results.length > 0 || loadingSale) && (
-                  <div className="cem-menu">
+                  <div className="cem-menu cem-menu-inline">
                     {results.map((r) => (
                       <button key={r.id} className="cem-mi" onClick={() => selectSale(r.id)}>
                         <span className="cem-pthumb sm">{r.photoUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={r.photoUrl} alt="" /> : <PropFallback />}</span>
@@ -423,7 +452,7 @@ export function ComposeEmailModal({
                   <button className="cem-send-split" aria-label="Schedule options" onClick={() => setSchedOpen((v) => !v)}>▾</button>
                 </div>
                 {schedOpen && (
-                  <div className="cem-schedmenu" onMouseDown={(e) => e.preventDefault()}>
+                  <div className="cem-schedmenu">
                     <div className="cem-mgroup">Send</div>
                     <button className="cem-si" onClick={() => { setScheduledFor(null); setSchedOpen(false); }}>Send now</button>
                     <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
@@ -433,6 +462,16 @@ export function ComposeEmailModal({
                         <span>{p.label}</span><span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{fmtWhen(p.when)}</span>
                       </button>
                     ))}
+                    <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
+                    <div style={{ padding: "6px 10px 8px" }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>Pick a date &amp; time</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input type="datetime-local" value={customDT} min={nowLocalDT()} onChange={(e) => setCustomDT(e.target.value)}
+                          style={{ flex: 1, minWidth: 0, border: "1px solid var(--agent-border-default)", borderRadius: 8, padding: "6px 8px", fontFamily: "inherit", fontSize: 12.5, color: "var(--agent-text-primary)", background: "#fff" }} />
+                        <button className="cem-cancel-sched" disabled={!customDT} style={{ opacity: customDT ? 1 : 0.5 }}
+                          onClick={() => { const d = new Date(customDT); if (!isNaN(d.getTime())) { setScheduledFor(d); setSchedOpen(false); } }}>Set</button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -501,6 +540,7 @@ const CEM_CSS = `
 .cem-pill .cem-x{cursor:pointer;color:var(--agent-text-muted);font-size:13px;width:15px;height:15px;display:grid;place-items:center;border-radius:50%;transition:background .12s,color .12s}
 .cem-pill .cem-x:hover{background:rgba(199,62,62,0.12);color:var(--agent-danger)}
 .cem-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;max-height:280px;overflow-y:auto;box-shadow:0 14px 40px rgba(45,24,16,0.16);animation:cemMenuin .16s ease both}
+.cem-menu-inline{position:static;top:auto;left:auto;right:auto;margin-top:6px;box-shadow:0 6px 18px rgba(45,24,16,0.08);animation:none}
 .cem-mgroup{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);padding:8px 9px 4px}
 .cem-mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:7px 9px;border-radius:9px;font-family:inherit;transition:background .12s}
 .cem-mi:hover{background:rgba(255,138,101,0.09)}

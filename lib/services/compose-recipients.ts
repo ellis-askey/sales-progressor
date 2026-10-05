@@ -15,7 +15,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { resolveSenderForTransaction } from "@/lib/email";
 import { solicitorToRecipient, recipientRoleLabel, type ChaseContact } from "@/lib/services/chase-recipients";
 
-export type ComposeRecipientKind = "vendor" | "purchaser" | "broker" | "solicitor" | "team";
+export type ComposeRecipientKind = "vendor" | "purchaser" | "broker" | "solicitor" | "team" | "agent";
 
 export interface ComposeRecipient {
   id: string;            // contact id / solicitor contact id / user id
@@ -90,6 +90,9 @@ export async function getComposeContext(
       propertyAddress: true,
       photoStoragePath: true,
       agencyId: true,
+      // The overseeing/submitting agent on an outsourced file (the customer-
+      // agency agent). Emailable by internal staff / external progressors.
+      agentUser: { select: { id: true, name: true, email: true, image: true } },
       contacts: {
         where: { email: { not: null } },
         select: { id: true, name: true, email: true, roleType: true },
@@ -113,9 +116,26 @@ export async function getComposeContext(
       email: c.email,
       roleLabel: clientRoleLabel(c.roleType),
       kind: c.roleType as ComposeRecipientKind,
-      side: c.roleType === "vendor" ? "vendor" : c.roleType === "purchaser" ? "purchaser" : null,
+      // Broker is the buyer's mortgage broker, so it belongs to the purchaser
+      // side for the "one side at a time" rule.
+      side: c.roleType === "vendor" ? "vendor" : c.roleType === "purchaser" || c.roleType === "broker" ? "purchaser" : null,
       group: "sale",
       avatarUrl: null,
+    });
+  }
+
+  // The overseeing agent (outsourced files) — side-less, like the team, so it
+  // never locks a side. Hidden when the viewer IS that agent (own file).
+  if (tx.agentUser?.email && tx.agentUser.id !== session.user.id) {
+    recipients.push({
+      id: tx.agentUser.id,
+      name: tx.agentUser.name ?? tx.agentUser.email,
+      email: tx.agentUser.email,
+      roleLabel: "Agent",
+      kind: "agent",
+      side: null,
+      group: "sale",
+      avatarUrl: tx.agentUser.image ?? null,
     });
   }
 
