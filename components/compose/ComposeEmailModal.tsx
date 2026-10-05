@@ -81,6 +81,11 @@ export function ComposeEmailModal({
   const [isSending, startSend] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  // refine (phase 3)
+  const [refining, setRefining] = useState(false);
+  const [showRefined, setShowRefined] = useState(false);
+  const preRefineRef = useRef<string | null>(null);
+
   // schedule (phase 2)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
   const [schedOpen, setSchedOpen] = useState(false);
@@ -95,6 +100,7 @@ export function ComposeEmailModal({
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
+    setShowRefined(false); preRefineRef.current = null;
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (initialTransactionId) void selectSale(initialTransactionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,7 +148,7 @@ export function ComposeEmailModal({
 
   function clearSale() {
     setCtx(null); setTokens({ to: [], cc: [], bcc: [] }); setSubject(""); setShowCc(false); setShowBcc(false);
-    setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
+    setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false); setShowRefined(false); preRefineRef.current = null;
     if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
   }
 
@@ -170,6 +176,24 @@ export function ComposeEmailModal({
   }
 
   function updateCount() { setCharCount((editorRef.current?.innerText ?? "").replace(/\s+$/, "").length); }
+  function onEditorInput() { updateCount(); if (showRefined) setShowRefined(false); }
+
+  async function refine() {
+    if (!editorRef.current || refining) return;
+    const current = editorRef.current.innerHTML;
+    preRefineRef.current = current;
+    setRefining(true);
+    try {
+      const res = await fetch("/api/ai/refine-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html: current }) });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j?.html && editorRef.current) { editorRef.current.innerHTML = j.html; updateCount(); setShowRefined(true); }
+      else toast.error(j?.error ?? "Couldn't refine the email.");
+    } catch { toast.error("Couldn't refine the email."); }
+    finally { setRefining(false); }
+  }
+  function undoRefine() {
+    if (preRefineRef.current != null && editorRef.current) { editorRef.current.innerHTML = preRefineRef.current; updateCount(); setShowRefined(false); }
+  }
   function exec(cmd: string) {
     if (cmd === "createLink") { const u = prompt("Link URL", "https://"); if (u) document.execCommand(cmd, false, u); }
     else document.execCommand(cmd, false, undefined);
@@ -347,7 +371,7 @@ export function ComposeEmailModal({
                 <p className="cem-eyebrow">Message</p>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
-                    onInput={updateCount} />
+                    onInput={onEditorInput} />
                   <div className="cem-toolbar">
                     <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
                     <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
@@ -359,9 +383,15 @@ export function ComposeEmailModal({
                     <button className="cem-tb" title="Attach a file" onMouseDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>📎</button>
                     <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onPickFiles} />
                     <span className="cem-tbspace" />
+                    <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>
+                      {refining ? "✦ Refining…" : "✦ Refine"}
+                    </button>
                     <span className="cem-count">{charCount} characters</span>
                   </div>
                 </div>
+                {showRefined && (
+                  <div className="cem-refine-note">✦ Refined to your voice <span className="cem-sp">· learns from what you send</span> · <a onClick={undoRefine}>Undo</a></div>
+                )}
                 {attachments.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
                     {attachments.map((a, i) => (
@@ -488,6 +518,11 @@ const CEM_CSS = `
 .cem-tbsep{width:1px;height:18px;background:var(--agent-border-default);margin:0 4px}
 .cem-tbspace{flex:1}
 .cem-count{font-size:10.5px;color:var(--agent-text-muted);padding:0 8px;font-variant-numeric:tabular-nums}
+.cem-refine{display:inline-flex;align-items:center;justify-content:center;width:auto;height:30px;padding:0 12px;gap:6px;font-size:12px;font-weight:650;color:#fff;border:1px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28),0 1px 4px rgba(224,78,44,0.26);transition:filter .12s}
+.cem-refine:hover{filter:brightness(1.05)}.cem-refine:disabled{opacity:.7;cursor:default}
+.cem-refine-note{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--agent-success,#1F8A4A);font-weight:600}
+.cem-refine-note a{color:var(--agent-coral-deep);cursor:pointer;font-weight:600}
+.cem-refine-note .cem-sp{color:var(--agent-text-muted);font-weight:500}
 .cem-attach{display:inline-flex;align-items:center;gap:8px;background:var(--agent-bg-paper,#FFFBF5);border:1px solid var(--agent-border-default);border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--agent-text-secondary)}
 .cem-attach .cem-x{cursor:pointer;color:var(--agent-text-muted);font-size:13px}.cem-attach .cem-x:hover{color:var(--agent-danger)}
 .cem-foot{flex-shrink:0;display:flex;flex-direction:column;padding:12px 20px 16px;border-top:1px solid var(--agent-border-subtle);background:var(--agent-surface-elevated,#fff)}
