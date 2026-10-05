@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -153,30 +153,43 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         <p className="cw-label">Your agencies</p>
         <div className="cw-rows">
           {activeClients.map((c) => (
-            <Link key={c.linkId} href={`/agent/clients/${c.agencyId}`} className="cw-row">
-              <Logo c={c} />
-              <div className="cw-main">
-                {/* Agency names run long, so they take the full top line; the
-                    status sits on the bottom row with the (shorter) agent name,
-                    right-aligned, which truncates far less often. */}
-                <div className="cw-name">{c.name}</div>
-                <div className="cw-metarow">
-                  <div className="cw-meta">
-                    {c.contact ?? "Agent"}
-                    {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
+            <div key={c.linkId} className="cw-row">
+              <Link href={`/agent/clients/${c.agencyId}`} className="cw-rowmain">
+                <Logo c={c} />
+                <div className="cw-main">
+                  {/* Agency names run long, so they take the full top line; the
+                      status sits on the bottom row with the (shorter) agent name,
+                      right-aligned, which truncates far less often. */}
+                  <div className="cw-name">{c.name}</div>
+                  <div className="cw-metarow">
+                    <div className="cw-meta">
+                      {c.contact ?? "Agent"}
+                      {c.status === "active" ? ` · ${c.people} ${c.people === 1 ? "person" : "people"}` : ""}
+                    </div>
+                    {c.status === "active"
+                      ? <span className="cw-status active"><span className="dot" />Active</span>
+                      : <span className="cw-status invite"><Clock size={12} weight="bold" />Invite sent</span>}
                   </div>
-                  {c.status === "active"
-                    ? <span className="cw-status active"><span className="dot" />Active</span>
-                    : <span className="cw-status invite"><Clock size={12} weight="bold" />Invite sent</span>}
                 </div>
-              </div>
-              <div className="cw-mstats">
-                <div className="ms"><div className="n">{c.active}</div><div className="l">active</div></div>
-                <div className="ms"><div className="n">{fmtCurrencyPence(c.pipelinePence)}</div><div className="l">pipeline</div></div>
-                <div className="ms"><div className="n">{c.exchanged}</div><div className="l">exchanged</div></div>
-              </div>
+                <div className="cw-mstats">
+                  <div className="ms"><div className="n">{c.active}</div><div className="l">active</div></div>
+                  <div className="ms"><div className="n">{fmtCurrencyPence(c.pipelinePence)}</div><div className="l">pipeline</div></div>
+                  <div className="ms"><div className="n">{c.exchanged}</div><div className="l">exchanged</div></div>
+                </div>
+              </Link>
+              {/* One-click add-sale for this client (the form opens pre-set to them).
+                  The fee gate on the form handles a client with no rate set yet. */}
+              <Link
+                href={`/agent/transactions/new?clientAgencyId=${c.agencyId}`}
+                className="cw-rowadd"
+                title={`Add a sale for ${c.name}`}
+                aria-label={`Add a sale for ${c.name}`}
+              >
+                <Plus size={16} weight="bold" />
+                <span className="cw-rowadd-l">Add sale</span>
+              </Link>
               <CaretRight size={19} weight="bold" className="cw-chev" />
-            </Link>
+            </div>
           ))}
         </div>
 
@@ -232,6 +245,16 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-row:hover { transform: translateY(-3px); border-color: var(--agent-border-default, rgba(0,0,0,0.12)); box-shadow: 0 18px 38px -20px rgba(40,26,20,0.4); }
         :root[data-theme="dark"] .cw-row:hover { box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6); }
         .cw-row:active { transform: translateY(-1px) scale(.996); }
+        .cw-rowmain { display: flex; align-items: center; gap: 15px; flex: 1; min-width: 0; text-decoration: none; }
+        .cw-rowadd {
+          display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+          padding: 8px 13px; border-radius: 10px;
+          border: 1px solid var(--agent-border-default); background: var(--agent-surface);
+          color: var(--agent-text-secondary); font-size: 12.5px; font-weight: 650;
+          text-decoration: none; transition: border-color .16s ease, color .16s ease;
+        }
+        .cw-rowadd:hover, .cw-rowadd:focus-visible { border-color: var(--agent-coral); color: var(--agent-coral-deep); outline: none; }
+        @media (max-width: 760px) { .cw-rowadd-l { display: none; } }
         .cw-logo { width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
         .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
         .cw-main { min-width: 0; flex: 1; }

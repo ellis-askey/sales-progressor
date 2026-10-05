@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple } from "@phosphor-icons/react";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple, Plus } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -191,12 +191,30 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
             <div className="aw-card full">
               <div className="aw-sales-hdr">
                 <h4>Their sales · {detail.active} active</h4>
-                <a href={`/api/agent/clients/${detail.agencyId}/invoice`} className="aw-invoice-link" title="Download this month's invoice for this client">
-                  <DownloadSimple size={14} weight="bold" /> Download invoice
-                </a>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <Link
+                    href={`/agent/transactions/new?clientAgencyId=${detail.agencyId}`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FF6B4A", color: "#fff", fontSize: 12.5, fontWeight: 700, padding: "7px 13px", borderRadius: 9, textDecoration: "none" }}
+                  >
+                    <Plus size={14} weight="bold" /> Add a sale
+                  </Link>
+                  <a href={`/api/agent/clients/${detail.agencyId}/invoice`} className="aw-invoice-link" title="Download this month's invoice for this client">
+                    <DownloadSimple size={14} weight="bold" /> Download invoice
+                  </a>
+                </div>
               </div>
               {detail.sales.length === 0
-                ? <p className="aw-empty">No sales yet. Add their first sale to get started.</p>
+                ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+                      <p className="aw-empty" style={{ margin: 0 }}>No sales yet. Add their first sale to get started.</p>
+                      <Link
+                        href={`/agent/transactions/new?clientAgencyId=${detail.agencyId}`}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FF6B4A", color: "#fff", fontSize: 13, fontWeight: 700, padding: "9px 16px", borderRadius: 10, textDecoration: "none" }}
+                      >
+                        <Plus size={15} weight="bold" /> Add a sale
+                      </Link>
+                    </div>
+                  )
                 : detail.sales.map((s) => {
                     const p = salePill(s.status);
                     return (
