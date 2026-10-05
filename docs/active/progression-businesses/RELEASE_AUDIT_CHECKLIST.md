@@ -89,6 +89,12 @@ Per-file fees, billing ring-fence, business VAT math, retention suppression, ana
 - [ ] **D2 — White-label the agent-facing app per business.** *(DEFERRED — decision pending, ties to critique #178)*
   Was P4. Today the app the agents log into is Sales-Progressor-branded (loading mark, "install Sales Progressor" copy, app name) — the client-facing side (emails, portal) is what's white-labelled. Whether the agent-facing shell should also be per-business branded is an undecided product call the founder is holding, tied in with critique #178. Scope as its own project if taken on.
 
+- [ ] **D5 — Business chase + chain-invite settings page.** *(NEEDS BUILD — founder critiques #22, #23; 2026-10-05)*
+  The business chase prefs (client / solicitor / enquiry / weekly / chain-updates) are set ONCE in the welcome pop-up and have **no settings page to change them after** — the pop-up even promises "change anytime in Settings" but that page doesn't exist (verified: `saveProgressorChasePrefsAction` has no caller but the modal; the `/agent/settings/automation` page is director+agency-only and 404s for a business owner). Separately, chain invites currently auto-send at sale creation (hard-wired on in `NewSaleFlow` → `sendInvites:true`) and are manual-only for links added later — with **no business-level control**. #23 wants auto-invites on by default with a business toggle to switch off (the business sets it, not the agent). Build one chase/automation settings tab holding both.
+
+- [ ] **D6 — Automated-emails page: empty / first-run setup state.** *(DEFERRED — do LAST, founder 2026-10-05)*
+  Critique #25 (external-SP owner test account): the automated-emails page has no empty state / setup guidance, for a new external business AND for agencies generally. Explicitly to be done last.
+
 - [ ] **D4 — Delete the dead `listTransactionsByScope` function.** *(DEFERRED — safe cleanup)*
   Confirmed no callers anywhere (2026-10-05); marked in-code as dead with a do-not-wire warning (`lib/services/transactions.ts`). A ~160-line delete in that core file is left to a dedicated cleanup PR rather than bundled with unrelated fixes. Zero runtime risk today.
 
