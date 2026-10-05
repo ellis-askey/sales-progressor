@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { phoneMatchContactIds } from "@/lib/services/contact-search";
@@ -60,9 +61,17 @@ export async function GET(req: NextRequest) {
 
   let txWhere: Record<string, unknown>;
   if (vis.internalMode === "admin_all") {
-    txWhere = {};
+    // TSP admins see only TSP's own files here, exactly like every other admin
+    // surface — never external progression businesses' private files/contacts
+    // (cross-business oversight lives in the Command Centre). The old `{}` leaked
+    // the whole platform into admin search + the solicitor file counts (audit B2).
+    txWhere = { ...TSP_ONLY_TX_WHERE };
   } else if (vis.internalMode === "assigned") {
-    txWhere = { assignedUserId: vis.userId };
+    // An external-business owner / see-all member resolves to "assigned" with a
+    // businessId — widen to their whole business book, matching every other surface
+    // (hub, lists, analytics). Without this their search is under-scoped to only
+    // their personally-assigned files (audit S3/S-1).
+    txWhere = vis.businessId ? { progressionBusinessId: vis.businessId } : { assignedUserId: vis.userId };
   } else if (vis.seeAll) {
     txWhere = vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
