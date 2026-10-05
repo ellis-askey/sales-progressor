@@ -16,16 +16,17 @@ A deeper verification pass (five audits: TSP-coupling bug-class sweep, owner/tea
 - [x] **SP-B3 — Owner couldn't add a 2nd sale through the UI.** No durable "Add a sale" affordance after the first sale. Fixed: button on the client Sales tab + empty state, and on each clients-list row. `81057fc6`.
 - [x] **SP-C2b-regression — VAT breakdown leaked onto TSP→agency invoices.** My C2b change to the shared renderer fired for VAT-registered agencies. Fixed: gate on issuer VAT number. No live impact (0 prod agencies VAT-registered). `d9b66853`.
 
-### Should-fix — PENDING (items 4–12, next batch)
-- [ ] **SP-4 — Team members see TSP's fee, not the rate card** (files list + hub forecast); F1 only covered owners/see-all.
-- [ ] **SP-5 — Percent/tiered invoice bills £0 for a no-price sale** (and defeats the F4 price-lock).
-- [ ] **SP-6 — Migrated sales are on the invoice but missing from the owner's fee dashboards** (C2a follow-on inconsistency).
-- [ ] **SP-7 — Chain cascade / celebration / decline emails hardcode "Sales Progressor"** (sender + body) — only chain-email family that never white-labels.
-- [ ] **SP-8 — Chain invite/update/overview email footers print "TSP · Sales Progressor"** (sender is fine; body footer isn't).
-- [ ] **SP-9 — W1 invite email "From" display name is still "Sales Progressor"** (body white-labelled, inbox sender line not).
-- [ ] **SP-10 — "Revenue at risk" founder signal counts external-business money as TSP revenue.**
-- [ ] **SP-11 — Outsource-intro email ignores the business's own verified sender.**
-- [ ] (SP-7-search whole-book fix already shipped with SP-B2.)
+### Should-fix — DONE (built, pending prod deploy)
+- [x] **See-own team members now see the rate card, not our fee** — files list + hub forecast resolve the member's own business. `a9839067`
+- [x] **Un-priceable sale surfaced, not billed £0** — invoice returns needs_price; Download invoice is now a client-side fetch that toasts "Add a sale price to {address}…". `287a33df`
+- [x] **Migrated sales now counted in the owner's fee dashboards** (match the invoice). `a9839067`
+- [x] **Invite email "From" is now the business name** (verified platform address behind it). `eeef19ca` — test email sent to the founder 2026-10-05, From shows the business.
+- [x] **Revenue-at-risk excludes external-business files** (founder brief no longer over-counts). `78ad1c2b`
+- [x] **Outsource intro uses the business's verified sender** when the agency has none. `eeef19ca`
+- [x] **Search whole-book + admin scope** — shipped earlier with SP-B2 (`c8a756d1`).
+
+### Deferred (was the two chain-email items) → see D3 below
+- The chain cascade/celebration/decline emails hardcoded "Sales Progressor", and the chain invite/update/overview footers print "TSP · Sales Progressor". Both moved to the deferred list pending the branding business decision — **D3**.
 
 ### Polish — PENDING
 - [ ] `/agent/settings` bare index 404s for a team member (should land on Profile).
@@ -88,6 +89,9 @@ Per-file fees, billing ring-fence, business VAT math, retention suppression, ana
 - [ ] **D2 — White-label the agent-facing app per business.** *(DEFERRED — decision pending, ties to critique #178)*
   Was P4. Today the app the agents log into is Sales-Progressor-branded (loading mark, "install Sales Progressor" copy, app name) — the client-facing side (emails, portal) is what's white-labelled. Whether the agent-facing shell should also be per-business branded is an undecided product call the founder is holding, tied in with critique #178. Scope as its own project if taken on.
 
+- [ ] **D3 — Chain + agent-to-agent email branding.** *(DEFERRED — pending the branding business decision; ties to D2)*
+  Was second-pass SP-7 + SP-8. The chain cascade / celebration / decline emails come from "Sales Progressor" with a TSP body, and the chain invite/update/overview email footers print "TSP · Sales Progressor" (their *sender* is already white-labelled; only the body footer isn't). Founder's emerging model (2026-10-05): **client comms always white-labelled; agent-to-agent + system emails (e.g. password reset) come from TSP; agents may optionally pay to brand their own dashboard** (remove TSP). Whether these agent-facing chain emails stay TSP, go "powered by Sales Progressor", or fully brand hinges on that decision and D2. Revisit the three together.
+
 ## 🟠 Should-fix — billing (not blocking a free pilot)
 
 - [ ] **C1 — Payment collection isn't wired up.** *(DEFERRED — do last)* The bill is shown honestly ("not taking payment yet") but there's no card entry and the Stripe side has no triggers. Decision (founder): we wire it up and make a test payment ourselves as the final step before charging businesses. Intended off for a free pilot.
@@ -96,7 +100,7 @@ Per-file fees, billing ring-fence, business VAT math, retention suppression, ana
 
 ## 🟡 Verify — quick checks
 
-- [ ] **V1 — Do general (non-file) messages from a client reach the business inbox?** **CONFIRMED BROKEN (2026-10-04).** A "Send a note to {progressor}" message with no sale attached is created as a task with no transaction, but the progressor inbox only lists tasks that have a transaction assigned to them — so general notes reach nobody (not the inbox, not a notifications page). Affects TSP-outsourced agencies too, not just external businesses. Fix proposed; awaiting go.
+- [x] **V1 — General (non-file) messages now reach the business.** *(built, pending prod deploy)* A "Send a note to {progressor}" with no sale attached was reaching nobody; now routed to the business owner (or the progressor for TSP-outsourced agencies) and surfaced in their To-Do inbox. `28b48a9a`
 - [x] **V2 — Does the agency analytics "our fees" figure wrongly include externally-progressed files?** *(confirmed + guarded, pending prod deploy)* It *would* over-count (no exclusion), but `getAnalytics` has no consumer anywhere in the repo — it's unused, so nothing shows a wrong number today. Added a defensive guard that excludes external-business files, so it's correct if ever wired up.
 
 ## ⚪ Polish — last
