@@ -358,7 +358,7 @@ function drawFooter(page: PDFPage, fonts: Fonts, generatedAt: string, issuerFoot
 export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Invoice ${input.invoiceLabel} - ${input.agencyName}`);
-  doc.setAuthor("Sales Progressor");
+  doc.setAuthor(input.issuerName ?? "The Sales Progressor"); // the issuer, so a business invoice isn't authored "Sales Progressor" (audit SP-polish)
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);

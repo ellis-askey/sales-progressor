@@ -16,6 +16,35 @@ export type AddClientResult = { ok: true } | { ok: false; error: string };
 type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
+ * Save the business's chase preferences (from the welcome modal / settings).
+ * Owner-only + flag-gated. Writes to the ProgressionBusiness, never a client
+ * agency's own flags. Enforcement at the send paths lands with the chase engines.
+ */
+export async function saveProgressorChasePrefsAction(prefs: {
+  client: boolean; solicitor: boolean; enquiries: boolean; weekly: boolean; chain: boolean;
+}): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) {
+    return { ok: false, error: "This feature isn't enabled yet." };
+  }
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) {
+    return { ok: false, error: "Only a progression-business owner can change these." };
+  }
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: {
+      chaseClientsEnabled: !!prefs.client,
+      chaseSolicitorsEnabled: !!prefs.solicitor,
+      chaseEnquiriesEnabled: !!prefs.enquiries,
+      weeklyClientUpdatesEnabled: !!prefs.weekly,
+      chainUpdatesEnabled: !!prefs.chain,
+    },
+  });
+  return { ok: true };
+}
+
+/**
  * Add an estate agent as a client of the acting user's progression business.
  * Flag-gated (this is a new external-facing entry point) and owner-gated. The
  * client link grants NO transaction access — see lib/services/progression-clients.
@@ -107,13 +136,15 @@ export async function removeClientAgencyAction(agencyId: string): Promise<Action
   const owner = await assertOwnerOfClient(session, agencyId);
   if (!owner) return { ok: false, error: "That isn't one of your clients." };
 
+  // Block while they still have a live sale — active OR on-hold (a paused sale is
+  // still in progress; the old guard only counted active, audit SP-polish).
   const activeCount = await prisma.propertyTransaction.count({
-    where: { progressionBusinessId: owner.businessId, agencyId, status: "active", isDemo: false },
+    where: { progressionBusinessId: owner.businessId, agencyId, status: { in: ["active", "on_hold"] }, isDemo: false },
   });
   if (activeCount > 0) {
     return {
       ok: false,
-      error: `You can't remove this client while they have ${activeCount} active ${activeCount === 1 ? "sale" : "sales"}. Remove them once those have completed or been withdrawn.`,
+      error: `You can't remove this client while they have ${activeCount} in-progress ${activeCount === 1 ? "sale" : "sales"}. Remove them once those have completed or been withdrawn.`,
     };
   }
 

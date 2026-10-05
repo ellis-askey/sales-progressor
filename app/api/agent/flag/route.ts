@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   let assignedToId: string | null = agentUser?.progressorId ?? null;
   if (!transactionId && !assignedToId && agentUser?.agencyId) {
     const link = await prisma.progressionBusinessClient.findFirst({
-      where: { agencyId: agentUser.agencyId },
+      where: { agencyId: agentUser.agencyId, removedAt: null }, // live client links only (audit SP-polish)
       select: { progressionBusinessId: true },
     });
     if (link) {

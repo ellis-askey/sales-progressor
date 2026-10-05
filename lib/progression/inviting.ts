@@ -19,7 +19,7 @@ import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fee
 export async function getInvitingProgressorName(agencyId: string | null | undefined): Promise<string | null> {
   if (!agencyId) return null;
   const link = await prisma.progressionBusinessClient.findFirst({
-    where: { agencyId },
+    where: { agencyId, removedAt: null }, // ignore archived client links (audit SP-polish)
     select: { progressionBusiness: { select: { name: true } } },
   });
   return link?.progressionBusiness?.name ?? null;
@@ -36,7 +36,7 @@ export type InvitingProgressor = { businessId: string; name: string; feeModel: C
 export async function getInvitingProgressor(agencyId: string | null | undefined): Promise<InvitingProgressor | null> {
   if (!agencyId) return null;
   const link = await prisma.progressionBusinessClient.findFirst({
-    where: { agencyId },
+    where: { agencyId, removedAt: null }, // ignore archived client links (audit SP-polish)
     select: { progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
   });
   if (!link) return null;
