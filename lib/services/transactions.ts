@@ -12,6 +12,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
+import { isTspBusiness } from "@/lib/progression/business";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { recordEvent } from "@/lib/command/events/write";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -454,6 +455,11 @@ export async function countTransactionsByStatus(
 }
 
 export async function listTransactionsByScope(scope: AccessScope) {
+  // DEAD CODE (audit SP-polish, verified 2026-10-05): no callers anywhere in the repo.
+  // Left intact and compiling rather than risk a ~160-line delete in this core file;
+  // physical removal is scheduled as a dedicated cleanup (deferred D4). Do NOT wire
+  // this to a business viewer — it returns raw agency fee fields with no business
+  // branching (use listTransactions, which does).
   const now = new Date();
   const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
   const base = scopeTransactionWhere(scope);
@@ -1074,6 +1080,12 @@ export async function createTransaction(input: CreateTransactionInput) {
     resolveBrokerReferralVat(input.agencyId),
   ]);
 
+  // The agency payment block is about the AGENCY's own TSP billing. A file progressed
+  // by an EXTERNAL business is billed to the business (separately), not the client
+  // agency, so the client agency's TSP status must never block the business from
+  // adding a sale (audit SP-polish). TSP files (null / isTsp) keep the block.
+  const paymentBlockApplies = await isTspBusiness(input.progressionBusinessId ?? null);
+
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment
     // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws
@@ -1083,7 +1095,7 @@ export async function createTransaction(input: CreateTransactionInput) {
     // Demo showcase files bypass the payment block and the trial anchor: they
     // must never set Agency.firstSubmissionAt (that clock belongs to the first
     // REAL sale) and are never billed on exchange.
-    if (!input.isDemo) {
+    if (!input.isDemo && paymentBlockApplies) {
       await assertCanCreateFile(input.agencyId, tx);
     }
 
