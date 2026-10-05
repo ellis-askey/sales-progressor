@@ -46,9 +46,12 @@ const DEFAULT_DURATIONS: Record<AgentToastType, number> = {
 type ContextValue = {
   push: (type: AgentToastType, message: string, options?: AgentToastOptions) => void;
   dismiss: (id: string) => void;
+  /** How many toasts are on screen right now — lets other corner-anchored UI
+   *  (the floating Help "?" pill) step aside while toasts are up. */
+  count: number;
 };
 
-const Ctx = createContext<ContextValue>({ push: () => {}, dismiss: () => {} });
+const Ctx = createContext<ContextValue>({ push: () => {}, dismiss: () => {}, count: 0 });
 
 export function useAgentToast() {
   const { push } = useContext(Ctx);
@@ -60,6 +63,12 @@ export function useAgentToast() {
       error:   (msg: string, opts?: AgentToastOptions) => push("error",   msg, opts),
     },
   };
+}
+
+// Number of toasts currently on screen. 0 outside a provider (e.g. the portal),
+// so consumers safely no-op there. Used by the Help pill to get out of the way.
+export function useAgentToastCount() {
+  return useContext(Ctx).count;
 }
 
 // ─── Icon config ──────────────────────────────────────────────────────────────
@@ -283,7 +292,7 @@ export function AgentToaster({ children }: { children: React.ReactNode }) {
   const visible = toasts.slice(-MAX_VISIBLE);
 
   return (
-    <Ctx.Provider value={{ push, dismiss }}>
+    <Ctx.Provider value={{ push, dismiss, count: visible.length }}>
       {children}
       <div
         aria-label="Notifications"

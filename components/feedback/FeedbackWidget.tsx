@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useAgentToastCount } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type Category = "bug" | "suggestion" | "question";
@@ -224,6 +225,9 @@ function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: b
 
 export function FeedbackWidget({ portalToken, checklistAware, userId }: { portalToken?: string; checklistAware?: boolean; userId?: string }) {
   const { theme, isNight } = usePortalTheme();
+  // Toasts share the bottom-right corner with this pill. Step aside while any are
+  // up (0 outside the agent AgentToaster, so the portal widget is unaffected).
+  const toastCount = useAgentToastCount();
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -484,8 +488,10 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
 
   if (!mounted) return null;
 
-  // Fade the pill out for the onboarding checklist AND while a pop-up is up.
-  const triggerHidden = (checklistAware && checklistActive) || overlayVisible;
+  // Fade the pill out for the onboarding checklist, while a pop-up is up, AND
+  // while any toast occupies the corner — it animates back in once they clear.
+  // Not while the panel itself is open (the user is mid-interaction).
+  const triggerHidden = (checklistAware && checklistActive) || overlayVisible || (toastCount > 0 && !isOpen);
 
   return createPortal(
     <>
