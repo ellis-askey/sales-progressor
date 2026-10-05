@@ -2239,10 +2239,23 @@ export async function getHubWeeklyForecast(
   // External progression business viewer: the forecast "fees" are the business's
   // OWN rate-card fees per file (by the file's agency), not the agency commission.
   // null for TSP/agency viewers, who keep calculateFileFeesPence below.
-  const feeModelByAgency = vis.businessId
+  // vis.businessId is set for owners / see-all members; a SEE-OWN team member has it
+  // undefined but is still an external member, so resolve their business from the user
+  // so their forecast shows the rate card too, never our fee (audit SP-4). Never TSP.
+  let feeBusinessId: string | null = vis.businessId ?? null;
+  if (!feeBusinessId) {
+    const u = await prisma.user.findUnique({
+      where: { id: vis.userId },
+      select: { progressionBusinessId: true, progressionBusiness: { select: { isTsp: true } } },
+    });
+    if (u?.progressionBusinessId && u.progressionBusiness && !u.progressionBusiness.isTsp) {
+      feeBusinessId = u.progressionBusinessId;
+    }
+  }
+  const feeModelByAgency = feeBusinessId
     ? new Map(
         (await prisma.progressionBusinessClient.findMany({
-          where: { progressionBusinessId: vis.businessId },
+          where: { progressionBusinessId: feeBusinessId },
           select: { agencyId: true, feeModel: true },
         })).map((l) => [l.agencyId, parseFeeModel(l.feeModel)]),
       )

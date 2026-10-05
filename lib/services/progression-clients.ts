@@ -360,7 +360,10 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
   const activeAgencyIds = new Set(links.filter((l) => !l.removedAt).map((l) => l.agency.id));
 
   const txns = await prisma.propertyTransaction.findMany({
-    where: { progressionBusinessId: businessId, isDemo: false, isMigrated: false },
+    // Migrated (imported) sales ARE billable for a business (founder, C2a) and appear
+    // on the client invoice, so they must count here too — the invoice excludes only
+    // demo files (audit SP-6).
+    where: { progressionBusinessId: businessId, isDemo: false },
     select: { agencyId: true, status: true, purchasePrice: true, exchangedAt: true },
   });
 
@@ -507,7 +510,9 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
   if (!agency) return null;
 
   const txns = await prisma.propertyTransaction.findMany({
-    where: { progressionBusinessId: businessId, agencyId, isDemo: false, isMigrated: false },
+    // Include migrated sales: they're billable and on the client invoice, so the
+    // owner's fee/earned/exchanged figures must match it (audit SP-6).
+    where: { progressionBusinessId: businessId, agencyId, isDemo: false },
     orderBy: { createdAt: "desc" },
     select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true },
   });

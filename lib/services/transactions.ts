@@ -64,12 +64,24 @@ export async function listTransactions(
   const activeRoundIds = await loadActiveRoundIds(whereClause);
 
   // External progression business viewer: the workspace fee is their per-client
-  // rate card (by the file's agency), not our progression scale (audit F1). Loaded
-  // once, keyed by agency; null for TSP/agency viewers, who keep the branches below.
-  const businessFeeByAgency = scope?.kind === "business"
+  // rate card (by the file's agency), not our progression scale (audit F1 + SP-4).
+  // Owners / see-all members resolve to "business" scope; a SEE-OWN team member
+  // resolves to "assigned" but is still an external member, so resolve their business
+  // from the user too. Never TSP (isTsp stays on our progression scale).
+  let feeBusinessId: string | null = scope?.kind === "business" ? scope.businessId : null;
+  if (!feeBusinessId && scope?.kind === "assigned") {
+    const u = await prisma.user.findUnique({
+      where: { id: scope.userId },
+      select: { progressionBusinessId: true, progressionBusiness: { select: { isTsp: true } } },
+    });
+    if (u?.progressionBusinessId && u.progressionBusiness && !u.progressionBusiness.isTsp) {
+      feeBusinessId = u.progressionBusinessId;
+    }
+  }
+  const businessFeeByAgency = feeBusinessId
     ? new Map<string, ClientFeeModel | null>(
         (await prisma.progressionBusinessClient.findMany({
-          where: { progressionBusinessId: scope.businessId },
+          where: { progressionBusinessId: feeBusinessId },
           select: { agencyId: true, feeModel: true },
         })).map((l) => [l.agencyId, parseFeeModel(l.feeModel)]),
       )
