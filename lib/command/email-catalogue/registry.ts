@@ -954,7 +954,7 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
     bucket: "free_agency",
     category: "chain",
     name: "Chain completed (HALTED)",
-    description: "HALTED — not currently sent (founder decision 2026-10-05, pending the email-polish pass). When live it goes to every claimed chain-mate agent once the last sale in the chain completes. Shown here so the catalogue records it exists and is switched off.",
+    description: "HALTED. Not currently sent (founder decision 2026-10-05, pending the email-polish pass). When live it goes to every claimed chain-mate agent once the last sale in the chain completes. Shown here so the catalogue records it exists and is switched off.",
     trigger: "HALTED. (Would fire when the final file in a chain reaches completion, VM20 / PM27.)",
     axes: [],
     senderKind: "platform",
