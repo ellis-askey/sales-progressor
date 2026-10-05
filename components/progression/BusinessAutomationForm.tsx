@@ -86,7 +86,7 @@ export function BusinessAutomationForm({ initial }: { initial: ProgressorAutomat
     <AccountCard
       icon={<Gauge size={20} weight="bold" />}
       title="Chases & automation"
-      subtitle="Choose which chases we run across your whole book. They're on by default — switch off any you'd rather handle yourself."
+      subtitle="Choose which chases we run across your whole book. They're on by default. Switch off any you'd rather handle yourself."
       headerAction={saveButton("baf-save-desktop")}
     >
       <div className="baf-group">
