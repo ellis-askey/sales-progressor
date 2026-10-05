@@ -6,7 +6,41 @@ Legend: `[ ]` to do · `[~]` in progress · `[x]` done (note commit + "pending p
 
 ---
 
-## 🔴 Blockers — do first
+## 🔁 Second-pass audit (2026-10-05)
+
+A deeper verification pass (five audits: TSP-coupling bug-class sweep, owner/team-member completeness, invited-agent side, full lifecycle + edge transitions, adversarial regression check). Verdict: NOT yet release-ready — real issues found, all contained. Money/billing/per-file-email/retention/analytics layers verified correct.
+
+### Blockers — DONE (built, pending prod deploy)
+- [x] **SP-B1 — External business members had platform-wide chain powers.** Role `sales_progressor` was treated as TSP-internal, and the by-chain-id routes didn't re-scope → an external member could view/edit/delete another tenant's chain. Fixed: scoped to chains their own sales are in (delete requires creator). `0a80a7bf`.
+- [x] **SP-B2 — Admin global search leaked external files + under-scoped owners.** admin search used an empty filter (returned every business's files/contacts + inflated solicitor counts); owner/see-all search was under-scoped. Fixed: TSP-only for admins, whole-book for owners. `c8a756d1`.
+- [x] **SP-B3 — Owner couldn't add a 2nd sale through the UI.** No durable "Add a sale" affordance after the first sale. Fixed: button on the client Sales tab + empty state, and on each clients-list row. `81057fc6`.
+- [x] **SP-C2b-regression — VAT breakdown leaked onto TSP→agency invoices.** My C2b change to the shared renderer fired for VAT-registered agencies. Fixed: gate on issuer VAT number. No live impact (0 prod agencies VAT-registered). `d9b66853`.
+
+### Should-fix — PENDING (items 4–12, next batch)
+- [ ] **SP-4 — Team members see TSP's fee, not the rate card** (files list + hub forecast); F1 only covered owners/see-all.
+- [ ] **SP-5 — Percent/tiered invoice bills £0 for a no-price sale** (and defeats the F4 price-lock).
+- [ ] **SP-6 — Migrated sales are on the invoice but missing from the owner's fee dashboards** (C2a follow-on inconsistency).
+- [ ] **SP-7 — Chain cascade / celebration / decline emails hardcode "Sales Progressor"** (sender + body) — only chain-email family that never white-labels.
+- [ ] **SP-8 — Chain invite/update/overview email footers print "TSP · Sales Progressor"** (sender is fine; body footer isn't).
+- [ ] **SP-9 — W1 invite email "From" display name is still "Sales Progressor"** (body white-labelled, inbox sender line not).
+- [ ] **SP-10 — "Revenue at risk" founder signal counts external-business money as TSP revenue.**
+- [ ] **SP-11 — Outsource-intro email ignores the business's own verified sender.**
+- [ ] (SP-7-search whole-book fix already shipped with SP-B2.)
+
+### Polish — PENDING
+- [ ] `/agent/settings` bare index 404s for a team member (should land on Profile).
+- [ ] Business invoice PDF metadata author still "Sales Progressor".
+- [ ] `removeClientAgencyAction` ignores on-hold sales; `getInvitingProgressor` ignores `removedAt`; V1 flag lookup ignores `removedAt`.
+- [ ] Payment-block check runs against the client agency on clientCreate (wrong party).
+- [ ] Client-chase-digest footer + portal mailto fall back to `support@`/`updates@` on a business file.
+- [ ] Dead `listTransactionsByScope` (no callers).
+
+### Verified clean (sign-off)
+Per-file fees, billing ring-fence, business VAT math, retention suppression, analytics "our fees", all per-file client emails, add-sale gate, relist handling, W3, V1 routing, B2 member settings, member removal, scoping on hub/work-queue/to-do/completions/analytics/notifications.
+
+---
+
+## 🔴 Blockers — do first (first-pass)
 
 - [x] **B1 — Stop our own marketing emails reaching a business's clients.** *(built, pending prod deploy)*
   Our re-engagement/win-back emails go to agencies we haven't heard from and pitch our own service ("your first file's on us", "someone made you a better offer"). They don't know some agencies now belong to an external progression business, so we'd be emailing that business's clients and poaching them under our name.
