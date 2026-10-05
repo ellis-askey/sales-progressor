@@ -91,6 +91,10 @@ export type AssembleDigestInput = {
   // coverage check); omitted = no local provider, so the email is unchanged.
   // mortgage drives the "separate from your lender's valuation" line.
   surveyQuote?: { url: string; mortgage: boolean };
+  // "Need help?" footer contact. Defaults to our support address; the chase path
+  // passes the file's own reply-to so a white-labelled email to a business's clients
+  // doesn't show TSP's support address (audit SP-polish).
+  supportEmail?: string;
 };
 
 export type AssembledDigest = {
@@ -188,7 +192,7 @@ function subjectVariantIndex(seed: string, n: number): number {
 }
 
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
-  const { transaction, contact, milestones, agencyName, recipientSide } = input;
+  const { transaction, contact, milestones, agencyName, recipientSide, supportEmail } = input;
   const theme = input.theme ?? resolveEmailTheme(null);
   const base = portalBase();
   // "your sale" for vendors, "your purchase" for buyers. Single source of
@@ -484,7 +488,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
       <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
         <a href="${pauseUrl}" style="color:#c0c4d0;text-decoration:none;">Pause reminders for a week</a> &nbsp;&middot;&nbsp;
         <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;&middot;&nbsp;
-        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+        <a href="mailto:${supportEmail ?? "support@thesalesprogressor.co.uk"}" style="color:#c0c4d0;text-decoration:none;">${supportEmail ?? "support@thesalesprogressor.co.uk"}</a>
       </p>
     </td></tr>
   </table>
@@ -633,6 +637,9 @@ export async function enqueueClientChaseDigest(input: {
     recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
     agencyCopy,
     theme,
+    // White-label the footer "need help" contact to the file's own reply-to; falls
+    // back to our support address when the file has no reply-to (audit SP-polish).
+    supportEmail: sender.canReply ? sender.replyTo : undefined,
   });
 
   // Apply an agent edit (D2): swap subject/body and rebuild the branded chase
@@ -648,6 +655,7 @@ export async function enqueueClientChaseDigest(input: {
       pauseUrl: buildContactPauseUrl(contact.id),
       unsubscribeUrl: payload.unsubscribeUrl,
       theme,
+      supportEmail: sender.canReply ? sender.replyTo : undefined,
     });
   }
 
@@ -835,8 +843,9 @@ export function renderEditedChaseEmailHtml(args: {
   pauseUrl: string;
   unsubscribeUrl: string;
   theme?: EmailTheme;
+  supportEmail?: string;
 }): string {
-  const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl } = args;
+  const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl, supportEmail } = args;
   const theme = args.theme ?? resolveEmailTheme(null);
   const isLinkLine = (line: string) =>
     (respondUrl && line.includes(respondUrl)) ||
@@ -876,7 +885,7 @@ export function renderEditedChaseEmailHtml(args: {
       <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
         <a href="${pauseUrl}" style="color:#c0c4d0;text-decoration:none;">Pause reminders for a week</a> &nbsp;&middot;&nbsp;
         <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;&middot;&nbsp;
-        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+        <a href="mailto:${supportEmail ?? "support@thesalesprogressor.co.uk"}" style="color:#c0c4d0;text-decoration:none;">${supportEmail ?? "support@thesalesprogressor.co.uk"}</a>
       </p>
     </td></tr>
   </table>

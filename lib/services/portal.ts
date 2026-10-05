@@ -504,7 +504,7 @@ export async function getPortalChainAgent(
   // A managing user is required to attribute any chain write (createdByUserId).
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { serviceType: true, assignedUserId: true, agentUserId: true, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } } },
+    select: { serviceType: true, assignedUserId: true, agentUserId: true, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } }, progressionBusiness: { select: { senderEmail: true } } },
   });
   const managingUserId = tx
     ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
@@ -541,7 +541,7 @@ export async function getPortalChainAgent(
   }
   let correctionMailto: string | null = null;
   if (editState !== "editable") {
-    const to = tx?.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+    const to = tx?.agency?.quoteSenderEmail?.trim() || tx?.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
     const dealWord = side === "vendor" ? "onward-purchase" : "selling";
     const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
     correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
@@ -649,7 +649,7 @@ export async function getPortalTeam(
     if (solicitorEmail) {
       // CC the agency (so replies land back on the file) and the solicitor's
       // assistant/secretary when one's on file.
-      const agencyCc = tx.agency?.quoteSenderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+      const agencyCc = tx.agency?.quoteSenderEmail?.trim() || tx.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
       const assistant = await resolveSolicitorCc(solicitorContact, tx.agencyId);
       const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
