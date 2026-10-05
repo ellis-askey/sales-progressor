@@ -249,6 +249,22 @@ model ProgressionBusiness {
   vatRateBps      Int?     // basis points: 2000 = 20%
   vatNumber       String?
 
+  // Chase preferences (business-level), set by the owner in the welcome modal and
+  // later in settings. Default ON — a business can switch off any category it would
+  // rather handle itself. These sit on the business (not the client agency) because
+  // an external progressor works across many agencies' files; toggling here must
+  // not change an estate agency's own defaults. Enforcement at the send paths lands
+  // with the chase engines (see lib/services/progressor-chase-prefs.ts). TSP's own
+  // row keeps all true and is never read (TSP files use the Agency flags).
+  chaseClientsEnabled        Boolean @default(true)
+  chaseSolicitorsEnabled     Boolean @default(true)
+  chaseEnquiriesEnabled      Boolean @default(true)
+  weeklyClientUpdatesEnabled Boolean @default(true)
+  chainUpdatesEnabled        Boolean @default(true)
+  // Auto-send chain invites at sale creation for files this business handles. The
+  // business controls it, not the sending agent (critique #23). Default on.
+  autoChainInvitesEnabled    Boolean @default(true)
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -350,6 +366,10 @@ model User {
   // Null = hasn't signed in since this was added, or invite not yet accepted.
   lastLoginAt             DateTime?
   hasSeenAgentWelcome     Boolean                  @default(false)
+  // First-run welcome for an EXTERNAL progression-business owner (shown once,
+  // separate from the agent welcome above so the two never collide). Set by
+  // markProgressorWelcomeSeenAction. Agents/TSP staff never see that modal.
+  hasSeenProgressorWelcome Boolean                 @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
   // gets their own first-run auto-start. Set when the tour is finished or
   // skipped; either being non-null suppresses the auto-start (a "Replay

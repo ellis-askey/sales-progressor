@@ -11,7 +11,7 @@
 // in each client's workspace). Owner-only; mounted by AccountShell variant="business".
 
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
@@ -19,6 +19,7 @@ import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/business", label: "Business", Icon: Buildings },
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
+  { href: "/agent/settings/chases", label: "Automation", Icon: Gauge },
   { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/team", label: "Team", Icon: UsersThree },
   { href: "/agent/settings/connections", label: "Connections", Icon: PlugsConnected },

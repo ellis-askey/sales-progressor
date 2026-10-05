@@ -489,7 +489,20 @@ export async function createTransactionAction(input: {
         })),
       });
 
-      if (input.chain.sendInvites) {
+      // Chain invites: a file handled by a progression business uses THAT business's
+      // auto-invite setting — the business controls it, not the sending agent
+      // (critique #23). A pure self-progress file keeps the form's choice. TSP's row
+      // defaults on, so TSP/agency behaviour is unchanged.
+      const chainBusinessId = clientCreate?.progressionBusinessId ?? invitingProgressorBusinessId ?? null;
+      let autoSendInvites = input.chain.sendInvites;
+      if (chainBusinessId) {
+        const invBiz = await prisma.progressionBusiness.findUnique({
+          where: { id: chainBusinessId },
+          select: { autoChainInvitesEnabled: true },
+        });
+        autoSendInvites = invBiz?.autoChainInvitesEnabled ?? true;
+      }
+      if (autoSendInvites) {
         const invitableLinks = createdChain.links.filter(
           (l) =>
             l.transactionId === null &&

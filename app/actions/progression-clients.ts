@@ -45,6 +45,34 @@ export async function saveProgressorChasePrefsAction(prefs: {
 }
 
 /**
+ * Save the full automation settings from the owner's settings page: the 5 chase prefs
+ * plus the auto-chain-invites toggle (critiques #22, #23). Owner-only + flag-gated.
+ * Writes to the ProgressionBusiness; enforced future-only by the chase engines + the
+ * sale-creation invite path.
+ */
+export async function saveBusinessAutomationAction(input: {
+  client: boolean; solicitor: boolean; enquiries: boolean; weekly: boolean; chain: boolean; autoChainInvites: boolean;
+}): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change these." };
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: {
+      chaseClientsEnabled: !!input.client,
+      chaseSolicitorsEnabled: !!input.solicitor,
+      chaseEnquiriesEnabled: !!input.enquiries,
+      weeklyClientUpdatesEnabled: !!input.weekly,
+      chainUpdatesEnabled: !!input.chain,
+      autoChainInvitesEnabled: !!input.autoChainInvites,
+    },
+  });
+  revalidatePath("/agent/settings/chases");
+  return { ok: true };
+}
+
+/**
  * Add an estate agent as a client of the acting user's progression business.
  * Flag-gated (this is a new external-facing entry point) and owner-gated. The
  * client link grants NO transaction access — see lib/services/progression-clients.
