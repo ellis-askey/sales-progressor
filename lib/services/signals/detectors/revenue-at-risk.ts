@@ -8,6 +8,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import type { Detector, SignalResult } from "../types";
 
 const STALLED_DAYS = 14;
@@ -30,6 +31,9 @@ export const revenueAtRisk: Detector = async (window) => {
       isDemo: false,
       isMigrated: false,
       agency: { isInternal: false },
+      // Only our own revenue — a file progressed by an external business is their
+      // money to invoice, not ours (audit SP-11).
+      ...TSP_ONLY_TX_WHERE,
     },
     select: { id: true, propertyAddress: true, exchangedAt: true, agency: { select: { name: true } } },
     take: 100,
@@ -64,6 +68,7 @@ export const revenueAtRisk: Detector = async (window) => {
       isDemo: false,
       isMigrated: false,
       agency: { isInternal: false },
+      ...TSP_ONLY_TX_WHERE, // our own revenue only (audit SP-11)
       OR: [
         { purchaserBrokerReferral: true, brokerReferralFee: null },
         { onwardBrokerReferral: true, onwardBrokerReferralFee: null },
@@ -103,6 +108,7 @@ export const revenueAtRisk: Detector = async (window) => {
     isDemo: false,
     isMigrated: false,
     agency: { isInternal: false },
+    ...TSP_ONLY_TX_WHERE, // our own revenue only (audit SP-11)
   };
   const stalledRoundIds = await loadActiveRoundIds(stalledTxWhere);
   const stalled = await prisma.milestoneCompletion.findMany({
