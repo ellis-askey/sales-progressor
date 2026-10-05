@@ -249,7 +249,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
           <div style={{
             display: "flex",
             padding: "0 20px",
-            borderBottom: "0.5px solid rgba(15, 23, 42, 0.08)",
+            borderBottom: "0.5px solid var(--agent-border-subtle)",
             gap: 4,
           }}>
             {groups.map((g, i) => (
@@ -264,7 +264,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                   borderBottom: i === activeIdx ? "2px solid var(--agent-coral-deep)" : "2px solid transparent",
                   fontSize: 13,
                   fontWeight: 600,
-                  color: i === activeIdx ? "#0f172a" : "var(--agent-text-muted)",
+                  color: i === activeIdx ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
                   cursor: "pointer",
                   transition: "color 120ms ease",
                   marginBottom: -1,
@@ -308,7 +308,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
           ) : null}
 
           {error && (
-            <p style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
+            <p style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: "var(--agent-danger-bg)", color: "var(--agent-danger)", fontSize: 12 }}>
               {error}
             </p>
           )}
@@ -317,12 +317,12 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
         {/* Footer */}
         <footer style={{
           padding: "12px 20px",
-          borderTop: "0.5px solid rgba(15, 23, 42, 0.08)",
+          borderTop: "0.5px solid var(--agent-border-subtle)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 8,
-          background: "#fbfbfc",
+          background: "var(--agent-bg-paper)",
         }}>
           <button
             type="button"
@@ -333,9 +333,9 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
               fontSize: 12,
               fontWeight: 500,
               borderRadius: 10,
-              border: "0.5px solid rgba(15, 23, 42, 0.10)",
+              border: "0.5px solid var(--agent-border-default)",
               background: "var(--agent-surface-elevated)",
-              color: "#991b1b",
+              color: "var(--agent-danger)",
               cursor: items.length === 0 ? "not-allowed" : "pointer",
               opacity: items.length === 0 ? 0.5 : 1,
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -354,7 +354,7 @@ export function ConfirmReviewModal({ open, onClose, transactionId, items, digest
                 fontSize: 12,
                 fontWeight: 500,
                 borderRadius: 10,
-                border: "0.5px solid rgba(15, 23, 42, 0.10)",
+                border: "0.5px solid var(--agent-border-default)",
                 background: "var(--agent-surface-elevated)",
                 color: "var(--agent-text-primary)",
                 cursor: "pointer",
@@ -448,8 +448,8 @@ function RecipientBody({
             <div style={{
               padding: "8px 12px",
               borderRadius: 10,
-              background: "#f8fafc",
-              border: "0.5px solid rgba(15, 23, 42, 0.06)",
+              background: "var(--agent-bg-paper)",
+              border: "0.5px solid var(--agent-border-subtle)",
               fontSize: 11,
               color: "var(--agent-text-muted)",
             }}>
@@ -471,9 +471,9 @@ function RecipientBody({
           fontSize: 11,
           fontWeight: 500,
           borderRadius: 999,
-          border: "0.5px solid rgba(15, 23, 42, 0.10)",
+          border: "0.5px solid var(--agent-border-default)",
           background: "var(--agent-surface-elevated)",
-          color: "#991b1b",
+          color: "var(--agent-danger)",
           cursor: "pointer",
         }}
       >
@@ -551,7 +551,7 @@ function DigestEmailCard({
 
   return (
     <article style={{
-      border: "0.5px solid rgba(15, 23, 42, 0.10)",
+      border: "0.5px solid var(--agent-border-default)",
       borderRadius: 12,
       background: "var(--agent-surface-elevated)",
       overflow: "hidden",
@@ -561,8 +561,8 @@ function DigestEmailCard({
         justifyContent: "space-between",
         alignItems: "center",
         padding: "10px 14px",
-        borderBottom: "0.5px solid rgba(15, 23, 42, 0.06)",
-        background: "#f8fafc",
+        borderBottom: "0.5px solid var(--agent-border-subtle)",
+        background: "var(--agent-bg-paper)",
         gap: 8,
       }}>
         <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -583,7 +583,7 @@ function DigestEmailCard({
               fontSize: 11,
               fontWeight: 600,
               borderRadius: 999,
-              border: "0.5px solid rgba(15, 23, 42, 0.12)",
+              border: "0.5px solid var(--agent-border-default)",
               background: "var(--agent-surface-elevated)",
               color: "var(--agent-coral-deep)",
               cursor: "pointer",
@@ -620,7 +620,7 @@ function DigestEmailCard({
           </span>
         )}
         {saved && !editing && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "#047857", flexShrink: 0 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--agent-success)", flexShrink: 0 }}>
             <Check size={11} weight="bold" /> Saved
           </span>
         )}
@@ -656,7 +656,7 @@ function DigestEmailCard({
                 }}
               />
             </label>
-            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           </>
         ) : digest.overridden ? (
           <>
@@ -666,7 +666,7 @@ function DigestEmailCard({
             <p style={{ margin: "10px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
               Edited version. Sends exactly as written.
             </p>
-            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           </>
         ) : (
           <>
@@ -684,8 +684,8 @@ function DigestEmailCard({
                         style={{
                           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
                           padding: "6px 10px", borderRadius: 8,
-                          background: armed ? "#fef2f2" : "#f8fafc",
-                          border: `0.5px solid ${armed ? "rgba(153,27,27,0.25)" : "var(--agent-border-subtle)"}`,
+                          background: armed ? "var(--agent-danger-bg)" : "var(--agent-bg-paper)",
+                          border: `0.5px solid ${armed ? "var(--agent-danger-border)" : "var(--agent-border-subtle)"}`,
                         }}
                       >
                         <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{bullet.line}</span>
@@ -721,7 +721,7 @@ function DigestEmailCard({
                             style={{
                               padding: "3px 9px", fontSize: 11, fontWeight: 500,
                               borderRadius: 999, border: "0.5px solid var(--agent-border-default)",
-                              background: "var(--agent-surface-elevated)", color: "#991b1b", cursor: "pointer",
+                              background: "var(--agent-surface-elevated)", color: "var(--agent-danger)", cursor: "pointer",
                               flexShrink: 0,
                             }}
                           >Remove</button>
@@ -733,7 +733,7 @@ function DigestEmailCard({
               </div>
             ))}
             <div><PortalPreviewButton button={button} /></div>
-            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           </>
         )}
       </div>
@@ -780,7 +780,7 @@ function EditableEmailCard({
 
   return (
     <article style={{
-      border: "0.5px solid rgba(15, 23, 42, 0.10)",
+      border: "0.5px solid var(--agent-border-default)",
       borderRadius: 12,
       background: "var(--agent-surface-elevated)",
       overflow: "hidden",
@@ -790,8 +790,8 @@ function EditableEmailCard({
         justifyContent: "space-between",
         alignItems: "center",
         padding: "10px 14px",
-        borderBottom: "0.5px solid rgba(15, 23, 42, 0.06)",
-        background: "#f8fafc",
+        borderBottom: "0.5px solid var(--agent-border-subtle)",
+        background: "var(--agent-bg-paper)",
       }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
           {item.recipientEmail}
@@ -806,7 +806,7 @@ function EditableEmailCard({
               fontSize: 11,
               fontWeight: 600,
               borderRadius: 999,
-              border: "0.5px solid rgba(15, 23, 42, 0.12)",
+              border: "0.5px solid var(--agent-border-default)",
               background: "var(--agent-surface-elevated)",
               color: "var(--agent-coral-deep)",
               cursor: "pointer",
@@ -842,7 +842,7 @@ function EditableEmailCard({
           </span>
         )}
         {saved && !editing && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "#047857", marginLeft: 8 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--agent-success)", marginLeft: 8 }}>
             <Check size={11} weight="bold" /> Saved
           </span>
         )}
@@ -878,7 +878,7 @@ function EditableEmailCard({
                 }}
               />
             </label>
-            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#991b1b" }}>{err}</p>}
+            {err && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
           </>
         ) : (
           <>

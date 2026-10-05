@@ -26,6 +26,8 @@ import {
 import { getPortalAgentOnlyCopy } from "@/lib/chase/portal-agent-only-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { DateField } from "@/components/ui/DateField";
+import { PortalButton } from "@/components/portal/PortalButton";
+import { Check, CalendarBlank, NotePencil } from "@phosphor-icons/react/dist/ssr";
 
 type Who = "you" | "solicitor" | "lender";
 
@@ -355,57 +357,18 @@ export function RespondList({
                   {/* Controls */}
                   {!isExpanded ? (
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => open(item.milestoneCode, "confirm")}
-                        disabled={isSubmitting}
-                        className="pbtn pbtn-press"
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          background: P.primaryBg,
-                          color: P.primaryText,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          border: "none",
-                          cursor: "pointer",
-                        }}
-                      >
+                      <PortalButton size="sm" full={false} disabled={isSubmitting} onClick={() => open(item.milestoneCode, "confirm")}>
+                        <Check size={15} weight="bold" />
                         {isDiy ? "Yes, this is done" : "Yes, this is already done"}
-                      </button>
-                      <button
-                        onClick={() => open(item.milestoneCode, "date")}
-                        disabled={isSubmitting}
-                        className="pbtn pbtn-press"
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          background: "transparent",
-                          color: P.textPrimary,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          border: `0.5px solid ${P.border}`,
-                          cursor: "pointer",
-                        }}
-                      >
+                      </PortalButton>
+                      <PortalButton size="sm" full={false} variant="secondary" disabled={isSubmitting} onClick={() => open(item.milestoneCode, "date")}>
+                        <CalendarBlank size={15} />
                         Tell us when
-                      </button>
-                      <button
-                        onClick={() => open(item.milestoneCode, "note")}
-                        disabled={isSubmitting}
-                        className="pbtn pbtn-press"
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 8,
-                          background: "transparent",
-                          color: P.textPrimary,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          border: `0.5px solid ${P.border}`,
-                          cursor: "pointer",
-                        }}
-                      >
+                      </PortalButton>
+                      <PortalButton size="sm" full={false} variant="secondary" disabled={isSubmitting} onClick={() => open(item.milestoneCode, "note")}>
+                        <NotePencil size={15} />
                         Leave a note
-                      </button>
+                      </PortalButton>
                     </div>
                   ) : (
                     <div className="portal-reveal-fade" style={{ marginTop: 14 }}>
@@ -427,24 +390,9 @@ export function RespondList({
                             wrapperStyle={{ marginBottom: 12 }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              onClick={() => handleConfirm(item)}
-                              disabled={isSubmitting}
-                              className="pbtn pbtn-press"
-                              style={{
-                                padding: "8px 14px",
-                                borderRadius: 8,
-                                background: P.primaryBg,
-                                color: P.primaryText,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                border: "none",
-                                cursor: isSubmitting ? "wait" : "pointer",
-                                opacity: isSubmitting ? 0.6 : 1,
-                              }}
-                            >
-                              {isSubmitting ? "Saving..." : "Confirm"}
-                            </button>
+                            <PortalButton size="sm" full={false} loading={isSubmitting} disabled={isSubmitting} onClick={() => handleConfirm(item)}>
+                              Confirm
+                            </PortalButton>
                             <button
                               onClick={close}
                               disabled={isSubmitting}
@@ -484,24 +432,9 @@ export function RespondList({
                             wrapperStyle={{ marginBottom: 12 }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              onClick={() => handleSetDate(item)}
-                              disabled={isSubmitting || !dateInput}
-                              className="pbtn pbtn-press"
-                              style={{
-                                padding: "8px 14px",
-                                borderRadius: 8,
-                                background: P.primaryBg,
-                                color: P.primaryText,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                border: "none",
-                                cursor: isSubmitting ? "wait" : "pointer",
-                                opacity: isSubmitting || !dateInput ? 0.6 : 1,
-                              }}
-                            >
-                              {isSubmitting ? "Saving..." : "Save date"}
-                            </button>
+                            <PortalButton size="sm" full={false} loading={isSubmitting} disabled={isSubmitting || !dateInput} onClick={() => handleSetDate(item)}>
+                              Save date
+                            </PortalButton>
                             <button
                               onClick={close}
                               disabled={isSubmitting}
@@ -545,24 +478,9 @@ export function RespondList({
                             }}
                           />
                           <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              onClick={() => handleNote(item)}
-                              disabled={isSubmitting || !noteInput.trim()}
-                              className="pbtn pbtn-press"
-                              style={{
-                                padding: "8px 14px",
-                                borderRadius: 8,
-                                background: P.primaryBg,
-                                color: P.primaryText,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                border: "none",
-                                cursor: isSubmitting ? "wait" : "pointer",
-                                opacity: isSubmitting || !noteInput.trim() ? 0.6 : 1,
-                              }}
-                            >
-                              {isSubmitting ? "Sending..." : "Send to agent"}
-                            </button>
+                            <PortalButton size="sm" full={false} loading={isSubmitting} disabled={isSubmitting || !noteInput.trim()} onClick={() => handleNote(item)}>
+                              Send to agent
+                            </PortalButton>
                             <button
                               onClick={close}
                               disabled={isSubmitting}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { CaretDown, Tag, ChatCircle, Paperclip, Bell } from "@phosphor-icons/react";
+import { CaretDown, Tag, ChatCircle, Paperclip, Bell, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
@@ -300,6 +300,13 @@ const CF_STYLES = `
   .cf-menu[data-open="true"] { opacity:1; visibility:visible; pointer-events:auto; transform:none; transition:opacity .16s ease, transform .2s cubic-bezier(.22,1,.36,1); }
   .cf-side-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px; }
   .cf-count { font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
+  .cf-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:11px; padding:10px 13px; transition:border-color .14s ease, box-shadow .14s ease; }
+  .cf-search:focus-within { border-color:var(--agent-coral-deep); box-shadow:0 0 0 3px rgba(var(--agent-coral-rgb),0.10); }
+  .cf-search-ico { color:var(--agent-text-muted); flex-shrink:0; }
+  .cf-search-input { flex:1; min-width:0; border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary); }
+  .cf-search-input::placeholder { color:var(--agent-text-muted); }
+  .cf-search-clear { border:none; background:none; cursor:pointer; color:var(--agent-text-muted); display:inline-flex; align-items:center; justify-content:center; padding:3px; border-radius:6px; transition:color .14s ease, background .14s ease; }
+  .cf-search-clear:hover { color:var(--agent-text-primary); background:var(--agent-hover-tint); }
 `;
 
 function CheckRows({ options, selected, onToggle }: { options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void }) {
@@ -354,6 +361,10 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   // clicking a header did nothing).
   const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
 
+  // Free-text address search (partial, case-insensitive, matches anywhere — so
+  // "walk" finds "36 Nathaniels Walk"). Combines with the filters via AND.
+  const [query, setQuery] = useState("");
+
   // Filters. Empty set in a group = "all" for that group. Groups combine with AND.
   const [types, setTypes] = useState<Set<UpdateKind>>(new Set());
   const [whos, setWhos] = useState<Set<UpdateWho>>(new Set());
@@ -376,8 +387,9 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
       return next;
     });
   }
-  function clearAll() { setTypes(new Set()); setWhos(new Set()); setSides(new Set()); setStages(new Set()); }
-  const filterActive = types.size > 0 || whos.size > 0 || sides.size > 0 || stages.size > 0;
+  function clearAll() { setTypes(new Set()); setWhos(new Set()); setSides(new Set()); setStages(new Set()); setQuery(""); }
+  const q = query.trim().toLowerCase();
+  const filterActive = types.size > 0 || whos.size > 0 || sides.size > 0 || stages.size > 0 || q.length > 0;
 
   // Hydrate filters from the URL once on mount (?type=&who=&side=&stage=), then
   // keep the URL in sync so a filtered view is shareable and survives refresh.
@@ -432,11 +444,14 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
   const totalCount = days.reduce((n, d) => n + d.txGroups.reduce((m, t) => m + t.updates.length, 0), 0);
 
-  // Apply the filter, dropping empty cards and empty days.
+  // Apply the search + filters, dropping empty cards and empty days. The search
+  // matches the address substring (any part), so a file drops out entirely when
+  // its address doesn't contain the query.
   const visibleDays: DayBucket[] = days
     .map((d) => ({
       ...d,
       txGroups: d.txGroups
+        .filter((tx) => !q || tx.transactionAddress.toLowerCase().includes(q))
         .map((tx) => ({ ...tx, updates: tx.updates.filter(passes) }))
         .filter((tx) => tx.updates.length > 0),
     }))
@@ -498,6 +513,24 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         </aside>
 
         <div className="cf-feed space-y-4">
+
+      {/* Address search — sits above the day buckets. Partial match, any part. */}
+      <div className="cf-search">
+        <MagnifyingGlass size={16} weight="regular" className="cf-search-ico" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by address"
+          className="cf-search-input"
+          aria-label="Search updates by address"
+        />
+        {query && (
+          <button type="button" className="cf-search-clear" onClick={() => setQuery("")} aria-label="Clear search">
+            <X size={13} weight="bold" />
+          </button>
+        )}
+      </div>
 
       {filterActive && visibleDays.length === 0 && (
         <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 24px", textAlign: "center" }}>
