@@ -18,13 +18,26 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   searchComposeSales, getComposeContextAction, sendComposedEmail,
+  listScheduledComposeEmailsAction, cancelScheduledComposeEmailAction,
   type ComposeSaleResult, type ComposeContextWithPhoto, type ComposeAttachmentInput,
 } from "@/app/actions/compose";
+import type { ScheduledComposeRow } from "@/lib/email/compose-queue";
 import type { ComposeRecipient } from "@/lib/services/compose-recipients";
 
 type Field = "to" | "cc" | "bcc";
 type Token = { email: string; name: string; rec: ComposeRecipient | null };
 const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
+
+function fmtWhen(d: Date): string {
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+function schedulePresets(): { label: string; when: Date }[] {
+  const now = new Date();
+  const later = new Date(now); later.setHours(17, 0, 0, 0); if (later <= now) later.setDate(later.getDate() + 1);
+  const tom = new Date(now); tom.setDate(tom.getDate() + 1); tom.setHours(8, 0, 0, 0);
+  const mon = new Date(now); mon.setDate(mon.getDate() + ((8 - mon.getDay()) % 7 || 7)); mon.setHours(8, 0, 0, 0);
+  return [{ label: "Later today", when: later }, { label: "Tomorrow morning", when: tom }, { label: "Monday morning", when: mon }];
+}
 
 function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }) {
   if (!rec) return (
@@ -68,12 +81,20 @@ export function ComposeEmailModal({
   const [isSending, startSend] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  // schedule (phase 2)
+  const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
+  const [schedOpen, setSchedOpen] = useState(false);
+  const [scheduledList, setScheduledList] = useState<ScheduledComposeRow[]>([]);
+
+  function refreshScheduled() { listScheduledComposeEmailsAction().then(setScheduledList).catch(() => {}); }
+  useEffect(() => { if (open && !ctx) refreshScheduled(); }, [open, ctx]);
+
   // reset on open/close
   useEffect(() => {
     if (!open) return;
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
-    setSubject(""); setAttachments([]); setError(null);
+    setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (initialTransactionId) void selectSale(initialTransactionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +142,8 @@ export function ComposeEmailModal({
 
   function clearSale() {
     setCtx(null); setTokens({ to: [], cc: [], bcc: [] }); setSubject(""); setShowCc(false); setShowBcc(false);
-    setAttachments([]); setError(null); if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
+    setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
+    if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
   }
 
   const usedEmails = new Set([...tokens.to, ...tokens.cc, ...tokens.bcc].map((t) => t.email.toLowerCase()));
@@ -172,6 +194,7 @@ export function ComposeEmailModal({
     if (!ctx) return;
     setError(null);
     const bodyHtml = editorRef.current?.innerHTML ?? "";
+    const when = scheduledFor;
     startSend(async () => {
       const res = await sendComposedEmail({
         transactionId: ctx.sale.id,
@@ -181,10 +204,16 @@ export function ComposeEmailModal({
         subject,
         bodyHtml,
         attachments: attachments.map(({ filename, contentBase64, type }) => ({ filename, contentBase64, type })),
+        scheduledFor: when ? when.toISOString() : null,
       });
-      if (res.ok) { toast.success("Email sent"); onClose(); }
+      if (res.ok) { toast.success(when ? `Scheduled for ${fmtWhen(when)}` : "Email sent"); onClose(); }
       else setError(res.error);
     });
+  }
+
+  async function cancelScheduled(id: string) {
+    const res = await cancelScheduledComposeEmailAction(id);
+    if (res.ok) { toast.success("Scheduled email cancelled"); refreshScheduled(); }
   }
 
   if (!open || !mounted) return null;
@@ -286,6 +315,21 @@ export function ComposeEmailModal({
             )}
           </div>
 
+          {!ctx && scheduledList.length > 0 && (
+            <div className="cem-row">
+              <p className="cem-eyebrow">Scheduled to send</p>
+              {scheduledList.map((s) => (
+                <div key={s.id} className="cem-sched-item">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="cem-n">{s.subject || "(no subject)"}</div>
+                    <div className="cem-r">{[s.saleLine1, `to ${s.to.join(", ")}`, fmtWhen(new Date(s.scheduledFor))].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <button className="cem-cancel-sched" onClick={() => cancelScheduled(s.id)}>Cancel</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {ctx && (
             <>
               <div className="cem-row">
@@ -334,10 +378,35 @@ export function ComposeEmailModal({
 
         {ctx && (
           <div className="cem-foot">
-            <span className="cem-fromline">From <b>{ctx.fromEmail}</b></span>
-            <button className="cem-send" disabled={isSending} onClick={send}>
-              {isSending ? "Sending…" : <>➤ Send</>}
-            </button>
+            {scheduledFor && (
+              <div style={{ marginBottom: 10 }}>
+                <span className="cem-sched-chip">🕑 Scheduled for {fmtWhen(scheduledFor)} <span className="cem-x" onClick={() => setScheduledFor(null)}>✕</span></span>
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="cem-fromline">From <b>{ctx.fromEmail}</b></span>
+              <div style={{ position: "relative" }}>
+                <div className="cem-send">
+                  <button className="cem-send-go" disabled={isSending} onClick={send}>
+                    {isSending ? (scheduledFor ? "Scheduling…" : "Sending…") : scheduledFor ? "Schedule send" : <>➤ Send</>}
+                  </button>
+                  <button className="cem-send-split" aria-label="Schedule options" onClick={() => setSchedOpen((v) => !v)}>▾</button>
+                </div>
+                {schedOpen && (
+                  <div className="cem-schedmenu" onMouseDown={(e) => e.preventDefault()}>
+                    <div className="cem-mgroup">Send</div>
+                    <button className="cem-si" onClick={() => { setScheduledFor(null); setSchedOpen(false); }}>Send now</button>
+                    <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
+                    <div className="cem-mgroup">Schedule for later</div>
+                    {schedulePresets().map((p) => (
+                      <button key={p.label} className="cem-si" onClick={() => { setScheduledFor(p.when); setSchedOpen(false); }}>
+                        <span>{p.label}</span><span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{fmtWhen(p.when)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -421,8 +490,19 @@ const CEM_CSS = `
 .cem-count{font-size:10.5px;color:var(--agent-text-muted);padding:0 8px;font-variant-numeric:tabular-nums}
 .cem-attach{display:inline-flex;align-items:center;gap:8px;background:var(--agent-bg-paper,#FFFBF5);border:1px solid var(--agent-border-default);border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--agent-text-secondary)}
 .cem-attach .cem-x{cursor:pointer;color:var(--agent-text-muted);font-size:13px}.cem-attach .cem-x:hover{color:var(--agent-danger)}
-.cem-foot{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:12px 20px 16px;border-top:1px solid var(--agent-border-subtle);background:var(--agent-surface-elevated,#fff)}
+.cem-foot{flex-shrink:0;display:flex;flex-direction:column;padding:12px 20px 16px;border-top:1px solid var(--agent-border-subtle);background:var(--agent-surface-elevated,#fff)}
 .cem-fromline{font-size:11px;color:var(--agent-text-muted);margin-right:auto}.cem-fromline b{color:var(--agent-text-secondary);font-weight:600}
-.cem-send{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 20px;height:40px;display:inline-flex;align-items:center;gap:8px;border-radius:10px;background:linear-gradient(135deg,var(--agent-coral-deep,#FF6B4A),var(--agent-coral-light,#FFB18F));box-shadow:0 4px 16px rgba(255,107,74,0.28);transition:filter .12s}
-.cem-send:hover{filter:brightness(1.05)}.cem-send:disabled{opacity:.6;cursor:default}
+.cem-send{display:inline-flex;align-items:stretch;border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(255,107,74,0.28)}
+.cem-send-go{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 18px;height:40px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--agent-coral-deep,#FF6B4A),var(--agent-coral-light,#FFB18F));transition:filter .12s}
+.cem-send-go:hover{filter:brightness(1.05)}.cem-send-go:disabled{opacity:.6;cursor:default}
+.cem-send-split{border:none;cursor:pointer;color:#fff;width:34px;height:40px;display:grid;place-items:center;font-size:11px;background:linear-gradient(135deg,var(--agent-coral-darker,#E55B3D),var(--agent-coral-deep,#FF6B4A));box-shadow:inset 1px 0 0 rgba(255,255,255,0.18);transition:filter .12s}
+.cem-send-split:hover{filter:brightness(1.05)}
+.cem-sched-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(61,122,184,0.1);border:1px solid rgba(61,122,184,0.3);color:var(--agent-info,#3D7AB8);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600}
+.cem-sched-chip .cem-x{cursor:pointer;opacity:.7}.cem-sched-chip .cem-x:hover{opacity:1}
+.cem-schedmenu{position:absolute;bottom:calc(100% + 8px);right:0;z-index:50;width:252px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 16px 44px rgba(45,24,16,0.18);animation:cemMenuin .16s ease both}
+.cem-si{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:9px 10px;border-radius:9px;font-family:inherit;font-size:13px;color:var(--agent-text-primary);transition:background .12s}
+.cem-si:hover{background:rgba(255,138,101,0.09)}
+.cem-sched-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--agent-border-subtle);border-radius:10px;margin-bottom:7px}
+.cem-cancel-sched{flex-shrink:0;border:1px solid var(--agent-border-default);background:#fff;color:var(--agent-text-secondary);border-radius:8px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .14s}
+.cem-cancel-sched:hover{border-color:var(--agent-danger);color:var(--agent-danger)}
 `;

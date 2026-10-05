@@ -15,6 +15,7 @@ import { resolveSenderForTransaction, sendEmail, type EmailAttachment } from "@/
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
 import { getSignedUrl, getSignedUrlMap } from "@/lib/supabase-storage";
+import { enqueueComposedEmail, listScheduledComposeEmails, cancelScheduledComposeEmail, type ScheduledComposeRow, type ComposeQueuePayload } from "@/lib/email/compose-queue";
 
 export type ComposeSaleResult = { id: string; line1: string; location: string; photoUrl: string | null };
 export type ComposeContextWithPhoto = ComposeContext & { photoUrl: string | null };
@@ -81,7 +82,7 @@ function htmlToText(html: string): string {
     .trim();
 }
 
-// ── Send now ─────────────────────────────────────────────────────────────────
+// ── Send now, or schedule for later ──────────────────────────────────────────
 export async function sendComposedEmail(input: {
   transactionId: string;
   to: string[];
@@ -90,6 +91,9 @@ export async function sendComposedEmail(input: {
   subject: string;
   bodyHtml: string;
   attachments?: ComposeAttachmentInput[];
+  // ISO timestamp — when set and in the future, the email is queued and sent at
+  // that time by the hourly drain instead of now (phase 2).
+  scheduledFor?: string | null;
 }): Promise<SendResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -109,6 +113,11 @@ export async function sendComposedEmail(input: {
   if (!subject) return { ok: false, error: "Add a subject." };
   if (isHtmlEmpty(input.bodyHtml)) return { ok: false, error: "Write a message before sending." };
 
+  const scheduledAt = input.scheduledFor ? new Date(input.scheduledFor) : null;
+  if (scheduledAt && (isNaN(scheduledAt.getTime()) || scheduledAt.getTime() < Date.now() + 30_000)) {
+    return { ok: false, error: "Pick a send time in the future." };
+  }
+
   const html = sanitizeChaseBodyHtml(input.bodyHtml);
   const text = htmlToText(html);
 
@@ -117,15 +126,9 @@ export async function sendComposedEmail(input: {
     ? input.attachments.map((a) => ({ content: a.contentBase64, filename: a.filename, type: a.type, disposition: "attachment" }))
     : undefined;
 
-  try {
-    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose" });
-  } catch (e) {
-    console.error("[compose] send failed", e);
-    return { ok: false, error: "Couldn't send the email. Please try again." };
-  }
-
-  // Timeline log. Map To addresses back to Contact ids where they match a
-  // client recipient (solicitor/team ids are NOT Contact ids, so excluded).
+  // Map To addresses back to Contact ids where they match a client recipient
+  // (solicitor/team ids are NOT Contact ids, so excluded), and resolve the sale
+  // line for the scheduled-list label.
   const ctx = await getComposeContext(input.transactionId, session);
   const contactIds = ctx
     ? (to
@@ -136,6 +139,37 @@ export async function sendComposedEmail(input: {
         .filter(Boolean) as string[])
     : [];
   const recipientName = ctx?.recipients.find((x) => x.email.toLowerCase() === to[0].toLowerCase())?.name ?? null;
+  const ccEmails = cc.length ? cc.join(", ") : null;
+
+  // ── Schedule: queue it; the drain sends + logs at the chosen time. ──────────
+  if (scheduledAt) {
+    const payload: ComposeQueuePayload = {
+      transactionId: input.transactionId,
+      saleLine1: ctx?.sale.line1 ?? "",
+      to, cc, bcc, subject, text, html, from, replyTo,
+      attachments: attachments?.map((a) => ({ content: a.content, filename: a.filename, type: a.type })),
+      createdById: session.user.id,
+      createdByRole: session.user.role,
+      ccEmails,
+      recipientName,
+      contactIds,
+    };
+    try {
+      await enqueueComposedEmail(payload, scheduledAt);
+    } catch (e) {
+      console.error("[compose] schedule failed", e);
+      return { ok: false, error: "Couldn't schedule the email. Please try again." };
+    }
+    return { ok: true };
+  }
+
+  // ── Send now. ───────────────────────────────────────────────────────────────
+  try {
+    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose" });
+  } catch (e) {
+    console.error("[compose] send failed", e);
+    return { ok: false, error: "Couldn't send the email. Please try again." };
+  }
 
   await prisma.outboundMessage.create({
     data: {
@@ -151,7 +185,7 @@ export async function sendComposedEmail(input: {
       sentEmailHtml: html,
       recipientEmail: to[0],
       recipientName,
-      ccEmails: cc.length ? cc.join(", ") : null,
+      ccEmails,
       createdById: session.user.id,
       createdByRole: session.user.role,
       visibleToClient: false,
@@ -160,4 +194,16 @@ export async function sendComposedEmail(input: {
 
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   return { ok: true };
+}
+
+// ── Scheduled list + cancel ──────────────────────────────────────────────────
+export async function listScheduledComposeEmailsAction(): Promise<ScheduledComposeRow[]> {
+  const session = await requireSession();
+  return listScheduledComposeEmails(session.user.id);
+}
+
+export async function cancelScheduledComposeEmailAction(id: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const ok = await cancelScheduledComposeEmail(id, session.user.id);
+  return { ok };
 }

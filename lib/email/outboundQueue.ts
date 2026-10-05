@@ -5,8 +5,9 @@
 import type { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, isSenderIdentityError, MAX_SEND_RETRY_MS } from "@/lib/email";
+import { sendChainEmail, sendEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, isSenderIdentityError, MAX_SEND_RETRY_MS } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
+import { AGENT_COMPOSE_TYPE, type ComposeQueuePayload } from "@/lib/email/compose-queue";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
 
@@ -190,6 +191,52 @@ export async function drainOutboundQueue(): Promise<{
         data: { errorAt: now, errorMessage: "retry_age_exceeded" },
       });
       failed++;
+      continue;
+    }
+
+    // Agent email composer (critique 2026-10-05, phase 2): a scheduled compose
+    // email. The real recipients (To / Cc / Bcc) + attachments live in the
+    // payload; recipientUserId is the sender. Send via sendEmail (multi-
+    // recipient) and log to the file timeline, skipping the chase-specific
+    // recipient/suppression logic below.
+    if (record.emailType === AGENT_COMPOSE_TYPE) {
+      const claim = await prisma.outboundEmailQueue.updateMany({
+        where: { id: record.id, sentAt: null, errorAt: null },
+        data: { sentAt: now },
+      });
+      if (claim.count === 0) { skipped++; continue; }
+      const p = record.payload as unknown as ComposeQueuePayload;
+      try {
+        await sendEmail({
+          to: p.to, cc: p.cc, bcc: p.bcc, subject: p.subject, text: p.text, html: p.html,
+          from: p.from, replyTo: p.replyTo,
+          attachments: p.attachments?.map((a) => ({ content: a.content, filename: a.filename, type: a.type, disposition: "attachment" })),
+          emailType: "agent_compose",
+        });
+        const sentAtNow = new Date();
+        await prisma.outboundEmailQueue.update({ where: { id: record.id }, data: { sentAt: sentAtNow } });
+        await prisma.outboundMessage.create({
+          data: {
+            transactionId: p.transactionId, type: "outbound", method: "email", channel: "email", purpose: "other",
+            status: "sent", contactIds: p.contactIds ?? [],
+            content: `Email sent to ${p.to.join(", ")}${p.cc.length ? `\nCc: ${p.cc.join(", ")}` : ""}\n\nSubject: ${p.subject}\n\n${p.text}`,
+            subject: p.subject, bodyFormat: "html", sentEmailHtml: p.html,
+            recipientEmail: p.to[0], recipientName: p.recipientName, ccEmails: p.ccEmails,
+            createdById: p.createdById, createdByRole: p.createdByRole, visibleToClient: false, sentAt: sentAtNow,
+          },
+        }).catch((e: unknown) => console.error(`[compose mirror] failed id=${record.id}`, e));
+        console.log(`[EMAIL_SENT] type=AGENT_COMPOSE to=${p.to.join(",")}`);
+        sent++;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "send error";
+        const transient = isTransientSendError(err);
+        await prisma.outboundEmailQueue.update({
+          where: { id: record.id },
+          data: transient ? { sentAt: null, errorMessage: message } : { sentAt: null, errorAt: new Date(), errorMessage: message },
+        });
+        console.error(`[EMAIL_FAIL] type=AGENT_COMPOSE transient=${transient} err=${message}`);
+        failed++;
+      }
       continue;
     }
 
