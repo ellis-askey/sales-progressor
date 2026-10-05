@@ -22,9 +22,15 @@ describe("titleCaseKeepAcronyms", () => {
     expect(titleCaseKeepAcronyms("smith-jones and co")).toBe("Smith-Jones And Co");
   });
 
-  it("capitalises after apostrophes", () => {
+  it("capitalises after apostrophes for name prefixes only", () => {
     expect(titleCaseKeepAcronyms("tracey o'neill")).toBe("Tracey O'Neill");
     expect(titleCaseKeepAcronyms("d’arcy estates")).toBe("D’Arcy Estates");
+  });
+
+  it("leaves possessive apostrophes lowercase", () => {
+    expect(titleCaseKeepAcronyms("someone's agency")).toBe("Someone's Agency");
+    expect(titleCaseKeepAcronyms("barratt's homes")).toBe("Barratt's Homes");
+    expect(titleCaseKeepAcronyms("o'neill's estates")).toBe("O'Neill's Estates");
   });
 
   it("still title-cases plain lowercase input", () => {

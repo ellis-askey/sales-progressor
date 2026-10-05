@@ -65,15 +65,25 @@ export function titleCase(str: string): string {
  * titleCase() above force-lowercases and would turn "ABC Estates" into
  * "Abc Estates".
  *
- * Hyphenated and apostrophed segments each get their own capital:
- * "gili-ross" → "Gili-Ross", "o'neill" → "O'Neill" (founder report,
- * 2026-09-23 — "Gili-ross" was saving with a lowercase r).
+ * Hyphenated segments each get their own capital: "gili-ross" → "Gili-Ross"
+ * (founder report, 2026-09-23 — "Gili-ross" was saving with a lowercase r).
+ *
+ * Apostrophes only trigger a capital for a genuine name prefix — a single
+ * letter before the apostrophe, as in "o'neill" → "O'Neill", "d'arcy" →
+ * "D'Arcy". A possessive is left alone: "someone's" stays "Someone's", not
+ * "Someone'S" (founder report, 2026-10-05).
  */
 export function titleCaseKeepAcronyms(str: string): string {
   return str.trim().replace(/\S+/g, (word) =>
     /[A-Z]{2,}/.test(word)
       ? word
-      : word.toLowerCase().replace(/(^|[-'’])\p{L}/gu, (m) => m.toUpperCase()),
+      : word.toLowerCase().replace(/(^|[-'’])\p{L}/gu, (match, sep, offset) => {
+          // After an apostrophe, only capitalise when exactly one letter
+          // precedes it (the O'/D'/L' name prefixes sit at word index 1).
+          // Longer stems before an apostrophe are possessives — leave as-is.
+          if ((sep === "'" || sep === "’") && offset !== 1) return match;
+          return match.toUpperCase();
+        }),
   );
 }
 
