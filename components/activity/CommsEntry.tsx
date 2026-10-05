@@ -236,7 +236,11 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         /* Small breakpoints: the More menu spans the composer so it can never
            clip on either edge when the channel buttons wrap (critique #7a). */
         @media (max-width: 520px) {
-          .ce-menu { left:0; right:0; min-width:0; max-width:none; }
+          /* Anchor to the right of the caret and extend leftward with a real
+             width. The positioned ancestor is the tiny caret-button wrapper, so
+             left:0;right:0 (the old rule) collapsed the panel to the chevron's
+             width and stacked every item one word per line. (critique 2026-10-05) */
+          .ce-menu { left:auto; right:0; width:min(280px, calc(100vw - 24px)); min-width:0; max-width:none; }
           /* Hide the "More" word on mobile, leaving just the chevron, so the three
              composer buttons fit on one row (critique #198). */
           .ce-more-label { display:none; }
