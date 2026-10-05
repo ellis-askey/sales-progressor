@@ -709,7 +709,13 @@ export function buildCelebrationEmailPayload({
 // Checks if all claimed links in the chain have VM20 or PM27 complete, then
 // enqueues one celebration email per claimed agent (guarded by celebrationSentAt).
 // Called fire-and-forget from completeMilestone on VM20/PM27.
+// HALTED (founder decision 2026-10-05): the "Your chain has completed" celebration
+// email to chain-mate agents is switched OFF pending the email-polish pass. Flagged in
+// the email catalogue as halted. Re-enable by setting this to false.
+const CELEBRATION_EMAIL_HALTED = true;
+
 export async function maybeEnqueueCelebration(transactionId: string): Promise<void> {
+  if (CELEBRATION_EMAIL_HALTED) return;
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: { chainLinkId: true },
