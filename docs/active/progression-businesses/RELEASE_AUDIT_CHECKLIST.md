@@ -28,13 +28,13 @@ A deeper verification pass (five audits: TSP-coupling bug-class sweep, owner/tea
 ### Deferred (was the two chain-email items) → see D3 below
 - The chain cascade/celebration/decline emails hardcoded "Sales Progressor", and the chain invite/update/overview footers print "TSP · Sales Progressor". Both moved to the deferred list pending the branding business decision — **D3**.
 
-### Polish — PENDING
-- [ ] `/agent/settings` bare index 404s for a team member (should land on Profile).
-- [ ] Business invoice PDF metadata author still "Sales Progressor".
-- [ ] `removeClientAgencyAction` ignores on-hold sales; `getInvitingProgressor` ignores `removedAt`; V1 flag lookup ignores `removedAt`.
-- [ ] Payment-block check runs against the client agency on clientCreate (wrong party).
-- [ ] Client-chase-digest footer + portal mailto fall back to `support@`/`updates@` on a business file.
-- [ ] Dead `listTransactionsByScope` (no callers).
+### Polish — DONE (built, pending prod deploy)
+- [x] **Settings index** now sends a team member to their Profile, not the owner-only tab (404). `43c4995c`
+- [x] **Invoice PDF author** metadata is the issuer (the business), not "Sales Progressor". `43c4995c`
+- [x] **Removed / on-hold guards:** "send to us" + general-note routing ignore removed clients; a client can't be removed while a sale is on-hold. `43c4995c`
+- [x] **Payment block checks the right party** — skipped for an external-business create-for-client (the client agency's TSP status is irrelevant). `61a3ec9a`
+- [x] **White-labelled email fallbacks:** chase-digest footer + portal "contact"/CC mailto now fall back to the business, not our support/updates address. `88e4c01f`
+- [x] **Dead `listTransactionsByScope`** marked in-code with a do-not-wire warning; physical removal deferred (D4). `61a3ec9a`
 
 ### Verified clean (sign-off)
 Per-file fees, billing ring-fence, business VAT math, retention suppression, analytics "our fees", all per-file client emails, add-sale gate, relist handling, W3, V1 routing, B2 member settings, member removal, scoping on hub/work-queue/to-do/completions/analytics/notifications.
@@ -88,6 +88,9 @@ Per-file fees, billing ring-fence, business VAT math, retention suppression, ana
 
 - [ ] **D2 — White-label the agent-facing app per business.** *(DEFERRED — decision pending, ties to critique #178)*
   Was P4. Today the app the agents log into is Sales-Progressor-branded (loading mark, "install Sales Progressor" copy, app name) — the client-facing side (emails, portal) is what's white-labelled. Whether the agent-facing shell should also be per-business branded is an undecided product call the founder is holding, tied in with critique #178. Scope as its own project if taken on.
+
+- [ ] **D4 — Delete the dead `listTransactionsByScope` function.** *(DEFERRED — safe cleanup)*
+  Confirmed no callers anywhere (2026-10-05); marked in-code as dead with a do-not-wire warning (`lib/services/transactions.ts`). A ~160-line delete in that core file is left to a dedicated cleanup PR rather than bundled with unrelated fixes. Zero runtime risk today.
 
 - [ ] **D3 — Chain + agent-to-agent email branding.** *(DEFERRED — pending the branding business decision; ties to D2)*
   Was second-pass SP-7 + SP-8. The chain cascade / celebration / decline emails come from "Sales Progressor" with a TSP body, and the chain invite/update/overview email footers print "TSP · Sales Progressor" (their *sender* is already white-labelled; only the body footer isn't). Founder's emerging model (2026-10-05): **client comms always white-labelled; agent-to-agent + system emails (e.g. password reset) come from TSP; agents may optionally pay to brand their own dashboard** (remove TSP). Whether these agent-facing chain emails stay TSP, go "powered by Sales Progressor", or fully brand hinges on that decision and D2. Revisit the three together.
