@@ -49,6 +49,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
   // Remove client: two-step inline confirm, blocked server-side if active sales.
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const activeIdx = TABS.indexOf(tab);
   const { btnRefs, ind } = useTabIndicator(activeIdx);
   const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -61,6 +62,33 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
     setSavingName(false);
     if (res.ok) { setEditingName(false); toast.success("Client renamed"); router.refresh(); }
     else { toast.error(res.error); }
+  }
+
+  // Fetch the invoice PDF client-side so a 409 (fee not set / a sale needs a price)
+  // shows as a clear toast instead of a raw error page (audit SP-5).
+  async function downloadInvoice() {
+    setDownloadingInvoice(true);
+    try {
+      const res = await fetch(`/api/agent/clients/${detail.agencyId}/invoice`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        toast.error(data.error ?? "We couldn't generate the invoice.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${detail.name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("We couldn't generate the invoice.");
+    } finally {
+      setDownloadingInvoice(false);
+    }
   }
 
   async function removeClient() {
@@ -198,9 +226,16 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                   >
                     <Plus size={14} weight="bold" /> Add a sale
                   </Link>
-                  <a href={`/api/agent/clients/${detail.agencyId}/invoice`} className="aw-invoice-link" title="Download this month's invoice for this client">
-                    <DownloadSimple size={14} weight="bold" /> Download invoice
-                  </a>
+                  <button
+                    type="button"
+                    onClick={downloadInvoice}
+                    disabled={downloadingInvoice}
+                    className="aw-invoice-link"
+                    title="Download this month's invoice for this client"
+                    style={{ background: "none", cursor: downloadingInvoice ? "default" : "pointer", opacity: downloadingInvoice ? 0.6 : 1 }}
+                  >
+                    <DownloadSimple size={14} weight="bold" /> {downloadingInvoice ? "Preparing…" : "Download invoice"}
+                  </button>
                 </div>
               </div>
               {detail.sales.length === 0

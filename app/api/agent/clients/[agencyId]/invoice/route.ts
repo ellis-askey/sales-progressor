@@ -24,6 +24,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
     if (res.reason === "fee_not_set") {
       return NextResponse.json({ error: "Set your fee for this client before generating an invoice." }, { status: 409 });
     }
+    if (res.reason === "needs_price") {
+      const list = res.addresses.join(", ");
+      const one = res.addresses.length === 1;
+      return NextResponse.json(
+        { error: `Add a sale price to ${list} before generating this invoice. ${one ? "That sale" : "Those sales"} can't be priced without it.` },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

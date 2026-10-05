@@ -16,7 +16,8 @@ import type { PdfInvoiceInput, PdfLine } from "@/lib/billing/invoice-pdf";
  */
 export type BusinessInvoiceResult =
   | { ok: true; input: PdfInvoiceInput }
-  | { ok: false; reason: "not_found" | "fee_not_set" };
+  | { ok: false; reason: "not_found" | "fee_not_set" }
+  | { ok: false; reason: "needs_price"; addresses: string[] };
 
 export async function buildBusinessClientInvoice(
   businessId: string,
@@ -45,10 +46,15 @@ export async function buildBusinessClientInvoice(
   if (!feeModel) return { ok: false, reason: "fee_not_set" };
 
   const lines: PdfLine[] = [];
+  const unpriceable: string[] = [];
   let subtotal = 0;
   for (const s of sales) {
     const price = s.priceAtExchange ?? s.purchasePrice;
-    const fee = calculateClientFee(feeModel, price) ?? 0;
+    const fee = calculateClientFee(feeModel, price);
+    // A price-based fee (percent/tiered) can't be worked out without a sale price.
+    // Never bill it at £0 — collect it so the owner is told to add the price rather
+    // than it silently vanishing or billing zero (audit SP-5).
+    if (fee == null) { unpriceable.push(s.propertyAddress); continue; }
     subtotal += fee;
     lines.push({
       date: s.exchangedAt ? s.exchangedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "",
@@ -57,6 +63,7 @@ export async function buildBusinessClientInvoice(
       amountPence: fee,
     });
   }
+  if (unpriceable.length) return { ok: false, reason: "needs_price", addresses: unpriceable };
 
   // VAT: added on top of the rate-card fees when the business is VAT registered
   // (audit C2b). Off → the fee IS the total, unchanged.
