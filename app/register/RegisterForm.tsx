@@ -222,9 +222,17 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
           100% { box-shadow: 0 0 0 0 rgba(255,107,74,0); }
         }
         .ri-nudge { animation: ri-nudge 700ms ease-out; border-radius: 8px; }
+        /* Page entrance: content rises and fades in on load, matching the
+           app's house motion (relaxed pace). (founder report, 2026-10-05) */
+        @keyframes reg-enter {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .reg-enter { animation: reg-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @media (prefers-reduced-motion: reduce) { .reg-enter { animation: none; } }
       `}</style>
 
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
+      <div className="reg-enter" style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
         {/* Brand mark + heading */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
