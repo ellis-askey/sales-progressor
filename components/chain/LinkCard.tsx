@@ -280,7 +280,7 @@ function IntelReadRows({ intel }: { intel: ChainNodeIntel }) {
       {rows.map((r) => (
         <Fragment key={r.label}>
           <dt style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>{r.label}</dt>
-          <dd style={{ margin: 0, color: "var(--agent-text)", whiteSpace: "pre-wrap" }}>{r.value}</dd>
+          <dd style={{ margin: 0, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap" }}>{r.value}</dd>
         </Fragment>
       ))}
     </dl>
@@ -302,7 +302,7 @@ function StubDetailsRows({ link }: { link: ChainLinkV2 }) {
       {rows.map((r) => (
         <Fragment key={r.label}>
           <dt style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>{r.label}</dt>
-          <dd style={{ margin: 0, color: "var(--agent-text)", whiteSpace: "pre-wrap" }}>{r.value}</dd>
+          <dd style={{ margin: 0, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap" }}>{r.value}</dd>
         </Fragment>
       ))}
     </dl>
@@ -326,7 +326,7 @@ function NotesBlock({ text }: { text: string }) {
   return (
     <div style={{ fontSize: 12 }}>
       <div style={{ color: "var(--agent-text-muted)", fontWeight: 600 }}>Notes</div>
-      <div style={{ color: "var(--agent-text)", marginTop: 2, whiteSpace: "pre-wrap" }}>{text}</div>
+      <div style={{ color: "var(--agent-text-primary)", marginTop: 2, whiteSpace: "pre-wrap" }}>{text}</div>
     </div>
   );
 }
@@ -383,7 +383,7 @@ function SideSummaryLine({
           where it used to sit); the column gap keeps a gap between them at all
           widths, the row gap spaces them when stacked. */}
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: "4px 16px", marginTop: 2 }}>
-        {detail && <span style={{ color: "var(--agent-text)", minWidth: 0 }}>{detail}</span>}
+        {detail && <span style={{ color: "var(--agent-text-primary)", minWidth: 0 }}>{detail}</span>}
         {fileId && (
           // Land on the chain card on the file overview (focus this sub-card), the
           // same "take me straight to it" move as the Add-email flow.
@@ -603,11 +603,11 @@ function ChainChaseLog({
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                     <UserAvatar user={{ name: who, image: e.authorImage }} size={22} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{who}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{who}</span>
                   </div>
                   <span style={{ fontSize: 10.5, fontWeight: 500, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>{formatEntryDate(e.createdAt)}</span>
                 </div>
-                <div style={{ fontSize: 12.5, color: "var(--agent-text)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{e.body}</div>
+                <div style={{ fontSize: 12.5, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{e.body}</div>
               </li>
             );
           })}
