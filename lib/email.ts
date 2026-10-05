@@ -234,6 +234,7 @@ async function tryMailboxRoute(msg: {
 export async function sendEmail({
   to,
   cc,
+  bcc,
   subject,
   text,
   html,
@@ -246,8 +247,14 @@ export async function sendEmail({
   messageId,
   audienceBucket,
 }: {
-  to: string;
+  // Single address, or several (the agent composer can address multiple people
+  // on the To line). Non-deliverable/reserved addresses are filtered per-address.
+  to: string | string[];
   cc?: string[];
+  // Blind copy — used by the agent email composer so a sender can copy someone
+  // without the other recipients seeing it. Dropped in DEV_EMAIL_REDIRECT (like
+  // cc). The mailbox-SMTP route and SendGrid both support it.
+  bcc?: string[];
   subject: string;
   text: string;
   html?: string;
@@ -274,8 +281,9 @@ export async function sendEmail({
   // to this send. Omit → no header set, behaviour identical to before.
   messageId?: string;
 }) {
-  if (isNonDeliverableRecipient(to)) {
-    console.log(`[email] skipped reserved recipient to=${to} subject="${subject}"`);
+  const toList = (Array.isArray(to) ? to : [to]).filter((t) => !isNonDeliverableRecipient(t));
+  if (!toList.length) {
+    console.log(`[email] skipped — no deliverable To recipient subject="${subject}"`);
     return;
   }
   // Platform kill switch: if this send's audience bucket is switched off, skip it
@@ -290,15 +298,22 @@ export async function sendEmail({
   // Dev-redirect first so a mailbox route can never reach a real recipient
   // from localhost either; then try the agent's own mailbox before SendGrid.
   const msg = applyDevEmailRedirect({
-    to,
+    to: toList.length === 1 ? toList[0] : toList,
     cc: cc && cc.length ? cc : undefined,
+    bcc: bcc && bcc.length ? bcc : undefined,
     from: from ?? DEFAULT_FROM,
     replyTo: replyTo,
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
   });
-  const route = await tryMailboxRoute({ ...msg, messageId, attachments });
+  // The mailbox-SMTP route is built for single-recipient sends. A single To with
+  // no Bcc (every existing caller) still routes through the agent's own mailbox;
+  // the composer's multi-To / Bcc sends go straight to SendGrid, which handles
+  // recipient arrays natively.
+  const route: MailboxRouteAttempt = toList.length === 1 && !(bcc && bcc.length)
+    ? await tryMailboxRoute({ ...msg, to: toList[0], bcc: undefined, messageId, attachments })
+    : { routed: false };
   if (route.routed && route.sent) return;
   const sendFrom = route.routed && !route.sent ? route.fallbackFrom : msg.from;
   const sendReplyTo = route.routed && !route.sent ? route.fallbackReplyTo : msg.replyTo;

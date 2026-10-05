@@ -63,6 +63,7 @@ import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { SectionSkeleton } from "@/components/loading/PageSkeletons";
 import { TypedText } from "@/components/agent/TypedText";
 
@@ -315,6 +316,9 @@ export default async function Hub() {
             New sale
           </Link>
         ) : null}
+        {/* In-app email composer — pick a sale, write, send from your own address
+            (critique 2026-10-05). Available to everyone who manages files. */}
+        <ComposeEmailButton variant="ghost" />
         {!isInternalStaff && hasOutsourced && (
           <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
