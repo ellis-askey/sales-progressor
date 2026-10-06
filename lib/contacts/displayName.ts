@@ -3,6 +3,8 @@
 // string to handle title prefixes gracefully, fixing the "Miss" bug where
 // `name.split(" ")[0]` returns a title prefix instead of a real first name.
 
+import { looksLikeBusiness } from "@/lib/contacts/business";
+
 const TITLE_PREFIXES = new Set([
   "mr", "mrs", "ms", "miss", "mx",
   "dr", "prof", "sir", "dame", "lord", "lady", "rev",
@@ -147,6 +149,18 @@ export function getInitials(contact: NameLike): string {
  *      ""                            → "the contact"  (fallback)
  *      "Miss"                        → "Miss"         (prefix-only fallback)
  */
+// Greeting-safe first name for a CLIENT ("Hi {x},"). Returns "there" when there's
+// no real person to address: an empty name, or a company name — a business
+// client with no named contact person, INCLUDING legacy rows created before the
+// business split (where the company sits in `name`). With a real person's name
+// it's just extractFirstName. Use this for client email/portal greetings so a
+// company is never addressed as if it were a person. Critique 2026-10-06.
+export function greetingFirstName(name?: string | null): string {
+  if (!name || !name.trim()) return "there";
+  if (looksLikeBusiness(name)) return "there";
+  return extractFirstName(name);
+}
+
 export function extractFirstName(name: string): string {
   const { prefix, rest } = parseName(name);
   if (rest.length === 0) return prefix ?? "the contact";

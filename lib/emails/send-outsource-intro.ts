@@ -34,7 +34,7 @@ import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { buildOutsourceIntroEmail } from "@/lib/emails/outsource-intro-template";
 import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
 import { deliverAtInsideWorkingWindow } from "@/lib/emails/working-hours";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { greetingFirstName } from "@/lib/contacts/displayName";
 
 const DEFAULT_FROM_ADDRESS = "updates@thesalesprogressor.co.uk";
 
@@ -195,7 +195,7 @@ export async function sendOutsourceIntroForTransaction(
       const built = buildOutsourceIntroEmail({
         // Title-aware: "Mr John Crowther" → "John", "Mr Crowther" → "Mr Crowther",
         // empty → null (triggers the template's "Hi there," fallback).
-        clientFirstName: contact.name?.trim() ? extractFirstName(contact.name) : null,
+        clientFirstName: contact.name?.trim() ? greetingFirstName(contact.name) : null,
         address: tx.propertyAddress || null,
         agentFirstName,
         agentLastName,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { greetingFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
@@ -88,7 +88,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       if (!isActiveRoundContact(contact, tx.activeBuyerRoundId)) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
-      const firstName = extractFirstName(contact.name);
+      const firstName = greetingFirstName(contact.name);
       const interpVars = { firstName, address: tx.propertyAddress, roleLabel };
       const subject = wu.subject ? interpWeekly(wu.subject, interpVars) : `An update on your ${roleLabel} at ${tx.propertyAddress}`;
 

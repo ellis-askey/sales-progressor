@@ -10,7 +10,7 @@ import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { buildGreeting } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { greetingFirstName } from "@/lib/contacts/displayName";
 
 // Sends a contact their portal-invite email (agency-branded), logs the send as
 // an agent-attributed OutboundMessage, and fires the analytics event. Shared by
@@ -67,7 +67,7 @@ export async function sendPortalInviteByToken(
   // Record the send so the contacts card can show a truthful "Invite sent",
   // attributed to whoever pressed the button (their avatar in the activity feed).
   // The hidden subject "Portal invite" is the marker the link-sent signal reads.
-  const firstName = extractFirstName(contact.name);
+  const firstName = greetingFirstName(contact.name);
   await prisma.outboundMessage.create({
     data: {
       transactionId: contact.transaction.id,

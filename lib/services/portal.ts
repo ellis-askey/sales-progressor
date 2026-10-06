@@ -49,7 +49,7 @@ import {
   isExchangeCompletionStale,
   decideCompletionPackTiming,
 } from "@/lib/services/exchange-completion-rules";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { extractFirstName, greetingFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeSendBookingDiaryEmail } from "@/lib/services/booking-reminders";
@@ -1727,7 +1727,7 @@ export async function logPortalMilestoneConfirm(
         from: agencyEmailFrom,
         replyTo,
         html: portalStepConfirmedHtml({
-          firstName: extractFirstName(confirmingContact.name),
+          firstName: greetingFirstName(confirmingContact.name),
           address,
           saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
           stepLabel: portalLabel,
@@ -1935,7 +1935,7 @@ export async function sendAdminMilestoneNotificationToPortal(
     if (!c.email || !c.portalToken) continue;
 
     const saleWord = c.roleType === "vendor" ? "sale" : "purchase";
-    const firstName = extractFirstName(c.name);
+    const firstName = greetingFirstName(c.name);
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
     let subject: string;
@@ -2529,7 +2529,7 @@ async function sendRichMilestoneEmails(
         milestoneCode,
         recipientSide: recipientKey,
         address,
-        firstName: extractFirstName(c.name),
+        firstName: greetingFirstName(c.name),
         portalUrl,
       };
       const delayMs = isExchangeCompletion ? 60 * 1000 : 5 * 60 * 1000;

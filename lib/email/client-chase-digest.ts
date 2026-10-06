@@ -36,7 +36,7 @@ import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { recordEvent } from "@/lib/command/events/write";
 import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import { getMilestoneCopy } from "@/lib/portal-copy";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { greetingFirstName } from "@/lib/contacts/displayName";
 import { applyChaseToTask } from "@/lib/services/reminders";
 import { getChaseOverridesForBuild, consumeSkip } from "@/lib/services/chase-overrides";
 import { toUKDateStr } from "@/lib/utils";
@@ -213,7 +213,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const pauseUrl = buildContactPauseUrl(contact.id);
 
   const address = shortAddress(transaction.propertyAddress);
-  const first = extractFirstName(contact.name);
+  const first = greetingFirstName(contact.name);
   const count = milestones.length;
 
   // Critique #22: survey-quote offer. Only when the caller supplied a link
