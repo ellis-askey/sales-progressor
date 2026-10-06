@@ -19,6 +19,7 @@ type Initial = {
   establishedYear: number | null;
   turnaround: string | null;
   tspDefault: boolean;
+  listed: boolean;
 };
 
 export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initial }) {
@@ -34,6 +35,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
   const [establishedYear, setEstablishedYear] = useState(initial.establishedYear != null ? String(initial.establishedYear) : "");
   const [turnaround, setTurnaround] = useState(initial.turnaround ?? "");
   const [tspDefault, setTspDefault] = useState(initial.tspDefault);
+  const [listed, setListed] = useState(initial.listed);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +54,8 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
     charteredEngineer !== initial.charteredEngineer ||
     (establishedYear || "") !== initialYear ||
     (turnaround || "") !== (initial.turnaround ?? "") ||
-    tspDefault !== initial.tspDefault;
+    tspDefault !== initial.tspDefault ||
+    listed !== initial.listed;
 
   function save() {
     setError(null);
@@ -71,6 +74,7 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
         establishedYear: establishedYear.trim() ? Number(establishedYear.trim()) : null,
         turnaround: turnaround || null,
         tspDefault,
+        listed,
       });
       if (r.ok) {
         setSaved(true);
@@ -155,6 +159,18 @@ export function ProviderFirmEditor({ id, initial }: { id: string; initial: Initi
           </span>
         </label>
       )}
+
+      <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={listed}
+          onChange={(e) => setListed(e.target.checked)}
+          className="w-4 h-4 accent-[#2563eb]"
+        />
+        <span className="text-[13px] text-[#d4d4d4]">
+          Offer on referrals <span className="text-[#737373]">(show on the client quote picker; untick to keep the firm on file but off referrals)</span>
+        </span>
+      </label>
 
       {error && <p className="text-[11px] text-[#fca5a5]">{error}</p>}
 

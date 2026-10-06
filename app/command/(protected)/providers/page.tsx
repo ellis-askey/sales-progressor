@@ -204,9 +204,15 @@ export default async function CommandProvidersPage() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         {f.active ? (
-                          <span className="text-[10px] font-semibold text-[#86efac] bg-[#0c2418] px-2 py-0.5 rounded uppercase tracking-wide">
-                            Active
-                          </span>
+                          f.listed ? (
+                            <span className="text-[10px] font-semibold text-[#86efac] bg-[#0c2418] px-2 py-0.5 rounded uppercase tracking-wide">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-[#fcd34d] bg-[#2a2410] px-2 py-0.5 rounded uppercase tracking-wide" title="On file but not offered on the client quote picker">
+                              Off referrals
+                            </span>
+                          )
                         ) : (
                           <span className="text-[10px] font-semibold text-[#737373] bg-[#1a1a1a] px-2 py-0.5 rounded uppercase tracking-wide">
                             Hidden

@@ -1590,6 +1590,12 @@ model ProviderFirm {
   // TSP-default broker today. Ticked from /command/providers.
   tspDefault        Boolean      @default(false)
   active            Boolean      @default(true)
+  // Whether this firm is offered to buyers on the survey-quote picker
+  // (/quote/[token]). Default true. Set false for a firm added from a file (e.g.
+  // a surveyor captured on the survey step) that we keep in the data but don't
+  // surface as a referral option. Distinct from `active`, which deactivates the
+  // firm entirely. (critique #211)
+  listed            Boolean      @default(true)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

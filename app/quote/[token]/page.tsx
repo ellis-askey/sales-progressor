@@ -107,6 +107,7 @@ export default async function QuotePage({
           where: {
             kind: { in: ["surveyor", "structural_engineer"] },
             active: true,
+            listed: true, // firms added from a file (critique #211) are kept off referrals
             coverage: { some: { outwardCode: outward } },
           },
           include: { serviceTypes: { select: { serviceTypeId: true } } },
@@ -115,7 +116,7 @@ export default async function QuotePage({
       : Promise.resolve([]),
     // Mortgage brokers work nationwide — no coverage gate, TSP default first.
     prisma.providerFirm.findMany({
-      where: { kind: "mortgage_broker", active: true },
+      where: { kind: "mortgage_broker", active: true, listed: true },
       include: { serviceTypes: { select: { serviceTypeId: true } } },
       orderBy: [{ tspDefault: "desc" }, { name: "asc" }],
     }),

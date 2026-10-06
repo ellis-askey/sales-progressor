@@ -49,6 +49,9 @@ export type FirmInput = {
   // outsourced files where the agency hasn't set their own. At most one per
   // kind; setting it here unsets any other of the same kind.
   tspDefault?: boolean;
+  // Whether the firm is offered to buyers on the quote picker. Default true;
+  // set false to keep a firm in the data but off referrals (critique #211).
+  listed?: boolean;
 };
 
 function validateFirmInput(input: FirmInput): string | null {
@@ -101,6 +104,7 @@ export async function createProviderFirm(input: FirmInput): Promise<ActionResult
         website: input.website?.trim() || null,
         notes: input.notes?.trim() || null,
         active: input.active,
+        listed: input.listed ?? true,
         tspDefault: input.tspDefault ?? false,
         ...firmTrustData(input),
       },
@@ -144,6 +148,7 @@ export async function updateProviderFirm(id: string, input: FirmInput): Promise<
         website: input.website?.trim() || null,
         notes: input.notes?.trim() || null,
         active: input.active,
+        listed: input.listed ?? true,
         tspDefault: input.tspDefault ?? false,
         ...firmTrustData(input),
       },

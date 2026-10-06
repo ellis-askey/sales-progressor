@@ -124,6 +124,7 @@ export default async function CommandProviderDetailPage({
                 establishedYear: firm.establishedYear,
                 turnaround: firm.turnaround,
                 tspDefault: firm.tspDefault,
+                listed: firm.listed,
               }}
             />
           </Section>

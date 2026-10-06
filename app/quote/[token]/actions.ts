@@ -130,6 +130,7 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
       where: {
         id: { in: input.providerIds },
         active: true,
+        listed: true, // unlisted firms (critique #211) can't be submitted as a quote
       },
       include: {
         coverage: true,
