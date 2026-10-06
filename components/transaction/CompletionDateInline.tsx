@@ -34,6 +34,11 @@ export function CompletionDateInline({
       // Phase 4 (2026-09-18, PERF-03): no client refresh — the action
       // revalidates the file page; its response carries the re-render.
     } catch {
+      // keep the editor open on error so the typed date isn't lost
+    } finally {
+      // Always clear saving — previously only the catch reset it, so a
+      // successful save latched the field disabled forever and it froze
+      // (critique: "set date on completion got stuck").
       setSaving(false);
     }
   }
@@ -61,9 +66,10 @@ export function CompletionDateInline({
           autoFocus
           disabled={saving}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={(e) => save(e.target.value)}
+          onBlur={(e) => { const v = e.target.value; if (v) save(v); else setEditing(false); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") save((e.target as HTMLInputElement).value);
+            const v = (e.target as HTMLInputElement).value;
+            if (e.key === "Enter") { if (v) save(v); else setEditing(false); }
             if (e.key === "Escape") setEditing(false);
           }}
           className="glass-input agent-focus text-xs px-2 py-1 rounded-lg"

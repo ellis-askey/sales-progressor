@@ -15,6 +15,7 @@ function revalidateTx(id: string) {
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { saveCompletionDateAction } from "@/app/actions/transactions";
 import type { PurchaseType } from "@prisma/client";
 import {
   completeMilestone,
@@ -733,6 +734,11 @@ export async function changeBookingDateAction(input: {
 export async function confirmDiaryEventAction(input: {
   transactionId: string;
   kind: "exchange" | "completion";
+  // Required on an exchange confirm from the hub (critique: the modal never
+  // asked for it). Persisted BEFORE the confirm below so the exchange emails,
+  // which read completionDate, include the date rather than "a date to be
+  // confirmed".
+  completionDate?: string | null;
 }) {
   const code = input.kind === "exchange" ? "VM19" : "VM20";
   const def = await prisma.milestoneDefinition.findFirst({
@@ -741,6 +747,11 @@ export async function confirmDiaryEventAction(input: {
   });
   if (!def) {
     return { ok: false as const, kind: "prereqs_missing" as const, missing: [] as { code: string; name: string }[] };
+  }
+  if (input.kind === "exchange" && input.completionDate) {
+    // Own ownership check inside; runs first so the completion date is on the
+    // file when the exchange confirmation emails are composed.
+    await saveCompletionDateAction(input.transactionId, input.completionDate);
   }
   return confirmMilestoneAction({
     transactionId: input.transactionId,

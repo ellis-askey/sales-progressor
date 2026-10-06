@@ -59,6 +59,9 @@ export function DiaryEventRow({
   const [reviseOpen, setReviseOpen] = useState(false);
   const [compDateOpen, setCompDateOpen] = useState(false);
   const [compDate, setCompDate] = useState("");
+  // Completion date captured when confirming an exchange from the hub (critique:
+  // the exchange confirm never asked for it). Required before confirming.
+  const [exchCompletionDate, setExchCompletionDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [gateMsg, setGateMsg] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -73,7 +76,11 @@ export function DiaryEventRow({
     setBusy(true);
     setGateMsg(null);
     try {
-      const res = await confirmDiaryEventAction({ transactionId: item.transactionId, kind: item.type });
+      const res = await confirmDiaryEventAction({
+        transactionId: item.transactionId,
+        kind: item.type,
+        completionDate: item.type === "exchange" ? exchCompletionDate : undefined,
+      });
       if (res && "ok" in res && res.ok === false) {
         const missing = (res.missing ?? []).map((m) => m.name).filter(Boolean).join(", ");
         setGateMsg(missing ? `Not ready yet. Confirm ${missing} first.` : `This file isn't ready yet.`);
@@ -129,7 +136,7 @@ export function DiaryEventRow({
   // "Not ready" button, not a confirm one). Completions always get a real
   // "Confirm completion" button below, so it isn't duplicated in their menu.
   if (item.status === "not_ready" && item.type === "exchange") {
-    menuItems.push({ key: "confirm", icon: <Check size={16} weight="bold" />, title: `Confirm ${c.verb}`, sub: "If it's actually done.", onClick: () => { setGateMsg(null); setOpen(true); } });
+    menuItems.push({ key: "confirm", icon: <Check size={16} weight="bold" />, title: `Confirm ${c.verb}`, sub: "If it's actually done.", onClick: () => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); } });
   }
 
   const isCompletion = item.type === "completion";
@@ -165,7 +172,7 @@ export function DiaryEventRow({
           <span style={{ display: "inline-flex", alignItems: "stretch" }}>
             <button
               type="button"
-              onClick={() => { setGateMsg(null); setOpen(true); }}
+              onClick={() => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); }}
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
               style={{ color: c.accent, fontWeight: 600, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
@@ -191,11 +198,29 @@ export function DiaryEventRow({
         </ModalHeader>
         <ModalBody>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>{c.body(shortAddress)}</p>
+          {/* Exchange fixes the completion date, so capture it here (critique:
+              the confirm never asked, leaving the file with no completion date). */}
+          {item.type === "exchange" && (
+            <div style={{ marginTop: 14 }}>
+              <label htmlFor="exch-completion-date" style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
+                Completion date <span style={{ color: "var(--agent-coral-deep)" }}>*</span>
+              </label>
+              <DateField
+                id="exch-completion-date"
+                value={exchCompletionDate}
+                min={todayStr}
+                onChange={(e) => setExchCompletionDate(e.target.value)}
+                className="agent-input"
+                style={{ padding: "8px 10px", fontSize: 14 }}
+                wrapperStyle={{ display: "block" }}
+              />
+            </div>
+          )}
           {gateMsg && <p style={{ margin: "12px 0 0", fontSize: 13, fontWeight: 500, color: "var(--agent-warning)" }}>{gateMsg}</p>}
         </ModalBody>
         <ModalFooter>
           <button type="button" onClick={() => { if (!busy) setOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
-          <button type="button" onClick={confirm} disabled={busy} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Confirming…" : c.cta}</button>
+          <button type="button" onClick={confirm} disabled={busy || (item.type === "exchange" && !exchCompletionDate)} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Confirming…" : c.cta}</button>
         </ModalFooter>
       </Modal>
 
