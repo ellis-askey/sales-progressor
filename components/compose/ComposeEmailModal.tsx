@@ -29,6 +29,18 @@ type Field = "to" | "cc" | "bcc";
 type Token = { email: string; name: string; rec: ComposeRecipient | null };
 const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
 
+// Open the composer pre-filled (e.g. the survey "Email the surveyor" flow —
+// critique #211). To addresses may be free-typed (a surveyor not in the system);
+// Cc is matched against the sale's known recipients so the buyer gets a real
+// avatar. The signature is appended to bodyHtml unless it already carries one.
+export type ComposePrefill = {
+  transactionId: string;
+  to: string[];
+  cc?: { email: string; name?: string }[];
+  subject: string;
+  bodyHtml: string;
+};
+
 function fmtWhen(d: Date): string {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
@@ -59,8 +71,8 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
 }
 
 export function ComposeEmailModal({
-  open, onClose, initialTransactionId,
-}: { open: boolean; onClose: () => void; initialTransactionId?: string | null }) {
+  open, onClose, initialTransactionId, prefill,
+}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; prefill?: ComposePrefill | null }) {
   const { theme } = usePortalTheme();
   const { toast } = useAgentToast();
   const [mounted, setMounted] = useState(false);
@@ -127,9 +139,10 @@ export function ComposeEmailModal({
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
     setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
-    if (initialTransactionId) void selectSale(initialTransactionId);
+    if (prefill) void selectSale(prefill.transactionId, prefill);
+    else if (initialTransactionId) void selectSale(initialTransactionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialTransactionId]);
+  }, [open, initialTransactionId, prefill]);
 
   // sale search (debounced-ish on each keystroke; server scopes the list)
   useEffect(() => {
@@ -178,7 +191,7 @@ export function ComposeEmailModal({
     } catch { /* keep the current signature */ }
   }
 
-  async function selectSale(id: string) {
+  async function selectSale(id: string, pf?: ComposePrefill) {
     setLoadingSale(true);
     try {
       const c = await getComposeContextAction(id);
@@ -192,6 +205,25 @@ export function ComposeEmailModal({
         const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}&style=${sigStyle}`);
         if (res.ok) { const j = await res.json(); if (j?.html) sigHtml = j.html; }
       } catch { /* fall back to the plain sign-off */ }
+      // Pre-filled flow (e.g. the surveyor email): seed To (free-typed) + Cc
+      // (matched to known recipients so the buyer keeps a real avatar), subject
+      // and body, instead of the blank defaults. Signature is appended unless
+      // the supplied body already carries one.
+      if (pf) {
+        const toTokens: Token[] = pf.to.map((email) => ({ email, name: email, rec: null }));
+        const ccTokens: Token[] = (pf.cc ?? []).map((r) => {
+          const match = c.recipients.find((x) => x.email.toLowerCase() === r.email.toLowerCase());
+          return match ? { email: match.email, name: match.name, rec: match } : { email: r.email, name: r.name ?? r.email, rec: null };
+        });
+        pendingBodyRef.current = pf.bodyHtml.includes("data-cem-sig")
+          ? pf.bodyHtml
+          : `${pf.bodyHtml}<div data-cem-sig="1">${sigHtml}</div>`;
+        setTokens({ to: toTokens, cc: ccTokens, bcc: [] });
+        if (ccTokens.length) setShowCc(true);
+        setSubject(pf.subject);
+        setCtx(c);
+        return;
+      }
       pendingBodyRef.current = `<p>Hi there,</p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
       setTokens({ to: [], cc: [], bcc: [] });
       setSubject(`Update on your sale of ${c.sale.line1}`);

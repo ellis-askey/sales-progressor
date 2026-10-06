@@ -11,6 +11,7 @@ import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmModal";
 import { SurveyBookingModal } from "@/components/milestones/SurveyBookingModal";
+import { SurveyEmailModal } from "@/components/milestones/SurveyEmailModal";
 import { ChangeBookingDateModal } from "@/components/milestones/ChangeBookingDateModal";
 import { getSurveyBookingOptions, recordSurveyBooking } from "@/app/actions/survey-booking";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
@@ -193,6 +194,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // PM9 N/R — simple survey confirmation modal
   const [showSurveyNrConfirm, setShowSurveyNrConfirm] = useState(false);
 
+  // PM9 "Email the surveyor" launcher (critique #211). Opens after confirming a
+  // survey with a surveyor email, and from a button on the completed step.
+  const [showSurveyEmail, setShowSurveyEmail] = useState(false);
+
   // PM9 survey-booking picker (only when the file requested quotes).
   const [showSurveyBooking, setShowSurveyBooking] = useState(false);
   const [surveyBookingOptions, setSurveyBookingOptions] = useState<SurveyBookingOption[]>([]);
@@ -314,6 +319,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setSurveyorEmail("");
     setError(null);
     const sipAtClick = signedInPerson;
+    const surveyorEmailAtClick = isPM9 ? surveyorEmail.trim() : "";
     setSignedInPerson(false);
 
     if (RECONCILIATION_CODES.has(def.code)) {
@@ -378,6 +384,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
             ? `${notified.length === 1 ? "Client" : "Clients"} notified: ${notified.join(" / ")}`
             : undefined;
           toast.success(displayName, description ? { description } : undefined);
+          // Surveyor email captured on confirm → offer to email them now
+          // (critique #211). The address is persisted by the action above.
+          if (isPM9 && surveyorEmailAtClick) setShowSurveyEmail(true);
         }
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
@@ -516,6 +525,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
         }
         await recordSurveyBooking({ transactionId, choice }).catch(() => {});
         toast.success(displayName);
+        // Surveyor email captured → offer to email them now (critique #211).
+        if (surveyorEmail) setShowSurveyEmail(true);
       } catch (err: unknown) {
         setError(softenServerError(err, "Could not complete this step."));
       } finally {
@@ -669,6 +680,17 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               milestoneDefinitionId={def.id}
               expectedDate={def.completion?.expectedDate ? new Date(def.completion.expectedDate).toISOString() : null}
             />
+          )}
+          {/* Email the surveyor (critique #211): pre-filled, buyer Cc'd. */}
+          {isPM9 && isDone && def.bookedSurveyorEmail && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowSurveyEmail(true); }}
+              className="agent-link"
+              style={{ marginTop: 6, fontSize: 12.5, fontWeight: 600 }}
+            >
+              Email the surveyor
+            </button>
           )}
           {isDone && detailsOpen && (def.completion || isCompleted) && (
             <div
@@ -1018,6 +1040,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           saving={surveyBookingSaving}
           onConfirm={doSurveyBookingConfirm}
           onCancel={() => setShowSurveyBooking(false)}
+        />
+      )}
+
+      {/* Email the surveyor launcher (critique #211) */}
+      {isPM9 && (
+        <SurveyEmailModal
+          transactionId={transactionId}
+          open={showSurveyEmail}
+          onClose={() => setShowSurveyEmail(false)}
         />
       )}
 
