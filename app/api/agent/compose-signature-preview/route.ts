@@ -31,6 +31,12 @@ export async function GET(req: NextRequest) {
   const transactionId = req.nextUrl.searchParams.get("transactionId");
   if (!transactionId) return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
 
+  // Per-message signature style from the composer toolbar (basic / logo /
+  // default), mirroring the chase drawer. Only affects the agent/personal
+  // signature; the internal in-house sign-off has no styles.
+  const styleParam = req.nextUrl.searchParams.get("style");
+  const signatureStyle = styleParam === "basic" || styleParam === "logo" ? styleParam : "default";
+
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
@@ -63,6 +69,7 @@ export async function GET(req: NextRequest) {
     userId: session.user.id,
     agency: senderAgency?.agency ?? null,
     fallbackName: session.user.name,
+    signatureStyle,
   });
   return NextResponse.json({ kind: "personal", html: sig.html, missing: sig.missing, mode: sig.mode });
 }

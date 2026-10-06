@@ -10,9 +10,10 @@
 // WhatsApp: email-only for now; add a channel toggle once the official WhatsApp
 // send-path is live.
 
-import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -105,6 +106,10 @@ export function ComposeEmailModal({
   const [showRefined, setShowRefined] = useState(false);
   const preRefineRef = useRef<string | null>(null);
 
+  // signature style (basic / logo / default), like the chase drawer
+  const [sigStyle, setSigStyle] = useState<"default" | "basic" | "logo">("default");
+  const [sigMenuOpen, setSigMenuOpen] = useState(false);
+
   // schedule (phase 2)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
   const [schedOpen, setSchedOpen] = useState(false);
@@ -120,7 +125,7 @@ export function ComposeEmailModal({
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
-    setShowRefined(false); preRefineRef.current = null;
+    setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (initialTransactionId) void selectSale(initialTransactionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,22 +150,50 @@ export function ComposeEmailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx]);
 
+  // Fill the greeting from the first To recipient (or "there") whenever To
+  // changes — only ever touching the greeting line, never the typed message.
+  useEffect(() => {
+    if (!ctx || !editorRef.current) return;
+    const first = tokens.to[0];
+    const nm = first?.rec ? extractFirstName(first.rec.name) : "there";
+    const p = editorRef.current.querySelector("p");
+    if (p && /^Hi .+,$/.test((p.textContent ?? "").trim())) p.textContent = `Hi ${nm},`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens.to]);
+
+  // Signature-style button (basic / logo / default): re-fetch the signature in
+  // the chosen style and swap it in place, leaving the message untouched.
+  async function changeSigStyle(s: "default" | "basic" | "logo") {
+    setSigStyle(s); setSigMenuOpen(false);
+    if (!ctx || !editorRef.current) return;
+    try {
+      const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${ctx.sale.id}&style=${s}`);
+      if (!res.ok) return;
+      const j = await res.json();
+      if (!j?.html) return;
+      const sig = editorRef.current.querySelector("[data-cem-sig]");
+      if (sig) sig.innerHTML = j.html;
+      else editorRef.current.insertAdjacentHTML("beforeend", `<div data-cem-sig="1">${j.html}</div>`);
+      updateCount();
+    } catch { /* keep the current signature */ }
+  }
+
   async function selectSale(id: string) {
     setLoadingSale(true);
     try {
       const c = await getComposeContextAction(id);
       if (!c) { toast.error("Couldn't open that sale."); return; }
-      // sensible default: first client (seller) on the To line
-      const firstClient = c.recipients.find((r) => r.group === "sale") ?? null;
-      const greet = firstClient ? extractFirstName(firstClient.name) : "there";
+      // No recipient is pre-selected — the agent picks who it goes to. The
+      // greeting fills in from the first To recipient when one is added (effect
+      // below). Signature is fetched in the current style and wrapped so the
+      // signature-style button can swap it in place.
       let sigHtml = `<p>Kind regards,</p><p>${c.fromEmail.replace(/\s*<[^>]+>$/, "")}</p>`;
       try {
-        const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}`);
+        const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}&style=${sigStyle}`);
         if (res.ok) { const j = await res.json(); if (j?.html) sigHtml = j.html; }
       } catch { /* fall back to the plain sign-off */ }
-      // Stage the body; the effect below writes it once the editor has mounted.
-      pendingBodyRef.current = `<p>Hi ${greet},</p><p><br></p><p><br></p>${sigHtml}`;
-      setTokens({ to: firstClient ? [{ email: firstClient.email, name: firstClient.name, rec: firstClient }] : [], cc: [], bcc: [] });
+      pendingBodyRef.current = `<p>Hi there,</p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
+      setTokens({ to: [], cc: [], bcc: [] });
       setSubject(`Update on your sale of ${c.sale.line1}`);
       setCtx(c);
     } finally { setLoadingSale(false); }
@@ -343,7 +376,7 @@ export function ComposeEmailModal({
             <p className="cem-eyebrow">Sale</p>
             {ctx ? (
               <div className="cem-sale-selected">
-                <span className="cem-pthumb">{ctx.photoUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={ctx.photoUrl} alt="" /> : <PropFallback />}</span>
+                <PropertyThumb photoUrl={ctx.photoUrl} size={44} />
                 <span className="cem-addr"><span className="cem-a">{ctx.sale.line1}</span><span className="cem-b">{ctx.sale.location}</span></span>
                 <button className="cem-clearx" title="Change sale" onClick={clearSale}>✕</button>
               </div>
@@ -358,7 +391,7 @@ export function ComposeEmailModal({
                     <div className="cem-menu cem-menu-inline">
                       {results.map((r) => (
                         <button key={r.id} className="cem-mi" onClick={() => selectSale(r.id)}>
-                          <span className="cem-pthumb sm">{r.photoUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={r.photoUrl} alt="" /> : <PropFallback />}</span>
+                          <PropertyThumb photoUrl={r.photoUrl} size={34} />
                           <span className="cem-nm"><span className="cem-n">{r.line1}</span><span className="cem-r">{r.location}</span></span>
                         </button>
                       ))}
@@ -413,6 +446,21 @@ export function ComposeEmailModal({
                     <button className="cem-tb" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("createLink")}>🔗</button>
                     <button className="cem-tb" title="Attach a file" onMouseDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>📎</button>
                     <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onPickFiles} />
+                    <span style={{ position: "relative", display: "inline-flex" }}>
+                      <button className="cem-tb" title="Signature style" onMouseDown={(e) => e.preventDefault()} onClick={() => setSigMenuOpen((v) => !v)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M13 9.5h5M13 13h5M5.5 16c.4-1.2 1.6-1.9 3-1.9s2.6.7 3 1.9" /></svg>
+                      </button>
+                      {sigMenuOpen && (
+                        <div className="cem-sigmenu" onMouseDown={(e) => e.preventDefault()}>
+                          {([["basic", "Basic", "Name & details, no logo"], ["logo", "Logo", "With the agency logo"], ["default", "Default", "Your saved signature"]] as const).map(([key, label, sub]) => (
+                            <button key={key} className="cem-si-sig" onClick={() => changeSigStyle(key)}>
+                              <span><span className="cem-sig-l">{label}</span><span className="cem-sig-s">{sub}</span></span>
+                              {sigStyle === key && <span className="cem-sig-ck">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </span>
                     <span className="cem-tbspace" />
                     <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>
                       {refining ? "✦ Refining…" : "✦ Refine"}
@@ -449,7 +497,11 @@ export function ComposeEmailModal({
               <div style={{ position: "relative" }}>
                 <div className="cem-send">
                   <button className="cem-send-go" disabled={isSending} onClick={send}>
-                    {isSending ? (scheduledFor ? "Scheduling…" : "Sending…") : scheduledFor ? "Schedule send" : <>➤ Send</>}
+                    {isSending
+                      ? (scheduledFor ? "Scheduling…" : "Sending…")
+                      : scheduledFor
+                        ? (<><span className="cem-lbl-desktop">Schedule send</span><span className="cem-lbl-mobile">Send</span></>)
+                        : (<><span className="cem-arrow">➤&nbsp;</span>Send</>)}
                   </button>
                   <button className="cem-send-split" aria-label="Schedule options" onClick={() => setSchedOpen((v) => !v)}>▾</button>
                 </div>
@@ -467,10 +519,10 @@ export function ComposeEmailModal({
                     <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
                     <div style={{ padding: "6px 10px 8px" }}>
                       <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>Pick a date &amp; time</div>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                         <input type="datetime-local" value={customDT} min={nowLocalDT()} onChange={(e) => setCustomDT(e.target.value)}
-                          style={{ flex: 1, minWidth: 0, border: "1px solid var(--agent-border-default)", borderRadius: 8, padding: "6px 8px", fontFamily: "inherit", fontSize: 12.5, color: "var(--agent-text-primary)", background: "#fff" }} />
-                        <button className="cem-cancel-sched" disabled={!customDT} style={{ opacity: customDT ? 1 : 0.5 }}
+                          style={{ width: "100%", minWidth: 0, border: "1px solid var(--agent-border-default)", borderRadius: 8, padding: "6px 8px", fontFamily: "inherit", fontSize: 12.5, color: "var(--agent-text-primary)", background: "#fff" }} />
+                        <button className="cem-cancel-sched" disabled={!customDT} style={{ alignSelf: "flex-end", opacity: customDT ? 1 : 0.5 }}
                           onClick={() => { const d = new Date(customDT); if (!isNaN(d.getTime())) { setScheduledFor(d); setSchedOpen(false); } }}>Set</button>
                       </div>
                     </div>
@@ -496,10 +548,6 @@ function RecRow({ rec, onPick }: { rec: ComposeRecipient; onPick: () => void }) 
   );
 }
 
-function PropFallback(): ReactNode {
-  return <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ display: "block" }}><rect width="100" height="100" fill="#FDE5CF" /><polygon points="50,26 80,52 20,52" fill="#D9774A" /><rect x="30" y="52" width="40" height="26" fill="#F0A878" /><rect x="44" y="62" width="12" height="16" rx="1" fill="#FBEFE4" /></svg>;
-}
-
 const CEM_CSS = `
 .cem-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(45,24,16,0.34);backdrop-filter:blur(3px)}
 .cem-modal{width:min(640px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;background:var(--agent-surface-elevated,#fff);border:1px solid rgba(255,255,255,0.5);border-top:2px solid var(--agent-coral-deep,#FF6B4A);border-radius:16px;box-shadow:0 24px 70px rgba(45,24,16,0.28);animation:cemModalin .34s cubic-bezier(.34,1.56,.64,1) both}
@@ -509,8 +557,8 @@ const CEM_CSS = `
 .cem-hdr{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 22px;color:#fff;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%)}
 .cem-hdr h1{margin:0;font-size:16px;font-weight:680;letter-spacing:-.01em}
 .cem-hdr p{margin:2px 0 0;font-size:11.5px;opacity:.85;font-weight:500}
-.cem-xbtn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,0.16);color:#fff;cursor:pointer;font-size:15px;display:grid;place-items:center;transition:background .14s}
-.cem-xbtn:hover{background:rgba(255,255,255,0.28)}
+.cem-xbtn{width:26px;height:26px;border:none;background:none;color:#fff;cursor:pointer;font-size:17px;line-height:1;display:grid;place-items:center;opacity:.85;transition:opacity .14s}
+.cem-xbtn:hover{opacity:1}
 .cem-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
 .cem-row{padding:13px 22px;border-bottom:1px solid var(--agent-border-subtle,rgba(45,24,16,.06))}
 .cem-eyebrow{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);margin:0 0 7px}
@@ -579,7 +627,17 @@ const CEM_CSS = `
 .cem-send-split:hover{filter:brightness(1.05)}
 .cem-sched-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(61,122,184,0.1);border:1px solid rgba(61,122,184,0.3);color:var(--agent-info,#3D7AB8);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600}
 .cem-sched-chip .cem-x{cursor:pointer;opacity:.7}.cem-sched-chip .cem-x:hover{opacity:1}
-.cem-schedmenu{position:absolute;bottom:calc(100% + 8px);right:0;z-index:50;width:252px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 16px 44px rgba(45,24,16,0.18);animation:cemMenuin .16s ease both}
+.cem-schedmenu{position:absolute;bottom:calc(100% + 8px);right:0;z-index:50;width:min(252px,calc(100vw - 44px));max-width:252px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 16px 44px rgba(45,24,16,0.18);animation:cemMenuin .16s ease both}
+/* signature-style menu (toolbar) — opens upward above the button */
+.cem-sigmenu{position:absolute;bottom:calc(100% + 6px);left:0;z-index:50;width:210px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 14px 40px rgba(45,24,16,0.16);animation:cemMenuin .16s ease both}
+.cem-si-sig{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:8px 9px;border-radius:9px;font-family:inherit;transition:background .12s}
+.cem-si-sig:hover{background:rgba(255,138,101,0.09)}
+.cem-sig-l{display:block;font-size:13px;font-weight:600;color:var(--agent-text-primary)}
+.cem-sig-s{display:block;font-size:11px;color:var(--agent-text-muted)}
+.cem-sig-ck{color:var(--agent-coral-deep);font-weight:700;flex-shrink:0}
+/* send-button label: arrow + "Schedule send" are desktop-only, to save width on mobile */
+.cem-lbl-mobile{display:none}
+@media (max-width:560px){ .cem-arrow{display:none} .cem-lbl-desktop{display:none} .cem-lbl-mobile{display:inline} }
 .cem-si{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:9px 10px;border-radius:9px;font-family:inherit;font-size:13px;color:var(--agent-text-primary);transition:background .12s}
 .cem-si:hover{background:rgba(255,138,101,0.09)}
 .cem-sched-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--agent-border-subtle);border-radius:10px;margin-bottom:7px}
