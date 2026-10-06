@@ -180,6 +180,25 @@ export async function confirmMilestoneAction(input: {
           ...(input.surveyorEmail !== undefined ? { bookedSurveyorEmail: input.surveyorEmail?.trim() || null } : {}),
         },
       });
+
+      // Save the surveyor as a reusable company kept off referrals (critique
+      // #211, phase 5). ProviderFirm is a shared directory (also read by the
+      // public quote route via `prisma`), so this agent-side write is
+      // legitimate — the normal client, not commandDb — and the firm is
+      // `listed: false` so it never surfaces on the buyer quote picker. Deduped
+      // by email so repeat confirms don't pile up rows.
+      const sEmail = input.surveyorEmail?.trim().toLowerCase();
+      if (input.surveyorName?.trim() && sEmail) {
+        const existing = await ptx.providerFirm.findFirst({
+          where: { kind: "surveyor", email: sEmail },
+          select: { id: true },
+        });
+        if (!existing) {
+          await ptx.providerFirm.create({
+            data: { kind: "surveyor", name: input.surveyorName.trim(), email: sEmail, listed: false, active: true },
+          });
+        }
+      }
     }
     if (def?.code === "PM6" && input.valuerName) {
       await ptx.propertyTransaction.update({

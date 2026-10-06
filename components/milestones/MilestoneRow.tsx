@@ -14,6 +14,7 @@ import { SurveyBookingModal } from "@/components/milestones/SurveyBookingModal";
 import { SurveyEmailModal } from "@/components/milestones/SurveyEmailModal";
 import { ChangeBookingDateModal } from "@/components/milestones/ChangeBookingDateModal";
 import { getSurveyBookingOptions, recordSurveyBooking } from "@/app/actions/survey-booking";
+import { getSavedSurveyors, type SavedSurveyor } from "@/app/actions/file-surveyors";
 import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
@@ -188,6 +189,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // point-of-contact email. Saved to transaction.surveyLevel / bookedSurveyorEmail.
   const [surveyLevel, setSurveyLevel] = useState<"level_2" | "level_3" | "">("");
   const [surveyorEmail, setSurveyorEmail] = useState("");
+  // PM9 (critique #211 phase 5): previously-saved surveyor firms to reuse, so a
+  // repeat surveyor is one pick (fills name + email) instead of re-typing.
+  const [savedSurveyors, setSavedSurveyors] = useState<SavedSurveyor[]>([]);
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
@@ -282,6 +286,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     // AND which surveyor they booked in one modal. No quotes → fall through to
     // the normal date modal.
     if (isPM9) {
+      // Preload saved surveyors so the inline panel can offer them as a pick.
+      if (savedSurveyors.length === 0) getSavedSurveyors().then(setSavedSurveyors).catch(() => {});
       setLoading(true);
       getSurveyBookingOptions(transactionId)
         .then((opts) => {
@@ -863,6 +869,28 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                       );
                     })}
                   </div>
+                </div>
+              )}
+              {/* Reuse a saved surveyor (critique #211 phase 5): fills the firm
+                  name + email so a repeat surveyor is one pick, not re-typing. */}
+              {isPM9 && savedSurveyors.length > 0 && (
+                <div>
+                  <label className="block text-xs text-slate-900/50 mb-1">
+                    Saved surveyors <span className="text-slate-900/35">(optional)</span>
+                  </label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const f = savedSurveyors.find((s) => s.id === e.target.value);
+                      if (f) { setSurveyorName(f.name); setSurveyorEmail(f.email); }
+                    }}
+                    className="glass-input w-full px-2 py-1.5 text-sm"
+                  >
+                    <option value="">Pick a saved surveyor…</option>
+                    {savedSurveyors.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
               )}
               {(isPM9 || isPM6) && (
