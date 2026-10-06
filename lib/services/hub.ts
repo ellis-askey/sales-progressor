@@ -1116,6 +1116,7 @@ export async function getNoCommsFiles(vis: AgentVisibility): Promise<NoCommsItem
 export type WeeklyTouchSide = {
   side: "vendor" | "purchaser";
   name: string;
+  contacts: { id: string; name: string }[]; // per-contact, for overlapping avatars + joined names
   contactIds: string[];
   primaryContactId: string;
   email: string | null;
@@ -1222,6 +1223,7 @@ export async function getWeeklyTouch(vis: AgentVisibility): Promise<WeeklyTouchS
       if (quiet) anyQuiet = true;
       needing.push({
         side: role, name: combineNames(roleContacts.map((c) => c.name)),
+        contacts: roleContacts.map((c) => ({ id: c.id, name: c.name })),
         contactIds: roleContacts.map((c) => c.id), primaryContactId: roleContacts[0].id,
         email: roleContacts.find((c) => c.email)?.email ?? null, phone: roleContacts.find((c) => c.phone)?.phone ?? null,
         daysSince, quiet,
