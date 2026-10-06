@@ -685,6 +685,35 @@ export async function setChainNeighbourUpdatesEnabled(enabled: boolean): Promise
   return { ok: true };
 }
 
+// The self-managed welcome modal's 5 chase toggles, saved in one call. Director-only
+// + agency-scoped. Maps the 5 toggles to the 6 Agency flags: Solicitor chases drives
+// solicitorChaseEnabled AND enquiryRaiseChaseEnabled (enquiry-raise is a solicitor-
+// directed nudge); Enquiry chases drives enquiryReplyChaseEnabled (reply loop only).
+// All six are already enforced by the live chase engines, so writing them is enough.
+export async function saveAgentChasePrefsAction(prefs: {
+  client: boolean; solicitor: boolean; enquiries: boolean; weekly: boolean; chain: boolean;
+}): Promise<ActionResult> {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can change automation settings." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "Missing agency context." };
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: {
+      chaseEmailsEnabled: !!prefs.client,
+      solicitorChaseEnabled: !!prefs.solicitor,
+      enquiryRaiseChaseEnabled: !!prefs.solicitor,
+      enquiryReplyChaseEnabled: !!prefs.enquiries,
+      weeklyClientUpdatesEnabled: !!prefs.weekly,
+      chainNeighbourUpdatesEnabled: !!prefs.chain,
+    },
+  });
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
+
 // ─── Email preview / edit ───────────────────────────────────────────────
 
 export type UpdateEmailPayloadInput = {

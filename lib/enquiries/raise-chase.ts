@@ -20,6 +20,7 @@ import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-fi
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
+import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
 import { raiseChaseDecision } from "./raise-chase-decision";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-email";
@@ -58,6 +59,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           propertyAddress: true,
           clientEmailsPaused: true,
           agencyId: true,
+          progressionBusinessId: true, // a non-TSP business can switch solicitor chases off (escalation still fires)
           assignedUserId: true,
           agentUserId: true,
           activeBuyerRoundId: true,
@@ -84,6 +86,11 @@ export async function runRaiseChaseCron(now: Date): Promise<{
       },
     },
   });
+
+  // A non-TSP business can switch solicitor chases off (the "get enquiries raised"
+  // nudge is part of solicitor chasing). Escalation still fires (the owner is
+  // raised to on a stall); only the nudge emails are gated.
+  const businessGate = await loadBusinessChaseGate(chases.map((c) => c.transaction?.progressionBusinessId));
 
   let sent = 0;
   let escalated = 0;
@@ -141,6 +148,10 @@ export async function runRaiseChaseCron(now: Date): Promise<{
     }
 
     if (!decision.nudgeDue || !decision.target) continue;
+
+    // Solicitor chases off for a non-TSP business → don't nudge. Escalation above
+    // has already fired, so a stall is still raised to the owner.
+    if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "solicitor")) continue;
 
     // Agent override from the chase timeline (edit the copy / skip the next nudge).
     const override = await getEnquiryOverride(tx.id, "raise");

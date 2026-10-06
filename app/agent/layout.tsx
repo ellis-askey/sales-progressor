@@ -10,7 +10,9 @@ import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessMember, businessHasClients } from "@/lib/services/progression-clients";
 import { getProgressorWelcomeState } from "@/lib/services/progressor-chase-prefs";
+import { getAgentChasePrefs } from "@/lib/services/agent-chase-prefs";
 import { ProgressorWelcomeModal } from "@/components/agent/ProgressorWelcomeModal";
+import { SelfManagedWelcomeModal } from "@/components/agent/SelfManagedWelcomeModal";
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
@@ -86,6 +88,15 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   // once seen. Agents / TSP staff never qualify.
   const progressorWelcome = businessMember?.isOwner ? await getProgressorWelcomeState(session) : null;
 
+  // First-run 3-step welcome for a SELF-MANAGED agency DIRECTOR (not progressor-
+  // managed, not a negotiator). Seeds the chase toggles from the agency's current
+  // flags so the welcome reflects reality. Everyone else — negotiators, and agents
+  // whose files are progressor-managed — keeps the simpler one-step welcome.
+  const selfManagedWelcomePrefs =
+    showWelcome && !progressorWelcome && !progressorName && session.user.role === "director" && session.user.agencyId
+      ? await getAgentChasePrefs(session.user.agencyId)
+      : null;
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's brand colour, derived into the full token set at render
@@ -107,7 +118,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />
@@ -126,6 +137,14 @@ export default async function AgentLayout({ children }: { children: React.ReactN
             businessName={progressorWelcome.businessName}
             userName={userName}
             initialPrefs={progressorWelcome.prefs}
+            themeMode={themeMode}
+          />
+        )}
+        {selfManagedWelcomePrefs && (
+          <SelfManagedWelcomeModal
+            agencyModeProfile={agencyModeProfile ?? "self_progressed"}
+            userName={userName}
+            initialPrefs={selfManagedWelcomePrefs}
             themeMode={themeMode}
           />
         )}
