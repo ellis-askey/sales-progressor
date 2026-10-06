@@ -211,7 +211,8 @@ export default async function PortalUpdatesPage({
                               Confirmed {fmtDayMonth(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
                             </span>
                           </div>
-                          <span className="sm:ml-auto flex-shrink-0">
+                          <span className="sm:ml-auto flex-shrink-0 flex items-center gap-2">
+                            {isNew(entry) && <PortalPill tone="coral">New</PortalPill>}
                             <PortalPill tone={sidePillTone}>{sideBadgeText}</PortalPill>
                           </span>
                         </div>
@@ -255,6 +256,7 @@ export default async function PortalUpdatesPage({
                             {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
                           </span>
                           <span className="sm:ml-auto flex-shrink-0 flex items-center gap-2">
+                            {isNew(entry) && <PortalPill tone="coral">New</PortalPill>}
                             <PortalPill tone="blue">Document</PortalPill>
                             {ext && <span className="text-[11px] font-semibold" style={{ color: P.textMuted }}>{ext}</span>}
                           </span>
@@ -288,9 +290,10 @@ export default async function PortalUpdatesPage({
                         <span className="text-[12px]" style={{ color: P.textMuted }}>
                           {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
                         </span>
-                        {method && (
-                          <span className="sm:ml-auto flex-shrink-0">
-                            <PortalPill tone={method.tone}>{method.label}</PortalPill>
+                        {(method || isNew(entry)) && (
+                          <span className="sm:ml-auto flex-shrink-0 flex items-center gap-2">
+                            {isNew(entry) && <PortalPill tone="coral">New</PortalPill>}
+                            {method && <PortalPill tone={method.tone}>{method.label}</PortalPill>}
                           </span>
                         )}
                       </div>
@@ -298,14 +301,11 @@ export default async function PortalUpdatesPage({
                   </PortalGlassCard>
                 );
                 })();
-                return isNew(entry) ? (
-                  <div key={entry.id} className="relative">
-                    {el}
-                    <span className="absolute top-2.5 right-3">
-                      <PortalPill tone="coral">New</PortalPill>
-                    </span>
-                  </div>
-                ) : el;
+                // The "New" marker is rendered inside each card's bottom-right
+                // meta row (alongside the side / method / Document pill), so it
+                // sits where the Sale/Purchase pill is rather than overlaying the
+                // top-right corner. (critique 2026-10-06)
+                return el;
               })}
             </div>
           </div>
