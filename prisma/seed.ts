@@ -244,8 +244,8 @@ async function main() {
     },
     {
       code: "PM9",  orderIndex: 9,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.manual_allowed,
-      weight: 4.00, eventDateRequired: true, name: "Buyer has booked a Level 2 or Level 3 survey",
-      summaryTemplate: "{agent} confirmed {purchasers} booked their survey",
+      weight: 4.00, eventDateRequired: true, name: "Buyer has booked their private survey",
+      summaryTemplate: "{agent} confirmed {purchasers} booked their private survey",
     },
     {
       code: "PM10", orderIndex: 10, blocksExchange: true,  predecessorCode: "PM9",  canBeMarkedNr: CanBeMarkedNr.auto_only,
