@@ -27,6 +27,10 @@ export type CreateContactInput = {
   // emails; principals default eligible, helpers only when a director opts in.
   isPrincipal?: boolean;
   portalEligible?: boolean;
+  // Business/company client: `name` is the contact person we address, companyName
+  // the company. For an individual both are omitted (critique 2026-10-05).
+  isBusiness?: boolean;
+  companyName?: string | null;
 };
 
 /**
@@ -51,6 +55,8 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
       phone: input.phone ?? null,
       email: input.email ?? null,
       roleType: input.roleType,
+      isBusiness: input.isBusiness ?? false,
+      companyName: input.isBusiness ? (input.companyName?.trim() || null) : null,
       isPrincipal,
       // A principal is always portal-eligible; a helper only when opted in.
       portalEligible: isPrincipal ? true : (input.portalEligible ?? false),

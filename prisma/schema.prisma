@@ -1136,10 +1136,19 @@ model PriceHistory {
 model Contact {
   id                        String      @id @default(cuid())
   propertyTransactionId     String
+  // `name` always holds the PERSON we address (what every greeting uses). For a
+  // business client the person is the named contact and `companyName` holds the
+  // company; for an individual `companyName` is null. This keeps greetings
+  // ("Hi {first}") correct without special-casing the ~90 call sites, while the
+  // company shows as the party on the file + legal surfaces. Critique 2026-10-05.
   name                      String
   phone                     String?
   email                     String?
   roleType                  ContactRole
+  // Business/company client (e.g. a developer, trust or estate). When true,
+  // companyName is the party and `name` is the contact person we address.
+  isBusiness                Boolean     @default(false)
+  companyName               String?
   // A person on a side who is NOT the actual buyer/seller — a helper, an
   // assistant, or a representative acting for a trust/company. isPrincipal=false
   // keeps them OUT of the "who confirmed" wording (only real clients are named);

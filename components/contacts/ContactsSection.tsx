@@ -36,6 +36,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
+import { looksLikeBusiness } from "@/lib/contacts/business";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { roleLabel, asRole } from "@/components/ui/RoleIcon";
@@ -84,6 +85,10 @@ type Contact = {
   // never named in confirmations; portalEligible controls their portal/emails.
   isPrincipal?: boolean;
   portalEligible?: boolean;
+  // Business/company client: companyName is the party, name the contact person
+  // (critique 2026-10-05).
+  isBusiness?: boolean;
+  companyName?: string | null;
 };
 
 function fmtRelative(date: Date): string {
@@ -105,6 +110,11 @@ const EMPTY_FORM = {
   phone:    "",
   isHelper:   false,
   givePortal: false,
+  // Business/company client (critique 2026-10-05): when the name looks like a
+  // company we quietly ask for a contact person. contactPerson is who we'll
+  // address; bizDismissed lets the agent wave off a false positive.
+  contactPerson: "",
+  bizDismissed:  false,
 };
 
 const INPUT = "agent-input";
@@ -652,7 +662,14 @@ export function ContactsSection({
     setLoading(true);
     setShowForm(false);
     const isHelper = (form.roleType === "vendor" || form.roleType === "purchaser") && form.isHelper;
-    const snap = { propertyTransactionId: transactionId, name: titleCaseKeepAcronyms(form.name), email: form.email.trim().toLowerCase() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true };
+    // Business split: `name` is the person we address (fall back to the company
+    // when no person was given), companyName is the company.
+    const isBiz = (form.roleType === "vendor" || form.roleType === "purchaser") && looksLikeBusiness(form.name) && !form.bizDismissed;
+    const person = form.contactPerson.trim();
+    const typedName = titleCaseKeepAcronyms(form.name);
+    const finalName = isBiz && person ? titleCaseKeepAcronyms(person) : typedName;
+    const companyName = isBiz ? typedName : null;
+    const snap = { propertyTransactionId: transactionId, name: finalName, email: form.email.trim().toLowerCase() || null, phone: form.phone.trim() || null, roleType: form.roleType, isPrincipal: !isHelper, portalEligible: isHelper ? form.givePortal : true, isBusiness: isBiz, companyName };
     const formSnap = { ...form };
     // Optimistically add the row so it appears the instant Add is pressed. The
     // temp id is replaced by the real record when the server data re-syncs.
@@ -667,6 +684,8 @@ export function ContactsSection({
       createdAt: new Date(),
       isPrincipal: snap.isPrincipal,
       portalEligible: snap.portalEligible,
+      isBusiness: snap.isBusiness,
+      companyName: snap.companyName,
     };
     setContacts((list) => [...list, optimistic]);
     startTransition(async () => {
@@ -922,6 +941,19 @@ export function ContactsSection({
               </div>
             </div>
 
+            {/* Quiet business nudge: only appears when the name looks like a
+                company, so the 99 normal contacts never see it (critique 2026-10-05). */}
+            {(form.roleType === "vendor" || form.roleType === "purchaser") && looksLikeBusiness(form.name) && !form.bizDismissed && (
+              <div className="rounded-lg bg-amber-50/60 border border-amber-200/70 p-3 agent-reveal-in">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[12px] text-slate-700">Looks like a <b>company</b>. Who should we address?</span>
+                  <button type="button" onClick={() => setForm((p) => ({ ...p, bizDismissed: true, contactPerson: "" }))} className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 whitespace-nowrap">Not a company</button>
+                </div>
+                <input type="text" value={form.contactPerson} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} placeholder="Contact person (e.g. Jane Smith)" className={INPUT} />
+                <p className="text-[11px] text-slate-500 mt-1.5">We&rsquo;ll keep the company name and greet the person. Leave blank to keep it to the company.</p>
+              </div>
+            )}
+
             {(form.roleType === "vendor" || form.roleType === "purchaser") && (
               <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
                 <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer">
@@ -1004,16 +1036,24 @@ export function ContactsSection({
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                            <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
+                            <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.isBusiness && contact.companyName ? contact.companyName : contact.name}</span>
                             <Pill glass tone={roleTone(r)} size="sm">
                               {roleLabel(r)}
                             </Pill>
+                            {contact.isBusiness && (
+                              <Pill glass tone="muted" size="sm" title="A company/business client. We address the named contact person.">
+                                Business
+                              </Pill>
+                            )}
                             {contact.isPrincipal === false && (
                               <Pill glass tone="muted" size="sm" title="A helper (not the actual client). We never name them in confirmations.">
                                 Helper
                               </Pill>
                             )}
                           </div>
+                          {contact.isBusiness && contact.companyName && contact.name && contact.name !== contact.companyName && (
+                            <div data-sensitive="true" style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>Contact: {contact.name}</div>
+                          )}
                           {(() => {
                             // Show ONE detail under the name — phone if we have
                             // it, else email — with a matching icon. The other

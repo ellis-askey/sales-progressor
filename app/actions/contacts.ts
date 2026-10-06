@@ -39,6 +39,10 @@ export async function createContactAction(input: {
   // portalEligible gives a helper portal + email access when a director opts in.
   isPrincipal?: boolean;
   portalEligible?: boolean;
+  // Business/company client: `name` is the contact person, companyName the
+  // company (critique 2026-10-05).
+  isBusiness?: boolean;
+  companyName?: string | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -87,6 +91,8 @@ export async function updateContactAction(input: {
   email: string | null;
   isPrincipal?: boolean;
   portalEligible?: boolean;
+  isBusiness?: boolean;
+  companyName?: string | null;
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -119,9 +125,13 @@ export async function updateContactAction(input: {
           isPrincipal: input.isPrincipal,
           portalEligible: input.isPrincipal ? true : (input.portalEligible ?? false),
         };
+  const bizData =
+    input.isBusiness === undefined
+      ? {}
+      : { isBusiness: input.isBusiness, companyName: input.isBusiness ? (input.companyName?.trim() || null) : null };
   await prisma.contact.update({
     where: { id: input.id },
-    data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null, ...roleData },
+    data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null, ...roleData, ...bizData },
   });
   await logActivity(
     input.transactionId,

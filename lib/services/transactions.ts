@@ -357,7 +357,7 @@ export async function getTransaction(id: string, agencyId: string) {
       // seeded TSP row). A non-TSP business here drives the agent-facing
       // "Managed by …" badge + progressor-aware copy. shortName falls back to name.
       progressionBusiness: { select: { id: true, name: true, shortName: true, isTsp: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true, isBusiness: true, companyName: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
@@ -392,7 +392,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       assignedUser: { select: { id: true, name: true, image: true } },
       // See getTransaction above — who's progressing this file (null → TSP).
       progressionBusiness: { select: { id: true, name: true, shortName: true, isTsp: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, unsubscribedAt: true, createdAt: true, buyerRoundId: true, isPrincipal: true, portalEligible: true, isBusiness: true, companyName: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true, secondaryEmail: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
