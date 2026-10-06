@@ -39,7 +39,7 @@ import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide, WithdrawalReason, ChainDirection } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 
-type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
+type ContactInput = { name: string; companyName?: string; phone?: string; email?: string; roleType: ContactRole };
 
 const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -400,6 +400,8 @@ export async function createTransactionAction(input: {
       data: input.contacts.map((c) => ({
         propertyTransactionId: tx.id,
         name: c.name.trim(),
+        companyName: c.companyName?.trim() || null,
+        isBusiness: !!c.companyName?.trim(),
         phone: c.phone?.trim() || null,
         email: c.email?.trim() || null,
         roleType: c.roleType,
@@ -2123,8 +2125,8 @@ export async function saveDraftAction(data: {
   agentFeeAmount?: number | null;
   agentFeePercent?: number | null;
   agentFeeIsVatInclusive?: boolean | null;
-  vendors?: Array<{ name: string; phone?: string | null; email?: string | null }>;
-  purchasers?: Array<{ name: string; phone?: string | null; email?: string | null }>;
+  vendors?: Array<{ name: string; companyName?: string | null; phone?: string | null; email?: string | null }>;
+  purchasers?: Array<{ name: string; companyName?: string | null; phone?: string | null; email?: string | null }>;
   vendorSolicitorFirmId?: string | null;
   vendorSolicitorContactId?: string | null;
   purchaserSolicitorFirmId?: string | null;
@@ -2158,10 +2160,10 @@ export async function saveDraftAction(data: {
 
   const vendorContacts = (data.vendors ?? [])
     .filter((v) => v.name?.trim())
-    .map((v) => ({ name: v.name.trim(), phone: v.phone?.trim() || null, email: v.email?.trim() || null, roleType: "vendor" as ContactRole }));
+    .map((v) => ({ name: v.name.trim(), companyName: v.companyName?.trim() || null, isBusiness: !!v.companyName?.trim(), phone: v.phone?.trim() || null, email: v.email?.trim() || null, roleType: "vendor" as ContactRole }));
   const purchaserContacts = (data.purchasers ?? [])
     .filter((p) => p.name?.trim())
-    .map((p) => ({ name: p.name.trim(), phone: p.phone?.trim() || null, email: p.email?.trim() || null, roleType: "purchaser" as ContactRole }));
+    .map((p) => ({ name: p.name.trim(), companyName: p.companyName?.trim() || null, isBusiness: !!p.companyName?.trim(), phone: p.phone?.trim() || null, email: p.email?.trim() || null, roleType: "purchaser" as ContactRole }));
   const allContacts = [...vendorContacts, ...purchaserContacts];
 
   const scalarData = {
@@ -2323,7 +2325,7 @@ export async function promoteDraftAction(
     tenure: Tenure;
     purchaseType: PurchaseType;
     purchasePrice: number | null;
-    contacts: { name: string; phone: string | null; email?: string | null; roleType: ContactRole }[];
+    contacts: { name: string; companyName?: string | null; phone: string | null; email?: string | null; roleType: ContactRole }[];
     progressedBy?: "progressor" | "agent";
   }
 ) {
@@ -2414,6 +2416,8 @@ export async function promoteDraftAction(
       data: data.contacts.map((c) => ({
         propertyTransactionId: draftId,
         name: c.name,
+        companyName: c.companyName?.trim() || null,
+        isBusiness: !!c.companyName?.trim(),
         phone: c.phone,
         email: c.email ?? null,
         roleType: c.roleType,

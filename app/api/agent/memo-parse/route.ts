@@ -17,8 +17,8 @@ Use null for any field you cannot find or are not confident about.
   "postcode": string | null,
   "purchasePricePence": number | null,
   "tenure": "freehold" | "leasehold" | null,
-  "vendors": [{ "name": string, "phone": string | null, "email": string | null }],
-  "purchasers": [{ "name": string, "phone": string | null, "email": string | null }],
+  "vendors": [{ "name": string, "companyName": string | null, "phone": string | null, "email": string | null }],
+  "purchasers": [{ "name": string, "companyName": string | null, "phone": string | null, "email": string | null }],
   "vendorSolicitor": { "firm": string | null, "name": string | null, "phone": string | null, "email": string | null } | null,
   "purchaserSolicitor": { "firm": string | null, "name": string | null, "phone": string | null, "email": string | null } | null
 }
@@ -27,6 +27,7 @@ Notes:
 - purchasePricePence: convert the sale price to pence. £325,000 → 32500000
 - postcode: always include the space (e.g. "BS6 7TH")
 - vendors/purchasers: include up to 2 of each if present
+- If a vendor or purchaser is a company or organisation (the name contains Ltd, Limited, LLP, PLC, Developments, Properties, Homes, Estates, Holdings, Group, Partners, Investments, Trustees, Construction, and similar), put the company's full name in companyName and put the individual signatory or director named for that company in name if one is given, otherwise leave name as null. For a private individual, leave companyName null and put their full name in name.
 - If a field contains only a role label (e.g. "Vendor") with no actual name, use null
 - For solicitors: extract the firm name, the individual solicitor's name, their direct phone, and email if present`;
 

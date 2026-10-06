@@ -6,6 +6,7 @@ import { FieldIndicator, FieldHint } from "./FieldIndicator";
 import { Pill } from "@/components/ui/Pill";
 import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
+import { looksLikeBusiness } from "@/lib/contacts/business";
 
 function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
   if (level === 0) return null;
@@ -51,11 +52,15 @@ export function ContactCard({
   // Surfaced inline beneath the conflicting input. Driven by the parent
   // carousel which computes conflicts pairwise across vendors + purchasers.
   conflict?: { kind: "phone" | "email"; withName: string };
-  onChange: (field: keyof ContactEntry, value: string) => void;
+  onChange: (patch: Partial<ContactEntry>) => void;
   onRemove: () => void;
   onEdit: () => void;
 }) {
   const numbered = `${label} ${index + 1}`;
+  // A business when the typed name reads like a company and the agent hasn't
+  // said otherwise. Nothing shows for an ordinary person — the contact-person
+  // field only appears once the name trips the company check (roughly 1 in 100).
+  const isBiz = looksLikeBusiness(contact.name.trim()) && !contact.bizDismissed;
   const hasName  = contact.name.trim().length > 0;
   const hasPhone = contact.phone.trim().length > 0;
   // A valid email — "sarah" no longer counts as a contactable email, so it can't
@@ -101,19 +106,44 @@ export function ContactCard({
         )}
       </div>
 
-      {/* Name */}
+      {/* Name (or company name, when the entry reads like a business) */}
       <div>
         <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>
-          Full name{isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2 }}>*</span>}
+          {isBiz ? "Company" : "Full name"}{isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2 }}>*</span>}
         </label>
         <input
           className="agent-input"
           value={contact.name}
-          onChange={(e) => { onChange("name", e.target.value); onEdit(); }}
-          onBlur={(e) => { if (e.target.value.trim()) onChange("name", titleCaseKeepAcronyms(e.target.value)); }}
+          onChange={(e) => { onChange({ name: e.target.value }); onEdit(); }}
+          onBlur={(e) => { if (e.target.value.trim()) onChange({ name: titleCaseKeepAcronyms(e.target.value) }); }}
           placeholder="e.g. Sarah Johnson"
           maxLength={80}
         />
+        {isBiz && (
+          <div style={{ marginTop: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>Who should we address? <span style={{ color: "var(--nv2-text-muted)", fontWeight: 400 }}>(optional)</span></span>
+              <button
+                type="button"
+                onClick={() => { onChange({ bizDismissed: true, contactPerson: "" }); onEdit(); }}
+                style={{ fontSize: 11, color: "var(--nv2-text-ghost)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 500 }}
+              >
+                Not a company
+              </button>
+            </label>
+            <input
+              className="agent-input"
+              value={contact.contactPerson ?? ""}
+              onChange={(e) => { onChange({ contactPerson: e.target.value }); onEdit(); }}
+              onBlur={(e) => { if (e.target.value.trim()) onChange({ contactPerson: titleCaseKeepAcronyms(e.target.value) }); }}
+              placeholder="e.g. the director or signatory"
+              maxLength={80}
+            />
+            <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--nv2-text-muted)" }}>
+              Looks like a company. We&rsquo;ll greet this person in emails, or keep it general if you leave it blank.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Phone + Email */}
@@ -124,10 +154,10 @@ export function ContactCard({
             <input
               className="agent-input"
               value={contact.phone}
-              onChange={(e) => { onChange("phone", cleanPhone(e.target.value)); onEdit(); }}
+              onChange={(e) => { onChange({ phone: cleanPhone(e.target.value) }); onEdit(); }}
               onBlur={(e) => {
                 const formatted = formatUKPhone(e.target.value);
-                if (formatted !== e.target.value) onChange("phone", formatted);
+                if (formatted !== e.target.value) onChange({ phone: formatted });
               }}
               placeholder="07700 900000"
               maxLength={20}
@@ -144,8 +174,8 @@ export function ContactCard({
             <input
               className="agent-input"
               value={contact.email}
-              onChange={(e) => { onChange("email", e.target.value); onEdit(); }}
-              onBlur={e => { if (e.target.value.trim()) onChange("email", e.target.value.trim().toLowerCase()); }}
+              onChange={(e) => { onChange({ email: e.target.value }); onEdit(); }}
+              onBlur={e => { if (e.target.value.trim()) onChange({ email: e.target.value.trim().toLowerCase() }); }}
               placeholder="sarah@example.com"
               maxLength={120}
               type="email"
@@ -220,8 +250,8 @@ export function ContactGroup({
   onChange: (contacts: ContactEntry[]) => void;
   onEdit: () => void;
 }) {
-  function updateContact(i: number, field: keyof ContactEntry, value: string) {
-    const next = contacts.map((c, idx) => idx === i ? { ...c, [field]: value } : c);
+  function patchContact(i: number, patch: Partial<ContactEntry>) {
+    const next = contacts.map((c, idx) => idx === i ? { ...c, ...patch } : c);
     onChange(next);
   }
   function addContact() {
@@ -274,7 +304,7 @@ export function ContactGroup({
             label={label.slice(0, -1)}
             canRemove={contacts.length > 1}
             isOutsourced={isOutsourced}
-            onChange={(field, value) => updateContact(i, field, value)}
+            onChange={(patch) => patchContact(i, patch)}
             onRemove={() => removeContact(i)}
             onEdit={onEdit}
           />

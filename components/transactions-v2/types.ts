@@ -31,8 +31,8 @@ export type ExtractedMemoData = {
   postcode: string | null;
   purchasePricePence: number | null;
   tenure: "freehold" | "leasehold" | null;
-  vendors: { name: string; phone?: string; email?: string }[];
-  purchasers: { name: string; phone?: string; email?: string }[];
+  vendors: { name: string; companyName?: string | null; phone?: string; email?: string }[];
+  purchasers: { name: string; companyName?: string | null; phone?: string; email?: string }[];
   vendorSolicitor: { firm?: string; name?: string; phone?: string; email?: string } | null;
   purchaserSolicitor: { firm?: string; name?: string; phone?: string; email?: string } | null;
   mosStoragePath?: string;
@@ -44,9 +44,18 @@ export type ExtractedMemoData = {
 export type FlowState = "hero" | "extracting" | "extracted" | "manual";
 
 export type ContactEntry = {
+  // `name` holds whatever is typed in the primary field: the person for an
+  // individual, the company for a business. When this contact is a business
+  // (name looks like a company and the nudge wasn't dismissed), `contactPerson`
+  // is the individual we should actually address. The business split is
+  // resolved at submit via resolveBusinessSplit — DB `name` always ends up the
+  // person we address (or the company if no person was given), `companyName`
+  // the company. Mirrors the add-contact business split in components/contacts.
   name: string;
   phone: string;
   email: string;
+  contactPerson?: string;
+  bizDismissed?: boolean;
 };
 
 export type DraftEntry = {
@@ -60,8 +69,8 @@ export type DraftEntry = {
   agentFeeAmount: number | null;
   agentFeePercent: number | null;
   agentFeeIsVatInclusive: boolean | null;
-  vendors: { name: string; phone: string | null; email: string | null }[];
-  purchasers: { name: string; phone: string | null; email: string | null }[];
+  vendors: { name: string; companyName?: string | null; phone: string | null; email: string | null }[];
+  purchasers: { name: string; companyName?: string | null; phone: string | null; email: string | null }[];
   vendorSolicitor: SolicitorSelection | null;
   purchaserSolicitor: SolicitorSelection | null;
   referredFirmId: string | null;

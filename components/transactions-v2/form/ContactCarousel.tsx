@@ -194,8 +194,8 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
     onEdit();
   }
 
-  function updateEntry(index: number, field: keyof ContactEntry, value: string) {
-    onChange(contacts.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
+  function updateEntry(index: number, patch: Partial<ContactEntry>) {
+    onChange(contacts.map((c, i) => (i === index ? { ...c, ...patch } : c)));
     onEdit();
   }
 
@@ -277,7 +277,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
           conflict={conflicts?.[0]}
-          onChange={(field, value) => updateEntry(0, field, value)}
+          onChange={(patch) => updateEntry(0, patch)}
           onRemove={() => {}}
           onEdit={onEdit}
         />
@@ -414,7 +414,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
           conflict={conflicts?.[activeIndex]}
-          onChange={(field, value) => updateEntry(activeIndex, field, value)}
+          onChange={(patch) => updateEntry(activeIndex, patch)}
           onRemove={() => removeEntry(activeIndex)}
           onEdit={onEdit}
         />

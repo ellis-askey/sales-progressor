@@ -34,10 +34,24 @@ import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
-import { titleCase } from "@/lib/utils";
+import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
+import { looksLikeBusiness } from "@/lib/contacts/business";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 const SLOW_THRESHOLD_MS = 15_000;
+
+// Resolve a form contact into the shape we persist. A business (name looks
+// like a company and the nudge wasn't dismissed) stores the person in `name`
+// when we were given one, otherwise keeps the company in `name`; `companyName`
+// is always the company. Individuals keep name and null company. Mirrors the
+// add-contact split in components/contacts so both entry points agree.
+function resolveBusinessSplit(c: ContactEntry): { name: string; companyName: string | null } {
+  const typed = c.name.trim();
+  const biz = looksLikeBusiness(typed) && !c.bizDismissed;
+  const person = c.contactPerson?.trim();
+  if (biz) return { name: person || typed, companyName: typed };
+  return { name: typed, companyName: null };
+}
 
 // ── Memo source computation ────────────────────────────────────────────────────
 
@@ -72,26 +86,31 @@ function populateFormFromExtraction(
   if (data.purchasePricePence) fields.purchasePricePence = data.purchasePricePence;
   if (data.tenure) fields.tenure = data.tenure;
 
-  if (data.vendors?.length) {
-    const populated = data.vendors.filter((v) => v.name?.trim());
-    if (populated.length) {
-      fields.vendors = populated.map((v) => ({
-        name: titleCase(v.name),
-        phone: cleanPhone(v.phone ?? ""),
-        email: v.email ?? "",
-      }));
+  // A memo party is a business when the model flagged a companyName, OR the
+  // plain name itself reads like a company (safety net for memos the model
+  // didn't explicitly split). The company goes in the primary `name` field,
+  // the named signatory (if any) in `contactPerson`.
+  const toEntry = (p: { name: string; companyName?: string | null; phone?: string; email?: string }): ContactEntry => {
+    const company = p.companyName?.trim() || (looksLikeBusiness(p.name ?? "") ? (p.name ?? "").trim() : "");
+    const phone = cleanPhone(p.phone ?? "");
+    const email = p.email ?? "";
+    if (company) {
+      // When the company was carried in companyName, p.name is the signatory;
+      // when the name itself was the company, there's no separate person.
+      const person = p.companyName?.trim() ? (p.name?.trim() ?? "") : "";
+      return { name: titleCaseKeepAcronyms(company), contactPerson: person ? titleCase(person) : "", phone, email };
     }
+    return { name: titleCase(p.name), phone, email };
+  };
+
+  if (data.vendors?.length) {
+    const populated = data.vendors.filter((v) => v.name?.trim() || v.companyName?.trim());
+    if (populated.length) fields.vendors = populated.map(toEntry);
   }
 
   if (data.purchasers?.length) {
-    const populated = data.purchasers.filter((p) => p.name?.trim());
-    if (populated.length) {
-      fields.purchasers = populated.map((p) => ({
-        name: titleCase(p.name),
-        phone: cleanPhone(p.phone ?? ""),
-        email: p.email ?? "",
-      }));
-    }
+    const populated = data.purchasers.filter((p) => p.name?.trim() || p.companyName?.trim());
+    if (populated.length) fields.purchasers = populated.map(toEntry);
   }
 
   return fields;
@@ -103,11 +122,22 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
   const city = parts.length >= 3 ? parts.slice(1, -1).join(", ") : (parts[1] ?? "");
   const postcode = parts.length >= 3 ? (parts[parts.length - 1] ?? "") : "";
 
+  // Restore the business split: a draft contact with a companyName shows the
+  // company in the primary field, and the person we address (the stored name,
+  // when it differs from the company) as the contact person.
+  const draftToEntry = (c: { name: string; companyName?: string | null; phone: string | null; email: string | null }): ContactEntry => {
+    const company = c.companyName?.trim();
+    if (company) {
+      const person = c.name.trim() && c.name.trim() !== company ? c.name.trim() : "";
+      return { name: company, contactPerson: person, phone: c.phone ?? "", email: c.email ?? "" };
+    }
+    return { name: c.name, phone: c.phone ?? "", email: c.email ?? "" };
+  };
   const vendors: ContactEntry[] = draft.vendors.length > 0
-    ? draft.vendors.map((v) => ({ name: v.name, phone: v.phone ?? "", email: v.email ?? "" }))
+    ? draft.vendors.map(draftToEntry)
     : [{ name: "", phone: "", email: "" }];
   const purchasers: ContactEntry[] = draft.purchasers.length > 0
-    ? draft.purchasers.map((p) => ({ name: p.name, phone: p.phone ?? "", email: p.email ?? "" }))
+    ? draft.purchasers.map(draftToEntry)
     : [{ name: "", phone: "", email: "" }];
 
   const vendorSolicitor = draft.vendorSolicitor ?? null;
@@ -172,8 +202,8 @@ function buildDraftInput(fields: FormFields, mosData: ExtractedMemoData | null, 
     agentFeeAmount: fields.agentFeeType === "amount" ? fields.agentFeeAmount : null,
     agentFeePercent: fields.agentFeeType === "percent" ? (parseFloat(fields.agentFeePercentStr) || null) : null,
     agentFeeIsVatInclusive: fields.agentFeeVat === "inclusive",
-    vendors: fields.vendors.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || null, email: v.email.trim() || null })),
-    purchasers: fields.purchasers.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || null, email: p.email.trim() || null })),
+    vendors: fields.vendors.filter((v) => v.name.trim()).map((v) => ({ ...resolveBusinessSplit(v), phone: v.phone.trim() || null, email: v.email.trim() || null })),
+    purchasers: fields.purchasers.filter((p) => p.name.trim()).map((p) => ({ ...resolveBusinessSplit(p), phone: p.phone.trim() || null, email: p.email.trim() || null })),
     vendorSolicitorFirmId: fields.vendorSolicitor?.firmId ?? null,
     vendorSolicitorContactId: fields.vendorSolicitor?.contactId ?? null,
     purchaserSolicitorFirmId: fields.purchaserSolicitor?.firmId ?? null,
@@ -916,10 +946,16 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     const contacts = [
       ...formFields.vendors
         .filter((v) => v.name.trim())
-        .map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || undefined, email: v.email.trim() || undefined, roleType: "vendor" as const })),
+        .map((v) => {
+          const { name, companyName } = resolveBusinessSplit(v);
+          return { name, companyName: companyName ?? undefined, phone: v.phone.trim() || undefined, email: v.email.trim() || undefined, roleType: "vendor" as const };
+        }),
       ...formFields.purchasers
         .filter((p) => p.name.trim())
-        .map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || undefined, email: p.email.trim() || undefined, roleType: "purchaser" as const })),
+        .map((p) => {
+          const { name, companyName } = resolveBusinessSplit(p);
+          return { name, companyName: companyName ?? undefined, phone: p.phone.trim() || undefined, email: p.email.trim() || undefined, roleType: "purchaser" as const };
+        }),
     ];
 
     const referredFirmId = formFields.vendorIsReferral

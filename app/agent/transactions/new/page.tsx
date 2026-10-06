@@ -180,7 +180,7 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
         onwardBrokerFirm: { select: { name: true } },
         onwardBrokerContact: { select: { name: true, phone: true, email: true } },
         progressedBy: true,
-        contacts: { select: { name: true, phone: true, email: true, roleType: true } },
+        contacts: { select: { name: true, companyName: true, phone: true, email: true, roleType: true } },
         documents: { where: { source: "mos" }, select: { storagePath: true, fileSize: true, mimeType: true, filename: true }, take: 1 },
         chainLink: {
           select: {
@@ -239,8 +239,8 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
         agentFeeAmount: r.agentFeeAmount ?? null,
         agentFeePercent: r.agentFeePercent != null ? Number(r.agentFeePercent) : null,
         agentFeeIsVatInclusive: r.agentFeeIsVatInclusive ?? null,
-        vendors: vendorContacts.map((c: { name: string; phone: string | null; email: string | null }) => ({ name: c.name, phone: c.phone, email: c.email })),
-        purchasers: purchaserContacts.map((c: { name: string; phone: string | null; email: string | null }) => ({ name: c.name, phone: c.phone, email: c.email })),
+        vendors: vendorContacts.map((c: { name: string; companyName: string | null; phone: string | null; email: string | null }) => ({ name: c.name, companyName: c.companyName, phone: c.phone, email: c.email })),
+        purchasers: purchaserContacts.map((c: { name: string; companyName: string | null; phone: string | null; email: string | null }) => ({ name: c.name, companyName: c.companyName, phone: c.phone, email: c.email })),
         vendorSolicitor: vendorSol,
         purchaserSolicitor: purchaserSol,
         referredFirmId: r.referredFirmId ?? null,
