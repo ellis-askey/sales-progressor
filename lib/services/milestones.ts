@@ -230,6 +230,10 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // The valuer / lender's surveyor firm captured inline on the lender valuation
   // step. Only set on PM6.
   bookedValuerName?: string | null;
+  // Survey level + surveyor point-of-contact email (critiques #211/#212). Only
+  // set on PM9.
+  surveyLevel?: "level_2" | "level_3" | null;
+  bookedSurveyorEmail?: string | null;
   // Name of the agent/progressor who confirmed the step (completedById -> User),
   // so the completed-row disclosure can render "Confirmed by {name}". Null for
   // client/solicitor confirms (those carry their own attribution) or historical
@@ -872,6 +876,8 @@ export async function getMilestonesForTransaction(
         activeBuyerRoundId: true,
         bookedSurveyorName: true,
         bookedValuerName: true,
+        surveyLevel: true,
+        bookedSurveyorEmail: true,
         completionDate: true,
         contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true, image: true, buyerRoundId: true } },
       },
@@ -987,6 +993,8 @@ export async function getMilestonesForTransaction(
           : null,
         bookedSurveyorName: def.code === "PM9" ? bookedSurveyorName : null,
         bookedValuerName: def.code === "PM6" ? transaction.bookedValuerName ?? null : null,
+        surveyLevel: def.code === "PM9" ? transaction.surveyLevel ?? null : null,
+        bookedSurveyorEmail: def.code === "PM9" ? transaction.bookedSurveyorEmail ?? null : null,
       };
     });
   };

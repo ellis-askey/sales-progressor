@@ -71,7 +71,7 @@ export function SurveyBookingModal({
 }: {
   options: SurveyBookingOption[];
   saving: boolean;
-  onConfirm: (surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean) => void;
+  onConfirm: (surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean, surveyLevel: "level_2" | "level_3" | null, surveyorEmail: string | null) => void;
   onCancel: () => void;
 }) {
   const { theme, isNight } = usePortalTheme();
@@ -79,6 +79,9 @@ export function SurveyBookingModal({
   const [selection, setSelection] = useState<Selection | null>(null);
   const [otherFirmName, setOtherFirmName] = useState("");
   const [keyCollection, setKeyCollection] = useState(false);
+  // Survey level + surveyor email (critiques #211/#212).
+  const [surveyLevel, setSurveyLevel] = useState<"level_2" | "level_3" | "">("");
+  const [surveyorEmail, setSurveyorEmail] = useState("");
 
   const canConfirm = !!surveyDate && selection !== null && !saving;
 
@@ -101,6 +104,26 @@ export function SurveyBookingModal({
                 When is the survey?
               </label>
               <DateField value={surveyDate} onChange={setSurveyDate} />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 8 }}>
+                Survey level
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {([["level_2", "Level 2 · HomeBuyer"], ["level_3", "Level 3 · Building"]] as const).map(([val, lbl]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className="sb-opt"
+                    data-on={surveyLevel === val ? "true" : undefined}
+                    style={{ flex: 1, justifyContent: "center" }}
+                    onClick={() => setSurveyLevel((prev) => (prev === val ? "" : val))}
+                  >
+                    <span style={{ fontWeight: 600 }}>{lbl}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
@@ -144,6 +167,19 @@ export function SurveyBookingModal({
               )}
             </div>
 
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
+                Surveyor email <span style={{ color: "var(--agent-text-muted)", fontWeight: 400 }}>(optional)</span>
+              </label>
+              <input
+                type="email"
+                value={surveyorEmail}
+                onChange={(e) => setSurveyorEmail(e.target.value)}
+                placeholder="e.g. bookings@ricssurveyors.co.uk"
+                className="sb-text-input"
+              />
+            </div>
+
             <label
               className="sb-check-row"
               title="Tick if the surveyor collects keys from the branch. Leave it clear if they go straight to the property."
@@ -166,7 +202,7 @@ export function SurveyBookingModal({
               const choice: SurveyBookingChoice = selection.kind === "someone_else"
                 ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
                 : selection;
-              onConfirm(surveyDate, choice, keyCollection);
+              onConfirm(surveyDate, choice, keyCollection, surveyLevel || null, surveyorEmail.trim() || null);
             }}
             disabled={!canConfirm}
             className="agent-btn agent-btn-primary agent-btn-md"

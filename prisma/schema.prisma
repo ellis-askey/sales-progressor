@@ -608,6 +608,14 @@ model PropertyTransaction {
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
   // no surveyor is recorded.
   bookedSurveyorName              String?
+  // Survey level the buyer booked (critique #212): Level 2 (HomeBuyer) or
+  // Level 3 (Building / full structural). Captured on the survey-booked step
+  // confirm. Null when not yet recorded.
+  surveyLevel                     SurveyLevel?
+  // Point-of-contact email for the booked surveyor (critique #211) — used to
+  // email the surveyor the access details with the buyer CC'd. Null when none
+  // recorded. The firm name sits on bookedSurveyorName (or the booked quote).
+  bookedSurveyorEmail             String?
   // Free-text valuer / lender's-surveyor firm captured inline on the lender-
   // valuation step (PM6) when the buyer arranged it outside our network. Mirrors
   // bookedSurveyorName for the survey step. Null when none is recorded.
@@ -1706,6 +1714,12 @@ enum ProviderKind {
   surveyor
   mortgage_broker
   structural_engineer
+}
+
+// Survey level booked on the survey step (critique #212).
+enum SurveyLevel {
+  level_2 // HomeBuyer / Level 2 survey
+  level_3 // Building survey / Level 3 (full structural)
 }
 
 enum QuoteRequestStatus {

@@ -39,6 +39,8 @@ type Props = {
     confirmedBySolicitorFirmName?: string | null;
     bookedSurveyorName?: string | null;
     bookedValuerName?: string | null;
+    surveyLevel?: "level_2" | "level_3" | null;
+    bookedSurveyorEmail?: string | null;
     completedByName?: string | null;
     confirmedByClientName?: string | null;
     completedByImage?: string | null;
@@ -181,6 +183,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // PM9 no-quote route: capture the surveyor firm inline (no modal). Saved to
   // transaction.bookedSurveyorName, which the completed panel then shows.
   const [surveyorName, setSurveyorName] = useState("");
+  // PM9 (critiques #211/#212): the survey level booked and the surveyor's
+  // point-of-contact email. Saved to transaction.surveyLevel / bookedSurveyorEmail.
+  const [surveyLevel, setSurveyLevel] = useState<"level_2" | "level_3" | "">("");
+  const [surveyorEmail, setSurveyorEmail] = useState("");
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
@@ -304,6 +310,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     setShowEventDate(false);
     setDesktopValuation(false);
     setSurveyorName("");
+    setSurveyLevel("");
+    setSurveyorEmail("");
     setError(null);
     const sipAtClick = signedInPerson;
     setSignedInPerson(false);
@@ -337,6 +345,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           keyCollectionRequired: (isPM6 || isPM9) ? keyCollection : undefined,
           surveyorName: isPM9 && surveyorName.trim() ? surveyorName.trim() : undefined,
           valuerName: isPM6 && surveyorName.trim() ? surveyorName.trim() : undefined,
+          surveyLevel: isPM9 && surveyLevel ? surveyLevel : undefined,
+          surveyorEmail: isPM9 && surveyorEmail.trim() ? surveyorEmail.trim() : undefined,
           signedInPerson: (isVM16 || isPM22) ? sipAtClick : undefined,
         });
         // Prereq gate (2026-06-05): the action returns a structured failure
@@ -482,7 +492,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   // Survey booked confirm: complete PM9 with the survey date, then record which
   // surveyor was booked. Booking is best-effort — a failure there never blocks
   // the milestone (the surveyor is the backstop).
-  function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean) {
+  function doSurveyBookingConfirm(surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean, surveyLevel: "level_2" | "level_3" | null, surveyorEmail: string | null) {
     if (surveyBookingSaving) return;
     setSurveyBookingSaving(true);
     startTransition(async () => {
@@ -494,6 +504,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           milestoneDefinitionId: def.id,
           eventDate: surveyDate || null,
           keyCollectionRequired,
+          surveyLevel: surveyLevel ?? undefined,
+          surveyorEmail: surveyorEmail ?? undefined,
         });
         if (result.ok === false && result.kind === "prereqs_missing") {
           const first = result.missing[0];
@@ -712,7 +724,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 );
               })()}
               {/* Fact grid — only what this step actually captured. */}
-              {def.completion && ((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName || def.bookedValuerName) && (
+              {def.completion && ((def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt)) || def.bookedSurveyorName || def.bookedValuerName || def.surveyLevel || def.bookedSurveyorEmail) && (
                 <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", margin: "13px 0 0", paddingTop: 12, borderTop: "0.5px solid var(--agent-border-default)" }}>
                   {def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt) && (
                     <>
@@ -724,6 +736,18 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     <>
                       <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Surveyor</dt>
                       <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.bookedSurveyorName}</dd>
+                    </>
+                  )}
+                  {def.surveyLevel && (
+                    <>
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Survey level</dt>
+                      <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.surveyLevel === "level_2" ? "Level 2 (HomeBuyer)" : "Level 3 (Building)"}</dd>
+                    </>
+                  )}
+                  {def.bookedSurveyorEmail && (
+                    <>
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Surveyor email</dt>
+                      <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)" }}>{def.bookedSurveyorEmail}</dd>
                     </>
                   )}
                   {def.bookedValuerName && (
@@ -793,6 +817,32 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               </div>
               {/* No-quote route: name the surveyor (PM9) / valuer (PM6) inline
                   (optional), so it lands on the file without a modal. */}
+              {/* Survey level (critique #212): which inspection the buyer booked. */}
+              {isPM9 && (
+                <div>
+                  <label className="block text-xs text-slate-900/50 mb-1">Survey level</label>
+                  <div className="flex gap-1.5">
+                    {([["level_2", "Level 2 · HomeBuyer"], ["level_3", "Level 3 · Building"]] as const).map(([val, lbl]) => {
+                      const on = surveyLevel === val;
+                      return (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setSurveyLevel((prev) => (prev === val ? "" : val))}
+                          className="flex-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+                          style={{
+                            borderColor: on ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.14)",
+                            color: on ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.55)",
+                            background: on ? "rgba(255,107,74,0.06)" : "transparent",
+                          }}
+                        >
+                          {lbl}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {(isPM9 || isPM6) && (
                 <div>
                   <label className="block text-xs text-slate-900/50 mb-1">
@@ -803,6 +853,22 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                     value={surveyorName}
                     onChange={(e) => setSurveyorName(e.target.value)}
                     placeholder={isPM6 ? "e.g. Connells Survey & Valuation" : "e.g. RICS Surveyors Ltd"}
+                    className="glass-input w-full px-2 py-1.5 text-sm"
+                  />
+                </div>
+              )}
+              {/* Surveyor point-of-contact email (critique #211): used to email the
+                  surveyor the access details with the buyer CC'd. */}
+              {isPM9 && (
+                <div>
+                  <label className="block text-xs text-slate-900/50 mb-1">
+                    Surveyor email <span className="text-slate-900/35">(optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={surveyorEmail}
+                    onChange={(e) => setSurveyorEmail(e.target.value)}
+                    placeholder="e.g. bookings@ricssurveyors.co.uk"
                     className="glass-input w-full px-2 py-1.5 text-sm"
                   />
                 </div>

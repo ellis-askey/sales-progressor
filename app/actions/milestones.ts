@@ -80,6 +80,11 @@ export async function confirmMilestoneAction(input: {
   // PM6: the valuer / lender's surveyor firm, captured inline the same way.
   // Saved to bookedValuerName. Ignored for other steps.
   valuerName?: string | null;
+  // PM9 only (critiques #211/#212): the survey level the buyer booked and the
+  // surveyor's point-of-contact email, captured on confirm. Saved to
+  // surveyLevel / bookedSurveyorEmail. Ignored for other steps.
+  surveyLevel?: "level_2" | "level_3" | null;
+  surveyorEmail?: string | null;
   // VM16/PM22 only (critique #3): the contract was signed in person with the solicitor.
   // Auto-completes the "returned" step and sends the in-person client emails instead of
   // the normal "ready to sign" + "signed and returned" ones.
@@ -162,12 +167,18 @@ export async function confirmMilestoneAction(input: {
       signedInPerson: input.signedInPerson,
     }, ptx, { def: def ?? undefined, activeBuyerRoundId });
 
-    // PM9 no-quote route: persist the inline surveyor firm so the completed
-    // panel shows it (bookedSurveyorName is the "booked outside our network" slot).
-    if (def?.code === "PM9" && input.surveyorName) {
+    // PM9: persist the inline survey details so the completed panel shows them
+    // and the surveyor email can pre-fill. bookedSurveyorName is the "booked
+    // outside our network" slot; surveyLevel + bookedSurveyorEmail are new
+    // (critiques #211/#212).
+    if (def?.code === "PM9" && (input.surveyorName || input.surveyLevel || input.surveyorEmail !== undefined)) {
       await ptx.propertyTransaction.update({
         where: { id: input.transactionId },
-        data: { bookedSurveyorName: input.surveyorName },
+        data: {
+          ...(input.surveyorName ? { bookedSurveyorName: input.surveyorName } : {}),
+          ...(input.surveyLevel ? { surveyLevel: input.surveyLevel } : {}),
+          ...(input.surveyorEmail !== undefined ? { bookedSurveyorEmail: input.surveyorEmail?.trim() || null } : {}),
+        },
       });
     }
     if (def?.code === "PM6" && input.valuerName) {
