@@ -16,6 +16,7 @@ import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
 import { TabEnter } from "@/components/transaction/TabEnter";
+import { ExchangeToCompletionCard } from "@/components/transaction/ExchangeToCompletionCard";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -38,6 +39,15 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const reminderLogs = await getAgentReminderLogs(vis, { transactionId: transaction.id });
+
+  // Bespoke exchange→completion block: completion is no longer a reminder, so a
+  // file that has exchanged but not yet completed shows this run-in block instead
+  // of an empty tab. Shown only while the file is active and has an exchange date.
+  const postExchange = await prisma.propertyTransaction.findUnique({
+    where: { id: transaction.id },
+    select: { exchangedAt: true, completionDate: true, status: true },
+  });
+  const showRunIn = postExchange?.status === "active" && postExchange.exchangedAt != null;
 
   // Property photo (one file), keyed by tx for the list header.
   const signedPhotos = await getSignedUrlMap(
@@ -110,6 +120,9 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
     <TabEnter>
     <div className="space-y-4">
       <TabBadgeReporter tabKey="reminders" count={actionable} />
+      {showRunIn && postExchange && (
+        <ExchangeToCompletionCard exchangedAt={postExchange.exchangedAt} completionDate={postExchange.completionDate} />
+      )}
       {statSegments.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {statSegments.map((seg) => (

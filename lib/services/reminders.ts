@@ -10,6 +10,7 @@ import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
+import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -386,7 +387,14 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
   // fetch the logs (without the MC include), then per-tx fetch the
   // round-scoped satisfied codes in a single batch query.
   const allLogs = await prisma.reminderLog.findMany({
-    where: { status: "active", transaction: txWhere },
+    where: {
+      status: "active",
+      transaction: txWhere,
+      // Completion (VM20/PM27) is no longer a reminder — it lives on the
+      // Completions page (+ one hub Diary mention + the file's exchange→completion
+      // block). Keep nulls and every other code; only drop the two completion ones.
+      NOT: { reminderRule: { targetMilestoneCode: { in: [...COMPLETION_REMINDER_CODES] } } },
+    },
     include: {
       reminderRule: {
         select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true, graceDays: true, anchorMilestone: { select: { name: true, blocksExchange: true } } },

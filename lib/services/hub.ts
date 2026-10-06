@@ -14,6 +14,7 @@ import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import type { ChaseContact, SolicitorRef } from "@/lib/services/chase-recipients";
 import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInput } from "@/lib/services/fees";
 import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
+import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { enquiryNeedsAttention } from "@/lib/enquiries/tracker";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
@@ -2621,6 +2622,9 @@ export async function getHubAttentionItems(
       transaction: txLogFilter,
       status: "active",
       OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+      // Completion (VM20/PM27) isn't a reminder — it's owned by the Completions
+      // page and shows once on the hub via the Diary card, not here as well.
+      NOT: { reminderRule: { targetMilestoneCode: { in: [...COMPLETION_REMINDER_CODES] } } },
     },
     orderBy: { nextDueDate: "asc" },
     select: {
