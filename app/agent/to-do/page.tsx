@@ -5,12 +5,12 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getNoCommsFiles } from "@/lib/services/hub";
+import { getWeeklyTouch } from "@/lib/services/hub";
 import { listAttachableFiles } from "@/lib/services/work-queue";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
-import { NoCommsCard } from "@/components/todos/NoCommsCard";
+import { WeeklyTouchCard, type WeeklyTouchFileView } from "@/components/todos/WeeklyTouchCard";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -67,13 +67,20 @@ export default async function AgentTodoPage() {
   const vis = isInternal
     ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const noCommsRaw = await getNoCommsFiles(vis);
-  const noCommsPhotos = await getSignedUrlMap(
-    noCommsRaw.map((i) => i.photoStoragePath).filter((p): p is string => !!p),
+  // Weekly "touch every file" (right column) — both sides of every active file,
+  // quiet ones first. The old No-comms behaviour lives on inside it (quiet sides
+  // are flagged + sorted up). Photos signed once, keyed by transaction.
+  const weekly = await getWeeklyTouch(vis);
+  const weeklyPhotos = await getSignedUrlMap(
+    weekly.files.map((f) => f.photoStoragePath).filter((p): p is string => !!p),
   );
-  const noCommsItems = noCommsRaw.map((i) => ({
-    ...i,
-    photoUrl: i.photoStoragePath ? noCommsPhotos.get(i.photoStoragePath) ?? null : null,
+  const weeklyFiles: WeeklyTouchFileView[] = weekly.files.map((f) => ({
+    transactionId: f.transactionId,
+    addressLine: f.addressLine,
+    townPostcode: f.townPostcode,
+    sides: f.sides,
+    anyQuiet: f.anyQuiet,
+    photoUrl: f.photoStoragePath ? weeklyPhotos.get(f.photoStoragePath) ?? null : null,
   }));
 
   // Files this user can attach a new to-do to (id + address) — for the picker.
@@ -126,7 +133,7 @@ export default async function AgentTodoPage() {
       </PageHeader>
 
       <PageReveal>
-      {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) && noCommsItems.length === 0 ? (
+      {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) && weekly.totalSides === 0 ? (
         // Brand-new agency user OR progression-business owner: the onboarding
         // empty state. An owner has no TSP progressor to send to, so the
         // "send to your progressor" card is off for them.
@@ -141,9 +148,9 @@ export default async function AgentTodoPage() {
             )}
             <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} photoByTx={taskPhotoByTx} attachableFiles={attachableFiles} progressorName={progressorName} />
           </div>
-          {noCommsItems.length > 0 && (
+          {weekly.totalSides > 0 && (
             <div className="todo-col-side">
-              <NoCommsCard items={noCommsItems} />
+              <WeeklyTouchCard files={weeklyFiles} totalSides={weekly.totalSides} doneSides={weekly.doneSides} />
             </div>
           )}
         </div>

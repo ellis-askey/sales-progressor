@@ -1104,6 +1104,138 @@ export async function getNoCommsFiles(vis: AgentVisibility): Promise<NoCommsItem
   return items;
 }
 
+// ── Weekly "touch every file" — both sides (critique 2026-10-05) ────────────────
+// The No-comms card grown into a weekly discipline: every active file's seller
+// AND buyer side should be touched (a call, email, note, or a step moved) each
+// week. A side is "done this week" when it's been touched OR parked ("not
+// required this week" = a HubCardDismissal of cardKind "weekly_touch" that lasts
+// to Monday). "Touched" reuses the gone-quiet real-touch definition (human
+// outbound / client reply / portal), so automated engine chases don't count; a
+// milestone completed this week counts for both sides (the file moved).
+
+export type WeeklyTouchSide = {
+  side: "vendor" | "purchaser";
+  name: string;
+  contactIds: string[];
+  primaryContactId: string;
+  email: string | null;
+  phone: string | null;
+  daysSince: number | null; // since last human contact ever (drives the "quiet" chip)
+  quiet: boolean;           // >= 14 days / never
+};
+export type WeeklyTouchFile = {
+  transactionId: string;
+  addressLine: string;
+  townPostcode: string;
+  photoStoragePath: string | null;
+  sides: WeeklyTouchSide[]; // only the sides STILL needing a touch this week
+  anyQuiet: boolean;
+};
+export type WeeklyTouchSummary = { files: WeeklyTouchFile[]; totalSides: number; doneSides: number };
+
+function startOfIsoWeekUTC(now: Date): Date {
+  const d = new Date(now);
+  const day = (d.getUTCDay() + 6) % 7; // 0 = Monday
+  d.setUTCDate(d.getUTCDate() - day);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+export async function getWeeklyTouch(vis: AgentVisibility): Promise<WeeklyTouchSummary> {
+  const now = new Date();
+  const weekStartMs = startOfIsoWeekUTC(now).getTime();
+  const weekStart = new Date(weekStartMs);
+  const commsCutoffMs = now.getTime() - NO_COMMS_DAYS * 86_400_000;
+  const txWhere = buildTxWhere(vis);
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
+  const files = await prisma.propertyTransaction.findMany({
+    where: {
+      ...txWhere,
+      isDemo: false,
+      status: "active",
+      NOT: {
+        milestoneCompletions: {
+          some: { milestoneDefinition: { code: { in: ["VM19", "PM26"] } }, state: "complete", OR: roundScopedOR(activeRoundIds) },
+        },
+      },
+    },
+    select: {
+      id: true, propertyAddress: true, photoStoragePath: true,
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] } },
+        select: { id: true, name: true, email: true, phone: true, roleType: true },
+      },
+      hubCardDismissals: {
+        where: { cardKind: "weekly_touch", dismissedUntil: { gt: now } },
+        select: { signature: true },
+      },
+      milestoneCompletions: {
+        where: { state: "complete", completedAt: { gte: weekStart }, OR: roundScopedOR(activeRoundIds) },
+        select: { id: true }, take: 1,
+      },
+    },
+  });
+
+  const fileIds = files.map((f) => f.id);
+  const careIds = new Set(files.flatMap((f) => f.contacts.map((c) => c.id)));
+  const lastByContact = new Map<string, number>();
+  if (careIds.size > 0) {
+    const [obRows, pmRows] = await Promise.all([
+      prisma.outboundMessage.findMany({
+        where: {
+          transactionId: { in: fileIds },
+          contactIds: { hasSome: [...careIds] },
+          OR: [{ type: "outbound", isAutomated: false, method: { not: null } }, { type: "inbound" }],
+        },
+        select: { contactIds: true, sentAt: true, createdAt: true },
+      }),
+      prisma.portalMessage.findMany({
+        where: { transactionId: { in: fileIds }, contactId: { in: [...careIds] } },
+        select: { contactId: true, createdAt: true },
+      }),
+    ]);
+    const bump = (id: string, t: Date | null) => { if (!t) return; const ms = t.getTime(); const p = lastByContact.get(id); if (p === undefined || ms > p) lastByContact.set(id, ms); };
+    for (const m of obRows) { const t = m.sentAt ?? m.createdAt; for (const id of m.contactIds) if (careIds.has(id)) bump(id, t); }
+    for (const m of pmRows) bump(m.contactId, m.createdAt);
+  }
+
+  const combineNames = (names: string[]): string => names.length === 1 ? names[0] : names.map((n) => extractFirstName(n)).join(" & ");
+
+  let totalSides = 0, doneSides = 0;
+  const outFiles: WeeklyTouchFile[] = [];
+  for (const f of files) {
+    const dismissed = new Set(f.hubCardDismissals.map((d) => d.signature));
+    const movedThisWeek = f.milestoneCompletions.length > 0;
+    const needing: WeeklyTouchSide[] = [];
+    let anyQuiet = false;
+    for (const role of ["vendor", "purchaser"] as const) {
+      const roleContacts = f.contacts.filter((c) => c.roleType === role);
+      if (roleContacts.length === 0) continue;
+      totalSides++;
+      let lastMs: number | null = null;
+      for (const c of roleContacts) { const ms = lastByContact.get(c.id); if (ms !== undefined && (lastMs === null || ms > lastMs)) lastMs = ms; }
+      const touchedThisWeek = movedThisWeek || (lastMs !== null && lastMs >= weekStartMs);
+      if (touchedThisWeek || dismissed.has(role)) { doneSides++; continue; }
+      const daysSince = lastMs !== null ? Math.floor((now.getTime() - lastMs) / 86_400_000) : null;
+      const quiet = lastMs === null || lastMs < commsCutoffMs;
+      if (quiet) anyQuiet = true;
+      needing.push({
+        side: role, name: combineNames(roleContacts.map((c) => c.name)),
+        contactIds: roleContacts.map((c) => c.id), primaryContactId: roleContacts[0].id,
+        email: roleContacts.find((c) => c.email)?.email ?? null, phone: roleContacts.find((c) => c.phone)?.phone ?? null,
+        daysSince, quiet,
+      });
+    }
+    if (needing.length === 0) continue;
+    const { line, location } = splitAddressParts(f.propertyAddress);
+    outFiles.push({ transactionId: f.id, addressLine: line, townPostcode: location, photoStoragePath: f.photoStoragePath, sides: needing, anyQuiet });
+  }
+  const worst = (f: WeeklyTouchFile) => Math.max(...f.sides.map((s) => s.daysSince ?? 9999));
+  outFiles.sort((a, b) => Number(b.anyQuiet) - Number(a.anyQuiet) || worst(b) - worst(a));
+  return { files: outFiles, totalSides, doneSides };
+}
+
 // ── Momentum ──────────────────────────────────────────────────────────────────
 
 // ── Hold-expired files ────────────────────────────────────────────────────
