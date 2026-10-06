@@ -265,6 +265,11 @@ export async function SidebarPanel({
   const exchangeConfirmed = allMilestones.some(
     (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete,
   );
+  // The actual exchange date — when VM19/PM26 was completed — for the key-dates
+  // "Exchanged on" row that replaces the forecast once exchanged.
+  const exchangedOn = allMilestones.find(
+    (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete,
+  )?.completion?.completedAt ?? null;
   // Sale completed — status flipped to completed, or the completion milestone
   // (VM20/PM27) is done. Drives the Sale-health label → "Completed" (critique
   // 2026-10-02).
@@ -409,6 +414,7 @@ export async function SidebarPanel({
       progress={progress}
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
+      exchangedOn={exchangedOn}
       completed={saleCompleted}
       fileTime={fileTime}
       isInternal={isInternal}

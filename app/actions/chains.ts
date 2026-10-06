@@ -84,10 +84,14 @@ export async function markChainLinkChasedAction(
 export async function setChainLinkExchangeReadyAction(
   chainLinkId: string,
   ready: boolean,
+  fileTransactionId?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
-  const link = await prisma.chainLink.findUnique({ where: { id: chainLinkId }, select: { chainId: true } });
+  const link = await prisma.chainLink.findUnique({
+    where: { id: chainLinkId },
+    select: { chainId: true, stubPropertyAddress: true, transaction: { select: { propertyAddress: true } } },
+  });
   if (!link) return { ok: false, error: "That link no longer exists." };
   const inScope = await prisma.propertyTransaction.findFirst({
     where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
@@ -101,6 +105,23 @@ export async function setChainLinkExchangeReadyAction(
       exchangeReadyConfirmedById: ready ? session.user.id : null,
     },
   });
+  // Record the confirm on the file's activity feed (only when confirming, not
+  // when un-confirming). Scope-guarded: only log against a file the caller owns.
+  if (ready && fileTransactionId) {
+    const ownFile = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, fileTransactionId),
+      select: { id: true },
+    });
+    if (ownFile) {
+      const address = link.transaction?.propertyAddress ?? link.stubPropertyAddress ?? "another sale in the chain";
+      await logActivity(
+        ownFile.id,
+        `${session.user.name} received confirmation that ${address} is also ready to exchange`,
+        session.user.id,
+      ).catch(() => {});
+      revalidatePath(`/agent/transactions/${ownFile.id}`);
+    }
+  }
   revalidatePath("/agent/chains");
   return { ok: true };
 }

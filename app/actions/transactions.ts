@@ -1260,7 +1260,7 @@ export async function reviseOverdueExchangeDateAction(input: {
   const dateStr = parsed.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   await logActivity(
     input.transactionId,
-    `${session.user.name} revised the expected exchange date to ${dateStr} after speaking to both parties`,
+    `${session.user.name} revised the expected exchange date to ${dateStr}`,
     session.user.id,
   );
 

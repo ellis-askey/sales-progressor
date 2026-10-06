@@ -442,6 +442,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             overridePredictedDate={transaction.overridePredictedDate ?? null}
             topRightSlot={heroTopRightSlot}
             exchanged={transaction.exchangedAt !== null}
+            exchangedDate={transaction.exchangedAt ?? null}
             isShareOfFreehold={transaction.isShareOfFreehold}
           />
         </div>

@@ -51,7 +51,8 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
     setRows((prev) => prev.map((r) => (r.linkId === row.linkId ? { ...r, ready: next, source: next ? "confirmed" : "not_yet" } : r)));
     setBusy(row.linkId);
     startTransition(async () => {
-      const res = await setChainLinkExchangeReadyAction(row.linkId, next);
+      // Pass our file id so the confirm is logged to this file's activity feed.
+      const res = await setChainLinkExchangeReadyAction(row.linkId, next, push.transactionId);
       if (!res.ok) {
         setRows((prev) => prev.map((r) => (r.linkId === row.linkId ? { ...r, ready: !next } : r)));
         toast.error(res.error);
@@ -113,34 +114,47 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
       </div>
 
       {/* Rows */}
+      <style>{`
+        .exc-row{display:flex;align-items:center;gap:12px;padding:10px 8px}
+        .exc-main{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+        .exc-ctrls{display:flex;align-items:center;gap:10px;flex-shrink:0}
+        /* On a phone the one-line row crushed the address (critique: "16 Deans F…").
+           Address takes the first line; the pill + Chase + toggle wrap beneath it,
+           indented under the address and aligned right. */
+        @media(max-width:560px){
+          .exc-row{flex-wrap:wrap}
+          .exc-main{flex-basis:100%}
+          .exc-ctrls{width:100%;justify-content:flex-end;padding-left:40px}
+        }
+      `}</style>
       <div style={{ padding: "6px 8px 10px" }}>
         {rows.map((row, i) => {
           const dotBg = row.isUs ? "var(--agent-success)" : row.kind === "claimed" ? "var(--agent-text-secondary)" : "#c6b9a8";
           return (
             <div
               key={row.linkId}
+              className="exc-row"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 8px",
                 borderTop: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
                 borderRadius: row.isUs ? 10 : 0,
                 background: row.isUs ? "rgba(var(--agent-success-rgb, 31,138,74),0.05)" : undefined,
               }}
             >
-              <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: dotBg, color: "#fff", fontSize: 12, fontWeight: 800 }}>
-                {row.isUs ? "★" : row.kind === "claimed" ? "◆" : "◇"}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {row.address}
-                </div>
-                <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                  {row.isUs ? "Your sale · both sides confirmed" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
-                  {!row.isUs && !row.ready ? ` · ${rel(row.lastChasedAt)}` : ""}
+              <div className="exc-main">
+                <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: dotBg, color: "#fff", fontSize: 12, fontWeight: 800 }}>
+                  {row.isUs ? "★" : row.kind === "claimed" ? "◆" : "◇"}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {row.address}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>
+                    {row.isUs ? "Your sale · both sides confirmed" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
+                    {!row.isUs && !row.ready ? ` · ${rel(row.lastChasedAt)}` : ""}
+                  </div>
                 </div>
               </div>
+              <div className="exc-ctrls">
               <span
                 style={{
                   fontSize: 11,
@@ -198,6 +212,7 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
                   }}
                 />
               </button>
+              </div>
             </div>
           );
         })}

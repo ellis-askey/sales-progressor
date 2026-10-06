@@ -32,10 +32,16 @@ export function HeroExchangeCell({
   transactionId,
   predictedDate,
   overrideDate,
+  exchanged = false,
+  exchangedDate = null,
 }: {
   transactionId: string;
   predictedDate: Date | null;
   overrideDate: Date | null;
+  // Once the sale has exchanged the cell stops being a forecast: it shows the
+  // real exchange date under an "Exchanged on" label and is no longer editable.
+  exchanged?: boolean;
+  exchangedDate?: Date | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,6 +51,19 @@ export function HeroExchangeCell({
   const shown = overrideDate ?? predictedDate;
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  // Exchanged: a static cell (no calendar edit), real date + "Exchanged on".
+  if (exchanged) {
+    return (
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+        <span style={ICON_CHIP}><CalendarBlank size={20} weight="regular" /></span>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={VALUE_STYLE}>{fmt(exchangedDate ?? shown)}</span>
+          <span style={LABEL_STYLE}>Exchanged on</span>
+        </span>
+      </div>
+    );
+  }
 
   async function save(value: string | null) {
     setSaving(true);

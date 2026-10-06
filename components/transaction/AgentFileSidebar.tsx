@@ -93,6 +93,9 @@ type Props = {
   progress: ProgressResult;
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
+  // The actual exchange date — once exchanged, the key-dates "Exchange forecast"
+  // row is replaced by an "Exchanged on {date}" row.
+  exchangedOn?: Date | null;
   // Sale has completed (status completed / VM20 / PM27). With exchangeConfirmed,
   // drives the Sale-health label to a terminal "Exchanged" / "Completed" instead
   // of a pace word (critique 2026-10-02).
@@ -210,6 +213,7 @@ export function AgentFileSidebar({
   progress,
   keyDates = [],
   exchangeConfirmed = false,
+  exchangedOn = null,
   completed = false,
   showOurFee = true,
   progressorName = null,
@@ -455,7 +459,16 @@ export function AgentFileSidebar({
               : "–"}
           />
         )}
-        {(transaction.overridePredictedDate || MEDIANS_READY) && (
+        {exchangeConfirmed ? (
+          <SidebarRow
+            label="Exchanged on"
+            value={<span style={{ color: "var(--agent-text-primary)" }}>
+              {exchangedOn
+                ? new Date(exchangedOn).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                : "–"}
+            </span>}
+          />
+        ) : (transaction.overridePredictedDate || MEDIANS_READY) && (
           <SidebarRow
             label="Exchange forecast"
             value={<span style={{ color: transaction.overridePredictedDate ? "#1d4ed8" : "var(--agent-text-primary)" }}>

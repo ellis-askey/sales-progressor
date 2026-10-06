@@ -81,6 +81,9 @@ type Props = {
   // Manual predicted-exchange override. The hero's "Expected exchange"
   // stat prefers this over exchangeDate, matching the old stats strip.
   overridePredictedDate?: Date | string | null;
+  // The actual exchange date (PropertyTransaction.exchangedAt). With `exchanged`
+  // true, the hero's exchange cell shows this under "Exchanged on".
+  exchangedDate?: Date | string | null;
   // Role-gated header controls (AI summary, portal-emails toggle) built
   // at the page level and floated in the hero's top-right corner.
   topRightSlot?: React.ReactNode;
@@ -257,7 +260,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -665,6 +668,8 @@ export function PropertyHero({
                 transactionId={transactionId}
                 predictedDate={exchangeDate ?? null}
                 overrideDate={overridePredictedDate ? new Date(overridePredictedDate) : null}
+                exchanged={exchanged}
+                exchangedDate={exchangedDate ? new Date(exchangedDate) : null}
               />
             ) : (
               <HeroStatCell
