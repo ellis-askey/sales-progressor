@@ -275,7 +275,7 @@ export function MapView({
 
         <GlassCard glassId="files-map-patches" label="Map · Your patches" className="map-panel">
           <h3 className="map-panel-t">Your patches</h3>
-          <p className="map-panel-s">Ranked by sales. Bar = your share of that district&rsquo;s registered market.</p>
+          <p className="map-panel-s">Ranked by your sales. Each bar shows how much of that area&rsquo;s registered sales were yours.</p>
           <div className="map-board">
             {board.map(({ patch: p, placed }, i) => (
               <button

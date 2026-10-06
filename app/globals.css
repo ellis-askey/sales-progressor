@@ -1012,6 +1012,12 @@ input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {
   outline: none;
+  /* Native date/time inputs carry an intrinsic minimum width and don't shrink
+     to their container on mobile, so they overflow the right padding of narrow
+     modals (critique: the proposed-date modal had no space on the right). Let
+     them shrink and never exceed their box. Applies app-wide. */
+  min-width: 0;
+  max-width: 100%;
 }
 input[type="date"]:focus,
 input[type="date"]:focus-visible,

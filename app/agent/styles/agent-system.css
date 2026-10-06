@@ -5275,6 +5275,16 @@ body[data-demo-file] [data-onboarding-checklist] {
 .map-seg-b:hover:not(.on) { color: var(--agent-coral-deep); }
 .map-seg-b.on { color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); }
 .map-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--agent-text-muted); }
+/* Mobile: the four toolbar groups wrapped into four tall rows. Lay them out as
+   a 2x2 grid instead — each group 50% wide with a gap, its label stacked above
+   a full-width button row, and the count on its own row. (critique 2026-09-30) */
+@media (max-width: 640px) {
+  .map-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; align-items: start; }
+  .map-seg { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+  .map-seg-g { display: flex; width: 100%; }
+  .map-seg-b { flex: 1 1 0; text-align: center; min-width: 0; padding: 6px 4px; }
+  .map-count { grid-column: 1 / -1; margin-left: 0; }
+}
 
 .map-split { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
 @media (max-width: 900px) { .map-split { grid-template-columns: 1fr; } }
