@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus, Prisma } from "@prisma/client";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
-import { detectPhase, feeExVat } from "@/lib/services/fees";
+import { detectPhase, feeExVat, calculateFileFeesPence, calculateProgressionFeePence } from "@/lib/services/fees";
+import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
 import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
@@ -224,6 +225,15 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       brokerReferralFeeVat: true,
       onwardBrokerReferralFee: true,
       onwardBrokerReferralFeeVat: true,
+      // Audience-aware fee inputs (same shape as calculateFileFeesPence /
+      // calculateProgressionFeePence). Lets each viewer see only their own fee:
+      // agency net, TSP progression fee, or an external business's rate card.
+      agencyId: true,
+      referralFee: true,
+      referralFeeVat: true,
+      serviceType: true,
+      freeOnExchange: true,
+      firstOutsourcedFree: true,
       photoStoragePath: true,
       // Journey anchors: instructed (file created) -> exchanged -> completing,
       // plus the 12-week target for the "on time" read.
@@ -238,8 +248,8 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       clientOtherFundsSentGBP: true,
       clientCompletionFundsSent: true,
       clientMoveInfos: { where: { side: "purchaser" }, select: { mortgageOfferExpiry: true, sellingRelated: true, fundsInPlace: true } },
-      agency:       { select: { name: true } },
-      assignedUser: { select: { name: true } },
+      agency:       { select: { name: true, feeTier: true, legacyOutsourcedFeePence: true } },
+      assignedUser: { select: { name: true, clientType: true, legacyFee: true } },
       // Active-round contacts only — a relisted-then-completed file must not
       // list the previous buyer alongside the new one (2026-09-28).
       contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
@@ -259,12 +269,62 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     },
   });
 
+  // Audience-aware fee: which fee THIS viewer earns per file. Mirrors
+  // getHubWeeklyForecast's resolution so the two never drift:
+  //  - external progression business → their rate-card fee (calculateClientFee),
+  //    combined across every agency they run;
+  //  - TSP internal staff → our progression fee (calculateProgressionFeePence);
+  //  - agency → agency net income (calculateFileFeesPence).
+  // Each viewer only ever loads their own files (txWhere), so there is nothing
+  // from anyone else in scope to total — no cross-visibility (Law 7).
+  let feeBusinessId: string | null = vis.businessId ?? null;
+  if (!feeBusinessId && vis.internalMode) {
+    const u = await prisma.user.findUnique({
+      where: { id: vis.userId },
+      select: { progressionBusinessId: true, progressionBusiness: { select: { isTsp: true } } },
+    });
+    if (u?.progressionBusinessId && u.progressionBusiness && !u.progressionBusiness.isTsp) {
+      feeBusinessId = u.progressionBusinessId;
+    }
+  }
+  const feeModelByAgency = feeBusinessId
+    ? new Map(
+        (await prisma.progressionBusinessClient.findMany({
+          where: { progressionBusinessId: feeBusinessId },
+          select: { agencyId: true, feeModel: true },
+        })).map((l) => [l.agencyId, parseFeeModel(l.feeModel)]),
+      )
+    : null;
+  const feeAudience: "agency" | "tsp" | "business" =
+    feeBusinessId ? "business" : vis.internalMode ? "tsp" : "agency";
+
   const mapped = candidates
     .filter((tx) => !tx.milestoneCompletions.some((c) => completionDefIds.includes(c.milestoneDefinitionId)))
     .map((tx) => {
       const exchangeCompletion = tx.milestoneCompletions.find((c) => exchangeDefIds.includes(c.milestoneDefinitionId));
       const move = tx.clientMoveInfos[0];
+      const viewerFeePence: number | null =
+        feeAudience === "business"
+          ? calculateClientFee(feeModelByAgency?.get(tx.agencyId) ?? null, tx.purchasePrice)
+          : (feeAudience === "tsp" ? calculateProgressionFeePence : calculateFileFeesPence)({
+              purchasePrice: tx.purchasePrice,
+              agentFeeAmount: tx.agentFeeAmount,
+              agentFeePercent: tx.agentFeePercent,
+              agentFeeIsVatInclusive: tx.agentFeeIsVatInclusive,
+              referralFee: tx.referralFee,
+              referralFeeVat: tx.referralFeeVat,
+              brokerReferralFee: tx.brokerReferralFee,
+              brokerReferralFeeVat: tx.brokerReferralFeeVat,
+              onwardBrokerReferralFee: tx.onwardBrokerReferralFee,
+              onwardBrokerReferralFeeVat: tx.onwardBrokerReferralFeeVat,
+              serviceType: tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
+              freeOnExchange: tx.freeOnExchange ?? false,
+              firstOutsourcedFree: tx.firstOutsourcedFree ?? false,
+              assignedUser: tx.assignedUser,
+              agencyOverride: tx.agency,
+            });
       return {
+        viewerFeePence,
         id: tx.id,
         propertyAddress: tx.propertyAddress,
         completionDate: tx.completionDate,
@@ -312,13 +372,14 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     : [];
   const sizeByChain = new Map(chainCounts.map((c) => [c.chainId, c._count._all]));
 
-  return mapped
+  const files = mapped
     .map((r) => ({ ...r, chainSize: r.chainId ? sizeByChain.get(r.chainId) ?? 1 : 1 }))
     .sort((a, b) => {
       if (!a.completionDate) return 1;
       if (!b.completionDate) return -1;
       return new Date(a.completionDate).getTime() - new Date(b.completionDate).getTime();
     });
+  return { files, feeAudience };
 }
 
 // The "finish line" momentum band for the completions page: deals landed in the

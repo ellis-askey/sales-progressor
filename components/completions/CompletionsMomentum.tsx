@@ -5,7 +5,7 @@
 // the page's in-flight totals.
 
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Trophy, Timer, CheckCircle, Airplane } from "@phosphor-icons/react/dist/ssr";
+import { Trophy, Timer, CheckCircle, Airplane, Lock } from "@phosphor-icons/react/dist/ssr";
 
 type Tone = "coral" | "info" | "warning" | "success" | "neutral";
 
@@ -14,6 +14,10 @@ function fmtCompact(pence: number): string {
   if (pounds >= 1_000_000) return "£" + (pounds / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
   if (pounds >= 1_000) return "£" + Math.round(pounds / 1_000) + "k";
   return "£" + pounds.toLocaleString("en-GB");
+}
+
+function fmtFull(pence: number): string {
+  return "£" + Math.round(pence / 100).toLocaleString("en-GB");
 }
 
 type Cell = {
@@ -31,6 +35,9 @@ export function CompletionsMomentum({
   onTimePct,
   inFlightCount,
   inFlightValuePence,
+  feesPence,
+  feeLabel,
+  feeNote,
 }: {
   completed30dCount: number;
   completed30dValuePence: number;
@@ -38,6 +45,11 @@ export function CompletionsMomentum({
   onTimePct: number | null;
   inFlightCount: number;
   inFlightValuePence: number;
+  // Audience-aware fees due on the in-flight completions — the fee THIS viewer
+  // earns, resolved server-side. No switcher: one fixed line per login.
+  feesPence: number;
+  feeLabel: string;
+  feeNote: string;
 }) {
   const cells: Cell[] = [
     {
@@ -98,6 +110,36 @@ export function CompletionsMomentum({
           </div>
         ))}
       </div>
+
+      {/* Fees due — one fixed line, resolved from who's logged in. No switcher. */}
+      {feesPence > 0 && (
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+            padding: "13px 16px", borderTop: "1px solid var(--agent-border-subtle)",
+          }}
+        >
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 21, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
+              {fmtFull(feesPence)}
+            </span>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>
+              <b style={{ color: "var(--agent-text-secondary)", fontWeight: 650 }}>{feeLabel}</b> · {feeNote}
+            </span>
+          </span>
+          <span
+            title="You only ever see your own fees."
+            style={{
+              marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
+              fontSize: 10.5, fontWeight: 650, color: "var(--agent-text-muted)",
+              background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)",
+              borderRadius: 999, padding: "4px 10px",
+            }}
+          >
+            <Lock size={11} weight="regular" /> Your view only
+          </span>
+        </div>
+      )}
     </GlassCard>
   );
 }

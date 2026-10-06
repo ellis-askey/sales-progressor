@@ -64,11 +64,13 @@ export default async function AgentCompletionsPage() {
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const [files, completedFiles, momentum] = await Promise.all([
+  const [completions, completedFiles, momentum] = await Promise.all([
     getAgentCompletions(vis),
     getAgentCompletedFiles(vis),
     getCompletionsMomentum(vis),
   ]);
+  const files = completions.files;
+  const feeAudience = completions.feeAudience;
 
   // Sign every property photo (pending + completed) in one round trip.
   const photoMap = await getSignedUrlMap([
@@ -99,6 +101,17 @@ export default async function AgentCompletionsPage() {
     .map((k) => ({ key: k, label: `${counts[k]} ${STAT_LABELS[k]}`, pillColor: GROUP_STYLES_STAT[k].pillColor, anchor: `#section-${k}` }));
 
   const totalValue = files.reduce((sum, f) => sum + (f.purchasePrice ?? 0), 0);
+
+  // Audience-aware fees due on the in-flight completions. The viewer only ever
+  // loaded their own files, and viewerFeePence is already the fee THEY earn, so
+  // this total is theirs alone — no one else's fees are in scope. The caption
+  // names whose fees these are; there is no switcher.
+  const totalFeesPence = files.reduce((sum, f) => sum + (f.viewerFeePence ?? 0), 0);
+  const feesCopy = {
+    agency:   { label: "Your fees due",  note: "Your commission on the files you manage." },
+    tsp:      { label: "TSP fees due",   note: "Our progression fee across every outsourced completion heading to the line." },
+    business: { label: "Your fees due",  note: "Your rate-card fee, combined across every agency you progress." },
+  }[feeAudience];
 
   // Week-ahead timeline: days (today..+14) that have completions, chain-flagged.
   const timelineDays: TimelineDay[] = (() => {
@@ -151,8 +164,10 @@ export default async function AgentCompletionsPage() {
     if (group.length === 0) return [];
 
     const groupValue      = group.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
-    const groupFeeTotal   = group.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0) + f.brokerFeeTotal, 0);
-    const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
+    // Audience-aware: the fee THIS viewer earns on the group (null = not set,
+    // e.g. a business with no rate card — surfaced as the "fees TBC" state).
+    const groupFeeTotal   = group.reduce((sum, f) => sum + (f.viewerFeePence ?? 0), 0);
+    const missingFeeCount = group.filter((f) => f.viewerFeePence == null).length;
 
     /* OLD: server computed daysRel, daysLabel, daysColor (hex strings) and serialised into row.
        Now computed client-side in CompletionFileRowView via computeDays() using CSS var tokens. */
@@ -356,6 +371,9 @@ export default async function AgentCompletionsPage() {
             onTimePct={momentum.onTimePct}
             inFlightCount={files.length}
             inFlightValuePence={totalValue}
+            feesPence={totalFeesPence}
+            feeLabel={feesCopy.label}
+            feeNote={feesCopy.note}
           />
         )}
 
