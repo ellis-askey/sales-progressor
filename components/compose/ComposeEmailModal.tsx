@@ -595,8 +595,8 @@ const CEM_CSS = `
 .cem-sale-reveal.open{grid-template-rows:1fr;opacity:1}
 .cem-sale-reveal-in{overflow:hidden;min-height:0}
 .cem-mgroup{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);padding:8px 9px 4px}
-.cem-mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:7px 9px;border-radius:9px;font-family:inherit;transition:background .12s}
-.cem-mi:hover{background:rgba(255,138,101,0.09)}
+.cem-mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:7px 9px;border-radius:9px;font-family:inherit;transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+.cem-mi:hover{background:rgba(45,24,16,0.03);transform:translateY(-1px);box-shadow:0 3px 10px rgba(45,24,16,0.10)}
 .cem-nm{flex:1;min-width:0}
 .cem-n{display:block;font-size:13px;font-weight:600;color:var(--agent-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-r{display:block;font-size:11px;color:var(--agent-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -631,15 +631,16 @@ const CEM_CSS = `
 /* signature-style menu (toolbar) — opens upward above the button */
 .cem-sigmenu{position:absolute;bottom:calc(100% + 6px);left:0;z-index:50;width:210px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 14px 40px rgba(45,24,16,0.16);animation:cemMenuin .16s ease both}
 .cem-si-sig{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:8px 9px;border-radius:9px;font-family:inherit;transition:background .12s}
-.cem-si-sig:hover{background:rgba(255,138,101,0.09)}
+.cem-si-sig{transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+.cem-si-sig:hover{background:rgba(45,24,16,0.03);transform:translateY(-1px);box-shadow:0 3px 10px rgba(45,24,16,0.10)}
 .cem-sig-l{display:block;font-size:13px;font-weight:600;color:var(--agent-text-primary)}
 .cem-sig-s{display:block;font-size:11px;color:var(--agent-text-muted)}
 .cem-sig-ck{color:var(--agent-coral-deep);font-weight:700;flex-shrink:0}
 /* send-button label: arrow + "Schedule send" are desktop-only, to save width on mobile */
 .cem-lbl-mobile{display:none}
 @media (max-width:560px){ .cem-arrow{display:none} .cem-lbl-desktop{display:none} .cem-lbl-mobile{display:inline} }
-.cem-si{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:9px 10px;border-radius:9px;font-family:inherit;font-size:13px;color:var(--agent-text-primary);transition:background .12s}
-.cem-si:hover{background:rgba(255,138,101,0.09)}
+.cem-si{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:9px 10px;border-radius:9px;font-family:inherit;font-size:13px;color:var(--agent-text-primary);transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
+.cem-si:hover{background:rgba(45,24,16,0.03);transform:translateY(-1px);box-shadow:0 3px 10px rgba(45,24,16,0.10)}
 .cem-sched-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--agent-border-subtle);border-radius:10px;margin-bottom:7px}
 .cem-cancel-sched{flex-shrink:0;border:1px solid var(--agent-border-default);background:#fff;color:var(--agent-text-secondary);border-radius:8px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .14s}
 .cem-cancel-sched:hover{border-color:var(--agent-danger);color:var(--agent-danger)}
