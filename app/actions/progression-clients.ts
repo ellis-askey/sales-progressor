@@ -419,9 +419,12 @@ export async function inviteTeamMemberAction(formData: FormData): Promise<Action
   }
   console.log(`[AUDIT] progression_teammate_invited businessId=${owner.businessId} userId=${user.id} by=${owner.userId}`);
   // Reflect the extra seat on the business's Stripe subscription straight away
-  // (the daily cron also reconciles). No-ops when billing isn't live.
-  await syncBusinessSubscription(owner.businessId).catch((err) =>
-    console.error("[progression] seat sync after invite failed:", err));
+  // (the daily cron also reconciles). Only when collection is live — this must not
+  // touch Stripe before go-live, even if the prices are set for testing.
+  if (progressionBillingCollectEnabled()) {
+    await syncBusinessSubscription(owner.businessId).catch((err) =>
+      console.error("[progression] seat sync after invite failed:", err));
+  }
   revalidatePath("/agent/team");
   return { ok: true };
 }
@@ -462,9 +465,11 @@ export async function removeTeamMemberAction(memberId: string): Promise<ActionRe
   ]);
   console.log(`[AUDIT] progression_teammate_removed businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
   // Drop the seat on the business's Stripe subscription straight away (the daily
-  // cron also reconciles). No-ops when billing isn't live.
-  await syncBusinessSubscription(owner.businessId).catch((err) =>
-    console.error("[progression] seat sync after remove failed:", err));
+  // cron also reconciles). Only when collection is live.
+  if (progressionBillingCollectEnabled()) {
+    await syncBusinessSubscription(owner.businessId).catch((err) =>
+      console.error("[progression] seat sync after remove failed:", err));
+  }
   revalidatePath("/agent/team");
   return { ok: true };
 }

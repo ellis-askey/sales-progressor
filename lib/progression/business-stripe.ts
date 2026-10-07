@@ -87,21 +87,40 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
     select: { stripeSubscriptionId: true },
   });
 
-  if (!business?.stripeSubscriptionId) {
+  // Resolve the subscription id safely. Never create a second subscription: if our
+  // record is missing but Stripe already has a live one for this customer (our DB
+  // lost the id, or a concurrent run just created it), adopt that one instead.
+  let subscriptionId = business?.stripeSubscriptionId ?? null;
+  if (!subscriptionId) {
+    const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+    const live = existing.data.find((s) => s.status !== "canceled" && s.status !== "incomplete_expired");
+    if (live) {
+      subscriptionId = live.id;
+      await prisma.progressionBusiness.update({ where: { id: businessId }, data: { stripeSubscriptionId: live.id } });
+    }
+  }
+
+  if (!subscriptionId) {
     const items: { price: string; quantity: number }[] = [{ price: base, quantity: 1 }];
     if (extraMembers > 0) items.push({ price: seat, quantity: extraMembers });
-    const sub = await stripe.subscriptions.create({
-      customer: customerId,
-      items,
-      collection_method: "charge_automatically",
-      metadata: { progressionBusinessId: businessId },
-    });
+    // Stable idempotency key so a double-click, or the daily cron overlapping the
+    // card-save, can't create two subscriptions (and double-charge the £59).
+    const sub = await stripe.subscriptions.create(
+      {
+        customer: customerId,
+        items,
+        collection_method: "charge_automatically",
+        metadata: { progressionBusinessId: businessId },
+      },
+      { idempotencyKey: `business-sub-create-${businessId}` },
+    );
     await prisma.progressionBusiness.update({ where: { id: businessId }, data: { stripeSubscriptionId: sub.id } });
     return;
   }
 
-  // Existing subscription — reconcile the seat line to the current headcount.
-  const sub = await stripe.subscriptions.retrieve(business.stripeSubscriptionId);
+  // Existing (or just-adopted) subscription — reconcile the seat line to the
+  // current headcount.
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const seatItem = sub.items.data.find((i) => i.price.id === seat);
   if (extraMembers > 0) {
     if (seatItem) await stripe.subscriptionItems.update(seatItem.id, { quantity: extraMembers });
@@ -119,9 +138,14 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
   if (!isStripeConfigured()) return 0;
   const business = await prisma.progressionBusiness.findUnique({
     where: { id: businessId },
-    select: { stripeCustomerId: true },
+    select: { stripeCustomerId: true, stripeSubscriptionId: true },
   });
-  if (!business?.stripeCustomerId) return 0;
+  // Require BOTH a customer and a subscription: a pending invoice item only ever
+  // gets collected by riding the next subscription invoice. Pushing with no
+  // subscription would strand the item in Stripe while we still marked the sale
+  // invoiced, silently losing the £5. No subscription yet means leave them for the
+  // next run.
+  if (!business?.stripeCustomerId || !business?.stripeSubscriptionId) return 0;
 
   const sales = await prisma.propertyTransaction.findMany({
     where: { progressionBusinessId: businessId, businessPerSaleChargedAt: { not: null }, businessPerSaleInvoicedAt: null },
@@ -132,13 +156,19 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
   const stripe = getStripeClient();
   let pushed = 0;
   for (const s of sales) {
-    await stripe.invoiceItems.create({
-      customer: business.stripeCustomerId,
-      amount: BUSINESS_PER_SALE_PENCE,
-      currency: "gbp",
-      description: `Sale added — ${s.propertyAddress}`,
-      metadata: { progressionBusinessId: businessId, transactionId: s.id },
-    });
+    // Idempotency key per sale: if a run is interrupted after creating the item but
+    // before marking it invoiced, the retry returns the same item instead of
+    // creating (and charging) a second £5.
+    await stripe.invoiceItems.create(
+      {
+        customer: business.stripeCustomerId,
+        amount: BUSINESS_PER_SALE_PENCE,
+        currency: "gbp",
+        description: `Sale added: ${s.propertyAddress}`,
+        metadata: { progressionBusinessId: businessId, transactionId: s.id },
+      },
+      { idempotencyKey: `business-persale-${s.id}` },
+    );
     await prisma.propertyTransaction.update({ where: { id: s.id }, data: { businessPerSaleInvoicedAt: new Date() } });
     pushed++;
   }
