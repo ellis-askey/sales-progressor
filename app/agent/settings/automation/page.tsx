@@ -26,38 +26,66 @@ import { ChainNeighbourUpdatesToggle } from "@/components/automation/ChainNeighb
 
 export default async function AutomationSettingsPage() {
   const session = await requireSession();
-  if (session.user.role !== "director") notFound();
   const agencyId = session.user.agencyId;
-  if (!agencyId) notFound();
+  // Who's allowed in: an agency director (their self-managed files), OR a
+  // progression-business OWNER (their own outsourced files, #228). Anyone else
+  // (negotiators, non-owner business members) gets the standard notFound gate.
+  const isAgencyDirector = session.user.role === "director" && !!agencyId;
+  const isBusinessOwner = !!session.user.progressionBusinessId && session.user.progressionBusinessRole === "owner";
+  if (!isAgencyDirector && !isBusinessOwner) notFound();
 
-  const [agency, rules, overrides, defs, solicitorSettings, solicitorRules] = await Promise.all([
-    prisma.agency.findUnique({
-      where: { id: agencyId },
-      select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true, chainNeighbourUpdatesEnabled: true },
-    }),
+  // Shared: the platform rules + milestone names.
+  const [rules, defs] = await Promise.all([
     prisma.reminderRule.findMany({
       where: { isActive: true, targetMilestoneCode: { not: null } },
-      select: {
-        targetMilestoneCode: true,
-        graceDays: true,
-        repeatEveryDays: true,
-      },
-    }),
-    // This agency's own overrides (empty = every rule still on our default).
-    prisma.agencyChaseRuleOverride.findMany({
-      where: { agencyId },
-      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+      select: { targetMilestoneCode: true, graceDays: true, repeatEveryDays: true },
     }),
     prisma.milestoneDefinition.findMany({
       select: { code: true, name: true, side: true, orderIndex: true },
     }),
-    prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } }),
-    prisma.solicitorReminderRule.findMany({
-      orderBy: { milestoneCode: "asc" },
-    }),
   ]);
 
-  if (!agency) notFound();
+  // Resolve the owner's own master toggle + overrides (agency vs business).
+  const scope: "agency" | "business" = isAgencyDirector ? "agency" : "business";
+  let masterEnabled = false;
+  let overrides: { milestoneCode: string; graceDays: number; repeatEveryDays: number }[] = [];
+  // Agency-only extras (weekly update, chain updates, solicitor chases).
+  let agencyExtras: { weekly: boolean; chain: boolean } | null = null;
+  let solicitorSettings: Awaited<ReturnType<typeof prisma.solicitorChaseSettings.findUnique>> = null;
+  let solicitorRules: Awaited<ReturnType<typeof prisma.solicitorReminderRule.findMany>> = [];
+
+  if (isAgencyDirector) {
+    const [agency, agencyOverrides, solSettings, solRules] = await Promise.all([
+      prisma.agency.findUnique({
+        where: { id: agencyId! },
+        select: { chaseEmailsEnabled: true, weeklyClientUpdatesEnabled: true, chainNeighbourUpdatesEnabled: true },
+      }),
+      prisma.agencyChaseRuleOverride.findMany({
+        where: { agencyId: agencyId! },
+        select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+      }),
+      prisma.solicitorChaseSettings.findUnique({ where: { id: "singleton" } }),
+      prisma.solicitorReminderRule.findMany({ orderBy: { milestoneCode: "asc" } }),
+    ]);
+    if (!agency) notFound();
+    masterEnabled = agency.chaseEmailsEnabled;
+    overrides = agencyOverrides;
+    agencyExtras = { weekly: agency.weeklyClientUpdatesEnabled, chain: agency.chainNeighbourUpdatesEnabled };
+    solicitorSettings = solSettings;
+    solicitorRules = solRules;
+  } else {
+    const businessId = session.user.progressionBusinessId!;
+    const [biz, bizOverrides] = await Promise.all([
+      prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { chaseClientsEnabled: true } }),
+      prisma.businessChaseRuleOverride.findMany({
+        where: { progressionBusinessId: businessId },
+        select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+      }),
+    ]);
+    if (!biz) notFound();
+    masterEnabled = biz.chaseClientsEnabled;
+    overrides = bizOverrides;
+  }
 
   const defByCode = new Map(defs.map((d) => [d.code, d]));
   // Overlay this agency's overrides on the platform default so the form shows
@@ -95,33 +123,40 @@ export default async function AutomationSettingsPage() {
     <div className="p-6 max-w-3xl mx-auto">
       <PageHeader
         title="Automation settings"
-        subtitle="Control automated chase emails sent to clients on your agency's files."
+        subtitle={scope === "business"
+          ? "Control automated chase emails sent to clients on your outsourced files."
+          : "Control automated chase emails sent to clients on your agency's files."}
       />
       <AutomationSettingsForm
-        initialChaseEmailsEnabled={agency.chaseEmailsEnabled}
+        initialChaseEmailsEnabled={masterEnabled}
         initialRules={editableRules}
+        scope={scope}
       />
-      <WeeklyUpdateToggle initialEnabled={agency.weeklyClientUpdatesEnabled} />
-      <ChainNeighbourUpdatesToggle initialEnabled={agency.chainNeighbourUpdatesEnabled} />
-      <SolicitorAutomationForm
-        initial={{
-          enabled: solicitorSettings?.enabledByDefault ?? false,
-          graceWorkingDays: solicitorSettings?.graceWorkingDays ?? 5,
-          repeatDays: solicitorSettings?.repeatDays ?? 7,
-          maxChases: solicitorSettings?.maxChases ?? 2,
-        }}
-      />
-      <SolicitorPerCodeTable
-        initial={solicitorRules.map((r) => ({
-          milestoneCode: r.milestoneCode,
-          graceWorkingDays: r.graceWorkingDays,
-          repeatWorkingDays: r.repeatWorkingDays,
-          maxChases: r.maxChases,
-          active: r.active,
-          anchorMilestoneCode: r.anchorMilestoneCode,
-          useAnchorEventDate: r.useAnchorEventDate,
-        }))}
-      />
+      {isAgencyDirector && agencyExtras && (
+        <>
+          <WeeklyUpdateToggle initialEnabled={agencyExtras.weekly} />
+          <ChainNeighbourUpdatesToggle initialEnabled={agencyExtras.chain} />
+          <SolicitorAutomationForm
+            initial={{
+              enabled: solicitorSettings?.enabledByDefault ?? false,
+              graceWorkingDays: solicitorSettings?.graceWorkingDays ?? 5,
+              repeatDays: solicitorSettings?.repeatDays ?? 7,
+              maxChases: solicitorSettings?.maxChases ?? 2,
+            }}
+          />
+          <SolicitorPerCodeTable
+            initial={solicitorRules.map((r) => ({
+              milestoneCode: r.milestoneCode,
+              graceWorkingDays: r.graceWorkingDays,
+              repeatWorkingDays: r.repeatWorkingDays,
+              maxChases: r.maxChases,
+              active: r.active,
+              anchorMilestoneCode: r.anchorMilestoneCode,
+              useAnchorEventDate: r.useAnchorEventDate,
+            }))}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@
 // buildChaseRuleSnapshot (outsourced files always use the platform default).
 
 import { useState, useTransition } from "react";
-import { updateAgencyChasePolicy } from "@/app/actions/automation";
+import { updateAgencyChasePolicy, updateBusinessChasePolicy } from "@/app/actions/automation";
 import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
 
 type RuleRow = {
@@ -29,6 +29,9 @@ type RuleRow = {
 type Props = {
   initialChaseEmailsEnabled: boolean;
   initialRules: RuleRow[];
+  // "agency" (self-managed files) or "business" (a progression business's own
+  // outsourced files, #228). Decides which save action + the master-toggle copy.
+  scope?: "agency" | "business";
 };
 
 const MIN_GRACE = 1;
@@ -49,7 +52,8 @@ function scale(base: number, mult: number, floor: number): number {
   return Math.max(floor, Math.round(base * mult));
 }
 
-export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules }: Props) {
+export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules, scope = "agency" }: Props) {
+  const filesLabel = scope === "business" ? "your outsourced files" : "this agency's files";
   const [chaseEmailsEnabled, setChaseEmailsEnabled] = useState(initialChaseEmailsEnabled);
   const [rules, setRules] = useState<RuleRow[]>(initialRules);
   const [isPending, startTransition] = useTransition();
@@ -86,7 +90,8 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
   function handleSubmit() {
     setError(null);
     startTransition(async () => {
-      const result = await updateAgencyChasePolicy({
+      const save = scope === "business" ? updateBusinessChasePolicy : updateAgencyChasePolicy;
+      const result = await save({
         chaseEmailsEnabled,
         rules: rules.map((r) => ({
           milestoneCode: r.milestoneCode,
@@ -120,12 +125,12 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold text-[var(--agent-text-primary,#1A1D29)]">
-              Send automated chase emails on this agency's files
+              Send automated chase emails on {filesLabel}
             </h2>
             <p className="text-sm mt-1 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
               Master switch for the automated client-chase pipeline. When off, no chase
-              emails are sent on any file in your agency. Files still appear as manual
-              tasks in the team's reminders list.
+              emails are sent on {filesLabel}. Files still appear as manual
+              tasks in the reminders list.
             </p>
           </div>
           <button

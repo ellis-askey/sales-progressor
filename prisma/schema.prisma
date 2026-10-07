@@ -278,6 +278,7 @@ model ProgressionBusiness {
   clients         ProgressionBusinessClient[]
   verifiedDomains VerifiedDomain[]
   milestoneEmailOverrides MilestoneEmailOverride[]
+  chaseRuleOverrides      BusinessChaseRuleOverride[]
 
   @@index([isTsp])
 }
@@ -2026,6 +2027,25 @@ model AgencyChaseRuleOverride {
 
   @@unique([agencyId, milestoneCode])
   @@index([agencyId])
+}
+
+// Per-progression-business chase-timing overrides for the business's OUTSOURCED
+// files (#228). Mirrors AgencyChaseRuleOverride, but keyed by the business and
+// applied only to that business's own outsourced files — never another business,
+// another agency, or TSP's platform default. Owner-only writes.
+model BusinessChaseRuleOverride {
+  id                    String   @id @default(cuid())
+  progressionBusinessId String
+  milestoneCode         String
+  graceDays             Int
+  repeatEveryDays       Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
+
+  @@unique([progressionBusinessId, milestoneCode])
+  @@index([progressionBusinessId])
 }
 
 model ReminderLog {

@@ -847,11 +847,13 @@ export type CreateTransactionInput = {
 // from here on.
 async function buildChaseRuleSnapshot(
   // The file's agency + whether it's self-managed. Per-agency chase-timing
-  // overrides apply ONLY to that agency's own self-managed files. Outsourced
-  // files (and any call without an agency, e.g. migrations) always snapshot the
-  // platform default so an agency can never shift the SP team's cadence.
+  // overrides apply ONLY to that agency's own self-managed files. For an
+  // OUTSOURCED file, the progression business's own overrides apply instead
+  // (#228) — scoped to that business, never another business or TSP. Any call
+  // without either (e.g. migrations) snapshots the platform default.
   agencyId?: string,
   isSelfManaged?: boolean,
+  progressionBusinessId?: string | null,
 ): Promise<Record<string, {
   graceDays: number;
   repeatEveryDays: number;
@@ -871,11 +873,20 @@ async function buildChaseRuleSnapshot(
     },
   });
 
-  // Overlay this agency's overrides only for self-managed files.
+  // Overlay the right owner's overrides: the agency's for a self-managed file,
+  // the progression business's for an outsourced file (#228). Never both.
   let overrides: Record<string, { graceDays: number; repeatEveryDays: number }> = {};
   if (agencyId && isSelfManaged) {
     const rows = await prisma.agencyChaseRuleOverride.findMany({
       where: { agencyId },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+    });
+    overrides = Object.fromEntries(
+      rows.map((r) => [r.milestoneCode, { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays }]),
+    );
+  } else if (!isSelfManaged && progressionBusinessId) {
+    const rows = await prisma.businessChaseRuleOverride.findMany({
+      where: { progressionBusinessId },
       select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
     });
     overrides = Object.fromEntries(
@@ -926,7 +937,7 @@ export async function createTransaction(input: CreateTransactionInput) {
   // Self-managed files snapshot this agency's own chase timings; outsourced
   // files snapshot the platform default (matches the serviceType rule below).
   const isSelfManaged = (input.progressedBy ?? "progressor") === "agent";
-  const chaseRuleSnapshot = await buildChaseRuleSnapshot(input.agencyId, isSelfManaged);
+  const chaseRuleSnapshot = await buildChaseRuleSnapshot(input.agencyId, isSelfManaged, input.progressionBusinessId);
 
   // Snapshot the referral VAT treatment from the agency's Partners defaults so
   // the fees card states each referral ex VAT correctly from day one. Broker is

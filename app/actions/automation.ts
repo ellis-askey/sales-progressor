@@ -630,6 +630,61 @@ export async function updateAgencyChasePolicy(
   return { ok: true };
 }
 
+// Per-progression-business chase policy for the business's OUTSOURCED files
+// (#228). Owner-only. Mirrors updateAgencyChasePolicy: the master toggle maps to
+// ProgressionBusiness.chaseClientsEnabled, and per-milestone timings write to
+// BusinessChaseRuleOverride (cleared when back at the platform default). Scoped
+// to the owner's own business, so it never touches another business or TSP.
+export async function updateBusinessChasePolicy(
+  input: UpdateAgencyChasePolicyInput,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const businessId = session.user.progressionBusinessId;
+  if (!businessId || session.user.progressionBusinessRole !== "owner") {
+    return { ok: false, error: "Only the business owner can change these settings." };
+  }
+
+  for (const r of input.rules) {
+    if (!Number.isInteger(r.graceDays) || r.graceDays < 1) {
+      return { ok: false, error: `Grace days must be at least 1 (got ${r.graceDays} for ${r.milestoneCode}).` };
+    }
+    if (!Number.isInteger(r.repeatEveryDays) || r.repeatEveryDays < 2) {
+      return { ok: false, error: `Repeat days must be at least 2 (got ${r.repeatEveryDays} for ${r.milestoneCode}).` };
+    }
+  }
+
+  const defaults = await prisma.reminderRule.findMany({
+    where: { isActive: true, targetMilestoneCode: { in: input.rules.map((r) => r.milestoneCode) } },
+    select: { targetMilestoneCode: true, graceDays: true, repeatEveryDays: true },
+  });
+  const defaultByCode = new Map(defaults.map((d) => [d.targetMilestoneCode!, d]));
+
+  await prisma.$transaction(async (txc) => {
+    await txc.progressionBusiness.update({
+      where: { id: businessId },
+      data: { chaseClientsEnabled: input.chaseEmailsEnabled },
+    });
+    for (const r of input.rules) {
+      const def = defaultByCode.get(r.milestoneCode);
+      const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
+      if (matchesDefault) {
+        await txc.businessChaseRuleOverride.deleteMany({
+          where: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode },
+        });
+      } else {
+        await txc.businessChaseRuleOverride.upsert({
+          where: { progressionBusinessId_milestoneCode: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode } },
+          create: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode, graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+          update: { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+        });
+      }
+    }
+  });
+
+  revalidatePath("/agent/settings/automation");
+  return { ok: true };
+}
+
 // Agency-level on/off for the weekly "all on track" client update. Director
 // only. Off means the whole agency stops sending the weekly email; unsubscribed
 // clients are excluded regardless (that's enforced at send time).
