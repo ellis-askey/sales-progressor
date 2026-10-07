@@ -36,7 +36,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
           <p className={`${bare ? "" : "mt-1 "}text-[13px] leading-relaxed text-slate-500 max-w-xl`}>
             {bare
               ? "When this is on, we'll chase whichever solicitor owes the next reply until the enquiry moves forward."
-              : "Keep the enquiry stage moving without chasing by hand. Solicitors only, your clients are never chased by this."}
+              : "Keep enquiries moving without chasing by hand. These go to solicitors only, never your clients."}
           </p>
         </div>
         <button

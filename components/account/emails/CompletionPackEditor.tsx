@@ -266,7 +266,7 @@ function Preview({
         </div>
       </div>
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-        Preview fills the blanks (address, your team) with example details. The completion date is added
+        Preview uses example details for things like the address and your team. The completion date is added
         automatically when it&apos;s known.
       </p>
     </div>

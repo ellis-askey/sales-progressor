@@ -216,7 +216,7 @@ function Preview({ variant, resolved, onEdit, onReset, resetting }: { variant: V
         </div>
       </div>
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-        Preview fills the blanks (name, address, completion date) with example details. The button and sign-off are added automatically.
+        Preview uses example details for things like the name, address and completion date. The button and sign-off are added automatically.
       </p>
     </div>
   );

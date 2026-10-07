@@ -36,7 +36,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
       if (r.ok) toast.success("Solicitor email settings saved");
       else {
         setError(r.error);
-        toast.error("Couldn't save — check the values");
+        toast.error("Couldn't save. Check the values");
       }
     });
   }

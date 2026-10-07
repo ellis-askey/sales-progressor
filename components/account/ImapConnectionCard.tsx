@@ -602,8 +602,8 @@ export function ImapConnectionCard() {
                       />
                       <span className="w-full text-[12.5px] leading-relaxed text-gray-600">
                         <span className="font-semibold text-gray-800">Send my emails from this address too.</span> Emails sent
-                        from Sales Progressor on your files will go through your {expWording ? "eXp mailbox" : "mailbox"} and
-                        appear in your Sent folder. Any replies will come straight back to your{" "}
+                        from Sales Progressor will go through your {expWording ? "eXp mailbox" : "mailbox"}, appear in your
+                        Sent folder and receive replies directly in your{" "}
                         {expWording ? "eXp inbox" : "inbox"}.
                       </span>
                     </label>

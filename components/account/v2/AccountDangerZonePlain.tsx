@@ -53,7 +53,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
       URL.revokeObjectURL(url);
       toast.success("Export downloaded");
     } catch {
-      toast.error("Export failed — try again");
+      toast.error("Export failed. Try again");
     } finally {
       setIsExporting(false);
     }
