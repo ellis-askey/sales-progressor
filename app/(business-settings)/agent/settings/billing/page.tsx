@@ -14,7 +14,8 @@ import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { Receipt } from "@phosphor-icons/react/dist/ssr";
+import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
+import { BusinessCardCapture } from "@/components/progression/BusinessCardCapture";
 
 export default async function BusinessBillingPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -25,6 +26,7 @@ export default async function BusinessBillingPage() {
   const s = await getBusinessBillingSummary(owner.businessId);
   const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const collecting = progressionBillingCollectEnabled();
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
 
   return (
     <>
@@ -85,6 +87,18 @@ export default async function BusinessBillingPage() {
               : `${s.saleCount} ${s.saleCount === 1 ? "sale" : "sales"} added this month at £5 each.`}
           </p>
         </AccountCard>
+
+        {/* Payment method — only once collection is live (C1). Until then the
+            page is display-only and the notice above explains no card is asked for. */}
+        {collecting && (
+          <AccountCard
+            icon={<CreditCard size={18} weight="bold" />}
+            title="Payment method"
+            subtitle="Add the card we'll charge each month for your subscription and the sales you add."
+          >
+            <BusinessCardCapture publishableKey={publishableKey} />
+          </AccountCard>
+        )}
       </div>
     </>
   );

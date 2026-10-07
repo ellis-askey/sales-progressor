@@ -26,9 +26,14 @@ type Props = {
   // to its own success step. When omitted: existing standalone behaviour
   // (settings page renders the green banner inline).
   onSuccess?: () => void;
+  // Setup-intent endpoint + post-save return URL. Default to the agency
+  // billing path; a progression business passes its own (business setup-intent
+  // route + business billing page).
+  setupIntentUrl?: string;
+  returnUrl?: string;
 };
 
-export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
+export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/api/billing/setup-intent", returnUrl }: Props) {
   // Defensive: an empty or non "pk_..." key means loadStripe will return
   // null and PaymentElement will mount into the DOM but render no inputs.
   // Surface the misconfiguration up-front instead of leaving the form
@@ -45,7 +50,7 @@ export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/billing/setup-intent", { method: "POST" });
+        const res = await fetch(setupIntentUrl, { method: "POST" });
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
           if (!cancelled) setError(data.error ?? "Couldn't start card setup");
@@ -60,7 +65,7 @@ export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isKeyValid]);
+  }, [isKeyValid, setupIntentUrl]);
 
   if (!isKeyValid) {
     return (
@@ -106,12 +111,12 @@ export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <InnerForm onSuccess={onSuccess} />
+      <InnerForm onSuccess={onSuccess} returnUrl={returnUrl} />
     </Elements>
   );
 }
 
-function InnerForm({ onSuccess }: { onSuccess?: () => void }) {
+function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl?: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -128,7 +133,9 @@ function InnerForm({ onSuccess }: { onSuccess?: () => void }) {
     const result = await stripe.confirmSetup({
       elements,
       confirmParams: {
-        return_url: typeof window !== "undefined" ? `${window.location.origin}/agent/account/billing?saved=1#payment-method` : "/agent/account/billing?saved=1#payment-method",
+        return_url: returnUrl
+          ? (typeof window !== "undefined" ? `${window.location.origin}${returnUrl}` : returnUrl)
+          : (typeof window !== "undefined" ? `${window.location.origin}/agent/account/billing?saved=1#payment-method` : "/agent/account/billing?saved=1#payment-method"),
       },
       redirect: "if_required",
     });

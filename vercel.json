@@ -5,6 +5,10 @@
       "schedule": "0 4 * * 1-6"
     },
     {
+      "path": "/api/cron/business-billing",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/cron/area-sales-warm",
       "schedule": "0 1 * * *"
     },

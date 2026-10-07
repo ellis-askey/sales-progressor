@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
+import { syncBusinessSubscription } from "@/lib/progression/business-stripe";
 import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
@@ -321,6 +322,27 @@ export async function updateBusinessBillingPointAction(billAtCompletion: boolean
   });
   revalidatePath("/agent/settings/business");
   return { ok: true };
+}
+
+/**
+ * Create/reconcile the business's Stripe subscription after a card is captured
+ * (C1). Owner-only, and only when the collection switch is on. No-ops safely if
+ * Stripe or the subscription prices aren't configured (the helper handles that).
+ */
+export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled() || !progressionBillingCollectEnabled()) {
+    return { ok: false, error: "Billing isn't live yet." };
+  }
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can do this." };
+  try {
+    await syncBusinessSubscription(owner.businessId);
+    revalidatePath("/agent/settings/billing");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't set up your subscription. Try again." };
+  }
 }
 
 /**

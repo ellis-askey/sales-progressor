@@ -115,3 +115,25 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
   }
   return pushed;
 }
+
+/** Daily cron body (C1): for every business with a card on file, reconcile its
+ *  subscription seat count and push any accrued £5 per-sale items. Each is
+ *  per-business isolated so one failure doesn't abort the pass. No-ops if Stripe
+ *  isn't configured. The cron route gates this on the collection switch. */
+export async function runBusinessBillingCron(): Promise<{ businesses: number; subscriptionsSynced: number; perSalePushed: number; failures: number }> {
+  if (!isStripeConfigured()) return { businesses: 0, subscriptionsSynced: 0, perSalePushed: 0, failures: 0 };
+  const businesses = await prisma.progressionBusiness.findMany({
+    where: { stripeCustomerId: { not: null } },
+    select: { id: true },
+  });
+  let subscriptionsSynced = 0;
+  let perSalePushed = 0;
+  let failures = 0;
+  for (const b of businesses) {
+    try { await syncBusinessSubscription(b.id); subscriptionsSynced++; }
+    catch (err) { failures++; console.error(`[business-billing] subscription sync failed for ${b.id}:`, err); }
+    try { perSalePushed += await pushPendingPerSaleItems(b.id); }
+    catch (err) { failures++; console.error(`[business-billing] per-sale push failed for ${b.id}:`, err); }
+  }
+  return { businesses: businesses.length, subscriptionsSynced, perSalePushed, failures };
+}
