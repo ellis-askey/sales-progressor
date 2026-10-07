@@ -28,9 +28,21 @@ export async function ensureStripeCustomerForBusiness(businessId: string): Promi
     select: { name: true, stripeCustomerId: true },
   });
   if (!business) return null;
-  if (business.stripeCustomerId) return business.stripeCustomerId;
 
   const stripe = getStripeClient();
+
+  // Reuse the stored customer only if it STILL exists in Stripe. If it was
+  // deleted (e.g. during testing), self-heal by creating a fresh one rather than
+  // failing every call with "No such customer".
+  if (business.stripeCustomerId) {
+    try {
+      const existing = await stripe.customers.retrieve(business.stripeCustomerId);
+      if (!("deleted" in existing && existing.deleted)) return business.stripeCustomerId;
+    } catch {
+      // not found / deleted — fall through to create a fresh customer
+    }
+  }
+
   const customer = await stripe.customers.create({
     name: business.name,
     metadata: { progressionBusinessId: businessId },
