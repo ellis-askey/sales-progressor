@@ -68,13 +68,11 @@ export function AccountShell({
         color: "#111827",
         position: "relative",
         isolation: "isolate",
-        background:
-          "radial-gradient(1100px 520px at 78% -8%, rgba(255,107,74,0.07), transparent 60%), linear-gradient(180deg, #fcf8f5 0%, #faf9f8 42%)",
+        background: "#FBF8F5",
       }}
     >
-      {/* Faded, blurred streetscape backdrop — multiply drops the white so only
-          the soft coral linework shows over the warm gradient. Sits behind
-          content (z-index -1); the frosted cards let it read through. */}
+      {/* Iridescent gradient backdrop (fixed, behind content, z-index -1). The
+          frosted sidebar and cards read through it. */}
       <div className="account-bg-image" aria-hidden />
 
       {/* Mobile-only top bar (hamburger + brand). Fixed, so it sits outside the
@@ -141,12 +139,8 @@ export function AccountShell({
           inset: 0;
           z-index: -1;
           pointer-events: none;
-          background: url(/settings-bg.png) center bottom / cover no-repeat;
-          opacity: 0.6;
-          mix-blend-mode: multiply;
-          filter: blur(2px);
+          background: linear-gradient(120deg, rgba(255,107,74,0.14) 0%, rgba(255,170,120,0.12) 25%, rgba(255,120,170,0.12) 50%, rgba(170,140,255,0.12) 75%, rgba(120,205,180,0.12) 100%), #FBF8F5;
         }
-        @media (prefers-reduced-motion: reduce) { .account-bg-image { filter: none; } }
 
         .account-shell-nav {
           position: sticky;
