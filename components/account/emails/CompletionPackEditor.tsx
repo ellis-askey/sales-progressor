@@ -36,8 +36,8 @@ function voiceWarnings(c: Content): string[] {
   const w: string[] = [];
   const emDash = String.fromCharCode(0x2014);
   const check = (label: string, val: string) => {
-    if (val.includes(emDash)) w.push(`${label}: swap the long dash for a comma or full stop.`);
-    if (val.includes("!")) w.push(`${label}: client emails read calmer without exclamation marks.`);
+    if (val.includes(emDash)) w.push(`${label}: try a comma or full stop instead of a long dash.`);
+    if (val.includes("!")) w.push(`${label}: client emails tend to read better without exclamation marks.`);
   };
   check("Opening", c.opening);
   c.bullets.forEach((b, i) => check(`Point ${i + 1}`, b));

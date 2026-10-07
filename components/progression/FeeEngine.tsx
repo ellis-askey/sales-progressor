@@ -165,7 +165,7 @@ export function FeeEngine({
       {!model ? (
         <div className="fe-unset">
           <p className="fe-unset-h">No fee set yet</p>
-          <p className="fe-unset-sub">Pick how you charge {name} above, then set a rate. It applies to every sale you add for them, and you&rsquo;ll need a fee set before you can add their first sale.</p>
+          <p className="fe-unset-sub">Choose how you charge {name} above, then set their rate. You&rsquo;ll need to add a fee before you can add their first sale.</p>
         </div>
       ) : model.type === "flat" ? (
         <div className="fe-hero fe-hero-flat" key="flat">

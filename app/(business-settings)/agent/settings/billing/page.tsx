@@ -46,13 +46,13 @@ export default async function BusinessBillingPage() {
           <SettingsNote
             tone="success"
             title="Your plan is live"
-            body="We charge the card on file each month for your subscription and the sales you add."
+            body="We'll charge the card on file each month for your subscription and any sales added during that billing period."
           />
         ) : (
           <SettingsNote
             tone="info"
-            title="We're not taking any payment yet"
-            body="This is what your plan works out to. We'll let you know and ask for a card before billing goes live."
+            title="No payment yet"
+            body="This is what your plan currently works out to. We'll let you know and ask you to add a card before billing begins."
           />
         )}
 

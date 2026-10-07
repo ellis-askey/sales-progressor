@@ -275,7 +275,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 {detail.status === "active" ? (
                   <p className="aw-accesstxt">
                     <span className="aw-ok"><CheckCircle size={15} weight="fill" /></span>
-                    {detail.contact ?? "The agent"} has set up their login. They&rsquo;ll only see the sales you progress for them.
+                    {detail.contact ?? "The agent"} is set up. They can now log in and will only see the sales you progress for them.
                   </p>
                 ) : (
                   <>
@@ -325,7 +325,7 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                 <div className="aw-removerow confirm">
                   <div className="aw-removetxt">
                     <span className="t">Remove {detail.name}?</span>
-                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"}, so you'll need to complete or withdraw those first.` : "They'll move to your Removed list, where you can reinstate them any time."}</span>
+                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"}, so you'll need to complete or withdraw those first.` : "They'll move to your Removed list and lose access to their account. You can add them again later."}</span>
                   </div>
                   <div className="aw-removeactions">
                     <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancel</button>

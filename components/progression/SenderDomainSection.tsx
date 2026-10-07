@@ -115,7 +115,7 @@ export function SenderDomainSection({
             <CheckCircle size={18} weight="fill" />
             <div>
               <p className="sds-vt">{c.verifiedTitle}</p>
-              <p className="sds-vd"><span className="sds-mono">{status!.senderEmail}</span> is verified and live.</p>
+              <p className="sds-vd"><span className="sds-mono">{status!.senderEmail}</span> is verified and ready to use.</p>
             </div>
           </div>
           <p className="sds-note">{c.verifiedNote}</p>

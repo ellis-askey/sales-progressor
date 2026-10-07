@@ -411,7 +411,7 @@ export function ImapConnectionCard() {
                               {c.lastError ? (
                                 <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
                                   <Warning size={13} weight="fill" className="shrink-0" />
-                                  {c.lastError} Reconnect to fix.
+                                  {c.lastError} Reconnect to fix this.
                                 </p>
                               ) : (
                                 <p className="truncate text-[12px] text-gray-500">
@@ -612,9 +612,8 @@ export function ImapConnectionCard() {
                     <p className="flex w-full items-start gap-1.5 text-[12px] leading-relaxed text-gray-500">
                       <Info size={14} weight="fill" className="mt-0.5 shrink-0 text-gray-400" />
                       <span>
-                        Your emails send from {status?.userEmail}, your sign-in address, so this inbox will connect for
-                        receiving. To send from it instead, it needs to become your sign-in email. Contact us and we&rsquo;ll
-                        switch it.
+                        Your emails are sent from {status?.userEmail}, which is also your sign-in address. Connect this
+                        inbox to receive replies here too.
                       </span>
                     </p>
                   )}

@@ -175,7 +175,7 @@ export function AutomatedEmailsList() {
               color: "#6b7280",
             }}
           >
-            This email isn&apos;t sending yet. You can set the copy now; the send trigger lands in a follow-up.
+            This email isn&apos;t sending yet. You can set the wording now, ready for when the send trigger goes live.
           </div>
         )}
         {active?.render()}

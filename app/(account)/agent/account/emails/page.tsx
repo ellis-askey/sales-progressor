@@ -71,9 +71,9 @@ export default async function AccountEmailsPage() {
           <div style={{ display: "flex", gap: 12 }}>
             <Info size={20} weight="fill" style={{ color: "#2563eb", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version, your clients see</p>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version is what clients see</p>
               <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>
-                We&apos;ll automatically use your edited versions from the next send. Anything you leave alone keeps ours.
+                Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording.
               </p>
             </div>
           </div>

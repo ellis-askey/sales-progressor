@@ -375,7 +375,7 @@ export function TeamManagementPlain({
             <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
               <strong style={{ color: "#374151", fontWeight: 600 }}>Own files</strong>
               <br />
-              Team members can only see the sales assigned to them.
+              Team members only see sales assigned to them.
             </p>
             <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
               <strong style={{ color: "#374151", fontWeight: 600 }}>All files</strong>

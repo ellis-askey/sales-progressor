@@ -77,7 +77,7 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
                 }}
               >
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-coral-deep, #E2452A)", marginBottom: 8 }}>
-                  What we&apos;ve learned so far{updated ? ` · updated ${updated}` : ""}
+                  What we&apos;ve learned so far{updated ? ` · Updated ${updated}` : ""}
                 </div>
                 <div style={{ fontSize: 13, lineHeight: 1.65, color: "#1f2937", whiteSpace: "pre-wrap" }}>
                   {profile}
@@ -118,10 +118,9 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
               }}
             >
               <span style={{ display: "block", fontWeight: 600, color: "#4b5563", marginBottom: 3 }}>
-                We haven&apos;t learned your style yet.
+                We&rsquo;re still learning your style.
               </span>
-              Make a few edits to AI-drafted chases before sending them and, as we start to pick up your
-              style, you&apos;ll see it appear here.
+              Make a few changes to AI-drafted chases before sending them and what we learn will start appearing here.
             </div>
           )}
         </div>

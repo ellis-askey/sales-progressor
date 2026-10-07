@@ -23,9 +23,9 @@ type Status = { configured: boolean; connections: Connection[] };
 const REASON_COPY: Record<string, string> = {
   not_configured: "Email connection isn't switched on yet. Please check back soon.",
   state: "We couldn't verify the connection. Please try again.",
-  no_refresh_token: "Microsoft didn't grant the permissions we need. Please try again.",
-  no_identity: "We couldn't read your Microsoft account details. Please try again.",
-  exchange: "We couldn't finish connecting with Microsoft. Please try again.",
+  no_refresh_token: "Microsoft didn't give us the permissions we need. Please try again.",
+  no_identity: "We couldn't access your Microsoft account details. Please try again.",
+  exchange: "We couldn't finish connecting your Microsoft account. Please try again.",
   access_denied: "The connection was cancelled.",
 };
 
@@ -100,7 +100,7 @@ export function AccountConnectionsCard() {
     ) : outcome === "error" ? (
       <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">
         <Warning size={16} weight="fill" className="mt-0.5 shrink-0" />
-        <span>{REASON_COPY[reason] ?? "Something went wrong connecting your inbox. Please try again."}</span>
+        <span>{REASON_COPY[reason] ?? "Something went wrong while connecting your inbox. Please try again."}</span>
       </div>
     ) : null;
 

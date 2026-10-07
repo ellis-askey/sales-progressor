@@ -158,7 +158,7 @@ function CostsPreview() {
             </svg>
             <span style={{ minWidth: 0, flex: 1 }}>
               <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Your costs</span>
-              <span style={{ display: "block", fontSize: 12.5, color: "#475569", marginTop: 1 }}>The full breakdown buyers get after exchange. Tap to preview.</span>
+              <span style={{ display: "block", fontSize: 12.5, color: "#475569", marginTop: 1 }}>See the full breakdown buyers receive after exchange. Tap to preview.</span>
             </span>
             <svg className="portal-chev-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
               <polyline points="9 18 15 12 9 6" />
