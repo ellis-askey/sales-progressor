@@ -16,10 +16,9 @@ import { buildMailboxSendingTest } from "@/lib/email/mailbox-sending-notices";
 // resolver keys on it), so the UI must never offer a toggle that would do
 // nothing (Law 13).
 export type ConnectionSendState =
-  | "sends" // sign-in mailbox, sending on → green chip + "Turn off sending"
-  | "offer" // sign-in mailbox, can send, currently off → "Turn on sending"
-  | "domain_covered" // sign-in mailbox but a DNS-verified domain already sends
-  | "not_sign_in" // a secondary inbox → reads only, with the explainer line
+  | "sends" // sending on from this inbox → green chip + "Turn off sending"
+  | "offer" // can send from this inbox, currently off → "Turn on sending"
+  | "domain_covered" // this address's domain is DNS-verified, so it already sends
   | "unavailable"; // provider with no known sending server → reads only
 
 // Where this agent's outgoing email actually comes from right now, computed
@@ -59,19 +58,25 @@ const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
 // The caller's sign-in address and whether its domain is DNS-verified for
 // their agency — the facts that decide whether a mailbox may send at all.
-async function senderContext(userId: string): Promise<{ email: string | null; domainVerified: boolean }> {
+async function senderContext(
+  userId: string,
+): Promise<{ email: string | null; login: string | null; agencyId: string | null; domainVerified: boolean }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, agencyId: true },
+    select: { email: true, agencyId: true, preferredSenderEmail: true },
   });
-  const email = user?.email?.trim().toLowerCase() || null;
+  const login = user?.email?.trim().toLowerCase() || null;
+  // The address we actually send from: the user's self-chosen sending address,
+  // falling back to their login address when they haven't picked one (unchanged).
+  const email = user?.preferredSenderEmail?.trim().toLowerCase() || login;
   const domain = email?.split("@")[1] ?? null;
-  if (!email || !domain || !user?.agencyId) return { email, domainVerified: false };
+  const agencyId = user?.agencyId ?? null;
+  if (!email || !domain || !agencyId) return { email, login, agencyId, domainVerified: false };
   const verified = await prisma.verifiedDomain.findFirst({
-    where: { agencyId: user.agencyId, domain, status: "verified" },
+    where: { agencyId, domain, status: "verified" },
     select: { id: true },
   });
-  return { email, domainVerified: !!verified };
+  return { email, login, agencyId, domainVerified: !!verified };
 }
 
 export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
@@ -95,26 +100,38 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
   });
   const ctx = await senderContext(userId);
 
+  // Verified domains for the agency, so a connection whose OWN domain is
+  // DNS-verified reads as "already sends via your domain" (the stronger route),
+  // not as an offer to turn mailbox sending on.
+  const verifiedDomainNames = ctx.agencyId
+    ? new Set(
+        (
+          await prisma.verifiedDomain.findMany({
+            where: { agencyId: ctx.agencyId, status: "verified" },
+            select: { domain: true },
+          })
+        ).map((d) => d.domain.toLowerCase()),
+      )
+    : new Set<string>();
+
   const connections = rows.map((r) => {
     const sendAvailable = !!resolveSmtpSettings(r.email, {
       host: r.smtpHost,
       port: r.smtpHost ? r.smtpPort : null,
       secure: r.smtpHost ? r.smtpSecure : null,
     });
-    const isSignIn = !!ctx.email && r.email === ctx.email;
-    // An ENABLED row is always "sends" — even if the sign-in has since moved
-    // elsewhere — so the chip never claims "Reads only" while the row could
-    // still be picked by a send path, and "Turn off sending" is always
-    // reachable. The sign-in/domain rules only gate turning sending ON.
+    const connDomain = r.email.split("@")[1]?.toLowerCase();
+    const connDomainVerified = connDomain ? verifiedDomainNames.has(connDomain) : false;
+    // Sending is now a free self-serve choice — ANY connected inbox we can send
+    // through can be made the sending address (no "must be your sign-in" rule).
+    // An enabled row always reads "sends" so "Turn off sending" stays reachable.
     const sendState: ConnectionSendState = r.sendEnabled
       ? "sends"
-      : !isSignIn
-        ? "not_sign_in"
-        : ctx.domainVerified
-          ? "domain_covered"
-          : !sendAvailable
-            ? "unavailable"
-            : "offer";
+      : connDomainVerified
+        ? "domain_covered"
+        : !sendAvailable
+          ? "unavailable"
+          : "offer";
     return {
       id: r.id,
       email: r.email,
@@ -241,22 +258,27 @@ export async function enableMailboxSending(
   const conn = await prisma.imapConnection.findFirst({ where: { id, userId } });
   if (!conn) return { ok: false, error: "We couldn't find that connection." };
 
-  // Truth guards, mirrored in the UI (Law 13): sending only ever applies to
-  // the sign-in mailbox, and a DNS-verified domain already outranks it.
-  const ctx = await senderContext(userId);
-  if (!ctx.email || conn.email !== ctx.email) {
-    return {
-      ok: false,
-      error: `Your emails send from your sign-in address${ctx.email ? ` (${ctx.email})` : ""}. To send from this inbox instead, it needs to become your sign-in email. Contact us and we'll switch it.`,
-    };
+  // Sending is a free self-serve choice (Law 13): any connected inbox we can send
+  // through may become the user's sending address — no "must be your sign-in"
+  // rule. Two things still make it pointless: this address's own domain is already
+  // DNS-verified (it sends via SendGrid, the stronger route), or it's an agency's
+  // approved outsourced sender (which we run on SendGrid, never via a mailbox —
+  // mirrors the exclusion in lib/integrations/smtp/mailbox-lookup.ts).
+  const connDomain = conn.email.split("@")[1]?.toLowerCase();
+  if (connDomain) {
+    const owner = await prisma.user.findUnique({ where: { id: userId }, select: { agencyId: true } });
+    if (owner?.agencyId) {
+      const domainVerified = await prisma.verifiedDomain.findFirst({
+        where: { agencyId: owner.agencyId, domain: connDomain, status: "verified" },
+        select: { id: true },
+      });
+      if (domainVerified) {
+        return { ok: false, error: "Your emails already send from this address through your verified domain." };
+      }
+    }
   }
-  if (ctx.domainVerified) {
-    return { ok: false, error: "Your emails already send from this address through your verified domain." };
-  }
-  // Outsourced sending is our operation and never routes via a mailbox
-  // (mirrors the exclusion in lib/integrations/smtp/mailbox-lookup.ts).
   const approvedOutsourced = await prisma.agency.findFirst({
-    where: { quoteSenderEmail: { equals: ctx.email, mode: "insensitive" }, quoteSenderVerified: true },
+    where: { quoteSenderEmail: { equals: conn.email, mode: "insensitive" }, quoteSenderVerified: true },
     select: { id: true },
   });
   if (approvedOutsourced) {
@@ -298,6 +320,15 @@ export async function enableMailboxSending(
     },
   });
 
+  // This inbox is now the user's single sending address: record the choice (the
+  // sender resolver keys on preferredSenderEmail) and turn sending off on any
+  // other mailbox, so there's exactly one sending address at a time.
+  await prisma.user.update({ where: { id: userId }, data: { preferredSenderEmail: conn.email } });
+  await prisma.imapConnection.updateMany({
+    where: { userId, NOT: { id: conn.id } },
+    data: { sendEnabled: false },
+  });
+
   // One-off proof it works, addressed to the mailbox itself. Best-effort: the
   // enable already succeeded, and the send path stamps its own health state.
   const test = buildMailboxSendingTest();
@@ -313,9 +344,18 @@ export async function enableMailboxSending(
 
 /** Turn sending off for a connection the caller owns. Receiving is untouched. */
 export async function disableMailboxSending(userId: string, id: string): Promise<{ ok: true }> {
+  const conn = await prisma.imapConnection.findFirst({ where: { id, userId }, select: { email: true } });
   await prisma.imapConnection.updateMany({
     where: { id, userId },
     data: { sendEnabled: false, smtpLastError: null, smtpFailCount: 0 },
   });
+  // If this was the user's chosen sending address, clear it so they fall back to
+  // their login address (today's default) rather than a now-disabled mailbox.
+  if (conn) {
+    await prisma.user.updateMany({
+      where: { id: userId, preferredSenderEmail: { equals: conn.email, mode: "insensitive" } },
+      data: { preferredSenderEmail: null },
+    });
+  }
   return { ok: true };
 }

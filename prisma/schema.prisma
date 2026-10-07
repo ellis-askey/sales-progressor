@@ -346,6 +346,14 @@ model User {
   role                    UserRole                 @default(viewer)
   agencyId                String?
   firmName                String?
+  // The address this user's per-file emails send from, chosen self-serve on the
+  // Connections screen — decoupled from the login `email` (lib/email/agency-sender.ts
+  // + lib/integrations/imap/connections.ts). Null = send from the login address,
+  // exactly as before, so existing users are unchanged. Only ever set to an
+  // address the user has proven they can send from (a verified domain or a
+  // send-enabled connected mailbox); cleared back to null when that sending is
+  // turned off. Removes the old "must be your sign-in email" constraint.
+  preferredSenderEmail    String?
   progressorId            String?
   // Progression-business membership (additive, 2026-09). Null for agency staff
   // and for TSP internal staff (who resolve to TSP implicitly). Set only for

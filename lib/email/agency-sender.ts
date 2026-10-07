@@ -143,7 +143,7 @@ export async function resolveAgencySenderForTransaction(
           emailTheme: true,
         },
       },
-      agentUser: { select: { name: true, email: true } },
+      agentUser: { select: { name: true, email: true, preferredSenderEmail: true } },
       assignedUser: { select: { email: true, name: true } },
       progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
     },
@@ -170,7 +170,10 @@ export async function resolveAgencySenderForTransaction(
 
   const agencyAddr = tx.agency?.quoteSenderEmail ?? null;
   const agencyVerified = !!tx.agency?.quoteSenderVerified;
-  const actingEmail = acting?.email ?? null;
+  // The agent's chosen SENDING address (self-serve, Connections screen), falling
+  // back to their login address when unset — so existing files are unchanged. The
+  // self-managed branch below keys the whole from/reply-to decision on this.
+  const actingEmail = (acting?.preferredSenderEmail ?? acting?.email) ?? null;
 
   // ── Outsourced: the client sees the agency (From = agency verified sender for
   // branding), but WE run the file. Reply-to goes to the agency's own address

@@ -12,10 +12,11 @@
 // Provider-first flow (2026-09-17 redesign): pick a tile (real brand marks,
 // components/account/provider-logos.tsx), get that provider's exact
 // app-password steps with a direct link, then two fields. The send option
-// only renders where it's true (sendState from the status API — Law 13):
-// it must be the agent's SIGN-IN address, and a DNS-verified domain already
-// outranks a mailbox. Light Account chrome (Law 9); animation via the shared
-// pbtn utilities + portal-fade-in (docs/reference/HOVER_STATES.md).
+// only renders where it's true (sendState from the status API — Law 13): any
+// connected inbox we can send through can be made the sending address (chosen
+// self-serve; preferredSenderEmail), and a DNS-verified domain already outranks
+// a mailbox. Light Account chrome (Law 9); animation via the shared pbtn
+// utilities + portal-fade-in (docs/reference/HOVER_STATES.md).
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -23,7 +24,7 @@ import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneT
 import { presetForEmail, type ImapProviderPreset } from "@/lib/integrations/imap/config";
 import { GmailLogo, YahooLogo, ICloudLogo, ZohoLogo, ExpLogo, GenericMailLogo, ProviderLogo } from "./provider-logos";
 
-type SendState = "sends" | "offer" | "domain_covered" | "not_sign_in" | "unavailable";
+type SendState = "sends" | "offer" | "domain_covered" | "unavailable";
 type Connection = {
   id: string;
   email: string;
@@ -347,7 +348,7 @@ export function ImapConnectionCard() {
       return `Your emails send from ${s.address}. Your sign-in address is on your verified domain, so we'll use that by default.`;
     if (s.via === "mailbox")
       return `Your emails send from ${s.address} through your connected inbox. Every email appears in its Sent folder, and replies come straight back to you.`;
-    return `Your emails currently send from our address, with replies coming to ${status.userEmail ?? "you"}. Connect your sign-in inbox below to send from your own address.`;
+    return `Your emails currently send from our address, with replies coming to ${status.userEmail ?? "you"}. Connect an inbox below to send from your own address.`;
   })();
 
   return (
@@ -422,12 +423,6 @@ export function ImapConnectionCard() {
                                 <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
                                   <Warning size={13} weight="fill" className="shrink-0" />
                                   {c.smtpLastError}
-                                </p>
-                              )}
-                              {c.sendState === "not_sign_in" && c.sendAvailable && status?.userEmail && (
-                                <p className="mt-0.5 text-[12px] text-gray-500">
-                                  Your emails are sent from {status.userEmail}, your sign-in address, so this inbox is connected
-                                  for receiving. To send from it instead, contact us and we&rsquo;ll switch it over.
                                 </p>
                               )}
                               {c.sendState === "domain_covered" && (
