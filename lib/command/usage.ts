@@ -1,9 +1,12 @@
 // Command Centre → Agencies & agents. Platform-usage view: who's active, how
 // often, and who's gone quiet. Superadmin-only (Law 8) — uses commandDb.
 //
-// All real, already-collected data: logins + last-activity from the Event log,
-// engaged hours + files touched from FileTimeSession (the same tracking the
-// Files tab reads). No new instrumentation.
+// All real, already-collected data. Last-activity is the LATER of a tracked
+// action (Event log — logins, chases, milestone confirms, etc.) and real
+// file-viewing time (FileTimeSession — the same focus-tracking the Files tab
+// reads). Using the Event log alone made agents who browse/read without firing
+// a tracked action look dormant when they were in the app yesterday. Engaged
+// hours + files touched also come from FileTimeSession. No new instrumentation.
 
 import { commandDb } from "@/lib/command/prisma";
 import { eventLabel } from "@/lib/command/event-labels";
@@ -67,6 +70,13 @@ export type UsageOverview = {
   summary: UsageSummary;
 };
 
+// The later of two possibly-null dates (null = no such activity on that side).
+function laterDate(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
 function statusFor(lastActive: Date | null, now: number): UsageStatus {
   if (!lastActive) return "never";
   const days = (now - lastActive.getTime()) / DAY_MS;
@@ -97,7 +107,7 @@ export async function getUsageOverview(): Promise<UsageOverview> {
     return { agents: [], agencies: [], summary: { activeAgents7d: 0, hoursSeconds7d: 0, logins7d: 0, quiet: 0, dormant: 0, goneQuiet: 0, neverActivated: 0 } };
   }
 
-  const [loginGroups, lastEventGroups, sessions] = await Promise.all([
+  const [loginGroups, lastEventGroups, lastSessionGroups, sessions] = await Promise.all([
     commandDb.event.groupBy({
       by: ["userId"],
       where: { type: "user_logged_in" as never, userId: { in: userIds }, occurredAt: { gte: since7 } },
@@ -108,6 +118,15 @@ export async function getUsageOverview(): Promise<UsageOverview> {
       where: { userId: { in: userIds } },
       _max: { occurredAt: true },
     }),
+    // Last real file-viewing moment per agent, across all time (not windowed) —
+    // so "last active" reflects someone who was reading files even if they fired
+    // no tracked action. lastActivityAt is heartbeat-updated, so it's the truest
+    // "last seen" within a session.
+    commandDb.fileTimeSession.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds } },
+      _max: { lastActivityAt: true },
+    }),
     commandDb.fileTimeSession.findMany({
       where: { userId: { in: userIds }, startedAt: { gte: since12w } },
       select: { userId: true, startedAt: true, endedAt: true, totalEngagedSeconds: true, transactionId: true, userAgent: true },
@@ -115,7 +134,8 @@ export async function getUsageOverview(): Promise<UsageOverview> {
   ]);
 
   const loginMap = new Map(loginGroups.map((g) => [g.userId, g._count._all]));
-  const lastMap = new Map(lastEventGroups.map((g) => [g.userId, g._max.occurredAt ?? null]));
+  const lastEventMap = new Map(lastEventGroups.map((g) => [g.userId, g._max.occurredAt ?? null]));
+  const lastSessionMap = new Map(lastSessionGroups.map((g) => [g.userId, g._max.lastActivityAt ?? null]));
 
   const agg = new Map<string, { seconds: number; files: Set<string>; weeks: number[]; mobile: number; desktop: number }>();
   for (const id of userIds) agg.set(id, { seconds: 0, files: new Set(), weeks: new Array(WEEKS).fill(0), mobile: 0, desktop: 0 });
@@ -137,7 +157,7 @@ export async function getUsageOverview(): Promise<UsageOverview> {
 
   const agents: AgentUsage[] = users.map((u) => {
     const a = agg.get(u.id)!;
-    const lastActive = lastMap.get(u.id) ?? null;
+    const lastActive = laterDate(lastEventMap.get(u.id) ?? null, lastSessionMap.get(u.id) ?? null);
     return {
       userId: u.id,
       name: u.name,
@@ -293,12 +313,16 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
   let sessionCount = 0;
   let deviceMobile = 0;
   let deviceDesktop = 0;
+  // Latest real file-viewing moment, folded into lastActive below so browsing
+  // without a tracked action still counts.
+  let lastSessionActivity: Date | null = null;
   for (const s of sessions) {
     const secs = s.endedAt && s.totalEngagedSeconds ? s.totalEngagedSeconds : 0;
     const cur = byTx.get(s.transactionId) ?? { seconds: 0, sessions: 0, last: null as Date | null };
     cur.seconds += secs;
     cur.sessions += 1;
     if (!cur.last || s.lastActivityAt > cur.last) cur.last = s.lastActivityAt;
+    if (!lastSessionActivity || s.lastActivityAt > lastSessionActivity) lastSessionActivity = s.lastActivityAt;
     byTx.set(s.transactionId, cur);
     totalSeconds += secs;
     sessionCount += 1;
@@ -360,7 +384,7 @@ export async function getAgentDetail(userId: string): Promise<AgentDetail | null
     image: user.image,
     imageFocusX: user.imageFocusX,
     imageFocusY: user.imageFocusY,
-    lastActive: lastEvent._max.occurredAt ?? null,
+    lastActive: laterDate(lastEvent._max.occurredAt ?? null, lastSessionActivity),
     totalSeconds,
     sessionCount,
     logins7d,
