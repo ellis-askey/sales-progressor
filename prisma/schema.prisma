@@ -264,6 +264,11 @@ model ProgressionBusiness {
   // Auto-send chain invites at sale creation for files this business handles. The
   // business controls it, not the sending agent (critique #23). Default on.
   autoChainInvitesEnabled    Boolean @default(true)
+  // Billing point for the invoices the business sends its CLIENTS (D1). false =
+  // a sale appears on the invoice for the month it EXCHANGED (default); true =
+  // the month it COMPLETED. Only changes WHEN a sale is billed, not the fee (the
+  // fee is still the rate card x the exchange-locked price).
+  billAtCompletion           Boolean @default(false)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -25,17 +25,34 @@ export async function buildBusinessClientInvoice(
   now: Date = new Date(),
 ): Promise<BusinessInvoiceResult> {
   const { start, end } = billingMonthRange(now);
-  const [business, agency, link, sales] = await Promise.all([
-    prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true } }),
+  // Fetch the business first so we know its billing point (D1): a sale is billed
+  // in the month it exchanged (default) or completed (billAtCompletion). This
+  // drives which sales fall in the window and the line date.
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { name: true, senderEmail: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true, billAtCompletion: true },
+  });
+  const billAtCompletion = business?.billAtCompletion ?? false;
+  const [agency, link, sales] = await Promise.all([
     prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
     prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
       select: { feeModel: true },
     }),
     prisma.propertyTransaction.findMany({
-      where: { progressionBusinessId: businessId, agencyId, exchangedAt: { gte: start, lt: end }, isDemo: false },
-      select: { propertyAddress: true, priceAtExchange: true, purchasePrice: true, exchangedAt: true },
-      orderBy: { exchangedAt: "asc" },
+      where: {
+        progressionBusinessId: businessId,
+        agencyId,
+        isDemo: false,
+        // Completion billing bills a sale the month it completed (status flips to
+        // "completed" when both completion milestones are confirmed); otherwise
+        // the month it exchanged.
+        ...(billAtCompletion
+          ? { status: "completed", completionDate: { gte: start, lt: end } }
+          : { exchangedAt: { gte: start, lt: end } }),
+      },
+      select: { propertyAddress: true, priceAtExchange: true, purchasePrice: true, exchangedAt: true, completionDate: true },
+      orderBy: billAtCompletion ? { completionDate: "asc" } : { exchangedAt: "asc" },
     }),
   ]);
   if (!business || !agency || !link) return { ok: false, reason: "not_found" };
@@ -56,8 +73,9 @@ export async function buildBusinessClientInvoice(
     // than it silently vanishing or billing zero (audit SP-5).
     if (fee == null) { unpriceable.push(s.propertyAddress); continue; }
     subtotal += fee;
+    const lineDate = billAtCompletion ? s.completionDate : s.exchangedAt;
     lines.push({
-      date: s.exchangedAt ? s.exchangedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "",
+      date: lineDate ? lineDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "",
       description: s.propertyAddress,
       service: "Progression",
       amountPence: fee,

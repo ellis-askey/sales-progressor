@@ -304,6 +304,26 @@ export async function updateBusinessVatAction(
 }
 
 /**
+ * Set the business's billing point for the invoices it sends its CLIENTS (D1).
+ * false = a sale is billed in the month it EXCHANGED (default); true = the month
+ * it COMPLETED. Only changes WHEN a sale appears on the invoice, not the fee.
+ * Owner-only.
+ */
+export async function updateBusinessBillingPointAction(billAtCompletion: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: { billAtCompletion },
+  });
+  revalidatePath("/agent/settings/business");
+  return { ok: true };
+}
+
+/**
  * Set whether a team member sees the whole business book (see-all) or only their
  * own assigned files (see-own). Owner-only. The member must be in the owner's own
  * business; the owner's own row can't be changed (they always see all). Takes

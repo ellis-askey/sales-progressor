@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { BusinessIdentityForm } from "@/components/progression/BusinessIdentityForm";
 import { BusinessVatForm } from "@/components/progression/BusinessVatForm";
+import { BusinessBillingPointForm } from "@/components/progression/BusinessBillingPointForm";
 
 export default async function BusinessIdentityPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -19,7 +20,7 @@ export default async function BusinessIdentityPage() {
 
   const business = await prisma.progressionBusiness.findUnique({
     where: { id: owner.businessId },
-    select: { name: true, shortName: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true },
+    select: { name: true, shortName: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true, billAtCompletion: true },
   });
   if (!business) notFound();
 
@@ -40,6 +41,7 @@ export default async function BusinessIdentityPage() {
           initialVatNumber={business.vatNumber ?? ""}
           initialRatePercent={business.vatRateBps != null ? String(business.vatRateBps / 100) : "20"}
         />
+        <BusinessBillingPointForm initialBillAtCompletion={business.billAtCompletion} />
       </div>
     </>
   );
