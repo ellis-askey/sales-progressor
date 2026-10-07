@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple, Plus } from "@phosphor-icons/react";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -21,6 +21,8 @@ import { ClientPeople } from "./ClientPeople";
 import { SenderDomainSection } from "./SenderDomainSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
+import { BusinessSalesActions } from "./BusinessSalesActions";
+import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
 type Tab = (typeof TABS)[number];
@@ -35,7 +37,15 @@ function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
+type SalesActionsData = {
+  billingActive: boolean;
+  collecting: boolean;
+  publishableKey: string;
+  milestoneDefinitions: MilestoneDefinitionLite[];
+  migrationWindow: { open: boolean; hoursLeft: number; everStarted: boolean };
+};
+
+export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgencyDetail; salesActions: SalesActionsData }) {
   const { toast } = useAgentToast();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -220,12 +230,6 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
               <div className="aw-sales-hdr">
                 <h4>Their sales · {detail.active} active</h4>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <Link
-                    href={`/agent/transactions/new?clientAgencyId=${detail.agencyId}`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FF6B4A", color: "#fff", fontSize: 12.5, fontWeight: 700, padding: "7px 13px", borderRadius: 9, textDecoration: "none" }}
-                  >
-                    <Plus size={14} weight="bold" /> Add a sale
-                  </Link>
                   <button
                     type="button"
                     onClick={downloadInvoice}
@@ -238,17 +242,19 @@ export function AgencyWorkspace({ detail }: { detail: ClientAgencyDetail }) {
                   </button>
                 </div>
               </div>
+              <div style={{ marginBottom: 14 }}>
+                <BusinessSalesActions
+                  agencyId={detail.agencyId}
+                  billingActive={salesActions.billingActive}
+                  collecting={salesActions.collecting}
+                  publishableKey={salesActions.publishableKey}
+                  milestoneDefinitions={salesActions.milestoneDefinitions}
+                  migrationWindow={salesActions.migrationWindow}
+                />
+              </div>
               {detail.sales.length === 0
                 ? (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-                      <p className="aw-empty" style={{ margin: 0 }}>No sales yet. Add their first sale to get started.</p>
-                      <Link
-                        href={`/agent/transactions/new?clientAgencyId=${detail.agencyId}`}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#FF6B4A", color: "#fff", fontSize: 13, fontWeight: 700, padding: "9px 16px", borderRadius: 10, textDecoration: "none" }}
-                      >
-                        <Plus size={15} weight="bold" /> Add a sale
-                      </Link>
-                    </div>
+                    <p className="aw-empty" style={{ margin: 0 }}>No sales yet. Use the buttons above to add their first sale, or bring in one that&rsquo;s already underway.</p>
                   )
                 : detail.sales.map((s) => {
                     const p = salePill(s.status);

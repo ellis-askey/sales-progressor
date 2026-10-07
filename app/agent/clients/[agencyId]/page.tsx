@@ -7,9 +7,13 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { prisma } from "@/lib/prisma";
+import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, getClientAgencyDetail } from "@/lib/services/progression-clients";
+import { businessBillingActive } from "@/lib/progression/business-stripe";
+import { getMigrationWindow } from "@/lib/progression/business-migration";
 import { AgencyWorkspace } from "@/components/progression/AgencyWorkspace";
+import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 
 export default async function ClientAgencyPage({ params }: { params: Promise<{ agencyId: string }> }) {
   if (!progressionBusinessesEnabled()) notFound();
@@ -22,9 +26,31 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
   const detail = await getClientAgencyDetail(owner.businessId, agencyId);
   if (!detail) notFound();
 
+  // Data for the card gate, the "bring in a sale" drawer, and the 48h window.
+  const [billingActive, migrationWindow, milestoneDefs] = await Promise.all([
+    businessBillingActive(owner.businessId),
+    getMigrationWindow(owner.businessId),
+    prisma.milestoneDefinition.findMany({
+      select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
+    }),
+  ]);
+
   return (
     <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
-      <AgencyWorkspace detail={detail} />
+      <AgencyWorkspace
+        detail={detail}
+        salesActions={{
+          billingActive,
+          collecting: progressionBillingCollectEnabled(),
+          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
+          milestoneDefinitions: milestoneDefs as MilestoneDefinitionLite[],
+          migrationWindow: {
+            open: migrationWindow.open,
+            hoursLeft: migrationWindow.hoursLeft,
+            everStarted: migrationWindow.everStarted,
+          },
+        }}
+      />
     </div>
   );
 }
