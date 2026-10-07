@@ -53,6 +53,23 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
 
   const { extraMembers } = await getBusinessBillingSummary(businessId);
   const stripe = getStripeClient();
+
+  // The card captured via SetupIntent is attached to the customer but is NOT its
+  // default. A charge_automatically subscription has nothing to charge without a
+  // default payment method, so promote the customer's most recent card to the
+  // default before creating the subscription. (Without this, the first invoice
+  // can't be paid and the subscription never completes.)
+  const customer = await stripe.customers.retrieve(customerId);
+  const existingDefault = "deleted" in customer ? null : customer.invoice_settings?.default_payment_method;
+  if (!existingDefault) {
+    const pms = await stripe.paymentMethods.list({ customer: customerId, type: "card", limit: 1 });
+    if (pms.data[0]) {
+      await stripe.customers.update(customerId, {
+        invoice_settings: { default_payment_method: pms.data[0].id },
+      });
+    }
+  }
+
   const business = await prisma.progressionBusiness.findUnique({
     where: { id: businessId },
     select: { stripeSubscriptionId: true },

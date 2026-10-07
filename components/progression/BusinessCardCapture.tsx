@@ -15,11 +15,14 @@ import { syncBusinessSubscriptionAction } from "@/app/actions/progression-client
 export function BusinessCardCapture({ publishableKey }: { publishableKey: string }) {
   const router = useRouter();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSuccess() {
     // Card is on file — create/reconcile the subscription so monthly billing
-    // can run. The action no-ops safely if the Stripe prices aren't set yet.
-    await syncBusinessSubscriptionAction().catch(() => {});
+    // can run. If that fails, surface it rather than show a false "Card saved".
+    setError(null);
+    const r = await syncBusinessSubscriptionAction().catch(() => null);
+    if (r && !r.ok) { setError(r.error); return; }
     setSaved(true);
     router.refresh();
   }
@@ -33,11 +36,18 @@ export function BusinessCardCapture({ publishableKey }: { publishableKey: string
   }
 
   return (
-    <CardCaptureForm
-      publishableKey={publishableKey}
-      setupIntentUrl="/api/billing/business/setup-intent"
-      returnUrl="/agent/settings/billing?saved=1"
-      onSuccess={onSuccess}
-    />
+    <>
+      {error && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#b91c1c", fontSize: 13 }}>
+          Your card was saved, but we couldn&rsquo;t start the subscription: {error}
+        </div>
+      )}
+      <CardCaptureForm
+        publishableKey={publishableKey}
+        setupIntentUrl="/api/billing/business/setup-intent"
+        returnUrl="/agent/settings/billing?saved=1"
+        onSuccess={onSuccess}
+      />
+    </>
   );
 }

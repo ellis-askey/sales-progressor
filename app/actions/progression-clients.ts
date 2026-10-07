@@ -340,7 +340,8 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
     await syncBusinessSubscription(owner.businessId);
     revalidatePath("/agent/settings/billing");
     return { ok: true };
-  } catch {
+  } catch (err) {
+    console.error("[business-billing] syncBusinessSubscription failed:", err);
     return { ok: false, error: "Couldn't set up your subscription. Try again." };
   }
 }
