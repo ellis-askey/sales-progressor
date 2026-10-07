@@ -11,8 +11,9 @@
 // actions row above the list.
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Clock } from "@phosphor-icons/react";
+import { Clock, UserPlus } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
@@ -39,6 +40,13 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  // Invite goes through a confirm step so the £39/month seat is never added by
+  // surprise (founder, 2026-10-07).
+  const [confirming, setConfirming] = useState(false);
+
+  function openConfirm() {
+    if (inviteName.trim() && inviteEmail.trim() && !pending) setConfirming(true);
+  }
 
   function invite() {
     const name = inviteName.trim();
@@ -50,7 +58,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
     startTransition(async () => {
       const res = await inviteTeamMemberAction(fd);
       if (res.ok) {
-        setInviting(false); setInviteName(""); setInviteEmail("");
+        setConfirming(false); setInviting(false); setInviteName(""); setInviteEmail("");
         toast.success("Invite sent", { description: `We've emailed ${email} a set-up link.` });
         router.refresh();
       } else {
@@ -111,14 +119,18 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                 className="bt-inp" type="email" placeholder="their@email.co.uk" value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 onBlur={() => setInviteEmail((v) => v.trim().toLowerCase())}
-                onKeyDown={(e) => { if (e.key === "Enter") invite(); }} disabled={pending}
+                onKeyDown={(e) => { if (e.key === "Enter") openConfirm(); }} disabled={pending}
               />
-              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={invite} disabled={pending || !inviteName.trim() || !inviteEmail.trim()}>
+              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={openConfirm} disabled={pending || !inviteName.trim() || !inviteEmail.trim()}>
                 {pending ? "Sending…" : "Send invite"}
               </button>
               <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => { setInviting(false); setInviteName(""); setInviteEmail(""); }} disabled={pending}>
                 Cancel
               </button>
+              <p className="bt-note">
+                <span className="bt-note-pill">+£39/mo</span>
+                Each additional team member is £39 per month. Add or remove team members at any time.
+              </p>
             </div>
           )}
         </div>
@@ -198,6 +210,23 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         <p className="bt-foot">A team member on <strong>Own files</strong> sees only the sales assigned to them. The change takes effect the next time they open a page. The owner always sees everything.</p>
       </SectionReveal>
 
+      {/* Invite confirmation — names the £39/month seat before it's added. */}
+      {confirming && createPortal(
+        <div className="bt-cf-overlay" onClick={() => { if (!pending) setConfirming(false); }}>
+          <div className="bt-cf" role="dialog" aria-modal="true" aria-label="Confirm teammate invite" onClick={(e) => e.stopPropagation()}>
+            <div className="bt-cf-ico" aria-hidden><UserPlus size={21} weight="bold" /></div>
+            <h3 className="bt-cf-title">Add {inviteName.trim()} to your team?</h3>
+            <p className="bt-cf-text">We&apos;ll email <strong>{inviteEmail.trim()}</strong> a link to set up their account. They&apos;ll be able to progress your sales.</p>
+            <div className="bt-cf-cost"><span className="l">Adds to your monthly bill</span><span className="r">+£39/mo</span></div>
+            <div className="bt-cf-actions">
+              <button type="button" className="agent-btn agent-btn-neutral agent-btn-md" onClick={() => setConfirming(false)} disabled={pending}>Cancel</button>
+              <button type="button" className="agent-btn agent-btn-primary agent-btn-md" style={{ flex: 1 }} onClick={invite} disabled={pending}>{pending ? "Sending…" : "Send invite · +£39/mo"}</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       <style>{`
         .bt { width: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
 
@@ -264,6 +293,25 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
         .bt-foot { margin: 4px 2px 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.55; }
         .bt-foot strong { color: var(--agent-text-secondary); font-weight: 600; }
+
+        /* £39/month invite note — solid coral-gradient pill (founder, 2026-10-07) */
+        .bt-note { flex-basis: 100%; display: flex; align-items: center; gap: 9px; margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--agent-text-secondary); }
+        .bt-note-pill { flex-shrink: 0; display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.01em; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 8px rgba(var(--agent-coral-rgb),0.28); }
+
+        /* Invite confirmation */
+        .bt-cf-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px; background: rgba(36,24,16,0.42); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); animation: bt-cf-fade 160ms ease both; }
+        .bt-cf { width: 100%; max-width: 420px; background: var(--agent-surface-elevated, #fff); border: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); border-top: 2px solid var(--agent-coral-deep); border-radius: 18px; box-shadow: 0 30px 70px -24px rgba(40,24,16,0.5); padding: 22px 22px 18px; animation: bt-cf-rise 200ms cubic-bezier(0.22,1,0.36,1) both; }
+        .bt-cf-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep); margin-bottom: 13px; }
+        .bt-cf-title { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--agent-text-primary); }
+        .bt-cf-text { margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--agent-text-secondary); }
+        .bt-cf-text strong { color: var(--agent-text-primary); font-weight: 700; }
+        .bt-cf-cost { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 15px 0 2px; padding: 11px 14px; border-radius: 11px; background: rgba(var(--agent-coral-rgb),0.07); border: 1px solid rgba(var(--agent-coral-rgb),0.18); }
+        .bt-cf-cost .l { font-size: 12.5px; color: var(--agent-text-secondary); }
+        .bt-cf-cost .r { font-size: 15px; font-weight: 800; color: var(--agent-coral-deep); font-variant-numeric: tabular-nums; }
+        .bt-cf-actions { display: flex; gap: 10px; margin-top: 16px; }
+        @keyframes bt-cf-fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes bt-cf-rise { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @media (prefers-reduced-motion: reduce) { .bt-cf-overlay, .bt-cf { animation: none; } }
       `}</style>
     </div>
   );
