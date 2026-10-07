@@ -4,7 +4,17 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-07
+
+---
+
+## Enable reply-capture for connected-mailbox agents (eXp etc.) (2026-10-07)
+
+Replies to the per-file emails we send for a **connected-mailbox agent** (e.g. Danny on eXp UK / Zoho) can't be captured by reading their inbox — the provider throttles our IMAP reads. Reply-capture fixes this: those emails set Reply-To to `reply+<token>@<REPLY_CAPTURE_DOMAIN>`, a reply hits the existing SendGrid Inbound Parse webhook, and we file it onto the file **and** forward it to the agent's own inbox. It ships **DARK** — nothing changes until the env var below is set.
+
+1. **Set `REPLY_CAPTURE_DOMAIN` in Vercel production.** Easiest: reuse the already-live inbound host — `REPLY_CAPTURE_DOMAIN=reply.salesprogressorapp.co.uk` (its MX already points at `mx.sendgrid.net` and it's already an Inbound Parse host pointing at `/api/webhooks/sendgrid-inbound`). The moment it's set, connected-mailbox agents' replies start being captured. Unset = feature off (Reply-To stays the agent's own address, exactly as today).
+2. **(Optional, cleaner) Use a dedicated operational subdomain** — e.g. `reply.thesalesprogressor.co.uk` — to keep operational replies off the outreach domain. Requires: add an MX record for that subdomain → `mx.sendgrid.net`; add it as a SendGrid Inbound Parse host pointing at `…/api/webhooks/sendgrid-inbound`; then set `REPLY_CAPTURE_DOMAIN` to it. Don't point the env at a subdomain whose MX/Inbound Parse isn't live yet, or replies would bounce.
+3. **Migration** `20261007160000_transaction_reply_token` adds `PropertyTransaction.replyToken` — applies to prod on the next `migrate deploy` (staging via db push). Verify the Vercel build is green after the staging→master push.
 
 ---
 
@@ -200,7 +210,7 @@ To critique the external-progressor surfaces live from the test accounts:
 4. **CLEANUP after the test:** remove the two emails from `CRITIQUE_TESTER_EMAILS` (and optionally delete the test accounts/business — note the RESTRICT FKs, so offboard their files/users first).
 
 ### Business billing (#3) — DARK; go-live steps when you want to charge external businesses
-The business billing is built but **not taking any money** — it computes + shows the bill (£59 base + £39/extra member + £5/sale) and accrues the £5-per-sale at exchange, but creates no Stripe objects and charges nothing until you flip the collection switch. To go live:
+The business billing is built but **not taking any money** — it computes + shows the bill (£59 base + £39/extra member + £5/sale) and accrues the £5-per-sale when a sale is added (at exchange only for brought-in/migrated sales), but creates no Stripe objects and charges nothing until you flip the collection switch. To go live:
 1. **In Stripe:** create two **recurring (monthly) Prices** — one at £59 (the base/main user) and one at £39 (per team member seat). Copy their price IDs.
 2. **Env vars (prod):** `STRIPE_PRICE_BUSINESS_BASE=<£59 price id>`, `STRIPE_PRICE_BUSINESS_SEAT=<£39 price id>`, and `PROGRESSION_BILLING_COLLECT=true`. (Stripe keys + webhook are already set from the agency billing.)
 3. **Verify in Stripe TEST mode first** — this payments code is written but has NOT been run against Stripe. Before prod: with test keys + test prices, add a card for a test business, confirm the subscription is created with the right seat quantity, that a £5 per-sale item rides the next invoice, and that the webhook clears/sets `paymentFailedAt`.

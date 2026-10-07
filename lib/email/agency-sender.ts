@@ -20,6 +20,7 @@ import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { resolveEmailTheme, type EmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { clientFacingIdentity, progressorSenderAddress } from "@/lib/progression/identity";
+import { resolveReplyCaptureAddress } from "@/lib/email/reply-capture";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 const SP_REPLY_TO = "updates@thesalesprogressor.co.uk";
@@ -232,7 +233,13 @@ export async function resolveAgencySenderForTransaction(
     // authentication keep today's behaviour unchanged.
     const mailbox = await findSendMailboxForAddress(actingEmail);
     if (mailbox) {
-      return { from: buildFrom(display, actingEmail), replyTo: actingEmail, canReply: true, ...logo };
+      // Reply-capture: a connected-mailbox agent (e.g. eXp UK) sends as their own
+      // address, but we can't reliably READ their inbox over IMAP — so a reply to
+      // their own address wouldn't get filed. When reply-capture is configured,
+      // point Reply-To at our capture webhook (which files the reply onto this
+      // file) instead; otherwise keep their own address. See lib/email/reply-capture.ts.
+      const capture = await resolveReplyCaptureAddress(transactionId);
+      return { from: buildFrom(display, actingEmail), replyTo: capture ?? actingEmail, canReply: true, ...logo };
     }
   }
 

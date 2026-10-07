@@ -577,6 +577,14 @@ model PropertyTransaction {
   assignedUserId                  String?
   assignedAt                      DateTime?
   agentUserId                     String?
+  // Unguessable token for reply-capture (lib/email/reply-capture.ts). When an
+  // agent sends via a connected mailbox (e.g. eXp UK, whose domain can't be
+  // SendGrid-verified and whose inbox we can't reliably read over IMAP), our
+  // per-file emails set Reply-To to reply+<replyToken>@<REPLY_CAPTURE_DOMAIN>,
+  // so a reply routes to the SendGrid Inbound Parse webhook and is filed onto
+  // THIS file — independent of reading the agent's mailbox. Minted lazily on
+  // first such send; null until then.
+  replyToken                      String?           @unique
   // Which progression business is responsible for this file. THE ACCESS
   // BOUNDARY for progression-business members. Null means TSP (no backfill of
   // existing/legacy files — see lib/progression/business.ts); external
