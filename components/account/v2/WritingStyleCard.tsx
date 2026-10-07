@@ -52,12 +52,12 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
       <div className="ws-grid">
         <div className="ws-intro">
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
-            When you edit an AI-drafted chase before sending it, we quietly learn from the way you phrase
-            things. After a few edits, future drafts will start to reflect your writing style, giving you
-            less to change before hitting send.
+            When you edit an AI-drafted chase before sending it, we quietly learn how you phrase
+            things. After a few edits, future drafts will start to sound more like you, giving you
+            less to change before sending.
           </p>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
-            If you send a draft without making any changes, we don&apos;t learn anything from it.
+            If you send a draft without changing anything, there&apos;s nothing new for us to learn from it.
           </p>
           <p style={{ margin: "2px 0 0", fontSize: 12, lineHeight: 1.6, color: "#6b7280" }}>
             We only learn how you write. Client names, property addresses and firm names are removed before
@@ -95,7 +95,7 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
                 </button>
               ) : (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, color: "#111827" }}>Start fresh? We&apos;ll relearn from your next edits.</span>
+                  <span style={{ fontSize: 13, color: "#111827" }}>Start fresh? We&apos;ll learn again from your next edits.</span>
                   <button type="button" onClick={reset} disabled={busy} className="account-btn-primary" style={primaryBtn}>
                     {busy ? "Resetting…" : "Yes, reset"}
                   </button>

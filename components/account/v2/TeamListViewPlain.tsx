@@ -161,7 +161,7 @@ export function TeamListViewPlain({
         <div style={{ padding: "22px 4px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>No negotiators yet.</p>
           <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
-            Add a team member to give them access to the portal.
+            Add a team member to give them access to Sales Progressor.
           </p>
         </div>
       )}

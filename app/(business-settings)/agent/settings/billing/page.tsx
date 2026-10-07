@@ -59,7 +59,7 @@ export default async function BusinessBillingPage() {
         <AccountCard
           icon={<Receipt size={18} weight="bold" />}
           title={`This month · ${month}`}
-          subtitle="£59 for you, £39 per team member, and £5 per sale you add."
+          subtitle="£59 for your account, £39 for each additional team member, plus £5 per sale added."
         >
           <div style={{ display: "flex", flexDirection: "column" }}>
             {s.lines.map((line, i) => (
@@ -89,8 +89,8 @@ export default async function BusinessBillingPage() {
           </div>
           <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
             {s.saleCount === 0
-              ? "No sales added yet this month. Each sale you add is £5, added here."
-              : `${s.saleCount} ${s.saleCount === 1 ? "sale" : "sales"} added this month at £5 each.`}
+              ? "No sales added yet this month. Each sale is £5 and will appear here when added."
+              : `${s.saleCount} ${s.saleCount === 1 ? "sale" : "sales"} added this month · £5 each`}
           </p>
         </AccountCard>
 
@@ -100,7 +100,7 @@ export default async function BusinessBillingPage() {
           <AccountCard
             icon={<CreditCard size={18} weight="bold" />}
             title="Payment method"
-            subtitle="Add the card we'll charge each month for your subscription and the sales you add."
+            subtitle="Add the card we'll charge each month for your subscription and any sales you add."
           >
             <BusinessCardCapture publishableKey={publishableKey} />
           </AccountCard>

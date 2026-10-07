@@ -167,7 +167,7 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
 
       {!agreed && (
         <div style={{ fontSize: 12, color: "#9ca3af", fontStyle: "italic" }}>
-          You haven&apos;t accepted the pricing terms yet — they&apos;ll appear here once you do.
+          You haven&apos;t accepted the pricing terms yet. They&apos;ll appear here once you do.
         </div>
       )}
     </section>

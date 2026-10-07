@@ -112,7 +112,7 @@ export default async function AccountProfilePage({
     <AccountCard
       icon={<EnvelopeSimple size={18} weight="bold" />}
       title="Sending addresses"
-      subtitle="Send emails to clients directly from your own work address."
+      subtitle="Send emails to clients directly from your own work email address."
     >
       <SendingAddressesSection initialVerified={verified === "1"} />
     </AccountCard>
@@ -136,7 +136,7 @@ export default async function AccountProfilePage({
     >
       <EmailBrandingStudio initial={branding} />
       <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
-        Want to change the wording in your emails?{" "}
+        Want to change your email wording?{" "}
         <Link
           href="/agent/account/emails"
           style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}

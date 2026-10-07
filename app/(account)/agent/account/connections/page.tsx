@@ -32,8 +32,8 @@ export default async function AccountConnectionsPage() {
       <div>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>Email inbox</h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-          Connect your email inbox so replies from solicitors and clients are matched to the right sale
-          and saved on the file. We only read emails that relate to your sales, and you can disconnect at
+          Connect your inbox so replies from solicitors and clients are matched to the right sale
+          and saved on the file. We only read emails relating to your sales, and you can disconnect at
           any time.
         </p>
       </div>
@@ -52,7 +52,7 @@ export default async function AccountConnectionsPage() {
       <div>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-          Link your WhatsApp so your property group chats are saved to the right sale. We only ever read
+          Link your WhatsApp so your property group chats are saved to the right sale. We only read
           your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you can
           disconnect at any time.
         </p>

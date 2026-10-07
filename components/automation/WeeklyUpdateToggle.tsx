@@ -31,7 +31,7 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900">Weekly client update</h2>
           <p className="mt-1 text-[13px] leading-relaxed text-slate-500 max-w-xl">
-            A short &ldquo;everything&rsquo;s on track&rdquo; email to clients on active files that haven&rsquo;t
+            A short check-in for clients on active sales who haven&rsquo;t
             heard from you in the last week. Anyone who has unsubscribed is never included.
           </p>
         </div>
@@ -54,7 +54,7 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
         </button>
       </div>
       <p className="mt-3 text-[12.5px] font-medium text-slate-600">
-        {enabled ? "On. Clients get a weekly check-in." : "Off. No weekly update is sent."}
+        {enabled ? "On. Clients receive a weekly check-in." : "Off. No weekly client update is sent."}
       </p>
       {error && <p className="mt-2 text-[12.5px] text-red-500">{error}</p>}
     </section>

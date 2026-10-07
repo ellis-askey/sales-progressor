@@ -282,7 +282,7 @@ function Editor({ variant, draft, setDraft, warnings, saving, onSave, onCancel }
       )}
 
       <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
-        Blanks like {"{firstName}"}, {"{address}"} and {"{completionDate}"} are filled in for each sale when the email sends. Leave them in place.
+        Details like {"{firstName}"}, {"{address}"} and {"{completionDate}"} are filled in for each sale when the email sends. Leave them in place.
       </p>
 
       {warnings.length > 0 && (

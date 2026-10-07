@@ -256,7 +256,7 @@ export function EmailBrandingStudio({
             </div>
           )}
         </div>
-        <p style={{ margin: "8px 2px 0", fontSize: 12, color: "#9ca3af" }}>A live preview of what their buyers and sellers receive.</p>
+        <p style={{ margin: "8px 2px 0", fontSize: 12, color: "#9ca3af" }}>Preview exactly what your buyers and sellers receive.</p>
       </div>
 
       {/* ── Guided controls ── */}
@@ -305,7 +305,7 @@ export function EmailBrandingStudio({
                     </div>
                   </>
                 ) : (
-                  <p className="eb-hint">Add a logo to choose how it appears in the email header. You can still set the colours without one.</p>
+                  <p className="eb-hint">Add a logo to choose how it appears in your email header. You can still set your colours without one.</p>
                 )}
               </>
             )}
@@ -360,7 +360,7 @@ export function EmailBrandingStudio({
                 <Control label="Header corners">
                   <Segmented value={bandShape} onChange={(v) => { setBandShape(v as BandShape); touch(); }} options={[{ value: "rounded", label: "Rounded" }, { value: "square", label: "Square" }]} />
                 </Control>
-                <p className="eb-note">We&rsquo;ll automatically choose text colours that are easy to read against your header and button. These colours are only used on client-facing emails.</p>
+                <p className="eb-note">We&rsquo;ll choose text colours that are easy to read against your header and button. These colours are only used on client-facing emails.</p>
               </>
             )}
           </div>

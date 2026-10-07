@@ -49,12 +49,12 @@ const STEP_LABELS: Record<string, string> = {
 // Plain-English blurb for a step whose chase clock starts from a non-
 // direct-prereq milestone. Matches the seed comments in the migration.
 const ANCHOR_NOTES: Record<string, string> = {
-  VM16: "Chases after replies to further enquiries are out, not straight after the draft pack.",
-  PM7:  "Chases after the seller's solicitor has confirmed the pack was issued.",
-  PM11: "Chases 5 wd after the valuation attends (falls back to booking date for desktop valuations).",
-  PM15: "Chases after the seller's solicitor has confirmed replies were sent.",
-  PM17: "Chases after the search results come back, since that's what usually prompts them.",
-  PM18: "Chases after the seller's solicitor has confirmed further replies were sent.",
+  VM16: "Starts once replies to further enquiries have been sent, not when the draft pack is issued.",
+  PM7:  "Starts once the seller's solicitor confirms the draft pack has been issued.",
+  PM11: "Starts 5 working days after the valuation takes place, or from the booking date for desktop valuations.",
+  PM15: "Starts once the seller's solicitor confirms replies have been sent.",
+  PM17: "Starts when the search results are back, as this is usually what prompts the next step.",
+  PM18: "Starts once the seller's solicitor confirms further replies have been sent.",
 };
 
 function sideOf(code: string): "vendor" | "purchaser" {
@@ -90,8 +90,8 @@ export function SolicitorPerCodeTable({ initial }: { initial: SolicitorRuleRow[]
         Per-step timings
       </h3>
       <p className="mt-1 text-xs" style={{ color: "var(--agent-text-muted)" }}>
-        First chase = grace working days after the step's chase clock starts.
-        Second chase = repeat working days after the first. Cap of 2, then escalates to the assigned agent.
+        First chase = working days after the step's chase clock starts.
+        Second chase = working days after the first chase. Maximum of 2 chases, then it escalates to the assigned agent.
       </p>
 
       <SideBlock title="Seller's solicitor" rows={vendorRows} onLocalUpdate={updateLocal} />

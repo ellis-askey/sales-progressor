@@ -94,11 +94,11 @@ export function SenderDomainSection({
       }
     : {
         verifiedTitle: "Your business sends from your own address",
-        verifiedNote: "This is your default sender for any client that doesn't have its own address set up.",
-        pendingLead: (domain: string) => `Finish verifying ${domain} by adding the DNS records below. Once it's verified, your business emails send from your own address.`,
-        formLead: "Enter an email on your business's own domain (e.g. ",
+        verifiedNote: "This is your default sender for any client without their own sending address.",
+        pendingLead: (domain: string) => `Finish verifying ${domain} by adding the DNS records below. Once verified, your business emails will send from your own address.`,
+        formLead: "Enter an email address on your business's own domain (e.g. ",
         emptyTitle: "Your business uses a neutral sending address",
-        emptyBody: "Set up your own sending domain so emails go out from your business. We'll use it for any client you haven't given their own address. The agency's name still shows as the sender on client emails.",
+        emptyBody: "Set up your own sending domain to send emails from your business. We'll use it for any client without their own sending address, while the agency's name will still appear as the sender.",
         emptyCta: "Set up your sending address",
         placeholder: "updates@yourbusiness.co.uk",
       };
@@ -128,7 +128,7 @@ export function SenderDomainSection({
       ) : showForm ? (
         <>
           <p className="sds-intro">
-            {c.formLead}<span className="sds-mono">{c.placeholder}</span>). We&rsquo;ll give you the DNS records to verify it once.
+            {c.formLead}<span className="sds-mono">{c.placeholder}</span>). We&rsquo;ll give you the DNS records needed to verify it.
           </p>
           <div className="sds-form">
             <input

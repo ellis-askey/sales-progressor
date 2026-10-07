@@ -33,14 +33,14 @@ export default async function BusinessEmailsPage() {
     <>
       <AccountPageHeader
         title="Emails"
-        subtitle="The client emails that send on the sales you progress, and how they're sent."
+        subtitle="The emails sent to clients on the sales you progress, and how they're sent."
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard
           icon={<ShareNetwork size={18} weight="bold" />}
           title="Step-by-step updates"
-          subtitle="The email a client's buyer or seller receives at each stage. Starts from our default; your edits apply to every file you progress."
+          subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
         >
           <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
         </AccountCard>
@@ -48,8 +48,8 @@ export default async function BusinessEmailsPage() {
         <AccountCard title="Sending address" subtitle="The address your clients' emails come from.">
           <SenderDomainSection base="/api/agent/settings/sender" scope="business" />
           <p style={{ margin: "14px 2px 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
-            To send a specific client&rsquo;s emails from their own address instead, open that client from
-            Clients and set up their sending address on the Branding tab.
+            To send a specific client&rsquo;s emails from their own address, open the client from
+            Clients and set up their sending address under Branding.
           </p>
         </AccountCard>
       </div>

@@ -132,7 +132,9 @@ export function WhatsAppConnectionCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">WhatsApp</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Link your WhatsApp so your property group chats are saved to the right sale.
+                Link your WhatsApp so your property group chats are saved to the right sale. We only read your
+                &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you
+                can disconnect at any time.
               </p>
             </div>
             {!loading && status && (
@@ -205,7 +207,7 @@ function ConnectedView({
       </div>
       <p className="text-[11.5px] leading-relaxed text-gray-400">
         Messages from your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups will appear on the matching
-        sale. Your one-to-one chats and other groups are never read. Disconnecting stops all access.
+        sale. We never read your one-to-one chats or other groups. Disconnecting stops all access.
       </p>
     </div>
   );
@@ -230,10 +232,10 @@ function AutoTasksRow({
         <p className="text-[13px] font-medium text-gray-800">Turn WhatsApp updates into to-dos</p>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-gray-500">
           {canManage
-            ? "When someone promises something in a property chat, we'll add it as a to-do on that sale."
+            ? "When someone promises something in a property chat, we'll add a to-do to that sale."
             : enabled
-              ? "On. Promises made in property chats are added as to-dos. Your director manages this."
-              : "Off. Your director can switch this on."}
+              ? "On. Promises made in property chats are added as to-dos. Your director controls this setting."
+              : "Off. Your director can turn this on."}
         </p>
       </div>
       {canManage ? (
@@ -289,11 +291,11 @@ function PairingView({
           </div>
         )}
         <div className="text-[12.5px] leading-relaxed text-gray-600">
-          <p className="font-medium text-gray-800">Scan this in WhatsApp to link</p>
+          <p className="font-medium text-gray-800">Scan this QR code in WhatsApp to link your account</p>
           <p className="mt-1">
             On your phone: WhatsApp &rarr; Settings &rarr; Linked Devices &rarr; Link a device, then scan.
           </p>
-          <p className="mt-1 text-gray-400">This updates on its own once you&rsquo;ve scanned.</p>
+          <p className="mt-1 text-gray-400">This page will update once you&rsquo;ve scanned it.</p>
         </div>
       </div>
       <button
@@ -324,18 +326,18 @@ function ConsentView({
       <div className="space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3.5 text-[12.5px] leading-relaxed text-gray-600">
         <p>Link your WhatsApp so your property group chats appear on the right sale, with nothing to copy across.</p>
         <p>
-          <strong className="font-semibold text-gray-800">What appears on your files:</strong> Only group chats
-          named &ldquo;Sale of [address]&rdquo; or &ldquo;Purchase of [address]&rdquo; that match one of your live
-          sales. Messages from those groups will appear on the property&rsquo;s timeline.
+          <strong className="font-semibold text-gray-800">What appears on your files:</strong> Only messages from
+          groups named &ldquo;Sale of [address]&rdquo; or &ldquo;Purchase of [address]&rdquo; that match one of your live
+          sales. They&rsquo;ll appear on the property&rsquo;s timeline.
         </p>
         <p>
           <strong className="font-semibold text-gray-800">What we never see:</strong> Your one-to-one chats or
-          any groups that aren&rsquo;t property groups. We don&rsquo;t read, store or have access to them.
+          groups that aren&rsquo;t linked to a property. We don&rsquo;t read, store or have access to them.
         </p>
         <p>
-          <strong className="font-semibold text-gray-800">How the link works:</strong> Your WhatsApp is
-          connected as a linked device, in the same way as WhatsApp Web. This is an unofficial connection, so
-          there is a small risk to your number. We only ever read messages and never send them, which helps
+          <strong className="font-semibold text-gray-800">How the link works:</strong> Your WhatsApp connects
+          as a linked device, just like WhatsApp Web. This is an unofficial connection, so
+          there is a small risk to your number. We only read messages and never send them, which helps
           keep that risk low. You can disconnect at any time from this screen.
         </p>
         <label className="flex items-start gap-2.5 pt-1 cursor-pointer">

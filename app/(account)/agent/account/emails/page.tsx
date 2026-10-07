@@ -40,13 +40,13 @@ export default async function AccountEmailsPage() {
     <>
       <AccountPageHeader
         title="Your client emails"
-        subtitle="Every email is ready to send. Customise any of them and we'll use your version instead."
+        subtitle="Every email is ready to go. Customise any of them and we'll use your version instead."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard
           icon={<ShareNetwork size={18} weight="bold" />}
           title="Step-by-step updates"
-          subtitle="The email your client receives at each stage of the sale."
+          subtitle="The email your client receives as each stage of their sale is completed."
         >
           <AgencyMilestoneEmailsEditor steps={steps} />
         </AccountCard>
@@ -54,7 +54,7 @@ export default async function AccountEmailsPage() {
         <AccountCard
           icon={<EnvelopeSimple size={18} weight="bold" />}
           title="Automated emails"
-          subtitle="Longer emails that go out at key moments."
+          subtitle="Longer emails sent at key moments in the sale."
         >
           <AutomatedEmailsList />
         </AccountCard>
@@ -62,7 +62,7 @@ export default async function AccountEmailsPage() {
         <AccountCard
           icon={<ChatCircleText size={18} weight="bold" />}
           title="Chasing solicitors on enquiries"
-          subtitle="Keep the enquiry stage moving without chasing by hand. Solicitors only, never your clients."
+          subtitle="Keep enquiries moving without chasing by hand. These go to solicitors only, never your clients."
         >
           <EnquiryChaseToggle initialEnabled={agency?.enquiryReplyChaseEnabled ?? false} bare />
         </AccountCard>

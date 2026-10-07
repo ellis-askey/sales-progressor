@@ -74,19 +74,19 @@ export function BusinessBillingPointForm({ initialBillAtCompletion }: { initialB
     <AccountCard
       icon={<CalendarCheck size={20} weight="bold" />}
       title="Billing point"
-      subtitle="Choose when a sale appears on the invoices you send your clients. This changes the timing only, not the fee."
+      subtitle="Choose when a sale is added to the invoices you send clients. This only changes when it's billed, not the fee."
       headerAction={saveButton("bizbp-save-desktop")}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Option
           value={false}
           title="When a sale exchanges"
-          desc="A sale is billed on the invoice for the month it exchanges. This is the default."
+          desc="The sale is added to the invoice for the month it exchanges. This is the default."
         />
         <Option
           value={true}
           title="When a sale completes"
-          desc="A sale is billed on the invoice for the month it completes instead."
+          desc="The sale is added to the invoice for the month it completes instead."
         />
 
         {/* Mobile-only Save (desktop Save lives in the card header). */}

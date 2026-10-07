@@ -143,7 +143,7 @@ export function ClientChaseEditor() {
             <textarea value={draft.outro} onChange={(e) => setDraft({ ...draft, outro: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} placeholder="A sign-off line of your own, shown under the reminder." />
           </label>
           <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
-            Blanks like {"{firstName}"} and {"{address}"} are filled in for each sale when the email sends.
+            Details like {"{firstName}"} and {"{address}"} are filled in for each sale when the email sends.
           </p>
           {warnings.length > 0 && (
             <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>

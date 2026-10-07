@@ -124,8 +124,8 @@ export default async function AutomationSettingsPage() {
       <PageHeader
         title="Automation settings"
         subtitle={scope === "business"
-          ? "Control automated chase emails sent to clients on your outsourced files."
-          : "Control automated chase emails sent to clients on your agency's files."}
+          ? "Control the automated chase emails sent on your outsourced files."
+          : "Control the automated chase emails sent on your agency's files."}
       />
       <AutomationSettingsForm
         initialChaseEmailsEnabled={masterEnabled}

@@ -40,7 +40,7 @@ export function SessionsCard() {
     <AccountCard
       icon={<Devices size={18} weight="bold" />}
       title="Signed-in devices"
-      subtitle="Used a shared or lost device? Sign out everywhere."
+      subtitle="Used a shared device or lost one? Sign out everywhere."
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 460 }}>
         <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>

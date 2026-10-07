@@ -117,13 +117,13 @@ export default async function AccountTeamPage() {
       <>
         <AccountPageHeader
           title="Team"
-          subtitle="Bring your director onto Sales Progressor to unlock the full team view."
+          subtitle="Bring your director onto Sales Progressor to unlock your full team view."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <AccountCard
             icon={<UserPlus size={18} weight="bold" />}
             title="Invite your director"
-            subtitle="Bring your director onto Sales Progressor, they'll be able to see all of your active sales."
+            subtitle="Invite your director to Sales Progressor so they can see all of your active sales."
           >
             <InviteDirectorPlain latestInvitation={latestInvitation} />
           </AccountCard>

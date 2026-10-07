@@ -245,7 +245,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
             </div>
             <div style={{ padding: 24 }}>
               <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.55, margin: "0 0 18px" }}>
-                This permanently deletes your account and all associated data. This cannot be undone.
+                This permanently deletes your account and all associated data and can&apos;t be undone.
               </p>
 
               <label

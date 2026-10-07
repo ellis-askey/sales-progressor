@@ -66,7 +66,7 @@ export function BusinessIdentityForm({
     <AccountCard
       icon={<Buildings size={20} weight="bold" />}
       title="Your business"
-      subtitle="Your business name is what your clients and their buyers and sellers see."
+      subtitle="This is the business name your clients, buyers and sellers will see."
       headerAction={saveButton("bizid-save-desktop")}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -99,7 +99,7 @@ export function BusinessIdentityForm({
           </div>
         </div>
         <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}>
-          The short name shows where the full name is too long, like the &ldquo;Managed by&rdquo; badge on a sale. Leave it blank to always use the full name.
+          The short name is used where the full name is too long, such as the &ldquo;Managed by&rdquo; badge on a sale. Leave it blank to always use your full business name.
         </p>
 
         {/* Mobile-only Save (desktop Save lives in the card header). */}

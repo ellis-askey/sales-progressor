@@ -364,7 +364,7 @@ export function BuildingInvoiceHero(props: BuildingInvoiceHeroProps) {
             No exchanges yet this month
           </div>
           <div style={{ fontSize: 12, marginTop: 4 }}>
-            Fees appear here the moment a file exchanges.
+            Fees will appear here as soon as a file exchanges.
           </div>
         </div>
       ) : (

@@ -28,26 +28,26 @@ const ROWS: { field: PortalDisplayField; label: string; sub: string; note?: stri
     field: "showPortalKeyDates",
     label: "Key dates",
     sub: "Show the 12-week target and estimated exchange date.",
-    note: "This can be changed for individual sales in Client settings.",
+    note: "You can change this for individual sales in Client settings.",
     hidden: "The dates card won't appear on their portal.",
   },
   {
     field: "showPortalCosts",
     label: "Stamp duty & costs",
-    sub: "Show the buyer's costs card: their stamp duty estimate before exchange, and a full breakdown of deposit, fees and stamp duty after.",
+    sub: "Show the buyer's costs card, including their stamp duty estimate before exchange and a full breakdown of deposit, fees and stamp duty afterwards.",
     hidden: "Buyers won't see their costs card.",
   },
   {
     field: "showPortalProgressPercent",
     label: "Progress figure",
-    sub: "Show a completion percentage on the progress page. Buyers and sellers still see which steps are done either way.",
-    hidden: "The percentage and bar are hidden; the step count stays.",
+    sub: "Show a completion percentage on the progress page. Buyers and sellers will still see which steps are complete either way.",
+    hidden: "The percentage and progress bar are hidden; the step count stays.",
   },
   {
     field: "showPortalWelcomeSheet",
     label: "First-visit welcome",
-    sub: "Give clients a friendly introduction when they first arrive.",
-    hidden: "No welcome shows on a client's first visit.",
+    sub: "Give clients a friendly introduction on their first visit.",
+    hidden: "No welcome will appear on a client's first visit.",
   },
 ];
 

@@ -150,7 +150,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     <AccountCard
       icon={<PenNib size={18} weight="bold" />}
       title="Email signature"
-      subtitle="How your emails sign off. Applies to chases and any email you send from Sales Progressor."
+      subtitle="How your emails sign off. This applies to chases and any email you send from Sales Progressor."
       headerAction={
         statusLabel ? (
           <span style={{ fontSize: 12, fontWeight: 600, color: status === "saving" ? "#9ca3af" : "#059669" }}>
@@ -391,7 +391,7 @@ function CustomSignatureEditor({
         }}
       />
       <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6, lineHeight: 1.45 }}>
-        Paste only your signature block, not a whole email. Click into the box to edit or delete anything you don&rsquo;t want. Changes save automatically, and pasted images are hosted so they show in inboxes.
+        Paste just your signature block, not the whole email. Click inside the box to edit or remove anything you don&rsquo;t want. Changes save as you make them, and pasted images are hosted so they display properly in inboxes.
       </p>
     </div>
   );

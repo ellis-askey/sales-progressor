@@ -94,7 +94,7 @@ export function TwoFactorCard() {
     <AccountCard
       icon={<ShieldCheck size={18} weight="bold" />}
       title="Two-step verification"
-      subtitle="Ask for a code from an authenticator app when you sign in."
+      subtitle="Use a code from an authenticator app as an extra step when you sign in."
       headerAction={badge}
     >
       {mode === "loading" && <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Loading…</p>}
@@ -103,12 +103,12 @@ export function TwoFactorCard() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 460 }}>
           {!hasPassword ? (
             <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
-              Two-step verification is available on password sign-in. Your account uses a linked Google or Microsoft login, which carries its own two-step protection.
+              Two-step verification is available for password sign-in. You use a linked Google or Microsoft account, which has its own two-step protection.
             </p>
           ) : (
             <>
               <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
-                Add a second step at sign-in using an app like Google Authenticator, 1Password or Authy.
+                Add an extra layer of security at sign-in using an app like Google Authenticator, 1Password or Authy.
               </p>
               <button type="button" onClick={startEnroll} disabled={busy} className="account-btn-primary" style={{ ...primaryBtn, alignSelf: "flex-start" }}>
                 {busy ? "Starting…" : "Set up two-step verification"}
@@ -153,7 +153,7 @@ export function TwoFactorCard() {
             <Check size={16} weight="bold" /> Two-step verification is on.
           </div>
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
-            Save these backup codes somewhere safe. Each works once if you lose access to your authenticator. You won&apos;t see them again.
+            Save these backup codes somewhere safe. Each can be used once if you lose access to your authenticator, and you won&apos;t see them again.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "#f6f6f7", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: 14 }}>
             {backupCodes.map((c) => (
@@ -170,7 +170,7 @@ export function TwoFactorCard() {
       {mode === "on" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 460 }}>
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
-            You&apos;ll be asked for a code when you sign in. {backupRemaining} backup {backupRemaining === 1 ? "code" : "codes"} remaining.
+            You&apos;ll be asked for a code each time you sign in. {backupRemaining} backup {backupRemaining === 1 ? "code" : "codes"} remaining.
           </p>
           <button type="button" onClick={() => { setMode("disabling"); setError(""); setPassword(""); }} className="account-btn-secondary account-press" style={{ ...secondaryBtn, color: "#b91c1c", alignSelf: "flex-start" }}>
             Turn off two-step verification

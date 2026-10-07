@@ -351,7 +351,7 @@ function Editor({
       </div>
 
       <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
-        Blanks like {"{address}"} and {"{teamRef}"} are filled in for each sale when the email sends. Leave them in place.
+        Details like {"{address}"} and {"{teamRef}"} are filled in for each sale when the email sends. Leave them in place.
       </p>
 
       {warnings.length > 0 && (

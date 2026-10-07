@@ -43,9 +43,9 @@ const MIN_REPEAT = 2;
 // also doubles as reset-to-defaults.
 type PresetKey = "responsive" | "steady" | "gentle" | "custom";
 const PRESETS: { key: Exclude<PresetKey, "custom">; name: string; mult: number; weeks: number; desc: string }[] = [
-  { key: "responsive", name: "Responsive", mult: 0.75, weeks: 11, desc: "Tighter nudges. Hits the window when clients reply on the first chase." },
-  { key: "steady",     name: "Steady",     mult: 1,    weeks: 12, desc: "Balanced for most sales. Assumes about two chases to land each step." },
-  { key: "gentle",     name: "Gentle",     mult: 1.35, weeks: 14, desc: "Fewer, softer nudges. Best for clients who prefer a lighter touch." },
+  { key: "responsive", name: "Responsive", mult: 0.75, weeks: 11, desc: "Quicker follow-ups. Designed for clients who usually respond to the first chase." },
+  { key: "steady",     name: "Steady",     mult: 1,    weeks: 12, desc: "Balanced for most sales, allowing around two chases for each step." },
+  { key: "gentle",     name: "Gentle",     mult: 1.35, weeks: 14, desc: "More time between follow-ups. Best for clients who prefer a lighter touch." },
 ];
 
 function scale(base: number, mult: number, floor: number): number {
@@ -128,9 +128,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
               Send automated chase emails on {filesLabel}
             </h2>
             <p className="text-sm mt-1 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
-              Master switch for the automated client-chase pipeline. When off, no chase
-              emails are sent on {filesLabel}. Files still appear as manual
-              tasks in the reminders list.
+              Turn automated client chases on or off across {filesLabel}. When off, no chase
+              emails are sent, but anything needing attention will still appear as a task in
+              your reminders.
             </p>
           </div>
           <button
@@ -157,8 +157,8 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
           Timing profile
         </h3>
         <p className="text-sm mb-3 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
-          Each profile scales every chase below to reach exchange within a target window.
-          Pick one, or edit any chase and it becomes Custom.
+          Choose how quickly we chase each step. Pick a profile below, or change any
+          individual timing to create your own.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PRESETS.map((p) => {
@@ -190,8 +190,8 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         </div>
         <p className="mt-2.5 text-xs text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
           {preset === "custom"
-            ? <><span className="font-semibold text-[#E8502E]">Custom</span> timings. Pick a profile above to refill from a preset.</>
-            : <>Using the <span className="font-semibold">{PRESETS.find((p) => p.key === preset)?.name}</span> profile. Edit any chase below to switch to Custom.</>}
+            ? <><span className="font-semibold text-[#E8502E]">Custom</span> timings. Choose a profile above to reset to a preset.</>
+            : <>Using the <span className="font-semibold">{PRESETS.find((p) => p.key === preset)?.name}</span> profile. Change any timing below to switch to Custom.</>}
         </p>
       </section>
 
@@ -225,8 +225,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
           </button>
         </div>
         <p className="text-sm mb-4 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
-          Each waits the grace days, nudges again every repeat gap, then escalates to you.
-          Changes apply to new files only. Files already in flight keep their original schedule.
+          Each step waits for its grace period, follows up again after the repeat gap, then
+          escalates to you. Changes apply to new files only; files already in progress keep
+          their existing schedule.
         </p>
 
         <RuleSection title="Vendor side" side="vendor" rows={vendorRules} updateRule={updateRule} />
@@ -335,7 +336,7 @@ function RuleEditor({ rule, onChange }: { rule: RuleRow; onChange: (patch: Parti
         </label>
       </div>
       <p className="text-xs text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
-        Effect: chase 1 on day {chase1Day}, chase 2 on day {chase2Day}, escalate after that.
+        Timing: first chase on day {chase1Day}, second chase on day {chase2Day}, then escalate.
       </p>
     </div>
   );

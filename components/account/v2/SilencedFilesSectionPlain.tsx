@@ -99,7 +99,7 @@ export function SilencedFilesSectionPlain({
     <AccountCard
       icon={<Bell size={18} weight="bold" />}
       title="Silenced files"
-      subtitle="Pause automated client emails for individual sales."
+      subtitle="Pause automated client emails on individual sales."
       headerAction={
         !pickerOpen ? (
           <button
@@ -166,7 +166,7 @@ export function SilencedFilesSectionPlain({
             <BellSlash size={20} weight="bold" />
           </span>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>No files are silenced</p>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#9ca3af" }}>All active files are currently sending as normal.</p>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#9ca3af" }}>Automated emails are running normally on all active files.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

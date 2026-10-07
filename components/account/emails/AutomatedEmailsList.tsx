@@ -31,7 +31,7 @@ const ROWS: Row[] = [
     key: "completion_pack",
     Icon: ArrowsLeftRight,
     title: "Contracts exchanged",
-    subtitle: "What happens next for your client after exchange.",
+    subtitle: "What your client needs to know after exchange.",
     pills: ["Buyer", "Seller"],
     render: () => <CompletionPackEditor />,
   },
@@ -54,14 +54,14 @@ const ROWS: Row[] = [
     key: "weekly_update",
     Icon: TrendUp,
     title: "Weekly update",
-    subtitle: "Keeps clients informed when a sale has been quiet.",
+    subtitle: "Keeps clients updated when a sale has been quiet.",
     render: () => <WeeklyUpdateEditor />,
   },
   {
     key: "onward_nudge",
     Icon: LinkSimple,
     title: "Onward / related nudge",
-    subtitle: "Asks a client to set up or update their other move in their portal.",
+    subtitle: "Asks a client to add or update their other move in the portal.",
     pills: ["Onward", "Related"],
     render: () => <OnwardNudgeEditor />,
   },
@@ -69,14 +69,14 @@ const ROWS: Row[] = [
     key: "post_completion",
     Icon: Handshake,
     title: "Post-completion",
-    subtitle: "A thank you and what to do after completion.",
+    subtitle: "A thank you and what happens after completion.",
     pills: ["Buyer", "Seller"],
     notSending: true,
     render: () => (
       <CompletionPackEditor
         templateKey="post_completion"
         title="Post-completion"
-        subtitle="A thank you and what to do after completion, per side."
+        subtitle="A thank you and what happens after completion, per side."
       />
     ),
   },

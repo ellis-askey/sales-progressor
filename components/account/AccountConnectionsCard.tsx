@@ -21,7 +21,7 @@ type Connection = { id: string; email: string; displayName: string | null };
 type Status = { configured: boolean; connections: Connection[] };
 
 const REASON_COPY: Record<string, string> = {
-  not_configured: "Email connection isn't switched on yet. Please check back soon.",
+  not_configured: "Email connections aren't available yet. Please check back soon.",
   state: "We couldn't verify the connection. Please try again.",
   no_refresh_token: "Microsoft didn't give us the permissions we need. Please try again.",
   no_identity: "We couldn't access your Microsoft account details. Please try again.",
@@ -114,7 +114,7 @@ export function AccountConnectionsCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Microsoft Outlook</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Connect the inbox where solicitors and clients email you, so their replies are saved to the
+                Connect the inbox solicitors and clients use to contact you, so their replies are saved to the
                 right sale.
               </p>
             </div>
@@ -138,7 +138,7 @@ export function AccountConnectionsCard() {
               <p className="text-[13px] text-gray-500">Checking…</p>
             ) : !status?.configured ? (
               <p className="text-[13px] text-gray-500">
-                Email connection isn&rsquo;t switched on yet. Please check back soon.
+                Email connections aren&rsquo;t available yet. Please check back soon.
               </p>
             ) : (
               <div className="space-y-4">
@@ -200,7 +200,7 @@ export function AccountConnectionsCard() {
                     />
                     <span className="text-[12.5px] leading-relaxed text-gray-600">
                       I agree that Sales Progressor can read emails relating to my sales and send emails on my
-                      behalf, as set out in the <Link href="/privacy" className="underline" style={{ color: CORAL }}>Privacy Policy</Link>. I can disconnect at any time.
+                      behalf, as explained in the <Link href="/privacy" className="underline" style={{ color: CORAL }}>Privacy Policy</Link>. I can disconnect at any time.
                     </span>
                   </label>
                   <button
@@ -215,8 +215,8 @@ export function AccountConnectionsCard() {
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">
-                  We only save emails that match one of your sales. Nothing else in your inbox is stored, and
-                  disconnecting stops all access.
+                  We only save emails that match one of your sales. Nothing else in your inbox is stored.
+                  Disconnecting stops all access.
                 </p>
               </div>
             )}

@@ -47,7 +47,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
         Solicitor confirmation emails
       </h2>
       <p className="mt-1 text-sm" style={{ color: "var(--agent-text-muted)" }}>
-        Automatically ask solicitors to confirm the steps they handle. Sent from your verified email.
+        Ask solicitors to confirm the steps they&rsquo;re responsible for. Emails are sent from your verified address.
       </p>
 
       {/* Master on/off */}
@@ -57,7 +57,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
             Send solicitor emails
           </div>
           <div className="text-xs" style={{ color: "var(--agent-text-muted)" }}>
-            {enabled ? "On — solicitors will be emailed on the schedule below." : "Off — no solicitor emails are sent."}
+            {enabled ? "On. Solicitors are emailed using the schedule below." : "Off. No solicitor confirmation emails are sent."}
           </div>
         </div>
         <button
@@ -84,7 +84,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
           value={grace}
           min={1}
           onChange={setGrace}
-          hint="How long a step can sit before the first reminder."
+          hint="How long we wait before the first reminder."
         />
         <NumberField
           label="Repeat every"
@@ -92,7 +92,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
           value={repeat}
           min={2}
           onChange={setRepeat}
-          hint="Gap between reminders if there's no reply."
+          hint="How long we wait before following up again."
         />
         <NumberField
           label="Stop after"
@@ -100,7 +100,7 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
           value={maxChases}
           min={1}
           onChange={setMaxChases}
-          hint="Then the file is flagged to the team instead."
+          hint="After that, the file is flagged to your team."
         />
       </div>
 

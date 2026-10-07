@@ -19,16 +19,16 @@ type Key = keyof ProgressorAutomation;
 
 const CHASES: Array<{ key: Key; title: string; desc: string }> = [
   { key: "client",    title: "Client chases",         desc: "Nudge buyers and sellers to confirm each step in their portal." },
-  { key: "solicitor", title: "Solicitor chases",      desc: "Ask solicitors to confirm the steps that are waiting on them." },
-  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise and reply to the legal enquiries. (You're still alerted if enquiries stall, even with this off.)" },
-  { key: "weekly",    title: "Weekly client updates", desc: "A short weekly note reassuring each client their sale's on track." },
-  { key: "chain",     title: "Chain updates",         desc: "Tell connected agents when a step moves on a linked sale." },
+  { key: "solicitor", title: "Solicitor chases",      desc: "Ask solicitors to confirm the steps they're responsible for." },
+  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. (You'll still be alerted if enquiries stall with this switched off.)" },
+  { key: "weekly",    title: "Weekly client updates", desc: "Send clients a short weekly update when their sale is on track." },
+  { key: "chain",     title: "Chain updates",         desc: "Let connected agents know when something changes on a linked sale." },
 ];
 
 const INVITES: { key: Key; title: string; desc: string } = {
   key: "autoChainInvites",
   title: "Auto-send chain invites",
-  desc: "When you add a sale with onward or related links, invite those connected agents automatically. With this off, you send each invite yourself from the chain.",
+  desc: "When you add a sale with an onward or related link, invite the connected agents to the chain. Switch this off if you'd rather send each invite yourself.",
 };
 
 export function BusinessAutomationForm({ initial }: { initial: ProgressorAutomation }) {
@@ -86,7 +86,7 @@ export function BusinessAutomationForm({ initial }: { initial: ProgressorAutomat
     <AccountCard
       icon={<Gauge size={20} weight="bold" />}
       title="Chases & automation"
-      subtitle="Choose which chases we run across your whole book. They're on by default. Switch off any you'd rather handle yourself."
+      subtitle="Choose which chases we run across all of your sales. They're on by default, but you can switch off anything you'd rather handle yourself."
       headerAction={saveButton("baf-save-desktop")}
     >
       <div className="baf-group">

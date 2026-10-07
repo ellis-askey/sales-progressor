@@ -102,7 +102,7 @@ export default async function AccountNotificationsPage() {
     <>
       <AccountPageHeader
         title="Notifications"
-        subtitle="Choose how and when Sales Progressor gets your attention."
+        subtitle="Choose how and when Sales Progressor notifies you."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <EmailNotificationsSectionPlain initialPrefs={notificationPrefs} />

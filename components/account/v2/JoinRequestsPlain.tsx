@@ -45,7 +45,7 @@ export function JoinRequestsPlain({ requests }: { requests: Req[] }) {
     <AccountCard
       icon={<UserPlus size={18} weight="bold" />}
       title="Requests to join"
-      subtitle="People who signed up with your agency's email domain and are waiting to be let in. Approving one adds them to your team."
+      subtitle="People who've signed up using your agency's email domain and are waiting for access. Approving a request adds them to your team."
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {rows.map((r) => (

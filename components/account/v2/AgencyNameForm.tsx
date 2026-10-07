@@ -68,7 +68,7 @@ export function AgencyNameForm({ initialName }: { initialName: string }) {
     <AccountCard
       icon={<Buildings size={18} weight="bold" />}
       title="Agency details"
-      subtitle="The agency name shown across Sales Progressor and in your client communications."
+      subtitle="The agency name shown across Sales Progressor and in client communications."
       headerAction={
         <button
           type="button"

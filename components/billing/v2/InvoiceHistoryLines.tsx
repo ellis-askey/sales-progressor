@@ -42,7 +42,7 @@ export function InvoiceHistoryLines({ rows }: { rows: HistoryRow[] }) {
 
       {rows.length === 0 ? (
         <div style={{ padding: "14px 0", fontSize: 13, color: "#9ca3af" }}>
-          Your past invoices will appear here once your first month closes.
+          Your invoices will appear here once your first billing month closes.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>

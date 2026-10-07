@@ -25,12 +25,12 @@ type ToggleSpec = {
 };
 
 const TOGGLES: ToggleSpec[] = [
-  { key: "morningDigest", label: "Morning digest", description: "Daily summary of files needing attention at 08:00 on weekdays." },
-  { key: "weeklyBrief", label: "Weekly brief", description: "Summary of last week's activity and escalations, every Monday." },
+  { key: "morningDigest", label: "Morning digest", description: "Daily summary of files needing attention, sent at 08:00 on weekdays." },
+  { key: "weeklyBrief", label: "Weekly brief", description: "Weekly summary of activity and escalations, sent every Monday." },
   { key: "clientConfirmationEmails", label: "Client confirmations", description: "Email me when a buyer or seller confirms a milestone." },
   { key: "chainEmails", label: "Chain updates", description: "Email me when a chain link is lost, paused, or asking us to wait." },
-  { key: "appointmentReminders", label: "Appointment reminders", description: "Email me when a survey or lender valuation is booked, and again at 7am on the day." },
-  { key: "retentionEmails", label: "Retention emails", description: "Post-exchange follow-ups we use to learn how the file went." },
+  { key: "appointmentReminders", label: "Appointment reminders", description: "Email me when a survey or lender valuation is booked, with a reminder at 7am on the day." },
+  { key: "retentionEmails", label: "Retention emails", description: "Post-exchange follow-ups that help us learn how the file went." },
 ];
 
 export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs: NotificationPrefs }) {
@@ -86,7 +86,7 @@ export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs:
     <AccountCard
       icon={<EnvelopeSimple size={18} weight="bold" />}
       title="Email notifications"
-      subtitle="The in-app bell shows everything. These settings only control email duplicates."
+      subtitle="Your in-app bell shows everything. These settings only control which notifications are also emailed to you."
       headerAction={<SectionMasterControl values={TOGGLES.map((t) => prefs[t.key])} onSetAll={setAll} disabled={isPending} />}
       bodyStyle={{ marginTop: 8 }}
     >

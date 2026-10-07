@@ -117,15 +117,15 @@ function guideFor(tile: TileKey, preset: ImapProviderPreset | null): Guide | nul
           <>Copy the password Zoho gives you and paste it below. You&rsquo;ll only see this password once.</>,
         ],
         aside:
-          "This is the same type of app password used to connect your eXp email to other email apps. We've already filled in the server settings for you.",
+          "Use the same type of app password you'd use to connect your eXp email to another email app. We've already filled in the server settings for you.",
       };
     case "gmail":
       return {
         title: "Connect your Gmail",
         steps: [
-          <>Turn on 2-Step Verification for your Google account if it isn&rsquo;t already.</>,
+          <>Turn on 2-Step Verification for your Google account if it isn&rsquo;t already on.</>,
           <>Open your {link("Google app passwords page")} and sign in.</>,
-          <>Create a password named &ldquo;Sales Progressor&rdquo;, copy it, and paste it below. You&rsquo;ll only see it once.</>,
+          <>Create an app password called &ldquo;Sales Progressor&rdquo;, copy it and paste it below. You&rsquo;ll only see it once.</>,
         ],
         aside: "Use the app password here, not your normal Gmail password. We've already filled in the server settings for you.",
       };
@@ -157,7 +157,7 @@ function guideFor(tile: TileKey, preset: ImapProviderPreset | null): Guide | nul
           <>Under Application-Specific Passwords, select Generate New Password and name it &ldquo;Sales Progressor&rdquo;.</>,
           <>Copy the password Zoho gives you and paste it below. You&rsquo;ll only see this password once.</>,
         ],
-        aside: "This is the same type of app password used to connect Zoho to other email apps. We've already filled in the server settings for you.",
+        aside: "Use the same type of app password you'd use to connect Zoho to another email app. We've already filled in the server settings for you.",
       };
     case "other":
       return null;
@@ -261,7 +261,7 @@ export function ImapConnectionCard() {
         setHost("");
         setPort("993");
         if (data.sendError) {
-          setNotice(`Your inbox is connected for receiving, but we couldn't switch on sending. ${data.sendError}`);
+          setNotice(`Your inbox is connected for receiving, but we couldn't enable sending. ${data.sendError}`);
         }
         await load();
       } else {
@@ -344,10 +344,10 @@ export function ImapConnectionCard() {
     if (!status) return null;
     const s = status.sendsFrom;
     if (s.via === "domain")
-      return `Your emails send from ${s.address}. Your sign-in address is on your verified domain, so it takes priority.`;
+      return `Your emails send from ${s.address}. Your sign-in address is on your verified domain, so we'll use that by default.`;
     if (s.via === "mailbox")
       return `Your emails send from ${s.address} through your connected inbox. Every email appears in its Sent folder, and replies come straight back to you.`;
-    return `Your emails currently send from our address, with replies coming to you${status.userEmail ? ` at ${status.userEmail}` : ""}. Connect your sign-in inbox below to send as yourself.`;
+    return `Your emails currently send from our address, with replies coming to ${status.userEmail ?? "you"}. Connect your sign-in inbox below to send from your own address.`;
   })();
 
   return (
@@ -362,7 +362,7 @@ export function ImapConnectionCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Every other provider</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Pick your provider and connect with an app-password. For providers we recognise, we can send your emails from
+                Choose your provider and connect using an app password. For providers we recognise, we can send your emails from
                 this address too.
               </p>
             </div>
@@ -535,8 +535,8 @@ export function ImapConnectionCard() {
                   )}
                   {selectedTile === "other" && (
                     <p key="other-note" className="portal-fade-in text-[12px] leading-relaxed text-gray-600">
-                      Add your provider&rsquo;s IMAP server details below. Your email host or IT can confirm these, and most use
-                      port 993. You&rsquo;ll need an app-password if your provider supports them.
+                      Add your provider&rsquo;s IMAP server details below. Your email provider or IT team can confirm these; most use
+                      port 993. You&rsquo;ll need an app password if your provider supports them.
                     </p>
                   )}
 
@@ -666,7 +666,7 @@ export function ImapConnectionCard() {
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">
-                  We only save emails that match one of your sales. Nothing else in your inbox is stored, and disconnecting
+                  We only save emails that match one of your sales. Nothing else in your inbox is stored. Disconnecting
                   stops all access.
                 </p>
               </div>

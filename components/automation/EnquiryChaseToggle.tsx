@@ -35,7 +35,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
           {!bare && <h2 className="text-[15px] font-semibold text-slate-900">Chase enquiries automatically</h2>}
           <p className={`${bare ? "" : "mt-1 "}text-[13px] leading-relaxed text-slate-500 max-w-xl`}>
             {bare
-              ? "When on, we chase the solicitor who owes replies until the loop moves, automatically."
+              ? "When this is on, we'll chase whichever solicitor owes the next reply until the enquiry moves forward."
               : "Keep the enquiry stage moving without chasing by hand. Solicitors only, your clients are never chased by this."}
           </p>
         </div>
@@ -71,7 +71,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
             </div>
             <div>
               <p className="text-[13.5px] font-semibold text-slate-800 leading-snug">Before enquiries are raised</p>
-              <p className="mt-0.5 text-[12.5px] text-slate-500 leading-snug">Gentle reminders to get things moving.</p>
+              <p className="mt-0.5 text-[12.5px] text-slate-500 leading-snug">Gentle reminders to get enquiries moving.</p>
             </div>
           </div>
 
@@ -119,7 +119,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
             <div>
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-600">2 working days later</p>
               <p className="text-[13.5px] font-semibold text-slate-800 leading-snug">Handed back to you</p>
-              <p className="mt-0.5 text-[12.5px] text-slate-500 leading-snug">If there&rsquo;s still no reply, we stop emailing and flag it on your Hub.</p>
+              <p className="mt-0.5 text-[12.5px] text-slate-500 leading-snug">If there&rsquo;s still no reply, we stop chasing and flag it on your Hub.</p>
             </div>
           </div>
         </div>
@@ -128,17 +128,17 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
         <div className="mt-4 pt-3 border-t border-slate-200 flex flex-wrap gap-x-6 gap-y-2">
           <span className="inline-flex items-center gap-2 text-[12.5px] text-slate-500">
             <svg className="w-4 h-4 text-[#FF6B4A] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-            A <b className="font-semibold text-slate-700">reply resets the clock</b>
+            A <b className="font-semibold text-slate-700">reply restarts the clock</b>
           </span>
           <span className="inline-flex items-center gap-2 text-[12.5px] text-slate-500">
             <svg className="w-4 h-4 text-[#FF6B4A] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="18" height="12" rx="6" /><circle cx="8" cy="12" r="3" fill="currentColor" stroke="none" /></svg>
-            Switch off <b className="font-semibold text-slate-700">anytime, per file</b>
+            Switch off <b className="font-semibold text-slate-700">at any time, per file</b>
           </span>
         </div>
       </div>
 
       <p className="mt-3 text-[12.5px] font-medium text-slate-600">
-        {enabled ? "On. We chase solicitors on your enquiry files." : "Off. No automatic enquiry chasing."}
+        {enabled ? "On. We'll chase solicitors on your enquiry files." : "Off. Enquiries won't be chased automatically."}
       </p>
       {error && <p className="mt-2 text-[12.5px] text-red-500">{error}</p>}
     </Wrapper>

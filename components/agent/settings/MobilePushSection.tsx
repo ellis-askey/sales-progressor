@@ -37,11 +37,11 @@ type Spec = { key: PushKey; label: string; description: string };
 const TOGGLES: Spec[] = [
   { key: "clientConfirmation", label: "Client confirmations", description: "When a buyer or seller confirms a milestone." },
   { key: "clientChaseNote", label: "Client replies on Respond page", description: "When a client leaves a note on a chase request." },
-  { key: "chaseEscalation", label: "Chase escalations", description: "When a chase task crosses the threshold to escalated priority." },
-  { key: "fileAssigned", label: "Files assigned to me", description: "When a file is assigned (or reassigned) to you." },
-  { key: "exchangeApproaching", label: "Exchange approaching", description: "Daily check; fires once per file when the exchange target is within a week." },
-  { key: "mortgageOfferExpiring", label: "Mortgage offer expiring", description: "Warns you as a client's mortgage-offer expiry nears." },
-  { key: "chainEvent", label: "Chain updates", description: "When something happens on a chain affecting a file." },
+  { key: "chaseEscalation", label: "Chase escalations", description: "When a chase reaches escalated priority." },
+  { key: "fileAssigned", label: "Files assigned to me", description: "When a file is assigned or reassigned to you." },
+  { key: "exchangeApproaching", label: "Exchange approaching", description: "When an exchange target is within a week." },
+  { key: "mortgageOfferExpiring", label: "Mortgage offer expiring", description: "When a client's mortgage offer is nearing expiry." },
+  { key: "chainEvent", label: "Chain updates", description: "When something changes elsewhere in a chain that affects one of your files." },
 ];
 
 type SubscribeStatus =
@@ -292,7 +292,7 @@ export function MobilePushSection({
       <div className="mb-5">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Devices</p>
         {devices.length === 0 ? (
-          <p className="text-xs text-slate-500 italic mb-3">No devices subscribed yet — click below to enable on this one.</p>
+          <p className="text-xs text-slate-500 italic mb-3">No devices connected yet. Enable push notifications on this device below.</p>
         ) : (
           <div className="space-y-2 mb-3">
             {devices.map((d) => {
@@ -352,17 +352,17 @@ export function MobilePushSection({
 
         {subStatus.kind === "denied" && (
           <p className="text-xs text-amber-700 mt-2">
-            Permission denied. To enable, click the lock/permissions icon in your browser address bar and allow notifications, then click Enable again.
+            Permission denied. Click the lock or permissions icon in your browser&apos;s address bar, allow notifications, then try again.
           </p>
         )}
         {subStatus.kind === "blocked" && (
           <p className="text-xs text-amber-700 mt-2">
-            Notifications are blocked for this site in your browser settings. Unblock there, then click Enable again.
+            Notifications are blocked for this site. Allow them in your browser settings, then try again.
           </p>
         )}
         {subStatus.kind === "unsupported" && subStatus.reason === "browser" && (
           <p className="text-xs text-slate-600 mt-2">
-            Your browser doesn&apos;t support web push notifications. Try Chrome, Edge, Firefox, or Safari (macOS 13+).
+            Your browser doesn&apos;t support push notifications. Try Chrome, Edge, Firefox or Safari (macOS 13+).
           </p>
         )}
         {subStatus.kind === "unsupported" && subStatus.reason === "ios-needs-pwa" && (
@@ -373,7 +373,7 @@ export function MobilePushSection({
               <li>Scroll down and tap &quot;Add to Home Screen&quot;</li>
               <li>Tap Add</li>
               <li>Open the new Sales Progressor icon from your home screen</li>
-              <li>Come back to this settings page and click Enable</li>
+              <li>Return to this settings page and tap Enable</li>
             </ol>
           </div>
         )}

@@ -29,11 +29,11 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
   const blocked = state.kind === "blocked";
   const tint = blocked ? "var(--agent-danger)" : "var(--agent-warning)";
   const title = blocked
-    ? "New file creation paused. Update your card."
+    ? "New sales paused. Update your card."
     : "A payment failed. Please update your card.";
   const body = state.kind === "blocked"
-    ? `We couldn't collect a payment from ${failedDate}. Your existing files will keep running, but you won't be able to add new sales until your card is updated.`
-    : `We couldn't collect a payment from ${failedDate}. We'll keep retrying, but if it isn't resolved by ${state.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, new file creation will be paused.`;
+    ? `We couldn't collect your payment from ${failedDate}. Your existing files will keep running, but you'll need to update your card before adding any new sales.`
+    : `We couldn't collect your payment from ${failedDate}. We'll keep trying, but if it isn't resolved by ${state.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, you won't be able to add new sales.`;
 
   return (
     <div

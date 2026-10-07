@@ -73,7 +73,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
 
       {props.kind === "pending" && (
         <div style={{ fontSize: 13, color: "#6b7280" }}>
-          Acknowledge the pricing terms below to add a card.
+          Accept the pricing terms below before adding a card.
         </div>
       )}
 
@@ -106,7 +106,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
               <>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Card on file</div>
                 <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                  Your saved card is ready for billing.
+                  Your saved card is ready to use.
                 </div>
               </>
             )}
@@ -141,7 +141,7 @@ export function PaymentMethodPlain(props: PaymentMethodPlainProps) {
               lineHeight: 1.55,
             }}
           >
-            This card will be charged on the 1st of each month for the previous month&apos;s exchanges.
+            This card is charged on the 1st of each month for the previous month&apos;s exchanges.
           </div>
         </>
       )}

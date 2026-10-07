@@ -71,7 +71,7 @@ export function BusinessVatForm({
     <AccountCard
       icon={<Receipt size={20} weight="bold" />}
       title="VAT"
-      subtitle="If your business is VAT registered, we'll add VAT to the invoices you send your clients and show your VAT number."
+      subtitle="If your business is VAT registered, we'll add VAT to the invoices you send clients and show your VAT number."
       headerAction={saveButton("bizvat-save-desktop")}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -121,8 +121,8 @@ export function BusinessVatForm({
 
         <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}>
           {registered
-            ? "VAT is added on top of your rate-card fee for each sale on the invoice."
-            : "Leave this off if you're not VAT registered. Your invoices show the fee as the total, with no VAT line."}
+            ? "VAT is added to your rate-card fee for each sale and shown separately on the invoice."
+            : "Leave this off if you're not VAT registered. Your invoices will show the fee as the total, with no separate VAT line."}
         </p>
 
         {/* Mobile-only Save (desktop Save lives in the card header). */}

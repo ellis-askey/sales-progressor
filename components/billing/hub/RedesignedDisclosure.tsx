@@ -64,7 +64,7 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
           Before we add your card
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          {termsDisplayName(termsVersionTag)}. Please read and confirm.
+          {termsDisplayName(termsVersionTag)}. Have a read and confirm below.
         </p>
       </div>
 
