@@ -342,7 +342,10 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
     return { ok: true };
   } catch (err) {
     console.error("[business-billing] syncBusinessSubscription failed:", err);
-    return { ok: false, error: "Couldn't set up your subscription. Try again." };
+    // Surface the real Stripe error during setup/testing so a failure is
+    // diagnosable on screen. (Owner-only surface.)
+    const msg = err instanceof Error && err.message ? err.message : "Couldn't set up your subscription.";
+    return { ok: false, error: msg };
   }
 }
 
