@@ -32,6 +32,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
         { status: 409 },
       );
     }
+    if (res.reason === "needs_completion_date") {
+      const list = res.addresses.join(", ");
+      const one = res.addresses.length === 1;
+      return NextResponse.json(
+        { error: `Add a completion date to ${list} before generating this invoice. ${one ? "That sale is" : "Those sales are"} billed at completion, so ${one ? "it" : "they"} can't be invoiced without the date.` },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

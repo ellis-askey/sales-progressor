@@ -17,7 +17,8 @@ import type { PdfInvoiceInput, PdfLine } from "@/lib/billing/invoice-pdf";
 export type BusinessInvoiceResult =
   | { ok: true; input: PdfInvoiceInput }
   | { ok: false; reason: "not_found" | "fee_not_set" }
-  | { ok: false; reason: "needs_price"; addresses: string[] };
+  | { ok: false; reason: "needs_price"; addresses: string[] }
+  | { ok: false; reason: "needs_completion_date"; addresses: string[] };
 
 export async function buildBusinessClientInvoice(
   businessId: string,
@@ -61,6 +62,19 @@ export async function buildBusinessClientInvoice(
   // their fee first (the invoice route surfaces this).
   const feeModel = parseFeeModel(link.feeModel);
   if (!feeModel) return { ok: false, reason: "fee_not_set" };
+
+  // Completion billing: a sale marked completed but with no completion date can't be
+  // placed on any month's invoice. Flag it so the owner adds the date rather than the
+  // sale silently dropping off the invoice (audit, 2026-10-07).
+  if (billAtCompletion) {
+    const undated = await prisma.propertyTransaction.findMany({
+      where: { progressionBusinessId: businessId, agencyId, isDemo: false, status: "completed", completionDate: null },
+      select: { propertyAddress: true },
+    });
+    if (undated.length > 0) {
+      return { ok: false, reason: "needs_completion_date", addresses: undated.map((s) => s.propertyAddress) };
+    }
+  }
 
   const lines: PdfLine[] = [];
   const unpriceable: string[] = [];

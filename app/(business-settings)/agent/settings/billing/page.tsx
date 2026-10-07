@@ -18,7 +18,7 @@ import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
 import { BusinessCardCapture } from "@/components/progression/BusinessCardCapture";
 import { SettingsNote } from "@/components/ui/SettingsNote";
 
-export default async function BusinessBillingPage() {
+export default async function BusinessBillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; redirect_status?: string }> }) {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
   const owner = await resolveBusinessOwner(session);
@@ -31,6 +31,11 @@ export default async function BusinessBillingPage() {
   const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
   const collecting = progressionBillingCollectEnabled();
   const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
+  // Returned from a 3-D Secure card save (Stripe appends redirect_status to the
+  // return URL). The card is already saved; BusinessCardCapture then starts the
+  // subscription on mount instead of re-showing the empty form.
+  const sp = await searchParams;
+  const justReturned = sp.saved === "1" && sp.redirect_status !== "failed";
 
   return (
     <>
@@ -102,7 +107,7 @@ export default async function BusinessBillingPage() {
             title="Payment method"
             subtitle="Add the card we'll charge each month for your subscription and any sales you add."
           >
-            <BusinessCardCapture publishableKey={publishableKey} />
+            <BusinessCardCapture publishableKey={publishableKey} justReturned={justReturned} />
           </AccountCard>
         )}
       </div>
