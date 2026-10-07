@@ -426,8 +426,8 @@ export function ImapConnectionCard() {
                               )}
                               {c.sendState === "not_sign_in" && c.sendAvailable && status?.userEmail && (
                                 <p className="mt-0.5 text-[12px] text-gray-500">
-                                  Your emails send from {status.userEmail}, your sign-in address. To send from this inbox instead,
-                                  it needs to become your sign-in email. Contact us and we&rsquo;ll switch it.
+                                  Your emails are sent from {status.userEmail}, your sign-in address, so this inbox is connected
+                                  for receiving. To send from it instead, contact us and we&rsquo;ll switch it over.
                                 </p>
                               )}
                               {c.sendState === "domain_covered" && (
@@ -612,8 +612,8 @@ export function ImapConnectionCard() {
                     <p className="flex w-full items-start gap-1.5 text-[12px] leading-relaxed text-gray-500">
                       <Info size={14} weight="fill" className="mt-0.5 shrink-0 text-gray-400" />
                       <span>
-                        Your emails are sent from {status?.userEmail}, which is also your sign-in address. Connect this
-                        inbox to receive replies here too.
+                        Your emails are sent from {status?.userEmail}, your sign-in address. Connecting this inbox saves its
+                        replies to your files too. To send from it instead, contact us and we&rsquo;ll switch it over.
                       </span>
                     </p>
                   )}
