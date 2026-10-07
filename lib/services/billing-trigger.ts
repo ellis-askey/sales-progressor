@@ -44,7 +44,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true, progressionBusinessId: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true, progressionBusinessId: true, isMigrated: true, businessPerSaleChargedAt: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -81,6 +81,16 @@ export async function maybeStampExchange(
       where: { id: transactionId, priceAtExchange: null },
       data: { priceAtExchange: txn.purchasePrice },
     });
+    // A brought-in (migrated) sale is NOT charged TSP's £5 at add — only if it
+    // reaches exchange. Stamp the per-sale charge now so the next business billing
+    // cron pushes it (idempotent via the NULL guard). Normal sales were stamped at
+    // add in createTransaction and already have this set.
+    if (txn.isMigrated && txn.businessPerSaleChargedAt == null) {
+      await db.propertyTransaction.updateMany({
+        where: { id: transactionId, businessPerSaleChargedAt: null },
+        data: { businessPerSaleChargedAt: now },
+      });
+    }
     return;
   }
 

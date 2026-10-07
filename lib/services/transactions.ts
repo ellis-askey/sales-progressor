@@ -13,6 +13,8 @@ import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
 import { isTspBusiness } from "@/lib/progression/business";
+import { businessBillingActive, BillingSetupRequiredError } from "@/lib/progression/business-stripe";
+import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
 import { recordEvent } from "@/lib/command/events/write";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -952,6 +954,20 @@ export async function createTransaction(input: CreateTransactionInput) {
   // agency, so the client agency's TSP status must never block the business from
   // adding a sale (audit SP-polish). TSP files (null / isTsp) keep the block.
   const paymentBlockApplies = await isTspBusiness(input.progressionBusinessId ?? null);
+
+  // Card gate (go-live): once collection is live, an external progression business
+  // must have billing set up (a card on file) before it can add OR bring in a sale.
+  // Dark until PROGRESSION_BILLING_COLLECT is on; demo files are exempt. The action
+  // layer catches BillingSetupRequiredError and opens the add-a-card prompt.
+  if (
+    !input.isDemo &&
+    input.progressionBusinessId &&
+    !paymentBlockApplies && // external business (isTspBusiness returned false)
+    progressionBillingCollectEnabled() &&
+    !(await businessBillingActive(input.progressionBusinessId))
+  ) {
+    throw new BillingSetupRequiredError();
+  }
 
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment

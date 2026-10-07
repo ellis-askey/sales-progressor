@@ -15,6 +15,29 @@
 import { prisma } from "@/lib/prisma";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
 import { getBusinessBillingSummary, BUSINESS_PER_SALE_PENCE } from "./business-billing";
+import { billingMonthRange } from "@/lib/billing/period";
+
+/** Error thrown when a sale is created for an external business that has no
+ *  billing set up (no card on file) while collection is live. The action layer
+ *  catches this and tells the UI to open the add-a-card prompt. */
+export class BillingSetupRequiredError extends Error {
+  constructor() {
+    super("Add a payment card to start adding sales.");
+    this.name = "BillingSetupRequiredError";
+  }
+}
+
+/** Whether an external business has billing set up (a card on file + active plan).
+ *  A subscription only exists after a card was captured (syncBusinessSubscription
+ *  promotes the card then creates it), so its presence is our "card on file"
+ *  signal. Used by the add-sale / bring-in-a-sale gate once collection is live. */
+export async function businessBillingActive(businessId: string): Promise<boolean> {
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeSubscriptionId: true },
+  });
+  return !!business?.stripeSubscriptionId;
+}
 
 function basePriceId(): string | undefined { return process.env.STRIPE_PRICE_BUSINESS_BASE; }
 function seatPriceId(): string | undefined { return process.env.STRIPE_PRICE_BUSINESS_SEAT; }
@@ -103,6 +126,11 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
   if (!subscriptionId) {
     const items: { price: string; quantity: number }[] = [{ price: base, quantity: 1 }];
     if (extraMembers > 0) items.push({ price: seat, quantity: extraMembers });
+    // Bill on the 1st of each month, pro-rata for the partial first month: anchor
+    // the cycle to midnight on the 1st of next month (London) so Stripe charges the
+    // prorated remainder of this month on the first invoice now, then the full £59
+    // on the 1st each month thereafter.
+    const cycleAnchor = Math.floor(billingMonthRange(new Date()).end.getTime() / 1000);
     // Stable idempotency key so a double-click, or the daily cron overlapping the
     // card-save, can't create two subscriptions (and double-charge the £59).
     const sub = await stripe.subscriptions.create(
@@ -110,6 +138,8 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
         customer: customerId,
         items,
         collection_method: "charge_automatically",
+        billing_cycle_anchor: cycleAnchor,
+        proration_behavior: "create_prorations",
         metadata: { progressionBusinessId: businessId },
       },
       { idempotencyKey: `business-sub-create-${businessId}` },
