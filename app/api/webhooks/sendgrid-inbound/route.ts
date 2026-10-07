@@ -21,7 +21,8 @@ import { prisma } from "@/lib/prisma";
 import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import { logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
 import { sendEmail } from "@/lib/email";
-import type { IngestMessage } from "@/lib/integrations/mail/types";
+import { buildFrom } from "@/lib/email/from-name";
+import type { IngestMessage, IngestAttachment } from "@/lib/integrations/mail/types";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,32 @@ async function handleFileReply(token: string, form: FormData) {
   const body = (text && text.trim()) || stripHtml(html);
   const messageId = headerValue(headersRaw, "Message-ID") ?? headerValue(headersRaw, "Message-Id");
 
+  // Attachments: SendGrid Inbound Parse sends them as multipart file parts
+  // attachment1..N. We hand them to the ingest core, which filters inline/oversized
+  // parts and files the rest to the property's Documents (with dedup). Best-effort
+  // per part — an unreadable attachment never blocks the reply being recorded.
+  const attachments: IngestAttachment[] = [];
+  const attachmentCount = parseInt(String(form.get("attachments") ?? "0"), 10) || 0;
+  for (let i = 1; i <= attachmentCount; i++) {
+    const part = form.get(`attachment${i}`);
+    if (part && typeof part === "object" && "arrayBuffer" in part) {
+      try {
+        const file = part as File;
+        const buf = Buffer.from(await file.arrayBuffer());
+        if (buf.length > 0) {
+          attachments.push({
+            filename: file.name || `attachment${i}`,
+            contentType: file.type || "application/octet-stream",
+            content: buf,
+            size: buf.length,
+          });
+        }
+      } catch {
+        /* skip an unreadable part */
+      }
+    }
+  }
+
   const msg: IngestMessage = {
     id: messageId ?? `reply-capture:${token}:${Date.now()}`,
     subject,
@@ -125,7 +152,7 @@ async function handleFileReply(token: string, form: FormData) {
     inReplyTo: headerValue(headersRaw, "In-Reply-To"),
     references: headerValue(headersRaw, "References"),
     headers: {},
-    attachments: [],
+    attachments,
     outbound: false,
   };
 
@@ -136,18 +163,24 @@ async function handleFileReply(token: string, form: FormData) {
   }
 
   // Forward to the file's agent (assigned progressor first, else the client
-  // agent) so the reply still lands in their own inbox. Reply-To is the original
-  // sender, so the agent can reply to them directly from their email.
+  // agent) so the reply still lands in their own inbox, reading as naturally as
+  // the sender's own email: their NAME on the From, their address as Reply-To,
+  // their subject + body untouched. The sending address must be a verified
+  // sender of ours to deliver, so that's the only tell — flagged by one discreet
+  // provenance line at the foot. Replying goes straight to the real sender.
   const agentEmail = tx.assignedUser?.email ?? tx.agentUser?.email ?? null;
   if (agentEmail) {
-    const fromLabel = sender.name ? `${sender.name} <${sender.email}>` : sender.email;
-    const forwardText = `This reply came in on your sale at ${tx.propertyAddress} and has been filed on the file.\nFrom: ${fromLabel}\n\n----------\n\n${body}`;
+    const provenance = `Forwarded by Sales Progressor · filed on your sale at ${tx.propertyAddress}`;
+    const forwardHtml = html && html.trim()
+      ? `${html}<p style="color:#8a8a8a;font-size:12px;margin-top:16px">— ${escapeHtml(provenance)}</p>`
+      : undefined;
     await sendEmail({
       to: agentEmail,
-      from: "Sales Progressor <updates@thesalesprogressor.co.uk>",
+      from: buildFrom(sender.name ?? sender.email, "updates@thesalesprogressor.co.uk"),
       replyTo: sender.email,
-      subject: /^re:/i.test(subject) ? subject : `Re: ${subject}`,
-      text: forwardText,
+      subject,
+      text: `${body}\n\n—\n${provenance}`,
+      html: forwardHtml,
     }).catch((err) => console.error(`[reply-capture] forward failed for tx ${tx.id}:`, err));
   }
 
@@ -165,6 +198,11 @@ function parseAddress(raw: string): { name: string | null; email: string } {
 function headerValue(raw: string, name: string): string | null {
   const m = raw.match(new RegExp(`^${name}:\\s*(.+)$`, "im"));
   return m ? m[1].trim() : null;
+}
+
+// Escape the handful of characters that matter inside an HTML text node.
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // Minimal HTML → text, used only when a reply has no text/plain part.
