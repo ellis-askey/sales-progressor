@@ -55,6 +55,37 @@ function providerLabel(p: string, email?: string): string {
   return map[p] ?? "Email";
 }
 
+// Status pill classes — sending and inbox-reading are shown as two separate
+// statuses (Phase 2), so a reading hiccup never reads as a sending failure.
+const PILL = {
+  on: "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700",
+  warn: "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700",
+  off: "inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10.5px] font-medium text-gray-500",
+};
+
+// Plain-English translation of a raw reading error (Phase 3). A connected-mailbox
+// inbox we can't read is usually the provider throttling us, not a real fault —
+// so we explain calmly and never tell the agent to "reconnect to fix" a working
+// mailbox. Keyed on the substrings providers/imapflow actually emit.
+function friendlyReadError(raw: string): string {
+  const t = raw.toLowerCase();
+  if (/connection not available|connection closed|socket|dropped|unavailable|econnreset/.test(t))
+    return "Your provider limited reading just now, which is common with eXp and Zoho. We'll keep trying automatically.";
+  if (/timeout|timed out/.test(t)) return "Your mail server didn't respond in time. We'll try again shortly.";
+  if (/auth|password|credential|login failed|invalid/.test(t))
+    return "We couldn't sign in to read this inbox. Check you used an app password, not your normal one, then reconnect.";
+  if (/certificate|tls|ssl/.test(t)) return "The secure connection to your mail server failed. Reconnect to re-check the settings.";
+  return "We couldn't read this inbox just now. Use ‘Check reading’ to try again, or reconnect if it continues.";
+}
+
+// Plain-English translation of a raw sending error (Phase 3).
+function friendlySendError(raw: string): string {
+  const t = raw.toLowerCase();
+  if (/auth|password|credential|login failed|invalid/.test(t))
+    return "Sending stopped working. Your provider rejected the app password, so reconnect with a fresh one to fix it.";
+  return "We hit a problem sending from this inbox. Reconnect to re-check it.";
+}
+
 // ── Provider tiles ──────────────────────────────────────────────────────────
 // Each tile carries a sample domain so the shared preset table stays the one
 // source of provider truth; the guide copy is UI-only. Outlook has its own
@@ -225,14 +256,13 @@ export function ImapConnectionCard() {
   const unknownTyped = email.includes("@") && !typedPreset;
   const needServerDetails = selectedTile === "other" || unknownTyped;
 
-  // Send-option truth, mirroring the server's guards: known sending server,
-  // the typed address IS the sign-in, and no verified domain outranking it.
+  // Send-option truth, mirroring the server's guards: a known sending server and
+  // no verified domain already covering sending. Sending is self-serve now
+  // (Phase 1) — it no longer has to be the sign-in address.
   const emailTyped = email.includes("@");
   const smtpKnown = !!typedPreset?.smtpHost;
-  const isSignIn = !!status?.userEmail && email.trim().toLowerCase() === status.userEmail;
-  const offerSend = emailTyped && smtpKnown && isSignIn && !status?.userDomainVerified;
-  const showNotSignInLine = emailTyped && smtpKnown && !!status?.userEmail && !isSignIn;
-  const showDomainCoveredLine = emailTyped && smtpKnown && isSignIn && !!status?.userDomainVerified;
+  const offerSend = emailTyped && smtpKnown && !status?.userDomainVerified;
+  const showDomainCoveredLine = emailTyped && smtpKnown && !!status?.userDomainVerified;
   const expWording = selectedTile === "exp";
 
   async function connect() {
@@ -399,35 +429,48 @@ export function ImapConnectionCard() {
                                 <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                                   {providerLabel(c.provider, c.email)}
                                 </span>
-                                {(c.sendState === "sends" || c.sendState === "domain_covered") ? (
-                                  <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                    Sends
-                                  </span>
-                                ) : (
-                                  <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                                    Reads only
-                                  </span>
-                                )}
                               </p>
+                              {/* Two separate statuses — a reading hiccup never reads as a sending failure */}
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                {c.sendState === "sends" ? (
+                                  <span className={PILL.on}>Sending on</span>
+                                ) : c.sendState === "domain_covered" ? (
+                                  <span className={PILL.on}>Sends via your domain</span>
+                                ) : (
+                                  <span className={PILL.off}>Sending off</span>
+                                )}
+                                {c.lastError ? (
+                                  <span className={PILL.warn}>Reading limited</span>
+                                ) : c.lastSyncedAt ? (
+                                  <span className={PILL.on}>Reading on</span>
+                                ) : (
+                                  <span className={PILL.off}>Reading not checked yet</span>
+                                )}
+                              </div>
+                              {/* Inbox-reading detail: calm + plain-English, never a red "reconnect to fix" */}
                               {c.lastError ? (
-                                <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
-                                  <Warning size={13} weight="fill" className="shrink-0" />
-                                  {c.lastError} Reconnect to fix this.
+                                <p className="mt-1 flex items-start gap-1.5 text-[12px] leading-snug text-amber-700">
+                                  <Info size={13} weight="fill" className="mt-0.5 shrink-0" />
+                                  <span>
+                                    {friendlyReadError(c.lastError)}
+                                    {c.sendState === "sends" ? " Your sending isn’t affected." : ""}
+                                  </span>
                                 </p>
-                              ) : (
-                                <p className="truncate text-[12px] text-gray-500">
-                                  {c.lastSyncedAt ? `Last checked ${new Date(c.lastSyncedAt).toLocaleString("en-GB")}` : "Not checked yet"}
+                              ) : c.lastSyncedAt ? (
+                                <p className="mt-1 truncate text-[12px] text-gray-500">
+                                  Last checked {new Date(c.lastSyncedAt).toLocaleString("en-GB")}
                                 </p>
-                              )}
+                              ) : null}
+                              {/* Sending detail */}
                               {c.smtpLastError && (
-                                <p className="mt-0.5 flex items-center gap-1 text-[12px] text-red-600">
-                                  <Warning size={13} weight="fill" className="shrink-0" />
-                                  {c.smtpLastError}
+                                <p className="mt-1 flex items-start gap-1.5 text-[12px] leading-snug text-red-600">
+                                  <Warning size={13} weight="fill" className="mt-0.5 shrink-0" />
+                                  <span>{friendlySendError(c.smtpLastError)}</span>
                                 </p>
                               )}
                               {c.sendState === "domain_covered" && (
-                                <p className="mt-0.5 text-[12px] text-gray-500">
-                                  Your emails already send from this address through your verified domain.
+                                <p className="mt-1 text-[12px] text-gray-500">
+                                  This address already sends through your verified domain.
                                 </p>
                               )}
                             </div>
@@ -602,15 +645,6 @@ export function ImapConnectionCard() {
                         {expWording ? "eXp inbox" : "inbox"}.
                       </span>
                     </label>
-                  )}
-                  {showNotSignInLine && (
-                    <p className="flex w-full items-start gap-1.5 text-[12px] leading-relaxed text-gray-500">
-                      <Info size={14} weight="fill" className="mt-0.5 shrink-0 text-gray-400" />
-                      <span>
-                        Your emails are sent from {status?.userEmail}, your sign-in address. Connecting this inbox saves its
-                        replies to your files too. To send from it instead, contact us and we&rsquo;ll switch it over.
-                      </span>
-                    </p>
                   )}
                   {showDomainCoveredLine && (
                     <p className="flex w-full items-start gap-1.5 text-[12px] leading-relaxed text-gray-500">
