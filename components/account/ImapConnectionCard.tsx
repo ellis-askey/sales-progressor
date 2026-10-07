@@ -486,13 +486,24 @@ export function ImapConnectionCard() {
                                 {sendTogglingId === c.id ? "Updating…" : c.sendState === "sends" ? "Turn off sending" : "Turn on sending"}
                               </button>
                             )}
+                            {c.sendState === "sends" && (
+                              <button
+                                onClick={() => toggleSend(c.id, true)}
+                                disabled={sendTogglingId === c.id}
+                                className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                title="Send a test email from this address to itself"
+                              >
+                                <PaperPlaneTilt size={14} weight="bold" />
+                                Send test
+                              </button>
+                            )}
                             <button
                               onClick={() => syncNow(c.id)}
                               disabled={syncingId === c.id}
                               className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                             >
                               <ArrowClockwise size={14} weight="bold" className={syncingId === c.id ? "pbtn-spin" : ""} />
-                              {syncingId === c.id ? "Checking…" : "Check now"}
+                              {syncingId === c.id ? "Checking…" : "Check reading"}
                             </button>
                             <button
                               onClick={() => disconnect(c.id)}
@@ -524,6 +535,15 @@ export function ImapConnectionCard() {
 
                 {/* Connect form */}
                 <div className="space-y-3.5 rounded-lg border border-gray-200 bg-gray-50 p-3.5">
+                  {/* Two-path guidance (Phase 4): verify a domain, or connect an inbox */}
+                  <p className="text-[12px] leading-relaxed text-gray-600">
+                    Two ways to send from your own address.{" "}
+                    <span className="font-semibold text-gray-800">Verify your domain</span> is best if you can edit your
+                    website&rsquo;s DNS (set that up on your Profile). Otherwise,{" "}
+                    <span className="font-semibold text-gray-800">connect your inbox</span> below with an app password: no DNS
+                    needed, and just as good for sending. We&rsquo;ll show your provider&rsquo;s exact steps and finish with a
+                    test email.
+                  </p>
                   {/* Provider tiles */}
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                     {TILES.map((t) => {
