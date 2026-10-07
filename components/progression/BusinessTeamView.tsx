@@ -19,6 +19,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
@@ -214,10 +215,16 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
       {confirming && createPortal(
         <div className="bt-cf-overlay" onClick={() => { if (!pending) setConfirming(false); }}>
           <div className="bt-cf" role="dialog" aria-modal="true" aria-label="Confirm teammate invite" onClick={(e) => e.stopPropagation()}>
-            <div className="bt-cf-ico" aria-hidden><UserPlus size={21} weight="bold" /></div>
-            <h3 className="bt-cf-title">Add {inviteName.trim()} to your team?</h3>
-            <p className="bt-cf-text">We&apos;ll email <strong>{inviteEmail.trim()}</strong> a link to set up their account. They&apos;ll be able to progress your sales.</p>
-            <div className="bt-cf-cost"><span className="l">Adds to your monthly bill</span><span className="r">+£39/mo</span></div>
+            <div className="bt-cf-ico" aria-hidden><UserPlus size={30} weight="bold" /></div>
+            <h3 className="bt-cf-title">Add <span className="nm">{inviteName.trim()}</span> to your team?</h3>
+            <p className="bt-cf-text">We&apos;ll email <strong>{inviteEmail.trim()}</strong> a link to set up their account. They can start progressing your sales as soon as they&apos;re set up.</p>
+            <div className="bt-cf-cost">
+              <span className="lab">
+                <span className="k">Additional team member</span>
+                <span className="s">£39/month while {extractFirstName(inviteName.trim())} is on your team. Remove anytime.</span>
+              </span>
+              <span className="amt">+£39<small>&nbsp;/mo</small></span>
+            </div>
             <div className="bt-cf-actions">
               <button type="button" className="agent-btn agent-btn-neutral agent-btn-md" onClick={() => setConfirming(false)} disabled={pending}>Cancel</button>
               <button type="button" className="agent-btn agent-btn-primary agent-btn-md" style={{ flex: 1 }} onClick={invite} disabled={pending}>{pending ? "Sending…" : "Send invite · +£39/mo"}</button>
@@ -299,18 +306,23 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         .bt-note-pill { flex-shrink: 0; display: inline-flex; align-items: center; height: 21px; padding: 0 9px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.01em; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 8px rgba(var(--agent-coral-rgb),0.28); }
 
         /* Invite confirmation */
-        .bt-cf-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px; background: rgba(36,24,16,0.42); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); animation: bt-cf-fade 160ms ease both; }
-        .bt-cf { width: 100%; max-width: 420px; background: var(--agent-surface-elevated, #fff); border: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); border-top: 2px solid var(--agent-coral-deep); border-radius: 18px; box-shadow: 0 30px 70px -24px rgba(40,24,16,0.5); padding: 22px 22px 18px; animation: bt-cf-rise 200ms cubic-bezier(0.22,1,0.36,1) both; }
-        .bt-cf-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep); margin-bottom: 13px; }
-        .bt-cf-title { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--agent-text-primary); }
-        .bt-cf-text { margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--agent-text-secondary); }
-        .bt-cf-text strong { color: var(--agent-text-primary); font-weight: 700; }
-        .bt-cf-cost { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 15px 0 2px; padding: 11px 14px; border-radius: 11px; background: rgba(var(--agent-coral-rgb),0.07); border: 1px solid rgba(var(--agent-coral-rgb),0.18); }
-        .bt-cf-cost .l { font-size: 12.5px; color: var(--agent-text-secondary); }
-        .bt-cf-cost .r { font-size: 15px; font-weight: 800; color: var(--agent-coral-deep); font-variant-numeric: tabular-nums; }
-        .bt-cf-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .bt-cf-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px; background: rgba(36,24,16,0.42); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: bt-cf-fade 160ms ease both; }
+        .bt-cf { position: relative; width: 100%; max-width: 440px; background: var(--agent-surface-elevated, #fff); border: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); border-radius: 22px; box-shadow: 0 30px 70px -24px rgba(40,24,16,0.5); padding: 26px 26px 20px; overflow: hidden; animation: bt-cf-rise 220ms cubic-bezier(0.22,1,0.36,1) both; }
+        .bt-cf::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, var(--agent-coral), var(--agent-coral-deep), transparent); opacity: 0.9; }
+        .bt-cf-ico { color: var(--agent-coral-deep); margin: 2px 0 14px; line-height: 0; }
+        .bt-cf-title { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.2; color: var(--agent-text-primary); }
+        .bt-cf-title .nm { color: var(--agent-coral-deep); }
+        .bt-cf-text { margin: 9px 0 0; font-size: 13.5px; line-height: 1.58; color: var(--agent-text-secondary); }
+        .bt-cf-text strong { color: var(--agent-text-primary); font-weight: 650; }
+        .bt-cf-cost { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 18px 0 2px; padding: 14px 2px; border-top: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); border-bottom: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); }
+        .bt-cf-cost .lab { min-width: 0; }
+        .bt-cf-cost .k { display: block; font-size: 12.5px; font-weight: 700; color: var(--agent-text-primary); }
+        .bt-cf-cost .s { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.45; color: var(--agent-text-secondary); }
+        .bt-cf-cost .amt { flex-shrink: 0; font-size: 20px; font-weight: 840; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .bt-cf-cost .amt small { -webkit-text-fill-color: var(--agent-text-secondary); color: var(--agent-text-secondary); font-size: 11.5px; font-weight: 700; }
+        .bt-cf-actions { display: flex; gap: 10px; margin-top: 18px; }
         @keyframes bt-cf-fade { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes bt-cf-rise { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes bt-cf-rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @media (prefers-reduced-motion: reduce) { .bt-cf-overlay, .bt-cf { animation: none; } }
       `}</style>
     </div>
