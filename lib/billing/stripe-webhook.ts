@@ -48,6 +48,10 @@ export type ProcessResult =
 export async function processStripeEvent(event: StripeWebhookEvent): Promise<ProcessResult> {
   switch (event.type) {
     case "invoice.payment_succeeded":
+    // Newer Stripe API versions emit invoice.paid (rather than
+    // invoice.payment_succeeded) for a paid subscription invoice. Treat both the
+    // same — the object shape we read (id + customer) is identical.
+    case "invoice.paid":
       return handleInvoicePaymentSucceeded(event);
     case "invoice.payment_failed":
       return handleInvoicePaymentFailed(event);
