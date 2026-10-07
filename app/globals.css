@@ -1883,9 +1883,8 @@ select {
 /* Compound selector so it beats .agent-modal's own max-width: 480px. */
 .agent-modal.welcome-card { width: 900px; max-width: calc(100vw - 280px); }
 .welcome-col { position: relative; z-index: 1; max-width: 470px; padding: 40px 48px; display: flex; flex-direction: column; }
-@media (min-width: 768px) {
-  .welcome-shell { padding-left: 232px; padding-top: 44px; }
-}
+/* The welcome modal sits ABOVE the nav (z-index 1000) and its blur covers the
+   whole viewport, so the card centres over everything (no sidebar/top-bar inset). */
 @media (max-width: 767px) {
   .agent-modal.welcome-card { width: fit-content; max-width: calc(100vw - 32px); }
   .welcome-bg, .welcome-gradient { display: none; }
@@ -1905,20 +1904,11 @@ select {
 }
 .welcome-backdrop { position: fixed; inset: 0; }
 
-/* While the welcome modal is open, the full-screen dim sits behind everything.
-   The nav bars are lifted above it and made opaque (theme surface) with their
-   blur off, so the dim can't wash them and there's no seam anywhere — they read
-   exactly as normal, just sitting cleanly in front. */
-html.welcome-modal-open [data-glass-id="nav-topbar"],
-html.welcome-modal-open [data-glass-id="nav-sidebar"] {
-  background: var(--agent-surface-elevated) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
-html.welcome-modal-open [data-glass-id="nav-sidebar"] {
-  position: relative;
-  z-index: 60;
-}
+/* The welcome overlay (z-index 1000) now sits ABOVE the nav, so its dim + blur
+   fall over the sidebar and top bar too and the modal is truly front and centre.
+   The nav keeps its normal glass and is blurred behind the overlay like the rest
+   of the page (no lift, no opaque swap). The welcome-modal-open class remains on
+   <html> but no longer re-styles the nav. */
 
 /* ─── Explore-a-demo modal ─────────────────────────────────────────────────── */
 /* Mobile full-screen pop-up slide (desktop keeps agent-modal-in / welcome-zoom-out). */

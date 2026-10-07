@@ -132,7 +132,7 @@ export function SelfManagedWelcomeModal({
     <div
       className="pw-overlay"
       style={{
-        position: "fixed", inset: 0, zIndex: 50,
+        position: "fixed", inset: 0, zIndex: 1000,
         ["--agent-backdrop-bg" as string]: "rgba(0, 0, 0, 0.55)",
       } as React.CSSProperties}
       onClick={close}

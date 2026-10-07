@@ -72,7 +72,7 @@ export function WelcomeModal({
       data-theme={theme}
       className={showTour ? undefined : "welcome-shell"}
       style={{
-        position: "fixed", inset: 0, zIndex: 50,
+        position: "fixed", inset: 0, zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center",
         // Override the shared backdrop tint for the welcome moment only —
         // the page should feel paused, not just dimmed. Other modals keep
