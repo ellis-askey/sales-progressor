@@ -24,7 +24,10 @@ export default async function BusinessBillingPage() {
   if (!owner) notFound();
 
   const s = await getBusinessBillingSummary(owner.businessId);
-  const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  // monthStart is the UTC instant for midnight-on-the-1st in London, which is
+  // the previous calendar day in UTC during BST — so render the label in London
+  // time or it reads a month early (e.g. "September" on 1–25 October).
+  const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
   const collecting = progressionBillingCollectEnabled();
   const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
 

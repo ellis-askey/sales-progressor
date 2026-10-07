@@ -88,8 +88,10 @@ export async function buildBusinessClientInvoice(
   const vatActive = business.vatRegisteredAt != null && (business.vatRateBps ?? 0) > 0;
   const vatPence = vatActive ? Math.round(subtotal * (business.vatRateBps! / 10000)) : 0;
 
-  const monthLabel = start.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const ref = `${start.toLocaleDateString("en-GB", { month: "short", year: "numeric" }).replace(" ", "-").toUpperCase()}`;
+  // Render in London time: `start` is midnight-on-the-1st London as a UTC
+  // instant, which is the prior day in UTC during BST (would read a month early).
+  const monthLabel = start.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
+  const ref = `${start.toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "Europe/London" }).replace(" ", "-").toUpperCase()}`;
   return {
     ok: true,
     input: {
