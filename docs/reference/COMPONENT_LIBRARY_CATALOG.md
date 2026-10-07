@@ -50,6 +50,14 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Used by:** ChainDeclineBanner, DirectorJoinedBanner, ExchangeBanner, OnHoldBanner, RelistBanner (the 5 known consumers).
 - **Status:** **canonical, under-adopted.** The 12 bespoke banners listed below in §2.3 should migrate to wrap this primitive.
 
+### 1.1b `SettingsNote` ✓ canonical (new 2026-10-07)
+
+- **Purpose:** the calm, inset sibling of `AgentBanner`/`Banner`. Inline notice for settings/account pages, where the glass `Banner` (built to float over the transaction photo backdrop) is too loud. Four tones + neutral; tone is carried **only** by the icon colour (semantic `--agent-*` tokens), coral deliberately excluded.
+- **Treatment:** "Frost" — reuses the `--agent-banner-mat-*` material tokens (dark mode already handled), flattened to 14px radius / lighter chrome to sit among settings cards. Server-safe (ssr icons, no client hooks; `action` is a slot).
+- **API:** `tone?: "info" | "success" | "warning" | "danger" | "neutral"` · `title: string` · `body?: ReactNode` · `icon?: ReactNode` · `action?: ReactNode`.
+- **Used by:** `settings/billing` (first adopter, 2026-10-07).
+- **Status:** **canonical, under-adopted.** The ~23 ad-hoc settings/account notices audited 2026-10-07 (three stray blues, coral-as-info, Tailwind `red-50`/`emerald-50`/`amber-50` islands, the ×5 duplicated amber validation box, literal "i" glyphs) should migrate to this one at a time (Law 16). The glass `Banner` stays for the transaction surfaces it was designed for.
+
 ### 1.2 `Avatar` ✓ canonical
 
 - **Purpose:** initials-in-a-circle avatar with optional photo. Sized variants.

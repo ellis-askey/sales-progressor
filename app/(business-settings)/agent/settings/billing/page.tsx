@@ -16,6 +16,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
 import { BusinessCardCapture } from "@/components/progression/BusinessCardCapture";
+import { SettingsNote } from "@/components/ui/SettingsNote";
 
 export default async function BusinessBillingPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -40,18 +41,20 @@ export default async function BusinessBillingPage() {
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {/* Not-live notice */}
-        <div style={{
-          display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 16px", borderRadius: 13,
-          background: "rgba(37,99,235,0.06)", border: "0.5px solid rgba(37,99,235,0.2)",
-        }}>
-          <span aria-hidden style={{ color: "var(--agent-info, #2563eb)", flexShrink: 0, marginTop: 1, fontWeight: 800 }}>i</span>
-          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>
-            {collecting
-              ? <>Your plan is live. We charge the card on file each month for your subscription and the sales you add.</>
-              : <>This is what your plan works out to. <strong>We&rsquo;re not taking any payment yet.</strong> We&rsquo;ll let you know and ask for a card before billing goes live.</>}
-          </p>
-        </div>
+        {/* Billing-status notice — first adopter of the SettingsNote family. */}
+        {collecting ? (
+          <SettingsNote
+            tone="success"
+            title="Your plan is live"
+            body="We charge the card on file each month for your subscription and the sales you add."
+          />
+        ) : (
+          <SettingsNote
+            tone="info"
+            title="We're not taking any payment yet"
+            body="This is what your plan works out to. We'll let you know and ask for a card before billing goes live."
+          />
+        )}
 
         <AccountCard
           icon={<Receipt size={18} weight="bold" />}
