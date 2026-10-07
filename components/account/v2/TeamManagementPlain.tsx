@@ -116,6 +116,8 @@ export function TeamManagementPlain({
       setTeam((prev) => prev.filter((m) => m.id !== id));
       toast.info(`${memberName} removed from team`);
       await loadTeam(); // pick up the new entry in the removed list
+    } else {
+      toast.error("Couldn't remove them. Try again.");
     }
   }
 

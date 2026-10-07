@@ -251,7 +251,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
             setStatus("saved");
           }}
           onSaving={() => setStatus("saving")}
-          onError={setError}
+          onError={(msg) => { setError(msg); if (msg) setStatus("idle"); }}
         />
       ) : (
         <div>
