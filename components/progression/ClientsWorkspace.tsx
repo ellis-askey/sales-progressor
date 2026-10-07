@@ -238,6 +238,9 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-rows { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
         .cw-row {
           display: flex; align-items: center; gap: 15px; padding: 14px 16px; border-radius: 16px;
+          /* overflow:hidden clips the backdrop-filter to the rounded corners — without
+             it, iOS Safari renders the frosted-glass blur as a square behind the card. */
+          overflow: hidden;
           border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5));
           -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); text-decoration: none;
           transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s, border-color .2s;
@@ -254,7 +257,9 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
           text-decoration: none; transition: border-color .16s ease, color .16s ease;
         }
         .cw-rowadd:hover, .cw-rowadd:focus-visible { border-color: var(--agent-coral); color: var(--agent-coral-deep); outline: none; }
-        @media (max-width: 760px) { .cw-rowadd-l { display: none; } }
+        /* Hide the whole "+ Add sale" button on mobile (not just its label) — it
+           squeezed the row; the client is one tap away and has add-sale inside. */
+        @media (max-width: 760px) { .cw-rowadd { display: none; } }
         .cw-logo { width: 52px; height: 52px; border-radius: 14px; overflow: hidden; flex-shrink: 0; border: 0.5px solid var(--agent-border-subtle); display: grid; place-items: center; }
         .cw-logo img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 6px; box-sizing: border-box; }
         .cw-main { min-width: 0; flex: 1; }

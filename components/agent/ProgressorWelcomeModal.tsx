@@ -83,6 +83,12 @@ export function ProgressorWelcomeModal({
     return () => window.removeEventListener("resize", measure);
   }, [step]);
 
+  // Reset scroll to the top on every step change — on mobile you scroll down to
+  // reach the button, so without this the next step opens mid-content (#review).
+  useEffect(() => {
+    if (cardRef.current) cardRef.current.scrollTop = 0;
+  }, [step]);
+
   useEffect(() => {
     setMounted(true);
     markProgressorWelcomeSeenAction().catch(() => {});
