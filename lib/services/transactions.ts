@@ -373,7 +373,7 @@ export async function getTransaction(id: string, agencyId: string) {
       // Pass 3b — createdAt added so file-detail surfaces (calculateProgress,
       // computeEffectiveStartDate) can anchor "weeks elapsed" / "off track"
       // on the active sale's start, not the file's. Mirrors the list-view
-      // fix in listTransactions / listTransactionsByScope.
+      // fix in listTransactions.
       activeBuyerRound: { select: { id: true, roundNumber: true, status: true, createdAt: true } },
       buyerRounds: {
         select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
@@ -408,7 +408,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       // Pass 3b — createdAt added so file-detail surfaces (calculateProgress,
       // computeEffectiveStartDate) can anchor "weeks elapsed" / "off track"
       // on the active sale's start, not the file's. Mirrors the list-view
-      // fix in listTransactions / listTransactionsByScope.
+      // fix in listTransactions.
       activeBuyerRound: { select: { id: true, roundNumber: true, status: true, createdAt: true } },
       buyerRounds: {
         select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
@@ -452,150 +452,6 @@ export async function countTransactionsByStatus(
     result[c.status as keyof typeof result] = c._count;
   });
   return result;
-}
-
-export async function listTransactionsByScope(scope: AccessScope) {
-  // DEAD CODE (audit SP-polish, verified 2026-10-05): no callers anywhere in the repo.
-  // Left intact and compiling rather than risk a ~160-line delete in this core file;
-  // physical removal is scheduled as a dedicated cleanup (deferred D4). Do NOT wire
-  // this to a business viewer — it returns raw agency fee fields with no business
-  // branching (use listTransactions, which does).
-  const now = new Date();
-  const totalMilestones = await prisma.milestoneDefinition.count({ where: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } } }); // exclude retired enquiry steps
-  const base = scopeTransactionWhere(scope);
-  // Non-agency (internal) scope sees outsourced files only, matching every
-  // other internal tab (see listTransactions).
-  const whereClause: Record<string, unknown> =
-    scope.kind === "agency"
-      ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
-      : { ...base, serviceType: "outsourced", status: { not: "draft" } };
-
-  // Phase-3: same two-step round-id pre-load + OR scoping as listTransactions.
-  const activeRoundIds = await loadActiveRoundIds(whereClause);
-
-  const transactions = await prisma.propertyTransaction.findMany({
-    where: whereClause,
-    orderBy: { createdAt: "desc" },
-    include: {
-      assignedUser: { select: { id: true, name: true, image: true } },
-      agentUser: { select: { id: true, name: true, role: true, image: true } },
-      contacts: {
-        where: { OR: contactRoundScopedOR(activeRoundIds) },
-        select: { id: true, name: true, roleType: true },
-      },
-      milestoneCompletions: {
-        where: { state: "complete", OR: roundScopedOR(activeRoundIds) },
-        orderBy: { completedAt: "desc" },
-        take: 1,
-        select: { completedAt: true },
-      },
-      _count: {
-        select: {
-          milestoneCompletions: { where: { state: "complete", milestoneDefinition: { code: { notIn: [...RETIRED_ENQUIRY_CODES] } }, OR: roundScopedOR(activeRoundIds) } },
-        },
-      },
-      chaseTasks: {
-        where: { status: "pending", OR: roundScopedOR(activeRoundIds) },
-        select: {
-          id: true,
-          dueDate: true,
-          priority: true,
-          reminderLog: { select: { reminderRule: { select: { name: true, targetMilestoneCode: true } } } },
-        },
-        orderBy: { dueDate: "asc" },
-        take: 5,
-      },
-      holdPeriods: { select: { startedAt: true, endedAt: true } },
-      // Pass 3 B3: anchor elapsed-time on the active round (see listTransactions).
-      activeBuyerRound: { select: { createdAt: true } },
-    },
-  });
-
-  // Last contact per channel for the list's "Recent" column (see listTransactions).
-  const commTxIds = transactions.map((t) => t.id);
-  const commAgg = commTxIds.length
-    ? await prisma.outboundMessage.groupBy({
-        by: ["transactionId", "method"],
-        where: {
-          transactionId: { in: commTxIds },
-          method: { in: ["email", "whatsapp", "phone", "voicemail"] },
-          OR: roundScopedOR(activeRoundIds),
-        },
-        _max: { createdAt: true },
-      })
-    : [];
-  const channelLastByTx = new Map<string, { email: Date | null; whatsapp: Date | null; call: Date | null }>();
-  for (const g of commAgg) {
-    const at = g._max.createdAt;
-    if (!at || !g.transactionId) continue;
-    const e = channelLastByTx.get(g.transactionId) ?? { email: null, whatsapp: null, call: null };
-    if (g.method === "email") { if (!e.email || at > e.email) e.email = at; }
-    else if (g.method === "whatsapp") { if (!e.whatsapp || at > e.whatsapp) e.whatsapp = at; }
-    else if (g.method === "phone" || g.method === "voicemail") { if (!e.call || at > e.call) e.call = at; }
-    channelLastByTx.set(g.transactionId, e);
-  }
-
-  return transactions.map((tx) => {
-    const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
-    const escalatedTasks = overdueTasks.filter((t) => t.priority === "escalated");
-    const nextTask = tx.chaseTasks[0];
-    const lastMilestoneAt = tx.milestoneCompletions[0]?.completedAt ?? null;
-
-    const nextActionLabel = nextTask
-      ? nextTask.reminderLog.reminderRule.name
-      : null;
-
-    // Frozen while on hold (see listTransactions for context).
-    const daysStuckOnMilestone = lastMilestoneAt && tx.status !== "on_hold"
-      ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
-      : null;
-
-    const completedCount = tx._count.milestoneCompletions;
-    // Active-only elapsed: hold periods are subtracted so the on-track
-    // signal doesn't drift while the file is paused. Pass 3 B3: anchored
-    // on activeBuyerRound.createdAt when present (relist resets the clock).
-    const elapsedAnchor = tx.activeBuyerRound?.createdAt ?? tx.createdAt;
-    const daysElapsed = activeElapsedMs(new Date(elapsedAnchor), {
-      status: tx.status,
-      holdPeriods: tx.holdPeriods,
-    }) / 86400000;
-    const weeksElapsed = daysElapsed / 7;
-    const actualPercent = Math.min(100, (completedCount / totalMilestones) * 100);
-    const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
-    const diff = actualPercent - expectedPercent;
-    // on_hold short-circuit: time isn't ticking so at_risk/off_track signal
-    // isn't meaningful. UI renders a neutral "On hold" pill instead.
-    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold" =
-      tx.status === "on_hold" ? "on_hold" :
-      completedCount === 0 ? "unknown" :
-      diff >= -10 ? "on_track" :
-      diff >= -25 ? "at_risk" :
-      "off_track";
-
-    const { chaseTasks: _c, _count: _cnt, agentFeeAmount, agentFeePercent, referralFee, ...rest } = tx;
-    return {
-      ...rest,
-      agentFeeAmount: agentFeeAmount != null ? Number(agentFeeAmount) : null,
-      agentFeePercent: agentFeePercent != null ? Number(agentFeePercent) : null,
-      referralFee: referralFee != null ? Number(referralFee) : null,
-      health: {
-        pendingOverdueTasks: overdueTasks.length,
-        escalatedTasks: escalatedTasks.length,
-        lastActivityAt: tx.lastActivityAt,
-        nextActionLabel,
-        nextMilestoneLabel: null as string | null,
-        daysStuckOnMilestone,
-        onTrack,
-        channelLast: channelLastByTx.get(tx.id) ?? { email: null, whatsapp: null, call: null },
-        // Critique #15: parked on the deposit (next chase targets PM24).
-        awaitingDeposit: nextTask?.reminderLog.reminderRule.targetMilestoneCode === "PM24",
-        inChain: tx.chainLinkId != null,
-        // Exchanged files have crossed the finish line — the risk pill shows a
-        // calm "Exchanged" instead of a pace score (critique 2026-10-02).
-        exchanged: tx.exchangedAt != null,
-      },
-    };
-  });
 }
 
 export async function countTransactionsByScope(scope: AccessScope) {
