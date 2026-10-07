@@ -371,10 +371,9 @@ export function EmailBrandingStudio({
               ? <button type="button" className="eb-back" onClick={() => setStep((s) => s - 1)}>← Back</button>
               : <span />}
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {step === STEPS.length - 1 && !dirty && savingState === "saved" && <span className="eb-saved">Saved</span>}
-              {step < STEPS.length - 1
-                ? <button type="button" className="eb-next" onClick={() => setStep((s) => s + 1)}>Next: {STEPS[step + 1].title} <span className="arr">→</span></button>
-                : <button type="button" className="eb-save2" onClick={onSave} disabled={!dirty || savingState === "saving"}>{savingState === "saving" ? "Saving…" : "Save changes"}</button>}
+              {!dirty && savingState === "saved" && <span className="eb-saved">Saved</span>}
+              {step < STEPS.length - 1 && <button type="button" className="eb-next" onClick={() => setStep((s) => s + 1)}>Next: {STEPS[step + 1].title} <span className="arr">→</span></button>}
+              {(dirty || step === STEPS.length - 1) && <button type="button" className="eb-save2" onClick={onSave} disabled={!dirty || savingState === "saving"}>{savingState === "saving" ? "Saving…" : "Save changes"}</button>}
             </div>
           </div>
         </div>

@@ -169,7 +169,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
     if (!resolved || !resolved.exists || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      await fetch(`${base}/reset`, {
+      const res = await fetch(`${base}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -179,7 +179,12 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
           purchaseType: resolved.matchedMethod ?? "any",
         }),
       });
-      await load();
+      if (res.ok) {
+        await load();
+        toast.success("Reset to the Sales Progressor version.");
+      } else {
+        toast.error("Couldn't reset. Try again.");
+      }
     } finally {
       setResetting(false);
     }

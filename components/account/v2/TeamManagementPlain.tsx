@@ -68,6 +68,7 @@ export function TeamManagementPlain({
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [managing, setManaging] = useState<TeamMember | null>(null);
+  const [savingAccessId, setSavingAccessId] = useState<string | null>(null);
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
@@ -88,24 +89,30 @@ export function TeamManagementPlain({
   }, [loadTeam]);
 
   async function toggleViewAll(member: TeamMember) {
-    const res = await fetch(`/api/agent/team/${member.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canViewAllFiles: !member.canViewAllFiles }),
-    });
-    if (res.ok) {
-      setTeam((prev) =>
-        prev.map((m) =>
-          m.id === member.id ? { ...m, canViewAllFiles: !m.canViewAllFiles } : m,
-        ),
-      );
-      toast.success(
-        !member.canViewAllFiles
-          ? `${member.name} can now see all files`
-          : `${member.name} can now see only their files`,
-      );
-    } else {
-      toast.error("Couldn't update access. Try again.");
+    if (savingAccessId) return;
+    setSavingAccessId(member.id);
+    try {
+      const res = await fetch(`/api/agent/team/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canViewAllFiles: !member.canViewAllFiles }),
+      });
+      if (res.ok) {
+        setTeam((prev) =>
+          prev.map((m) =>
+            m.id === member.id ? { ...m, canViewAllFiles: !m.canViewAllFiles } : m,
+          ),
+        );
+        toast.success(
+          !member.canViewAllFiles
+            ? `${member.name} can now see all files`
+            : `${member.name} can now see only their files`,
+        );
+      } else {
+        toast.error("Couldn't update access. Try again.");
+      }
+    } finally {
+      setSavingAccessId(null);
     }
   }
 
@@ -228,6 +235,7 @@ export function TeamManagementPlain({
         negotiators={negotiators}
         currentUserId={currentUserId}
         onToggleViewAll={toggleViewAll}
+        savingAccessId={savingAccessId}
         onRemove={removeMember}
         onManage={(m) => setManaging(m)}
         pendingInvitations={pending}

@@ -335,11 +335,13 @@ function CustomSignatureEditor({
   }
 
   async function changeSource(next: SignatureSource) {
+    const prev = source;
     setSource(next);
     onSaving();
     onError("");
     const res = await applySignatureSourceAction(next);
     if (!res.ok) {
+      setSource(prev);
       onError(res.error);
       return;
     }

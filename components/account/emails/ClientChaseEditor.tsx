@@ -99,12 +99,17 @@ export function ClientChaseEditor() {
     if (!resolved || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      await fetch("/api/agent/email-templates/reset", {
+      const res = await fetch("/api/agent/email-templates/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey: "client_chase", variant: "default" }),
       });
-      await load();
+      if (res.ok) {
+        await load();
+        toast.success("Reset to the Sales Progressor version.");
+      } else {
+        toast.error("Couldn't reset. Try again.");
+      }
     } finally {
       setResetting(false);
     }

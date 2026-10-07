@@ -38,6 +38,7 @@ type Props = {
   negotiators: TeamMember[];
   currentUserId?: string;
   onToggleViewAll?: (member: TeamMember) => void;
+  savingAccessId?: string | null;
   onRemove?: (id: string, name: string) => void;
   onManage?: (member: TeamMember) => void;
   onAddClick?: () => void;
@@ -81,12 +82,13 @@ function Badge({ label, tone }: { label: string; tone: "director" | "neutral" })
   );
 }
 
-function FileAccessSelect({ member, onToggle }: { member: TeamMember; onToggle?: (m: TeamMember) => void }) {
+function FileAccessSelect({ member, onToggle, saving }: { member: TeamMember; onToggle?: (m: TeamMember) => void; saving?: boolean }) {
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
       <select
         value={member.canViewAllFiles ? "all" : "own"}
         onChange={() => onToggle?.(member)}
+        disabled={saving}
         aria-label={`File access for ${member.name}`}
         style={{
           appearance: "none",
@@ -99,7 +101,8 @@ function FileAccessSelect({ member, onToggle }: { member: TeamMember; onToggle?:
           background: "#fff",
           border: "0.5px solid rgba(0,0,0,0.16)",
           borderRadius: 8,
-          cursor: "pointer",
+          cursor: saving ? "default" : "pointer",
+          opacity: saving ? 0.6 : 1,
           outline: "none",
         }}
       >
@@ -120,6 +123,7 @@ export function TeamListViewPlain({
   negotiators,
   currentUserId,
   onToggleViewAll,
+  savingAccessId,
   onRemove,
   onManage,
   pendingInvitations = [],
@@ -184,7 +188,7 @@ export function TeamListViewPlain({
               </p>
             </div>
             <Badge label="Negotiator" tone="neutral" />
-            <FileAccessSelect member={m} onToggle={onToggleViewAll} />
+            <FileAccessSelect member={m} onToggle={onToggleViewAll} saving={savingAccessId === m.id} />
             <RowActionsMenu items={actions} />
           </div>
         );
