@@ -22,15 +22,23 @@ export async function POST(_req: NextRequest) {
 
   if (!isStripeConfigured()) return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
 
-  const customerId = await ensureStripeCustomerForBusiness(owner.businessId);
-  if (!customerId) return NextResponse.json({ error: "Could not set up billing" }, { status: 500 });
+  try {
+    const customerId = await ensureStripeCustomerForBusiness(owner.businessId);
+    if (!customerId) return NextResponse.json({ error: "Could not set up billing" }, { status: 500 });
 
-  const stripe = getStripeClient();
-  const setupIntent = await stripe.setupIntents.create({
-    customer: customerId,
-    payment_method_types: ["card"],
-    usage: "off_session", // charged later by the subscription + per-sale items
-  });
+    const stripe = getStripeClient();
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ["card"],
+      usage: "off_session", // charged later by the subscription + per-sale items
+    });
 
-  return NextResponse.json({ clientSecret: setupIntent.client_secret, customerId });
+    return NextResponse.json({ clientSecret: setupIntent.client_secret, customerId });
+  } catch (err) {
+    // Surface the real Stripe error during setup/testing so a failure is
+    // diagnosable (owner-only route).
+    console.error("[business-setup-intent] failed:", err);
+    const msg = err instanceof Error && err.message ? err.message : "Could not set up billing";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
