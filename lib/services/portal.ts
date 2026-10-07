@@ -2531,6 +2531,8 @@ async function sendRichMilestoneEmails(
         address,
         firstName: greetingFirstName(c.name),
         portalUrl,
+        // Who confirmed this step → source-aware digest heading (critique #161).
+        confirmerRoute,
       };
       const delayMs = isExchangeCompletion ? 60 * 1000 : 5 * 60 * 1000;
       enqueueEmail({

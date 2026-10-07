@@ -27,6 +27,7 @@
 import { JOURNEY_ORDER, BILATERAL_PAIR_OF } from "@/lib/email-skeletons/journey-order";
 import { preheader } from "@/lib/email/preheader";
 import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-theme";
+import { type ConfirmerRoute } from "@/lib/email-assembler";
 
 // ─── Digest payload shape ────────────────────────────────────────────────
 //
@@ -49,6 +50,13 @@ export type MilestoneDigestPayload = {
   address: string;                             // property address
   firstName: string;                           // recipient's first name
   portalUrl: string;                           // per-recipient portal link
+
+  // Who confirmed this step — drives the source-aware section heading so the
+  // digest never tells a client they confirmed something we actually ticked for
+  // them (critique #161). "client_portal" = the client did it; "agent"/
+  // "sales_progressor" = we did it on their behalf. Undefined on older/untagged
+  // rows → the heading falls back to the legacy "What you've confirmed today:".
+  confirmerRoute?: ConfirmerRoute;
 
   // Review-tray digest edit (2026-08-11). When the agent edits the merged
   // digest preview for a recipient, the edited subject + body are stamped
@@ -324,6 +332,27 @@ function buildExchangeAndCompletedEmail(args: {
   return { subject, text, html };
 }
 
+// Source-aware section headings (critique #161). "we" = the agency or SP team
+// confirmed on the client's behalf; "you"/"the client" = they confirmed on their
+// own portal. A section's heading is decided from the routes of the steps in it:
+// all-we → a "we confirmed" line, all-client → "you confirmed", mixed or
+// untagged → a neutral line (and the acted default stays the legacy string).
+function isWeRoute(r: ConfirmerRoute | undefined): boolean {
+  return r === "agent" || r === "sales_progressor";
+}
+function actedHeading(routes: Array<ConfirmerRoute | undefined>): string {
+  const tagged = routes.filter((r): r is ConfirmerRoute => !!r);
+  if (tagged.length === 0) return "What you've confirmed today:";          // untagged → legacy default
+  if (tagged.every(isWeRoute)) return "We've confirmed on your behalf today:";
+  if (tagged.every((r) => r === "client_portal")) return "What you've confirmed today:";
+  return "Confirmed today:";                                               // mixed you + we
+}
+function counterpartHeading(routes: Array<ConfirmerRoute | undefined>, otherPoss: string): string {
+  const tagged = routes.filter((r): r is ConfirmerRoute => !!r);
+  if (tagged.length > 0 && tagged.every(isWeRoute)) return `We've confirmed on the ${otherPoss} behalf today:`;
+  return `What's happened on the ${otherPoss} side:`;                      // client / mixed / untagged → neutral
+}
+
 export function assembleMilestoneDigest(
   rows: MilestoneDigestPayload[],
   logoBand = "",
@@ -366,15 +395,22 @@ export function assembleMilestoneDigest(
     rows.map((r) => r.milestoneCode),
     recipientSide,
   );
+  // Who confirmed each step (by code) → drives the source-aware headings below.
+  const routeByCode = new Map(rows.map((r) => [r.milestoneCode, r.confirmerRoute]));
   const actedItems: Array<{ milestoneCode: string; line: string }> = [];
   const counterpartItems: Array<{ milestoneCode: string; line: string }> = [];
+  const actedRoutes: Array<ConfirmerRoute | undefined> = [];
+  const counterpartRoutes: Array<ConfirmerRoute | undefined> = [];
   for (const item of collapsed) {
     const cls = classifyForRecipient(item.milestoneCode, recipientSide);
     const line = getMilestoneDigestLine(item.milestoneCode, recipientSide);
+    const route = routeByCode.get(item.milestoneCode);
     if (cls === "acted") {
       actedItems.push({ milestoneCode: item.milestoneCode, line });
+      actedRoutes.push(route);
     } else {
       counterpartItems.push({ milestoneCode: item.milestoneCode, line });
+      counterpartRoutes.push(route);
     }
   }
   actedItems.sort((a, b) => compareByJourney(a.milestoneCode, b.milestoneCode));
@@ -384,11 +420,11 @@ export function assembleMilestoneDigest(
   const counterpartLabel = recipientSide === "vendor" ? "buyer's" : "seller's";
 
   const acted: DigestSection = {
-    heading: "What you've confirmed today:",
+    heading: actedHeading(actedRoutes),
     items: actedItems,
   };
   const counterpart: DigestSection = {
-    heading: `What's happened on the ${counterpartLabel} side:`,
+    heading: counterpartHeading(counterpartRoutes, counterpartLabel),
     items: counterpartItems,
   };
 

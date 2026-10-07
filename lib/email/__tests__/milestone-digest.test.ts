@@ -510,3 +510,66 @@ describe("getMilestoneDigestLine", () => {
       .toBe("The buyer's survey report is in.");
   });
 });
+
+// ── Source-aware section headings (critique #161) ─────────────────────────
+// The acted + counterpart headings reflect WHO confirmed: the client on their
+// portal ("you") vs the agency / SP team on their behalf ("we").
+
+describe("source-aware headings (#161)", () => {
+  test("acted: all agent/SP confirms → 'We've confirmed on your behalf today:'", () => {
+    const assembled = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM6", recipientSide: "vendor", confirmerRoute: "agent" }),
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor", confirmerRoute: "sales_progressor" }),
+    ]);
+    expect(assembled.acted.heading).toBe("We've confirmed on your behalf today:");
+    expect(assembled.text).toContain("We've confirmed on your behalf today:");
+  });
+
+  test("acted: all client-portal confirms → 'What you've confirmed today:'", () => {
+    const assembled = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM6", recipientSide: "vendor", confirmerRoute: "client_portal" }),
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor", confirmerRoute: "client_portal" }),
+    ]);
+    expect(assembled.acted.heading).toBe("What you've confirmed today:");
+  });
+
+  test("acted: mixed you + we → neutral 'Confirmed today:'", () => {
+    const assembled = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM6", recipientSide: "vendor", confirmerRoute: "client_portal" }),
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor", confirmerRoute: "agent" }),
+    ]);
+    expect(assembled.acted.heading).toBe("Confirmed today:");
+  });
+
+  test("acted: untagged rows keep the legacy heading", () => {
+    const assembled = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM6", recipientSide: "vendor" }),
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor" }),
+    ]);
+    expect(assembled.acted.heading).toBe("What you've confirmed today:");
+  });
+
+  test("counterpart: all agent/SP → 'We've confirmed on the {other} behalf today:'", () => {
+    // Vendor recipient: PM4 is the buyer's (counterpart) step, confirmed by us.
+    const vendor = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor", confirmerRoute: "agent" }),
+      makePayload({ milestoneCode: "PM4", recipientSide: "vendor", confirmerRoute: "agent" }),
+    ]);
+    expect(vendor.counterpart.heading).toBe("We've confirmed on the buyer's behalf today:");
+
+    // Purchaser recipient: VM-side counterpart confirmed by us → seller's behalf.
+    const buyer = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "PM4", recipientSide: "purchaser", confirmerRoute: "agent" }),
+      makePayload({ milestoneCode: "VM4", recipientSide: "purchaser", confirmerRoute: "sales_progressor" }),
+    ]);
+    expect(buyer.counterpart.heading).toBe("We've confirmed on the seller's behalf today:");
+  });
+
+  test("counterpart: client/mixed/untagged → neutral 'What's happened on the {other} side:'", () => {
+    const assembled = assembleMilestoneDigest([
+      makePayload({ milestoneCode: "VM4", recipientSide: "vendor", confirmerRoute: "agent" }),
+      makePayload({ milestoneCode: "PM4", recipientSide: "vendor", confirmerRoute: "client_portal" }),
+    ]);
+    expect(assembled.counterpart.heading).toBe("What's happened on the buyer's side:");
+  });
+});
