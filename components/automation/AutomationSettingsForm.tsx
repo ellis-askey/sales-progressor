@@ -22,6 +22,8 @@ type RuleRow = {
   side: "vendor" | "purchaser";
   graceDays: number;
   repeatEveryDays: number;
+  defaultGraceDays: number;
+  defaultRepeatEveryDays: number;
 };
 
 type Props = {
@@ -32,12 +34,31 @@ type Props = {
 const MIN_GRACE = 1;
 const MIN_REPEAT = 2;
 
+// Timing profiles (#228). Each scales every chase from its own platform default
+// so the varied timings (enquiries wait ~4 weeks, "instruct solicitor" ~2 days)
+// all tighten or loosen together. "Steady" (×1) is the platform default, so it
+// also doubles as reset-to-defaults.
+type PresetKey = "responsive" | "steady" | "gentle" | "custom";
+const PRESETS: { key: Exclude<PresetKey, "custom">; name: string; mult: number; weeks: number; desc: string }[] = [
+  { key: "responsive", name: "Responsive", mult: 0.75, weeks: 11, desc: "Tighter nudges. Hits the window when clients reply on the first chase." },
+  { key: "steady",     name: "Steady",     mult: 1,    weeks: 12, desc: "Balanced for most sales. Assumes about two chases to land each step." },
+  { key: "gentle",     name: "Gentle",     mult: 1.35, weeks: 14, desc: "Fewer, softer nudges. Best for clients who prefer a lighter touch." },
+];
+
+function scale(base: number, mult: number, floor: number): number {
+  return Math.max(floor, Math.round(base * mult));
+}
+
 export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules }: Props) {
   const [chaseEmailsEnabled, setChaseEmailsEnabled] = useState(initialChaseEmailsEnabled);
   const [rules, setRules] = useState<RuleRow[]>(initialRules);
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // On load: all rules at their platform default → "Steady"; any override → "Custom".
+  const allAtDefault = (rs: RuleRow[]) =>
+    rs.every((r) => r.graceDays === r.defaultGraceDays && r.repeatEveryDays === r.defaultRepeatEveryDays);
+  const [preset, setPreset] = useState<PresetKey>(allAtDefault(initialRules) ? "steady" : "custom");
   // Baseline = the last saved state. Dirty-tracking against it lets us disable
   // Save when nothing has changed and drop the "Saved at" note the moment the
   // user starts editing again (so the label never lies).
@@ -49,6 +70,17 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
 
   function updateRule(idx: number, patch: Partial<RuleRow>) {
     setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+    setPreset("custom"); // a manual edit means the timings no longer match a profile
+  }
+
+  // Apply a profile: scale every chase from its own platform default.
+  function applyPreset(key: Exclude<PresetKey, "custom">, mult: number) {
+    setRules((prev) => prev.map((r) => ({
+      ...r,
+      graceDays: scale(r.defaultGraceDays, mult, MIN_GRACE),
+      repeatEveryDays: scale(r.defaultRepeatEveryDays, mult, MIN_REPEAT),
+    })));
+    setPreset(key);
   }
 
   function handleSubmit() {
@@ -114,12 +146,81 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         </div>
       </section>
 
-      {/* Per-milestone timing */}
+      {/* Timing profile (presets) */}
       <section>
         <h3 className="text-base font-semibold text-[var(--agent-text-primary,#1A1D29)] mb-1">
-          Per-milestone chase timing
+          Timing profile
         </h3>
+        <p className="text-sm mb-3 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
+          Each profile scales every chase below to reach exchange within a target window.
+          Pick one, or edit any chase and it becomes Custom.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {PRESETS.map((p) => {
+            const on = preset === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => applyPreset(p.key, p.mult)}
+                className="text-left glass-card rounded-[12px] p-3.5 transition-all"
+                style={{
+                  boxShadow: on ? "0 0 0 1px #FF6B4A inset, 0 6px 18px rgba(255,107,74,0.14)" : undefined,
+                  borderColor: on ? "#FF6B4A" : undefined,
+                }}
+                aria-pressed={on}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-[var(--agent-text-primary,#1A1D29)]">{p.name}</span>
+                  {on
+                    ? <span className="text-[#E8502E] text-xs font-bold">✓</span>
+                    : p.key === "steady" ? <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Default</span> : null}
+                </div>
+                <div className="mt-1.5 text-lg font-bold tracking-tight text-[#E8502E] tabular-nums">≈ {p.weeks} wks</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">to exchange</div>
+                <p className="mt-2 text-[11px] leading-snug text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">{p.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2.5 text-xs text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
+          {preset === "custom"
+            ? <><span className="font-semibold text-[#E8502E]">Custom</span> timings. Pick a profile above to refill from a preset.</>
+            : <>Using the <span className="font-semibold">{PRESETS.find((p) => p.key === preset)?.name}</span> profile. Edit any chase below to switch to Custom.</>}
+        </p>
+      </section>
+
+      {/* Auto-emails nudge */}
+      <a
+        href="/agent/automated-emails"
+        className="flex items-center gap-3 rounded-[12px] p-3.5 no-underline"
+        style={{ background: "rgba(61,122,184,0.07)", border: "0.5px solid rgba(61,122,184,0.22)" }}
+      >
+        <span className="flex-none grid place-items-center w-[30px] h-[30px] rounded-[9px]" style={{ background: "rgba(61,122,184,0.14)", color: "#3D7AB8" }} aria-hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
+        </span>
+        <span className="flex-1 min-w-0 text-[12.5px] leading-snug text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
+          This page sets <b className="text-[var(--agent-text-primary,#1A1D29)]">how often</b> we chase. To choose <b className="text-[var(--agent-text-primary,#1A1D29)]">which</b> emails actually send, head to Auto emails.
+        </span>
+        <span className="flex-none text-[12.5px] font-semibold whitespace-nowrap" style={{ color: "#3D7AB8" }}>Go to Auto emails →</span>
+      </a>
+
+      {/* Per-milestone timing */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3 mb-1">
+          <h3 className="text-base font-semibold text-[var(--agent-text-primary,#1A1D29)]">
+            Every automatic chase
+          </h3>
+          <button
+            type="button"
+            onClick={() => applyPreset("steady", 1)}
+            className="text-xs font-semibold underline underline-offset-2 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))] hover:text-[#E8502E]"
+          >
+            Reset to our defaults
+          </button>
+        </div>
         <p className="text-sm mb-4 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
+          Each waits the grace days, nudges again every repeat gap, then escalates to you.
           Changes apply to new files only. Files already in flight keep their original schedule.
         </p>
 

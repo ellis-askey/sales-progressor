@@ -78,6 +78,10 @@ export default async function AutomationSettingsPage() {
         orderIndex: def?.orderIndex ?? 9999,
         graceDays: ov?.graceDays ?? r.graceDays,
         repeatEveryDays: ov?.repeatEveryDays ?? r.repeatEveryDays,
+        // The platform default (before this agency's override) — the baseline the
+        // timing-profile presets scale from, and what "Reset to defaults" restores.
+        defaultGraceDays: r.graceDays,
+        defaultRepeatEveryDays: r.repeatEveryDays,
       };
     })
     // Vendor first, then purchaser; within each side, follow the milestone
