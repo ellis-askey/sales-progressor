@@ -52,6 +52,21 @@ export type ChainNodeIntelInput = {
   chainNotes: string | null;
 };
 
+// The "side" a chain-node chase-log note belongs to — the privacy scope for both
+// the drawer chase log and the Check-ins tab. NON-NULL for everyone, so the
+// filter never collapses to "show nothing":
+//   - an agency by its id        → `agency:<id>`
+//   - a progression business      → `business:<id>`
+//   - the internal TSP team (agencyId AND businessId both null) → `tsp-internal`,
+//     one shared side so the whole internal team sees each other's working notes.
+// Used symmetrically: tag the entry on write, match the viewer on read. (#chain-checkins)
+export function noteSideKey(v: { agencyId: string | null; businessId?: string | null; scope: AccessScope }): string {
+  if (v.agencyId) return `agency:${v.agencyId}`;
+  if (v.businessId) return `business:${v.businessId}`;
+  if (v.scope.kind === "business") return `business:${v.scope.businessId}`;
+  return "tsp-internal";
+}
+
 export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
   // TSP internal team (platform-wide "all" or "assigned" scope) see the intel on
   // any chain they can already access. Distinguished by SCOPE, not role, so an

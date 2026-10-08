@@ -5,6 +5,7 @@ import { getAccessScope, scopeOwnershipWhere, scopeTransactionWhere } from "@/li
 import { prisma } from "@/lib/prisma";
 import {
   canEditNodeIntel,
+  noteSideKey,
   type IntelViewer,
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
@@ -123,7 +124,7 @@ export async function addChainEntryAction(
   if (!link) throw new Error("Chain link not found");
 
   const scope = getAccessScope(session);
-  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, scope };
+  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, businessId: session.user.progressionBusinessId ?? null, scope };
   const ownSide = canEditNodeIntel(viewer, {
     transactionId: link.transactionId,
     linkCreatedByUserId: link.createdByUserId,
@@ -151,6 +152,7 @@ export async function addChainEntryAction(
       body: text,
       authorId: session.user.id,
       authorName: session.user.name ?? null,
+      authorSideKey: noteSideKey(viewer),
       authorAgencyId: session.user.agencyId ?? null,
       authorBusinessId: session.user.progressionBusinessId ?? null,
     },

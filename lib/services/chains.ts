@@ -18,6 +18,7 @@ import { titleCaseKeepAcronyms } from "@/lib/utils";
 import {
   canViewNodeIntel,
   canEditNodeIntel,
+  noteSideKey,
   type IntelViewer,
   type ChainNodeOwnership,
 } from "@/lib/chain/intel";
@@ -365,7 +366,7 @@ const LINK_V2_SELECT = {
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
     orderBy: { createdAt: "desc" as const },
-    select: { id: true, body: true, authorName: true, authorId: true, authorAgencyId: true, authorBusinessId: true, createdAt: true },
+    select: { id: true, body: true, authorName: true, authorId: true, authorSideKey: true, authorAgencyId: true, authorBusinessId: true, createdAt: true },
   },
   transaction: {
     select: {
@@ -572,9 +573,7 @@ export async function getChainV2(
   // The viewer's private chase-log "side key" — their agency, else their business
   // (#chain-checkins). A tagged entry is only ever shown to its own side; a note
   // you log on a neighbour's node never reaches them, and theirs never reaches you.
-  const viewerSideKey: string | null = viewer
-    ? (viewer.agencyId ?? viewer.businessId ?? (viewer.scope.kind === "business" ? viewer.scope.businessId : null))
-    : null;
+  const viewerSideKey: string | null = viewer ? noteSideKey(viewer) : null;
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -790,7 +789,9 @@ export async function getChainV2(
       // shared node); a legacy untagged entry falls back to the own-side gate.
       const entries: ChainLinkEntryView[] = (rawEntries ?? [])
         .filter((e) => {
-          const key = e.authorAgencyId ?? e.authorBusinessId ?? null;
+          // Prefer the canonical side key; fall back to the raw tags, then to the
+          // own-side gate for any truly-untagged legacy row.
+          const key = e.authorSideKey ?? e.authorAgencyId ?? e.authorBusinessId ?? null;
           return key != null ? key === viewerSideKey : intelVisible;
         })
         .map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null, createdAt: e.createdAt }));
@@ -2097,7 +2098,7 @@ export type CheckInRow = {
 // as a "who do I chase next" list, sorted least-recently-touched first. Reuses
 // the listChainsForScope pattern (our chained files → their chains → that
 // chain's links) then keeps only the links that aren't ours.
-export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: string | null): Promise<CheckInRow[]> {
+export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: string): Promise<CheckInRow[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
     select: { id: true, chainLink: { select: { chainId: true } } },
@@ -2130,10 +2131,11 @@ export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: st
               milestoneCompletions: { select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } } },
             },
           },
-          // Our OWN side's latest chase-log entry (private to us). Null side-key
-          // (legacy) rows are excluded — they belong to the owner, not us.
+          // Our OWN side's latest chase-log entry (private to us), matched on the
+          // canonical non-null side key. viewerSideKey is always set here (the page
+          // resolves it via noteSideKey, incl. "tsp-internal" for internal staff).
           entries: {
-            where: viewerSideKey ? { OR: [{ authorAgencyId: viewerSideKey }, { authorBusinessId: viewerSideKey }] } : { id: "__none__" },
+            where: { authorSideKey: viewerSideKey },
             orderBy: { createdAt: "desc" },
             take: 1,
             select: { body: true, createdAt: true },

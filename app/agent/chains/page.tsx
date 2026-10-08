@@ -4,6 +4,7 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope, listCheckInsForScope } from "@/lib/services/chains";
 import { listExchangePushForScope } from "@/lib/services/exchange-push";
 import { canSeeChains } from "@/lib/chain/chains-access";
+import { noteSideKey } from "@/lib/chain/intel";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { isExternalProgressorViewer, isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -39,7 +40,7 @@ export default async function AgentChainsPage() {
   const [chains, noChain, checkIns, exchangePush] = await Promise.all([
     listChainsForScope(scope),
     listNoChainSalesForScope(scope),
-    listCheckInsForScope(scope, session.user.agencyId ?? session.user.progressionBusinessId ?? null),
+    listCheckInsForScope(scope, noteSideKey({ agencyId: session.user.agencyId ?? null, businessId: session.user.progressionBusinessId ?? null, scope })),
     listExchangePushForScope(scope),
   ]);
 

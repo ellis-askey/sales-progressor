@@ -2794,10 +2794,12 @@ model ChainLinkEntry {
   authorId    String? // internal/agency user who wrote it (id, no FK — standalone)
   authorName  String? // display name captured at write time
   // Which side wrote it — the privacy scope. An entry is only ever visible to its
-  // own side: an agency by authorAgencyId, a progression business (incl. TSP) by
-  // authorBusinessId. On a chain-neighbour node you can log your own chase notes
-  // and they stay private to you; the neighbour never sees them, and you never see
-  // theirs. Both null = a legacy entry (shown to the node's owning side only).
+  // own side. authorSideKey is the canonical, NON-NULL tag (noteSideKey in
+  // lib/chain/intel.ts): `agency:<id>`, `business:<id>`, or `tsp-internal` for the
+  // shared internal team. On a chain-neighbour node you can log your own chase
+  // notes and they stay private to you; the neighbour never sees them, and you
+  // never see theirs. (authorAgencyId/authorBusinessId are retained raw metadata.)
+  authorSideKey    String?
   authorAgencyId   String?
   authorBusinessId String?
   createdAt   DateTime @default(now())
