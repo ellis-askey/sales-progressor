@@ -1263,7 +1263,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 <button type="button" onClick={() => setCardOpen(true)} style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: "var(--agent-info, #3D7AB8)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>Add card</button>
               </div>
             )}
-            {!clientAgencyId && (
+            {/* Client — a select when chosen in-flow; a read-only row when the
+                sale was launched from a specific client (clientAgencyId in the
+                URL). Always shown so the card never renders empty and the agency
+                stays visible. */}
+            {!clientAgencyId ? (
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
                 <select
@@ -1277,6 +1281,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   ))}
                 </select>
               </label>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
+                <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderRadius: 10, background: "var(--nv2-surface-raised)", border: "1px solid var(--nv2-border-medium)", fontSize: 13.5, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
+                  {selectedClient?.name ?? "This client"}
+                </div>
+              </div>
             )}
             {progressorFeeMissing && (
               <div style={{ margin: 0, padding: "12px 14px", borderRadius: 10, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1293,7 +1304,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 )}
               </div>
             )}
-            {businessMembers.length > 1 && (
+            {/* Who's progressing it — a picker when the business has more than one
+                member; otherwise a read-only row naming the sole progressor, so the
+                card always shows who the file is assigned to. */}
+            {businessMembers.length > 1 ? (
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
                 <select
@@ -1306,6 +1320,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   ))}
                 </select>
               </label>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
+                <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderRadius: 10, background: "var(--nv2-surface-raised)", border: "1px solid var(--nv2-border-medium)", fontSize: 13.5, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
+                  {businessMembers[0]
+                    ? (businessMembers[0].id === currentUserId ? `${businessMembers[0].name} (you)` : businessMembers[0].name)
+                    : "You"}
+                </div>
+              </div>
             )}
           </div>
         )}
