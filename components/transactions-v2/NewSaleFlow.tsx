@@ -1122,7 +1122,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // A sale can't be created for a client with no fee set — the fee shows on the
   // agent's own file, so it must never be empty/wrong (fees-accuracy fix).
   const selectedClient = clientAgencies.find((a) => a.id === effectiveClientAgencyId);
-  const selectedClientFeeSet = clientAgencyId ? progressorFeeModel != null : (selectedClient?.feeSet ?? false);
+  // Read the fee from the SELECTED CLIENT's own saved rate (feeSet) — including the
+  // pre-set path (opened from a client row / the client's Sales tab). The earlier
+  // `clientAgencyId ? progressorFeeModel` branch broke a business OWNER: an owner has
+  // no agency of their own, so progressorFeeModel (the invited-agency rate card) is
+  // always null, which falsely read as "fee missing" even after they set one. Fall
+  // back to progressorFeeModel only when the client isn't in our own book.
+  const selectedClientFeeSet = selectedClient?.feeSet ?? (progressorFeeModel != null);
   const progressorFeeMissing = isProgressorCreate && !!effectiveClientAgencyId && !selectedClientFeeSet;
   const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
 
@@ -1238,11 +1244,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               </label>
             )}
             {progressorFeeMissing && (
-              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
-                Set your fee for {selectedClient?.name ?? "this client"} before adding a sale.
-                {effectiveClientAgencyId && <a href={`/agent/clients/${effectiveClientAgencyId}`} className="agent-link" style={{ fontWeight: 600 }}>Set fee →</a>}
-              </p>
+              <div style={{ margin: 0, padding: "12px 14px", borderRadius: 10, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-warning)" }}>
+                  Set a fee for {selectedClient?.name ?? "this client"} first
+                </span>
+                <span style={{ fontSize: 12.5, color: "var(--nv2-text-secondary)", lineHeight: 1.5 }}>
+                  You need a fee set for this client before you can add a sale for them. It takes a few seconds on their page, then come back here.
+                </span>
+                {effectiveClientAgencyId && (
+                  <a href={`/agent/clients/${effectiveClientAgencyId}`} className="agent-link" style={{ fontWeight: 700, fontSize: 12.5 }}>
+                    Set fee for {selectedClient?.name ?? "this client"} →
+                  </a>
+                )}
+              </div>
             )}
             {businessMembers.length > 1 && (
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
