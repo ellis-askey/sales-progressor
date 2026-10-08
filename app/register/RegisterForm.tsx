@@ -409,32 +409,57 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                     {([
                       { value: "director" as const, label: "Director", sub: "Manage your agency, view all sales and oversee your team." },
                       { value: "negotiator" as const, label: "Negotiator", sub: "View your sales and request support from your sales progressor." },
-                    ] as const).map(({ value, label, sub }) => (
+                    ] as const).map(({ value, label, sub }) => {
+                      const on = role === value;
+                      return (
+                      // Selected card reuses the claim-flow sale-type "glossy-solid"
+                      // treatment (.claim-choice-card.on): solid coral gradient, top
+                      // sheen, lift shadow, white label + tick. Unselected unchanged.
                       <label key={value} style={{
+                        position: "relative",
                         display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
                         borderRadius: "10px", cursor: "pointer",
-                        border: `1.5px solid ${role === value ? "#FF6B4A" : "rgba(32,36,46,0.12)"}`,
-                        background: role === value ? "rgba(255,107,74,0.08)" : "#F4F4F6",
+                        border: `1.5px solid ${on ? "transparent" : "rgba(32,36,46,0.12)"}`,
+                        background: on
+                          ? "linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%)"
+                          : "#F4F4F6",
+                        boxShadow: on
+                          ? "0 10px 24px rgba(255,107,74,0.40), inset 0 1px 0 rgba(255,255,255,0.40)"
+                          : "none",
                         transition: "all 0.15s ease",
                       }}>
                         <div style={{ position: "relative", marginTop: "2px", flexShrink: 0 }}>
-                          <input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                          <input type="radio" name="role" value={value} checked={on} onChange={() => setRole(value)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
                           <div style={{
                             width: "16px", height: "16px", borderRadius: "50%",
-                            border: `2px solid ${role === value ? "#FF6B4A" : "rgba(32,36,46,0.30)"}`,
-                            background: role === value ? "#FF6B4A" : "rgba(255,255,255,0.50)",
+                            border: `2px solid ${on ? "#ffffff" : "rgba(32,36,46,0.30)"}`,
+                            background: on ? "#ffffff" : "rgba(255,255,255,0.50)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             transition: "all 0.15s ease",
                           }}>
-                            {role === value && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "white" }} />}
+                            {on && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#C7401F" }} />}
                           </div>
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#20242E" }}>{label}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(32,36,46,0.55)", lineHeight: 1.4 }}>{sub}</p>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: on ? "#ffffff" : "#20242E" }}>{label}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: on ? "rgba(255,255,255,0.82)" : "rgba(32,36,46,0.55)", lineHeight: 1.4 }}>{sub}</p>
                         </div>
+                        {on && (
+                          <span style={{
+                            position: "absolute", top: "10px", right: "10px",
+                            width: "18px", height: "18px", borderRadius: "50%",
+                            background: "#ffffff", color: "#C7401F",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                          }}>
+                            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 )}
