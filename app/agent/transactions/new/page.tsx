@@ -6,6 +6,8 @@ import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
+import { businessBillingActive } from "@/lib/progression/business-stripe";
+import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -56,6 +58,13 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   if (isProgressorCreate && progressorClientAgencies.length === 0) {
     redirect(businessMember!.isOwner ? "/agent/clients" : "/agent/hub");
   }
+
+  // Billing card gate for a progression business: once collection is live and the
+  // business has no card on file, the new-sale form opens the add-a-card modal
+  // before creating (matches the per-client Sales tab). billingActive defaults true
+  // for non-business users so they are never gated here.
+  const businessBillingCollecting = isProgressorCreate && progressionBillingCollectEnabled();
+  const businessBillingIsActive = businessMember ? await businessBillingActive(businessMember.businessId) : true;
 
   // Pricing migration (2026-08): there is no trial gate any more. Self-progress
   // is free, so a self-progressing agency is never blocked from adding a sale.
@@ -296,6 +305,9 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           isProgressorCreate={isProgressorCreate}
           clientAgencies={progressorClientAgencies}
           businessMembers={progressorMembers}
+          collecting={businessBillingCollecting}
+          billingActive={businessBillingIsActive}
+          publishableKey={process.env.STRIPE_PUBLISHABLE_KEY ?? ""}
         />
       </div>
     </>

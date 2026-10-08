@@ -490,11 +490,12 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
             // end, so they always keep the CTA.
             if (isBusinessMember && !showClientsNav && !businessMemberHasClients) return null;
             const isNewSale = pathname.startsWith("/agent/transactions/new");
-            // A progression-business owner creates every sale against a client,
-            // so their "New sale" starts on the Clients screen (pick the agent,
-            // then "Add sale") rather than the blank form, which has no agency
-            // to hang a progressor's sale on. showClientsNav = flag + owner.
-            const newSaleHref = showClientsNav ? "/agent/clients" : "/agent/transactions/new";
+            // Everyone (incl. a progression-business owner) goes straight to the
+            // new-sale form. The form now carries the "which client is this sale
+            // for?" picker, so a progressor no longer needs to start on the Clients
+            // screen; an owner with no clients yet is still redirected there by the
+            // form's own server guard.
+            const newSaleHref = "/agent/transactions/new";
             return (
               <Link
                 href={newSaleHref}

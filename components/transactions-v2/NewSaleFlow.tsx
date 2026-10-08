@@ -32,6 +32,7 @@ import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
+import { AddCardGateModal } from "@/components/progression/AddCardGateModal";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
 import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
@@ -354,11 +355,17 @@ type Props = {
   isProgressorCreate?: boolean;
   clientAgencies?: Array<{ id: string; name: string; feeSet: boolean }>;
   businessMembers?: Array<{ id: string; name: string }>;
+  // Billing card gate for a progression business. Once collection is live and the
+  // business has no card on file, adding a sale opens the add-a-card modal first
+  // (mirrors the per-client Sales tab), instead of failing on submit.
+  collecting?: boolean;
+  billingActive?: boolean;
+  publishableKey?: string;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [] }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], collecting = false, billingActive = true, publishableKey = "" }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -378,6 +385,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // dropdown. `effectiveClientAgencyId` is what the submit sends.
   const [selectedClientAgencyId, setSelectedClientAgencyId] = useState<string>(clientAgencyId ?? "");
   const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
+
+  // Billing card gate: a progression business can't add a sale until it has a card
+  // on file (once collection is live). Clicking "Add this sale" opens the add-a-card
+  // modal first, matching the per-client Sales tab, rather than failing on submit.
+  const [cardOpen, setCardOpen] = useState(false);
+  const needsCard = isProgressorCreate && collecting && !billingActive;
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
   const [solFillingVendor, setSolFillingVendor] = useState(false);
@@ -895,6 +908,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   async function handleSubmit(forceCreate = false) {
     setOutsourcedError(null);
 
+    // Card gate: a progression business with no card on file can't add a sale yet.
+    // Open the add-a-card modal instead of submitting (the server also enforces this
+    // as BillingSetupRequiredError, but we surface the card step here, not an error).
+    if (needsCard) {
+      setCardOpen(true);
+      return;
+    }
+
     if (!formFields.tenure || !formFields.purchaseType) {
       setStage1Expanded(true);
       toast.error(
@@ -1130,7 +1151,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // back to progressorFeeModel only when the client isn't in our own book.
   const selectedClientFeeSet = selectedClient?.feeSet ?? (progressorFeeModel != null);
   const progressorFeeMissing = isProgressorCreate && !!effectiveClientAgencyId && !selectedClientFeeSet;
-  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
+  // When a card is still needed, the button stays enabled so it can open the
+  // add-a-card modal (handleSubmit intercepts before any create), regardless of the
+  // other readiness checks.
+  const isSubmitDisabled = needsCard
+    ? false
+    : isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1228,6 +1254,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       <div className="chain-submit-wrap" style={{ marginTop: 20 }}>
         {isProgressorCreate && (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            {needsCard && (
+              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderRadius: 11, background: "rgba(61,122,184,0.09)", border: "1px solid rgba(61,122,184,0.28)" }}>
+                <span aria-hidden style={{ flexShrink: 0, width: 18, height: 18, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, color: "#fff", background: "var(--agent-info, #3D7AB8)" }}>i</span>
+                <span style={{ fontSize: 12.5, color: "var(--nv2-text-secondary)", lineHeight: 1.5 }}>
+                  <b style={{ color: "var(--nv2-text-primary)", fontWeight: 650 }}>Add a card to start adding sales.</b> You&rsquo;ll set up billing in one step. We&rsquo;ll only charge once it&rsquo;s on file.
+                </span>
+                <button type="button" onClick={() => setCardOpen(true)} style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: "var(--agent-info, #3D7AB8)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>Add card</button>
+              </div>
+            )}
             {!clientAgencyId && (
               <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
@@ -1291,10 +1326,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         <SubmitButton
           isSubmitting={isSubmitting}
           isDisabled={isSubmitDisabled}
-          buttonText={submitButtonText}
+          buttonText={needsCard ? "Add a card to continue" : submitButtonText}
           onClick={() => handleSubmit()}
         />
         <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
+        {cardOpen && (
+          <AddCardGateModal publishableKey={publishableKey} onClose={() => { setCardOpen(false); router.refresh(); }} />
+        )}
       </div>
     </>
   );
