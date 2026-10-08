@@ -365,7 +365,7 @@ const LINK_V2_SELECT = {
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
     orderBy: { createdAt: "desc" as const },
-    select: { id: true, body: true, authorName: true, authorId: true, createdAt: true },
+    select: { id: true, body: true, authorName: true, authorId: true, authorAgencyId: true, authorBusinessId: true, createdAt: true },
   },
   transaction: {
     select: {
@@ -569,6 +569,12 @@ export async function getChainV2(
   viewerUserId?: string,
   viewer?: IntelViewer,
 ): Promise<ChainV2 | null> {
+  // The viewer's private chase-log "side key" — their agency, else their business
+  // (#chain-checkins). A tagged entry is only ever shown to its own side; a note
+  // you log on a neighbour's node never reaches them, and theirs never reaches you.
+  const viewerSideKey: string | null = viewer
+    ? (viewer.agencyId ?? viewer.businessId ?? (viewer.scope.kind === "business" ? viewer.scope.businessId : null))
+    : null;
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -779,10 +785,15 @@ export async function getChainV2(
             lastChainCheckAt: lastChainCheckAt ?? null,
           }
         : null;
-      // Chase-log entries — same own-side gate as intel; [] for another agency.
-      const entries: ChainLinkEntryView[] = intelVisible
-        ? (rawEntries ?? []).map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null, createdAt: e.createdAt }))
-        : [];
+      // Chase-log entries are PRIVATE to the side that wrote them: a tagged entry
+      // shows only to its own side (your notes to you, theirs to them — even on a
+      // shared node); a legacy untagged entry falls back to the own-side gate.
+      const entries: ChainLinkEntryView[] = (rawEntries ?? [])
+        .filter((e) => {
+          const key = e.authorAgencyId ?? e.authorBusinessId ?? null;
+          return key != null ? key === viewerSideKey : intelVisible;
+        })
+        .map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null, createdAt: e.createdAt }));
       // Private stub contact + notes: same trust tier as intel (owning agency +
       // internal staff only). Re-added to the wire only when visible; null for
       // every other agency. Nulling has no visible status effect — an uninvited
@@ -2067,18 +2078,18 @@ export async function listChainsForScope(scope: AccessScope): Promise<ChainsWork
 // another agent's file. Drives the chase-prioritisation list. (critique 2026-10-02)
 export type CheckInRow = {
   linkId: string;
-  transactionId: string;
+  transactionId: string | null;   // the neighbour's claimed file; null for a stub
+  ourTransactionId: string | null; // our own file in this chain — the log's context
   address: string;
-  agentName: string | null; // the agent to chase (the claiming agent)
+  agentName: string | null; // the agent to chase (claiming agent, else the stub agent)
   firmName: string | null;
-  progressPercent: number | null; // cross-agency-safe (same as the ring)
-  // C: the sale's real last-activity date. Only populated for internal TSP
-  // viewers (scope all/assigned), who sit outside the agency privacy wall and
-  // see every file. Null for a customer agency — they can't see across it.
-  lastActivityAt: string | null; // ISO
-  // A: when WE last chased this neighbour's agent — a non-private working stamp,
-  // the privacy-safe staleness signal every viewer gets.
-  lastChasedAt: string | null; // ISO
+  claimed: boolean;
+  progressPercent: number | null; // claimed + cross-agency-safe; null for a stub
+  photoUrl: string | null;        // signed node photo (claimed file, else stub photo)
+  // Our OWN side's latest chase-log entry on this node — the "Last update …" line.
+  // Private to us (never the neighbour). Null = we've not logged anything yet.
+  lastUpdateAt: string | null;   // ISO
+  lastUpdateBody: string | null;
   chainName: string | null;
 };
 
@@ -2086,38 +2097,46 @@ export type CheckInRow = {
 // as a "who do I chase next" list, sorted least-recently-touched first. Reuses
 // the listChainsForScope pattern (our chained files → their chains → that
 // chain's links) then keeps only the links that aren't ours.
-export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInRow[]> {
+export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: string | null): Promise<CheckInRow[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
     select: { id: true, chainLink: { select: { chainId: true } } },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));
-  const chainIds = [...new Set(ourTxns.map((t) => t.chainLink?.chainId).filter((x): x is string => !!x))];
+  // Our own file in each chain — the context the chase-log entry mirrors onto.
+  const ourTxByChain = new Map<string, string>();
+  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, t.id);
+  const chainIds = [...ourTxByChain.keys()];
   if (chainIds.length === 0) return [];
-  // Internal staff see across the agency wall (canViewNodeIntel). Customer
-  // agencies do not, so they never get another agency's real last-activity.
-  const seeAllActivity = scope.kind === "all" || scope.kind === "assigned";
 
   const chains = await prisma.propertyChain.findMany({
     where: { id: { in: chainIds } },
     select: {
+      id: true,
       name: true,
+      // EVERY node, claimed or stub — our whole "who's in my chains" working list.
       links: {
-        where: { transactionId: { not: null } },
         select: {
           id: true,
           transactionId: true,
-          lastAgentChasedAt: true,
+          stubPropertyAddress: true,
+          stubAgentName: true,
+          stubAgencyName: true,
+          stubPhotoStoragePath: true,
           claimedBy: { select: { name: true, firmName: true } },
           transaction: {
             select: {
-              id: true,
-              propertyAddress: true,
-              lastActivityAt: true,
-              milestoneCompletions: {
-                select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } },
-              },
+              id: true, propertyAddress: true, photoStoragePath: true,
+              milestoneCompletions: { select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } } },
             },
+          },
+          // Our OWN side's latest chase-log entry (private to us). Null side-key
+          // (legacy) rows are excluded — they belong to the owner, not us.
+          entries: {
+            where: viewerSideKey ? { OR: [{ authorAgencyId: viewerSideKey }, { authorBusinessId: viewerSideKey }] } : { id: "__none__" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { body: true, createdAt: true },
           },
         },
       },
@@ -2125,30 +2144,48 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
   });
 
   const rows: CheckInRow[] = [];
+  const photoPaths: string[] = [];
   for (const chain of chains) {
+    const ourTxId = ourTxByChain.get(chain.id) ?? null;
     for (const l of chain.links) {
-      if (!l.transactionId || ourTxIds.has(l.transactionId) || !l.transaction) continue; // only others' claimed links
+      // Exclude our own nodes; everything else (neighbours + stubs) is a check-in.
+      if (l.transactionId && ourTxIds.has(l.transactionId)) continue;
+      const claimed = !!l.transactionId && !!l.transaction;
+      const address = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Address not shared";
+      const photoPath = l.transaction?.photoStoragePath ?? l.stubPhotoStoragePath ?? null;
+      if (photoPath) photoPaths.push(photoPath);
+      const latest = l.entries[0] ?? null;
       rows.push({
         linkId: l.id,
-        transactionId: l.transactionId,
-        address: l.transaction.propertyAddress,
-        agentName: l.claimedBy?.name ?? null,
-        firmName: l.claimedBy?.firmName ?? null,
-        progressPercent: computeWeightedProgress(l.transaction.milestoneCompletions),
-        lastActivityAt: seeAllActivity ? (l.transaction.lastActivityAt?.toISOString() ?? null) : null,
-        lastChasedAt: l.lastAgentChasedAt?.toISOString() ?? null,
+        transactionId: l.transactionId ?? null,
+        ourTransactionId: ourTxId,
+        address,
+        agentName: l.claimedBy?.name ?? l.stubAgentName ?? null,
+        firmName: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
+        claimed,
+        progressPercent: claimed && l.transaction ? computeWeightedProgress(l.transaction.milestoneCompletions) : null,
+        photoUrl: photoPath, // swapped for a signed URL below
+        lastUpdateAt: latest?.createdAt.toISOString() ?? null,
+        lastUpdateBody: latest?.body ?? null,
         chainName: chain.name,
       });
     }
   }
 
-  // Least-recently-touched first. Staleness = the real last-activity (internal)
-  // or, failing that, when we last chased them. A sale neither touched nor
-  // chased sorts to the very top — quietest/longest unchased. ISO strings
-  // compare chronologically.
-  const touch = (r: CheckInRow) => r.lastActivityAt ?? r.lastChasedAt;
+  // Sign the node photos in one round trip.
+  if (photoPaths.length) {
+    const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+    const map = await getSignedUrlMap([...new Set(photoPaths)]);
+    for (const r of rows) r.photoUrl = r.photoUrl ? map.get(r.photoUrl) ?? null : null;
+  } else {
+    for (const r of rows) r.photoUrl = null;
+  }
+
+  // Least-recently-updated first (our own last chase-log entry). A node we've
+  // never logged sorts to the very top — the quietest, longest-unchased. ISO
+  // strings compare chronologically; nulls float to the top.
   rows.sort((a, b) => {
-    const ka = touch(a), kb = touch(b);
+    const ka = a.lastUpdateAt, kb = b.lastUpdateAt;
     if (!ka && !kb) return 0;
     if (!ka) return -1;
     if (!kb) return 1;

@@ -19,6 +19,9 @@ export type IntelViewer = {
   userId: string;
   role: string | null;
   agencyId: string | null;
+  // The viewer's progression business (internal/business users). With agencyId
+  // this gives the viewer's "side key" for the private chase-log filter (#chain-checkins).
+  businessId?: string | null;
   scope: AccessScope;
 };
 

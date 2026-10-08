@@ -2793,6 +2793,13 @@ model ChainLinkEntry {
   body        String   @db.Text // what the agent did/found, their own words
   authorId    String? // internal/agency user who wrote it (id, no FK — standalone)
   authorName  String? // display name captured at write time
+  // Which side wrote it — the privacy scope. An entry is only ever visible to its
+  // own side: an agency by authorAgencyId, a progression business (incl. TSP) by
+  // authorBusinessId. On a chain-neighbour node you can log your own chase notes
+  // and they stay private to you; the neighbour never sees them, and you never see
+  // theirs. Both null = a legacy entry (shown to the node's owning side only).
+  authorAgencyId   String?
+  authorBusinessId String?
   createdAt   DateTime @default(now())
 
   chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)

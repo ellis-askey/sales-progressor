@@ -1,7 +1,7 @@
 "use server";
 
 import { requireSession } from "@/lib/session";
-import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { getAccessScope, scopeOwnershipWhere, scopeTransactionWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import {
   canEditNodeIntel,
@@ -108,7 +108,38 @@ export async function addChainEntryAction(
   contextTransactionId?: string,
 ): Promise<{ id: string; body: string; authorName: string | null; createdAt: string }> {
   const session = await requireSession();
-  const link = await requireChainNodeEdit(session, linkId);
+
+  // Access: you can log on a node you OWN (own-side), or on a NEIGHBOUR node in a
+  // chain you're part of. Either way the entry is tagged to your side and stays
+  // private to you — the neighbour never sees it, you never see theirs (#chain-checkins).
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: {
+      id: true, chainId: true, transactionId: true, createdByUserId: true,
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
+    },
+  });
+  if (!link) throw new Error("Chain link not found");
+
+  const scope = getAccessScope(session);
+  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, scope };
+  const ownSide = canEditNodeIntel(viewer, {
+    transactionId: link.transactionId,
+    linkCreatedByUserId: link.createdByUserId,
+    linkCreatedByAgencyId: link.createdBy?.agencyId ?? null,
+    txAgencyId: link.transaction?.agencyId ?? null,
+    txAssignedUserId: link.transaction?.assignedUserId ?? null,
+    txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
+  });
+  if (!ownSide) {
+    const inChain = await prisma.propertyTransaction.findFirst({
+      where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+      select: { id: true },
+    });
+    if (!inChain) throw new Error("You don't have permission to log on this chain node.");
+  }
 
   const text = body.trim();
   if (!text) throw new Error("Entry can't be empty.");
@@ -120,23 +151,24 @@ export async function addChainEntryAction(
       body: text,
       authorId: session.user.id,
       authorName: session.user.name ?? null,
+      authorAgencyId: session.user.agencyId ?? null,
+      authorBusinessId: session.user.progressionBusinessId ?? null,
     },
     select: { id: true, body: true, authorName: true, createdAt: true },
   });
 
   // Mirror onto the working file's Activity tab (own-side, never client-visible).
-  // Prefer the context file the user is viewing (access-checked); fall back to
-  // the node's own claimed file only when no context is supplied.
+  // Prefer the access-checked context file; fall back to the node's own file only
+  // when WE own it — never write our note onto a neighbour's file.
   let activityTxId: string | null = null;
   if (contextTransactionId) {
-    const scope = getAccessScope(session);
     const ctx = await prisma.propertyTransaction.findFirst({
       where: scopeOwnershipWhere(scope, contextTransactionId),
       select: { id: true },
     });
     if (ctx) activityTxId = ctx.id;
   }
-  if (!activityTxId) activityTxId = link.transactionId;
+  if (!activityTxId && ownSide) activityTxId = link.transactionId;
 
   if (activityTxId) {
     const preview = text.length > 140 ? `${text.slice(0, 140)}…` : text;

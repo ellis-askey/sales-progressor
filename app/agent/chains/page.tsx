@@ -39,7 +39,7 @@ export default async function AgentChainsPage() {
   const [chains, noChain, checkIns, exchangePush] = await Promise.all([
     listChainsForScope(scope),
     listNoChainSalesForScope(scope),
-    listCheckInsForScope(scope),
+    listCheckInsForScope(scope, session.user.agencyId ?? session.user.progressionBusinessId ?? null),
     listExchangePushForScope(scope),
   ]);
 
