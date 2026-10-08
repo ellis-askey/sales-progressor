@@ -9,6 +9,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
+import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { getAgencyLogoUrl, getAvatarPublicUrl } from "@/lib/supabase-storage";
@@ -174,13 +175,21 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
   }
 
   // Reuses the canonical agency+director creator (atomic). No password → the
-  // director is pending until they set one.
-  const { userId, agencyId } = await createDirectorWithAgency({
-    name: input.agentName.trim(),
-    email,
-    role: "director",
-    agencyName: input.agencyName.trim(),
-  });
+  // director is pending until they set one. A reserved / already-taken agency name
+  // surfaces as a friendly result rather than an unhandled throw.
+  let userId: string;
+  let agencyId: string;
+  try {
+    ({ userId, agencyId } = await createDirectorWithAgency({
+      name: input.agentName.trim(),
+      email,
+      role: "director",
+      agencyName: input.agencyName.trim(),
+    }));
+  } catch (e) {
+    if (e instanceof CompanyNameUnavailableError) return { ok: false, error: e.message };
+    throw e;
+  }
 
   await prisma.progressionBusinessClient.create({
     data: {

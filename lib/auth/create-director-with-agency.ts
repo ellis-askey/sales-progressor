@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
 import { recordEvent } from "@/lib/command/events/write";
 import type { SignupAttribution } from "@/lib/analytics/attribution";
+import { assertCompanyNameAvailable } from "@/lib/auth/company-name";
 
 interface CreateDirectorWithAgencyInput {
   userId?: string;       // if provided, updates existing user (OAuth path)
@@ -35,6 +36,11 @@ export async function createDirectorWithAgency(
   input: CreateDirectorWithAgencyInput
 ): Promise<CreateDirectorWithAgencyResult> {
   const result = await prisma.$transaction(async (tx) => {
+    // Block a name that duplicates our brand or another agency / progression
+    // business before minting the row (throws CompanyNameUnavailableError, surfaced
+    // on the signup form).
+    await assertCompanyNameAvailable(tx, input.agencyName, "agency");
+
     const a = input.attribution;
     const agency = await tx.agency.create({
       data: {

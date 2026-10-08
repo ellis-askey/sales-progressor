@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
+import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { sendWelcomeEmailIfNotSent, sendProgressionWelcomeIfNotSent } from "@/lib/emails/send-welcome";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
@@ -110,6 +111,10 @@ export async function completeOAuthSignup(formData: FormData): Promise<
     void sendWelcomeEmailIfNotSent(session.user.id);
     return { ok: true };
   } catch (e) {
+    // Reserved brand / already-taken company name — surfaced inline on the form.
+    if (e instanceof CompanyNameUnavailableError) {
+      return { ok: false, error: e.message };
+    }
     console.error("completeOAuthSignup error:", e);
     return { ok: false, error: "Something went wrong. Please try again." };
   }

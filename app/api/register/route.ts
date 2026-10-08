@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
+import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveSignupDestination } from "@/lib/auth/signup-destination";
 import { createJoinRequest } from "@/lib/services/agency-join-requests";
@@ -168,6 +169,10 @@ export async function POST(req: NextRequest) {
     res.cookies.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 }); // consumed — clear it
     return res;
   } catch (e: unknown) {
+    // Reserved brand / already-taken company name — surfaced inline on the form.
+    if (e instanceof CompanyNameUnavailableError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     // Prisma unique constraint on email — race between two simultaneous signups
     if (
       typeof e === "object" && e !== null &&

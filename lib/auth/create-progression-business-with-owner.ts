@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { UserRole, ProgressionBusinessRole } from "@prisma/client";
+import { assertCompanyNameAvailable } from "@/lib/auth/company-name";
 
 interface CreateProgressionBusinessWithOwnerInput {
   userId?: string;       // if provided, updates existing user (OAuth path)
@@ -39,6 +40,11 @@ export async function createProgressionBusinessWithOwner(
   input: CreateProgressionBusinessWithOwnerInput
 ): Promise<CreateProgressionBusinessWithOwnerResult> {
   return prisma.$transaction(async (tx) => {
+    // Block a name that duplicates our brand or another agency / progression
+    // business before minting the row (throws CompanyNameUnavailableError, surfaced
+    // on the signup form).
+    await assertCompanyNameAvailable(tx, input.businessName, "business");
+
     const business = await tx.progressionBusiness.create({
       data: { name: input.businessName, isTsp: false },
       select: { id: true },
