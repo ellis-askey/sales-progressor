@@ -300,6 +300,7 @@ export function PortalBrokerCard({
 
   return (
     <>
+      <style>{`.broker-dismiss{color:${P.textMuted};transition:color 130ms ease;}.broker-dismiss:hover,.broker-dismiss:focus-visible{color:${P.textPrimary};}`}</style>
       <PortalGlassCard
         glassId="portal-broker"
         label="Portal · Broker"
@@ -312,20 +313,20 @@ export function PortalBrokerCard({
         className="pbtn pbtn-press"
         style={{ position: "relative", padding: "22px 24px", cursor: "pointer", textAlign: "left" }}
       >
-        {/* Dismiss */}
+        {/* Dismiss — plain icon tucked into the corner, no chip; darkens on hover (broker-dismiss). */}
         <button
           type="button"
           aria-label="Dismiss"
           onClick={(e) => { e.stopPropagation(); dismiss(); }}
-          className="pbtn pbtn-press"
+          className="broker-dismiss"
           style={{
-            position: "absolute", top: 16, right: 16,
-            width: 34, height: 34, borderRadius: "50%",
+            position: "absolute", top: 10, right: 10,
+            width: 26, height: 26, borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: P.textMuted, background: "rgba(15,23,42,0.05)", border: "none", cursor: "pointer",
+            background: "none", border: "none", cursor: "pointer", padding: 0,
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
@@ -344,7 +345,7 @@ export function PortalBrokerCard({
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: "0 0 6px", fontSize: 19, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+            <p style={{ margin: "0 0 6px", paddingRight: 18, fontSize: 19, fontWeight: 800, color: P.textPrimary, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
               {copy.title}
             </p>
 
@@ -360,10 +361,12 @@ export function PortalBrokerCard({
               </div>
             )}
 
-            {/* Tagline + CTA */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 15, color: P.textMuted }}>{copy.tagline}</span>
-              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 15, fontWeight: 700, color: P.accent, whiteSpace: "nowrap" }}>
+            {/* Tagline — full width across */}
+            <p style={{ margin: 0, fontSize: 15, color: P.textMuted, lineHeight: 1.4 }}>{copy.tagline}</p>
+
+            {/* CTA — its own row, bottom-right under the tagline */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 15, fontWeight: 700, color: P.accent, whiteSpace: "nowrap" }}>
                 {copy.cta}
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M13 6l6 6-6 6" />
