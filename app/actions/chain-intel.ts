@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import {
   canEditNodeIntel,
   noteSideKey,
+  agencySideKey,
   type IntelViewer,
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
@@ -146,13 +147,32 @@ export async function addChainEntryAction(
   if (!text) throw new Error("Entry can't be empty.");
   if (text.length > 4000) throw new Error("That entry is too long.");
 
+  // The file whose chain is open (contextTransactionId) is the note's TEAM
+  // context: its owning agency is the side key, so the agency and its progressor
+  // share one log on an outsourced file. Access-checked, so a caller can't claim a
+  // context file they don't own.
+  let contextTx: { id: string; agencyId: string } | null = null;
+  if (contextTransactionId) {
+    contextTx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, contextTransactionId),
+      select: { id: true, agencyId: true },
+    });
+  }
+  // Side key: the context file's agency; else (own-side log straight on a node we
+  // own) that node's agency; else the author's identity as a last resort.
+  const sideKey = contextTx
+    ? agencySideKey(contextTx.agencyId)
+    : ownSide && link.transaction?.agencyId
+      ? agencySideKey(link.transaction.agencyId)
+      : noteSideKey(viewer);
+
   const entry = await prisma.chainLinkEntry.create({
     data: {
       chainLinkId: linkId,
       body: text,
       authorId: session.user.id,
       authorName: session.user.name ?? null,
-      authorSideKey: noteSideKey(viewer),
+      authorSideKey: sideKey,
       authorAgencyId: session.user.agencyId ?? null,
       authorBusinessId: session.user.progressionBusinessId ?? null,
     },
@@ -162,14 +182,7 @@ export async function addChainEntryAction(
   // Mirror onto the working file's Activity tab (own-side, never client-visible).
   // Prefer the access-checked context file; fall back to the node's own file only
   // when WE own it — never write our note onto a neighbour's file.
-  let activityTxId: string | null = null;
-  if (contextTransactionId) {
-    const ctx = await prisma.propertyTransaction.findFirst({
-      where: scopeOwnershipWhere(scope, contextTransactionId),
-      select: { id: true },
-    });
-    if (ctx) activityTxId = ctx.id;
-  }
+  let activityTxId: string | null = contextTx?.id ?? null;
   if (!activityTxId && ownSide) activityTxId = link.transactionId;
 
   if (activityTxId) {

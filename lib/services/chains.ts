@@ -19,6 +19,7 @@ import {
   canViewNodeIntel,
   canEditNodeIntel,
   noteSideKey,
+  agencySideKey,
   type IntelViewer,
   type ChainNodeOwnership,
 } from "@/lib/chain/intel";
@@ -571,9 +572,6 @@ export async function getChainV2(
   viewer?: IntelViewer,
 ): Promise<ChainV2 | null> {
   // The viewer's private chase-log "side key" — their agency, else their business
-  // (#chain-checkins). A tagged entry is only ever shown to its own side; a note
-  // you log on a neighbour's node never reaches them, and theirs never reaches you.
-  const viewerSideKey: string | null = viewer ? noteSideKey(viewer) : null;
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -590,6 +588,25 @@ export async function getChainV2(
     },
   });
   if (!chain) return null;
+
+  // The viewer's TEAM-side key for the private chase log: the owning agency of
+  // THEIR OWN file in this chain. Everyone on that file (the owning agency's staff
+  // + its progressor — TSP or an external business) resolves to the same key, so
+  // they share one notes log; a neighbour agency gets its own and stays separate.
+  // Falls back to the viewer's identity key if they have no claimed file here.
+  // (#chain-checkins, shared-on-outsourced)
+  let viewerSideKey: string | null = null;
+  if (viewer) {
+    const ownLink = chain.links.find((l) => {
+      const tx = l.transaction;
+      if (!tx) return false;
+      if (viewer.scope.kind === "all") return tx.progressionBusinessId == null; // TSP's own files
+      if (viewer.scope.kind === "assigned") return tx.assignedUserId === viewer.userId;
+      if (viewer.scope.kind === "business") return tx.progressionBusinessId === viewer.scope.businessId;
+      return !!viewer.agencyId && tx.agencyId === viewer.agencyId; // agency staff
+    });
+    viewerSideKey = ownLink?.transaction?.agencyId ? agencySideKey(ownLink.transaction.agencyId) : noteSideKey(viewer);
+  }
 
   // Closed-loop chain arc (2026-06-05): detect "this chain used to be
   // bigger" by looking for ChainLink rows stamped with detachedFromChainId
@@ -2098,15 +2115,18 @@ export type CheckInRow = {
 // as a "who do I chase next" list, sorted least-recently-touched first. Reuses
 // the listChainsForScope pattern (our chained files → their chains → that
 // chain's links) then keeps only the links that aren't ours.
-export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: string): Promise<CheckInRow[]> {
+export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInRow[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
-    select: { id: true, chainLink: { select: { chainId: true } } },
+    select: { id: true, agencyId: true, chainLink: { select: { chainId: true } } },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));
-  // Our own file in each chain — the context the chase-log entry mirrors onto.
-  const ourTxByChain = new Map<string, string>();
-  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, t.id);
+  // Our own file in each chain, with its OWNING AGENCY. That agency is this chain's
+  // team-side key: the notes we see are the ones logged by our team (us + whoever
+  // progresses the file), keyed on this agency. On an outsourced file, the agency
+  // and its progressor share — they resolve to the same key. (#chain-checkins)
+  const ourTxByChain = new Map<string, { txId: string; agencyId: string }>();
+  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, { txId: t.id, agencyId: t.agencyId });
   const chainIds = [...ourTxByChain.keys()];
   if (chainIds.length === 0) return [];
 
@@ -2131,14 +2151,12 @@ export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: st
               milestoneCompletions: { select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } } },
             },
           },
-          // Our OWN side's latest chase-log entry (private to us), matched on the
-          // canonical non-null side key. viewerSideKey is always set here (the page
-          // resolves it via noteSideKey, incl. "tsp-internal" for internal staff).
+          // Recent chase-log entries newest-first; we pick the latest one tagged to
+          // THIS chain's team side key below (a neighbour's own notes are skipped).
           entries: {
-            where: { authorSideKey: viewerSideKey },
             orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { body: true, createdAt: true },
+            take: 30,
+            select: { body: true, createdAt: true, authorSideKey: true },
           },
         },
       },
@@ -2148,7 +2166,9 @@ export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: st
   const rows: CheckInRow[] = [];
   const photoPaths: string[] = [];
   for (const chain of chains) {
-    const ourTxId = ourTxByChain.get(chain.id) ?? null;
+    const our = ourTxByChain.get(chain.id) ?? null;
+    const ourTxId = our?.txId ?? null;
+    const sideKey = our ? agencySideKey(our.agencyId) : null;
     for (const l of chain.links) {
       // Exclude our own nodes; everything else (neighbours + stubs) is a check-in.
       if (l.transactionId && ourTxIds.has(l.transactionId)) continue;
@@ -2156,7 +2176,8 @@ export async function listCheckInsForScope(scope: AccessScope, viewerSideKey: st
       const address = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Address not shared";
       const photoPath = l.transaction?.photoStoragePath ?? l.stubPhotoStoragePath ?? null;
       if (photoPath) photoPaths.push(photoPath);
-      const latest = l.entries[0] ?? null;
+      // Latest entry belonging to OUR team (this chain's side key).
+      const latest = sideKey ? l.entries.find((e) => e.authorSideKey === sideKey) ?? null : null;
       rows.push({
         linkId: l.id,
         transactionId: l.transactionId ?? null,

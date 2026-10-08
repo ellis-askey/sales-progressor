@@ -52,14 +52,22 @@ export type ChainNodeIntelInput = {
   chainNotes: string | null;
 };
 
-// The "side" a chain-node chase-log note belongs to — the privacy scope for both
-// the drawer chase log and the Check-ins tab. NON-NULL for everyone, so the
-// filter never collapses to "show nothing":
-//   - an agency by its id        → `agency:<id>`
-//   - a progression business      → `business:<id>`
-//   - the internal TSP team (agencyId AND businessId both null) → `tsp-internal`,
-//     one shared side so the whole internal team sees each other's working notes.
-// Used symmetrically: tag the entry on write, match the viewer on read. (#chain-checkins)
+// The TEAM-side key for a chain-node chase-log note: the OWNING AGENCY of the
+// file the note belongs to. Everyone who works that file — the owning agency's
+// staff AND whoever progresses it (TSP or an external business) — resolves to the
+// same key, so they share one notes log (shared-on-outsourced, 2026-10-08). A
+// neighbour agency in the chain resolves to ITS own key and stays separate: it
+// never sees your notes, you never see theirs. Used symmetrically — tag the entry
+// by the file-in-context's agency on write, match the viewer's own file's agency
+// on read. (#chain-checkins)
+export function agencySideKey(agencyId: string): string {
+  return `agency:${agencyId}`;
+}
+
+// Fallback identity key, used only when a note can't be tied to a file's owning
+// agency (e.g. logged with no file context). Non-null so the filter never
+// collapses to "show nothing": a progression business by its id, else the shared
+// internal TSP team. (Agency users always resolve to agencySideKey above.)
 export function noteSideKey(v: { agencyId: string | null; businessId?: string | null; scope: AccessScope }): string {
   if (v.agencyId) return `agency:${v.agencyId}`;
   if (v.businessId) return `business:${v.businessId}`;
