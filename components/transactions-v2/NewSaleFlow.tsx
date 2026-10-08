@@ -387,10 +387,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
 
   // Billing card gate: a progression business can't add a sale until it has a card
-  // on file (once collection is live). Clicking "Add this sale" opens the add-a-card
-  // modal first, matching the per-client Sales tab, rather than failing on submit.
-  const [cardOpen, setCardOpen] = useState(false);
+  // on file (once collection is live). The add-a-card modal opens IMMEDIATELY when
+  // the form loads needing a card (so every entry — nav, empty states, client row —
+  // prompts in place), and again on submit as a backstop. The server also enforces
+  // it as BillingSetupRequiredError.
   const needsCard = isProgressorCreate && collecting && !billingActive;
+  const [cardOpen, setCardOpen] = useState(needsCard);
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
   const [solFillingVendor, setSolFillingVendor] = useState(false);

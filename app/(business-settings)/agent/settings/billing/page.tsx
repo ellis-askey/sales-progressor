@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { businessBillingActive } from "@/lib/progression/business-stripe";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
@@ -30,6 +31,10 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
   // time or it reads a month early (e.g. "September" on 1–25 October).
   const month = s.monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
   const collecting = progressionBillingCollectEnabled();
+  // "Plan is live" is only true once a card is actually on file (a Stripe
+  // subscription exists). Collecting-on with no card is NOT live — it still needs a
+  // card, so the notice must say so rather than claim it's charging.
+  const hasCard = await businessBillingActive(owner.businessId);
   const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
   // Returned from a 3-D Secure card save (Stripe appends redirect_status to the
   // return URL). The card is already saved; BusinessCardCapture then starts the
@@ -46,8 +51,15 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {/* Billing-status notice — first adopter of the SettingsNote family. */}
-        {collecting ? (
+        {/* Billing-status notice — three states: not collecting yet, collecting but
+            no card (needs one), or live (card on file). */}
+        {!collecting ? (
+          <SettingsNote
+            tone="info"
+            title="No payment yet"
+            body="This is what your plan currently works out to. We'll let you know and ask you to add a card before billing begins."
+          />
+        ) : hasCard ? (
           <SettingsNote
             tone="success"
             title="Your plan is live"
@@ -55,9 +67,9 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
           />
         ) : (
           <SettingsNote
-            tone="info"
-            title="No payment yet"
-            body="This is what your plan currently works out to. We'll let you know and ask you to add a card before billing begins."
+            tone="warning"
+            title="Add a card to activate your plan"
+            body="Your plan isn't active yet. Add a card below and we'll start it. You can't add sales until a card is on file."
           />
         )}
 
