@@ -188,7 +188,12 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
                 <Plus size={16} weight="bold" />
                 <span className="cw-rowadd-l">Add sale</span>
               </Link>
-              <CaretRight size={19} weight="bold" className="cw-chev" />
+              {/* The chevron is its own nav link with a padded tap target, so the
+                  far-right edge of the row (where a thumb naturally lands on mobile)
+                  navigates too, instead of being a dead zone outside cw-rowmain. */}
+              <Link href={`/agent/clients/${c.agencyId}`} className="cw-chev" aria-label={`Open ${c.name}`}>
+                <CaretRight size={19} weight="bold" />
+              </Link>
             </div>
           ))}
         </div>
@@ -276,7 +281,8 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         .cw-status.invite { color: #B5831E; }
         :root[data-theme="dark"] .cw-status.invite { color: #E0B050; }
         .cw-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-        .cw-chev { color: var(--agent-text-muted); flex-shrink: 0; transition: transform .2s, color .2s; }
+        .cw-chev { display: inline-flex; align-items: center; justify-content: center; padding: 10px; margin: -10px -6px -10px -2px; color: var(--agent-text-muted); flex-shrink: 0; text-decoration: none; transition: transform .2s, color .2s; }
+        .cw-chev:focus-visible { outline: none; color: var(--agent-coral-deep, #E2452A); }
         .cw-row:hover .cw-chev { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }
         @media (max-width: 760px) { .cw-mstats { display: none; } }
 
