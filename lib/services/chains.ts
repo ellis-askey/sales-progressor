@@ -2101,6 +2101,8 @@ export type CheckInRow = {
   address: string;
   agentName: string | null; // the agent to chase (claiming agent, else the stub agent)
   firmName: string | null;
+  agentEmail: string | null; // claiming agent's email, else the stub's — for "Contact the agent"
+  agentPhone: string | null; // claiming agent's phone, else the stub's
   claimed: boolean;
   progressPercent: number | null; // claimed + cross-agency-safe; null for a stub
   photoUrl: string | null;        // signed node photo (claimed file, else stub photo)
@@ -2145,8 +2147,10 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
           stubPropertyAddress: true,
           stubAgentName: true,
           stubAgencyName: true,
+          stubAgentEmail: true,
+          stubAgentPhone: true,
           stubPhotoStoragePath: true,
-          claimedBy: { select: { name: true, firmName: true } },
+          claimedBy: { select: { name: true, firmName: true, email: true, phone: true } },
           transaction: {
             select: {
               id: true, propertyAddress: true, photoStoragePath: true,
@@ -2187,6 +2191,8 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         address,
         agentName: l.claimedBy?.name ?? l.stubAgentName ?? null,
         firmName: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
+        agentEmail: l.claimedBy?.email ?? l.stubAgentEmail ?? null,
+        agentPhone: l.claimedBy?.phone ?? l.stubAgentPhone ?? null,
         claimed,
         progressPercent: claimed && l.transaction ? computeWeightedProgress(l.transaction.milestoneCompletions) : null,
         photoUrl: photoPath, // swapped for a signed URL below

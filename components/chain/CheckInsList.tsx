@@ -20,6 +20,7 @@ import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowA
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import { useChainAddNode } from "@/components/chain/use-chain-add-node";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import type { CheckInRow } from "@/lib/services/chains";
 
 // "24th Oct" — day-with-ordinal + short month, matching the founder's example.
@@ -143,6 +144,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     const items: RowAction[] = [];
     const chainTxId = row.ourTransactionId ?? row.transactionId;
     if (chainTxId) items.push({ label: "View chain", onClick: () => setOpenChainTxId(chainTxId) });
+    const who = row.agentName ? extractFirstName(row.agentName) : "agent";
+    if (row.agentPhone) items.push({ label: `Call ${who}`, onClick: () => { window.location.href = `tel:${row.agentPhone}`; } });
+    if (row.agentEmail) items.push({ label: `Email ${who}`, onClick: () => { window.location.href = `mailto:${row.agentEmail}`; } });
     return items;
   }
 
