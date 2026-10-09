@@ -45,6 +45,13 @@ model Agency {
   enquiryReplyChaseEnabled Boolean @default(true)
   enquiryRaiseChaseEnabled Boolean @default(true)
 
+  // Per-agency master switch for chasing the mortgage advisor (mortgage-advisor
+  // portal). This is NEW outbound behaviour — we email the advisor directly — so
+  // it defaults OFF; a director opts in from Settings → Automation. Also gated by
+  // the global SolicitorChaseSettings kill switch and the presence of a broker
+  // contact + email on the file. Chase engine + toggle land in later phases.
+  advisorChaseEnabled Boolean @default(false)
+
   // Director-set "what clients see on the portal" display defaults (Account →
   // Client portal). Agency-wide; all default true = today's behaviour. Only
   // key-dates can be overridden per file (PropertyTransaction.portalKeyDatesOverride).
@@ -168,6 +175,7 @@ model Agency {
   chains                     PropertyChain[]
   verifiedDomains            VerifiedDomain[]
   solicitorCcOverrides       SolicitorContactAgencyOverride[]
+  brokerCcOverrides          BrokerContactAgencyOverride[]
   joinRequests               AgencyJoinRequest[]
   recommendedSolicitors      AgencyRecommendedSolicitor[]
   preferredBroker            AgencyPreferredBroker?
@@ -204,24 +212,24 @@ enum AgencyModeProfile {
 // progressionBusinessId on a transaction means TSP (no backfill of existing
 // files) — see lib/progression/business.ts. See docs/active/progression-businesses/.
 model ProgressionBusiness {
-  id              String   @id @default(cuid())
-  name            String
+  id               String    @id @default(cuid())
+  name             String
   // Optional shortened label for tight UI (e.g. the agent file's "Managed by …"
   // badge, where the full business name can be long). Falls back to `name` when
   // null. Set by the business owner in their Clients workspace settings.
-  shortName       String?
+  shortName        String?
   // Exactly one row is the platform operator's own business (The Sales
   // Progressor). Seeded by scripts/seed-progression-tsp.ts and used as the
   // fallback identity for null-progressionBusinessId (TSP) transactions.
-  isTsp           Boolean  @default(false)
+  isTsp            Boolean   @default(false)
   // Client-facing identity, resolved per transaction by
   // getProgressionBusinessForTransaction so a professionally-progressed file
   // shows THIS business's contact details instead of TSP's. On the TSP row
   // these carry today's hardcoded values; on external rows they are the
   // business's own. Null falls back to the platform default.
-  contactWhatsapp String?
-  senderEmail     String?
-  senderDomain    String?
+  contactWhatsapp  String?
+  senderEmail      String?
+  senderDomain     String?
   // Bulletproof-sender gate (mirrors Agency.quoteSenderVerified). The business's
   // own senderEmail/senderDomain are ONLY used for client-facing sends once this
   // is true — stamped when the business verifies its domain/address (SendGrid
@@ -229,7 +237,7 @@ model ProgressionBusiness {
   // Until then clientFacingIdentity falls back to the neutral platform address,
   // so we never send from an address the business hasn't proven it owns. The TSP
   // row short-circuits before this check, so TSP is unaffected.
-  senderVerified   Boolean  @default(false)
+  senderVerified   Boolean   @default(false)
   senderVerifiedAt DateTime?
 
   // Billing — what the business pays TSP (£59 base + £39/extra member + £5/sale).
@@ -246,7 +254,7 @@ model ProgressionBusiness {
   // vatRateBps on top and prints the VAT number. Independent of what the business
   // pays TSP above (that bill is not VAT-split — TSP's own VAT status is separate).
   vatRegisteredAt DateTime?
-  vatRateBps      Int?     // basis points: 2000 = 20%
+  vatRateBps      Int? // basis points: 2000 = 20%
   vatNumber       String?
 
   // Chase preferences (business-level), set by the owner in the welcome modal and
@@ -261,6 +269,10 @@ model ProgressionBusiness {
   chaseEnquiriesEnabled      Boolean @default(true)
   weeklyClientUpdatesEnabled Boolean @default(true)
   chainUpdatesEnabled        Boolean @default(true)
+  // Mortgage-advisor chasing for files this business handles (mortgage-advisor
+  // portal). Default on like the other business chase flags; TSP's own row is
+  // never read.
+  chaseAdvisorsEnabled       Boolean @default(true)
   // Auto-send chain invites at sale creation for files this business handles. The
   // business controls it, not the sending agent (critique #23). Default on.
   autoChainInvitesEnabled    Boolean @default(true)
@@ -277,13 +289,13 @@ model ProgressionBusiness {
   termsAcceptedVersion String?
   termsAcceptedAt      DateTime?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  members         User[]
-  transactions    PropertyTransaction[]
-  clients         ProgressionBusinessClient[]
-  verifiedDomains VerifiedDomain[]
+  members                 User[]
+  transactions            PropertyTransaction[]
+  clients                 ProgressionBusinessClient[]
+  verifiedDomains         VerifiedDomain[]
   milestoneEmailOverrides MilestoneEmailOverride[]
   chaseRuleOverrides      BusinessChaseRuleOverride[]
 
@@ -335,24 +347,24 @@ enum ProgressionBusinessRole {
 }
 
 model User {
-  id                      String                   @id @default(cuid())
-  name                    String
-  email                   String                   @unique
-  password                String?
-  totpSecret              String?
-  totpActivatedAt         DateTime?
+  id                       String                   @id @default(cuid())
+  name                     String
+  email                    String                   @unique
+  password                 String?
+  totpSecret               String?
+  totpActivatedAt          DateTime?
   // One-time recovery codes (hashed) for 2FA lockout, and a per-user token
   // version bumped by "sign out of all other devices" (JWT invalidation).
-  totpBackupCodes         String[]                 @default([])
-  sessionVersion          Int                      @default(0)
+  totpBackupCodes          String[]                 @default([])
+  sessionVersion           Int                      @default(0)
   // Set when a director removes this member from the team. The user row is
   // never deleted (their name stays attributed on history); instead sign-in is
   // refused and live sessions are killed (sessionVersion bump at removal).
   // Cleared by reinstating from the Team page.
-  deactivatedAt           DateTime?
-  role                    UserRole                 @default(viewer)
-  agencyId                String?
-  firmName                String?
+  deactivatedAt            DateTime?
+  role                     UserRole                 @default(viewer)
+  agencyId                 String?
+  firmName                 String?
   // The address this user's per-file emails send from, chosen self-serve on the
   // Connections screen — decoupled from the login `email` (lib/email/agency-sender.ts
   // + lib/integrations/imap/connections.ts). Null = send from the login address,
@@ -360,50 +372,50 @@ model User {
   // address the user has proven they can send from (a verified domain or a
   // send-enabled connected mailbox); cleared back to null when that sending is
   // turned off. Removes the old "must be your sign-in email" constraint.
-  preferredSenderEmail    String?
-  progressorId            String?
+  preferredSenderEmail     String?
+  progressorId             String?
   // Progression-business membership (additive, 2026-09). Null for agency staff
   // and for TSP internal staff (who resolve to TSP implicitly). Set only for
   // members of a progression business; drives the business access scope.
-  progressionBusinessId   String?
-  progressionBusinessRole ProgressionBusinessRole?
-  clientType              ClientType               @default(standard)
-  legacyFee               Int?
-  phone                   String?
+  progressionBusinessId    String?
+  progressionBusinessRole  ProgressionBusinessRole?
+  clientType               ClientType               @default(standard)
+  legacyFee                Int?
+  phone                    String?
   // Profile detail (2026-09): shown alongside the name in client-facing
   // surfaces. Both optional. jobTitle e.g. "Sales Manager"; directMobile is a
   // personal number distinct from `phone` (which may be an office line).
-  jobTitle                String?
-  directMobile            String?
+  jobTitle                 String?
+  directMobile             String?
   // Email signature (2026-09). Per-agent, follows whoever is sending. BASIC =
   // the auto-generated TSP signature (default, backwards-compatible for all
   // existing users); IMAGE = an uploaded/imported signature image; CUSTOM = a
   // pasted, sanitised HTML signature. See docs/active/email-signature/00-audit-and-plan.md.
-  emailSignatureMode      EmailSignatureMode       @default(BASIC)
-  emailSignatureImagePath String?
-  emailSignatureHtml      String?
-  canViewAllFiles         Boolean                  @default(false)
+  emailSignatureMode       EmailSignatureMode       @default(BASIC)
+  emailSignatureImagePath  String?
+  emailSignatureHtml       String?
+  canViewAllFiles          Boolean                  @default(false)
   // Last successful sign-in, stamped in the auth signIn callback (fire-and-forget).
   // Null = hasn't signed in since this was added, or invite not yet accepted.
-  lastLoginAt             DateTime?
-  hasSeenAgentWelcome     Boolean                  @default(false)
+  lastLoginAt              DateTime?
+  hasSeenAgentWelcome      Boolean                  @default(false)
   // First-run welcome for an EXTERNAL progression-business owner (shown once,
   // separate from the agent welcome above so the two never collide). Set by
   // markProgressorWelcomeSeenAction. Agents/TSP staff never see that modal.
-  hasSeenProgressorWelcome Boolean                 @default(false)
+  hasSeenProgressorWelcome Boolean                  @default(false)
   // Demo guided-walkthrough state (2026-09). Per-teammate so each new user
   // gets their own first-run auto-start. Set when the tour is finished or
   // skipped; either being non-null suppresses the auto-start (a "Replay
   // walkthrough" control still runs it on demand). See DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md §13.
-  demoTourCompletedAt     DateTime?
-  demoTourSkippedAt       DateTime?
-  isInternal              Boolean                  @default(false)
+  demoTourCompletedAt      DateTime?
+  demoTourSkippedAt        DateTime?
+  isInternal               Boolean                  @default(false)
   // Made-up staff member who "manages" the demo showcase files, so a demo is
   // never presented as the real user's own file. Excluded from team pickers.
   // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
-  isDemo                  Boolean                  @default(false)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  isDemo                   Boolean                  @default(false)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
   agency               Agency?               @relation(fields: [agencyId], references: [id])
   // Restrict (not SetNull): a ProgressionBusiness can't be deleted while a member
@@ -798,6 +810,12 @@ model PropertyTransaction {
   // the side's solicitor chases are held until then, auto-resuming after.
   vendorSolicitorEmailsPausedUntil    DateTime?
   purchaserSolicitorEmailsPausedUntil DateTime?
+  // Mortgage-advisor portal: per-side pause of advisor chase emails. buyer* = the
+  // purchaser's mortgage advisor; onward* = the seller's onward-purchase advisor.
+  buyerBrokerEmailsPaused             Boolean   @default(false)
+  buyerBrokerEmailsPausedUntil        DateTime?
+  onwardBrokerEmailsPaused            Boolean   @default(false)
+  onwardBrokerEmailsPausedUntil       DateTime?
 
   // Per-file opt-out of the ENQUIRIES auto-chase specifically (the raise nudges
   // + the reply-loop chase). Distinct from the *SolicitorEmailsPaused flags,
@@ -950,6 +968,8 @@ model PropertyTransaction {
   notifications                    Notification[]
   clientChaseStates                ClientChaseState[]
   solicitorChaseStates             SolicitorChaseState[]
+  advisorChaseStates               AdvisorChaseState[]
+  brokerNotifications              BrokerNotification[]
   chaseEmailOverrides              ChaseEmailOverride[]
   holdPeriods                      TransactionHoldPeriod[]
   enquiryTracker                   EnquiryTracker?
@@ -1494,26 +1514,54 @@ model BrokerFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  handlers           BrokerContact[]
-  transactions       PropertyTransaction[]   @relation("TxBuyerBroker")
-  onwardTransactions PropertyTransaction[]   @relation("TxOnwardBroker")
-  preferences        AgencyPreferredBroker[]
-  referrals          Referral[]              @relation("ReferralBrokerFirm")
+  handlers               BrokerContact[]
+  transactions           PropertyTransaction[]   @relation("TxBuyerBroker")
+  onwardTransactions     PropertyTransaction[]   @relation("TxOnwardBroker")
+  preferences            AgencyPreferredBroker[]
+  referrals              Referral[]              @relation("ReferralBrokerFirm")
+  milestoneConfirmations MilestoneCompletion[]   @relation("MilestoneConfirmedByBrokerFirm")
 }
 
 model BrokerContact {
-  id        String   @id @default(cuid())
-  firmId    String
-  name      String
-  phone     String?
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  firmId         String
+  name           String
+  phone          String?
+  email          String?
+  // Optional assistant/CC address, mirrors SolicitorContact.secondaryEmail. The
+  // broker's OWN value (set in their portal) is gospel; an agency fallback lives
+  // on BrokerContactAgencyOverride.
+  secondaryEmail String?
+  // Handler's profile photo (public avatar URL), set from the advisor portal.
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  firm               BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  transactions       PropertyTransaction[] @relation("TxBuyerBrokerContact")
-  onwardTransactions PropertyTransaction[] @relation("TxOnwardBrokerContact")
-  referrals          Referral[]            @relation("ReferralBrokerContact")
+  firm                   BrokerFirm                    @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  transactions           PropertyTransaction[]         @relation("TxBuyerBrokerContact")
+  onwardTransactions     PropertyTransaction[]         @relation("TxOnwardBrokerContact")
+  referrals              Referral[]                    @relation("ReferralBrokerContact")
+  agencyCcOverrides      BrokerContactAgencyOverride[]
+  milestoneConfirmations MilestoneCompletion[]         @relation("MilestoneConfirmedByBrokerContact")
+}
+
+// Per-agency override of a shared broker handler's assistant/CC email. Mirrors
+// SolicitorContactAgencyOverride: the broker's own secondaryEmail is gospel; this
+// holds an agency's fallback CC used ONLY when the broker hasn't set one. Keyed
+// per (agency, handler) so one agency's value never affects another's.
+model BrokerContactAgencyOverride {
+  id              String   @id @default(cuid())
+  agencyId        String
+  brokerContactId String
+  secondaryEmail  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agency        Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  brokerContact BrokerContact @relation(fields: [brokerContactId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, brokerContactId])
+  @@index([brokerContactId])
 }
 
 model AgencyPreferredBroker {
@@ -1881,6 +1929,10 @@ model MilestoneCompletion {
   // for agent/client confirms. See docs/active/solicitor-confirm/scope.md.
   confirmedBySolicitorFirmId    String?
   confirmedBySolicitorContactId String?
+  // Mortgage-advisor portal: who confirmed when an advisor ticks a step. Null for
+  // agent/client/solicitor confirms. Mirrors the solicitor confirmer columns.
+  confirmedByBrokerFirmId       String?
+  confirmedByBrokerContactId    String?
   summaryText                   String?
   reconciledAtExchange          Boolean        @default(false)
   reconciledAtClaim             Boolean        @default(false)
@@ -1910,6 +1962,8 @@ model MilestoneCompletion {
   notRequiredBy               User?               @relation("NotRequiredBy", fields: [notRequiredById], references: [id])
   confirmedBySolicitorFirm    SolicitorFirm?      @relation("MilestoneConfirmedByFirm", fields: [confirmedBySolicitorFirmId], references: [id])
   confirmedBySolicitorContact SolicitorContact?   @relation("MilestoneConfirmedByContact", fields: [confirmedBySolicitorContactId], references: [id])
+  confirmedByBrokerFirm       BrokerFirm?         @relation("MilestoneConfirmedByBrokerFirm", fields: [confirmedByBrokerFirmId], references: [id])
+  confirmedByBrokerContact    BrokerContact?      @relation("MilestoneConfirmedByBrokerContact", fields: [confirmedByBrokerContactId], references: [id])
 
   @@index([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
@@ -2452,14 +2506,14 @@ model ClientMoveInfo {
   flexibility             String? // "very" | "somewhat" | "not"
 
   // Situation — mortgage + funds (buyers)
-  mortgageOfferExpiry DateTime?
+  mortgageOfferExpiry       DateTime?
   // True when mortgageOfferExpiry was auto-set to +6 months on PM11 (offer
   // received) confirmation — shown to the buyer as "approx". Cleared to false
   // the moment a real date is entered. (critique 2026-09-30, buyer side only;
   // seller onward deferred.)
-  mortgageOfferExpiryApprox Boolean @default(false)
-  fundsInPlace        String? // "yes" | "not_yet" | "not_sure"
-  fundsSource         String? // "savings" | "lisa" | "gift" | "sale" | "other"
+  mortgageOfferExpiryApprox Boolean   @default(false)
+  fundsInPlace              String? // "yes" | "not_yet" | "not_sure"
+  fundsSource               String? // "savings" | "lisa" | "gift" | "sale" | "other"
 
   // Notice on current home (mortgaged buyers)
   needsNotice   Boolean?
@@ -2750,14 +2804,14 @@ model ChainLink {
   // link. Surfaced only to internal staff + the owning agency (lib/chain/intel.ts):
   // never another agency in the chain, never the client. breakChain* are the
   // sensitive negotiating facts; the rest are our working notes on the node.
-  breakChainStance     BreakChainStance?
-  breakChainConditions String?
-  expectedTimescale    String?
-  chainNotes           String?
-  lastChainCheckAt     DateTime?
+  breakChainStance           BreakChainStance?
+  breakChainConditions       String?
+  expectedTimescale          String?
+  chainNotes                 String?
+  lastChainCheckAt           DateTime?
   // When our team last chased this neighbour's agent for an update (the manual
   // chain-neighbour chase). Powers the "chased X ago" hint + a resend dedup guard.
-  lastAgentChasedAt    DateTime?
+  lastAgentChasedAt          DateTime?
   // Exchange-push: when WE manually confirmed this link is ready to exchange
   // (e.g. agreed on the phone). The agent-maintained override that covers lazy
   // agents + not-joined stubs, alongside the auto-read of an on-platform file's
@@ -2795,11 +2849,11 @@ model ChainLink {
 // staff), never another agency in the chain, never the client. Surfaced via
 // lib/chain/intel.ts trust gating and folded into the chain activity feed.
 model ChainLinkEntry {
-  id          String   @id @default(cuid())
-  chainLinkId String
-  body        String   @db.Text // what the agent did/found, their own words
-  authorId    String? // internal/agency user who wrote it (id, no FK — standalone)
-  authorName  String? // display name captured at write time
+  id               String   @id @default(cuid())
+  chainLinkId      String
+  body             String   @db.Text // what the agent did/found, their own words
+  authorId         String? // internal/agency user who wrote it (id, no FK — standalone)
+  authorName       String? // display name captured at write time
   // Which side wrote it — the privacy scope. An entry is only ever visible to its
   // own side. authorSideKey is the canonical, NON-NULL tag (noteSideKey in
   // lib/chain/intel.ts): `agency:<id>`, `business:<id>`, or `tsp-internal` for the
@@ -2809,7 +2863,7 @@ model ChainLinkEntry {
   authorSideKey    String?
   authorAgencyId   String?
   authorBusinessId String?
-  createdAt   DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
 
@@ -2979,23 +3033,23 @@ model DirectorInvitation {
 // â”€â”€â”€ Verified Sending Addresses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model VerifiedDomain {
-  id               String       @id @default(cuid())
+  id                    String       @id @default(cuid())
   // Owner is EITHER an agency (the original case) OR an external progression
   // business (its own default sending domain). Exactly one is set. agencyId was
   // widened to optional to carry the business case; every existing row keeps its
   // agencyId, so the agency flow is unchanged.
-  agencyId         String?
+  agencyId              String?
   progressionBusinessId String?
-  domain           String
-  sendgridDomainId Int
-  status           DomainStatus @default(pending)
-  dkimValid        Boolean      @default(false)
-  spfValid         Boolean      @default(false)
-  cnameRecords     Json
-  lastCheckedAt    DateTime?
-  verifiedAt       DateTime?
-  createdByUserId  String
-  createdAt        DateTime     @default(now())
+  domain                String
+  sendgridDomainId      Int
+  status                DomainStatus @default(pending)
+  dkimValid             Boolean      @default(false)
+  spfValid              Boolean      @default(false)
+  cnameRecords          Json
+  lastCheckedAt         DateTime?
+  verifiedAt            DateTime?
+  createdByUserId       String
+  createdAt             DateTime     @default(now())
 
   agency              Agency?              @relation(fields: [agencyId], references: [id])
   // Restrict (not SetNull): a ProgressionBusiness can't be deleted while it still
@@ -4456,6 +4510,49 @@ model SolicitorChaseState {
   @@unique([transactionId, side, milestoneCode])
   @@index([status, lastChasedAt])
   @@index([transactionId])
+}
+
+// Per-(file, side, milestone) chase state for the mortgage advisor, mirroring
+// SolicitorChaseState. side = purchaser (buyer's advisor) | vendor (seller's
+// onward-purchase advisor). mortgage-advisor-portal Phase 0 (engine lands Phase 3).
+model AdvisorChaseState {
+  id            String        @id @default(cuid())
+  transactionId String
+  side          MilestoneSide
+  milestoneCode String
+  chaseCount    Int           @default(0)
+  firstChasedAt DateTime?
+  lastChasedAt  DateTime?
+  snoozeUntil   DateTime?
+  resolvedAt    DateTime?
+  status        String        @default("active")
+  statusReason  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, side, milestoneCode])
+  @@index([status, lastChasedAt])
+  @@index([transactionId])
+}
+
+// The mortgage advisor's login-free notification store (their portal "bell").
+// Keyed per (file, side) — the scope of the advisor's portal token — because
+// advisors have no User account, so the User-keyed Notification table can't hold
+// these. readAt null = unread. mortgage-advisor-portal Phase 0 (bell UI lands Phase 4).
+model BrokerNotification {
+  id            String        @id @default(cuid())
+  transactionId String
+  side          MilestoneSide
+  type          String
+  payload       Json          @default("{}")
+  createdAt     DateTime      @default(now())
+  readAt        DateTime?
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, side, readAt, createdAt])
 }
 
 // Per-(file, chase target, milestone) override for an UPCOMING chase email

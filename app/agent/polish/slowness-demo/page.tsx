@@ -58,6 +58,8 @@ function mockCompletion(state: "complete" | "available" | "locked", completedAt?
     confirmedByPortal: false,
     confirmedBySolicitorFirmId: null,
     confirmedBySolicitorContactId: null,
+    confirmedByBrokerFirmId: null,
+    confirmedByBrokerContactId: null,
     confirmedByContactId: null,
     summaryText: null,
     reconciledAtExchange: false,
