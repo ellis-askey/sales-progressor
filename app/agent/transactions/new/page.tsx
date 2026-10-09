@@ -7,6 +7,7 @@ import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
 import { businessBillingActive } from "@/lib/progression/business-stripe";
+import { getBusinessFirstChargePreview } from "@/lib/progression/business-billing";
 import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
@@ -65,6 +66,11 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   // for non-business users so they are never gated here.
   const businessBillingCollecting = isProgressorCreate && progressionBillingCollectEnabled();
   const businessBillingIsActive = businessMember ? await businessBillingActive(businessMember.businessId) : true;
+  // Pro-rata preview for the add-a-card modal — only when a card is actually needed.
+  const cardGatePreview =
+    businessMember && businessBillingCollecting && !businessBillingIsActive
+      ? await getBusinessFirstChargePreview(businessMember.businessId)
+      : null;
 
   // Pricing migration (2026-08): there is no trial gate any more. Self-progress
   // is free, so a self-progressing agency is never blocked from adding a sale.
@@ -308,6 +314,7 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           collecting={businessBillingCollecting}
           billingActive={businessBillingIsActive}
           publishableKey={process.env.STRIPE_PUBLISHABLE_KEY ?? ""}
+          cardGatePreview={cardGatePreview}
         />
       </div>
     </>

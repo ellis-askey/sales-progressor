@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Plus, ArrowRight } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
-import { AddCardGateModal } from "./AddCardGateModal";
+import { AddCardGateModal, type CardGatePreview } from "./AddCardGateModal";
 import { BringInSaleDrawer } from "./BringInSaleDrawer";
 
 export function BusinessSalesActions({
@@ -19,6 +19,7 @@ export function BusinessSalesActions({
   publishableKey,
   milestoneDefinitions,
   migrationWindow,
+  cardGatePreview = null,
 }: {
   agencyId: string;
   billingActive: boolean;
@@ -26,6 +27,7 @@ export function BusinessSalesActions({
   publishableKey: string;
   milestoneDefinitions: MilestoneDefinitionLite[];
   migrationWindow: { open: boolean; hoursLeft: number; everStarted: boolean };
+  cardGatePreview?: CardGatePreview | null;
 }) {
   const router = useRouter();
   const { toast } = useAgentToast();
@@ -68,7 +70,7 @@ export function BusinessSalesActions({
         </button>
       </div>
 
-      {cardOpen && <AddCardGateModal publishableKey={publishableKey} onClose={() => { setCardOpen(false); router.refresh(); }} />}
+      {cardOpen && <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} onClose={() => { setCardOpen(false); router.refresh(); }} />}
       {drawerOpen && (
         <BringInSaleDrawer
           agencyId={agencyId}

@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, getClientAgencyDetail } from "@/lib/services/progression-clients";
 import { businessBillingActive } from "@/lib/progression/business-stripe";
+import { getBusinessFirstChargePreview } from "@/lib/progression/business-billing";
 import { getMigrationWindow } from "@/lib/progression/business-migration";
 import { AgencyWorkspace } from "@/components/progression/AgencyWorkspace";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
@@ -34,6 +35,9 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
       select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
     }),
   ]);
+  const collecting = progressionBillingCollectEnabled();
+  // Pro-rata preview for the add-a-card modal — only when a card is actually needed.
+  const cardGatePreview = collecting && !billingActive ? await getBusinessFirstChargePreview(owner.businessId) : null;
 
   return (
     <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
@@ -41,7 +45,7 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
         detail={detail}
         salesActions={{
           billingActive,
-          collecting: progressionBillingCollectEnabled(),
+          collecting,
           publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
           milestoneDefinitions: milestoneDefs as MilestoneDefinitionLite[],
           migrationWindow: {
@@ -49,6 +53,7 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
             hoursLeft: migrationWindow.hoursLeft,
             everStarted: migrationWindow.everStarted,
           },
+          cardGatePreview,
         }}
       />
     </div>

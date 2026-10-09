@@ -22,6 +22,7 @@ import { SenderDomainSection } from "./SenderDomainSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 import { BusinessSalesActions } from "./BusinessSalesActions";
+import type { CardGatePreview } from "./AddCardGateModal";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
@@ -43,6 +44,7 @@ type SalesActionsData = {
   publishableKey: string;
   milestoneDefinitions: MilestoneDefinitionLite[];
   migrationWindow: { open: boolean; hoursLeft: number; everStarted: boolean };
+  cardGatePreview: CardGatePreview | null;
 };
 
 export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgencyDetail; salesActions: SalesActionsData }) {
@@ -250,6 +252,7 @@ export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgency
                   publishableKey={salesActions.publishableKey}
                   milestoneDefinitions={salesActions.milestoneDefinitions}
                   migrationWindow={salesActions.migrationWindow}
+                  cardGatePreview={salesActions.cardGatePreview}
                 />
               </div>
               {detail.sales.length === 0

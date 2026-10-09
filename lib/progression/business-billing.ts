@@ -42,6 +42,48 @@ export type BusinessBillingSummary = {
   totalPence: number;
 };
 
+export type BusinessFirstChargePreview = {
+  dueTodayPence: number;    // pro-rated subscription for the rest of this month, taken on card-save
+  daysLeft: number;         // whole days remaining this month, incl. today
+  monthLabel: string;       // "October"
+  nextPaymentLabel: string; // "1 November"
+  basePence: number;        // 5900
+  perSalePence: number;     // 500
+  perMemberPence: number;   // 3900
+};
+
+/**
+ * What the business is charged THE MOMENT they add a card: the subscription
+ * (base + any extra seats) pro-rated for the remainder of the current month, so
+ * the modal can show "Due today" honestly. Mirrors Stripe's own proration maths
+ * (by the second, against the current month window) so the figure matches the
+ * charge without an extra Stripe round-trip. The recurring £59 then lands on the
+ * 1st, anchored exactly as syncBusinessSubscription sets billing_cycle_anchor.
+ */
+export async function getBusinessFirstChargePreview(businessId: string, now: Date = new Date()): Promise<BusinessFirstChargePreview> {
+  const { start, end } = billingMonthRange(now);
+  const nowMs = now.getTime();
+  const anchorMs = end.getTime();      // midnight on the 1st of next month (London)
+  const prevAnchorMs = start.getTime(); // midnight on the 1st of this month (London)
+  const ratio = anchorMs > prevAnchorMs ? Math.max(0, Math.min(1, (anchorMs - nowMs) / (anchorMs - prevAnchorMs))) : 1;
+
+  const memberCount = await prisma.user.count({ where: { progressionBusinessId: businessId, deactivatedAt: null } });
+  const extraMembers = Math.max(0, memberCount - 1);
+  // Each subscription line pro-rates (and rounds) separately in Stripe.
+  const dueTodayPence = Math.round(BUSINESS_BASE_PENCE * ratio) + Math.round(extraMembers * BUSINESS_PER_MEMBER_PENCE * ratio);
+
+  const londonDay = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric" }).format(now));
+  const daysInMonth = Math.round((anchorMs - prevAnchorMs) / 86400000);
+  const daysLeft = Math.max(1, daysInMonth - londonDay + 1);
+  const monthLabel = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "long" }).format(now);
+  const nextPaymentLabel = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "long" }).format(end);
+
+  return {
+    dueTodayPence, daysLeft, monthLabel, nextPaymentLabel,
+    basePence: BUSINESS_BASE_PENCE, perSalePence: BUSINESS_PER_SALE_PENCE, perMemberPence: BUSINESS_PER_MEMBER_PENCE,
+  };
+}
+
 /**
  * The current-month bill for a progression business. Subscription (base + seats)
  * is always present; per-sale lines are this month's exchanged files for the

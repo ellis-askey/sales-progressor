@@ -32,7 +32,7 @@ import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
-import { AddCardGateModal } from "@/components/progression/AddCardGateModal";
+import { AddCardGateModal, type CardGatePreview } from "@/components/progression/AddCardGateModal";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
 import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
@@ -361,11 +361,13 @@ type Props = {
   collecting?: boolean;
   billingActive?: boolean;
   publishableKey?: string;
+  // Pro-rata preview for the add-a-card modal (null when no card is needed).
+  cardGatePreview?: CardGatePreview | null;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], collecting = false, billingActive = true, publishableKey = "" }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], collecting = false, billingActive = true, publishableKey = "", cardGatePreview = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -387,12 +389,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
 
   // Billing card gate: a progression business can't add a sale until it has a card
-  // on file (once collection is live). The add-a-card modal opens IMMEDIATELY when
-  // the form loads needing a card (so every entry — nav, empty states, client row —
-  // prompts in place), and again on submit as a backstop. The server also enforces
-  // it as BillingSetupRequiredError.
+  // on file (once collection is live). The add-a-card modal opens at the FIRST
+  // action — the "Drop a memo" / "Fill in manually" buttons (handleFile /
+  // handleFillManually) — before the form. A submit-time check and the server's
+  // BillingSetupRequiredError remain as backstops.
   const needsCard = isProgressorCreate && collecting && !billingActive;
-  const [cardOpen, setCardOpen] = useState(needsCard);
+  const [cardOpen, setCardOpen] = useState(false);
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
   const [solFillingVendor, setSolFillingVendor] = useState(false);
@@ -625,6 +627,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleFile = useCallback(async (file: File) => {
+    // Card gate: a progression business with no card can't start a sale. Open the
+    // add-a-card modal at this first action, before the form.
+    if (needsCard) { setCardOpen(true); return; }
     abortRef.current?.abort();
     clearTimers();
 
@@ -766,6 +771,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   }
 
   function handleFillManually() {
+    // Card gate: same as the memo drop — prompt for a card before the form.
+    if (needsCard) { setCardOpen(true); return; }
     setFlowState("manual");
     setStage(1);
     setExtractedData(null);
@@ -1256,15 +1263,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       <div className="chain-submit-wrap" style={{ marginTop: 20 }}>
         {isProgressorCreate && (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-            {needsCard && (
-              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderRadius: 11, background: "rgba(61,122,184,0.09)", border: "1px solid rgba(61,122,184,0.28)" }}>
-                <span aria-hidden style={{ flexShrink: 0, width: 18, height: 18, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, color: "#fff", background: "var(--agent-info, #3D7AB8)" }}>i</span>
-                <span style={{ fontSize: 12.5, color: "var(--nv2-text-secondary)", lineHeight: 1.5 }}>
-                  <b style={{ color: "var(--nv2-text-primary)", fontWeight: 650 }}>Add a card to start adding sales.</b> You&rsquo;ll set up billing in one step. We&rsquo;ll only charge once it&rsquo;s on file.
-                </span>
-                <button type="button" onClick={() => setCardOpen(true)} style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: "var(--agent-info, #3D7AB8)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>Add card</button>
-              </div>
-            )}
             {/* Client — a select when chosen in-flow; a read-only row when the
                 sale was launched from a specific client (clientAgencyId in the
                 URL). Always shown so the card never renders empty and the agency
@@ -1356,7 +1354,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         />
         <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
         {cardOpen && (
-          <AddCardGateModal publishableKey={publishableKey} onClose={() => { setCardOpen(false); router.refresh(); }} />
+          <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} onClose={() => { setCardOpen(false); router.refresh(); }} />
         )}
       </div>
     </>

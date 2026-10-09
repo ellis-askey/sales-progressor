@@ -110,11 +110,33 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret }}>
+    <Elements stripe={stripePromise} options={{ clientSecret, appearance: STRIPE_APPEARANCE }}>
       <InnerForm onSuccess={onSuccess} returnUrl={returnUrl} />
     </Elements>
   );
 }
+
+// Theme Stripe's hosted inputs to match our own fields — coral accent, our radius
+// and type, soft warm borders with a coral focus ring. Tuned for the light theme
+// (the dominant surface); a dark-aware variant is a follow-up.
+const STRIPE_APPEARANCE = {
+  variables: {
+    colorPrimary: "#FF6B4A",
+    colorText: "#2D1810",
+    colorTextSecondary: "#5A3A28",
+    colorTextPlaceholder: "rgba(45,24,16,0.4)",
+    colorDanger: "#C73E3E",
+    fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    fontSizeBase: "14px",
+    borderRadius: "10px",
+    spacingUnit: "4px",
+  },
+  rules: {
+    ".Input": { border: "1px solid rgba(45,24,16,0.14)", boxShadow: "none", padding: "11px 12px" },
+    ".Input:focus": { border: "1px solid #FF6B4A", boxShadow: "0 0 0 3px rgba(255,138,101,0.18)" },
+    ".Label": { fontWeight: "600", color: "#5A3A28" },
+  },
+} as const;
 
 function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl?: string }) {
   const stripe = useStripe();
