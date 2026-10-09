@@ -536,14 +536,25 @@ export async function cancelTeamInviteAction(memberId: string): Promise<ActionRe
   }
 
   // Unassign anything that somehow points at them (a pending invite shouldn't own
-  // files, but never orphan), then delete the invite row so the email frees up.
-  await prisma.$transaction([
-    prisma.propertyTransaction.updateMany({
-      where: { progressionBusinessId: owner.businessId, assignedUserId: memberId },
-      data: { assignedUserId: null },
-    }),
-    prisma.user.delete({ where: { id: memberId } }),
-  ]);
+  // files, but never orphan), then delete the invite row so the email frees up. A
+  // pending invite has no dependent rows, so the delete is safe — but if an
+  // unexpected foreign key ever blocks it, fall back to deactivating (locks them
+  // out, drops the seat) rather than dead-ending the owner with an unhandled error.
+  try {
+    await prisma.$transaction([
+      prisma.propertyTransaction.updateMany({
+        where: { progressionBusinessId: owner.businessId, assignedUserId: memberId },
+        data: { assignedUserId: null },
+      }),
+      prisma.user.delete({ where: { id: memberId } }),
+    ]);
+  } catch (err) {
+    console.error(`[progression] invite cancel hard-delete failed for ${memberId}, deactivating instead:`, err);
+    await prisma.user.update({
+      where: { id: memberId },
+      data: { deactivatedAt: new Date(), sessionVersion: { increment: 1 } },
+    });
+  }
   console.log(`[AUDIT] progression_invite_cancelled businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
   // Drop the seat straight away (the daily cron also reconciles).
   let warning: string | undefined;
