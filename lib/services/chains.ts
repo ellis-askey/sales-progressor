@@ -895,8 +895,15 @@ export async function getChainV2(
         },
         createdBy,
         progressPercent: computeWeightedProgress(milestoneCompletions),
-        predictedExchangeDate: prediction.predictedExchangeDate,
-        isEarlyEstimate: prediction.isEarlyEstimate,
+        // Predicted exchange date is the owning side's private forecast of when
+        // THEIR sale will exchange — not a shared-chain fact. Show it on their own
+        // node only (canSeeOwn: owning agency + internal staff); strip it to null
+        // for every other agency/business in the chain, so a neighbour's forecast
+        // never reaches another participant (founder, 2026-10-09). Progress % stays
+        // shared — that's the agreed chain sliver. The own file's forecast still
+        // shows on its own overview/sidebar (a separate, non-chain source).
+        predictedExchangeDate: canSeeOwn ? prediction.predictedExchangeDate : null,
+        isEarlyEstimate: canSeeOwn ? prediction.isEarlyEstimate : false,
         stuckMilestoneLabel,
         intel,
         entries,
