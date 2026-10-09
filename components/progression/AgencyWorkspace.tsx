@@ -20,6 +20,7 @@ import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
 import { SenderDomainSection } from "./SenderDomainSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
+import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 import { BusinessSalesActions } from "./BusinessSalesActions";
 import type { CardGatePreview, GateNotice } from "./AddCardGateModal";
@@ -47,7 +48,7 @@ type SalesActionsData = {
   cardGatePreview: CardGatePreview | null;
 };
 
-export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgencyDetail; salesActions: SalesActionsData }) {
+export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: { detail: ClientAgencyDetail; salesActions: SalesActionsData; emailStudio?: boolean }) {
   const { toast } = useAgentToast();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -219,10 +220,18 @@ export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgency
                   their buyers and sellers will receive.
                 </p>
               </div>
-              <EmailBrandingStudio
-                initial={detail.branding}
-                endpoint={`/api/agent/clients/${detail.agencyId}/logo`}
-              />
+              {emailStudio ? (
+                <EmailStudio
+                  initial={detail.branding}
+                  endpoint={`/api/agent/clients/${detail.agencyId}/logo`}
+                  identityName={detail.name}
+                />
+              ) : (
+                <EmailBrandingStudio
+                  initial={detail.branding}
+                  endpoint={`/api/agent/clients/${detail.agencyId}/logo`}
+                />
+              )}
               <SenderDomainSection base={`/api/agent/clients/${detail.agencyId}/sender`} scope="client" subjectName={detail.name} />
             </div>
           )}

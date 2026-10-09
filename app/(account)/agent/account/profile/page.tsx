@@ -32,6 +32,8 @@ import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZon
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
+import { EmailStudio } from "@/components/account/v2/EmailStudio";
+import { emailStudioEnabled } from "@/lib/email/studio-flag";
 import { getAgencyLogoUrl, getSignatureImageUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
@@ -83,11 +85,13 @@ export default async function AccountProfilePage({
   // Agency logo is a director-level, agency-wide brand setting (client emails).
   const isDirector = session.user.role === "director";
   let branding: BrandingInitial | null = null;
+  let agencyName: string | null = null;
   if (isDirector && session.user.agencyId) {
     const agency = await prisma.agency.findUnique({
       where: { id: session.user.agencyId },
-      select: { logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true },
+      select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true },
     });
+    agencyName = agency?.name ?? null;
     branding = {
       logoUrl: getAgencyLogoUrl(agency?.logoPath),
       tileColor: agency?.logoTileColor ?? null,
@@ -134,7 +138,11 @@ export default async function AccountProfilePage({
       title="Email branding"
       subtitle="Your logo appears at the top of emails your clients receive."
     >
-      <EmailBrandingStudio initial={branding} />
+      {emailStudioEnabled(session.user.email) ? (
+        <EmailStudio initial={branding} identityName={agencyName ?? "Your agency"} />
+      ) : (
+        <EmailBrandingStudio initial={branding} />
+      )}
       <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
         Want to change your email wording?{" "}
         <Link

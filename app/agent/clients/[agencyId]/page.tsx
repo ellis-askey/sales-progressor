@@ -7,6 +7,7 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { emailStudioEnabled } from "@/lib/email/studio-flag";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, getClientAgencyDetail } from "@/lib/services/progression-clients";
@@ -43,6 +44,7 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
     <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
       <AgencyWorkspace
         detail={detail}
+        emailStudio={emailStudioEnabled(session.user.email)}
         salesActions={{
           needsCard: saleGate.needsCard,
           salesNotice: saleGate.salesNotice,
