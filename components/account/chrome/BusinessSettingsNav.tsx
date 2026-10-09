@@ -49,6 +49,12 @@ export function BusinessSettingsNav({ isOwner = true, onNavigate }: { isOwner?: 
           Returns to the page you came from, falling back to the hub (critique #187). */}
       <SettingsBackLink label="Back to progression" className="bsn-back" arrowClassName="bsn-back-arrow" arrowSize={15} onNavigate={onNavigate} />
 
+      {/* Always-available way to read the terms and policies the business agreed
+          to. Opens in a new tab so it doesn't drop them out of settings. */}
+      <a href="/legal" target="_blank" rel="noopener noreferrer" className="bsn-legal" onClick={onNavigate}>
+        Terms &amp; policies
+      </a>
+
       <style>{`
         .bsn-back {
           display: flex; align-items: center; gap: 9px;
@@ -61,6 +67,11 @@ export function BusinessSettingsNav({ isOwner = true, onNavigate }: { isOwner?: 
         .bsn-back:hover, .bsn-back:focus-visible { color: #111827; outline: none; }
         .bsn-back-arrow { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); flex-shrink: 0; }
         .bsn-back:hover .bsn-back-arrow, .bsn-back:focus-visible .bsn-back-arrow { transform: translateX(-3px); }
+        .bsn-legal {
+          display: block; padding: 8px 12px; font-size: 12px; color: #9ca3af;
+          text-decoration: none; transition: color 150ms ease;
+        }
+        .bsn-legal:hover, .bsn-legal:focus-visible { color: #6b7280; outline: none; text-decoration: underline; }
       `}</style>
     </nav>
   );

@@ -7,6 +7,7 @@ import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
 import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { PROGRESSION_BUSINESS_TERMS_VERSION } from "@/lib/legal/progression-business-terms";
 import { sendWelcomeEmailIfNotSent, sendProgressionWelcomeIfNotSent } from "@/lib/emails/send-welcome";
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/analytics/attribution";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -73,6 +74,7 @@ export async function completeOAuthSignup(formData: FormData): Promise<
         name: toTitleCase(rawName),
         email: session.user.email,
         businessName: toTitleCase(rawAgencyName),
+        termsVersion: PROGRESSION_BUSINESS_TERMS_VERSION,
       });
       cookieStore.set(ATTRIBUTION_COOKIE, "", { path: "/", maxAge: 0 });
       console.log(`[AUDIT] oauth_signup_completed userId=${session.user.id} role=progressor-owner businessId=${businessId}`);

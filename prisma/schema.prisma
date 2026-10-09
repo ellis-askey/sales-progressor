@@ -270,6 +270,13 @@ model ProgressionBusiness {
   // fee is still the rate card x the exchange-locked price).
   billAtCompletion           Boolean @default(false)
 
+  // Terms acceptance — the version of the Sales Progression Business Terms the
+  // owner agreed to at sign-up, and when. Recorded so we always know which version
+  // each business is on when the Terms are amended. Null on the TSP row and on any
+  // business created before this field existed.
+  termsAcceptedVersion String?
+  termsAcceptedAt      DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

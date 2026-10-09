@@ -14,6 +14,7 @@ import { Fragment, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PolicyShell, type PolicySection } from "@/components/policies/PolicyShell";
+import { PROGRESSION_BUSINESS_TERMS_VERSION } from "@/lib/legal/progression-business-terms";
 
 export const metadata: Metadata = {
   title: "Sales Progression Business Terms — The Sales Progressor",
@@ -206,7 +207,7 @@ const RAW: Raw[] = [
       </ul>,
       "Charges arising from the addition of Team Members or transactions during a billing period will be included in the next applicable monthly collection.",
       "Payments are processed securely through our appointed payment provider.",
-      <p>Further provisions concerning payment processing and billing are set out in our <Link href="/billing-terms">Billing Terms</Link>. Where those provisions conflict with the specific pricing or billing arrangements described in these Terms, the provisions of these Terms shall prevail.</p>,
+      "The pricing and billing arrangements that apply to the Business are those set out in these Terms.",
     ],
   },
   {
@@ -407,7 +408,7 @@ export default function ProgressionBusinessTermsPage() {
       title="Sales Progression Business Terms of Service"
       description="These Terms and Conditions govern the use of The Sales Progressor platform by independent sales progression businesses providing services to their own client agencies."
       lastUpdated="October 2026"
-      version="1.0"
+      version={PROGRESSION_BUSINESS_TERMS_VERSION}
       sections={SECTIONS}
     />
   );

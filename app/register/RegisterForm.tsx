@@ -131,6 +131,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         firmName: firmName.trim() || null,
         role,
         accountType: isProgressor ? "progressor" : "agency",
+        termsAccepted,
       }),
     });
 
@@ -342,7 +343,16 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   </div>
                   <span style={{ fontSize: "12px", color: "rgba(32,36,46,0.60)", lineHeight: 1.5 }}>
                     I agree to the{" "}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}>Terms of Service</a>
+                    {/* A progression business agrees to ITS OWN terms, not the agency
+                        Terms of Service. The agency flow is unchanged. */}
+                    <a
+                      href={isProgressor ? "/progression-business-terms" : "/terms"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}
+                    >
+                      {isProgressor ? "Sales Progression Business Terms" : "Terms of Service"}
+                    </a>
                     {" "}and{" "}
                     <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}>Privacy Policy</a>
                   </span>

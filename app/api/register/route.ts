@@ -6,6 +6,7 @@ import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
 import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { PROGRESSION_BUSINESS_TERMS_VERSION } from "@/lib/legal/progression-business-terms";
 import { resolveSignupDestination } from "@/lib/auth/signup-destination";
 import { createJoinRequest } from "@/lib/services/agency-join-requests";
 import type { UserRole } from "@prisma/client";
@@ -33,12 +34,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(rateLimitJson(rl), { status: 429 });
     }
 
-    const { name, email, password, firmName, role, claimSignup, accountType } = await req.json();
+    const { name, email, password, firmName, role, claimSignup, accountType, termsAccepted } = await req.json();
 
     // Independent sales progressor signing up for their own bounded business.
     // Gated server-side too (never trust the client): if the flag is off, any
     // accountType=progressor payload falls through to the normal agency path.
     const isProgressor = accountType === "progressor" && progressionBusinessesEnabled();
+
+    // A progression business signs up against ITS OWN terms, not the agency ones,
+    // so the consent is a hard gate here (the form also requires it). Recorded
+    // below against the business so we know which version they agreed to.
+    if (isProgressor && termsAccepted !== true) {
+      return NextResponse.json({ error: "Please agree to the Sales Progression Business Terms to continue." }, { status: 400 });
+    }
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
@@ -78,6 +86,7 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         businessName: agencyName,
+        termsVersion: PROGRESSION_BUSINESS_TERMS_VERSION,
       });
       console.log(`[AUDIT] progression_business_registered userId=${userId} businessId=${businessId}`);
       void trackServerEvent(userId, ANALYTICS_EVENTS.USER_SIGNED_UP, {

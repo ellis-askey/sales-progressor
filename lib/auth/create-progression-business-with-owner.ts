@@ -8,6 +8,10 @@ interface CreateProgressionBusinessWithOwnerInput {
   email: string;
   password?: string;     // pre-hashed; omit for OAuth users
   businessName: string;
+  // The Sales Progression Business Terms version the owner agreed to at sign-up.
+  // Recorded on the business so we know which version they accepted. Omit to not
+  // record (e.g. an internal/seed creation).
+  termsVersion?: string;
 }
 
 interface CreateProgressionBusinessWithOwnerResult {
@@ -46,7 +50,11 @@ export async function createProgressionBusinessWithOwner(
     await assertCompanyNameAvailable(tx, input.businessName, "business");
 
     const business = await tx.progressionBusiness.create({
-      data: { name: input.businessName, isTsp: false },
+      data: {
+        name: input.businessName,
+        isTsp: false,
+        ...(input.termsVersion ? { termsAcceptedVersion: input.termsVersion, termsAcceptedAt: new Date() } : {}),
+      },
       select: { id: true },
     });
 

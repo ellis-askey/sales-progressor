@@ -131,6 +131,12 @@ export function BusinessCardCapture({
         returnUrl={`${returnPath}?saved=1`}
         onSuccess={() => { setCardCaptured(true); startSubscription(); }}
       />
+      {/* Billing consent at the moment it matters — the Terms set out the pricing
+          and payment cycle for the business. */}
+      <p style={{ margin: "10px 2px 0", fontSize: 11, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
+        By adding your card you agree to the{" "}
+        <a href="/progression-business-terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--agent-coral-deep)", textDecoration: "underline" }}>Sales Progression Business Terms</a>.
+      </p>
       <BccStyles />
     </div>
   );
