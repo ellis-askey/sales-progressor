@@ -12,7 +12,8 @@
  */
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
-jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn() }));
+jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn(), progressionBillingCollectEnabled: jest.fn() }));
+jest.mock("@/lib/emails/teammate-invite", () => ({ sendTeammateSetupEmail: jest.fn() }));
 jest.mock("@/lib/services/progression-clients", () => ({
   assertOwnerOfClient: jest.fn(),
   resolveBusinessOwner: jest.fn(),
@@ -103,14 +104,14 @@ describe("removeClientAgencyAction", () => {
     p.propertyTransaction.count.mockResolvedValue(0);
     await removeClientAgencyAction("ag1");
     expect(p.propertyTransaction.count).toHaveBeenCalledWith({
-      where: { progressionBusinessId: "biz1", agencyId: "ag1", status: "active", isDemo: false },
+      where: { progressionBusinessId: "biz1", agencyId: "ag1", status: { in: ["active", "on_hold"] }, isDemo: false },
     });
   });
 
   it("is BLOCKED when the client still has active sales (no archive)", async () => {
     p.propertyTransaction.count.mockResolvedValue(3);
     const res = await removeClientAgencyAction("ag1");
-    expect(res).toEqual({ ok: false, error: expect.stringMatching(/3 active sales/i) });
+    expect(res).toEqual({ ok: false, error: expect.stringMatching(/3 in-progress sales/i) });
     expect(p.progressionBusinessClient.update).not.toHaveBeenCalled();
   });
 

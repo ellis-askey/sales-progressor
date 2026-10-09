@@ -69,7 +69,8 @@ beforeEach(() => {
   (requireSession as jest.Mock).mockResolvedValue(sarahSession);
   (progressionBusinessesEnabled as jest.Mock).mockReturnValue(true);
   (resolveBusinessMember as jest.Mock).mockResolvedValue({ businessId: "biz_sarah", userId: "u_sarah" });
-  p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1" });
+  // A valid per-client fee is required before a sale can be created (fee gate).
+  p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1", feeModel: { type: "flat", pence: 30000 } });
   p.user.findFirst.mockResolvedValue({ id: "u_donna" });
 });
 
@@ -89,6 +90,12 @@ describe("createTransactionAction: create-for-client gates", () => {
   it("throws when the chosen agency is NOT one of the actor's clients", async () => {
     p.progressionBusinessClient.findUnique.mockResolvedValue(null);
     await expect(createTransactionAction(baseInput)).rejects.toThrow(/not one of your clients/i);
+    expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  it("throws when the client has no fee set (no file created)", async () => {
+    p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1", feeModel: null });
+    await expect(createTransactionAction(baseInput)).rejects.toThrow(/fee/i);
     expect(createTransaction).not.toHaveBeenCalled();
   });
 });

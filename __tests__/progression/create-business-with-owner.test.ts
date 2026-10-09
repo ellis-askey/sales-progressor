@@ -7,7 +7,13 @@
  * paths, atomically.
  */
 const txMock = {
-  progressionBusiness: { create: jest.fn(async (..._a: unknown[]) => ({ id: "biz_new" })) },
+  // assertCompanyNameAvailable (reserved/duplicate-name guard) scans these; empty
+  // means the chosen name is free.
+  agency: { findMany: jest.fn(async () => [] as { name: string }[]) },
+  progressionBusiness: {
+    create: jest.fn(async (..._a: unknown[]) => ({ id: "biz_new" })),
+    findMany: jest.fn(async () => [] as { name: string }[]),
+  },
   user: {
     create: jest.fn(async (..._a: unknown[]) => ({ id: "u_new" })),
     update: jest.fn(async (..._a: unknown[]) => ({ id: "u_existing" })),

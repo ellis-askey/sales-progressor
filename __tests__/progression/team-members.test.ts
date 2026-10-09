@@ -8,7 +8,8 @@
  */
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
-jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn() }));
+jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn(), progressionBillingCollectEnabled: jest.fn() }));
+jest.mock("@/lib/emails/teammate-invite", () => ({ sendTeammateSetupEmail: jest.fn() }));
 jest.mock("@/lib/services/progression-clients", () => ({
   resolveBusinessOwner: jest.fn(), addClientAgency: jest.fn(), assertOwnerOfClient: jest.fn(),
 }));
