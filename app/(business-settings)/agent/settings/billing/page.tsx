@@ -8,15 +8,17 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { businessBillingActive, getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
+import { getDefaultCard } from "@/lib/stripe";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
-import { BusinessCardCapture } from "@/components/progression/BusinessCardCapture";
+import { BusinessPaymentMethod } from "@/components/progression/BusinessPaymentMethod";
 import { SettingsNote } from "@/components/ui/SettingsNote";
 
 export default async function BusinessBillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; redirect_status?: string }> }) {
@@ -38,6 +40,14 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
   // Before a card is on file, the first charge is pro-rated for the rest of the
   // month (not the full £59) — so show that honestly instead of the flat monthly.
   const preview = collecting && !hasCard ? await getBusinessFirstChargePreview(owner.businessId) : null;
+  // The saved card (brand + last4) once billing is active, so we show it rather
+  // than an empty entry form.
+  const savedCard = hasCard
+    ? await (async () => {
+        const biz = await prisma.progressionBusiness.findUnique({ where: { id: owner.businessId }, select: { stripeCustomerId: true } });
+        return biz?.stripeCustomerId ? getDefaultCard(biz.stripeCustomerId) : null;
+      })()
+    : null;
   const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
   // Returned from a 3-D Secure card save (Stripe appends redirect_status to the
   // return URL). The card is already saved; BusinessCardCapture then starts the
@@ -136,9 +146,9 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
           <AccountCard
             icon={<CreditCard size={18} weight="bold" />}
             title="Payment method"
-            subtitle="Add the card we'll charge each month for your subscription and any sales you add."
+            subtitle={savedCard ? "The card we charge each month for your subscription and any sales you add." : "Add the card we'll charge each month for your subscription and any sales you add."}
           >
-            <BusinessCardCapture publishableKey={publishableKey} justReturned={justReturned} />
+            <BusinessPaymentMethod card={savedCard} publishableKey={publishableKey} justReturned={justReturned} />
           </AccountCard>
         )}
       </div>
