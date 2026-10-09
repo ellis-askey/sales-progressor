@@ -55,7 +55,7 @@ export function AddCardGateModal({
         <span style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", marginBottom: 7 }}>
           Activate your plan
         </span>
-        <h3 style={{ margin: 0, fontSize: 20, lineHeight: 1.2, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--agent-text-primary)" }}>
+        <h3 style={{ margin: 0, paddingRight: 28, fontSize: 20, lineHeight: 1.2, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--agent-text-primary)" }}>
           Add a card to start adding sales
         </h3>
         <p style={{ margin: "9px 0 0", fontSize: 13, lineHeight: 1.55, color: "var(--agent-text-secondary)", maxWidth: "40ch" }}>
