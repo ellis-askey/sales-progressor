@@ -65,7 +65,7 @@ export function BusinessPaymentMethod({
     ? `${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "Card"} ending ${card.last4}`
     : "Card on file";
   const sub = failed
-    ? "Payment failed — update your card to continue"
+    ? "Payment failed. Update your card to continue"
     : card
       ? `Expires ${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)} · we'll charge this each month`
       : "We'll charge this card each month";

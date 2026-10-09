@@ -87,7 +87,7 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
           <SettingsNote
             tone="danger"
             title="Adding sales is paused"
-            body="A payment is overdue. Update your card below to start adding sales again — files already in progress keep running as normal."
+            body="A payment is overdue. Update your card below to start adding sales again. Files already in progress keep running as normal."
           />
         ) : paymentState.kind === "warning" ? (
           <SettingsNote

@@ -46,7 +46,7 @@ export async function getBusinessPaymentState(businessId: string): Promise<Busin
 export class BusinessPaymentBlockedError extends Error {
   readonly code = "BUSINESS_PAYMENT_BLOCKED";
   constructor() {
-    super("A payment is overdue — update your card to add sales.");
+    super("A payment is overdue. Update your card to add sales.");
     this.name = "BusinessPaymentBlockedError";
   }
 }
