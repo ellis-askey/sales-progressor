@@ -53,14 +53,14 @@ export type BusinessFirstChargePreview = {
 };
 
 /**
- * What the business is charged THE MOMENT they add a card: the subscription
- * (base + any extra seats) pro-rated for the remainder of the current month, so
- * the modal can show "Due today" honestly. Mirrors Stripe's own proration maths
- * (by the second, against the current month window) so the figure matches the
- * charge without an extra Stripe round-trip. The recurring £59 then lands on the
- * 1st, anchored exactly as syncBusinessSubscription sets billing_cycle_anchor.
+ * The DATE bits (daysLeft, month, next-payment date) plus an APPROXIMATE
+ * pro-rata, computed by the second against the current-month window. This is the
+ * fallback only — the exact "Due today" figure comes from Stripe
+ * (getBusinessFirstChargePreview in business-stripe.ts), because Stripe's own
+ * proration (clock-change hour, rounding) is the authoritative amount that will
+ * actually be charged. Used verbatim when Stripe isn't configured / errors.
  */
-export async function getBusinessFirstChargePreview(businessId: string, now: Date = new Date()): Promise<BusinessFirstChargePreview> {
+export async function computeFirstChargeEstimate(businessId: string, now: Date = new Date()): Promise<BusinessFirstChargePreview> {
   const { start, end } = billingMonthRange(now);
   const nowMs = now.getTime();
   const anchorMs = end.getTime();      // midnight on the 1st of next month (London)

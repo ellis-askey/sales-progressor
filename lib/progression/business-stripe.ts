@@ -14,7 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
-import { getBusinessBillingSummary, BUSINESS_PER_SALE_PENCE } from "./business-billing";
+import { getBusinessBillingSummary, BUSINESS_PER_SALE_PENCE, computeFirstChargeEstimate, type BusinessFirstChargePreview } from "./business-billing";
 import { billingMonthRange } from "@/lib/billing/period";
 
 /** Error thrown when a sale is created for an external business that has no
@@ -41,6 +41,47 @@ export async function businessBillingActive(businessId: string): Promise<boolean
 
 function basePriceId(): string | undefined { return process.env.STRIPE_PRICE_BUSINESS_BASE; }
 function seatPriceId(): string | undefined { return process.env.STRIPE_PRICE_BUSINESS_SEAT; }
+
+/** The EXACT "Due today" the business will be charged the moment they add a card,
+ *  straight from Stripe's own proration preview — so the modal figure matches the
+ *  charge to the penny (Stripe, not us, decides the clock-change hour + rounding).
+ *  Previews the same subscription syncBusinessSubscription creates (base + seats,
+ *  billing_cycle_anchor on the 1st, create_prorations). Falls back to our own
+ *  by-second estimate if Stripe isn't configured, the prices aren't set, or the
+ *  preview errors. The date/label fields always come from the estimate. */
+export async function getBusinessFirstChargePreview(businessId: string, now: Date = new Date()): Promise<BusinessFirstChargePreview> {
+  const estimate = await computeFirstChargeEstimate(businessId, now);
+  const base = basePriceId();
+  const seat = seatPriceId();
+  if (!isStripeConfigured() || !base || !seat) return estimate;
+
+  try {
+    const customerId = await ensureStripeCustomerForBusiness(businessId);
+    if (!customerId) return estimate;
+
+    const memberCount = await prisma.user.count({ where: { progressionBusinessId: businessId, deactivatedAt: null } });
+    const extraMembers = Math.max(0, memberCount - 1);
+    const items: { price: string; quantity: number }[] = [{ price: base, quantity: 1 }];
+    if (extraMembers > 0) items.push({ price: seat, quantity: extraMembers });
+
+    const cycleAnchor = Math.floor(billingMonthRange(now).end.getTime() / 1000);
+    const stripe = getStripeClient();
+    const inv = await stripe.invoices.createPreview({
+      customer: customerId,
+      subscription_details: {
+        items,
+        billing_cycle_anchor: cycleAnchor,
+        proration_behavior: "create_prorations",
+      },
+    });
+    // amount_due is the pence total Stripe would charge for this first (prorated)
+    // invoice — exactly what lands on the card.
+    if (typeof inv.amount_due === "number") return { ...estimate, dueTodayPence: inv.amount_due };
+  } catch (err) {
+    console.error(`[business-billing] exact proration preview failed for ${businessId}:`, err);
+  }
+  return estimate;
+}
 
 /** Create (or reuse) the business's Stripe customer. Returns null if Stripe is
  *  unconfigured or the business is missing. Mirrors the agency setup-intent path. */

@@ -6,8 +6,7 @@ import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
-import { businessBillingActive } from "@/lib/progression/business-stripe";
-import { getBusinessFirstChargePreview } from "@/lib/progression/business-billing";
+import { businessBillingActive, getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
 import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
