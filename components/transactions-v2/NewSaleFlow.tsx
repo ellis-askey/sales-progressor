@@ -756,7 +756,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setExtractionError("We couldn't read that memo. Try a clearer photo or PDF, or add the details manually.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [needsCard]);
 
   function handleCancel() {
     resetToHero();
@@ -1353,9 +1353,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           onClick={() => handleSubmit()}
         />
         <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
-        {cardOpen && (
-          <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} onClose={() => { setCardOpen(false); router.refresh(); }} />
-        )}
       </div>
     </>
   );
@@ -1378,6 +1375,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   return (
     <div className="nv2-night new-sale-flow">
+
+      {/* Add-a-card gate modal. Rendered at the ROOT so it shows in EVERY flow
+          state — especially "hero", where the "Drop a memo" / "Fill in manually"
+          buttons open it. (It portals to <body>, so placement here is just about
+          being in the render tree.) */}
+      {cardOpen && (
+        <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} onClose={() => { setCardOpen(false); router.refresh(); }} />
+      )}
 
       {/* Full-width top hero. In the hero state it's the demo card; once the
           agent starts (memo or manual) that fades away and the live editable
