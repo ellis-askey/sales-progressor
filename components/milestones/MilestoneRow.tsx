@@ -264,6 +264,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   const isCompleted = optimisticState.isComplete || (optimisticallyComplete ?? false);
   const isNotRequired = optimisticState.isNotRequired;
   const isDone = isCompleted || isNotRequired;
+  // The instant WE confirm this step, optimisticState flips complete before the
+  // server catches up. In that window def.completedByName still holds whoever
+  // last touched the pre-confirm (booking) row, so attribute to the current user
+  // instead — they're the one who just clicked Confirmed. Excludes parent-driven
+  // auto-mirror (optimisticallyComplete), which stays a neutral "your team".
+  const confirmedByMeOptimistically = optimisticState.isComplete && !def.isComplete;
   const isGate = def.code === "VM18" || def.code === "PM25";
   const isPost = POST_EXCHANGE_CODES.has(def.code);
   const isPM9 = def.code === "PM9";
@@ -712,7 +718,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               {(() => {
                 const comp = def.completion;
                 const confirmer: { name: string; role: ActorRole; image: string | null; channel: "app" | "portal" | "sol" } =
-                  comp?.confirmedByPortal
+                  confirmedByMeOptimistically
+                    // Image stays null (the branded agent avatar) for the optimistic
+                    // instant; the real photo lands with the server reconcile.
+                    ? { name: currentUserName ?? "your agency", role: "agent", image: null, channel: "app" }
+                    : comp?.confirmedByPortal
                     ? { name: def.confirmedByClientName ?? "the client", role: def.side === "vendor" ? "seller" : "buyer", image: def.confirmedByClientImage ?? null, channel: "portal" }
                     : comp?.confirmedBySolicitorFirmId
                     ? { name: def.confirmedBySolicitorFirmName ?? "the solicitor", role: "solicitor", image: null, channel: "sol" }
