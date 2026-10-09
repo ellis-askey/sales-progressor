@@ -2,6 +2,8 @@
 // (audit #11). No ID lookup — the resume date rides in the query string
 // (harmless), so nothing sensitive is fetched unauthenticated.
 
+import { confirmPauseAction } from "./actions";
+
 export const metadata = { title: "Reminders paused" };
 
 function formatUntil(until: string | undefined): string | null {
@@ -14,11 +16,14 @@ function formatUntil(until: string | undefined): string | null {
 export default async function ChasesPausedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; until?: string }>;
+  searchParams: Promise<{ status?: string; until?: string; t?: string }>;
 }) {
-  const { status, until } = await searchParams;
+  const { status, until, t } = await searchParams;
   const ok = status === "ok";
   const untilLabel = formatUntil(until);
+  // Confirm step from the email link (token present, not yet applied). The pause
+  // only fires on the button press, so a link scanner opening this changes nothing.
+  const isConfirm = !status && !!t;
 
   return (
     <div
@@ -44,7 +49,26 @@ export default async function ChasesPausedPage({
           textAlign: "center",
         }}
       >
-        {ok ? (
+        {isConfirm ? (
+          <>
+            <h1 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 700 }}>Pause reminders?</h1>
+            <p style={{ margin: "0 0 20px", fontSize: 15, lineHeight: 1.6, color: "#4a5162" }}>
+              We&apos;ll hold off on reminder emails for the next week. You&apos;ll still get the important updates about your move.
+            </p>
+            <form action={confirmPauseAction}>
+              <input type="hidden" name="t" value={t} />
+              <button
+                type="submit"
+                style={{
+                  display: "inline-block", padding: "12px 22px", fontSize: 15, fontWeight: 600,
+                  color: "#fff", background: "#1a1d29", border: "none", borderRadius: 12, cursor: "pointer",
+                }}
+              >
+                Pause for a week
+              </button>
+            </form>
+          </>
+        ) : ok ? (
           <>
             <h1 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 700 }}>Reminders paused</h1>
             <p style={{ margin: "0 0 8px", fontSize: 15, lineHeight: 1.6, color: "#4a5162" }}>

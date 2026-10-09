@@ -20,6 +20,7 @@ import { writeClientChainStub } from "@/lib/services/chains";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
 import { getPortalChainAgent, getPortalSurveyState, type PortalChainAgent } from "@/lib/services/portal";
 import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
+import { assertLivePortalRound } from "@/lib/portal/round-guard";
 
 // ── Token → Contact resolver (single source of truth) ────────────────
 async function requirePortalContact(token: string) {
@@ -158,6 +159,10 @@ export async function saveMyBrokerAction(input: {
   contact: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const contact = await requirePortalContact(input.token);
+  // A superseded (fallen-through) buyer's link stays valid for the read page but
+  // must not write to the CURRENT buyer's live file — the same guard the rest of
+  // the portal uses. No-op for vendors and the live buyer.
+  await assertLivePortalRound(input.token);
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const name = input.name?.trim();
   if (!name) return { ok: false, error: "Add the broker's name." };
@@ -186,6 +191,7 @@ export async function updateMyChainAgentAction(input: {
   propertyAddress: string | null;
 }) {
   const contact = await requirePortalContact(input.token);
+  await assertLivePortalRound(input.token); // superseded buyer can't edit the live file's chain
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const direction: "above" | "below" = side === "vendor" ? "above" : "below";
 
@@ -312,6 +318,7 @@ export async function updateMySolicitorContactAction(input: {
   phone: string | null;
 }) {
   const contact = await requirePortalContact(input.token);
+  await assertLivePortalRound(input.token); // superseded buyer can't change the live file's solicitor
   const cleanName  = input.name.trim();
   const cleanEmail = input.email?.trim() || null;
   const cleanPhone = input.phone?.trim() || null;
@@ -369,6 +376,7 @@ export async function switchMySolicitorFirmAction(input: {
   phone: string | null;
 }) {
   const contact = await requirePortalContact(input.token);
+  await assertLivePortalRound(input.token); // superseded buyer can't switch the live file's solicitor firm
   const cleanFirm    = input.firmName.trim();
   const cleanContact = input.contactName.trim();
   const cleanEmail   = input.email?.trim() || null;

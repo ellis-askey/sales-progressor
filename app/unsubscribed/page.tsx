@@ -1,14 +1,19 @@
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
+import { confirmUnsubscribeAction } from "./actions";
 import "../claim/styles/claim-flow.css";
 
 export default async function UnsubscribedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string }>;
+  searchParams: Promise<{ status?: string; type?: string; t?: string }>;
 }) {
-  const { status, type } = await searchParams;
+  const { status, type, t } = await searchParams;
   const isOk = status === "ok";
   const isContact = type === "contact";
+  // Confirm step: arrived from the email link (token present, not yet applied).
+  // The actual unsubscribe only fires when they press the button (a POST), so an
+  // email scanner opening this page in the background changes nothing.
+  const isConfirm = !status && !!t;
 
   return (
     <div className="claim-page">
@@ -25,7 +30,21 @@ export default async function UnsubscribedPage({
       </header>
       <div className="claim-error-wrap">
         <div className="claim-error-inner">
-          {isOk && isContact ? (
+          {isConfirm ? (
+            <>
+              <p className="claim-error-eyebrow">The Sales Progressor</p>
+              <h1 className="claim-error-h1">Unsubscribe?</h1>
+              <p className="claim-error-p">
+                {isContact
+                  ? "Confirm and we'll stop emailing you update reminders about your sale. We'll still contact you directly when we need something from you."
+                  : "Confirm and we'll stop sending you emails from this address."}
+              </p>
+              <form action={confirmUnsubscribeAction} style={{ marginTop: 20 }}>
+                <input type="hidden" name="t" value={t} />
+                <button type="submit" className="claim-btn">Yes, unsubscribe</button>
+              </form>
+            </>
+          ) : isOk && isContact ? (
             // Buyer/seller contact variant. Copy is intentionally GENERIC on
             // the address ("your sale", not "your sale at 12 Acacia Avenue")
             // — the page does not look up the contact by ID to avoid an

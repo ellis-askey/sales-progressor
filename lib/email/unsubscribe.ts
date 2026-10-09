@@ -8,7 +8,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 function secret(): string {
-  return process.env.UNSUBSCRIBE_SECRET ?? "";
+  // Prefer the dedicated secret; fall back to the app secret (always set in
+  // production, required by NextAuth) so these links are NEVER signed with an
+  // empty key. Fail CLOSED if neither is present rather than issuing forgeable
+  // tokens — a missing secret must break signing, not remove the lock.
+  const s = process.env.UNSUBSCRIBE_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!s) throw new Error("UNSUBSCRIBE_SECRET or NEXTAUTH_SECRET must be set to sign unsubscribe links");
+  return s;
 }
 
 function sign(payload: string): string {

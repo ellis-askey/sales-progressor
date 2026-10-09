@@ -11,7 +11,16 @@ import type { SolicitorSide } from "./codes";
 // solicitor) — never to a solicitor firm globally, so a firm that handles
 // many of our files can never confirm the wrong one from one link.
 
-const SECRET = process.env.NEXTAUTH_SECRET ?? "dev-solicitor-secret";
+// Signing key. MUST be the real app secret — no hard-coded fallback, so a
+// missing/empty NEXTAUTH_SECRET makes the links fail to sign/verify (fail CLOSED)
+// rather than becoming forgeable with a known constant. NextAuth already requires
+// NEXTAUTH_SECRET in production, so this never fires there; it only guards a
+// misconfiguration.
+function tokenSecret(): string {
+  const s = process.env.NEXTAUTH_SECRET;
+  if (!s) throw new Error("NEXTAUTH_SECRET must be set to sign solicitor confirmation links");
+  return s;
+}
 
 // Links are valid for ~30 days from issue (D5). Every chase email mints a fresh
 // one, so an active file always has a working link; a stale or forwarded link
@@ -21,7 +30,7 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function signSolicitorToken(transactionId: string, side: SolicitorSide): string {
   const body = Buffer.from(`${transactionId}.${side}.${Date.now()}`).toString("base64url");
-  const sig = crypto.createHmac("sha256", SECRET).update(body).digest("base64url").slice(0, 20);
+  const sig = crypto.createHmac("sha256", tokenSecret()).update(body).digest("base64url").slice(0, 20);
   return `${body}.${sig}`;
 }
 
@@ -32,7 +41,7 @@ export function verifySolicitorToken(
   if (dot <= 0) return null;
   const body = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  const expected = crypto.createHmac("sha256", SECRET).update(body).digest("base64url").slice(0, 20);
+  const expected = crypto.createHmac("sha256", tokenSecret()).update(body).digest("base64url").slice(0, 20);
   // Constant-time compare.
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
     return null;

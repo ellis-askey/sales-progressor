@@ -70,6 +70,19 @@ async function resolveStep(token: string, milestoneDefinitionId: string) {
   });
   if (!tx) throw new Error("This matter could not be found.");
 
+  // Order gate: only a step that is currently AVAILABLE (unlocked, not already
+  // complete) for this side/round can be acted on — the exact rule the /s page
+  // uses to decide which steps to show. Without this, a link holder could submit a
+  // later, not-yet-due step id (e.g. a "ready to exchange" gate) and jump the sale
+  // out of sequence, firing premature client emails. Steps that aren't shown can't
+  // be confirmed.
+  const stepScope = forRound(tx.activeBuyerRoundId, decoded.transactionId);
+  const available = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId: decoded.transactionId, milestoneDefinitionId: def.id, state: "available", ...milestoneScopeWhere(stepScope) },
+    select: { id: true },
+  });
+  if (!available) throw new Error("That step isn't ready to confirm yet.");
+
   const firmName =
     side === "vendor" ? tx.vendorSolicitorFirm?.name : tx.purchaserSolicitorFirm?.name;
   const solicitorFirmId =
