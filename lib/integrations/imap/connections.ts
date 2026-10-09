@@ -10,6 +10,7 @@ import { verifyImapLogin } from "./client";
 import { verifySmtpLogin } from "@/lib/integrations/smtp/client";
 import { sendViaMailboxConnection } from "@/lib/integrations/smtp/send";
 import { buildMailboxSendingTest } from "@/lib/email/mailbox-sending-notices";
+import { isReplyCaptureEnabled } from "@/lib/email/reply-capture";
 
 // What the send control on a connection row should truthfully be. Sending only
 // ever applies to the mailbox matching the agent's SIGN-IN address (the sender
@@ -52,6 +53,11 @@ export type MyImapStatus = {
   userEmail: string | null;
   userDomainVerified: boolean;
   sendsFrom: SendsFrom;
+  // Whether reply-capture is switched on (REPLY_CAPTURE_DOMAIN set). When true and
+  // the user sends via a connected mailbox, replies to their emails are captured +
+  // forwarded regardless of whether we can read that inbox — so the UI can reassure
+  // instead of showing a bare "reading limited" warning.
+  replyCaptureOn: boolean;
 };
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
@@ -158,7 +164,7 @@ export async function getMyImapStatus(userId: string): Promise<MyImapStatus> {
         ? { address: ctx.email, via: "mailbox" }
         : { address: "updates@thesalesprogressor.co.uk", via: "platform" };
 
-  return { connections, userEmail: ctx.email, userDomainVerified: ctx.domainVerified, sendsFrom };
+  return { connections, userEmail: ctx.email, userDomainVerified: ctx.domainVerified, sendsFrom, replyCaptureOn: isReplyCaptureEnabled() };
 }
 
 export type ConnectImapInput = {

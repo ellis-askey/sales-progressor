@@ -45,6 +45,7 @@ type Status = {
   userEmail: string | null;
   userDomainVerified: boolean;
   sendsFrom: SendsFrom;
+  replyCaptureOn?: boolean;
 };
 
 const CORAL = "var(--agent-coral, #FF6B4A)";
@@ -377,7 +378,9 @@ export function ImapConnectionCard() {
     if (s.via === "domain")
       return `Your emails send from ${s.address}. Your sign-in address is on your verified domain, so we'll use that by default.`;
     if (s.via === "mailbox")
-      return `Your emails send from ${s.address} through your connected inbox. Every email appears in its Sent folder, and replies come straight back to you.`;
+      return status.replyCaptureOn
+        ? `Your emails send from ${s.address} through your connected inbox. Replies are captured automatically, filed on the sale, and forwarded to your inbox.`
+        : `Your emails send from ${s.address} through your connected inbox. Every email appears in its Sent folder, and replies come straight back to you.`;
     return `Your emails currently send from our address, with replies coming to ${status.userEmail ?? "you"}. Connect an inbox below to send from your own address.`;
   })();
 
@@ -418,7 +421,15 @@ export function ImapConnectionCard() {
                 {/* Connected inboxes */}
                 {count > 0 && (
                   <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-                    {connections.map((c) => (
+                    {connections.map((c) => {
+                      // Reply-capture handles replies for this inbox when it's on AND
+                      // this connection is the mailbox we send through — a "reading
+                      // limited" warning is then moot, so reassure instead of alarm.
+                      const captured =
+                        !!status?.replyCaptureOn &&
+                        status?.sendsFrom.via === "mailbox" &&
+                        c.email === status?.sendsFrom.address;
+                      return (
                       <li key={c.id} className="px-3 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-2.5">
@@ -439,7 +450,9 @@ export function ImapConnectionCard() {
                                 ) : (
                                   <span className={PILL.off}>Sending off</span>
                                 )}
-                                {c.lastError ? (
+                                {captured ? (
+                                  <span className={PILL.on}>Replies captured ✓</span>
+                                ) : c.lastError ? (
                                   <span className={PILL.warn}>Reading limited</span>
                                 ) : c.lastSyncedAt ? (
                                   <span className={PILL.on}>Reading on</span>
@@ -447,8 +460,17 @@ export function ImapConnectionCard() {
                                   <span className={PILL.off}>Reading not checked yet</span>
                                 )}
                               </div>
-                              {/* Inbox-reading detail: calm + plain-English, never a red "reconnect to fix" */}
-                              {c.lastError ? (
+                              {/* Reply-capture reassurance takes priority: when it's handling replies, a
+                                  "reading limited" warning would only confuse, so we don't show it. */}
+                              {captured ? (
+                                <p className="mt-1 flex items-start gap-1.5 text-[12px] leading-snug text-emerald-700">
+                                  <CheckCircle size={13} weight="fill" className="mt-0.5 shrink-0" />
+                                  <span>
+                                    Replies to your emails are captured automatically and filed on the sale, then forwarded to
+                                    your inbox. You don&rsquo;t need to do anything here.
+                                  </span>
+                                </p>
+                              ) : c.lastError ? (
                                 <p className="mt-1 flex items-start gap-1.5 text-[12px] leading-snug text-amber-700">
                                   <Info size={13} weight="fill" className="mt-0.5 shrink-0" />
                                   <span>
@@ -519,7 +541,8 @@ export function ImapConnectionCard() {
                           <p className={`mt-2 text-[12px] ${sendMsg.isError ? "text-red-600" : "text-emerald-700"}`}>{sendMsg.text}</p>
                         )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
 
