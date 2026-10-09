@@ -29,6 +29,7 @@ export function BusinessCardCapture({
   authFailed = false,
   onComplete,
   addSaleHref,
+  returnPath = "/agent/settings/billing",
 }: {
   publishableKey: string;
   justReturned?: boolean;
@@ -39,6 +40,10 @@ export function BusinessCardCapture({
   onComplete?: () => void;
   // Page use: where to go next after a successful save (e.g. add a sale).
   addSaleHref?: string;
+  // Where Stripe redirects back to after a 3-D Secure card save. Defaults to the
+  // billing page; the add-sale gate passes the new-sale page so a verification-
+  // required card lands the owner back at their sale, not on billing.
+  returnPath?: string;
 }) {
   const router = useRouter();
   // The card is attached at Stripe (inline confirmSetup succeeded, or we're back
@@ -123,7 +128,7 @@ export function BusinessCardCapture({
       <CardCaptureForm
         publishableKey={publishableKey}
         setupIntentUrl="/api/billing/business/setup-intent"
-        returnUrl="/agent/settings/billing?saved=1"
+        returnUrl={`${returnPath}?saved=1`}
         onSuccess={() => { setCardCaptured(true); startSubscription(); }}
       />
       <BccStyles />

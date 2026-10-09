@@ -42,6 +42,7 @@ export function AddCardGateModal({
   onSaved,
   preview = null,
   notice = null,
+  returnPath = "/agent/settings/billing",
 }: {
   publishableKey: string;
   onClose: () => void;
@@ -51,6 +52,9 @@ export function AddCardGateModal({
   preview?: CardGatePreview | null;
   // When set, show this message instead of the add-a-card form (paused / ask-owner).
   notice?: GateNotice | null;
+  // Where a 3-D Secure card save redirects back to. The new-sale page passes its
+  // own path so a verification card returns to the sale, not the billing page.
+  returnPath?: string;
 }) {
   const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
@@ -228,7 +232,7 @@ export function AddCardGateModal({
             {/* On a successful inline save, tell the parent (so it can resume the
                 sale) then close the modal, rather than sitting on a banner. 3-D
                 Secure redirects out and is finished on the billing page on return. */}
-            <BusinessCardCapture publishableKey={publishableKey} onComplete={() => { onSaved?.(); requestClose(); }} />
+            <BusinessCardCapture publishableKey={publishableKey} returnPath={returnPath} onComplete={() => { onSaved?.(); requestClose(); }} />
           </div>
 
           {/* Trust */}

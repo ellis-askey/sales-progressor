@@ -32,6 +32,7 @@ import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
+import { syncBusinessSubscriptionAction } from "@/app/actions/progression-clients";
 import { AddCardGateModal, type CardGatePreview, type GateNotice } from "@/components/progression/AddCardGateModal";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
@@ -781,6 +782,37 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billingSatisfied, pendingResume]);
 
+  // 3-D Secure card return: a verification-required card added in the gate modal
+  // redirects out to the bank and back HERE (returnPath on the new-sale page), not
+  // to billing. On return we start the subscription, clear the gate, and let them
+  // get on with the sale — rather than stranding them on the billing page. Runs once.
+  const cardReturnHandledRef = useRef(false);
+  useEffect(() => {
+    if (cardReturnHandledRef.current || typeof window === "undefined") return;
+    if (!publishableKey) return; // only the progression collection context
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("saved") !== "1") return;
+    cardReturnHandledRef.current = true;
+    const failed = params.get("redirect_status") === "failed";
+    // Clean the query so a refresh doesn't re-trigger the handler.
+    window.history.replaceState(null, "", window.location.pathname);
+    if (failed) {
+      toast.error("Your bank couldn't verify that card. Add a card to start your sale.");
+      return;
+    }
+    (async () => {
+      const r = await syncBusinessSubscriptionAction().catch(() => null);
+      if (r && r.ok) {
+        setBillingSatisfied(true);
+        toast.success("Card added. You're all set to add your sale.");
+        router.refresh();
+      } else {
+        toast.error("Your card saved, but we couldn't start your plan. Open billing to finish.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleCancel() {
     resetToHero();
   }
@@ -1410,6 +1442,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           publishableKey={publishableKey}
           preview={cardGatePreview}
           notice={salesNotice}
+          returnPath="/agent/transactions/new"
           onSaved={() => setBillingSatisfied(true)}
           onClose={() => { setCardOpen(false); router.refresh(); }}
         />
