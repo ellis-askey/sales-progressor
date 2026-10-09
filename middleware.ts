@@ -158,7 +158,7 @@ export default withAuth(
     }
 
     // Agent users can only access the agent area, APIs, and portal â€” nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/quote", "/claim", "/invite", "/invite-negotiator", "/outsource", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
+    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/a/", "/quote", "/claim", "/invite", "/invite-negotiator", "/outsource", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
@@ -177,6 +177,9 @@ export default withAuth(
         // Solicitor confirm links — token-authenticated inside the page/actions,
         // like /portal. No session required.
         if (pathname.startsWith("/s/")) return true;
+        // Mortgage-advisor portal links — token-authenticated inside the page/actions,
+        // like /s/. No session required.
+        if (pathname.startsWith("/a/")) return true;
         // Public no-auth quote-request page (Contact.portalToken gated in-page).
         if (pathname.startsWith("/quote")) return true;
         if (pathname.startsWith("/claim")) return true;

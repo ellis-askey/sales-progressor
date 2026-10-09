@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveBrokerReferralAction } from "@/app/actions/transactions";
+import { getAdvisorPortalLinkAction } from "@/app/actions/advisor-portal";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
@@ -125,6 +126,10 @@ export function BrokerSection({
               {copy.referredPill}
             </span>
           )}
+          {/* Buyer-side advisor portal link (Phase 1). Lets an agent share the
+              advisor's private progress view now; the Phase 3 chase will send it
+              automatically. Vendor-onward advisor portal lands in a later phase. */}
+          {side === "purchaser" && brokerContactId && <AdvisorPortalLink transactionId={transactionId} />}
         </div>
 
         {/* Referral fee */}
@@ -176,6 +181,42 @@ export function BrokerSection({
         )}
       </GlassCard>
     </section>
+  );
+}
+
+// "Copy advisor link" — mints the broker's private portal link on demand and
+// copies it to the clipboard, so an agent can share it with their mortgage
+// advisor straight away (read-only progress view).
+function AdvisorPortalLink({ transactionId }: { transactionId: string }) {
+  const [state, setState] = useState<"idle" | "working" | "copied" | "error">("idle");
+
+  async function copy() {
+    setState("working");
+    const res = await getAdvisorPortalLinkAction(transactionId);
+    if (!res.ok) {
+      setState("error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(res.url);
+      setState("copied");
+      window.setTimeout(() => setState("idle"), 2200);
+    } catch {
+      // Clipboard blocked (rare) — surface the URL so it can be copied by hand.
+      window.prompt("Advisor portal link", res.url);
+      setState("idle");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      disabled={state === "working"}
+      className="mt-2.5 text-xs agent-link-primary font-medium disabled:opacity-50"
+    >
+      {state === "copied" ? "Link copied" : state === "error" ? "Couldn't create link" : state === "working" ? "Creating…" : "Copy advisor portal link"}
+    </button>
   );
 }
 
