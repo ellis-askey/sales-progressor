@@ -115,6 +115,9 @@ export type FileListRow = {
   agencyName: string;
   status: string;
   hasPhoto: boolean;
+  // Set when an external progression business handles this file (null = TSP or
+  // the agency itself). Drives the "Managed by {business}" tag in Command.
+  progressionBusinessId: string | null;
   // Signed thumbnail URL for the list photo (null when there's no photoStoragePath).
   photoUrl: string | null;
   lastTeamActivityAt: Date | null;
@@ -169,6 +172,7 @@ export async function getFilesList(opts: {
       vendorSolicitorContactId: true,
       purchaserSolicitorContactId: true,
       activeBuyerRoundId: true,
+      progressionBusinessId: true,
       agency: { select: { name: true } },
       // Principal buyer/seller contacts — checked for a missing email (no email
       // means no portal + no updates, the biggest "left empty" gap after photo).
@@ -239,6 +243,7 @@ export async function getFilesList(opts: {
       id: f.id,
       address: f.propertyAddress,
       agencyName: f.agency?.name ?? "—",
+      progressionBusinessId: f.progressionBusinessId,
       status: f.status,
       hasPhoto,
       photoUrl: f.photoStoragePath ? photoMap.get(f.photoStoragePath) ?? null : null,

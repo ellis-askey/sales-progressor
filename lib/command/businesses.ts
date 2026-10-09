@@ -123,6 +123,27 @@ export async function getBusinessesRevenue(now: Date = new Date()): Promise<Busi
   };
 }
 
+/** agencyId → managing business name, for agencies that are an active client of
+ *  a progression business. Powers the "Managed by {business}" tag on the
+ *  Agencies page. */
+export async function getAgencyBusinessMap(): Promise<Map<string, string>> {
+  const links = await commandDb.progressionBusinessClient.findMany({
+    where: { removedAt: null, progressionBusiness: { isTsp: false } },
+    select: { agencyId: true, progressionBusiness: { select: { name: true } } },
+  });
+  return new Map(links.map((l) => [l.agencyId, l.progressionBusiness.name]));
+}
+
+/** businessId → name, for every non-TSP business. Powers the per-file
+ *  "Managed by {business}" tag (files key off progressionBusinessId directly). */
+export async function getBusinessNameMap(): Promise<Map<string, string>> {
+  const rows = await commandDb.progressionBusiness.findMany({
+    where: { isTsp: false },
+    select: { id: true, name: true },
+  });
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
 export type BusinessStatementLine = { businessName: string; description: string; pence: number };
 
 /** Line-by-line business income for the Revenue breakdown drill — each business's

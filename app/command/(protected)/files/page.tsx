@@ -11,6 +11,8 @@ import {
   type FileAttention,
 } from "@/lib/command/files";
 import { listStoredPhotoTxIds } from "@/lib/supabase-storage";
+import { getBusinessNameMap } from "@/lib/command/businesses";
+import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import { PhotoUploadButton } from "@/components/command/files/PhotoUploadButton";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { FilterSelect } from "@/components/command/shared/FilterSelect";
@@ -117,11 +119,12 @@ export default async function FilesPage({
   const storedIds = await listStoredPhotoTxIds();
 
   const selectedId = sp.tx;
-  const [photoQueue, results, file, list] = await Promise.all([
+  const [photoQueue, results, file, list, businessNames] = await Promise.all([
     getPhotoQueue({ storedIds, serviceType }),
     q ? searchFiles(q, storedIds) : Promise.resolve([]),
     selectedId ? getFileOperational(selectedId) : Promise.resolve(null),
     !selectedId && !q ? getFilesList({ storedIds, status: statusFilter, attention: attFilter, serviceType, createdAfter }) : Promise.resolve(null),
+    getBusinessNameMap(),
   ]);
 
   const qs = (extra: Record<string, string>) => {
@@ -219,7 +222,7 @@ export default async function FilesPage({
                   <Link href={listHref({ created: "" })} className="text-blue-400 hover:text-blue-300 font-medium">Show all →</Link>
                 </div>
               )}
-              <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} managedKey={managedKey} listHref={listHref} />
+              <BrowsableList list={list} statusFilter={statusFilter} attFilter={attFilter} managedKey={managedKey} listHref={listHref} businessNames={businessNames} />
             </div>
           )}
         </div>
@@ -282,12 +285,14 @@ function BrowsableList({
   attFilter,
   managedKey,
   listHref,
+  businessNames,
 }: {
   list: { rows: FileListRow[]; total: number } | null;
   statusFilter?: "active" | "on_hold";
   attFilter?: FileAttention;
   managedKey?: "self" | "outsourced";
   listHref: (extra: Record<string, string>) => string;
+  businessNames: Map<string, string>;
 }) {
   const rows = list?.rows ?? [];
   const total = list?.total ?? 0;
@@ -372,6 +377,9 @@ function BrowsableList({
                   </td>
                   <td className="px-3.5 py-2.5 text-neutral-400">
                     <span className="block max-w-[160px] truncate" title={r.agencyName}>{r.agencyName}</span>
+                    {r.progressionBusinessId && businessNames.get(r.progressionBusinessId) && (
+                      <span className="mt-1 block"><ManagedByTag businessName={businessNames.get(r.progressionBusinessId)!} /></span>
+                    )}
                   </td>
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-neutral-300">

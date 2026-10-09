@@ -7,6 +7,8 @@ import { WeeklyUpdateControl, type WeeklyUpdateRow } from "@/components/command/
 import { WhatsAppControl, type WhatsAppRow } from "@/components/command/agencies/WhatsAppControl";
 import { AgencySetupReadiness } from "@/components/command/agencies/AgencySetupReadiness";
 import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
+import { getAgencyBusinessMap } from "@/lib/command/businesses";
+import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { StatusFilterSelect } from "@/components/command/agencies/StatusFilterSelect";
 import { AgentHelpButton } from "@/components/command/agencies/AgentHelpButton";
@@ -191,6 +193,9 @@ export default async function AgenciesPage({
   // Per-agency setup readiness (email + experience + team signals).
   const setupReadiness = await getAgencySetupReadiness();
 
+  // agencyId -> managing progression business name (for the "Managed by" tag).
+  const agencyBusinessMap = await getAgencyBusinessMap();
+
   const agentRows: AgentUsage[] = agents.filter(
     (a) =>
       matchesStatus(a.status) &&
@@ -344,7 +349,12 @@ export default async function AgenciesPage({
                         </div>
                       </Link>
                     </td>
-                    <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{a.agencyName}</td>
+                    <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">
+                      {a.agencyName}
+                      {agencyBusinessMap.get(a.agencyId) && (
+                        <span className="ml-1.5 inline-block align-middle"><ManagedByTag businessName={agencyBusinessMap.get(a.agencyId)!} /></span>
+                      )}
+                    </td>
                     <td className="px-3.5 py-2.5 text-neutral-400 whitespace-nowrap">{fmtRelative(a.lastActive)}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.logins7d}</td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{fmtDuration(a.seconds7d)}</td>
