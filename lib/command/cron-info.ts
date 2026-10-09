@@ -47,6 +47,7 @@ export const CRON_INFO: Record<string, CronInfo> = {
   "accrue-invoices":     { label: "Invoice accrual",        group: "Billing & payments", desc: "Daily: adds this month's exchange charges to each agency's running invoice." },
   "issue-invoices":      { label: "Monthly invoicing",      group: "Billing & payments", desc: "First of the month: finalises the previous month's invoices and charges agencies via Stripe." },
   "check-failed-payments": { label: "Failed-payment check", group: "Billing & payments", desc: "Daily: blocks new file creation for agencies whose payment failed and stayed unpaid past a seven-day grace." },
+  "business-billing":    { label: "Business billing",       group: "Billing & payments", desc: "Daily: reconciles each progression business's subscription seats, pushes accrued £5-per-sale charges onto the next invoice, and blocks businesses 7+ days past a failed payment. No-op until collection is switched on." },
 
   // Analytics & insights
   "rollup-metrics":      { label: "Metrics rollup",         group: "Analytics & insights", desc: "Nightly: crunches yesterday's numbers and recent weekly figures into the reporting dashboards." },
