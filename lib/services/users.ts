@@ -12,11 +12,9 @@ export async function listAgencyUsers(agencyId: string) {
   });
 }
 
-/** List all internal sales_progressor users across the platform (admin use only — no agencyId filter). */
-export async function listProgressorUsers() {
-  return prisma.user.findMany({
-    where: { role: "sales_progressor" },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
+// Removed listProgressorUsers (2026-10-09): an unscoped cross-business
+// `role: "sales_progressor"` query with no callers. It would have returned every
+// progressor on the platform, including EXTERNAL progression-business members, to
+// whoever wired it up — the same leak class fixed in /api/agency/users. If an
+// admin progressor list is ever needed, add it back scoped to TSP's own
+// (progressionBusinessId null or the seeded TSP business).

@@ -20,7 +20,12 @@ export default async function MigratePage() {
       select: { id: true, name: true },
     }),
     prisma.user.findMany({
-      where: { role: "sales_progressor" },
+      // TSP's own progressors only — never an external progression business's
+      // members (same TSP/external boundary as /api/agency/users).
+      where: {
+        role: "sales_progressor",
+        OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }],
+      },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true },
     }),
