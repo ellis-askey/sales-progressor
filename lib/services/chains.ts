@@ -2108,7 +2108,9 @@ export type CheckInRow = {
   // Private to us (never the neighbour). Null = we've not logged anything yet.
   lastUpdateAt: string | null;   // ISO
   lastUpdateBody: string | null;
+  chainId: string;
   chainName: string | null;
+  ourAddress: string | null;     // our own file's address in this chain (group header context)
 };
 
 // Check-ins: every claimed sale in the viewer's chains owned by ANOTHER agency,
@@ -2118,15 +2120,15 @@ export type CheckInRow = {
 export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInRow[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
-    select: { id: true, agencyId: true, chainLink: { select: { chainId: true } } },
+    select: { id: true, agencyId: true, propertyAddress: true, chainLink: { select: { chainId: true } } },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));
   // Our own file in each chain, with its OWNING AGENCY. That agency is this chain's
   // team-side key: the notes we see are the ones logged by our team (us + whoever
   // progresses the file), keyed on this agency. On an outsourced file, the agency
   // and its progressor share — they resolve to the same key. (#chain-checkins)
-  const ourTxByChain = new Map<string, { txId: string; agencyId: string }>();
-  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, { txId: t.id, agencyId: t.agencyId });
+  const ourTxByChain = new Map<string, { txId: string; agencyId: string; address: string }>();
+  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, { txId: t.id, agencyId: t.agencyId, address: t.propertyAddress });
   const chainIds = [...ourTxByChain.keys()];
   if (chainIds.length === 0) return [];
 
@@ -2190,7 +2192,9 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         photoUrl: photoPath, // swapped for a signed URL below
         lastUpdateAt: latest?.createdAt.toISOString() ?? null,
         lastUpdateBody: latest?.body ?? null,
+        chainId: chain.id,
         chainName: chain.name,
+        ourAddress: our?.address ?? null,
       });
     }
   }
