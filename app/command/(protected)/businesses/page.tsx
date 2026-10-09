@@ -111,6 +111,11 @@ function BusinessName({ row }: { row: BusinessOverviewRow }) {
       {row.senderVerified && (
         <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" strokeWidth={2} aria-label="Verified sender" />
       )}
+      {row.quiet && (
+        <span className="flex-shrink-0 text-[9.5px] font-semibold uppercase tracking-wide text-amber-300 bg-amber-950/50 border border-amber-900/60 rounded-full px-1.5 py-0.5 whitespace-nowrap">
+          No sales this mo
+        </span>
+      )}
       <ChevronRight className="w-3.5 h-3.5 text-neutral-600 flex-shrink-0 ml-0.5 md:hidden" strokeWidth={2} />
     </span>
   );

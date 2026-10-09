@@ -47,6 +47,7 @@ export type BusinessOverviewRow = {
   perSalePence: number;   // £5 × this month's sales
   monthTotalPence: number;// mrr + per-sale (this month's total bill)
   status: BusinessStatus;
+  quiet: boolean;         // paying but no sales added this month — early churn signal
 };
 
 /** Every non-TSP progression business with its current-month figures + health.
@@ -66,6 +67,7 @@ export async function getBusinessesOverview(now: Date = new Date()): Promise<Bus
         commandDb.progressionBusinessClient.count({ where: { progressionBusinessId: b.id, removedAt: null } }),
       ]);
       const subscribed = !!b.stripeSubscriptionId;
+      const status = deriveStatus(state, subscribed);
       return {
         id: b.id,
         name: b.name,
@@ -78,7 +80,8 @@ export async function getBusinessesOverview(now: Date = new Date()): Promise<Bus
         saleCount: summary.saleCount,
         perSalePence: summary.perSalePence,
         monthTotalPence: summary.totalPence,
-        status: deriveStatus(state, subscribed),
+        status,
+        quiet: status === "live" && summary.saleCount === 0,
       };
     }),
   );
@@ -97,6 +100,7 @@ export type BusinessesRevenue = {
   mrrPence: number;        // sum of recurring MRR across all businesses
   thisMonthPence: number;  // sum of this-month totals (MRR + £5s)
   perSalePence: number;    // sum of this-month £5-per-sale
+  quietCount: number;      // paying businesses with no sales this month (churn signal)
   rows: BusinessOverviewRow[];                                   // for the revenue-page strip
   needsAttention: { id: string; name: string; status: BusinessStatus }[]; // for the risks feed
 };
@@ -111,6 +115,7 @@ export async function getBusinessesRevenue(now: Date = new Date()): Promise<Busi
     mrrPence: rows.reduce((n, r) => n + r.mrrPence, 0),
     thisMonthPence: rows.reduce((n, r) => n + r.monthTotalPence, 0),
     perSalePence: rows.reduce((n, r) => n + r.perSalePence, 0),
+    quietCount: rows.filter((r) => r.quiet).length,
     rows,
     needsAttention: rows
       .filter((r) => r.status === "payment_failed" || r.status === "blocked")

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 import { computeTodayLive } from "@/lib/command/today-live";
+import { getBusinessesRevenue } from "@/lib/command/businesses";
+import { formatGBP } from "@/lib/command/revenue";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
 import WhatChanged from "@/components/command/shared/WhatChanged";
 import InfoTip from "@/components/command/shared/InfoTip";
@@ -32,6 +34,15 @@ function fmtDay(d: Date): string {
 
 function daysSince(d: Date): number {
   return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+}
+
+function BizStat({ value, label, color }: { value: string; label: string; color?: string }) {
+  return (
+    <div>
+      <p className={`text-2xl font-bold tabular-nums ${color ?? "text-white"}`}>{value}</p>
+      <p className="text-[11px] text-neutral-500 mt-0.5">{label}</p>
+    </div>
+  );
 }
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -200,6 +211,19 @@ export default async function OverviewPage({
     }),
   ]);
 
+  // Progression businesses are platform-wide (not agency-scoped), so the tile
+  // only shows on the unscoped view. "Sales today" uses the same London-day key
+  // as the rest of the page.
+  const wholeView = mode === "combined" && agencyIds.length === 0;
+  const [biz, businessSalesToday] = wholeView
+    ? await Promise.all([
+        getBusinessesRevenue(),
+        commandDb.propertyTransaction.count({
+          where: { progressionBusinessId: { not: null }, isDemo: false, businessPerSaleChargedAt: { gte: todayKey } },
+        }),
+      ])
+    : [null, 0];
+
   // Second pass: which (agencyId, address) pairs from the draft set are already
   // represented by a non-draft transaction? Those are duplicates of already-
   // realised sales and don't count as "still incoming".
@@ -355,6 +379,31 @@ export default async function OverviewPage({
           })}
         </div>
       </section>
+
+      {/* Progression businesses — platform-wide, unscoped view only */}
+      {wholeView && biz && biz.count > 0 && (
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+            Progression businesses
+            <InfoTip label="The business side at a glance">
+              Your external progression businesses: how many are active, the recurring monthly revenue, sales added
+              today, anyone paying but quiet this month, and any payment problems. Opens the Businesses list.
+            </InfoTip>
+          </h2>
+          <Link
+            href="/command/businesses"
+            className="block bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
+          >
+            <div className="flex items-start gap-x-8 gap-y-4 flex-wrap">
+              <BizStat value={String(biz.count)} label="active" />
+              <BizStat value={formatGBP(biz.mrrPence)} label="recurring MRR" color="text-emerald-400" />
+              <BizStat value={String(businessSalesToday)} label="sales today" />
+              <BizStat value={String(biz.quietCount)} label="quiet this month" color={biz.quietCount > 0 ? "text-amber-400" : undefined} />
+              <BizStat value={String(biz.needsAttention.length)} label="payment issues" color={biz.needsAttention.length > 0 ? "text-red-400" : undefined} />
+            </div>
+          </Link>
+        </section>
+      )}
 
       {/* Activity pulse */}
       <section>
