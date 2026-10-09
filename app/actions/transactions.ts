@@ -1520,17 +1520,28 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
   }
   if (!allowed) throw new Error("Forbidden: only an admin or the file's progression-business owner can assign it");
 
-  // Forward-safety for the multi-progression-business model: a file owned by an
-  // external progression business may only be assigned to a member of THAT
-  // business. Keeps the business boundary intact even against an admin
-  // mis-assign. TSP files (progressionBusinessId = null) are unaffected.
-  if (assignedUserId && tx.progressionBusinessId) {
+  // Keep the business boundary intact against a mis-assign (even an admin's):
+  //   - an EXTERNAL business's file may only go to a member of THAT business;
+  //   - a TSP file (progressionBusinessId = null) may only go to a TSP user
+  //     (no business, or the seeded TSP business) — NEVER an external business's
+  //     member. Without this a TSP admin could assign a TSP file to an external
+  //     progressor (the dropdown leak's server-side twin).
+  if (assignedUserId) {
     const assignee = await prisma.user.findUnique({
       where: { id: assignedUserId },
-      select: { progressionBusinessId: true },
+      select: { progressionBusinessId: true, progressionBusiness: { select: { isTsp: true } } },
     });
-    if (!assignee || assignee.progressionBusinessId !== tx.progressionBusinessId) {
-      throw new Error("Cannot assign this file to a user outside its progression business");
+    if (!assignee) throw new Error("Cannot assign this file: user not found");
+    if (tx.progressionBusinessId) {
+      if (assignee.progressionBusinessId !== tx.progressionBusinessId) {
+        throw new Error("Cannot assign this file to a user outside its progression business");
+      }
+    } else {
+      // TSP file: reject any EXTERNAL progression-business member.
+      const assigneeIsExternal = !!assignee.progressionBusinessId && !assignee.progressionBusiness?.isTsp;
+      if (assigneeIsExternal) {
+        throw new Error("Cannot assign a TSP file to an external progression-business user");
+      }
     }
   }
 

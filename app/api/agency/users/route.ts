@@ -1,6 +1,8 @@
 // app/api/agency/users/route.ts
 // GET: list users for the assignment dropdown.
-// Admin/superadmin: all sales_progressor users (cross-agency).
+// Admin/superadmin: TSP's OWN sales_progressor users only (progressionBusinessId
+//   null, or the seeded TSP business) — never an EXTERNAL progression business's
+//   members, who are that business's to assign, not TSP's.
 // External progression-business OWNER: only their own business's members.
 // Agency users: users in their agency only.
 
@@ -37,7 +39,13 @@ export async function GET() {
 
   const users = isAdmin
     ? await prisma.user.findMany({
-        where: { role: "sales_progressor" },
+        // TSP's own progressors only. An external business's members (a non-TSP
+        // progressionBusiness) must never appear in TSP's assignment picker, the
+        // same boundary as TSP_ONLY_TX_WHERE on the file lists.
+        where: {
+          role: "sales_progressor",
+          OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }],
+        },
         select: { id: true, name: true, role: true },
         orderBy: { name: "asc" },
       })
