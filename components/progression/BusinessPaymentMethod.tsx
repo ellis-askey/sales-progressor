@@ -7,7 +7,6 @@
 // card yet (or returning from a 3-D Secure save/failure) it shows the capture form.
 
 import { useState } from "react";
-import { CreditCard } from "@phosphor-icons/react";
 import { BusinessCardCapture } from "./BusinessCardCapture";
 
 type Card = { brand: string; last4: string; expMonth: number; expYear: number };
@@ -72,10 +71,7 @@ export function BusinessPaymentMethod({
       : "We'll charge this card each month";
   return (
     <div className="bpm-fade" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-      <span aria-hidden style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, display: "grid", placeItems: "center", color: failed ? "#fff" : "var(--agent-coral-deep)", background: failed ? "var(--agent-danger, #C73E3E)" : "rgba(var(--agent-coral-rgb),0.1)" }}>
-        <CreditCard size={20} weight="regular" />
-      </span>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)" }}>{label}</div>
         <div style={{ fontSize: 12, color: failed ? "var(--agent-danger, #C73E3E)" : "var(--agent-text-muted)", fontWeight: failed ? 600 : 400 }}>{sub}</div>
       </div>

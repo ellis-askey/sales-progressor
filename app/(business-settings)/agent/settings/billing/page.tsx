@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
-import { businessBillingActive, getBusinessFirstChargePreview, getBusinessPlanSchedule } from "@/lib/progression/business-stripe";
+import { businessBillingActive, getBusinessFirstChargePreview, getBusinessPlanSchedule, getBusinessSignupCharge } from "@/lib/progression/business-stripe";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
 import { getBusinessPaymentState } from "@/lib/progression/business-dunning";
 import { getDefaultCard } from "@/lib/stripe";
@@ -72,13 +72,21 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
     paymentState.kind === "warning"
       ? paymentState.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" })
       : null;
-  // The two charge moments this card shows are NOT one bill: the subscription is
-  // taken on the 1st; the £5-per-sale lines accrue now and ride the NEXT invoice
-  // (the 1st of next month). monthEnd is midnight on the 1st of next month (London).
-  const nextChargeLabel = s.monthEnd.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" });
-  const nextMonthLabel = s.monthEnd.toLocaleDateString("en-GB", { month: "long", timeZone: "Europe/London" });
+  // The live card is forward-looking: everything (subscription + this month's £5
+  // sales) bills together on the 1st of NEXT month. monthEnd is midnight on the 1st
+  // of next month (London). The part-month pro-rata was already taken at sign-up and
+  // is shown as a footnote in the month it covered (not as "already taken £59").
+  const nextPaymentLabel = s.monthEnd.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
   const subscriptionPence = s.basePence + s.seatsPence;
   const subscriptionLines = s.lines.filter((l) => l.kind !== "per_sale");
+  const nextPaymentTotalPence = subscriptionPence + s.perSalePence;
+  // The actual part-month charge taken when they added their card. Only surfaced
+  // while we're still in the month it covered (so it stops showing next month).
+  const signupCharge = collecting && hasCard ? await getBusinessSignupCharge(owner.businessId) : null;
+  const signupCoversThisMonth = !!signupCharge && signupCharge.chargedAt >= s.monthStart && signupCharge.chargedAt < s.monthEnd;
+  // Card heading: a live plan shows the NEXT payment; before a card / before
+  // collecting it shows what this month works out to.
+  const cardTitle = hasCard && !preview ? `Next payment · ${nextPaymentLabel}` : `This month · ${month}`;
 
   return (
     <>
@@ -131,7 +139,7 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
 
         <AccountCard
           icon={<Receipt size={18} weight="bold" />}
-          title={`This month · ${month}`}
+          title={cardTitle}
           subtitle="£59 for your account, £39 for each additional team member, plus £5 per sale added."
         >
           {preview ? (
@@ -160,53 +168,34 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
               </p>
             </div>
           ) : (
-            // Live plan: two SEPARATE charge moments, shown apart so the page never
-            // implies one combined bill. Subscription comes out on the 1st; the £5
-            // per-sale lines accrue now and ride the next invoice.
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {/* Subscription — charged on the 1st */}
-              <div>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Subscription</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>{hasCard ? "Taken on the 1st" : "Billed on the 1st"}</span>
+            // Live plan: ONE forward-looking breakdown of the next payment. The
+            // subscription (+ any seats) and this month's £5 sales all bill together
+            // on the 1st of next month. The part-month pro-rata was already taken at
+            // sign-up and is shown as a footnote below, not as "already taken £59".
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {subscriptionLines.map((line, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
+                  <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line.description}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(line.amountPence)}</span>
                 </div>
-                {subscriptionLines.map((line, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "9px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
-                    <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line.description}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(line.amountPence)}</span>
-                  </div>
-                ))}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0 0", marginTop: 2, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{hasCard ? "Already taken this month" : "Per month"}</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(subscriptionPence)}</span>
-                </div>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                  Sales added this month{s.saleCount > 0 ? ` (${s.saleCount} × £5)` : ""}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: s.saleCount > 0 ? "var(--agent-text-primary)" : "var(--agent-text-muted)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                  {s.saleCount > 0 ? fmtCurrencyPence(s.perSalePence) : "None yet"}
+                </span>
               </div>
-
-              {/* Per-sale — accrues now, charged on the next invoice */}
-              <div>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Sales added this month</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>On your {nextMonthLabel} invoice</span>
-                </div>
-                {s.saleCount === 0 ? (
-                  <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-                    No sales added yet this month. Each sale is £5 and will appear here when added.
-                  </p>
-                ) : (
-                  <>
-                    {s.lines.filter((l) => l.kind === "per_sale").map((line, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "9px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
-                        <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line.description}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(line.amountPence)}</span>
-                      </div>
-                    ))}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0 0", marginTop: 2, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))" }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.saleCount} {s.saleCount === 1 ? "sale" : "sales"} · added {nextChargeLabel}</span>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(s.perSalePence)}</span>
-                    </div>
-                  </>
-                )}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "13px 0 2px", marginTop: 2, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>Total due {nextPaymentLabel}</span>
+                <span style={{ fontSize: 17, fontWeight: 820, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(nextPaymentTotalPence)}</span>
               </div>
+              {signupCoversThisMonth && signupCharge && (
+                <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                  Charged when you joined: {fmtCurrencyPence(signupCharge.amountPence)}, covering the rest of {month}.
+                </p>
+              )}
             </div>
           )}
         </AccountCard>

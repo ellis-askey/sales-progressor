@@ -112,12 +112,12 @@ export async function getBusinessBillingSummary(businessId: string, now: Date = 
   const perSalePence = saleCount * BUSINESS_PER_SALE_PENCE;
 
   const lines: BusinessBillingLine[] = [
-    { kind: "subscription_base", description: "Subscription — main user", amountPence: basePence },
+    { kind: "subscription_base", description: "Subscription (main user)", amountPence: basePence },
   ];
   if (extraMembers > 0) {
     lines.push({
       kind: "subscription_seat",
-      description: `Team members — ${extraMembers} × £${(BUSINESS_PER_MEMBER_PENCE / 100).toFixed(0)}`,
+      description: `Team members (${extraMembers} × £${(BUSINESS_PER_MEMBER_PENCE / 100).toFixed(0)})`,
       amountPence: seatsPence,
     });
   }

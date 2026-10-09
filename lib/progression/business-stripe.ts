@@ -270,6 +270,35 @@ export async function getBusinessPlanSchedule(
   }
 }
 
+/** The part-month charge actually taken when the business added its card (the
+ *  subscription's FIRST invoice — the pro-rata for the rest of the sign-up month).
+ *  Read live from Stripe. Returns the amount + the date it was charged, or null if
+ *  there's no subscription / Stripe isn't configured / the read blips. The caller
+ *  decides whether to surface it (only meaningful during the month it covered). */
+export async function getBusinessSignupCharge(
+  businessId: string,
+): Promise<{ amountPence: number; chargedAt: Date } | null> {
+  if (!isStripeConfigured()) return null;
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeSubscriptionId: true },
+  });
+  if (!business?.stripeSubscriptionId) return null;
+  try {
+    const stripe = getStripeClient();
+    // The pro-rata charge is the subscription's FIRST invoice. Stripe lists newest
+    // first, so the oldest is the last item; a just-signed-up business has only 1-2.
+    const invoices = await stripe.invoices.list({ subscription: business.stripeSubscriptionId, limit: 100 });
+    const first = invoices.data[invoices.data.length - 1];
+    if (!first) return null;
+    const amountPence = typeof first.amount_paid === "number" ? first.amount_paid : (first.total ?? 0);
+    return { amountPence, chargedAt: new Date(first.created * 1000) };
+  } catch (err) {
+    console.error(`[business-billing] sign-up charge read failed for ${businessId}:`, err);
+    return null;
+  }
+}
+
 /** Undo a scheduled cancellation — the owner changes their mind before period-end.
  *  Clears cancel_at_period_end so the plan keeps running and billing on the 1st. */
 export async function reactivateBusinessSubscription(
