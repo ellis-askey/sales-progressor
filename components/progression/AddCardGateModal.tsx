@@ -8,7 +8,7 @@
 // next payment date, then the Stripe card form (BusinessCardCapture). On a saved
 // card the page refreshes, billing goes active, and the sale can be added.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { X } from "@phosphor-icons/react";
@@ -39,17 +39,22 @@ function gbp(pence: number): string {
 export function AddCardGateModal({
   publishableKey,
   onClose,
+  onSaved,
   preview = null,
   notice = null,
 }: {
   publishableKey: string;
   onClose: () => void;
+  // Fired the instant a card is saved inside the gate (distinct from onClose, which
+  // also fires on a manual dismiss). The parent uses it to resume the sale.
+  onSaved?: () => void;
   preview?: CardGatePreview | null;
   // When set, show this message instead of the add-a-card form (paused / ask-owner).
   notice?: GateNotice | null;
 }) {
   const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Animate out, THEN tell the parent to unmount (via onAnimationEnd). Reduced
   // motion closes instantly.
@@ -66,6 +71,47 @@ export function AddCardGateModal({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [requestClose]);
+
+  // Focus management: move focus into the dialog on open (keyboard + screen-reader
+  // users land inside, not out on the page behind), trap Tab within it, and restore
+  // focus to the triggering element on close.
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+
+    const focusables = () =>
+      Array.from(
+        card.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+
+    // Initial focus: the first real control, else the dialog itself.
+    const first = focusables()[0];
+    (first ?? card).focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) { e.preventDefault(); card?.focus(); return; }
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey) {
+        if (active === firstEl || active === card) { e.preventDefault(); lastEl.focus(); }
+      } else if (active === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+    card.addEventListener("keydown", onKeyDown);
+    return () => {
+      card.removeEventListener("keydown", onKeyDown);
+      // Restore focus to whatever opened the modal.
+      if (previouslyFocused && typeof previouslyFocused.focus === "function") previouslyFocused.focus();
+    };
+  }, []);
 
   // Background scroll-lock that holds on iOS (where body overflow:hidden is
   // ignored for touch). Pin the body in place and restore the scroll on close.
@@ -112,13 +158,15 @@ export function AddCardGateModal({
       onClick={requestClose}
     >
       <div
+        ref={cardRef}
+        tabIndex={-1}
         className={`acg-card${closing ? " acg-closing" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Add a payment card"
         onClick={(e) => e.stopPropagation()}
         onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) onClose(); }}
-        style={{ background: isNight ? "#161d2e" : "#fff" }}
+        style={{ background: isNight ? "#161d2e" : "#fff", outline: "none" }}
       >
         <button type="button" className="acg-x" onClick={requestClose} aria-label="Close"><X size={16} weight="bold" /></button>
 
@@ -177,10 +225,10 @@ export function AddCardGateModal({
           {/* Card form */}
           <div style={{ marginTop: 18 }}>
             <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--agent-text-secondary)", marginBottom: 9, letterSpacing: "0.01em" }}>Card details</span>
-            {/* On a successful inline save, close the modal (+ refresh) so the gate
-                clears and they get on with the sale, rather than sitting on a banner.
-                3-D Secure redirects out and is finished on the billing page on return. */}
-            <BusinessCardCapture publishableKey={publishableKey} onComplete={requestClose} />
+            {/* On a successful inline save, tell the parent (so it can resume the
+                sale) then close the modal, rather than sitting on a banner. 3-D
+                Secure redirects out and is finished on the billing page on return. */}
+            <BusinessCardCapture publishableKey={publishableKey} onComplete={() => { onSaved?.(); requestClose(); }} />
           </div>
 
           {/* Trust */}

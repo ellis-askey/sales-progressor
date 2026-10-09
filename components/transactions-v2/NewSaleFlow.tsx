@@ -392,8 +392,18 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // (owner) or when billing needs attention (teammate / paused). The gate opens at
   // the FIRST action — the "Drop a memo" / "Fill in manually" buttons — before the
   // form. A submit-time check and the server backstops remain.
-  const gated = needsCard || !!salesNotice;
+  //
+  // billingSatisfied flips true the instant a card is saved inside the gate modal,
+  // so the gate clears locally (before the server refresh lands) and we can resume
+  // the exact action the user was mid-way through.
+  const [billingSatisfied, setBillingSatisfied] = useState(false);
+  const gated = (needsCard || !!salesNotice) && !billingSatisfied;
   const [cardOpen, setCardOpen] = useState(false);
+  // What the user was trying to do when the gate opened, replayed once a card is
+  // saved: re-run the memo drop (we keep the File), open the manual form, or submit.
+  const [pendingResume, setPendingResume] = useState<
+    { kind: "manual" } | { kind: "memo"; file: File } | { kind: "submit"; force: boolean } | null
+  >(null);
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
   const [solFillingVendor, setSolFillingVendor] = useState(false);
@@ -627,8 +637,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   const handleFile = useCallback(async (file: File) => {
     // Card gate: a progression business with no card can't start a sale. Open the
-    // add-a-card modal at this first action, before the form.
-    if (gated) { setCardOpen(true); return; }
+    // add-a-card modal at this first action, before the form — and remember the
+    // dropped file so we can resume extraction the moment a card is saved.
+    if (gated) { setPendingResume({ kind: "memo", file }); setCardOpen(true); return; }
     abortRef.current?.abort();
     clearTimers();
 
@@ -757,6 +768,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gated]);
 
+  // Resume after the gate: once a card is saved (billingSatisfied) the gate is
+  // clear, so replay whatever the user was doing when it opened — re-extract the
+  // memo they dropped, open the manual form, or submit. Runs once, then clears.
+  useEffect(() => {
+    if (!billingSatisfied || !pendingResume) return;
+    const resume = pendingResume;
+    setPendingResume(null);
+    if (resume.kind === "memo") handleFile(resume.file);
+    else if (resume.kind === "manual") handleFillManually();
+    else handleSubmit(resume.force);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingSatisfied, pendingResume]);
+
   function handleCancel() {
     resetToHero();
   }
@@ -770,8 +794,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   }
 
   function handleFillManually() {
-    // Card gate: same as the memo drop — prompt for a card before the form.
-    if (gated) { setCardOpen(true); return; }
+    // Card gate: same as the memo drop — prompt for a card before the form, and
+    // resume into the manual form once a card is saved.
+    if (gated) { setPendingResume({ kind: "manual" }); setCardOpen(true); return; }
     setFlowState("manual");
     setStage(1);
     setExtractedData(null);
@@ -916,9 +941,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   async function handleSubmit(forceCreate = false) {
     setOutsourcedError(null);
 
-    // Billing gate backstop: open the modal instead of submitting. (The server also
-    // enforces this, but we surface the billing step here, not an error.)
+    // Billing gate backstop: open the modal instead of submitting, and resume the
+    // submit once a card is saved. (The server also enforces this, but we surface
+    // the billing step here, not an error.)
     if (gated) {
+      setPendingResume({ kind: "submit", force: forceCreate });
       setCardOpen(true);
       return;
     }
@@ -1379,7 +1406,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           buttons open it. (It portals to <body>, so placement here is just about
           being in the render tree.) */}
       {cardOpen && (
-        <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} notice={salesNotice} onClose={() => { setCardOpen(false); router.refresh(); }} />
+        <AddCardGateModal
+          publishableKey={publishableKey}
+          preview={cardGatePreview}
+          notice={salesNotice}
+          onSaved={() => setBillingSatisfied(true)}
+          onClose={() => { setCardOpen(false); router.refresh(); }}
+        />
       )}
 
       {/* Full-width top hero. In the hero state it's the demo card; once the
