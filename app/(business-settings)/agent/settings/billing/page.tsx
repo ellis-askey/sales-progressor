@@ -54,6 +54,9 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
   // subscription on mount instead of re-showing the empty form.
   const sp = await searchParams;
   const justReturned = sp.saved === "1" && sp.redirect_status !== "failed";
+  // Returned from a 3-D Secure attempt that FAILED — show a "try again" message
+  // rather than a silent empty form.
+  const authFailed = sp.saved === "1" && sp.redirect_status === "failed";
 
   return (
     <>
@@ -148,7 +151,7 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
             title="Payment method"
             subtitle={savedCard ? "The card we charge each month for your subscription and any sales you add." : "Add the card we'll charge each month for your subscription and any sales you add."}
           >
-            <BusinessPaymentMethod card={savedCard} publishableKey={publishableKey} justReturned={justReturned} />
+            <BusinessPaymentMethod card={savedCard} active={hasCard} publishableKey={publishableKey} justReturned={justReturned} authFailed={authFailed} addSaleHref="/agent/transactions/new" />
           </AccountCard>
         )}
       </div>

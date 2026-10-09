@@ -159,7 +159,10 @@ export function AddCardGateModal({
           {/* Card form */}
           <div style={{ marginTop: 18 }}>
             <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--agent-text-secondary)", marginBottom: 9, letterSpacing: "0.01em" }}>Card details</span>
-            <BusinessCardCapture publishableKey={publishableKey} />
+            {/* On a successful inline save, close the modal (+ refresh) so the gate
+                clears and they get on with the sale, rather than sitting on a banner.
+                3-D Secure redirects out and is finished on the billing page on return. */}
+            <BusinessCardCapture publishableKey={publishableKey} onComplete={requestClose} />
           </div>
 
           {/* Trust */}

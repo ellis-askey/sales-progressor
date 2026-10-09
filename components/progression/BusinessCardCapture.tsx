@@ -2,16 +2,21 @@
 
 // components/progression/BusinessCardCapture.tsx
 //
-// Card capture on the business Billing tab (C1). Reuses the canonical
-// CardCaptureForm, pointed at the business setup-intent route. On a saved card
-// it creates/reconciles the Stripe subscription (so billing can start) and
-// refreshes. Only rendered when the collection switch is on.
+// Card capture + plan start for an external progression business. Reuses the
+// canonical CardCaptureForm (Stripe) and then creates/reconciles the subscription
+// so billing can begin. A small state machine so every path has a recovery:
 //
-// Two save paths converge on startSubscription():
-//   - No 3-D Secure: confirmSetup returns inline, onSuccess fires, we sync here.
+//   form → (inline save | 3-D Secure redirect+return) → finishing → saved
+//                                                           └→ error → RETRY
+//
+//   - No 3-D Secure: confirmSetup returns inline → onSuccess → startSubscription.
 //   - 3-D Secure (most UK cards): Stripe redirects to the bank and back to the
-//     billing page (?saved=1&redirect_status=succeeded), so onSuccess never runs.
-//     The page passes justReturned=true and we start the subscription on mount.
+//     return URL (?saved=1&redirect_status=succeeded) → justReturned=true starts the
+//     subscription on mount. A failed return (redirect_status=failed) → authFailed.
+//   - Subscription start FAILS (either path): the card is already attached, so we
+//     show a "Finish setting up billing" retry (never re-mount the dead Stripe form).
+//   - onComplete (modal use): instead of the inline "saved" banner, hand back to the
+//     parent so it can close + refresh. addSaleHref (page use): offer a way onward.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,32 +26,46 @@ import { syncBusinessSubscriptionAction } from "@/app/actions/progression-client
 export function BusinessCardCapture({
   publishableKey,
   justReturned = false,
+  authFailed = false,
+  onComplete,
+  addSaleHref,
 }: {
   publishableKey: string;
   justReturned?: boolean;
+  // Returned from a 3-D Secure attempt that FAILED (redirect_status=failed).
+  authFailed?: boolean;
+  // Modal use: called once the subscription has started, so the parent can close
+  // and refresh instead of showing the inline "Card saved" banner.
+  onComplete?: () => void;
+  // Page use: where to go next after a successful save (e.g. add a sale).
+  addSaleHref?: string;
 }) {
   const router = useRouter();
+  // The card is attached at Stripe (inline confirmSetup succeeded, or we're back
+  // from a successful 3-D Secure) — so a failure past this point is a subscription
+  // problem to retry, not a re-enter-the-card problem.
+  const [cardCaptured, setCardCaptured] = useState(justReturned);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [error, setError] = useState<string | null>(
+    authFailed ? "Your bank couldn't verify that card. Please try again." : null,
+  );
 
-  // Start (or reconcile) the subscription once the card is on file.
   async function startSubscription() {
     setError(null);
     setFinishing(true);
     const r = await syncBusinessSubscriptionAction().catch(() => null);
     setFinishing(false);
-    // A thrown call yields null — treat it as a failure, never a false "card saved".
     if (!r || !r.ok) {
-      setError(r?.error ?? "Your card was saved, but we couldn't start your subscription. Refresh and try again.");
+      setError(r?.error ?? "Your card was saved, but we couldn't start your plan. Try again.");
       return;
     }
+    if (onComplete) { onComplete(); return; }
     setSaved(true);
     router.refresh();
   }
 
-  // 3-D Secure return: the card is already saved with Stripe, so start the
-  // subscription now instead of re-showing the empty card form.
+  // 3-D Secure return: the card is already saved, so start the subscription now.
   useEffect(() => {
     if (justReturned) startSubscription();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,31 +73,38 @@ export function BusinessCardCapture({
 
   if (saved) {
     return (
-      <div style={{ padding: 16, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, color: "#166534", fontSize: 13 }}>
-        Card saved. We&rsquo;ll charge it on the 1st of each month for your subscription and the sales you add.
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ padding: 16, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, color: "#166534", fontSize: 13 }}>
+          Card saved. We&rsquo;ll charge it on the 1st of each month for your subscription and the sales you add.
+        </div>
+        {addSaleHref && (
+          <a href={addSaleHref} className="agent-btn agent-btn-primary agent-btn-md" style={{ alignSelf: "flex-start", textDecoration: "none" }}>
+            Add a sale →
+          </a>
+        )}
       </div>
     );
   }
 
   if (finishing) {
     return (
-      <div style={{ padding: 16, color: "var(--agent-text-secondary, #6b7280)", fontSize: 13 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 16, color: "var(--agent-text-secondary, #6b7280)", fontSize: 13 }}>
+        <span className="acg-spin" aria-hidden />
         Finishing setup&hellip;
+        <style>{`.acg-spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(128,128,128,.3);border-top-color:var(--agent-coral-deep,#FF6B4A);animation:acg-spin .7s linear infinite;flex-shrink:0}@keyframes acg-spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
-  // Returned from the bank but the subscription didn't start — show the error with a
-  // retry (the card itself is already saved, so don't re-mount the Stripe form).
-  if (justReturned) {
+  // Card attached but the subscription didn't start (either path) — retry the
+  // subscription, don't re-show the (already-consumed) Stripe form.
+  if (cardCaptured && error) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {error && (
-          <div style={{ padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#b91c1c", fontSize: 13 }}>
-            {error}
-          </div>
-        )}
-        <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={startSubscription}>
+        <div style={{ padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#b91c1c", fontSize: 13 }}>
+          {error}
+        </div>
+        <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={startSubscription} style={{ alignSelf: "flex-start" }}>
           Finish setting up billing
         </button>
       </div>
@@ -96,7 +122,7 @@ export function BusinessCardCapture({
         publishableKey={publishableKey}
         setupIntentUrl="/api/billing/business/setup-intent"
         returnUrl="/agent/settings/billing?saved=1"
-        onSuccess={startSubscription}
+        onSuccess={() => { setCardCaptured(true); startSubscription(); }}
       />
     </>
   );
