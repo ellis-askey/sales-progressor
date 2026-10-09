@@ -75,7 +75,7 @@ export default async function RevenuePage({
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Kpi label="Recurring MRR" value={formatGBP(bizRev.mrrPence)} sub="businesses · repeats every month" tone="primary" href="/command/businesses" />
-                <Kpi label="Business income this month" value={formatGBP(bizRev.thisMonthPence)} sub="subscriptions + £5 per sale" href="/command/businesses" />
+                <Kpi label="Business income this month" value={formatGBP(bizRev.thisMonthPence)} sub="subscriptions + £5 per sale" href="/command/revenue/breakdown?metric=business" />
                 <Kpi label="Provider 10%s this month" value={formatGBP(providerMtd)} sub="referrals won this month" href="/command/providers/quotes?status=won" />
               </div>
 

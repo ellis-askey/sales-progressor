@@ -7,16 +7,18 @@ import {
   type ReferralLine,
 } from "@/lib/command/revenue";
 import { parseMode, parseAgencies } from "@/lib/command/scope";
+import { getBusinessesStatement, type BusinessStatementLine } from "@/lib/command/businesses";
 
 export const dynamic = "force-dynamic";
 
-// Statement-style drill-down behind the Banked / Pipeline / Forecast KPIs: the
-// exact sales (and, for money in, the provider referrals) that make up each
+// Statement-style drill-down behind the Banked / Pipeline / Forecast KPIs (and
+// the Business income tile): the exact sales / businesses that make up each
 // number, so it reads like a monthly invoice to yourself.
-const META: Record<"banked" | "pipeline" | "forecast", { title: string; blurb: string }> = {
+const META: Record<"banked" | "pipeline" | "forecast" | "business", { title: string; blurb: string }> = {
   banked: { title: "Banked this month", blurb: "Every sale fee invoiced so far this month, plus referral income from providers." },
   pipeline: { title: "Pipeline this month", blurb: "Active sales predicted to exchange this month, at their estimated fee." },
   forecast: { title: "Forecast total", blurb: "This month's banked, its pipeline, and referral income if it all lands." },
+  business: { title: "Business income this month", blurb: "Each progression business's subscription and £5-per-sale for this month." },
 };
 
 function sum(lines: { pence: number }[]): number {
@@ -29,10 +31,14 @@ export default async function RevenueBreakdownPage({
   searchParams: Promise<{ metric?: string; mode?: string; agency?: string }>;
 }) {
   const sp = await searchParams;
-  const metric = sp.metric === "pipeline" || sp.metric === "forecast" ? sp.metric : "banked";
+  const metric =
+    sp.metric === "pipeline" || sp.metric === "forecast" || sp.metric === "business" ? sp.metric : "banked";
   const mode = parseMode(sp.mode);
   const agencyIds = parseAgencies(sp.agency);
+  const isBusiness = metric === "business";
   const data = await getRevenueDashboard({ mode, agencyIds });
+  // Business income is platform-wide (not agency-scoped), so it ignores the filter.
+  const bizStatement = isBusiness ? await getBusinessesStatement() : null;
   const meta = META[metric];
 
   // Sale-fee sections per metric.
@@ -61,35 +67,86 @@ export default async function RevenueBreakdownPage({
         <p className="mt-1 text-sm text-neutral-400">{meta.blurb}</p>
       </div>
 
-      {/* Sale-fee sections */}
-      {saleSections.map((sec) => (
-        <section key={sec.heading}>
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">{sec.heading}</h2>
-            <p className="text-sm font-semibold tabular-nums text-neutral-200">{formatGBP(sum(sec.lines))}</p>
-          </div>
-          <FeeTable lines={sec.lines} dateHeader={sec.predicted ? "Predicted" : "Exchanged"} />
-        </section>
-      ))}
+      {isBusiness ? (
+        <>
+          <section>
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Business income lines</h2>
+              <p className="text-sm font-semibold tabular-nums text-neutral-200">{formatGBP(bizStatement?.totalPence ?? 0)}</p>
+            </div>
+            <BusinessStatementTable lines={bizStatement?.lines ?? []} />
+          </section>
 
-      {/* Referral income (separate stream) */}
-      {showReferrals && (
-        <section>
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-              Referral income · providers <span className="text-neutral-600 normal-case tracking-normal">(separate stream)</span>
-            </h2>
-            <p className="text-sm font-semibold tabular-nums text-neutral-200">{formatGBP(referralTotal)}</p>
+          <div className="flex items-baseline justify-between border-t border-neutral-800 pt-4">
+            <p className="text-sm font-semibold text-neutral-300">{meta.title}</p>
+            <p className="text-xl font-semibold tabular-nums text-emerald-400">{formatGBP(bizStatement?.totalPence ?? 0)}</p>
           </div>
-          <ReferralTable lines={data.referralLines} />
-        </section>
+        </>
+      ) : (
+        <>
+          {/* Sale-fee sections */}
+          {saleSections.map((sec) => (
+            <section key={sec.heading}>
+              <div className="flex items-baseline justify-between mb-2">
+                <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">{sec.heading}</h2>
+                <p className="text-sm font-semibold tabular-nums text-neutral-200">{formatGBP(sum(sec.lines))}</p>
+              </div>
+              <FeeTable lines={sec.lines} dateHeader={sec.predicted ? "Predicted" : "Exchanged"} />
+            </section>
+          ))}
+
+          {/* Referral income (separate stream) */}
+          {showReferrals && (
+            <section>
+              <div className="flex items-baseline justify-between mb-2">
+                <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                  Referral income · providers <span className="text-neutral-600 normal-case tracking-normal">(separate stream)</span>
+                </h2>
+                <p className="text-sm font-semibold tabular-nums text-neutral-200">{formatGBP(referralTotal)}</p>
+              </div>
+              <ReferralTable lines={data.referralLines} />
+            </section>
+          )}
+
+          {/* Grand total for the metric (sale fees only; referrals are a separate stream). */}
+          <div className="flex items-baseline justify-between border-t border-neutral-800 pt-4">
+            <p className="text-sm font-semibold text-neutral-300">{meta.title}</p>
+            <p className="text-xl font-semibold tabular-nums text-emerald-400">{formatGBP(grandTotal)}</p>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
 
-      {/* Grand total for the metric (sale fees only — referrals are separate). */}
-      <div className="flex items-baseline justify-between border-t border-neutral-800 pt-4">
-        <p className="text-sm font-semibold text-neutral-300">{meta.title}</p>
-        <p className="text-xl font-semibold tabular-nums text-emerald-400">{formatGBP(grandTotal)}</p>
+function BusinessStatementTable({ lines }: { lines: BusinessStatementLine[] }) {
+  if (lines.length === 0) {
+    return (
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+        <p className="text-sm text-neutral-600">No business income this month.</p>
       </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto border border-neutral-800 rounded-xl bg-neutral-900">
+      <table className="w-full border-collapse text-[13px] min-w-[520px]">
+        <thead>
+          <tr className="bg-neutral-950/60 text-[10px] font-mono uppercase tracking-wider text-neutral-500">
+            <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Business</th>
+            <th className="text-left font-semibold px-4 py-2.5 border-b border-neutral-800">Line</th>
+            <th className="text-right font-semibold px-4 py-2.5 border-b border-neutral-800">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i} className="border-b border-neutral-800/70 last:border-0">
+              <td className="px-4 py-2.5 text-neutral-200 whitespace-nowrap">{l.businessName}</td>
+              <td className="px-4 py-2.5 text-neutral-400">{l.description}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums text-neutral-200">{formatGBP(l.pence)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

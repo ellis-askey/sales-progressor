@@ -118,6 +118,27 @@ export async function getBusinessesRevenue(now: Date = new Date()): Promise<Busi
   };
 }
 
+export type BusinessStatementLine = { businessName: string; description: string; pence: number };
+
+/** Line-by-line business income for the Revenue breakdown drill — each business's
+ *  subscription (base + seats) and this-month £5-per-sale lines, so the detail
+ *  reconciles to "Business income this month". Not agency-scoped (platform income). */
+export async function getBusinessesStatement(now: Date = new Date()): Promise<{ lines: BusinessStatementLine[]; totalPence: number }> {
+  const businesses = await commandDb.progressionBusiness.findMany({
+    where: { isTsp: false },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const perBiz = await Promise.all(
+    businesses.map(async (b) => {
+      const s = await getBusinessBillingSummary(b.id, now);
+      return s.lines.map((l) => ({ businessName: b.name, description: l.description, pence: l.amountPence }));
+    }),
+  );
+  const lines = perBiz.flat();
+  return { lines, totalPence: lines.reduce((n, l) => n + l.pence, 0) };
+}
+
 export type BusinessClientRow = { agencyId: string; agencyName: string; feeSummary: string; archived: boolean };
 export type BusinessMemberRow = { id: string; name: string; isOwner: boolean; deactivated: boolean };
 
