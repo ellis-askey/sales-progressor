@@ -349,6 +349,21 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
   }
 }
 
+/** Cancel the business plan (owner-only). Collects any accrued £5s now and cancels
+ *  the base at period-end. */
+export async function cancelBusinessPlanAction(): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled() || !progressionBillingCollectEnabled()) {
+    return { ok: false, error: "Billing isn't live yet." };
+  }
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can cancel the plan." };
+  const { cancelBusinessSubscription } = await import("@/lib/progression/business-stripe");
+  const result = await cancelBusinessSubscription(owner.businessId);
+  if (result.ok) revalidatePath("/agent/settings/billing");
+  return result;
+}
+
 /**
  * Set whether a team member sees the whole business book (see-all) or only their
  * own assigned files (see-own). Owner-only. The member must be in the owner's own

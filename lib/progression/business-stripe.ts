@@ -210,6 +210,40 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
   }
 }
 
+/** Cancel a business's plan. Collects any accrued £5 per-sale charges IMMEDIATELY
+ *  on the card still on file (so cancellation can't be used to dodge them), then
+ *  cancels the £59 base at period-end — they keep the month they've already paid
+ *  for, and aren't charged again. If the final per-sale charge declines, Stripe's
+ *  own dunning takes over that invoice. The customer.subscription.deleted webhook
+ *  clears our stripeSubscriptionId when the period ends. */
+export async function cancelBusinessSubscription(businessId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isStripeConfigured()) return { ok: false, error: "Billing isn't set up." };
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeCustomerId: true, stripeSubscriptionId: true },
+  });
+  if (!business?.stripeSubscriptionId) return { ok: false, error: "There's no active plan to cancel." };
+  const stripe = getStripeClient();
+
+  // 1. Collect accrued £5 per-sale charges now, while the card is on file.
+  try {
+    const pushed = await pushPendingPerSaleItems(businessId);
+    if (pushed > 0 && business.stripeCustomerId) {
+      const inv = await stripe.invoices.create({ customer: business.stripeCustomerId, collection_method: "charge_automatically" });
+      if (inv.id) {
+        await stripe.invoices.finalizeInvoice(inv.id);
+        await stripe.invoices.pay(inv.id).catch(() => {}); // a decline drops into normal dunning
+      }
+    }
+  } catch (err) {
+    console.error(`[business-billing] final per-sale invoice failed for ${businessId}:`, err);
+  }
+
+  // 2. Cancel the base at period-end — keep access to the paid month, no next charge.
+  await stripe.subscriptions.update(business.stripeSubscriptionId, { cancel_at_period_end: true });
+  return { ok: true };
+}
+
 /** Push any accrued-but-unsent £5 per-sale charges to Stripe as pending invoice
  *  items (they ride the next subscription invoice). Idempotent via
  *  businessPerSaleInvoicedAt. Returns how many were pushed. Intended for a daily

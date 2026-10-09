@@ -20,6 +20,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
 import { BusinessPaymentMethod } from "@/components/progression/BusinessPaymentMethod";
+import { CancelPlanButton } from "@/components/progression/CancelPlanButton";
 import { SettingsNote } from "@/components/ui/SettingsNote";
 
 export default async function BusinessBillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; redirect_status?: string }> }) {
@@ -173,6 +174,14 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
           >
             <BusinessPaymentMethod card={savedCard} active={hasCard} failed={paymentFailing} publishableKey={publishableKey} justReturned={justReturned} authFailed={authFailed} addSaleHref="/agent/transactions/new" />
           </AccountCard>
+        )}
+
+        {/* Cancel plan — only when there's an active plan to cancel. No remove-card;
+            cancelling collects accrued £5s then stops at period-end. */}
+        {hasCard && (
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <CancelPlanButton />
+          </div>
         )}
       </div>
     </>
