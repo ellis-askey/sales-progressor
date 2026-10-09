@@ -44,7 +44,7 @@ export function BusinessPaymentMethod({
   // No card yet, a failed 3-DS attempt, or replacing a card: show the Stripe form.
   if (!hasCardOnFile || authFailed || editing) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="bpm-fade" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <BusinessCardCapture publishableKey={publishableKey} authFailed={authFailed} addSaleHref={addSaleHref} />
         {hasCardOnFile && (
           <button
@@ -55,6 +55,7 @@ export function BusinessPaymentMethod({
             Cancel
           </button>
         )}
+        <BpmStyles />
       </div>
     );
   }
@@ -70,7 +71,7 @@ export function BusinessPaymentMethod({
       ? `Expires ${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)} · we'll charge this each month`
       : "We'll charge this card each month";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+    <div className="bpm-fade" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
       <span aria-hidden style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, display: "grid", placeItems: "center", color: failed ? "#fff" : "var(--agent-coral-deep)", background: failed ? "var(--agent-danger, #C73E3E)" : "rgba(var(--agent-coral-rgb),0.1)" }}>
         <CreditCard size={20} weight="regular" />
       </span>
@@ -86,6 +87,18 @@ export function BusinessPaymentMethod({
       >
         Update card
       </button>
+      <BpmStyles />
     </div>
+  );
+}
+
+// Soft cross-fade when swapping between the card-on-file row and the edit form.
+function BpmStyles() {
+  return (
+    <style>{`
+      .bpm-fade{animation:bpm-fade 180ms ease both}
+      @keyframes bpm-fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+      @media (prefers-reduced-motion: reduce){.bpm-fade{animation:none}}
+    `}</style>
   );
 }

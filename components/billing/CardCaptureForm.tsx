@@ -44,10 +44,15 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
   );
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumping this re-runs the SetupIntent fetch — the "Try again" button on a
+  // failed/blipped load, so the user isn't stuck on a dead error with no form.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isKeyValid) return;
     let cancelled = false;
+    setError(null);
+    setClientSecret(null);
     (async () => {
       try {
         const res = await fetch(setupIntentUrl, { method: "POST" });
@@ -65,7 +70,7 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
     return () => {
       cancelled = true;
     };
-  }, [isKeyValid, setupIntentUrl]);
+  }, [isKeyValid, setupIntentUrl, reloadKey]);
 
   if (!isKeyValid) {
     return (
@@ -87,7 +92,9 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
   if (error) {
     return (
       <div
+        className="ccf-fade"
         style={{
+          display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start",
           fontSize: 13,
           color: "#dc2626",
           background: "#fef2f2",
@@ -96,15 +103,25 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
           padding: "10px 14px",
         }}
       >
-        {error}
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={() => { setError(null); setReloadKey((k) => k + 1); }}
+          className="agent-btn agent-btn-neutral agent-btn-sm"
+        >
+          Try again
+        </button>
+        <CardFormStyles />
       </div>
     );
   }
 
   if (!clientSecret) {
     return (
-      <div style={{ padding: 16, color: "var(--agent-text-secondary, #6b7280)" }}>
+      <div className="ccf-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: 16, color: "var(--agent-text-secondary, #6b7280)", fontSize: 13 }}>
+        <span className="ccf-spin" aria-hidden />
         Preparing card form…
+        <CardFormStyles />
       </div>
     );
   }
@@ -113,6 +130,20 @@ export function CardCaptureForm({ publishableKey, onSuccess, setupIntentUrl = "/
     <Elements stripe={stripePromise} options={{ clientSecret, appearance: STRIPE_APPEARANCE }}>
       <InnerForm onSuccess={onSuccess} returnUrl={returnUrl} />
     </Elements>
+  );
+}
+
+// Shared spinner + fade keyframes for every loading/transition state in this form.
+// Reduced-motion drops the fade and freezes the spinner.
+function CardFormStyles() {
+  return (
+    <style>{`
+      .ccf-spin { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(128,128,128,.28); border-top-color: var(--agent-coral-deep, #FF6B4A); animation: ccf-spin .7s linear infinite; flex-shrink: 0; }
+      @keyframes ccf-spin { to { transform: rotate(360deg); } }
+      .ccf-fade { animation: ccf-fade 180ms ease both; }
+      @keyframes ccf-fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .ccf-spin { animation: none; } .ccf-fade { animation: none; } }
+    `}</style>
   );
 }
 
@@ -144,6 +175,11 @@ function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // The Stripe PaymentElement reports when it has actually mounted its inputs.
+  // Until then the "Save card" button stays disabled — so it can never be a live
+  // button sitting above an empty (still-loading or failed) form.
+  const [elementReady, setElementReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -177,6 +213,7 @@ function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl
   if (saved && !onSuccess) {
     return (
       <div
+        className="ccf-fade"
         style={{
           padding: 16,
           background: "#f0fdf4",
@@ -186,6 +223,7 @@ function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl
         }}
       >
         Card saved. We&apos;ll charge it on the 1st of each month for that month&apos;s exchanges.
+        <CardFormStyles />
       </div>
     );
   }
@@ -197,30 +235,39 @@ function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl
           Placeholder text sits behind the iframe and is hidden once
           Stripe injects content. */}
       <div style={{ position: "relative", minHeight: 180 }}>
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--agent-text-secondary, #6b7280)",
-            fontSize: 13,
-            pointerEvents: "none",
-          }}
-        >
-          Loading card details…
-        </div>
+        {!elementReady && !loadFailed && (
+          <div
+            aria-hidden
+            className="ccf-fade"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              color: "var(--agent-text-secondary, #6b7280)",
+              fontSize: 13,
+              pointerEvents: "none",
+            }}
+          >
+            <span className="ccf-spin" aria-hidden />
+            Loading card details…
+          </div>
+        )}
         <PaymentElement
-          onLoadError={() =>
-            setError("Couldn't load Stripe's card form. Refresh and try again.")
-          }
+          onReady={() => setElementReady(true)}
+          onLoadError={() => {
+            setLoadFailed(true);
+            setError("Couldn't load the card form. Try again.");
+          }}
         />
       </div>
       {error && (
         <div
+          className="ccf-fade"
           style={{
+            display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start",
             fontSize: 13,
             color: "#dc2626",
             background: "#fef2f2",
@@ -229,17 +276,28 @@ function InnerForm({ onSuccess, returnUrl }: { onSuccess?: () => void; returnUrl
             padding: "10px 14px",
           }}
         >
-          {error}
+          <span>{error}</span>
+          {loadFailed && (
+            <button
+              type="button"
+              onClick={() => { if (typeof window !== "undefined") window.location.reload(); }}
+              className="agent-btn agent-btn-neutral agent-btn-sm"
+            >
+              Try again
+            </button>
+          )}
         </div>
       )}
       <button
         type="submit"
-        disabled={submitting || !stripe || !elements}
+        disabled={submitting || !stripe || !elements || !elementReady || loadFailed}
         className="agent-btn agent-btn-primary agent-btn-lg"
-        style={{ width: "100%" }}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
       >
+        {submitting && <span className="ccf-spin" aria-hidden style={{ borderTopColor: "rgba(255,255,255,0.9)", borderColor: "rgba(255,255,255,0.35)" }} />}
         {submitting ? "Saving…" : "Save card"}
       </button>
+      <CardFormStyles />
     </form>
   );
 }

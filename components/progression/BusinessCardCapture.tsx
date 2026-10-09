@@ -73,7 +73,7 @@ export function BusinessCardCapture({
 
   if (saved) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="bcc-fade" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ padding: 16, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, color: "#166534", fontSize: 13 }}>
           Card saved. We&rsquo;ll charge it on the 1st of each month for your subscription and the sales you add.
         </div>
@@ -82,16 +82,17 @@ export function BusinessCardCapture({
             Add a sale →
           </a>
         )}
+        <BccStyles />
       </div>
     );
   }
 
   if (finishing) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 16, color: "var(--agent-text-secondary, #6b7280)", fontSize: 13 }}>
+      <div className="bcc-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: 16, color: "var(--agent-text-secondary, #6b7280)", fontSize: 13 }}>
         <span className="acg-spin" aria-hidden />
         Finishing setup&hellip;
-        <style>{`.acg-spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(128,128,128,.3);border-top-color:var(--agent-coral-deep,#FF6B4A);animation:acg-spin .7s linear infinite;flex-shrink:0}@keyframes acg-spin{to{transform:rotate(360deg)}}`}</style>
+        <BccStyles />
       </div>
     );
   }
@@ -100,19 +101,20 @@ export function BusinessCardCapture({
   // subscription, don't re-show the (already-consumed) Stripe form.
   if (cardCaptured && error) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="bcc-fade" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#b91c1c", fontSize: 13 }}>
           {error}
         </div>
         <button type="button" className="agent-btn agent-btn-primary agent-btn-md" onClick={startSubscription} style={{ alignSelf: "flex-start" }}>
           Finish setting up billing
         </button>
+        <BccStyles />
       </div>
     );
   }
 
   return (
-    <>
+    <div className="bcc-fade">
       {error && (
         <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#b91c1c", fontSize: 13 }}>
           {error}
@@ -124,6 +126,21 @@ export function BusinessCardCapture({
         returnUrl="/agent/settings/billing?saved=1"
         onSuccess={() => { setCardCaptured(true); startSubscription(); }}
       />
-    </>
+      <BccStyles />
+    </div>
+  );
+}
+
+// Spinner + a short cross-fade so swapping between form / finishing / error / saved
+// is a soft transition, not a hard cut. Reduced motion drops both.
+function BccStyles() {
+  return (
+    <style>{`
+      .acg-spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(128,128,128,.3);border-top-color:var(--agent-coral-deep,#FF6B4A);animation:acg-spin .7s linear infinite;flex-shrink:0}
+      @keyframes acg-spin{to{transform:rotate(360deg)}}
+      .bcc-fade{animation:bcc-fade 180ms ease both}
+      @keyframes bcc-fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+      @media (prefers-reduced-motion: reduce){.acg-spin{animation:none}.bcc-fade{animation:none}}
+    `}</style>
   );
 }
