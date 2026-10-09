@@ -969,6 +969,15 @@ export async function createTransaction(input: CreateTransactionInput) {
     throw new BillingSetupRequiredError();
   }
 
+  // Dunning block: a business past its 7-day grace window (card keeps failing) can't
+  // add NEW sales until the card is fixed. Files already in progress keep running.
+  // Separate from the card gate above — here a card IS on file, it's just failing.
+  if (!input.isDemo && input.progressionBusinessId && !paymentBlockApplies && progressionBillingCollectEnabled()) {
+    const { getBusinessPaymentState, BusinessPaymentBlockedError } = await import("@/lib/progression/business-dunning");
+    const state = await getBusinessPaymentState(input.progressionBusinessId);
+    if (state.kind === "blocked") throw new BusinessPaymentBlockedError();
+  }
+
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment
     // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws

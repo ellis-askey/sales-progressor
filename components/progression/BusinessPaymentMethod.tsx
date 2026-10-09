@@ -15,6 +15,7 @@ type Card = { brand: string; last4: string; expMonth: number; expYear: number };
 export function BusinessPaymentMethod({
   card,
   active = false,
+  failed = false,
   publishableKey,
   justReturned = false,
   authFailed = false,
@@ -25,6 +26,8 @@ export function BusinessPaymentMethod({
   // couldn't be read from Stripe this render — so we never drop back to an empty
   // form for an active business on a transient read error.
   active?: boolean;
+  // The card on file is failing (dunning warning/blocked) — flag it on the row.
+  failed?: boolean;
   publishableKey: string;
   justReturned?: boolean;
   authFailed?: boolean;
@@ -61,22 +64,24 @@ export function BusinessPaymentMethod({
   const label = card
     ? `${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "Card"} ending ${card.last4}`
     : "Card on file";
-  const sub = card
-    ? `Expires ${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)} · we'll charge this each month`
-    : "We'll charge this card each month";
+  const sub = failed
+    ? "Payment failed — update your card to continue"
+    : card
+      ? `Expires ${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)} · we'll charge this each month`
+      : "We'll charge this card each month";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-      <span aria-hidden style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, display: "grid", placeItems: "center", color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb),0.1)" }}>
+      <span aria-hidden style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 11, display: "grid", placeItems: "center", color: failed ? "#fff" : "var(--agent-coral-deep)", background: failed ? "var(--agent-danger, #C73E3E)" : "rgba(var(--agent-coral-rgb),0.1)" }}>
         <CreditCard size={20} weight="regular" />
       </span>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)" }}>{label}</div>
-        <div style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{sub}</div>
+        <div style={{ fontSize: 12, color: failed ? "var(--agent-danger, #C73E3E)" : "var(--agent-text-muted)", fontWeight: failed ? 600 : 400 }}>{sub}</div>
       </div>
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="agent-btn agent-btn-neutral agent-btn-sm"
+        className={`agent-btn ${failed ? "agent-btn-primary" : "agent-btn-neutral"} agent-btn-sm`}
         style={{ marginLeft: "auto" }}
       >
         Update card

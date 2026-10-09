@@ -13,6 +13,7 @@ import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { businessBillingActive, getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
+import { getBusinessPaymentState } from "@/lib/progression/business-dunning";
 import { getDefaultCard } from "@/lib/stripe";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
@@ -57,6 +58,13 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
   // Returned from a 3-D Secure attempt that FAILED — show a "try again" message
   // rather than a silent empty form.
   const authFailed = sp.saved === "1" && sp.redirect_status === "failed";
+  // Dunning: once a card is on file, is a payment failing? (grace / blocked)
+  const paymentState = collecting && hasCard ? await getBusinessPaymentState(owner.businessId) : ({ kind: "ok" } as const);
+  const paymentFailing = paymentState.kind === "warning" || paymentState.kind === "blocked";
+  const graceDate =
+    paymentState.kind === "warning"
+      ? paymentState.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" })
+      : null;
 
   return (
     <>
@@ -74,6 +82,18 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
             tone="info"
             title="No payment yet"
             body="This is what your plan currently works out to. We'll let you know and ask you to add a card before billing begins."
+          />
+        ) : paymentState.kind === "blocked" ? (
+          <SettingsNote
+            tone="danger"
+            title="Adding sales is paused"
+            body="A payment is overdue. Update your card below to start adding sales again — files already in progress keep running as normal."
+          />
+        ) : paymentState.kind === "warning" ? (
+          <SettingsNote
+            tone="warning"
+            title="We couldn't take your last payment"
+            body={`Update your card by ${graceDate} to keep adding sales. We'll keep retrying it in the meantime.`}
           />
         ) : hasCard ? (
           <SettingsNote
@@ -151,7 +171,7 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
             title="Payment method"
             subtitle={savedCard ? "The card we charge each month for your subscription and any sales you add." : "Add the card we'll charge each month for your subscription and any sales you add."}
           >
-            <BusinessPaymentMethod card={savedCard} active={hasCard} publishableKey={publishableKey} justReturned={justReturned} authFailed={authFailed} addSaleHref="/agent/transactions/new" />
+            <BusinessPaymentMethod card={savedCard} active={hasCard} failed={paymentFailing} publishableKey={publishableKey} justReturned={justReturned} authFailed={authFailed} addSaleHref="/agent/transactions/new" />
           </AccountCard>
         )}
       </div>

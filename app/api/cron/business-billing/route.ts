@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { runBusinessBillingCron } from "@/lib/progression/business-stripe";
+import { markOverdueBusinessesBlocked } from "@/lib/progression/business-dunning";
 import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { runJob } from "@/lib/cron/run-job";
 
@@ -26,8 +27,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "flag_disabled" });
     }
     try {
+      // Dunning: businesses 7+ days past a failed payment move from grace to blocked.
+      const { blockedCount } = await markOverdueBusinessesBlocked();
       const result = await runBusinessBillingCron();
-      return NextResponse.json({ ok: true, ...result });
+      return NextResponse.json({ ok: true, blockedCount, ...result });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Business billing error";
       return NextResponse.json({ error: message }, { status: 500 });
