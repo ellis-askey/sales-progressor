@@ -66,6 +66,13 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
     paymentState.kind === "warning"
       ? paymentState.gracePeriodEndsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" })
       : null;
+  // The two charge moments this card shows are NOT one bill: the subscription is
+  // taken on the 1st; the £5-per-sale lines accrue now and ride the NEXT invoice
+  // (the 1st of next month). monthEnd is midnight on the 1st of next month (London).
+  const nextChargeLabel = s.monthEnd.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" });
+  const nextMonthLabel = s.monthEnd.toLocaleDateString("en-GB", { month: "long", timeZone: "Europe/London" });
+  const subscriptionPence = s.basePence + s.seatsPence;
+  const subscriptionLines = s.lines.filter((l) => l.kind !== "per_sale");
 
   return (
     <>
@@ -115,53 +122,81 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
           title={`This month · ${month}`}
           subtitle="£59 for your account, £39 for each additional team member, plus £5 per sale added."
         >
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {preview ? (
-              // No card yet: the first charge is pro-rated for the rest of the month.
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "11px 0",
-              }}>
+          {preview ? (
+            // No card yet: the first charge is pro-rated for the rest of the month —
+            // this genuinely IS one amount, taken the moment they add a card.
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "11px 0" }}>
                 <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                  Subscription — pro-rated for {preview.daysLeft} {preview.daysLeft === 1 ? "day" : "days"} of {preview.monthLabel}
+                  Subscription, pro-rated for {preview.daysLeft} {preview.daysLeft === 1 ? "day" : "days"} of {preview.monthLabel}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
                   {fmtCurrencyPence(preview.dueTodayPence)}
                 </span>
               </div>
-            ) : (
-              s.lines.map((line, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-                  padding: "11px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)",
-                }}>
-                  <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {line.description}
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
-                    {fmtCurrencyPence(line.amountPence)}
-                  </span>
-                </div>
-              ))
-            )}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-              padding: "13px 0 2px", marginTop: 4, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))",
-            }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-                {preview ? "Due when you add a card" : "Total this month"}
-              </span>
-              <span style={{ fontSize: 17, fontWeight: 820, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>
-                {fmtCurrencyPence(preview ? preview.dueTodayPence : s.totalPence)}
-              </span>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                padding: "13px 0 2px", marginTop: 4, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))",
+              }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>Due when you add a card</span>
+                <span style={{ fontSize: 17, fontWeight: 820, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>
+                  {fmtCurrencyPence(preview.dueTodayPence)}
+                </span>
+              </div>
+              <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                This is your first, partial month. From {preview.nextPaymentLabel} it&apos;s £59 on the 1st of each month, plus £5 per sale and £39 per extra team member added that month.
+              </p>
             </div>
-          </div>
-          <p style={{ margin: "14px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-            {preview
-              ? `This is your first, partial month. From ${preview.nextPaymentLabel} it's £59 on the 1st of each month, plus £5 per sale and £39 per extra team member added that month.`
-              : s.saleCount === 0
-                ? "No sales added yet this month. Each sale is £5 and will appear here when added."
-                : `${s.saleCount} ${s.saleCount === 1 ? "sale" : "sales"} added this month · £5 each`}
-          </p>
+          ) : (
+            // Live plan: two SEPARATE charge moments, shown apart so the page never
+            // implies one combined bill. Subscription comes out on the 1st; the £5
+            // per-sale lines accrue now and ride the next invoice.
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Subscription — charged on the 1st */}
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Subscription</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>{hasCard ? "Taken on the 1st" : "Billed on the 1st"}</span>
+                </div>
+                {subscriptionLines.map((line, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "9px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
+                    <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line.description}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(line.amountPence)}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0 0", marginTop: 2, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{hasCard ? "Already taken this month" : "Per month"}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(subscriptionPence)}</span>
+                </div>
+              </div>
+
+              {/* Per-sale — accrues now, charged on the next invoice */}
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Sales added this month</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>On your {nextMonthLabel} invoice</span>
+                </div>
+                {s.saleCount === 0 ? (
+                  <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                    No sales added yet this month. Each sale is £5 and will appear here when added.
+                  </p>
+                ) : (
+                  <>
+                    {s.lines.filter((l) => l.kind === "per_sale").map((line, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "9px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--agent-border-subtle)" }}>
+                        <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line.description}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(line.amountPence)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "10px 0 0", marginTop: 2, borderTop: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.saleCount} {s.saleCount === 1 ? "sale" : "sales"} · added {nextChargeLabel}</span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmtCurrencyPence(s.perSalePence)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </AccountCard>
 
         {/* Payment method — only once collection is live (C1). Until then the
