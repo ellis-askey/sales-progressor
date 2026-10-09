@@ -92,6 +92,32 @@ export async function getBusinessesOverview(now: Date = new Date()): Promise<Bus
   return rows;
 }
 
+export type BusinessesRevenue = {
+  count: number;
+  mrrPence: number;        // sum of recurring MRR across all businesses
+  thisMonthPence: number;  // sum of this-month totals (MRR + £5s)
+  perSalePence: number;    // sum of this-month £5-per-sale
+  rows: BusinessOverviewRow[];                                   // for the revenue-page strip
+  needsAttention: { id: string; name: string; status: BusinessStatus }[]; // for the risks feed
+};
+
+/** Platform-wide business income for the Revenue page. Not agency-scoped —
+ *  what the businesses pay TSP is TSP's income, not attributable to a client
+ *  agency — so this is only shown on the whole-platform revenue view. */
+export async function getBusinessesRevenue(now: Date = new Date()): Promise<BusinessesRevenue> {
+  const rows = await getBusinessesOverview(now);
+  return {
+    count: rows.length,
+    mrrPence: rows.reduce((n, r) => n + r.mrrPence, 0),
+    thisMonthPence: rows.reduce((n, r) => n + r.monthTotalPence, 0),
+    perSalePence: rows.reduce((n, r) => n + r.perSalePence, 0),
+    rows,
+    needsAttention: rows
+      .filter((r) => r.status === "payment_failed" || r.status === "blocked")
+      .map((r) => ({ id: r.id, name: r.name, status: r.status })),
+  };
+}
+
 export type BusinessClientRow = { agencyId: string; agencyName: string; feeSummary: string; archived: boolean };
 export type BusinessMemberRow = { id: string; name: string; isOwner: boolean; deactivated: boolean };
 

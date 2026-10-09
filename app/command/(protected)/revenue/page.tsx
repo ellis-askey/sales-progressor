@@ -4,6 +4,8 @@ import { parseMode, parseAgencies } from "@/lib/command/scope";
 import type { AgencyRevenueRow, ExchangeRow, LegacyAgencyRef, PipelineBucket, SimpleAgencyRef } from "@/lib/command/revenue";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { CollapsibleSection } from "@/components/command/revenue/CollapsibleSection";
+import { getBusinessesRevenue } from "@/lib/command/businesses";
+import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
 import type { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +19,16 @@ export default async function RevenuePage({
   const mode = parseMode(sp.mode);
   const agencyIds = parseAgencies(sp.agency);
   const data = await getRevenueDashboard({ mode, agencyIds });
+
+  // Whole-platform view only (no agency / mode filter): the businesses' income
+  // is TSP income, not attributable to any one agency, so it shows alongside the
+  // agency + provider streams only here. Scoped views stay agency-only.
+  const whole = mode === "combined" && agencyIds.length === 0;
+  const bizRev = whole ? await getBusinessesRevenue() : null;
+  const agencyMtd = data.banked.totalPence;
+  const providerMtd = data.referralIncome.wonThisMonthPence;
+  const businessMtd = bizRev?.thisMonthPence ?? 0;
+  const totalIncomeMtd = agencyMtd + providerMtd + businessMtd;
 
   const monthLabel = formatMonthLabel(data.monthStart);
   const nextMonthLabel = formatMonthLabel(new Date(data.monthEnd.getTime() + 86_400_000));
@@ -40,6 +52,62 @@ export default async function RevenuePage({
           {monthLabel} · as of {formatShortDate(data.asOf)}
         </p>
       </div>
+
+      {/* ── Total income this month (all three streams, due on the 1st) ── */}
+      {whole && bizRev && (
+        <section className="space-y-4">
+          <div className="rounded-xl border border-emerald-900/40 bg-gradient-to-br from-emerald-950/30 to-neutral-900 px-6 py-5">
+            <p className="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+              Total income this month · due on the 1st
+              <InfoTip label="What this is">
+                Everything earned this month and billed on the 1st of next month: agency fees on sales that exchanged
+                this month, your provider referral cuts won this month, and the progression businesses&rsquo;
+                subscriptions plus £5 per sale.
+              </InfoTip>
+            </p>
+            <p className="mt-2 text-4xl sm:text-5xl font-semibold tabular-nums text-emerald-200">{formatGBP(totalIncomeMtd)}</p>
+            <p className="mt-1.5 text-sm text-neutral-400">
+              {formatGBP(agencyMtd)} agency fees · {formatGBP(providerMtd)} provider 10%s · {formatGBP(businessMtd)} progression businesses
+            </p>
+          </div>
+
+          {bizRev.count > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Kpi label="Recurring MRR" value={formatGBP(bizRev.mrrPence)} sub="businesses · repeats every month" tone="primary" href="/command/businesses" />
+                <Kpi label="Business income this month" value={formatGBP(bizRev.thisMonthPence)} sub="subscriptions + £5 per sale" href="/command/businesses" />
+                <Kpi label="Provider 10%s this month" value={formatGBP(providerMtd)} sub="referrals won this month" href="/command/providers/quotes?status=won" />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Progression businesses</h2>
+                  <Link href="/command/businesses" className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">View all →</Link>
+                </div>
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl divide-y divide-neutral-800">
+                  {bizRev.rows.slice(0, 8).map((r) => (
+                    <Link
+                      key={r.id}
+                      href={`/command/businesses/${r.id}`}
+                      className="flex items-center justify-between gap-x-3 gap-y-1 flex-wrap px-4 py-2.5 hover:bg-neutral-800/40 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="truncate text-sm text-neutral-200">{r.name}</span>
+                        <BusinessStatusPill status={r.status} />
+                      </span>
+                      <span className="text-xs tabular-nums text-neutral-400 whitespace-nowrap">
+                        {formatGBP(r.mrrPence)}/mo · {formatGBP(r.monthTotalPence)} this month
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-neutral-600">No progression businesses yet. Their subscriptions and £5-per-sale will show here once they sign up.</p>
+          )}
+        </section>
+      )}
 
       {/* ── Headline: total fee in pipeline (all active sales) ────── */}
       <section>
@@ -252,6 +320,21 @@ export default async function RevenuePage({
               empty="No agencies blocked."
               tone="danger"
             />
+            {whole && bizRev && bizRev.needsAttention.length > 0 && (
+              <div className="bg-neutral-900 border border-amber-900/40 rounded-xl px-4 py-3">
+                <p className="text-[11px] font-semibold text-amber-300 uppercase tracking-wider mb-2">Business payments</p>
+                <ul className="space-y-1.5">
+                  {bizRev.needsAttention.map((b) => (
+                    <li key={b.id}>
+                      <Link href={`/command/businesses/${b.id}`} className="flex items-center justify-between gap-2 hover:opacity-80 transition-opacity">
+                        <span className="truncate text-sm text-neutral-300">{b.name}</span>
+                        <BusinessStatusPill status={b.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </section>

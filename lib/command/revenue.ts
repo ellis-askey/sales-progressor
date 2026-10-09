@@ -160,7 +160,7 @@ export type RevenueDashboardData = {
   legacyAgencies: LegacyAgencyRef[];
   /** Provider referral income (surveyors/brokers) — a separate stream from our
    *  own sale fees. Earned on won quotes; collected when marked paid. */
-  referralIncome: { earnedPence: number; collectedPence: number; outstandingPence: number; wonCount: number };
+  referralIncome: { earnedPence: number; collectedPence: number; outstandingPence: number; wonCount: number; wonThisMonthPence: number };
   /** Per-line detail behind the headline numbers, for the Banked / Pipeline /
    *  Forecast statement drill-downs. bankedLines sum to banked; pipeline lines
    *  to pipelineThisMonth; referralLines are the separate referral stream. */
@@ -307,6 +307,7 @@ export async function getRevenueDashboard(
     feeLinesLastMonth,
     referralWonAgg,
     referralCollectedAgg,
+    referralWonThisMonthAgg,
     referralLinesRaw,
   ] = await Promise.all([
     // All agencies in scope — drives the per-agency table.
@@ -505,6 +506,14 @@ export async function getRevenueDashboard(
       where: { status: "won", referralFeeCollected: true, transaction: { agency: agencyWhere } },
       _sum: { referralFeePence: true },
     }),
+    // Referrals WON this month (statusChangedAt in the current billing month) —
+    // the accrual-basis figure for "total income this month", consistent with
+    // agency fees (exchanged this month) and business income (this month). The
+    // all-time earned/collected above stay for cash-chasing.
+    commandDb.quoteRequest.aggregate({
+      where: { status: "won", statusChangedAt: { gte: monthStart, lt: monthEnd }, transaction: { agency: agencyWhere } },
+      _sum: { referralFeePence: true },
+    }),
     // Per-line referral income (won quotes) for the breakdown statement — shows
     // which provider firm and which sale each referral fee came from.
     commandDb.quoteRequest.findMany({
@@ -521,6 +530,7 @@ export async function getRevenueDashboard(
 
   const referralEarnedPence = referralWonAgg._sum.referralFeePence ?? 0;
   const referralCollectedPence = referralCollectedAgg._sum.referralFeePence ?? 0;
+  const referralWonThisMonthPence = referralWonThisMonthAgg._sum.referralFeePence ?? 0;
   const referralLines: ReferralLine[] = referralLinesRaw
     .filter((q) => (q.referralFeePence ?? 0) > 0)
     .map((q) => ({
@@ -799,6 +809,7 @@ export async function getRevenueDashboard(
       collectedPence: referralCollectedPence,
       outstandingPence: referralEarnedPence - referralCollectedPence,
       wonCount: referralWonAgg._count._all,
+      wonThisMonthPence: referralWonThisMonthPence,
     },
     bankedLines,
     pipelineThisMonthLines,
