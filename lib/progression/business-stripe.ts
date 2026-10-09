@@ -244,6 +244,47 @@ export async function cancelBusinessSubscription(businessId: string): Promise<{ 
   return { ok: true };
 }
 
+/** Whether the business's plan is scheduled to end (cancel-at-period-end), and when.
+ *  Read live from Stripe so it can never drift from a stored flag. Returns null if
+ *  there's no subscription / Stripe isn't configured / the read blips — the caller
+ *  then just shows the normal "live" state rather than erroring. */
+export async function getBusinessPlanSchedule(
+  businessId: string,
+): Promise<{ cancelAtPeriodEnd: boolean; endsAt: Date | null } | null> {
+  if (!isStripeConfigured()) return null;
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeSubscriptionId: true },
+  });
+  if (!business?.stripeSubscriptionId) return null;
+  try {
+    const stripe = getStripeClient();
+    const sub = await stripe.subscriptions.retrieve(business.stripeSubscriptionId);
+    const cancelAtPeriodEnd = sub.cancel_at_period_end === true;
+    // cancel_at is the instant Stripe will end it (set when cancel_at_period_end is on).
+    const endsAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null;
+    return { cancelAtPeriodEnd, endsAt };
+  } catch (err) {
+    console.error(`[business-billing] plan schedule read failed for ${businessId}:`, err);
+    return null;
+  }
+}
+
+/** Undo a scheduled cancellation — the owner changes their mind before period-end.
+ *  Clears cancel_at_period_end so the plan keeps running and billing on the 1st. */
+export async function reactivateBusinessSubscription(
+  businessId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isStripeConfigured()) return { ok: false, error: "Billing isn't set up." };
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeSubscriptionId: true },
+  });
+  if (!business?.stripeSubscriptionId) return { ok: false, error: "There's no plan to reactivate." };
+  await getStripeClient().subscriptions.update(business.stripeSubscriptionId, { cancel_at_period_end: false });
+  return { ok: true };
+}
+
 /** Push any accrued-but-unsent £5 per-sale charges to Stripe as pending invoice
  *  items (they ride the next subscription invoice). Idempotent via
  *  businessPerSaleInvoicedAt. Returns how many were pushed. Intended for a daily

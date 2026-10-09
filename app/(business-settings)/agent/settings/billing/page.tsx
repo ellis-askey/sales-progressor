@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
-import { businessBillingActive, getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
+import { businessBillingActive, getBusinessFirstChargePreview, getBusinessPlanSchedule } from "@/lib/progression/business-stripe";
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
 import { getBusinessPaymentState } from "@/lib/progression/business-dunning";
 import { getDefaultCard } from "@/lib/stripe";
@@ -59,6 +59,12 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
   // Returned from a 3-D Secure attempt that FAILED — show a "try again" message
   // rather than a silent empty form.
   const authFailed = sp.saved === "1" && sp.redirect_status === "failed";
+  // Is the plan scheduled to end (owner hit Cancel)? Read live from Stripe so the
+  // page reflects the cancellation rather than still reading "live".
+  const planSchedule = collecting && hasCard ? await getBusinessPlanSchedule(owner.businessId) : null;
+  const endingLabel = planSchedule?.cancelAtPeriodEnd && planSchedule.endsAt
+    ? planSchedule.endsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" })
+    : null;
   // Dunning: once a card is on file, is a payment failing? (grace / blocked)
   const paymentState = collecting && hasCard ? await getBusinessPaymentState(owner.businessId) : ({ kind: "ok" } as const);
   const paymentFailing = paymentState.kind === "warning" || paymentState.kind === "blocked";
@@ -102,6 +108,12 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
             tone="warning"
             title="We couldn't take your last payment"
             body={`Update your card by ${graceDate} to keep adding sales. We'll keep retrying it in the meantime.`}
+          />
+        ) : endingLabel ? (
+          <SettingsNote
+            tone="warning"
+            title={`Your plan ends on ${endingLabel}`}
+            body="You'll keep access until then, and we won't charge you again after that. Changed your mind? Keep your plan below."
           />
         ) : hasCard ? (
           <SettingsNote
@@ -215,7 +227,7 @@ export default async function BusinessBillingPage({ searchParams }: { searchPara
             cancelling collects accrued £5s then stops at period-end. */}
         {hasCard && (
           <div style={{ display: "flex", justifyContent: "flex-start" }}>
-            <CancelPlanButton />
+            <CancelPlanButton scheduledToCancel={!!endingLabel} />
           </div>
         )}
       </div>

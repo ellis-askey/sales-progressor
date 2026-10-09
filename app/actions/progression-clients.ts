@@ -367,6 +367,20 @@ export async function cancelBusinessPlanAction(): Promise<ActionResult> {
   return result;
 }
 
+/** Undo a scheduled cancellation before period-end. Owner-gated. */
+export async function reactivateBusinessPlanAction(): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled() || !progressionBillingCollectEnabled()) {
+    return { ok: false, error: "Billing isn't live yet." };
+  }
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change the plan." };
+  const { reactivateBusinessSubscription } = await import("@/lib/progression/business-stripe");
+  const result = await reactivateBusinessSubscription(owner.businessId);
+  if (result.ok) revalidatePath("/agent/settings/billing");
+  return result;
+}
+
 /**
  * Set whether a team member sees the whole business book (see-all) or only their
  * own assigned files (see-own). Owner-only. The member must be in the owner's own

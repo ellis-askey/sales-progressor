@@ -1,16 +1,19 @@
 "use client";
 
-// Owner-only "Cancel plan" control on the billing tab. There's deliberately no
-// remove-card button — cancelling is the only off-switch, and it collects any
-// accrued £5 per-sale charges on the card still on file, then cancels the £59 base
-// at period-end (keep the month paid for). Inline two-step confirm (no modal).
+// Owner-only plan control on the billing tab. Two modes:
+//   - live plan → a quiet "Cancel plan" with an inline two-step confirm. There's
+//     deliberately no remove-card button; cancelling is the only off-switch, and it
+//     collects any accrued £5 per-sale charges on the card still on file, then
+//     cancels the £59 base at period-end (keep the month paid for).
+//   - already scheduled to cancel → a "Keep my plan" button that undoes it before
+//     period-end, so a mis-click is never a dead-end.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { cancelBusinessPlanAction } from "@/app/actions/progression-clients";
+import { cancelBusinessPlanAction, reactivateBusinessPlanAction } from "@/app/actions/progression-clients";
 
-export function CancelPlanButton() {
+export function CancelPlanButton({ scheduledToCancel = false }: { scheduledToCancel?: boolean }) {
   const router = useRouter();
   const { toast } = useAgentToast();
   const [confirming, setConfirming] = useState(false);
@@ -27,6 +30,33 @@ export function CancelPlanButton() {
         toast.error(r.error);
       }
     });
+  }
+
+  function reactivate() {
+    startTransition(async () => {
+      const r = await reactivateBusinessPlanAction();
+      if (r.ok) {
+        toast.success("Your plan will carry on as normal.");
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
+    });
+  }
+
+  // Already cancelling: offer to undo it rather than leaving a dead "Cancel" button.
+  if (scheduledToCancel) {
+    return (
+      <button
+        type="button"
+        onClick={reactivate}
+        disabled={pending}
+        className="agent-btn agent-btn-neutral agent-btn-sm"
+        style={{ alignSelf: "flex-start", opacity: pending ? 0.6 : 1 }}
+      >
+        {pending ? "Reactivating…" : "Keep my plan"}
+      </button>
+    );
   }
 
   if (!confirming) {
