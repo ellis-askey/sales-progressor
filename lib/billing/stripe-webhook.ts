@@ -43,7 +43,7 @@ export type StripeWebhookEvent = {
 
 export type ProcessResult =
   | { handled: false; reason: string }
-  | { handled: true; action: "marked_paid" | "marked_failed" | "noop_invoice_not_found" | "noop_already_in_state" };
+  | { handled: true; action: "marked_paid" | "marked_failed" | "subscription_cleared" | "noop_invoice_not_found" | "noop_already_in_state" };
 
 export async function processStripeEvent(event: StripeWebhookEvent): Promise<ProcessResult> {
   switch (event.type) {
@@ -55,9 +55,27 @@ export async function processStripeEvent(event: StripeWebhookEvent): Promise<Pro
       return handleInvoicePaymentSucceeded(event);
     case "invoice.payment_failed":
       return handleInvoicePaymentFailed(event);
+    case "customer.subscription.deleted":
+      return handleSubscriptionDeleted(event);
     default:
       return { handled: false, reason: `unhandled event type: ${event.type}` };
   }
+}
+
+// A progression-business subscription was cancelled/deleted at Stripe (e.g. after
+// Stripe exhausted its dunning retries, or we cancelled it). Drop our stored
+// subscription id so businessBillingActive() goes false — otherwise a stale id
+// keeps the business "active" and lets it add sales that can never be collected.
+// Also clear the dunning flags: there's no live sub to be in arrears on; the
+// business falls back to the clean "add a card to activate" state.
+async function handleSubscriptionDeleted(event: StripeWebhookEvent): Promise<ProcessResult> {
+  const subscriptionId = event.data.object.id;
+  const r = await prisma.progressionBusiness.updateMany({
+    where: { stripeSubscriptionId: subscriptionId },
+    data: { stripeSubscriptionId: null, paymentFailedAt: null, newFileCreationBlockedAt: null },
+  });
+  if (r.count > 0) return { handled: true, action: "subscription_cleared" };
+  return { handled: true, action: "noop_invoice_not_found" };
 }
 
 async function handleInvoicePaymentSucceeded(event: StripeWebhookEvent): Promise<ProcessResult> {

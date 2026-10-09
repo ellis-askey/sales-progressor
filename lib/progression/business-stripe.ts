@@ -137,12 +137,14 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
   // can't be paid and the subscription never completes.)
   const customer = await stripe.customers.retrieve(customerId);
   const existingDefault = "deleted" in customer ? null : customer.invoice_settings?.default_payment_method;
+  let hasCard = !!existingDefault;
   if (!existingDefault) {
     const pms = await stripe.paymentMethods.list({ customer: customerId, type: "card", limit: 1 });
     if (pms.data[0]) {
       await stripe.customers.update(customerId, {
         invoice_settings: { default_payment_method: pms.data[0].id },
       });
+      hasCard = true;
     }
   }
 
@@ -165,6 +167,13 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
   }
 
   if (!subscriptionId) {
+    // Never CREATE a subscription without a card on file. A team-invite / cron sync
+    // can call this before any card exists; creating a charge_automatically sub then
+    // yields an *incomplete* subscription that reads as "billing active" with nothing
+    // to charge (the fake-live-plan bug). Only the card-save flow, where a card was
+    // just attached, gets past here to create. Seat reconciles on an EXISTING sub
+    // still run below.
+    if (!hasCard) return;
     const items: { price: string; quantity: number }[] = [{ price: base, quantity: 1 }];
     if (extraMembers > 0) items.push({ price: seat, quantity: extraMembers });
     // Bill on the 1st of each month, pro-rata for the partial first month: anchor
