@@ -488,6 +488,33 @@ export function buildDeclineEmailPayload({
   return { subject, text, html };
 }
 
+// ─── Invite bounce notice ──────────────────────────────────────────────────────
+
+// One-time note to the chain originator when their invite to a stub agent hard-
+// bounces. Extracted verbatim from handleBouncedInvite (lib/chain/invite.ts) so
+// the send path and the Email Catalogue render from one source and cannot drift.
+export function buildBounceNoticeEmailPayload({
+  originatorName,
+  bouncedEmail,
+  address,
+}: {
+  originatorName: string;
+  bouncedEmail: string;
+  address: string;
+}): { subject: string; text: string; html: string } {
+  return {
+    subject: `Chain invite to ${bouncedEmail} couldn't be delivered`,
+    text: `Hi ${originatorName},\n\nThe chain invite you sent to ${bouncedEmail} for ${address} bounced. The email address couldn't be reached.\n\nMost often this is a typo. Open the chain on the file to update the address and resend.\n\nsupport@thesalesprogressor.co.uk`,
+    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+<p style="margin:0 0 16px;font-size:15px">Hi ${originatorName},</p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${bouncedEmail}</strong> for <strong>${address}</strong> bounced. The email address couldn't be reached.</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Most often this is a typo. Open the chain on the file to update the address and resend.</p>
+<p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
+<p style="margin:0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
+</body></html>`,
+  };
+}
+
 // ─── Exchange notification ─────────────────────────────────────────────────────
 
 export function buildExchangeEmailPayload({

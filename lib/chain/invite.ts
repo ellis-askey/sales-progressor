@@ -9,6 +9,7 @@ import { resolveAgencySender, resolveAgencySenderForTransaction } from "@/lib/em
 import { stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { buildChainOverview } from "@/lib/emails/chain-overview";
+import { buildBounceNoticeEmailPayload } from "@/lib/email/chainNotifications";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import crypto from "crypto";
@@ -215,17 +216,12 @@ export async function handleBouncedInvite(email: string): Promise<void> {
 
   if (originatorEmail) {
     const bounceSender = await resolveAgencySender(link.chain.createdBy?.agencyId ?? null, { fromPlatformAddress: true });
+    const payload = buildBounceNoticeEmailPayload({ originatorName, bouncedEmail: email, address });
     await sendEmail({
       to: originatorEmail,
-      subject: `Chain invite to ${email} couldn't be delivered`,
-      text: `Hi ${originatorName},\n\nThe chain invite you sent to ${email} for ${address} bounced. The email address couldn't be reached.\n\nMost often this is a typo. Open the chain on the file to update the address and resend.\n\nsupport@thesalesprogressor.co.uk`,
-      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 16px;font-size:15px">Hi ${originatorName},</p>
-<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${email}</strong> for <strong>${address}</strong> bounced. The email address couldn't be reached.</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Most often this is a typo. Open the chain on the file to update the address and resend.</p>
-<p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
-<p style="margin:0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
-</body></html>`,
+      subject: payload.subject,
+      text: payload.text,
+      html: payload.html,
       from: bounceSender.from,
       replyTo: bounceSender.replyTo,
     }).catch(console.error);
