@@ -2108,8 +2108,11 @@ export type CheckInRow = {
   photoUrl: string | null;        // signed node photo (claimed file, else stub photo)
   // Our OWN side's latest chase-log entry on this node — the "Last update …" line.
   // Private to us (never the neighbour). Null = we've not logged anything yet.
-  lastUpdateAt: string | null;   // ISO
+  lastUpdateAt: string | null;   // ISO (= history[0]; kept for the inline "Last update" line)
   lastUpdateBody: string | null;
+  // Our full private update trail on this node (our team side only), newest first.
+  // Powers the ⋯ menu "Update history". Capped at the 30 most recent entries loaded.
+  history: Array<{ at: string; body: string }>;
   chainId: string;
   chainName: string | null;
   ourAddress: string | null;     // our own file's address in this chain (group header context)
@@ -2182,8 +2185,9 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
       const address = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Address not shared";
       const photoPath = l.transaction?.photoStoragePath ?? l.stubPhotoStoragePath ?? null;
       if (photoPath) photoPaths.push(photoPath);
-      // Latest entry belonging to OUR team (this chain's side key).
-      const latest = sideKey ? l.entries.find((e) => e.authorSideKey === sideKey) ?? null : null;
+      // Entries belonging to OUR team (this chain's side key), newest first.
+      const ourEntries = sideKey ? l.entries.filter((e) => e.authorSideKey === sideKey) : [];
+      const latest = ourEntries[0] ?? null;
       rows.push({
         linkId: l.id,
         transactionId: l.transactionId ?? null,
@@ -2198,6 +2202,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         photoUrl: photoPath, // swapped for a signed URL below
         lastUpdateAt: latest?.createdAt.toISOString() ?? null,
         lastUpdateBody: latest?.body ?? null,
+        history: ourEntries.map((e) => ({ at: e.createdAt.toISOString(), body: e.body })),
         chainId: chain.id,
         chainName: chain.name,
         ourAddress: our?.address ?? null,

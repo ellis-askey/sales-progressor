@@ -13,7 +13,8 @@
 // neighbour — Option A, 2026-10-08). After a successful log the row re-sorts to
 // the bottom and FLIP-animates there: nothing disappears, the cycle just turns.
 
-import { useState, useTransition, useRef, useLayoutEffect, useCallback } from "react";
+import { useState, useTransition, useRef, useLayoutEffect, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { addChainEntryAction } from "@/app/actions/chain-intel";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
@@ -74,6 +75,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // "View chain" opens the shared ChainDrawer anchored on our own file in that
   // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
   const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
+  const [historyRow, setHistoryRow] = useState<CheckInRow | null>(null);
   const { addNode, openAddNode, closeAddNode, onNodeSaved, refreshKey } = useChainAddNode();
   const [, startTransition] = useTransition();
 
@@ -123,7 +125,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         setRows((cur) =>
           sortRows(
             cur.map((r) =>
-              r.linkId === row.linkId ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body } : r,
+              r.linkId === row.linkId
+                ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body, history: [{ at: entry.createdAt, body: entry.body }, ...r.history] }
+                : r,
             ),
           ),
         );
@@ -147,6 +151,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     const who = row.agentName ? extractFirstName(row.agentName) : "agent";
     if (row.agentPhone) items.push({ label: `Call ${who}`, onClick: () => { window.location.href = `tel:${row.agentPhone}`; } });
     if (row.agentEmail) items.push({ label: `Email ${who}`, onClick: () => { window.location.href = `mailto:${row.agentEmail}`; } });
+    if (row.history.length > 0) items.push({ label: "Update history", onClick: () => setHistoryRow(row) });
     return items;
   }
 
@@ -365,6 +370,51 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         onSaved={onNodeSaved}
       />
     )}
+    {historyRow && createPortal(
+      <HistoryModal row={historyRow} onClose={() => setHistoryRow(null)} />,
+      document.body,
+    )}
     </>
+  );
+}
+
+// Private update-history popover for a check-in node: our team's own notes on
+// that node, newest first. Never shows the neighbour's notes (the service only
+// hands us our-side entries).
+function HistoryModal({ row, onClose }: { row: CheckInRow; onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 2147483000, background: "rgba(20,12,8,0.42)", backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 440, maxHeight: "80vh", overflowY: "auto", background: "var(--agent-surface-elevated, #fff)", border: "1px solid var(--agent-border-subtle)", borderRadius: 16, boxShadow: "0 20px 50px rgba(20,12,8,0.25)", padding: 18 }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 750, color: "var(--agent-text-primary)" }}>Your updates</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.address}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--agent-text-muted)", padding: 4, fontSize: 20, lineHeight: 1 }}>×</button>
+        </div>
+        <p style={{ margin: "10px 0 14px", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+          Private to your side. Never shown to the other agent.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+          {row.history.map((h, i) => (
+            <div key={`${h.at}-${i}`} style={{ paddingBottom: 11, borderBottom: i < row.history.length - 1 ? "1px solid var(--agent-border-subtle)" : "none" }}>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--agent-text-secondary)" }}>{shortDate(h.at)}</p>
+              <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--agent-text-primary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{h.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
