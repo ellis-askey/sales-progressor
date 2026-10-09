@@ -1,26 +1,10 @@
 import Link from "next/link";
 import { BadgeCheck, Building2, ChevronRight } from "lucide-react";
-import { getBusinessesOverview, type BusinessStatus, type BusinessOverviewRow } from "@/lib/command/businesses";
+import { getBusinessesOverview, type BusinessOverviewRow } from "@/lib/command/businesses";
+import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
 import { formatGBP, formatMonthLabel } from "@/lib/command/revenue";
 
 export const dynamic = "force-dynamic";
-
-// Status pill — matches the Command Centre palette (no glass, hairline borders).
-const STATUS: Record<BusinessStatus, { label: string; cls: string }> = {
-  live:           { label: "Paying",         cls: "text-emerald-300 bg-emerald-950/50 border-emerald-900/60" },
-  no_card:        { label: "No card yet",    cls: "text-neutral-400 bg-neutral-800/60 border-neutral-700" },
-  payment_failed: { label: "Payment failed", cls: "text-amber-300 bg-amber-950/50 border-amber-900/60" },
-  blocked:        { label: "Blocked",        cls: "text-red-300 bg-red-950/50 border-red-900/60" },
-};
-
-function StatusPill({ status }: { status: BusinessStatus }) {
-  const s = STATUS[status];
-  return (
-    <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${s.cls}`}>
-      {s.label}
-    </span>
-  );
-}
 
 // Shared desktop grid template so the header and every row line up.
 const COLS = "grid-cols-[minmax(150px,1.8fr)_0.7fr_0.7fr_1fr_0.7fr_0.8fr_1.1fr_auto]";
@@ -93,14 +77,14 @@ export default async function BusinessesPage() {
                   <span className="text-right text-sm tabular-nums text-neutral-300">{r.saleCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-300">{formatGBP(r.perSalePence)}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-100 font-medium">{formatGBP(r.monthTotalPence)}</span>
-                  <span className="text-right"><StatusPill status={r.status} /></span>
+                  <span className="text-right"><BusinessStatusPill status={r.status} /></span>
                 </div>
 
                 {/* Mobile card */}
                 <div className="md:hidden p-4">
                   <div className="flex items-start justify-between gap-3">
                     <BusinessName row={r} />
-                    <StatusPill status={r.status} />
+                    <BusinessStatusPill status={r.status} />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
                     <Field label="MRR" value={formatGBP(r.mrrPence)} strong />
