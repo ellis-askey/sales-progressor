@@ -14,6 +14,12 @@ import "@/app/styles/glass.css";
 
 export const dynamic = "force-dynamic";
 
+// The secret token lives in this page's URL. no-referrer stops the browser
+// putting that full URL in the Referer header when the solicitor clicks a shared
+// document (a Supabase link) or any outbound link, so the token can't leak to a
+// third party.
+export const metadata = { referrer: "no-referrer" } as const;
+
 // Chrome for the solicitor portal tabs (Overview / Progress / Updates). Loads
 // the greeting name + the MOS for the menu, then wraps the tab pages in the
 // shell. The stop + qr routes live outside this group, so they keep no chrome.

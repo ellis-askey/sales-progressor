@@ -4,7 +4,9 @@
 
 import { confirmPauseAction } from "./actions";
 
-export const metadata = { title: "Reminders paused" };
+// no-referrer: the confirm step carries the token in the URL; don't let it leak
+// via the Referer header to any external resource.
+export const metadata = { title: "Reminders paused", referrer: "no-referrer" } as const;
 
 function formatUntil(until: string | undefined): string | null {
   if (!until) return null;

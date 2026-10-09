@@ -38,6 +38,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { token } = await params;
   return {
+    // The secret token is in this URL; no-referrer stops it leaking via the
+    // Referer header to any external link/resource the page touches.
+    referrer: "no-referrer",
     manifest: `/api/portal/manifest/${token}`,
     appleWebApp: {
       capable: true,
@@ -65,7 +68,9 @@ export default async function PortalLayout({
   }
 
   if (!result) {
-    console.error("[Portal] no data for token:", token);
+    // Never log the raw token — it's the sole credential for the file, and logs
+    // / error-trackers are a leak path. A short prefix is enough to correlate.
+    console.error(`[Portal] no data for token (prefix ${token.slice(0, 6)}…)`);
     notFound();
   }
 

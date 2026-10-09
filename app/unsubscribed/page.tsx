@@ -2,6 +2,10 @@ import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { confirmUnsubscribeAction } from "./actions";
 import "../claim/styles/claim-flow.css";
 
+// no-referrer: the confirm step carries the token in the URL; don't let it leak
+// via the Referer header.
+export const metadata = { referrer: "no-referrer" } as const;
+
 export default async function UnsubscribedPage({
   searchParams,
 }: {
