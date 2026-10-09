@@ -20,7 +20,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { UserAvatar } from "@/components/ui/Avatar";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction } from "@/app/actions/progression-clients";
+import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction, cancelTeamInviteAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
 function initials(name: string): string {
@@ -60,7 +60,8 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
       const res = await inviteTeamMemberAction(fd);
       if (res.ok) {
         setConfirming(false); setInviting(false); setInviteName(""); setInviteEmail("");
-        toast.success("Invite sent", { description: `We've emailed ${email} a set-up link.` });
+        if (res.warning) toast.warning(res.warning);
+        else toast.success("Invite sent", { description: `We've emailed ${email} a set-up link.` });
         router.refresh();
       } else {
         toast.error(res.error);
@@ -71,10 +72,17 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
   function remove(member: BusinessTeamMember) {
     if (pending) return;
     startTransition(async () => {
-      const res = await removeTeamMemberAction(member.id);
+      // A pending invite (never accepted) is cancelled outright — the row goes and
+      // the £39 seat drops; an accepted member is deactivated (keeps the row).
+      const res = member.pending
+        ? await cancelTeamInviteAction(member.id)
+        : await removeTeamMemberAction(member.id);
       setConfirmRemoveId(null);
-      if (res.ok) { toast.success(`${member.name} removed`); router.refresh(); }
-      else { toast.error(res.error); }
+      if (res.ok) {
+        if (res.warning) toast.warning(res.warning);
+        else toast.success(member.pending ? `Invite to ${member.name} cancelled` : `${member.name} removed`);
+        router.refresh();
+      } else { toast.error(res.error); }
     });
   }
 
@@ -192,11 +200,11 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                     {!isOwner && (
                       confirmRemoveId === m.id ? (
                         <div className="bt-rm-confirm">
-                          <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : "Remove"}</button>
-                          <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Cancel</button>
+                          <button type="button" className="bt-rm-yes" onClick={() => remove(m)} disabled={pending}>{pending ? "…" : (m.pending ? "Cancel invite" : "Remove")}</button>
+                          <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Keep</button>
                         </div>
                       ) : (
-                        <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title="Remove teammate" aria-label={`Remove ${m.name}`}>Remove</button>
+                        <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title={m.pending ? "Cancel invite" : "Remove teammate"} aria-label={m.pending ? `Cancel invite to ${m.name}` : `Remove ${m.name}`}>{m.pending ? "Cancel invite" : "Remove"}</button>
                       )
                     )}
                   </div>

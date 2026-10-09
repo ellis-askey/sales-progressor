@@ -14,7 +14,10 @@ import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fee
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type AddClientResult = { ok: true } | { ok: false; error: string };
-type ActionResult = { ok: true } | { ok: false; error: string };
+// `warning` lets an action succeed at its primary job but still tell the caller
+// something non-fatal needs a heads-up (e.g. the team changed but the Stripe seat
+// sync hiccuped and will self-heal on the next cron). ok stays true.
+type ActionResult = { ok: true; warning?: string } | { ok: false; error: string };
 
 /**
  * Save the business's chase preferences (from the welcome modal / settings).
@@ -435,13 +438,20 @@ export async function inviteTeamMemberAction(formData: FormData): Promise<Action
   console.log(`[AUDIT] progression_teammate_invited businessId=${owner.businessId} userId=${user.id} by=${owner.userId}`);
   // Reflect the extra seat on the business's Stripe subscription straight away
   // (the daily cron also reconciles). Only when collection is live — this must not
-  // touch Stripe before go-live, even if the prices are set for testing.
+  // touch Stripe before go-live, even if the prices are set for testing. A failure
+  // here isn't fatal (the cron self-heals) but we tell the owner rather than swallow
+  // it, so a seat that silently didn't bill isn't invisible.
+  let warning: string | undefined;
   if (progressionBillingCollectEnabled()) {
-    await syncBusinessSubscription(owner.businessId).catch((err) =>
-      console.error("[progression] seat sync after invite failed:", err));
+    try {
+      await syncBusinessSubscription(owner.businessId);
+    } catch (err) {
+      console.error("[progression] seat sync after invite failed:", err);
+      warning = "Invite sent, but we couldn't update your billing seat just now. We'll sort it automatically within a day.";
+    }
   }
   revalidatePath("/agent/team");
-  return { ok: true };
+  return { ok: true, warning };
 }
 
 /**
@@ -480,13 +490,73 @@ export async function removeTeamMemberAction(memberId: string): Promise<ActionRe
   ]);
   console.log(`[AUDIT] progression_teammate_removed businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
   // Drop the seat on the business's Stripe subscription straight away (the daily
-  // cron also reconciles). Only when collection is live.
+  // cron also reconciles). Only when collection is live. Surface a failure rather
+  // than swallow it (the cron self-heals).
+  let warning: string | undefined;
   if (progressionBillingCollectEnabled()) {
-    await syncBusinessSubscription(owner.businessId).catch((err) =>
-      console.error("[progression] seat sync after remove failed:", err));
+    try {
+      await syncBusinessSubscription(owner.businessId);
+    } catch (err) {
+      console.error("[progression] seat sync after remove failed:", err);
+      warning = "Removed, but we couldn't update your billing seat just now. We'll sort it automatically within a day.";
+    }
   }
   revalidatePath("/agent/team");
-  return { ok: true };
+  return { ok: true, warning };
+}
+
+/**
+ * Cancel a PENDING team invite — one that was sent but never accepted (the user
+ * has no password yet). Owner-gated. Unlike removing an active member (which
+ * deactivates and keeps the row), this fully removes the invited user so their
+ * email is free to invite again, and drops the £39 seat straight away so an
+ * unaccepted invite doesn't keep billing. Refuses to touch an owner or a member
+ * who has already set up their account (use removeTeamMemberAction for those).
+ */
+export async function cancelTeamInviteAction(memberId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a business owner can cancel invites." };
+
+  const member = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { progressionBusinessId: true, progressionBusinessRole: true, password: true },
+  });
+  if (!member || member.progressionBusinessId !== owner.businessId) {
+    return { ok: false, error: "That isn't one of your team members." };
+  }
+  if (member.progressionBusinessRole === "owner") {
+    return { ok: false, error: "You can't cancel the business owner." };
+  }
+  if (member.password) {
+    // They've already accepted and set a password — cancelling an invite no longer
+    // applies; this is a remove.
+    return { ok: false, error: "They've already set up their account. Remove them instead." };
+  }
+
+  // Unassign anything that somehow points at them (a pending invite shouldn't own
+  // files, but never orphan), then delete the invite row so the email frees up.
+  await prisma.$transaction([
+    prisma.propertyTransaction.updateMany({
+      where: { progressionBusinessId: owner.businessId, assignedUserId: memberId },
+      data: { assignedUserId: null },
+    }),
+    prisma.user.delete({ where: { id: memberId } }),
+  ]);
+  console.log(`[AUDIT] progression_invite_cancelled businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
+  // Drop the seat straight away (the daily cron also reconciles).
+  let warning: string | undefined;
+  if (progressionBillingCollectEnabled()) {
+    try {
+      await syncBusinessSubscription(owner.businessId);
+    } catch (err) {
+      console.error("[progression] seat sync after invite cancel failed:", err);
+      warning = "Invite cancelled, but we couldn't update your billing seat just now. We'll sort it automatically within a day.";
+    }
+  }
+  revalidatePath("/agent/team");
+  return { ok: true, warning };
 }
 
 /** Re-send the set-password invite to a client agency's agent. Owner-scoped. */
