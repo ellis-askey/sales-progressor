@@ -1639,6 +1639,23 @@ export async function switchServiceTypeAction(
     handoverBusinessId = inviting?.businessId ?? null;
   }
 
+  // A handed-over file is a billable sale for the progressor (£5), so route it only
+  // to a billing-READY progressor. The director can't fix the progressor's card, so
+  // block with a clear message rather than handing over a file we could never bill.
+  if (handoverBusinessId) {
+    const { progressionBillingCollectEnabled } = await import("@/lib/progression/flags");
+    if (progressionBillingCollectEnabled()) {
+      const { businessBillingActive } = await import("@/lib/progression/business-stripe");
+      const { getBusinessPaymentState } = await import("@/lib/progression/business-dunning");
+      if (!(await businessBillingActive(handoverBusinessId))) {
+        return { ok: false, error: "This progressor hasn't set up billing yet. Ask them to add a payment card before handing files over." };
+      }
+      if ((await getBusinessPaymentState(handoverBusinessId)).kind === "blocked") {
+        return { ok: false, error: "This progressor has an overdue payment and can't take on new files until it's resolved." };
+      }
+    }
+  }
+
   const SERVICE_LABEL = { self_managed: "Self-managed", outsourced: "Outsourced" } as const;
   const prevLabel = SERVICE_LABEL[tx.serviceType as "self_managed" | "outsourced"];
   const nextLabel = SERVICE_LABEL[target];
@@ -1656,7 +1673,10 @@ export async function switchServiceTypeAction(
         // Switching TO outsourced (re)starts the SP waiting clock from now.
         ...(target === "self_managed"
           ? { assignedUserId: null, assignedAt: null }
-          : { outsourcedAt: new Date(), ...(handoverBusinessId ? { progressionBusinessId: handoverBusinessId } : {}) }),
+          // Routing to a progression business = a billable sale for them: tag it and
+          // stamp the £5 (businessPerSaleChargedAt), same as a newly-created sale. The
+          // daily cron collects it onto their next invoice.
+          : { outsourcedAt: new Date(), ...(handoverBusinessId ? { progressionBusinessId: handoverBusinessId, businessPerSaleChargedAt: new Date() } : {}) }),
       },
     });
 
