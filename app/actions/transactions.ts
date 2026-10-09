@@ -211,10 +211,16 @@ export async function createTransactionAction(input: {
     }
     const link = await prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: member.businessId, agencyId: input.clientAgencyId } },
-      select: { id: true, feeModel: true },
+      select: { id: true, feeModel: true, removedAt: true },
     });
     if (!link) {
       throw new Error("That agency is not one of your clients.");
+    }
+    // A removed (archived) client is off the book — no new sales until reinstated.
+    // The picker already hides them, so this catches a stale deep link or a crafted
+    // request.
+    if (link.removedAt) {
+      throw new Error("That client has been removed. Reinstate them before adding a sale.");
     }
     // Server-side backstop for the add-sale fee gate (F3): the fee shows on the
     // agent's own file, so a sale can't be created for a client with no rate set
@@ -228,7 +234,16 @@ export async function createTransactionAction(input: {
       orderBy: { createdAt: "asc" },
       select: { id: true },
     });
-    clientCreate = { agencyId: input.clientAgencyId, agentUserId: director?.id ?? null, progressionBusinessId: member.businessId };
+    // Fall back to any user of the client agency if there's no director yet, so the
+    // file is always attributed on the agency side (and the agency-side update email
+    // has a recipient). A newly-added client always has a pending director, so this
+    // is a safety net for an edited/shell agency rather than the normal path.
+    const agencyContact = director ?? await prisma.user.findFirst({
+      where: { agencyId: input.clientAgencyId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    clientCreate = { agencyId: input.clientAgencyId, agentUserId: agencyContact?.id ?? null, progressionBusinessId: member.businessId };
   }
 
   // Invited-agent "Send to us": an ordinary agent whose agency was set up by a

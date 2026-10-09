@@ -69,10 +69,12 @@ describe("addClientAgency", () => {
       expect.objectContaining({ role: "director", agencyName: "Donna Smith @ eXp", email: "donna@exp.com" }),
     );
     expect(createAgency).not.toHaveBeenCalledWith(expect.objectContaining({ password: expect.anything() }));
-    // The link ties the business to the new agency.
-    expect(p.progressionBusinessClient.create).toHaveBeenCalledWith({
-      data: { progressionBusinessId: "biz_sarah", agencyId: "ag_donna" },
-    });
+    // The link ties the business to the new agency — now created INSIDE the same
+    // transaction as the agency+director (atomic), via createDirectorWithAgency's
+    // clientLink param, not a separate progressionBusinessClient.create.
+    expect(createAgency).toHaveBeenCalledWith(
+      expect.objectContaining({ clientLink: { progressionBusinessId: "biz_sarah", feeModel: null } }),
+    );
     // Zero transaction access: adding a client never creates or tags a transaction.
     expect(p.propertyTransaction.create).not.toHaveBeenCalled();
     // The new agent is emailed a set-password onboarding link.
@@ -121,8 +123,8 @@ describe("addClientAgencyAction gating", () => {
       .mockResolvedValueOnce(null);
     const res = await addClientAgencyAction(form);
     expect(res).toEqual({ ok: true });
-    expect(p.progressionBusinessClient.create).toHaveBeenCalledWith({
-      data: { progressionBusinessId: "biz_sarah", agencyId: "ag_donna" },
-    });
+    expect(createAgency).toHaveBeenCalledWith(
+      expect.objectContaining({ clientLink: { progressionBusinessId: "biz_sarah", feeModel: null } }),
+    );
   });
 });

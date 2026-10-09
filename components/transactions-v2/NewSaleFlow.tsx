@@ -1409,7 +1409,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           buttonText={needsCard ? "Add a card to continue" : salesNotice ? "Set up billing to continue" : submitButtonText}
           onClick={() => handleSubmit()}
         />
-        <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
+        {/* Drafts are stored against a customer agency; a progression business owner
+            has none of their own (a sale is for a CLIENT agency chosen in-flow), so
+            saving one currently can't succeed. Rather than offer a control that
+            errors, hide it for the progressor create flow. Full draft support for
+            progression businesses (draft carries its client + scoped list/promote) is
+            a tracked follow-up. */}
+        {!isProgressorCreate && <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />}
       </div>
     </>
   );

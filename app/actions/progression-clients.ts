@@ -501,6 +501,17 @@ export async function removeTeamMemberAction(memberId: string): Promise<ActionRe
       where: { progressionBusinessId: owner.businessId, assignedUserId: memberId },
       data: { assignedUserId: null },
     }),
+    // Also release their per-person work on the business's files — to-do tasks and
+    // chase jobs — back to unassigned, so nothing is stranded on a user who can no
+    // longer log in. The owner (whole-book scope) picks them back up.
+    prisma.manualTask.updateMany({
+      where: { assignedToId: memberId, transaction: { progressionBusinessId: owner.businessId } },
+      data: { assignedToId: null },
+    }),
+    prisma.chaseTask.updateMany({
+      where: { assignedToId: memberId, transaction: { progressionBusinessId: owner.businessId } },
+      data: { assignedToId: null },
+    }),
   ]);
   console.log(`[AUDIT] progression_teammate_removed businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
   // Drop the seat on the business's Stripe subscription straight away (the daily
@@ -582,6 +593,32 @@ export async function cancelTeamInviteAction(memberId: string): Promise<ActionRe
   }
   revalidatePath("/agent/team");
   return { ok: true, warning };
+}
+
+/**
+ * Reinstate a previously-removed team member. Owner-gated. Clears deactivatedAt so
+ * they can log in again (their set-all/see-own and role are unchanged). Files that
+ * were unassigned on removal stay in the owner's queue to reassign. This is what
+ * makes removal reversible — without it, a removed member's email is locked forever.
+ */
+export async function reinstateTeamMemberAction(memberId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a business owner can reinstate team members." };
+
+  const member = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { progressionBusinessId: true },
+  });
+  if (!member || member.progressionBusinessId !== owner.businessId) {
+    return { ok: false, error: "That isn't one of your team members." };
+  }
+
+  await prisma.user.update({ where: { id: memberId }, data: { deactivatedAt: null } });
+  console.log(`[AUDIT] progression_teammate_reinstated businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
+  revalidatePath("/agent/team");
+  return { ok: true };
 }
 
 /** Re-send the set-password invite to a client agency's agent. Owner-scoped. */

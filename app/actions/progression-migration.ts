@@ -48,9 +48,10 @@ export async function migrateSaleAction(input: {
   // invoiced to the agency later — same rule as adding a sale for a client).
   const link = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: member.businessId, agencyId: input.clientAgencyId } },
-    select: { feeModel: true },
+    select: { feeModel: true, removedAt: true },
   });
   if (!link) return { ok: false, error: "That agency is not one of your clients." };
+  if (link.removedAt) return { ok: false, error: "That client has been removed. Reinstate them before bringing in a sale." };
   if (!parseFeeModel(link.feeModel)) return { ok: false, error: "Set your fee for this client before bringing in a sale." };
 
   // Card gate (go-live): once collection is live, a card must be on file to bring in
@@ -73,13 +74,20 @@ export async function migrateSaleAction(input: {
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
+  // Fall back to any user of the client agency if there's no director, so the
+  // brought-in file is always attributed on the agency side.
+  const agencyContact = director ?? await prisma.user.findFirst({
+    where: { agencyId: input.clientAgencyId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
 
   const tx = await createTransaction({
     propertyAddress: normaliseAddressString(input.propertyAddress),
     agencyId: input.clientAgencyId,
     progressionBusinessId: member.businessId,
     assignedUserId: session.user.id,
-    agentUserId: director?.id ?? null,
+    agentUserId: agencyContact?.id ?? null,
     progressedBy: "progressor",
     purchasePrice: input.purchasePrice,
     tenure: input.tenure,

@@ -244,17 +244,25 @@ export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgency
                   </button>
                 </div>
               </div>
-              <div style={{ marginBottom: 14 }}>
-                <BusinessSalesActions
-                  agencyId={detail.agencyId}
-                  needsCard={salesActions.needsCard}
-                  salesNotice={salesActions.salesNotice}
-                  publishableKey={salesActions.publishableKey}
-                  milestoneDefinitions={salesActions.milestoneDefinitions}
-                  migrationWindow={salesActions.migrationWindow}
-                  cardGatePreview={salesActions.cardGatePreview}
-                />
-              </div>
+              {/* A removed client is off the book — no new sales until reinstated.
+                  Show why instead of add-sale controls that the server would reject. */}
+              {detail.removed ? (
+                <p className="aw-empty" style={{ margin: "0 0 14px" }}>
+                  {detail.name} is removed, so you can&rsquo;t add sales for them. Reinstate them from the Access tab to start again.
+                </p>
+              ) : (
+                <div style={{ marginBottom: 14 }}>
+                  <BusinessSalesActions
+                    agencyId={detail.agencyId}
+                    needsCard={salesActions.needsCard}
+                    salesNotice={salesActions.salesNotice}
+                    publishableKey={salesActions.publishableKey}
+                    milestoneDefinitions={salesActions.milestoneDefinitions}
+                    migrationWindow={salesActions.migrationWindow}
+                    cardGatePreview={salesActions.cardGatePreview}
+                  />
+                </div>
+              )}
               {detail.sales.length === 0
                 ? (
                     <p className="aw-empty" style={{ margin: 0 }}>No sales yet. Use the buttons above to add their first sale, or bring in one that&rsquo;s already underway.</p>
@@ -334,11 +342,19 @@ export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgency
                 <div className="aw-removerow confirm">
                   <div className="aw-removetxt">
                     <span className="t">Remove {detail.name}?</span>
-                    <span className="d">{detail.active > 0 ? `They have ${detail.active} active ${detail.active === 1 ? "sale" : "sales"}, so you'll need to complete or withdraw those first.` : "They'll move to your Removed list and lose access to their account. You can add them again later."}</span>
+                    {/* in-progress = active + on-hold; the server blocks removal while
+                        any are live, so only offer "Yes, remove" when there are none. */}
+                    <span className="d">{detail.inProgress > 0 ? `They have ${detail.inProgress} in-progress ${detail.inProgress === 1 ? "sale" : "sales"}, so you'll need to complete or withdraw those first.` : "They'll move to your Removed list and lose access to their account. You can add them again later."}</span>
                   </div>
                   <div className="aw-removeactions">
-                    <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancel</button>
-                    <button type="button" className="aw-removebtn danger" onClick={removeClient} disabled={removing}>{removing ? "Removing…" : "Yes, remove"}</button>
+                    {detail.inProgress > 0 ? (
+                      <button type="button" className="agent-btn agent-btn-secondary agent-btn-sm" onClick={() => setConfirmRemove(false)}>OK</button>
+                    ) : (
+                      <>
+                        <button type="button" className="agent-btn agent-btn-ghost agent-btn-sm" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancel</button>
+                        <button type="button" className="aw-removebtn danger" onClick={removeClient} disabled={removing}>{removing ? "Removing…" : "Yes, remove"}</button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

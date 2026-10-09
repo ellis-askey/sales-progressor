@@ -20,7 +20,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { UserAvatar } from "@/components/ui/Avatar";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction, cancelTeamInviteAction } from "@/app/actions/progression-clients";
+import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction, cancelTeamInviteAction, reinstateTeamMemberAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
 function initials(name: string): string {
@@ -86,6 +86,15 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
     });
   }
 
+  function reinstate(member: BusinessTeamMember) {
+    if (pending) return;
+    startTransition(async () => {
+      const res = await reinstateTeamMemberAction(member.id);
+      if (res.ok) { toast.success(`${member.name} reinstated`); router.refresh(); }
+      else { toast.error(res.error); }
+    });
+  }
+
   function setMember(member: BusinessTeamMember, next: boolean) {
     if (member.role === "owner" || viewAll[member.id] === next || pending) return;
     const prev = viewAll[member.id];
@@ -147,7 +156,7 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
       <SectionReveal order={1}>
         <div className="bt-rows">
-          {team.map((m) => {
+          {team.filter((m) => !m.removed).map((m) => {
             const on = viewAll[m.id];
             const isOwner = m.role === "owner";
             return (
@@ -215,7 +224,26 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         </div>
       </SectionReveal>
 
-      <SectionReveal order={2}>
+      {team.some((m) => m.removed) && (
+        <SectionReveal order={2}>
+          <div className="bt-removed">
+            <p className="bt-removed-h">Removed</p>
+            {team.filter((m) => m.removed).map((m) => (
+              <div key={m.id} className="bt-removed-row">
+                <div className="bt-removed-who">
+                  <span className="bt-removed-name">{m.name}</span>
+                  <span className="bt-removed-email">{m.email}</span>
+                </div>
+                <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" onClick={() => reinstate(m)} disabled={pending}>
+                  {pending ? "…" : "Reinstate"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </SectionReveal>
+      )}
+
+      <SectionReveal order={3}>
         <p className="bt-foot">A team member on <strong>Own files</strong> sees only the sales assigned to them. The change takes effect the next time they open a page. The owner always sees everything.</p>
       </SectionReveal>
 
@@ -308,6 +336,14 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
 
         .bt-foot { margin: 4px 2px 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.55; }
         .bt-foot strong { color: var(--agent-text-secondary); font-weight: 600; }
+
+        /* Removed members — reinstate-only, muted so they read as off-roster. */
+        .bt-removed { display: flex; flex-direction: column; gap: 8px; }
+        .bt-removed-h { margin: 0 2px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--agent-text-muted); }
+        .bt-removed-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-radius: 14px; border: 1px dashed var(--agent-border-subtle); background: var(--agent-surface-overlay, rgba(0,0,0,0.02)); }
+        .bt-removed-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .bt-removed-name { font-size: 13.5px; font-weight: 650; color: var(--agent-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bt-removed-email { font-size: 12px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* £39/month invite note — solid coral-gradient pill (founder, 2026-10-07) */
         .bt-note { flex-basis: 100%; display: flex; align-items: center; gap: 9px; margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--agent-text-secondary); }

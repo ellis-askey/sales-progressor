@@ -61,17 +61,23 @@ export type BusinessTeamMember = {
   canViewAllFiles: boolean;
   isYou: boolean;
   pending: boolean; // invited but hasn't set a password yet
+  removed: boolean;  // was removed (deactivated) — shown in a reinstate-only row
   image: string | null; // uploaded photo, if any (else the row shows the default avatar)
   imageFocusX: number;
   imageFocusY: number;
 };
 
-/** The business's own team (owner + progressors), for the owner's "Your team" page. */
+/**
+ * The business's own team (owner + progressors), for the owner's "Your team" page.
+ * Includes REMOVED members (deactivatedAt set) as well as active ones — the page
+ * shows them in a reinstate-only section so a removal is reversible and the email
+ * is never permanently locked. Active members sort first.
+ */
 export async function listBusinessTeam(businessId: string, viewerUserId: string): Promise<BusinessTeamMember[]> {
   const members = await prisma.user.findMany({
-    where: { progressionBusinessId: businessId, deactivatedAt: null },
-    select: { id: true, name: true, email: true, progressionBusinessRole: true, canViewAllFiles: true, password: true, image: true, imageFocusX: true, imageFocusY: true },
-    orderBy: [{ progressionBusinessRole: "asc" }, { name: "asc" }],
+    where: { progressionBusinessId: businessId },
+    select: { id: true, name: true, email: true, progressionBusinessRole: true, canViewAllFiles: true, password: true, deactivatedAt: true, image: true, imageFocusX: true, imageFocusY: true },
+    orderBy: [{ deactivatedAt: "asc" }, { progressionBusinessRole: "asc" }, { name: "asc" }],
   });
   return members.map((m) => ({
     id: m.id,
@@ -81,6 +87,7 @@ export async function listBusinessTeam(businessId: string, viewerUserId: string)
     canViewAllFiles: m.canViewAllFiles,
     isYou: m.id === viewerUserId,
     pending: !m.password,
+    removed: !!m.deactivatedAt,
     image: m.image ?? null,
     imageFocusX: m.imageFocusX ?? 50,
     imageFocusY: m.imageFocusY ?? 50,
@@ -174,9 +181,11 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
     return { ok: false, error: "That email already has an account. For now, each client agency must be new to Sales Progressor." };
   }
 
-  // Reuses the canonical agency+director creator (atomic). No password → the
-  // director is pending until they set one. A reserved / already-taken agency name
-  // surfaces as a friendly result rather than an unhandled throw.
+  // Reuses the canonical agency+director creator (atomic) and creates the
+  // business↔agency link inside the SAME transaction, so a failure can't leave an
+  // orphan agency (email taken, no client link, impossible to re-add). No password
+  // → the director is pending until they set one. A reserved / already-taken agency
+  // name surfaces as a friendly result rather than an unhandled throw.
   let userId: string;
   let agencyId: string;
   try {
@@ -185,21 +194,17 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
       email,
       role: "director",
       agencyName: input.agencyName.trim(),
+      clientLink: {
+        progressionBusinessId: input.owner.businessId,
+        // Only store a fee if one was entered; otherwise it stays unset and the
+        // owner is prompted to set it (and add-sale is gated).
+        feeModel: input.feeModel ? (input.feeModel as object) : null,
+      },
     }));
   } catch (e) {
     if (e instanceof CompanyNameUnavailableError) return { ok: false, error: e.message };
     throw e;
   }
-
-  await prisma.progressionBusinessClient.create({
-    data: {
-      progressionBusinessId: input.owner.businessId,
-      agencyId,
-      // Only store a fee if one was entered; otherwise it stays unset and the
-      // owner is prompted to set it (and add-sale is gated).
-      ...(input.feeModel ? { feeModel: input.feeModel as object } : {}),
-    },
-  });
 
   // Best-effort onboarding email with a set-password link. A send failure is
   // logged, not fatal — the account exists and the agent can use Forgot password.
@@ -472,6 +477,10 @@ export type ClientAgencyDetail = {
   status: "active" | "invite";
   removed: boolean; // archived client — workspace shows a reinstate zone, not remove
   active: number;
+  // In-progress = active PLUS on-hold (paused). Removal is blocked while this is
+  // > 0 (a paused sale is still live), so the confirm UI must read this, not
+  // `active` alone, or it promises a removal the server will reject.
+  inProgress: number;
   pipelinePence: number;
   exchanged: number;
   completed: number;
@@ -528,12 +537,13 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  let active = 0, pipeline = 0, exchanged = 0, completed = 0, withdrawn = 0, started = 0;
+  let active = 0, onHold = 0, pipeline = 0, exchanged = 0, completed = 0, withdrawn = 0, started = 0;
   let feeEarned = 0, feePipeline = 0, feeThisMonth = 0, feeExchangedCount = 0;
   const exchangeDays: number[] = [];
   for (const t of txns) {
     if (t.status !== "draft") started += 1;
     if (t.status === "active") { active += 1; pipeline += t.purchasePrice ?? 0; }
+    if (t.status === "on_hold") onHold += 1;
     if (t.status === "completed") completed += 1;
     if (t.status === "withdrawn") withdrawn += 1;
     const fee = calculateClientFee(feeModel, t.purchasePrice);
@@ -593,7 +603,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     pending,
     status: pending ? "invite" : "active",
     removed: !!link.removedAt,
-    active, pipelinePence: pipeline, exchanged,
+    active, inProgress: active + onHold, pipelinePence: pipeline, exchanged,
     completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
     sales: txns.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),

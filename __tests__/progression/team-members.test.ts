@@ -20,6 +20,10 @@ jest.mock("@/lib/prisma", () => ({
     user: { findUnique: jest.fn(), create: jest.fn(async () => ({ id: "u_new" })), update: jest.fn() },
     progressionBusiness: { findUnique: jest.fn(async () => ({ name: "Biz" })) },
     propertyTransaction: { updateMany: jest.fn() },
+    // Removing a teammate also releases their per-person tasks/chases on the
+    // business's files back to unassigned.
+    manualTask: { updateMany: jest.fn() },
+    chaseTask: { updateMany: jest.fn() },
     $transaction: jest.fn(async (arr: unknown[]) => arr),
   },
 }));

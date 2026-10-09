@@ -15,6 +15,10 @@ interface CreateDirectorWithAgencyInput {
   // First-touch marketing attribution captured at registration. Written once,
   // at agency creation, onto the Agency.signup* columns.
   attribution?: SignupAttribution | null;
+  // When a progression business adds a client agency, the business↔agency link is
+  // created in the SAME transaction as the agency + director, so a failure can't
+  // leave an orphan agency whose email is taken but which never appears as a client.
+  clientLink?: { progressionBusinessId: string; feeModel?: object | null } | null;
 }
 
 interface CreateDirectorWithAgencyResult {
@@ -88,6 +92,18 @@ export async function createDirectorWithAgency(
         select: { id: true },
       });
       userId = created.id;
+    }
+
+    // Progression-business client link — created here so agency + director + link
+    // commit (or roll back) together.
+    if (input.clientLink) {
+      await tx.progressionBusinessClient.create({
+        data: {
+          progressionBusinessId: input.clientLink.progressionBusinessId,
+          agencyId: agency.id,
+          ...(input.clientLink.feeModel ? { feeModel: input.clientLink.feeModel } : {}),
+        },
+      });
     }
 
     console.log(

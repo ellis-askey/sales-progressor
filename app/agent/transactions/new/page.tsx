@@ -31,9 +31,10 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
     if (owner) {
       const link = await prisma.progressionBusinessClient.findUnique({
         where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId: requestedClientAgencyId } },
-        select: { agency: { select: { name: true } } },
+        select: { removedAt: true, agency: { select: { name: true } } },
       });
-      if (link) {
+      // Only pre-fill the client when it's a live (non-removed) client of theirs.
+      if (link && !link.removedAt) {
         clientAgencyId = requestedClientAgencyId;
         clientAgencyName = link.agency.name;
       }

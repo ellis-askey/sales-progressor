@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag, ChartBar, Percent, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch } from "@phosphor-icons/react";
+import { Tag, ChartBar, Percent, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { RowActionsMenu } from "@/components/account/chrome/RowActionsMenu";
 import { fmtCurrencyPence } from "@/lib/utils";
@@ -70,7 +70,16 @@ export function FeeEngine({
   const [model, setModel] = useState<ClientFeeModel | null>(initial);
   const [editing, setEditing] = useState(false);
   const [previewPounds, setPreviewPounds] = useState(450000);
-  const [status, setStatus] = useState<"saved" | "saving">("saved");
+  const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
+
+  // Persist a rate. On failure we show a real "Not saved" state (with Retry) rather
+  // than flipping the pill back to a green "Saved" that was never true.
+  async function saveNow(m: ClientFeeModel) {
+    setStatus("saving");
+    const res = await setClientFeeModelAction(agencyId, m);
+    if (res.ok) { setSaved(m); setStatus("saved"); router.refresh(); }
+    else { setStatus("error"); toast.error(res.error); }
+  }
 
   // Debounced auto-save: any change to the model persists after a short pause,
   // then refreshes so the fees figures recompute. Skips the initial mount.
@@ -79,13 +88,10 @@ export function FeeEngine({
     if (first.current) { first.current = false; return; }
     if (!model || JSON.stringify(model) === JSON.stringify(saved)) return;
     setStatus("saving");
-    const id = setTimeout(async () => {
-      const res = await setClientFeeModelAction(agencyId, model);
-      if (res.ok) { setSaved(model); setStatus("saved"); router.refresh(); }
-      else { setStatus("saved"); toast.error(res.error); }
-    }, 600);
+    const id = setTimeout(() => { void saveNow(model); }, 600);
     return () => clearTimeout(id);
-  }, [model, saved, agencyId, router, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, saved]);
 
   function pickType(t: FeeType) {
     if (!model || t !== model.type) { setModel(DEF[t]); setEditing(true); }
@@ -137,9 +143,12 @@ export function FeeEngine({
         </div>
         <div className="fe-topright">
           <span className={`fe-status ${status}`}>
-            {status === "saving" ? <CircleNotch size={15} weight="bold" className="fe-spin" /> : <CheckCircle size={15} weight="fill" />}
-            {status === "saving" ? "Saving…" : "Saved"}
+            {status === "saving" ? <CircleNotch size={15} weight="bold" className="fe-spin" /> : status === "error" ? <WarningCircle size={15} weight="fill" /> : <CheckCircle size={15} weight="fill" />}
+            {status === "saving" ? "Saving…" : status === "error" ? "Not saved" : "Saved"}
           </span>
+          {status === "error" && model && (
+            <button type="button" className="fe-retry" onClick={() => void saveNow(model)}>Retry</button>
+          )}
           <RowActionsMenu items={[{ label: "Reset to default rate", onClick: resetDefault }]} label="Rate options" />
         </div>
       </div>
@@ -268,6 +277,8 @@ export function FeeEngine({
         .fe-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; }
         .fe-status.saved { color: var(--agent-success, #2F7D53); }
         .fe-status.saving { color: var(--agent-text-muted); }
+        .fe-status.error { color: var(--agent-danger, #C73E3E); }
+        .fe-retry { font-family: inherit; font-size: 12px; font-weight: 700; color: var(--agent-coral-deep, #E2452A); background: none; border: none; cursor: pointer; padding: 2px 4px; text-decoration: underline; }
         .fe-spin { animation: fe-spin 0.7s linear infinite; }
         @keyframes fe-spin { to { transform: rotate(360deg); } }
         .fe-sub { margin: 8px 0 18px; font-size: 13px; color: var(--agent-text-secondary); max-width: 70ch; line-height: 1.55; }
