@@ -205,54 +205,9 @@ async function solicitorFirmDetailFromWhere(
   return { id: firm.id, name: firm.name, contacts: firm.handlers, files };
 }
 
-export async function getSolicitorDirectory(agencyId: string): Promise<SolicitorFirmWithStats[]> {
-  const firms = await prisma.solicitorFirm.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      handlers: {
-        orderBy: { name: "asc" },
-        include: {
-          vendorForTransactions: {
-            where: { agencyId, status: { in: ["active", "on_hold"] } },
-            select: { id: true, propertyAddress: true, referredFirmId: true },
-          },
-          purchaserForTransactions: {
-            where: { agencyId, status: { in: ["active", "on_hold"] } },
-            select: { id: true, propertyAddress: true, referredFirmId: true },
-          },
-        },
-      },
-      vendorForTransactions: {
-        where: { status: { in: ["active", "on_hold"] } },
-        select: { id: true, referredFirmId: true },
-      },
-      purchaserForTransactions: {
-        where: { status: { in: ["active", "on_hold"] } },
-        select: { id: true, referredFirmId: true },
-      },
-    },
-  });
-
-  return firms.map((firm) => ({
-    id: firm.id,
-    name: firm.name,
-    totalActiveFiles: new Set([
-      ...firm.vendorForTransactions.map((t) => t.id),
-      ...firm.purchaserForTransactions.map((t) => t.id),
-    ]).size,
-    referralActiveFiles: new Set([
-      ...firm.vendorForTransactions.filter((t) => t.referredFirmId === firm.id).map((t) => t.id),
-      ...firm.purchaserForTransactions.filter((t) => t.referredFirmId === firm.id).map((t) => t.id),
-    ]).size,
-    contacts: firm.handlers.map((h) => ({
-      id: h.id,
-      name: h.name,
-      phone: h.phone,
-      email: h.email,
-      activeFiles: [
-        ...h.vendorForTransactions.map((t) => ({ id: t.id, propertyAddress: t.propertyAddress, role: "vendor" as const, isReferral: t.referredFirmId === firm.id })),
-        ...h.purchaserForTransactions.map((t) => ({ id: t.id, propertyAddress: t.propertyAddress, role: "purchaser" as const, isReferral: t.referredFirmId === firm.id })),
-      ],
-    })),
-  }));
-}
+// Removed getSolicitorDirectory (2026-10-09): dead, with no callers. It listed
+// EVERY solicitor firm and ALL their handlers' name/phone/email platform-wide
+// (scoping only the file counts to agencyId), so if ever rendered it would have
+// exposed every solicitor contact on the platform to one agency. The live
+// partners page uses getSolicitorDirectoryForScope / ...ForAgent, which start
+// from the viewer's own visible files. Re-add scoped if a directory is needed.

@@ -20,8 +20,13 @@ export async function POST(req: NextRequest) {
   });
 
   if (transactionId) {
+    // Require a concrete agencyId before scoping. The old `agencyId ?? undefined`
+    // would, if agencyId were ever null, drop the filter and match the file by id
+    // alone (no tenant scoping) — the same fragile shape behind the assign bug.
+    // Director/negotiator always have an agencyId, so this only hardens the guard.
+    if (!agentUser?.agencyId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const tx = await prisma.propertyTransaction.findFirst({
-      where: { id: transactionId, agencyId: agentUser?.agencyId ?? undefined },
+      where: { id: transactionId, agencyId: agentUser.agencyId },
     });
     if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

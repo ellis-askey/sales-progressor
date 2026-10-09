@@ -41,9 +41,13 @@ export async function PATCH(
     vendorSolicitorContactId,
     purchaserSolicitorFirmId,
     purchaserSolicitorContactId,
-    assignedUserId,
     expectedExchangeDate,
   } = body;
+  // NOTE: assignedUserId is deliberately NOT accepted here. Assignment goes through
+  // assignUserAction / reassignAgentAction, which validate the assignee belongs to
+  // the file's own company/agency. Accepting it on this generic PATCH was an
+  // unvalidated second door onto the same field (a crafted request could have set
+  // an out-of-company assignee); no UI sends it, so it's removed.
 
   // Resolve the new expected-exchange value once (undefined = field not in this
   // PATCH, so it is left untouched — behaviour unchanged).
@@ -61,7 +65,6 @@ export async function PATCH(
         ...(vendorSolicitorContactId !== undefined && { vendorSolicitorContactId }),
         ...(purchaserSolicitorFirmId !== undefined && { purchaserSolicitorFirmId }),
         ...(purchaserSolicitorContactId !== undefined && { purchaserSolicitorContactId }),
-        ...(assignedUserId !== undefined && { assignedUserId: assignedUserId || null }),
         ...(newExpected !== undefined && { expectedExchangeDate: newExpected }),
         lastActivityAt: new Date(),
       },
