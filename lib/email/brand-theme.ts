@@ -19,7 +19,33 @@ const DEFAULT_BUTTON = "#FF6B4A";
 export type GradientDir = "horizontal" | "diagonal" | "vertical";
 export type BandShape = "rounded" | "square";
 
-// The raw stored blob (Agency.emailTheme). Every key optional.
+// ── Expanded studio vocabulary (2026-10, "Email Studio"). All optional + additive:
+// an agency/business that hasn't touched these keeps the exact current look, so
+// nothing changes for existing emails. The resolve + render math for these lives
+// in lib/email/email-theme-studio.ts (used by the studio preview, and the send
+// path when it's threaded through). Only the raw storage shape + validation live
+// here so the pure base engine stays the single source of truth for the blob. ─
+export type TypeSystem =
+  | "humanist" | "grotesque" | "geometric" | "rounded" | "condensed"
+  | "classic" | "oldstyle" | "didone" | "slab" | "editorial" | "technical";
+export type HeaderStyle = "gradient" | "solid" | "minimal" | "logoband" | "banner" | "centered" | "duotone" | "none";
+export type ButtonFill = "filled" | "soft" | "outline";
+export type ButtonShape = "rounded" | "pill" | "square";
+export type SizeToken = "sm" | "md" | "lg";
+export type EmailWidth = "narrow" | "standard" | "wide";
+export type Density = "cozy" | "comfy" | "roomy";
+export type SectionStyle = "plain" | "cards";
+export type DividerStyle = "none" | "hairline" | "thick" | "dotted";
+export type FooterStyle = "none" | "simple" | "band";
+export type HeadingSize = "s" | "m" | "l" | "xl";
+export type HeadingWeight = "400" | "600" | "800" | "900";
+export type Tracking = "tight" | "normal" | "wide";
+export type Leading = "tight" | "normal" | "airy";
+export type Align = "left" | "center";
+export type CardShadow = "none" | "soft" | "strong";
+
+// The raw stored blob (Agency.emailTheme / ProgressionBusiness.emailTheme). Every
+// key optional; unset = the current coral default.
 export interface EmailThemeInput {
   headerColor?: string | null;
   headerColor2?: string | null; // set → gradient end stop; null → flat header
@@ -30,6 +56,32 @@ export interface EmailThemeInput {
   footerBg?: string | null;
   footerText?: string | null;
   bandShape?: BandShape | null;
+  // Expanded studio knobs ──
+  typeSystem?: TypeSystem | null;
+  headerStyle?: HeaderStyle | null;
+  accentColor?: string | null;   // buttons + links; defaults to buttonColor
+  cardBg?: string | null;        // email card background (enables dark emails)
+  pageBg?: string | null;        // backdrop behind the card
+  buttonFill?: ButtonFill | null;
+  buttonShape?: ButtonShape | null;
+  buttonSize?: SizeToken | null;
+  buttonArrow?: boolean | null;
+  buttonFullWidth?: boolean | null;
+  buttonShadow?: boolean | null;
+  width?: EmailWidth | null;
+  density?: Density | null;
+  sectionStyle?: SectionStyle | null;
+  dividerStyle?: DividerStyle | null;
+  footerStyle?: FooterStyle | null;
+  headingSize?: HeadingSize | null;
+  headingWeight?: HeadingWeight | null;
+  tracking?: Tracking | null;
+  leading?: Leading | null;
+  align?: Align | null;
+  cardShadow?: CardShadow | null;
+  cardBorder?: boolean | null;
+  showEyebrow?: boolean | null;
+  heroPhoto?: boolean | null;
 }
 
 // Resolved, render-ready values.
@@ -77,6 +129,40 @@ export function sanitizeEmailThemeInput(raw: unknown): EmailThemeInput | null {
   const footerText = hexOrNull(r.footerText);
   if (footerText) out.footerText = footerText;
   if (typeof r.bandShape === "string" && BAND_SHAPES.has(r.bandShape as BandShape)) out.bandShape = r.bandShape as BandShape;
+
+  // Expanded studio knobs — whitelist each enum, hex-validate the extra colours,
+  // keep booleans as-is. Anything invalid is simply dropped.
+  const enumKeys: Array<[string, readonly string[]]> = [
+    ["typeSystem", ["humanist", "grotesque", "geometric", "rounded", "condensed", "classic", "oldstyle", "didone", "slab", "editorial", "technical"]],
+    ["headerStyle", ["gradient", "solid", "minimal", "logoband", "banner", "centered", "duotone", "none"]],
+    ["buttonFill", ["filled", "soft", "outline"]],
+    ["buttonShape", ["rounded", "pill", "square"]],
+    ["buttonSize", ["sm", "md", "lg"]],
+    ["width", ["narrow", "standard", "wide"]],
+    ["density", ["cozy", "comfy", "roomy"]],
+    ["sectionStyle", ["plain", "cards"]],
+    ["dividerStyle", ["none", "hairline", "thick", "dotted"]],
+    ["footerStyle", ["none", "simple", "band"]],
+    ["headingSize", ["s", "m", "l", "xl"]],
+    ["headingWeight", ["400", "600", "800", "900"]],
+    ["tracking", ["tight", "normal", "wide"]],
+    ["leading", ["tight", "normal", "airy"]],
+    ["align", ["left", "center"]],
+    ["cardShadow", ["none", "soft", "strong"]],
+  ];
+  const sink = out as Record<string, unknown>;
+  for (const [k, vals] of enumKeys) {
+    const v = r[k];
+    if (typeof v === "string" && vals.includes(v)) sink[k] = v;
+  }
+  for (const k of ["accentColor", "cardBg", "pageBg"]) {
+    const v = hexOrNull(r[k]);
+    if (v) sink[k] = v;
+  }
+  for (const k of ["buttonArrow", "buttonFullWidth", "buttonShadow", "cardBorder", "showEyebrow", "heroPhoto"]) {
+    if (typeof r[k] === "boolean") sink[k] = r[k];
+  }
+
   return Object.keys(out).length ? out : null;
 }
 
