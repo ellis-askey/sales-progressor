@@ -16,6 +16,10 @@
 import { useState, useTransition, useRef, useLayoutEffect, useCallback } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { addChainEntryAction } from "@/app/actions/chain-intel";
+import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
+import { ChainDrawer } from "@/components/chain/ChainDrawer";
+import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
+import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import type { CheckInRow } from "@/lib/services/chains";
 
 // "24th Oct" — day-with-ordinal + short month, matching the founder's example.
@@ -60,12 +64,16 @@ function groupRows(rows: CheckInRow[]): CheckInGroup[] {
   return [...map.values()];
 }
 
-export function CheckInsList({ rows: initialRows }: { rows: CheckInRow[] }) {
+export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole }: { rows: CheckInRow[]; currentUserId: string; currentUserRole?: string | null }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<CheckInRow[]>(() => sortRows(initialRows));
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // "View chain" opens the shared ChainDrawer anchored on our own file in that
+  // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
+  const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
+  const { addNode, openAddNode, closeAddNode, onNodeSaved, refreshKey } = useChainAddNode();
   const [, startTransition] = useTransition();
 
   // FLIP: remember each row's top before a re-sort, then slide it from the old
@@ -129,6 +137,15 @@ export function CheckInsList({ rows: initialRows }: { rows: CheckInRow[] }) {
     });
   }
 
+  // Secondary chain actions for a row's ⋯ menu. "View chain" opens the drawer on
+  // our own file in that chain (guaranteed access), falling back to the neighbour's.
+  function menuItems(row: CheckInRow): RowAction[] {
+    const items: RowAction[] = [];
+    const chainTxId = row.ourTransactionId ?? row.transactionId;
+    if (chainTxId) items.push({ label: "View chain", onClick: () => setOpenChainTxId(chainTxId) });
+    return items;
+  }
+
   if (rows.length === 0) {
     return (
       <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
@@ -140,6 +157,7 @@ export function CheckInsList({ rows: initialRows }: { rows: CheckInRow[] }) {
   const groups = groupRows(rows);
 
   return (
+    <>
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <p style={{ margin: "0 0 2px", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
         Every other property in your chains, grouped by chain and quietest first. Check in on the ones at the top, log what you hear, and the row drops to the bottom of its chain so the cycle keeps turning. Your notes stay private to your side.
@@ -223,28 +241,31 @@ export function CheckInsList({ rows: initialRows }: { rows: CheckInRow[] }) {
                 </div>
               )}
 
-              {/* Action */}
-              <button
-                onClick={() => {
-                  setOpenId(isOpen ? null : row.linkId);
-                  setDraft("");
-                }}
-                style={{
-                  flex: "0 0 auto",
-                  border: "1px solid var(--agent-border-default)",
-                  borderRadius: 9,
-                  padding: "8px 14px",
-                  fontFamily: "inherit",
-                  fontSize: 12.5,
-                  fontWeight: 650,
-                  color: "var(--agent-coral-deep)",
-                  background: isOpen ? "rgba(255,107,74,0.08)" : "var(--agent-surface-elevated, #fff)",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {isOpen ? "Cancel" : "Log update"}
-              </button>
+              {/* Action — primary Log update, plus the ⋯ overflow for secondary
+                  chain actions (View chain, and later Contact / History). */}
+              <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={() => {
+                    setOpenId(isOpen ? null : row.linkId);
+                    setDraft("");
+                  }}
+                  style={{
+                    border: "1px solid var(--agent-border-default)",
+                    borderRadius: 9,
+                    padding: "8px 14px",
+                    fontFamily: "inherit",
+                    fontSize: 12.5,
+                    fontWeight: 650,
+                    color: "var(--agent-coral-deep)",
+                    background: isOpen ? "rgba(255,107,74,0.08)" : "var(--agent-surface-elevated, #fff)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {isOpen ? "Cancel" : "Log update"}
+                </button>
+                <RowActionsMenu label="More chain actions" items={menuItems(row)} />
+              </div>
             </div>
 
             {/* Last update line */}
@@ -315,5 +336,31 @@ export function CheckInsList({ rows: initialRows }: { rows: CheckInRow[] }) {
         </section>
       ))}
     </div>
+
+    {openChainTxId && (
+      <ChainDrawer
+        transactionId={openChainTxId}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        onClose={() => setOpenChainTxId(null)}
+        onOpenAddNode={openAddNode}
+        refreshKey={refreshKey}
+      />
+    )}
+    {addNode && openChainTxId && (
+      <AddNodeDrawer
+        chainId={addNode.chainId}
+        transactionId={openChainTxId}
+        direction={addNode.direction}
+        editingLink={addNode.editingLink}
+        forkFromLinkId={addNode.forkFromLinkId}
+        aboveOfLinkId={addNode.aboveOfLinkId}
+        insertBetween={addNode.insertBetween}
+        focusField={addNode.focusField}
+        onClose={closeAddNode}
+        onSaved={onNodeSaved}
+      />
+    )}
+    </>
   );
 }

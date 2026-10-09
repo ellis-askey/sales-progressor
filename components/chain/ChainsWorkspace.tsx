@@ -640,7 +640,7 @@ export function ChainsWorkspace({
         ) : visibleCheckIns.length === 0 ? (
           <EmptyState compact title="No matches" description="No sales match your search." />
         ) : (
-          <CheckInsList rows={visibleCheckIns} />
+          <CheckInsList rows={visibleCheckIns} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         )
       ) : noChainAll.length === 0 ? (
         <EmptyState
