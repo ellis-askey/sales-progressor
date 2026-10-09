@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
-import { resolveDisplayStages } from "@/lib/milestones/display-stages";
+import { resolveDisplayStages, type ResolvedStage } from "@/lib/milestones/display-stages";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ADVISOR_CODES, advisorStepLabel } from "./codes";
 import type { AdvisorSide } from "./token";
@@ -28,8 +28,10 @@ export type AdvisorPortalView = {
   addressLine2: string;
   fullAddress: string;
   price: string | null;
-  tenure: string | null;
-  purchaseType: string | null;
+  // Raw enum values for the shared client hero (which formats its own chips).
+  status: "draft" | "active" | "on_hold" | "completed" | "withdrawn";
+  tenureRaw: "freehold" | "leasehold" | null;
+  purchaseTypeRaw: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
   advisingNames: string;
   firmName: string | null;
   advisorFirstName: string;
@@ -37,27 +39,21 @@ export type AdvisorPortalView = {
   pointOfContact: { name: string; phone: string | null; email: string | null; image: string | null } | null;
   readinessPercent: number;
   currentStageName: string | null;
+  // The whole-sale 6-stage journey (same data the client/solicitor hero uses).
+  displayStages: ResolvedStage[];
   steps: AdvisorStep[];
   offerExpiry: { date: string; approx: boolean } | null;
-  keyDates: { expectedExchange: string | null; completion: string | null };
+  // Raw dates for the hero's "expected exchange" card.
+  targetDate: Date | null;
+  plannedDate: Date | null;
+  estimateDate: Date | null;
+  completionDate: Date | null;
   lastUpdated: Date;
 };
 
 function formatPrice(pence: number | null): string | null {
   if (pence == null) return null;
   return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
-}
-function tenureLabel(tenure: string | null, isShareOfFreehold: boolean): string | null {
-  if (isShareOfFreehold) return "Share of freehold";
-  if (tenure === "freehold") return "Freehold";
-  if (tenure === "leasehold") return "Leasehold";
-  return null;
-}
-function purchaseTypeLabel(t: string | null): string | null {
-  if (t === "mortgage") return "Mortgage";
-  if (t === "cash_buyer") return "Cash buyer";
-  if (t === "cash_from_proceeds") return "Cash (from sale)";
-  return null;
 }
 function joinNames(names: string[]): string {
   if (names.length === 0) return "";
@@ -81,6 +77,7 @@ export async function getAdvisorPortalView(
       id: true,
       propertyAddress: true,
       purchasePrice: true,
+      status: true,
       tenure: true,
       isShareOfFreehold: true,
       purchaseType: true,
@@ -88,6 +85,7 @@ export async function getAdvisorPortalView(
       expectedExchangeDate: true,
       overridePredictedDate: true,
       completionDate: true,
+      twelveWeekTarget: true,
       updatedAt: true,
       agency: { select: { name: true } },
       assignedUser: { select: { name: true, phone: true, email: true, image: true } },
@@ -175,8 +173,9 @@ export async function getAdvisorPortalView(
     addressLine2: rest.join(",").trim(),
     fullAddress: tx.propertyAddress,
     price: formatPrice(tx.purchasePrice),
-    tenure: tenureLabel(tx.tenure, tx.isShareOfFreehold),
-    purchaseType: purchaseTypeLabel(tx.purchaseType),
+    status: tx.status as AdvisorPortalView["status"],
+    tenureRaw: (tx.tenure as AdvisorPortalView["tenureRaw"]) ?? null,
+    purchaseTypeRaw: (tx.purchaseType as AdvisorPortalView["purchaseTypeRaw"]) ?? null,
     advisingNames: buyerNames,
     firmName: tx.brokerFirm?.name ?? null,
     advisorFirstName: tx.brokerContact?.name ? extractFirstName(tx.brokerContact.name) : "",
@@ -186,12 +185,13 @@ export async function getAdvisorPortalView(
       : null,
     readinessPercent,
     currentStageName,
+    displayStages,
     steps,
     offerExpiry,
-    keyDates: {
-      expectedExchange: isoDay(tx.overridePredictedDate ?? tx.expectedExchangeDate ?? null),
-      completion: isoDay(tx.completionDate ?? null),
-    },
+    targetDate: tx.twelveWeekTarget ?? null,
+    plannedDate: tx.overridePredictedDate ?? null,
+    estimateDate: tx.expectedExchangeDate ?? null,
+    completionDate: tx.completionDate ?? null,
     lastUpdated: tx.updatedAt,
   };
 }

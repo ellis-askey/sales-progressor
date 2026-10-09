@@ -1,7 +1,9 @@
 import { verifyAdvisorToken } from "@/lib/advisor-confirm/token";
 import { getAdvisorPortalView } from "@/lib/advisor-confirm/portal-data";
 import { getPropertyEnrichment } from "@/lib/services/property-enrichment";
-import { A, Card, SectionLabel, Chip, ProgressBar, StepDot } from "./ui";
+import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
+import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
+import { P } from "@/components/portal/portal-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +13,37 @@ function fmtDate(iso: string | null): string | null {
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
-function fmtUpdated(d: Date): string {
-  const dd = new Date(d);
-  const same = dd.toDateString() === new Date().toDateString();
-  if (same) return `Today, ${dd.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s/g, "")}`;
-  return dd.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+function fmtDateShort(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function startOfDayMs(d: Date): number {
+  const x = new Date(d);
+  x.setUTCHours(0, 0, 0, 0);
+  return x.getTime();
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: P.textMuted }}>
+      {children}
+    </p>
+  );
+}
+
+// Step status dot in the portal visual language: green tick (done), coral ring
+// (current), hairline ring (upcoming).
+function StepDot({ status }: { status: "complete" | "current" | "upcoming" }) {
+  if (status === "complete") {
+    return (
+      <span style={{ width: 22, height: 22, borderRadius: 999, background: P.success, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden><path d="M2.5 6.2 5 8.7 9.5 3.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </span>
+    );
+  }
+  if (status === "current") {
+    return <span style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${P.primary}`, background: P.primaryBg, flexShrink: 0 }} />;
+  }
+  return <span style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${P.border}`, background: P.cardBg, flexShrink: 0 }} />;
 }
 
 export default async function AdvisorOverviewPage({ params }: { params: Promise<{ token: string }> }) {
@@ -30,67 +58,62 @@ export default async function AdvisorOverviewPage({ params }: { params: Promise<
     .then((e) => (e.epc.status === "ok" && e.epc.data ? e.epc.data : null))
     .catch(() => null);
 
-  const chips = [view.purchaseType, view.tenure, view.price].filter(Boolean) as string[];
+  // Build the shared client hero's props from the sale's 6-stage journey.
+  const firstIncompleteIdx = view.displayStages.findIndex((s) => s.status !== "complete" && s.status !== "skipped");
+  const tiles: OverviewTile[] = view.displayStages.map((s, i) => {
+    const isComplete = s.status === "complete" || s.status === "skipped";
+    const isActive = !isComplete && i === firstIncompleteIdx;
+    const status: OverviewTile["status"] = isComplete ? "complete" : isActive ? "active" : "pending";
+    return {
+      key: s.key,
+      label: s.name,
+      status,
+      text: isComplete ? "Completed" : isActive ? "In progress" : "To do",
+      completedDate: isComplete && s.completedAt ? fmtDateShort(s.completedAt) : undefined,
+    };
+  });
+  const currentStepNumber = firstIncompleteIdx >= 0 ? firstIncompleteIdx + 1 : view.displayStages.length || 1;
+  const exchangeDone = view.displayStages.find((s) => s.key === "exchange")?.status === "complete";
+  const completionDone = view.displayStages.find((s) => s.key === "completion")?.status === "complete";
+  const currentStage4 = completionDone ? "Completion" : exchangeDone ? "Exchange" : "Conveyancing";
+  const activeTile = tiles.find((t) => t.status === "active");
+  const currentStageSubLabel = activeTile ? activeTile.label : completionDone ? "Complete" : "";
+  const headlineWhen = view.plannedDate ?? view.estimateDate;
+  const daysUntilPredicted = headlineWhen ? Math.round((startOfDayMs(headlineWhen) - startOfDayMs(new Date())) / 86_400_000) : null;
+
+  const callHref = view.pointOfContact?.phone ? `tel:${view.pointOfContact.phone}` : null;
+  const emailHref = view.pointOfContact?.email
+    ? `mailto:${view.pointOfContact.email}?subject=${encodeURIComponent(`Mortgage: ${view.fullAddress}`)}`
+    : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Header / hero */}
-      <Card>
-        <p style={{ margin: 0, fontSize: 19, fontWeight: 800, color: A.ink, lineHeight: 1.25 }}>{view.addressLine1}</p>
-        {view.addressLine2 && <p style={{ margin: "2px 0 0", fontSize: 13.5, color: A.muted }}>{view.addressLine2}</p>}
-        {chips.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-            {chips.map((c) => (
-              <Chip key={c}>{c}</Chip>
-            ))}
-          </div>
-        )}
-        {view.advisingNames && (
-          <p style={{ margin: "14px 0 0", fontSize: 13.5, color: A.muted }}>
-            Advising <span style={{ color: A.ink, fontWeight: 600 }}>{view.advisingNames}</span>
-            {view.firmName ? ` · ${view.firmName}` : ""}
-          </p>
-        )}
+    <div className="portal-reveal-stack" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="portal-reveal-host">
+        <PortalOverviewHero
+          address={view.addressLine1}
+          addressLine2={view.addressLine2 || null}
+          photoUrl={null}
+          status={view.status}
+          tenure={view.tenureRaw}
+          purchaseType={view.purchaseTypeRaw}
+          percent={view.readinessPercent}
+          currentStepNumber={currentStepNumber}
+          currentStage4={currentStage4}
+          currentStageSubLabel={currentStageSubLabel}
+          tiles={tiles}
+          targetDate={view.targetDate}
+          estimateDate={view.estimateDate}
+          plannedDate={view.plannedDate}
+          daysUntilPredicted={daysUntilPredicted}
+          progressHref={`/a/${token}`}
+        />
+      </div>
 
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <span style={{ fontSize: 13, color: A.muted }}>{view.currentStageName ?? "Progress"}</span>
-            <span style={{ fontSize: 15, fontWeight: 800, color: A.accent }}>{view.readinessPercent}%</span>
-          </div>
-          <ProgressBar percent={view.readinessPercent} />
-          <p style={{ margin: "8px 0 0", fontSize: 11.5, color: A.faint }}>Last updated {fmtUpdated(view.lastUpdated)}</p>
-        </div>
-      </Card>
-
-      {/* Point of contact */}
-      {view.pointOfContact && (
-        <Card>
-          <SectionLabel>Your point of contact</SectionLabel>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: A.ink }}>{view.pointOfContact.name}</p>
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: A.muted }}>{view.agencyName}</p>
-          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-            {view.pointOfContact.phone && (
-              <a href={`tel:${view.pointOfContact.phone}`} style={{ textDecoration: "none", padding: "9px 14px", borderRadius: 10, border: `1px solid ${A.line}`, color: A.ink, fontSize: 13.5, fontWeight: 600 }}>
-                Call
-              </a>
-            )}
-            {view.pointOfContact.email && (
-              <a
-                href={`mailto:${view.pointOfContact.email}?subject=${encodeURIComponent(`Mortgage: ${view.fullAddress}`)}`}
-                style={{ textDecoration: "none", padding: "9px 14px", borderRadius: 10, background: A.accent, color: "#fff", fontSize: 13.5, fontWeight: 600 }}
-              >
-                Email
-              </a>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Mortgage steps */}
-      <Card>
+      {/* Mortgage steps — the ones the advisor is concerned with. */}
+      <PortalGlassCard glassId="advisor-mortgage" label="Mortgage progress" style={{ padding: 18 }}>
         <SectionLabel>Mortgage progress</SectionLabel>
         {view.steps.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13.5, color: A.muted, lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 13.5, color: P.textSecondary, lineHeight: 1.6 }}>
             The mortgage steps will appear here as the sale reaches them.
           </p>
         ) : (
@@ -99,72 +122,84 @@ export default async function AdvisorOverviewPage({ params }: { params: Promise<
               <div key={s.code} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <StepDot status={s.status} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: s.status === "upcoming" ? A.faint : A.ink }}>{s.label}</p>
-                  <p style={{ margin: "1px 0 0", fontSize: 12.5, color: A.muted }}>
-                    {s.status === "complete" ? `Confirmed${fmtDate(s.date) ? ` · ${fmtDate(s.date)}` : ""}` : s.status === "current" ? `In progress${fmtDate(s.date) ? ` · expected ${fmtDate(s.date)}` : ""}` : "Not yet"}
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: s.status === "upcoming" ? P.textMuted : P.textPrimary }}>{s.label}</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 12.5, color: P.textSecondary }}>
+                    {s.status === "complete"
+                      ? `Confirmed${fmtDate(s.date) ? ` · ${fmtDate(s.date)}` : ""}`
+                      : s.status === "current"
+                        ? `In progress${fmtDate(s.date) ? ` · expected ${fmtDate(s.date)}` : ""}`
+                        : "Not yet"}
                   </p>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </Card>
+      </PortalGlassCard>
+
+      {/* Point of contact — real portal buttons (coral primary + hairline). */}
+      {view.pointOfContact && (
+        <PortalGlassCard glassId="advisor-contact" label="Contact" style={{ padding: 18 }}>
+          <SectionLabel>Your point of contact</SectionLabel>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary }}>{view.pointOfContact.name}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 13, color: P.textSecondary }}>{view.agencyName}</p>
+          {(callHref || emailHref) && (
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              {callHref && (
+                <a
+                  href={callHref}
+                  className="pbtn pbtn-secondary pbtn-press"
+                  style={{ flex: 1, textAlign: "center", padding: "11px 16px", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+                >
+                  Call
+                </a>
+              )}
+              {emailHref && (
+                <a
+                  href={emailHref}
+                  className="pbtn pbtn-primary pbtn-press"
+                  style={{ flex: 1, textAlign: "center", padding: "11px 16px", borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: "none", background: "linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%)", color: "#fff" }}
+                >
+                  Email
+                </a>
+              )}
+            </div>
+          )}
+        </PortalGlassCard>
+      )}
 
       {/* Mortgage offer expiry */}
       {view.offerExpiry && (
-        <Card style={{ background: A.amberSoft, borderColor: "#F0DFC2" }}>
+        <PortalGlassCard glassId="advisor-offer" label="Mortgage offer" style={{ padding: 18 }}>
           <SectionLabel>Mortgage offer</SectionLabel>
-          <p style={{ margin: 0, fontSize: 14, color: A.ink, lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 14, color: P.textPrimary, lineHeight: 1.6 }}>
             Offer {view.offerExpiry.approx ? "expected to expire around" : "expires"}{" "}
             <span style={{ fontWeight: 700 }}>{fmtDate(view.offerExpiry.date)}</span>
             {view.offerExpiry.approx ? " (estimated)" : ""}.
           </p>
-        </Card>
+        </PortalGlassCard>
       )}
 
       {/* EPC */}
       {epc && epc.rating && (
-        <Card>
+        <PortalGlassCard glassId="advisor-epc" label="EPC" style={{ padding: 18 }}>
           <SectionLabel>EPC</SectionLabel>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 10, background: A.accentSoft, color: A.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800 }}>
+            <span style={{ width: 40, height: 40, borderRadius: 10, background: P.successBg, color: P.success, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800 }}>
               {epc.rating}
             </span>
             <div>
-              <p style={{ margin: 0, fontSize: 13.5, color: A.ink }}>
+              <p style={{ margin: 0, fontSize: 13.5, color: P.textPrimary }}>
                 Current rating <strong>{epc.rating}</strong>
                 {epc.potentialRating ? ` · potential ${epc.potentialRating}` : ""}
               </p>
-              {epc.validUntil && (
-                <p style={{ margin: "2px 0 0", fontSize: 12.5, color: A.muted }}>Valid until {fmtDate(epc.validUntil.slice(0, 10))}</p>
-              )}
+              {epc.validUntil && <p style={{ margin: "2px 0 0", fontSize: 12.5, color: P.textSecondary }}>Valid until {fmtDate(epc.validUntil.slice(0, 10))}</p>}
             </div>
           </div>
-        </Card>
+        </PortalGlassCard>
       )}
 
-      {/* Key dates */}
-      {(view.keyDates.expectedExchange || view.keyDates.completion) && (
-        <Card>
-          <SectionLabel>Key dates</SectionLabel>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {view.keyDates.expectedExchange && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
-                <span style={{ color: A.muted }}>Expected exchange</span>
-                <span style={{ color: A.ink, fontWeight: 600 }}>{fmtDate(view.keyDates.expectedExchange)}</span>
-              </div>
-            )}
-            {view.keyDates.completion && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
-                <span style={{ color: A.muted }}>Target completion</span>
-                <span style={{ color: A.ink, fontWeight: 600 }}>{fmtDate(view.keyDates.completion)}</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <p style={{ margin: "4px 2px 0", fontSize: 11.5, color: A.faint, lineHeight: 1.6 }}>
+      <p style={{ margin: "4px 2px 0", fontSize: 11.5, color: P.textMuted, lineHeight: 1.6 }}>
         This is a private view of {view.fullAddress} shared with you as the mortgage advisor. Please don&rsquo;t forward this link.
       </p>
     </div>
