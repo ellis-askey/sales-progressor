@@ -22,7 +22,7 @@ import { SenderDomainSection } from "./SenderDomainSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 import { BusinessSalesActions } from "./BusinessSalesActions";
-import type { CardGatePreview } from "./AddCardGateModal";
+import type { CardGatePreview, GateNotice } from "./AddCardGateModal";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
@@ -39,8 +39,8 @@ function initials(name: string): string {
 }
 
 type SalesActionsData = {
-  billingActive: boolean;
-  collecting: boolean;
+  needsCard: boolean;
+  salesNotice: GateNotice | null;
   publishableKey: string;
   milestoneDefinitions: MilestoneDefinitionLite[];
   migrationWindow: { open: boolean; hoursLeft: number; everStarted: boolean };
@@ -247,8 +247,8 @@ export function AgencyWorkspace({ detail, salesActions }: { detail: ClientAgency
               <div style={{ marginBottom: 14 }}>
                 <BusinessSalesActions
                   agencyId={detail.agencyId}
-                  billingActive={salesActions.billingActive}
-                  collecting={salesActions.collecting}
+                  needsCard={salesActions.needsCard}
+                  salesNotice={salesActions.salesNotice}
                   publishableKey={salesActions.publishableKey}
                   milestoneDefinitions={salesActions.milestoneDefinitions}
                   migrationWindow={salesActions.migrationWindow}

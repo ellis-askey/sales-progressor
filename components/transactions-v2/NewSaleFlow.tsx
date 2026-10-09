@@ -32,7 +32,7 @@ import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
-import { AddCardGateModal, type CardGatePreview } from "@/components/progression/AddCardGateModal";
+import { AddCardGateModal, type CardGatePreview, type GateNotice } from "@/components/progression/AddCardGateModal";
 import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
 import { titleCase, titleCaseKeepAcronyms } from "@/lib/utils";
@@ -355,11 +355,11 @@ type Props = {
   isProgressorCreate?: boolean;
   clientAgencies?: Array<{ id: string; name: string; feeSet: boolean }>;
   businessMembers?: Array<{ id: string; name: string }>;
-  // Billing card gate for a progression business. Once collection is live and the
-  // business has no card on file, adding a sale opens the add-a-card modal first
-  // (mirrors the per-client Sales tab), instead of failing on submit.
-  collecting?: boolean;
-  billingActive?: boolean;
+  // Billing gate for a progression business (computed server-side): needsCard opens
+  // the add-a-card form (owner, no card); salesNotice opens a message instead
+  // (teammate "ask your owner", or a paused/overdue plan). Only one is ever set.
+  needsCard?: boolean;
+  salesNotice?: GateNotice | null;
   publishableKey?: string;
   // Pro-rata preview for the add-a-card modal (null when no card is needed).
   cardGatePreview?: CardGatePreview | null;
@@ -367,7 +367,7 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], collecting = false, billingActive = true, publishableKey = "", cardGatePreview = null }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -388,12 +388,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [selectedClientAgencyId, setSelectedClientAgencyId] = useState<string>(clientAgencyId ?? "");
   const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
 
-  // Billing card gate: a progression business can't add a sale until it has a card
-  // on file (once collection is live). The add-a-card modal opens at the FIRST
-  // action — the "Drop a memo" / "Fill in manually" buttons (handleFile /
-  // handleFillManually) — before the form. A submit-time check and the server's
-  // BillingSetupRequiredError remain as backstops.
-  const needsCard = isProgressorCreate && collecting && !billingActive;
+  // Billing gate: a progression business can't start a sale when it needs a card
+  // (owner) or when billing needs attention (teammate / paused). The gate opens at
+  // the FIRST action — the "Drop a memo" / "Fill in manually" buttons — before the
+  // form. A submit-time check and the server backstops remain.
+  const gated = needsCard || !!salesNotice;
   const [cardOpen, setCardOpen] = useState(false);
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
@@ -629,7 +628,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const handleFile = useCallback(async (file: File) => {
     // Card gate: a progression business with no card can't start a sale. Open the
     // add-a-card modal at this first action, before the form.
-    if (needsCard) { setCardOpen(true); return; }
+    if (gated) { setCardOpen(true); return; }
     abortRef.current?.abort();
     clearTimers();
 
@@ -756,7 +755,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setExtractionError("We couldn't read that memo. Try a clearer photo or PDF, or add the details manually.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsCard]);
+  }, [gated]);
 
   function handleCancel() {
     resetToHero();
@@ -772,7 +771,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   function handleFillManually() {
     // Card gate: same as the memo drop — prompt for a card before the form.
-    if (needsCard) { setCardOpen(true); return; }
+    if (gated) { setCardOpen(true); return; }
     setFlowState("manual");
     setStage(1);
     setExtractedData(null);
@@ -917,10 +916,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   async function handleSubmit(forceCreate = false) {
     setOutsourcedError(null);
 
-    // Card gate: a progression business with no card on file can't add a sale yet.
-    // Open the add-a-card modal instead of submitting (the server also enforces this
-    // as BillingSetupRequiredError, but we surface the card step here, not an error).
-    if (needsCard) {
+    // Billing gate backstop: open the modal instead of submitting. (The server also
+    // enforces this, but we surface the billing step here, not an error.)
+    if (gated) {
       setCardOpen(true);
       return;
     }
@@ -1163,7 +1161,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // When a card is still needed, the button stays enabled so it can open the
   // add-a-card modal (handleSubmit intercepts before any create), regardless of the
   // other readiness checks.
-  const isSubmitDisabled = needsCard
+  const isSubmitDisabled = gated
     ? false
     : isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
 
@@ -1349,7 +1347,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         <SubmitButton
           isSubmitting={isSubmitting}
           isDisabled={isSubmitDisabled}
-          buttonText={needsCard ? "Add a card to continue" : submitButtonText}
+          buttonText={needsCard ? "Add a card to continue" : salesNotice ? "Set up billing to continue" : submitButtonText}
           onClick={() => handleSubmit()}
         />
         <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />
@@ -1381,7 +1379,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           buttons open it. (It portals to <body>, so placement here is just about
           being in the render tree.) */}
       {cardOpen && (
-        <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} onClose={() => { setCardOpen(false); router.refresh(); }} />
+        <AddCardGateModal publishableKey={publishableKey} preview={cardGatePreview} notice={salesNotice} onClose={() => { setCardOpen(false); router.refresh(); }} />
       )}
 
       {/* Full-width top hero. In the hero state it's the demo card; once the

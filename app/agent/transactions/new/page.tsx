@@ -6,8 +6,8 @@ import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
-import { businessBillingActive, getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
-import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
+import { getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
+import { resolveBusinessSaleGate } from "@/lib/progression/business-sale-gate";
 
 // The "Add a demo" server action (posted to this route) builds a rich 3-file
 // chain and takes ~10s, so give this route generous headroom over the default.
@@ -59,17 +59,14 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
     redirect(businessMember!.isOwner ? "/agent/clients" : "/agent/hub");
   }
 
-  // Billing card gate for a progression business: once collection is live and the
-  // business has no card on file, the new-sale form opens the add-a-card modal
-  // before creating (matches the per-client Sales tab). billingActive defaults true
-  // for non-business users so they are never gated here.
-  const businessBillingCollecting = isProgressorCreate && progressionBillingCollectEnabled();
-  const businessBillingIsActive = businessMember ? await businessBillingActive(businessMember.businessId) : true;
-  // Pro-rata preview for the add-a-card modal — only when a card is actually needed.
+  // Billing gate: resolve what blocks this member from adding a sale (card to add /
+  // teammate ask-owner / paused), server-side where owner-vs-teammate is known.
+  const saleGate = businessMember
+    ? await resolveBusinessSaleGate(businessMember.businessId, businessMember.isOwner)
+    : { needsCard: false, salesNotice: null };
+  // Pro-rata preview only matters for the add-a-card form (owner, no card).
   const cardGatePreview =
-    businessMember && businessBillingCollecting && !businessBillingIsActive
-      ? await getBusinessFirstChargePreview(businessMember.businessId)
-      : null;
+    businessMember && saleGate.needsCard ? await getBusinessFirstChargePreview(businessMember.businessId) : null;
 
   // Pricing migration (2026-08): there is no trial gate any more. Self-progress
   // is free, so a self-progressing agency is never blocked from adding a sale.
@@ -310,8 +307,8 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           isProgressorCreate={isProgressorCreate}
           clientAgencies={progressorClientAgencies}
           businessMembers={progressorMembers}
-          collecting={businessBillingCollecting}
-          billingActive={businessBillingIsActive}
+          needsCard={saleGate.needsCard}
+          salesNotice={saleGate.salesNotice}
           publishableKey={process.env.STRIPE_PUBLISHABLE_KEY ?? ""}
           cardGatePreview={cardGatePreview}
         />

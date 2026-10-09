@@ -26,6 +26,10 @@ export type CardGatePreview = {
   perMemberPence: number;
 };
 
+// A message-only gate (no card form): a paused plan, or a teammate who can't manage
+// billing. Shown instead of the add-a-card content.
+export type GateNotice = { title: string; body: string; actionLabel?: string; actionHref?: string };
+
 // Whole pounds show no decimals (£59); a fractional amount shows 2dp (£43.77).
 function gbp(pence: number): string {
   const pounds = pence / 100;
@@ -36,10 +40,13 @@ export function AddCardGateModal({
   publishableKey,
   onClose,
   preview = null,
+  notice = null,
 }: {
   publishableKey: string;
   onClose: () => void;
   preview?: CardGatePreview | null;
+  // When set, show this message instead of the add-a-card form (paused / ask-owner).
+  notice?: GateNotice | null;
 }) {
   const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
@@ -116,6 +123,17 @@ export function AddCardGateModal({
         <button type="button" className="acg-x" onClick={requestClose} aria-label="Close"><X size={16} weight="bold" /></button>
 
         <div className="acg-body">
+          {notice ? (
+            <>
+              <span style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", marginBottom: 7 }}>Billing</span>
+              <h3 style={{ margin: 0, paddingRight: 28, fontSize: 20, lineHeight: 1.2, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--agent-text-primary)" }}>{notice.title}</h3>
+              <p style={{ margin: "9px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "var(--agent-text-secondary)", maxWidth: "42ch" }}>{notice.body}</p>
+              {notice.actionHref && (
+                <a href={notice.actionHref} className="agent-btn agent-btn-primary agent-btn-lg" style={{ display: "inline-flex", marginTop: 20, textDecoration: "none" }}>{notice.actionLabel ?? "Continue"}</a>
+              )}
+            </>
+          ) : (
+          <>
           <span style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", marginBottom: 7 }}>
             Activate your plan
           </span>
@@ -172,6 +190,8 @@ export function AddCardGateModal({
             </svg>
             <span>Securely processed by Stripe. We never see or store your card details.</span>
           </div>
+          </>
+          )}
         </div>
       </div>
 
