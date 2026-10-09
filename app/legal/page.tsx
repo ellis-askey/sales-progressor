@@ -43,6 +43,11 @@ const DOCS: LegalDoc[] = [
     href: "/outsourced-terms",
   },
   {
+    title: "Sales Progression Business Terms",
+    description: "The terms that apply when a sales progression business uses our platform to progress sales for its own client agencies — the platform licence, its team and clients, billing, data roles, and liability.",
+    href: "/progression-business-terms",
+  },
+  {
     title: "Billing Terms",
     description: "Pricing and payment terms — what you pay, when, and how payment failures are handled. Shown to directors when adding a payment card.",
     href: "/billing-terms",

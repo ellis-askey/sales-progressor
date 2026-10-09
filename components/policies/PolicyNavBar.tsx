@@ -2,9 +2,9 @@
 
 // components/policies/PolicyNavBar.tsx
 //
-// Horizontal tab nav across every legal document — Privacy, Cookies,
-// Terms, Outsourced, Billing, DPA, Provider Terms. Active tab determined by
-// usePathname(). One click
+// Horizontal tab nav across every legal document: Privacy, Cookies, Terms,
+// Outsourced, Progression Business, Billing, DPA, Provider Terms. Active tab
+// determined by usePathname(). One click
 // jumps to any policy from any other policy (or from the hub).
 //
 // Animation pattern ported from .agent-tab in
@@ -27,13 +27,14 @@ import { usePathname } from "next/navigation";
 type Tab = { href: string; label: string };
 
 const TABS: Tab[] = [
-  { href: "/privacy",           label: "Privacy"        },
-  { href: "/cookie-policy",     label: "Cookies"        },
-  { href: "/terms",             label: "Terms"          },
-  { href: "/outsourced-terms",  label: "Outsourced"     },
-  { href: "/billing-terms",     label: "Billing"        },
-  { href: "/legal/dpa",         label: "DPA"            },
-  { href: "/provider-terms",    label: "Provider Terms" },
+  { href: "/privacy",                      label: "Privacy"              },
+  { href: "/cookie-policy",                label: "Cookies"              },
+  { href: "/terms",                        label: "Terms"                },
+  { href: "/outsourced-terms",             label: "Outsourced"           },
+  { href: "/progression-business-terms",   label: "Progression Business" },
+  { href: "/billing-terms",                label: "Billing"              },
+  { href: "/legal/dpa",                    label: "DPA"                  },
+  { href: "/provider-terms",               label: "Provider Terms"       },
 ];
 
 export function PolicyNavBar() {
