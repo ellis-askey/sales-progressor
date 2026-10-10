@@ -695,7 +695,9 @@ export async function getAgentUpdatesFeed(vis: AgentVisibility): Promise<UpdateF
       kind: "milestone",
       id: m.id,
       at: m.completedAt ?? m.createdAt,
-      who: confirmer?.kind ?? "agent",
+      // Advisor confirms don't reach this agency timeline yet (resolveConfirmer
+      // doesn't emit "advisor" until Phase 2b); coerce so the type stays sound.
+      who: (confirmer?.kind === "advisor" ? "agent" : confirmer?.kind) ?? "agent",
       side,
       transaction: txCore,
       code: m.milestoneDefinition.code,

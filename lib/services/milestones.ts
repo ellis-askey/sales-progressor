@@ -5,7 +5,7 @@ import { hasOpenBlockingCheckpoints } from "@/lib/checkpoints/blocking";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
-import { solicitorConfirmationSentence, confirmationSentence } from "@/lib/updates-copy";
+import { solicitorConfirmationSentence, advisorConfirmationSentence, confirmationSentence } from "@/lib/updates-copy";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { cascadeOnwardExchange } from "@/lib/services/onward";
@@ -1101,6 +1101,10 @@ export type Confirmer =
   // "confirmed by {firmName}". firmId/contactId may be null if the file has a
   // firm but no named contact. See docs/active/solicitor-confirm/scope.md.
   | { kind: "solicitor"; firmId: string | null; contactId: string | null; firmName: string }
+  // Mortgage advisor confirming via their /a/<token> link. Recorded on the
+  // completion as confirmedByBrokerFirmId/ContactId. displayName is the advisor's
+  // own name (the buyer's broker) for the stored summary sentence.
+  | { kind: "advisor"; firmId: string | null; contactId: string | null; displayName: string }
   // No named person acted: the mirrored half of a paired step (the contract-
   // pack pair, the enquiries pair). Carries NO provenance — every renderer
   // then shows a plain fact ("The seller's solicitor has issued the draft
@@ -1265,9 +1269,11 @@ export async function completeMilestone(
         })
       : input.confirmer.kind === "solicitor"
         ? solicitorConfirmationSentence(input.confirmer.firmName, def.code, def.name)
-        : def.summaryTemplate
-          ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
-          : null;
+        : input.confirmer.kind === "advisor"
+          ? advisorConfirmationSentence(input.confirmer.displayName, def.code, def.name)
+          : def.summaryTemplate
+            ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
+            : null;
 
   // Derive provenance from the confirmer.
   // - completedById: User.id when an agent confirms; null when a contact
@@ -1280,6 +1286,10 @@ export async function completeMilestone(
     input.confirmer.kind === "solicitor" ? input.confirmer.firmId : null;
   const confirmedBySolicitorContactId =
     input.confirmer.kind === "solicitor" ? input.confirmer.contactId : null;
+  const confirmedByBrokerFirmId =
+    input.confirmer.kind === "advisor" ? input.confirmer.firmId : null;
+  const confirmedByBrokerContactId =
+    input.confirmer.kind === "advisor" ? input.confirmer.contactId : null;
   // Which client Contact confirmed via their own portal link (each client has
   // their own token), so we can name them rather than a generic "Client".
   const confirmedByContactId = input.confirmer.kind === "contact" ? input.confirmer.id : null;
@@ -1333,6 +1343,8 @@ export async function completeMilestone(
         confirmedByPortal,
         confirmedBySolicitorFirmId,
         confirmedBySolicitorContactId,
+        confirmedByBrokerFirmId,
+        confirmedByBrokerContactId,
         confirmedByContactId,
         summaryText,
         notRequiredReason: null,
@@ -1367,6 +1379,8 @@ export async function completeMilestone(
           confirmedByPortal,
           confirmedBySolicitorFirmId,
           confirmedBySolicitorContactId,
+          confirmedByBrokerFirmId,
+          confirmedByBrokerContactId,
           confirmedByContactId,
           summaryText,
           // Stamp the active round on purchaser-side rows; vendor rows

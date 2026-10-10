@@ -15,6 +15,7 @@ import type { AdvisorSide } from "./token";
 // invalid-link notice rather than a half-built view.
 
 export type AdvisorStep = {
+  id: string; // milestoneDefinition id — needed to confirm
   code: string;
   label: string;
   status: "complete" | "current" | "upcoming";
@@ -111,7 +112,7 @@ export async function getAdvisorPortalView(
       completedAt: true,
       eventDate: true,
       expectedDate: true,
-      milestoneDefinition: { select: { code: true, name: true, orderIndex: true } },
+      milestoneDefinition: { select: { id: true, code: true, name: true, orderIndex: true } },
     },
     orderBy: { milestoneDefinition: { orderIndex: "asc" } },
   });
@@ -119,7 +120,7 @@ export async function getAdvisorPortalView(
     const status: AdvisorStep["status"] =
       r.state === "complete" ? "complete" : r.state === "available" ? "current" : "upcoming";
     const date = r.state === "complete" ? isoDay(r.completedAt) : isoDay(r.eventDate ?? r.expectedDate);
-    return { code: r.milestoneDefinition.code, label: advisorStepLabel(r.milestoneDefinition.code, r.milestoneDefinition.name), status, date };
+    return { id: r.milestoneDefinition.id, code: r.milestoneDefinition.code, label: advisorStepLabel(r.milestoneDefinition.code, r.milestoneDefinition.name), status, date };
   });
 
   // Whole-sale progress — same display stages the solicitor/client portals use.

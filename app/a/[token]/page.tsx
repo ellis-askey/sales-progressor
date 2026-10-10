@@ -4,6 +4,7 @@ import { getPropertyEnrichment } from "@/lib/services/property-enrichment";
 import { PortalOverviewHero, type OverviewTile } from "@/components/portal/PortalOverviewHero";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { P } from "@/components/portal/portal-ui";
+import { AdvisorMortgageSteps } from "./AdvisorMortgageSteps";
 
 export const dynamic = "force-dynamic";
 
@@ -28,22 +29,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   );
-}
-
-// Step status dot in the portal visual language: green tick (done), coral ring
-// (current), hairline ring (upcoming).
-function StepDot({ status }: { status: "complete" | "current" | "upcoming" }) {
-  if (status === "complete") {
-    return (
-      <span style={{ width: 22, height: 22, borderRadius: 999, background: P.success, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden><path d="M2.5 6.2 5 8.7 9.5 3.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </span>
-    );
-  }
-  if (status === "current") {
-    return <span style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${P.primary}`, background: P.primaryBg, flexShrink: 0 }} />;
-  }
-  return <span style={{ width: 22, height: 22, borderRadius: 999, border: `2px solid ${P.border}`, background: P.cardBg, flexShrink: 0 }} />;
 }
 
 export default async function AdvisorOverviewPage({ params }: { params: Promise<{ token: string }> }) {
@@ -117,24 +102,11 @@ export default async function AdvisorOverviewPage({ params }: { params: Promise<
             The mortgage steps will appear here as the sale reaches them.
           </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {view.steps.map((s) => (
-              <div key={s.code} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <StepDot status={s.status} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: s.status === "upcoming" ? P.textMuted : P.textPrimary }}>{s.label}</p>
-                  <p style={{ margin: "1px 0 0", fontSize: 12.5, color: P.textSecondary }}>
-                    {s.status === "complete"
-                      ? `Confirmed${fmtDate(s.date) ? ` · ${fmtDate(s.date)}` : ""}`
-                      : s.status === "current"
-                        ? `In progress${fmtDate(s.date) ? ` · expected ${fmtDate(s.date)}` : ""}`
-                        : "Not yet"}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <AdvisorMortgageSteps token={token} steps={view.steps} />
         )}
+        <p style={{ margin: "16px 0 0", fontSize: 11.5, color: P.textMuted, lineHeight: 1.6 }}>
+          Nothing here is binding. It just keeps everyone&rsquo;s file up to date.
+        </p>
       </PortalGlassCard>
 
       {/* Point of contact — real portal buttons (coral primary + hairline). */}

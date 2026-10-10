@@ -228,13 +228,31 @@ function clientsOrParty(contacts: SideContact[] | undefined, code: string): stri
   return code.startsWith("VM") ? "the seller" : "the buyer";
 }
 
+// A mortgage advisor confirming via their /a/<token> link. The advisor is named
+// (it's the buyer's own broker) using the possessive core clause. Used for the
+// stored summary + the agency-facing timeline; the buyer-facing "...your..."
+// phrasing is handled in portalConfirmationSentence.
+export function advisorConfirmationSentence(
+  name: string,
+  code: string,
+  milestoneName: string,
+): string {
+  const core = CORES[code];
+  if (!core) return `${name} confirmed: ${milestoneName}`;
+  return `${name} confirmed the ${core}`;
+}
+
 export type UpdateConfirmer =
   | { kind: "client" }
   // A helper/representative on the side confirmed on the principals' behalf.
   // sideContacts passed alongside are the PRINCIPALS (the real clients).
   | { kind: "helper"; name: string }
   | { kind: "agent"; name: string }
-  | { kind: "solicitor"; firm: string };
+  | { kind: "solicitor"; firm: string }
+  // A mortgage advisor confirmed via their portal. `name` is the advisor's own
+  // name (the buyer's broker). `overseerName` is the progressor/agent running the
+  // file — used only on the OTHER side's feed, where the agency gets the credit.
+  | { kind: "advisor"; name: string; overseerName?: string | null };
 
 export type SideContact = { name: string; title?: string | null };
 
