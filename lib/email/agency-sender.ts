@@ -145,7 +145,7 @@ export async function resolveAgencySenderForTransaction(
       },
       agentUser: { select: { name: true, email: true, preferredSenderEmail: true } },
       assignedUser: { select: { email: true, name: true } },
-      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
+      progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true, emailTheme: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
@@ -159,7 +159,13 @@ export async function resolveAgencySenderForTransaction(
   const firstName = brandPerson?.name?.trim() ? extractFirstName(brandPerson.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";
-  const theme = resolveEmailTheme((tx.agency?.emailTheme ?? null) as EmailThemeInput | null);
+  // Theme resolver order: the client agency's own theme (if they've customised),
+  // else the responsible progression business's house style, else the Sales
+  // Progressor coral default. The TSP business row leaves emailTheme null, so our
+  // own files are unchanged. Applies to every client-facing email this resolver
+  // themes (hero band, button, links, footer colours).
+  const rawTheme = ((tx.agency?.emailTheme ?? tx.progressionBusiness?.emailTheme) ?? null) as EmailThemeInput | null;
+  const theme = resolveEmailTheme(rawTheme);
   const logo = {
     logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
     tileColor: tx.agency?.logoTileColor ?? null,

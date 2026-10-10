@@ -9,20 +9,36 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
+import { EmailStudio } from "@/components/account/v2/EmailStudio";
+import type { BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { SenderDomainSection } from "@/components/progression/SenderDomainSection";
-import { ShareNetwork } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, Palette } from "@phosphor-icons/react/dist/ssr";
 
 export default async function BusinessEmailsPage() {
   if (!progressionBusinessesEnabled()) notFound();
   const session = await requireSession();
   const owner = await resolveBusinessOwner(session);
   if (!owner) notFound();
+
+  // Business house style — the default look every client's emails start from
+  // (until that client agency sets its own). Theme-only: no logo (each client
+  // email carries that agency's logo). Saves to ProgressionBusiness.emailTheme.
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: owner.businessId },
+    select: { name: true, emailTheme: true },
+  });
+  const houseStyle: BrandingInitial = {
+    logoUrl: null, tileColor: null, scale: null, align: null,
+    theme: (business?.emailTheme as BrandingInitial["theme"]) ?? null,
+    appAccent: null,
+  };
 
   // Client-facing steps only (buyer/seller copy) — same as the agency editor.
   const steps = buildStepList()
@@ -43,6 +59,14 @@ export default async function BusinessEmailsPage() {
           subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
         >
           <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
+        </AccountCard>
+
+        <AccountCard
+          icon={<Palette size={18} weight="bold" />}
+          title="Your house style"
+          subtitle="Design how your clients' emails look — colours, type, header and buttons. Every file you progress starts from this, unless a client sets their own."
+        >
+          <EmailStudio initial={houseStyle} endpoint="/api/agent/settings/email-theme" identityName={business?.name ?? "Your business"} themeOnly />
         </AccountCard>
 
         <AccountCard title="Sending address" subtitle="The address your clients' emails come from.">

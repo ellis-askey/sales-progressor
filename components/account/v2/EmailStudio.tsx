@@ -81,7 +81,7 @@ function thumbPhoto(hexColor: string): string {
   return `linear-gradient(135deg,${tint(hexColor, 0.85)},${tint(hexColor, 0.5)}),radial-gradient(circle at 70% 20%,rgba(255,255,255,.35),transparent 50%),linear-gradient(180deg,#8aa0b5,#566d82)`;
 }
 
-export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", identityName = "Your agency" }: { initial: BrandingInitial; endpoint?: string; identityName?: string }) {
+export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", identityName = "Your agency", themeOnly = false }: { initial: BrandingInitial; endpoint?: string; identityName?: string; themeOnly?: boolean }) {
   // logo (uploaded) — stored on the agency/business logo fields via the endpoint
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
   async function onSave() {
     setSavingState("saving"); setError(null);
     try {
-      const res = await fetch(endpoint, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ tileColor, scale, align, theme }) });
+      const res = await fetch(endpoint, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(themeOnly ? { theme } : { tileColor, scale, align, theme }) });
       if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Couldn't save your changes."); setSavingState("idle"); return; }
       setSavedJson(themeJson); setSavedLogo({ tileColor, scale, align }); setSavingState("saved");
     } catch { setError("Couldn't save your changes."); setSavingState("idle"); }
@@ -269,8 +269,10 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
                       { v: "centered", l: "Centered", vis: <HVis h="centered" /> }, { v: "none", l: "None", vis: <HVis h="none" /> },
                     ]} />
                     <Grp label="Brand mark">
-                      <Seg value={st.logoMode} opts={[["monogram", "Monogram"], ["wordmark", "Wordmark"], ["logo", "Logo"]]} onChange={(v) => patch({ logoMode: v as LogoMode })} />
-                      {st.logoMode === "logo" ? (
+                      <Seg value={st.logoMode === "logo" && themeOnly ? "wordmark" : st.logoMode} opts={themeOnly ? [["monogram", "Monogram"], ["wordmark", "Wordmark"]] : [["monogram", "Monogram"], ["wordmark", "Wordmark"], ["logo", "Logo"]]} onChange={(v) => patch({ logoMode: v as LogoMode })} />
+                      {themeOnly ? (
+                        <p className="es-nudge">Each client&rsquo;s own logo appears on their emails. This house style sets the colours, type and layout they start from.</p>
+                      ) : st.logoMode === "logo" ? (
                         <div style={{ marginTop: 12 }}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
                             <button type="button" className="es-upload" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? "Working…" : logoUrl ? "Replace logo" : "Upload logo"}</button>
