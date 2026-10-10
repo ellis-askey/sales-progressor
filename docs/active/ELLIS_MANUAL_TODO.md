@@ -8,6 +8,18 @@ Last updated: 2026-10-10
 
 ---
 
+## Turn on Speed Insights in Vercel (perf audit Track 1, 2026-10-10)
+
+The agent app now mounts Vercel's real-user speed monitoring (`<SpeedInsights/>` in `app/agent/layout.tsx`), so every real session reports Core Web Vitals per route. It sends nothing until the feature is enabled on the project:
+
+1. Vercel dashboard → the **sales-progressor** project → **Speed Insights** tab → **Enable**. One click; takes effect on the next deployment (the code is already deployed ahead of it, so just enable and redeploy or wait for the next push).
+2. Note: Speed Insights has a free tier (10k data points/month) which is plenty at current usage; no card step needed.
+3. After a few days of real use, the dashboard shows which routes are slowest for real users — this becomes the ongoing scoreboard the perf audit's fixes get judged against.
+
+Also pre-wired (nothing to do yet): PostHog web-vitals capture is enabled in the PostHog init config, but stays dormant until `NEXT_PUBLIC_POSTHOG_KEY` is set (the existing "pending DPA + key" item).
+
+---
+
 ## Client "mailbox" sending path — set the sender postal address + live-test (2026-10-10)
 
 New guided **Sending address** card (client workspace Branding tab + business Emails tab) now offers a no-DNS **single-sender** method: the progressor enters a mailbox the agency gave them (e.g. `you@theiragency.co.uk`), SendGrid emails it a verification link, and once clicked we send that client's emails from it. This is brand-new plumbing to SendGrid's Single Sender Verification API — it **must be live-tested before onboarding** (it can't be verified from code):

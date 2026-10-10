@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
@@ -149,6 +150,14 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           />
         )}
         <AgentInstallPrompt />
+        {/* Real-user speed monitoring (perf audit Track 1, 2026-10-10).
+            Collects Core Web Vitals per route from real sessions and sends
+            them to Vercel's Speed Insights dashboard. Agent app only —
+            portal and Command Centre are outside the audit's scope. No-ops
+            entirely until Speed Insights is enabled on the Vercel project
+            (see docs/active/ELLIS_MANUAL_TODO.md), and sends nothing in
+            local dev. No cookies, no PII — route-level timings only. */}
+        <SpeedInsights />
       </AgentToaster>
       </GlassPicksProvider>
     </div>

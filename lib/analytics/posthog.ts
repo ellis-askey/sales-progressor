@@ -163,6 +163,10 @@ export function init(consent: boolean): void {
     autocapture: true,
     capture_pageview: true,
     disable_session_recording: true, // off in v1 — ADMIN_10 §5; set to false + follow §3.3 checklist to enable
+    // Core Web Vitals per pageview (perf audit Track 1, 2026-10-10). SDK-internal
+    // $web_vitals events — route-level timings only, no PII, not subject to the
+    // manual-capture allow-list below. Dormant until NEXT_PUBLIC_POSTHOG_KEY is set.
+    capture_performance: { web_vitals: true },
     mask_all_text: true,
     mask_all_element_attributes: true,
     person_profiles: "identified_only",
