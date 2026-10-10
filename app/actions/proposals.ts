@@ -31,7 +31,7 @@ export async function approveProposalAction(
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: p.transactionId },
-    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true, suppressPortalConfirmEmails: true },
+    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true, suppressPortalConfirmEmails: true },
   });
   if (!tx || !canReadTransaction(scope, tx)) return { ok: false, error: "Forbidden" };
 
@@ -111,7 +111,7 @@ export async function dismissProposalAction(
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: p.transactionId },
-    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true },
+    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true },
   });
   if (!tx || !canReadTransaction(scope, tx)) return { ok: false, error: "Forbidden" };
 

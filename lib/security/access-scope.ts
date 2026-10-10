@@ -164,7 +164,10 @@ export function canReadTransaction(
   }
 ): boolean {
   // "all" (TSP admin) sees TSP's own files only, never an external business's.
-  if (scope.kind === "all")      return tx.progressionBusinessId == null;
+  // Strict === null so a NOT-SELECTED field (undefined) fails closed rather than
+  // reading as null and matching. Every caller passing an "all" scope MUST select
+  // progressionBusinessId; if it's absent this denies rather than leaks.
+  if (scope.kind === "all")      return tx.progressionBusinessId === null;
   if (scope.kind === "assigned") return tx.assignedUserId === scope.userId;
   if (scope.kind === "business") return tx.progressionBusinessId === scope.businessId;
   return scope.agencyIds.includes(tx.agencyId);

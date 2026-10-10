@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
-      id: true, agencyId: true, assignedUserId: true, agentUserId: true, serviceType: true,
+      id: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true, serviceType: true,
       propertyAddress: true,
       tenure: true,
       purchaseType: true,

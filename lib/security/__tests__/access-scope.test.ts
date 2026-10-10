@@ -84,7 +84,14 @@ describe("canReadTransaction denies cross-agency", () => {
     expect(canReadTransaction(assignedScope, { agencyId: AGENCY_B, assignedUserId: "sp-user" })).toBe(true);
     expect(canReadTransaction(assignedScope, { agencyId: AGENCY_B, assignedUserId: "someone-else" })).toBe(false);
   });
-  test("admin (all) reads anything", () => {
-    expect(canReadTransaction(allScope, { agencyId: AGENCY_B, assignedUserId: null })).toBe(true);
+  test("admin (all) reads a TSP file (null business)", () => {
+    expect(canReadTransaction(allScope, { agencyId: AGENCY_B, assignedUserId: null, progressionBusinessId: null })).toBe(true);
+  });
+  test("admin (all) cannot read an external-business file", () => {
+    expect(canReadTransaction(allScope, { agencyId: AGENCY_B, assignedUserId: null, progressionBusinessId: "ext-biz" })).toBe(false);
+  });
+  test("admin (all) fails CLOSED when progressionBusinessId is not selected (undefined, not null)", () => {
+    // A caller that forgets to select the field must be denied, never allowed.
+    expect(canReadTransaction(allScope, { agencyId: AGENCY_B, assignedUserId: null })).toBe(false);
   });
 });

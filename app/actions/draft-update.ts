@@ -47,7 +47,7 @@ export async function sendDraftClientUpdateAction(input: {
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
-    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true },
+    select: { id: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true },
   });
   if (!tx) return { ok: false, error: "File not found." };
   if (!canReadTransaction(scope, tx)) return { ok: false, error: "Forbidden" };
