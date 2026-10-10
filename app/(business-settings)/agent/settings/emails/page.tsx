@@ -8,6 +8,7 @@
 // Owner-gated.
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
@@ -71,10 +72,12 @@ export default async function BusinessEmailsPage() {
 
         <AccountCard title="Sending address" subtitle="The address your clients' emails come from.">
           <SenderDomainSection base="/api/agent/settings/sender" scope="business" />
-          <p style={{ margin: "14px 2px 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
-            To send a specific client&rsquo;s emails from their own address, open the client from
-            Clients and set up their sending address under Branding.
+          <p style={{ margin: "16px 2px 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
+            To send a specific client&rsquo;s emails from their own address, open the client from{" "}
+            <Link href="/agent/clients" className="sds-clients-ln">Clients</Link>{" "}
+            and set up their sending address under Branding.
           </p>
+          <style>{`.sds-clients-ln{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(0,0,0,0.22);transition:color .15s,text-decoration-color .15s}.sds-clients-ln:hover{color:var(--agent-coral-deep,#E2452A);text-decoration-color:currentColor}`}</style>
         </AccountCard>
       </div>
     </>

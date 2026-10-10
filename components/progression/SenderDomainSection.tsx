@@ -14,11 +14,12 @@
 //     updates@<domain>; replies route to the progressor. Routes: `${base}/domain`
 //     (+ the shared DomainAuthFlow for the records + check step).
 //
-// The from-NAME is always the agency's regardless of address; this card only ever
-// changes the from-ADDRESS. Until set up, sending falls back a tier (business
-// sender, then the neutral platform address) — nothing here is ever blocking.
+// Visual language matches the EmailStudio directly above it on the page: the glossy
+// gradient step pips (.eb-pip) and primary button (.eb-next), and the claim-flow
+// gradient choice-card for the method selector.
 
 import { useState, useEffect, useCallback } from "react";
+import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DomainAuthFlow } from "@/components/verified-emails/DomainAuthFlow";
 
@@ -59,6 +60,7 @@ export function SenderDomainSection({
   const { toast } = useAgentToast();
   const [status, setStatus] = useState<SenderStatus | null>(null);
   const [view, setView] = useState<View>("loading");
+  const [chosen, setChosen] = useState<"single" | "domain" | null>(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [checkedOnce, setCheckedOnce] = useState(false);
@@ -66,22 +68,13 @@ export function SenderDomainSection({
 
   const previewName = status?.agencyName || subjectName || (scope === "client" ? "The agency" : "Your business");
   const isClient = scope === "client";
-  // Noun phrasing used across the copy, scope-aware.
-  const name = isClient ? (subjectName || "this agency") : "your business";
   const theirPossessive = isClient ? `${subjectName || "the agency"}'s` : "your business's";
   const sampleDomain = isClient ? "theiragency.co.uk" : "yourbusiness.co.uk";
 
   const restingView = useCallback((s: SenderStatus): View => {
-    // Fully done (sending switched over).
     if (s.senderVerified && s.senderEmail) return "verified";
-    // A single sender awaiting its emailed-link confirmation. Keyed on method so a
-    // leftover verified domain from a previous setup can't mask a fresh switch to
-    // the mailbox method.
     if (s.senderEmail && s.method === "single") return "single-sent";
-    // Domain DNS is verified but the nightly cron hasn't stamped the sender flag
-    // yet — the user's job is done, so show the success state.
     if (s.domain && s.domain.status === "verified") return "verified";
-    // Domain DNS still propagating — show the records + check step.
     if (s.domain && s.domain.status !== "verified") return "domain-records";
     return "overview";
   }, []);
@@ -132,12 +125,8 @@ export function SenderDomainSection({
         body: JSON.stringify({ action: "check" }),
       });
       const data = await res.json();
-      if (res.ok && data.verified) {
-        await refresh();
-        setView("verified");
-      } else {
-        setCheckedOnce(true);
-      }
+      if (res.ok && data.verified) { await refresh(); setView("verified"); }
+      else setCheckedOnce(true);
     } finally { setBusy(false); }
   }
 
@@ -172,7 +161,7 @@ export function SenderDomainSection({
 
   const pendingAddr = status?.senderEmail || pendingEmail;
   const verifiedAddr = status?.senderEmail || "";
-  const repliesToMailbox = status?.method !== "domain"; // single sender → replies land in the inbox
+  const repliesToMailbox = status?.method !== "domain";
 
   // ── Shared pieces ────────────────────────────────────────────────────────────
   const Steps = ({ active }: { active: 1 | 2 | 3 }) => (
@@ -189,11 +178,8 @@ export function SenderDomainSection({
     </div>
   );
 
-  const Header = ({ back }: { back?: View }) => (
-    <div className="sds-hlabel">
-      <span>Sending address</span>
-      {back && <button type="button" className="sds-back" onClick={() => setView(back)}>‹ Back</button>}
-    </div>
+  const Back = ({ to }: { to: View }) => (
+    <button type="button" className="sds-back" onClick={() => setView(to)}>‹ Back</button>
   );
 
   const Mail = ({ addr, pill, pillKind }: { addr: string; pill: string; pillKind: "good" | "neutral" }) => (
@@ -218,7 +204,6 @@ export function SenderDomainSection({
       case "overview":
         return (
           <>
-            <Header />
             <h3 className="sds-h3">{isClient ? `Send your client updates from ${theirPossessive} own address` : "Send your client updates from your business's own address"}</h3>
             <p className="sds-body">
               {isClient
@@ -226,13 +211,13 @@ export function SenderDomainSection({
                 : "The automatic updates we send buyers and sellers already show the agency as the sender. You can also make those updates come from your business's own email address, used for any client that hasn't got their own."}
             </p>
             <Mail addr="updates@thesalesprogressor.co.uk" pill="Default address" pillKind="neutral" />
-            <div className="sds-ann">
-              <div><span className="sds-dot f" /><span><b>Sender name</b>{previewName}. Already set up for you.</span></div>
-              <div><span className="sds-dot v" /><span><b>Email address</b>{isClient ? "Use their own address instead." : "Use your own address instead."}</span></div>
-            </div>
-            <div className="sds-row">
-              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={() => setView("method")}>
-                {isClient ? "Set up their email address →" : "Set up your email address →"}
+            <div className="sds-ov-actions">
+              <div className="sds-ann">
+                <div><span className="sds-dot f" /><span><b>Sender name</b>{previewName}. Already set up for you.</span></div>
+                <div><span className="sds-dot v" /><span><b>Email address</b>{isClient ? "Use their own address instead." : "Use your own address instead."}</span></div>
+              </div>
+              <button type="button" className="sds-btn" onClick={() => { setChosen(null); setView("method"); }}>
+                {isClient ? "Set up their email address" : "Set up your email address"} <span className="arr">→</span>
               </button>
             </div>
             <div className="sds-note">
@@ -247,46 +232,59 @@ export function SenderDomainSection({
       case "method":
         return (
           <>
-            <Header back="overview" />
+            <div className="sds-topbar"><Back to="overview" /></div>
             <Steps active={1} />
             <h3 className="sds-h3">{isClient ? "How would you like to set up their email address?" : "How would you like to set up your email address?"}</h3>
             <p className="sds-body">There are two ways to do this, depending on what access you have. Choose whichever works for you.</p>
 
-            <button type="button" className="sds-opt" onClick={() => { setEmail(""); setView("single-input"); }}>
+            <button type="button" className={`sds-opt ${chosen === "single" ? "on" : ""}`} onClick={() => setChosen("single")} aria-pressed={chosen === "single"}>
+              <span className="sds-opt-radio">{chosen === "single" ? "✓" : ""}</span>
               <span className="sds-opt-top">
-                <span className="sds-opt-ic">✉️</span>
+                <EnvelopeSimple size={21} weight="bold" className="sds-opt-ic" />
                 <span className="sds-opt-ttl">{isClient ? "I have an email address for this agency" : "I have an email address for my business"}</span>
                 <span className="sds-rec">Easiest option</span>
-                <span className="sds-opt-arrow">›</span>
               </span>
               <span className="sds-opt-sub">
                 {isClient
                   ? <>The agency has given you an email address on their domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a link to that inbox to confirm you can use it.</>
                   : <>You have an email address on your business&rsquo;s domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a link to that inbox to confirm you can use it.</>}
               </span>
-              <span className="sds-opt-facts"><span>Around 2 minutes</span><span>No technical setup</span><span>Replies go to that email inbox</span></span>
+              <span className="sds-opt-facts">
+                <span><Clock size={13} weight="bold" /> Around 2 minutes</span>
+                <span><Sparkle size={13} weight="bold" /> No technical setup</span>
+                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies go to that email inbox</span>
+              </span>
             </button>
 
-            <button type="button" className="sds-opt" onClick={() => { setEmail(""); setView("domain-input"); }}>
+            <button type="button" className={`sds-opt ${chosen === "domain" ? "on" : ""}`} onClick={() => setChosen("domain")} aria-pressed={chosen === "domain"}>
+              <span className="sds-opt-radio">{chosen === "domain" ? "✓" : ""}</span>
               <span className="sds-opt-top">
-                <span className="sds-opt-ic">🌐</span>
+                <GlobeSimple size={21} weight="bold" className="sds-opt-ic" />
                 <span className="sds-opt-ttl">{isClient ? "I can access their domain settings" : "I can access my domain settings"}</span>
-                <span className="sds-opt-arrow">›</span>
               </span>
               <span className="sds-opt-sub">
                 {isClient
                   ? <>You or the agency&rsquo;s IT team can add a few records to their domain settings. This lets us send emails using an address like <span className="sds-ex">updates@{sampleDomain}</span>, without needing a separate mailbox.</>
                   : <>You or your IT team can add a few records to your domain settings. This lets us send emails using an address like <span className="sds-ex">updates@{sampleDomain}</span>, without needing a separate mailbox.</>}
               </span>
-              <span className="sds-opt-facts"><span>Around 10 minutes to set up</span><span>You&rsquo;ll receive replies at your usual email address</span></span>
+              <span className="sds-opt-facts">
+                <span><Clock size={13} weight="bold" /> Around 10 minutes to set up</span>
+                <span><ArrowBendUpLeft size={13} weight="bold" /> You&rsquo;ll receive replies at your usual email address</span>
+              </span>
             </button>
+
+            <div className="sds-row sds-row-end">
+              <button type="button" className="sds-btn" disabled={!chosen} onClick={() => setView(chosen === "single" ? "single-input" : "domain-input")}>
+                Continue <span className="arr">→</span>
+              </button>
+            </div>
           </>
         );
 
       case "single-input":
         return (
           <>
-            <Header back="method" />
+            <div className="sds-topbar"><Back to="method" /></div>
             <Steps active={2} />
             <h3 className="sds-h3">{isClient ? "Which email address have they given you?" : "Which email address do you want to use?"}</h3>
             <p className="sds-body">
@@ -305,7 +303,7 @@ export function SenderDomainSection({
                 : "This must be an address on your business's own domain, rather than a personal Gmail, Outlook or similar account."}
             </p>
             <div className="sds-row">
-              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={createSingle} disabled={busy || !email.trim()}>
+              <button type="button" className="sds-btn" onClick={createSingle} disabled={busy || !email.trim()}>
                 {busy ? "Sending…" : "Send verification email"}
               </button>
               <button type="button" className="sds-link" onClick={() => setView("method")}>Choose another setup option</button>
@@ -316,12 +314,11 @@ export function SenderDomainSection({
       case "single-sent":
         return (
           <>
-            <Header />
             <Steps active={3} />
             <h3 className="sds-h3">Check your inbox</h3>
             <p className="sds-body">We&rsquo;ve sent a verification email to <b>{pendingAddr}</b>. Open the email and click the link to confirm you have access.</p>
             <div className="sds-wait">
-              <span className="sds-env">✉️</span>
+              <EnvelopeSimple size={26} weight="bold" className="sds-env" />
               <span className="sds-wt"><b>Waiting for verification…</b><span>We&rsquo;ll update this page as soon as the address is confirmed.</span></span>
               <span className={`sds-spin ${busy ? "" : "idle"}`} />
             </div>
@@ -331,7 +328,7 @@ export function SenderDomainSection({
               </p>
             )}
             <div className="sds-row">
-              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={checkSingle} disabled={busy}>
+              <button type="button" className="sds-btn" onClick={checkSingle} disabled={busy}>
                 {busy ? "Checking…" : "Check verification"}
               </button>
               <button type="button" className="sds-link" onClick={resendSingle} disabled={busy}>Resend email</button>
@@ -347,7 +344,7 @@ export function SenderDomainSection({
       case "domain-input":
         return (
           <>
-            <Header back="method" />
+            <div className="sds-topbar"><Back to="method" /></div>
             <Steps active={2} />
             <h3 className="sds-h3">Which email address would you like to use?</h3>
             <p className="sds-body">
@@ -362,7 +359,7 @@ export function SenderDomainSection({
               placeholder={`updates@${sampleDomain}`} />
             <p className="sds-help">You don&rsquo;t need to create a mailbox for this address. We&rsquo;ll use the domain to set up email sending.</p>
             <div className="sds-row">
-              <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" onClick={createDomain} disabled={busy || !email.trim()}>
+              <button type="button" className="sds-btn" onClick={createDomain} disabled={busy || !email.trim()}>
                 {busy ? "Working…" : "Get setup instructions"}
               </button>
               <button type="button" className="sds-link" onClick={() => setView("method")}>Choose another setup option</button>
@@ -373,7 +370,7 @@ export function SenderDomainSection({
       case "domain-records":
         return (
           <>
-            <Header back="method" />
+            <div className="sds-topbar"><Back to="method" /></div>
             <Steps active={3} />
             <h3 className="sds-h3">{isClient ? "One final step to connect their domain" : "One final step to connect your domain"}</h3>
             <p className="sds-body">
@@ -390,7 +387,6 @@ export function SenderDomainSection({
       case "verified":
         return (
           <>
-            <Header />
             <div className="sds-ok">
               <span className="sds-ok-ck">✓</span>
               <span><b>You&rsquo;re all set</b><span className="sds-ok-sub">{isClient
@@ -406,83 +402,134 @@ export function SenderDomainSection({
                 : "When someone replies, their email will be sent to your usual email address. You don't need to check a separate inbox."}
             </p>
             <div className="sds-row">
-              <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" onClick={() => { setEmail(""); setView("method"); }}>Change email address</button>
+              <button type="button" className="sds-btn-ghost" onClick={() => { setEmail(""); setChosen(null); setView("method"); }}>Change email address</button>
             </div>
           </>
         );
     }
   }
 
+  // In the client workspace there's no outer AccountCard, so the component renders
+  // its own titled card (matching the EmailStudio card above it). In the business
+  // Emails tab an AccountCard already provides the "Sending address" title, so we
+  // render bare there — no duplicate heading.
+  const titled = scope === "client";
   return (
-    <div className="sds-card">
+    <div className={titled ? "sds-shell" : "sds-wrap"}>
+      {titled && (
+        <div className="sds-shell-head">
+          <h4 className="sds-shell-h">Sending address</h4>
+          <p className="sds-shell-sub">The address {subjectName || "the agency"}&rsquo;s emails come from.</p>
+        </div>
+      )}
       <div className="sds-swap" key={view}>{body()}</div>
       <style>{`
-        .sds-card { background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle); border-radius: 16px; padding: 20px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); margin-top: 16px; }
+        .sds-wrap { margin-top: 2px; }
+        .sds-shell { background: var(--agent-surface, rgba(255,255,255,0.82)); -webkit-backdrop-filter: blur(14px) saturate(115%); backdrop-filter: blur(14px) saturate(115%); border: 0.5px solid rgba(0,0,0,0.07); border-radius: 16px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 22px rgba(20,14,10,0.05); margin-top: 16px; }
+        .sds-shell-head { margin-bottom: 16px; }
+        .sds-shell-h { margin: 0; font-size: 15.5px; font-weight: 700; color: var(--agent-text-primary); letter-spacing: -0.01em; }
+        .sds-shell-sub { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--agent-text-muted); }
         .sds-swap { animation: sds-rise .26s cubic-bezier(.2,.7,.3,1) both; }
         @keyframes sds-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
         @media (prefers-reduced-motion: reduce) { .sds-swap { animation: none; } }
 
         .sds-muted { font-size: 13px; color: var(--agent-text-muted); margin: 0; }
-        .sds-hlabel { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--agent-text-muted); margin: 0 0 15px; }
-        .sds-back { appearance: none; border: none; background: none; cursor: pointer; color: var(--agent-text-muted); font: inherit; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 6px; transition: color .15s; }
+        .sds-topbar { margin: 0 0 12px; }
+        .sds-back { appearance: none; border: none; background: none; cursor: pointer; color: var(--agent-text-muted); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px; border-radius: 6px; transition: color .15s; }
         .sds-back:hover, .sds-back:focus-visible { color: var(--agent-text-primary); outline: none; }
 
+        /* Step pips — glossy gradient, matched to the EmailStudio (.eb-pip) above. */
         .sds-steps { display: flex; align-items: center; gap: 7px; margin: 0 0 18px; }
-        .sds-st { display: flex; align-items: center; gap: 7px; }
-        .sds-bub { width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; background: var(--agent-surface, rgba(255,255,255,0.6)); color: var(--agent-text-muted); border: 1px solid var(--agent-border-subtle); }
-        .sds-st.on .sds-bub { background: var(--agent-coral, #FF6B4A); color: #fff; border-color: var(--agent-coral, #FF6B4A); }
-        .sds-st.done .sds-bub { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); border-color: transparent; }
-        .sds-lab { font-size: 12px; font-weight: 650; color: var(--agent-text-muted); }
-        .sds-st.on .sds-lab { color: var(--agent-text-primary); }
+        .sds-st { display: flex; align-items: center; gap: 9px; }
+        .sds-bub { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; flex-shrink: 0;
+          background: linear-gradient(180deg, #f4f5f7, #e2e5e9); color: #9ca3af;
+          box-shadow: inset 0 1.5px 1px rgba(255,255,255,0.9), inset 0 -2px 4px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(15,23,42,0.18); }
+        .sds-st.on .sds-bub, .sds-st.done .sds-bub { background: linear-gradient(180deg, #FF8A5C, #E2452A); color: #fff;
+          box-shadow: inset 0 1.5px 1px rgba(255,255,255,0.45), inset 0 -2px 5px rgba(0,0,0,0.18), 0 3px 8px -2px rgba(255,107,74,0.55); }
+        .sds-lab { font-size: 12.5px; font-weight: 650; color: var(--agent-text-muted); }
+        .sds-st.on .sds-lab, .sds-st.done .sds-lab { color: var(--agent-text-primary); }
         .sds-sep { flex: 1; height: 1.5px; background: var(--agent-border-subtle); border-radius: 2px; min-width: 12px; }
         @media (max-width: 520px) { .sds-lab { display: none; } }
 
         .sds-h3 { font-size: 17px; line-height: 1.25; letter-spacing: -.01em; margin: 0 0 8px; font-weight: 750; color: var(--agent-text-primary); }
-        .sds-body { font-size: 14px; color: var(--agent-text-secondary); margin: 0 0 18px; line-height: 1.6; max-width: 66ch; }
+        .sds-body { font-size: 14px; color: var(--agent-text-secondary); margin: 0 0 18px; line-height: 1.6; }
         .sds-body b { color: var(--agent-text-primary); font-weight: 650; }
 
+        /* Email preview */
         .sds-mail { background: var(--agent-surface, rgba(255,255,255,0.6)); border: 1px solid var(--agent-border-subtle); border-radius: 13px; padding: 13px 15px; }
         .sds-mail-row { display: flex; align-items: center; gap: 12px; }
-        .sds-avatar { flex: none; width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(145deg, var(--agent-coral, #FF6B4A), var(--agent-coral-deep, #E2452A)); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+        .sds-avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(145deg, #FF8A5C, #E2452A); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 6px -1px rgba(255,107,74,0.4); }
         .sds-mail-id { min-width: 0; display: flex; flex-direction: column; }
         .sds-mail-name { font-weight: 750; font-size: 14px; color: var(--agent-text-primary); line-height: 1.25; }
         .sds-mail-addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--agent-text-muted); margin-top: 2px; overflow-wrap: anywhere; }
-        .sds-pill { margin-left: auto; flex: none; display: inline-flex; align-items: center; font-size: 11px; font-weight: 750; padding: 4px 9px; border-radius: 999px; }
-        .sds-pill.good { background: rgba(47,125,83,0.12); color: var(--agent-success, #2F7D53); }
-        .sds-pill.neutral { background: var(--agent-border-subtle); color: var(--agent-text-muted); }
 
-        .sds-ann { display: flex; gap: 16px; margin-top: 13px; flex-wrap: wrap; }
-        .sds-ann > div { font-size: 12px; color: var(--agent-text-muted); display: flex; gap: 7px; align-items: flex-start; flex: 1; min-width: 160px; }
+        /* Glass pills */
+        .sds-pill { margin-left: auto; flex: none; display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 999px;
+          -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(15,23,42,0.05); }
+        .sds-pill.neutral { background: rgba(255,255,255,0.5); color: var(--agent-text-muted); border: 1px solid var(--agent-border-subtle); }
+        .sds-pill.good { background: rgba(47,125,83,0.14); color: var(--agent-success, #2F7D53); border: 1px solid rgba(47,125,83,0.24); }
+
+        /* Overview actions — bullets left, CTA right, one row */
+        .sds-ov-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 14px; }
+        .sds-ann { display: flex; gap: 16px; flex-wrap: wrap; flex: 1; min-width: 240px; }
+        .sds-ann > div { font-size: 12px; color: var(--agent-text-muted); display: flex; gap: 7px; align-items: flex-start; flex: 1; min-width: 150px; }
         .sds-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
         .sds-dot.f { background: var(--agent-text-muted); }
         .sds-dot.v { background: var(--agent-coral, #FF6B4A); }
         .sds-ann b { display: block; color: var(--agent-text-primary); font-weight: 700; }
+        @media (max-width: 560px) { .sds-ov-actions .sds-btn { width: 100%; justify-content: center; } }
 
         .sds-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+        .sds-row-end { justify-content: flex-end; }
         .sds-link { appearance: none; background: none; border: none; cursor: pointer; color: var(--agent-text-muted); font: inherit; font-size: 13px; font-weight: 600; padding: 8px 4px; transition: color .15s; }
         .sds-link:hover, .sds-link:focus-visible { color: var(--agent-text-primary); outline: none; }
         .sds-link:disabled { opacity: .5; cursor: default; }
 
+        /* Glossy gradient primary — matched to the EmailStudio Next button (.eb-next). */
+        .sds-btn { font-size: 13px; font-weight: 700; color: #fff; border: none; border-radius: 10px; padding: 11px 19px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+          background: linear-gradient(180deg, #FF7A5C, #E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 14px -5px rgba(255,107,74,0.5);
+          transition: transform 120ms, box-shadow 150ms, filter 150ms; }
+        .sds-btn:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 7px 18px -6px rgba(255,107,74,0.6); }
+        .sds-btn:active:not(:disabled) { transform: scale(0.98); }
+        .sds-btn:focus-visible { outline: 2px solid var(--agent-coral, #FF6B4A); outline-offset: 2px; }
+        .sds-btn:disabled { background: rgba(0,0,0,0.08); color: #9ca3af; cursor: default; box-shadow: none; }
+        .sds-btn .arr { display: inline-block; transition: transform 180ms cubic-bezier(.22,1,.36,1); }
+        .sds-btn:hover:not(:disabled) .arr { transform: translateX(3px); }
+
+        .sds-btn-ghost { font-size: 13px; font-weight: 650; color: var(--agent-text-secondary); background: transparent; border: 1.5px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 10px; padding: 9px 16px; cursor: pointer; transition: border-color .15s, color .15s; }
+        .sds-btn-ghost:hover { border-color: var(--agent-coral, #FF6B4A); color: var(--agent-coral-deep, #E2452A); }
+
         .sds-note { display: flex; gap: 9px; background: var(--agent-surface, rgba(255,255,255,0.55)); border: 1px solid var(--agent-border-subtle); border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; margin-top: 16px; }
         .sds-note-ic { flex: none; font-size: 14px; line-height: 1.3; }
 
-        .sds-opt { display: block; width: 100%; text-align: left; appearance: none; cursor: pointer; color: inherit; background: var(--agent-surface, rgba(255,255,255,0.6)); border: 1.5px solid var(--agent-border-subtle); border-radius: 14px; padding: 15px; transition: border-color .15s, background .15s, transform .05s; }
+        /* Method selector — claim-flow choice card: elevated white, gradient-fill on select. */
+        .sds-opt { position: relative; display: block; width: 100%; text-align: left; appearance: none; cursor: pointer; color: inherit; background: var(--agent-surface, #fff); border: 1.5px solid var(--agent-border-subtle); border-radius: 15px; padding: 16px 44px 16px 16px;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.04); transition: transform .18s, box-shadow .18s, border-color .18s, background .18s; }
         .sds-opt + .sds-opt { margin-top: 11px; }
-        .sds-opt:hover { border-color: var(--agent-coral, #FF6B4A); background: rgba(var(--agent-coral-rgb),0.06); }
-        .sds-opt:active { transform: translateY(1px); }
+        .sds-opt:hover { border-color: rgba(255,107,74,0.5); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26,29,41,0.08); }
+        .sds-opt:active { transform: translateY(0); }
         .sds-opt:focus-visible { outline: 2px solid var(--agent-coral, #FF6B4A); outline-offset: 2px; }
-        .sds-opt-top { display: flex; align-items: center; gap: 9px; }
-        .sds-opt-ic { flex: none; width: 32px; height: 32px; border-radius: 9px; background: rgba(var(--agent-coral-rgb),0.11); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 15px; }
-        .sds-opt-ttl { font-weight: 700; font-size: 14.5px; color: var(--agent-text-primary); }
-        .sds-rec { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb),0.11); padding: 2px 7px; border-radius: 6px; }
-        .sds-opt-arrow { margin-left: auto; color: var(--agent-text-muted); font-size: 18px; transition: transform .15s; }
-        .sds-opt:hover .sds-opt-arrow { transform: translateX(3px); color: var(--agent-coral-deep, #E2452A); }
+        .sds-opt.on { background: linear-gradient(180deg, #FF7A5C, #E2452A); border-color: transparent; transform: none;
+          box-shadow: 0 12px 26px -6px rgba(255,107,74,0.5), inset 0 1px 0 rgba(255,255,255,0.4); }
+        .sds-opt-radio { position: absolute; top: 14px; right: 14px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--agent-border-strong, rgba(0,0,0,0.18)); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: transparent; transition: all .15s; }
+        .sds-opt.on .sds-opt-radio { background: #fff; border-color: #fff; color: var(--agent-coral-deep, #E2452A); box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
+        .sds-opt-top { display: flex; align-items: center; gap: 10px; }
+        .sds-opt-ic { flex: none; color: var(--agent-coral-deep, #E2452A); }
+        .sds-opt.on .sds-opt-ic { color: #fff; }
+        .sds-opt-ttl { font-weight: 750; font-size: 14.5px; color: var(--agent-text-primary); }
+        .sds-opt.on .sds-opt-ttl { color: #fff; }
+        .sds-rec { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--agent-coral-deep, #E2452A);
+          background: linear-gradient(180deg, #ffffff, #fdf1ec); border: 1px solid rgba(226,69,42,0.18); padding: 3px 8px; border-radius: 7px;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(226,69,42,0.14); white-space: nowrap; }
+        .sds-opt.on .sds-rec { border-color: transparent; }
         .sds-opt-sub { display: block; font-size: 13px; color: var(--agent-text-secondary); margin: 9px 0 0; line-height: 1.5; }
+        .sds-opt.on .sds-opt-sub { color: rgba(255,255,255,0.92); }
         .sds-ex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-        .sds-opt-facts { display: flex; gap: 8px 16px; margin-top: 10px; flex-wrap: wrap; }
-        .sds-opt-facts span { font-size: 11.5px; color: var(--agent-text-muted); position: relative; }
-        .sds-opt-facts span + span { padding-left: 17px; }
-        .sds-opt-facts span + span::before { content: "·"; position: absolute; left: 6px; color: var(--agent-text-muted); }
+        .sds-opt-facts { display: flex; flex-wrap: wrap; gap: 7px 16px; margin-top: 11px; }
+        .sds-opt-facts span { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--agent-text-muted); }
+        .sds-opt-facts svg { flex: none; opacity: .8; }
+        .sds-opt.on .sds-opt-facts span { color: rgba(255,255,255,0.92); }
+        .sds-opt.on .sds-opt-facts svg { opacity: 1; }
 
         .sds-field { display: block; font-size: 12.5px; font-weight: 700; color: var(--agent-text-primary); margin: 0 0 7px; }
         .sds-input { width: 100%; padding: 11px 13px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1.5px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 10px; outline: none; transition: border-color .15s; }
@@ -491,17 +538,17 @@ export function SenderDomainSection({
         .sds-help { font-size: 12.5px; color: var(--agent-text-muted); margin: 9px 0 0; line-height: 1.5; }
 
         .sds-wait { display: flex; align-items: center; gap: 13px; background: var(--agent-surface, rgba(255,255,255,0.6)); border: 1px solid var(--agent-border-subtle); border-radius: 13px; padding: 15px; }
-        .sds-env { flex: none; width: 42px; height: 42px; border-radius: 11px; background: rgba(var(--agent-coral-rgb),0.11); color: var(--agent-coral-deep, #E2452A); display: grid; place-items: center; font-size: 19px; }
+        .sds-env { flex: none; color: var(--agent-coral-deep, #E2452A); }
         .sds-wt { font-size: 13.5px; color: var(--agent-text-primary); }
         .sds-wt b { font-weight: 700; display: block; }
         .sds-wt span { color: var(--agent-text-muted); display: block; margin-top: 2px; font-size: 12.5px; }
-        .sds-spin { margin-left: auto; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(var(--agent-coral-rgb),0.2); border-top-color: var(--agent-coral, #FF6B4A); animation: sds-sp .8s linear infinite; flex: none; }
+        .sds-spin { margin-left: auto; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(255,107,74,0.2); border-top-color: var(--agent-coral, #FF6B4A); animation: sds-sp .8s linear infinite; flex: none; }
         .sds-spin.idle { animation-play-state: paused; opacity: .5; }
         @keyframes sds-sp { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { .sds-spin { animation: none; } }
 
         .sds-ok { display: flex; align-items: center; gap: 11px; background: rgba(47,125,83,0.10); border: 1px solid rgba(47,125,83,0.22); border-radius: 13px; padding: 13px 15px; margin-bottom: 16px; }
-        .sds-ok-ck { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--agent-success, #2F7D53); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; }
+        .sds-ok-ck { flex: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(180deg, #43b57e, #2F7D53); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 6px -1px rgba(47,125,83,0.4); }
         .sds-ok b { font-size: 13.5px; color: var(--agent-text-primary); font-weight: 750; }
         .sds-ok-sub { display: block; font-size: 12.5px; color: var(--agent-text-secondary); margin-top: 1px; }
       `}</style>
