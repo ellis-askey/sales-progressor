@@ -551,6 +551,15 @@ export function SenderDomainSection({
         .sds-ok-ck { flex: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(180deg, #43b57e, #2F7D53); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 6px -1px rgba(47,125,83,0.4); }
         .sds-ok b { font-size: 13.5px; color: var(--agent-text-primary); font-weight: 750; }
         .sds-ok-sub { display: block; font-size: 12.5px; color: var(--agent-text-secondary); margin-top: 1px; }
+
+        /* Phone: stack the tight 2-column bits into rows so nothing bunches. */
+        @media (max-width: 560px) {
+          .sds-opt-top { align-items: flex-start; }
+          .sds-opt-facts { flex-direction: column; gap: 6px; }
+          .sds-mail-row { flex-wrap: wrap; }
+          .sds-mail-id { flex: 1 1 0; }
+          .sds-pill { margin-left: 50px; margin-top: 4px; }
+        }
       `}</style>
     </div>
   );
