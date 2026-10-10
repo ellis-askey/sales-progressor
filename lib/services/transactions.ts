@@ -830,6 +830,13 @@ export type CreateTransactionInput = {
   // Excludes the row from milestone-velocity analytics — backdated
   // completedAt timestamps would pollute averages otherwise.
   isMigrated?: boolean;
+  // Invited-agent "Send to us": the sale is created BY an ordinary agent and routed
+  // to their progression business. We never block the agent for the progressor's
+  // billing state (no card / dunning) — the sale is accepted, the £5 is owed and
+  // collects when the progressor adds a card. (Item 9. The OWNER's own create-for-
+  // client / bring-in stay gated — they can add a card.) Skips the card gate +
+  // dunning block below.
+  fromAgentIntake?: boolean;
   // True for the "Add a demo" showcase file. Bypasses the payment block and
   // the trial anchor (never sets Agency.firstSubmissionAt — that clock belongs
   // to the first REAL sale), stamps demoExpiresAt ~1 week out, and is never
@@ -961,6 +968,7 @@ export async function createTransaction(input: CreateTransactionInput) {
   // layer catches BillingSetupRequiredError and opens the add-a-card prompt.
   if (
     !input.isDemo &&
+    !input.fromAgentIntake && // agent "Send to us" is never blocked (item 9)
     input.progressionBusinessId &&
     !paymentBlockApplies && // external business (isTspBusiness returned false)
     progressionBillingCollectEnabled() &&
@@ -972,7 +980,7 @@ export async function createTransaction(input: CreateTransactionInput) {
   // Dunning block: a business past its 7-day grace window (card keeps failing) can't
   // add NEW sales until the card is fixed. Files already in progress keep running.
   // Separate from the card gate above — here a card IS on file, it's just failing.
-  if (!input.isDemo && input.progressionBusinessId && !paymentBlockApplies && progressionBillingCollectEnabled()) {
+  if (!input.isDemo && !input.fromAgentIntake && input.progressionBusinessId && !paymentBlockApplies && progressionBillingCollectEnabled()) {
     const { getBusinessPaymentState, BusinessPaymentBlockedError } = await import("@/lib/progression/business-dunning");
     const state = await getBusinessPaymentState(input.progressionBusinessId);
     if (state.kind === "blocked") throw new BusinessPaymentBlockedError();

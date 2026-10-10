@@ -385,6 +385,10 @@ export async function createTransactionAction(input: {
     assignedUserId: effectiveAssignedUserId,
     agentUserId: effectiveAgentUserId,
     progressionBusinessId: clientCreate?.progressionBusinessId ?? invitingProgressorBusinessId ?? null,
+    // Agent "Send to us" (not the owner's own create-for-client): never block the
+    // agent for the progressor's billing state — accept the sale, the £5 collects
+    // when the progressor adds a card (item 9).
+    fromAgentIntake: !clientCreate && !!invitingProgressorBusinessId,
     createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,
