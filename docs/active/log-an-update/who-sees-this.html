@@ -1,0 +1,335 @@
+<style>
+  :root {
+    --paper:#FFFBF5; --paper-2:#FFF5EC; --ink:#2D1810; --ink-2:#5A3A28;
+    --muted:rgba(45,24,16,.56); --faint:rgba(45,24,16,.40); --line:rgba(45,24,16,.10); --line-soft:rgba(45,24,16,.065);
+    --card:#ffffff;
+    --coral:#FF6B4A; --coral-deep:#F04E2C; --coral-tint:rgba(255,107,74,.10);
+    --seller:#4F46E5; --seller-tint:rgba(79,70,229,.10); --seller-tint-2:rgba(79,70,229,.16); --seller-g1:#6366F1; --seller-g2:#4338CA;
+    --buyer:#BE185D; --buyer-tint:rgba(190,24,93,.10); --buyer-tint-2:rgba(190,24,93,.16); --buyer-g1:#EC4899; --buyer-g2:#9D174D;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(45,24,16,.05), 0 12px 32px -16px rgba(45,24,16,.26);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#17110d; --paper-2:#1d1612; --ink:#F4EBE2; --ink-2:#D8C7B9;
+      --muted:rgba(244,235,226,.60); --faint:rgba(244,235,226,.40); --line:rgba(244,235,226,.13); --line-soft:rgba(244,235,226,.08);
+      --card:#221a15;
+      --coral:#FF7E5F; --coral-deep:#FF6B4A; --coral-tint:rgba(255,126,95,.15);
+      --seller:#A5B4FC; --seller-tint:rgba(165,180,252,.12); --seller-tint-2:rgba(165,180,252,.2); --seller-g1:#818CF8; --seller-g2:#4F46E5;
+      --buyer:#F9A8D4; --buyer-tint:rgba(249,168,212,.12); --buyer-tint-2:rgba(249,168,212,.2); --buyer-g1:#F472B6; --buyer-g2:#BE185D;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px -18px rgba(0,0,0,.65);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#FFFBF5; --paper-2:#FFF5EC; --ink:#2D1810; --ink-2:#5A3A28;
+    --muted:rgba(45,24,16,.56); --faint:rgba(45,24,16,.40); --line:rgba(45,24,16,.10); --line-soft:rgba(45,24,16,.065); --card:#ffffff;
+    --coral:#FF6B4A; --coral-deep:#F04E2C; --coral-tint:rgba(255,107,74,.10);
+    --seller:#4F46E5; --seller-tint:rgba(79,70,229,.10); --seller-tint-2:rgba(79,70,229,.16); --seller-g1:#6366F1; --seller-g2:#4338CA;
+    --buyer:#BE185D; --buyer-tint:rgba(190,24,93,.10); --buyer-tint-2:rgba(190,24,93,.16); --buyer-g1:#EC4899; --buyer-g2:#9D174D;
+    --shadow:0 1px 2px rgba(45,24,16,.05), 0 12px 32px -16px rgba(45,24,16,.26);
+  }
+  :root[data-theme="dark"]{
+    --paper:#17110d; --paper-2:#1d1612; --ink:#F4EBE2; --ink-2:#D8C7B9;
+    --muted:rgba(244,235,226,.60); --faint:rgba(244,235,226,.40); --line:rgba(244,235,226,.13); --line-soft:rgba(244,235,226,.08); --card:#221a15;
+    --coral:#FF7E5F; --coral-deep:#FF6B4A; --coral-tint:rgba(255,126,95,.15);
+    --seller:#A5B4FC; --seller-tint:rgba(165,180,252,.12); --seller-tint-2:rgba(165,180,252,.2); --seller-g1:#818CF8; --seller-g2:#4F46E5;
+    --buyer:#F9A8D4; --buyer-tint:rgba(249,168,212,.12); --buyer-tint-2:rgba(249,168,212,.2); --buyer-g1:#F472B6; --buyer-g2:#BE185D;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px -18px rgba(0,0,0,.65);
+  }
+
+  *{box-sizing:border-box;}
+  .wrap{
+    margin:0; font-family:var(--sans); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;
+    background:radial-gradient(1000px 480px at 84% -10%, var(--coral-tint), transparent 58%), var(--paper);
+    min-height:100vh; padding:clamp(28px,6vw,64px) clamp(16px,5vw,24px) 90px;
+  }
+  .page{max-width:620px; margin:0 auto;}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--coral-deep); font-weight:600; margin:0 0 13px;}
+  h1{font-size:clamp(25px,5vw,34px); line-height:1.1; letter-spacing:-.025em; margin:0 0 14px; font-weight:720; text-wrap:balance;}
+  .lede{font-size:15.5px; color:var(--ink-2); margin:0 0 6px; max-width:58ch;}
+  .hint{font-size:13px; color:var(--muted); margin:16px 0 0; display:inline-flex; align-items:center; gap:8px;}
+  .hint .pulse{width:8px; height:8px; border-radius:99px; background:var(--coral); box-shadow:0 0 0 0 var(--coral); animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,107,74,.45)}70%{box-shadow:0 0 0 7px rgba(255,107,74,0)}100%{box-shadow:0 0 0 0 rgba(255,107,74,0)}}
+
+  /* Demo card — a slice of the Log an update modal */
+  .demo{margin-top:30px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+  .demo-bar{display:flex; align-items:center; gap:7px; padding:11px 15px; border-bottom:1px solid var(--line-soft); background:var(--paper-2);}
+  .demo-bar .d{width:9px;height:9px;border-radius:99px;background:var(--line);}
+  .demo-bar .t{margin-left:7px; font-family:var(--mono); font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted);}
+  .demo-body{padding:20px;}
+
+  .mini-eyebrow{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--faint); font-weight:600; margin:0 0 9px;}
+
+  /* participant summary (context) */
+  .ctx{display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid var(--line-soft);}
+  .ctx .ctxlab{font-size:12.5px; color:var(--muted);}
+  .tagpill{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 10px 3px 3px; border-radius:99px; border:1px solid var(--line); background:var(--card);}
+
+  /* master toggle */
+  .master{display:flex; align-items:center; gap:12px; cursor:pointer; user-select:none;}
+  .sw{width:42px; height:24px; border-radius:99px; position:relative; flex:0 0 auto; background:var(--line); transition:background .2s;}
+  .sw::after{content:""; position:absolute; top:2.5px; left:2.5px; width:19px; height:19px; border-radius:99px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:transform .22s cubic-bezier(.3,1.4,.5,1);}
+  .master.on .sw{background:linear-gradient(180deg,var(--coral),var(--coral-deep));}
+  .master.on .sw::after{transform:translateX(18px);}
+  .master:hover .sw{filter:brightness(1.05);}
+  .mlab{font-size:14px; font-weight:650; color:var(--ink);}
+  .mlab small{display:block; font-weight:400; font-size:12px; color:var(--muted); margin-top:1px;}
+
+  /* who-sees-this panel */
+  .wst{overflow:hidden; max-height:0; opacity:0; transition:max-height .36s cubic-bezier(.22,1,.36,1), opacity .26s ease, margin-top .36s ease;}
+  .wst.show{max-height:460px; opacity:1; margin-top:20px;}
+  .wst-inner{padding-top:19px; border-top:1px solid var(--line-soft);}
+  .wst-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px;}
+  .wst-title{font-size:13.5px; font-weight:650; color:var(--ink);}
+
+  .modebtn{font:inherit; font-size:12px; font-weight:600; color:var(--coral-deep); background:none; border:0; cursor:pointer; padding:4px 2px; display:inline-flex; align-items:center; gap:5px; transition:gap .16s, opacity .16s;}
+  .modebtn:hover{gap:8px;}
+  .modebtn svg{width:13px; height:13px;}
+
+  /* side chips */
+  .sides{display:flex; gap:9px; flex-wrap:wrap;}
+  .chip{
+    flex:1 1 0; min-width:150px; display:flex; align-items:center; gap:11px; cursor:pointer;
+    padding:12px 14px; border-radius:13px; border:1.5px solid var(--line); background:var(--card);
+    transition:border-color .16s, transform .16s, box-shadow .16s, background .16s;
+  }
+  .chip:hover{transform:translateY(-1px);}
+  .chip .ava{width:30px; height:30px; border-radius:99px; display:grid; place-items:center; color:#fff; font-size:11px; font-weight:700; flex:0 0 auto; box-shadow:inset 0 1px 0 rgba(255,255,255,.2);}
+  .chip .ctext{flex:1; min-width:0;}
+  .chip .cname{font-size:13.5px; font-weight:650; color:var(--ink); line-height:1.2;}
+  .chip .csub{font-size:11.5px; color:var(--muted);}
+  .chip .tick{width:21px; height:21px; border-radius:99px; border:1.5px solid var(--line); display:grid; place-items:center; color:#fff; flex:0 0 auto; transition:all .16s; transform:scale(.9);}
+  .chip .tick svg{width:11px; height:11px; opacity:0; transform:scale(.5); transition:all .18s cubic-bezier(.3,1.5,.5,1);}
+
+  .chip.seller .ava{background:linear-gradient(140deg,var(--seller-g1),var(--seller-g2));}
+  .chip.buyer .ava{background:linear-gradient(140deg,var(--buyer-g1),var(--buyer-g2));}
+  .chip.seller:hover{border-color:var(--seller);}
+  .chip.buyer:hover{border-color:var(--buyer);}
+
+  .chip.seller.sel{border-color:var(--seller); background:var(--seller-tint); box-shadow:0 4px 14px -4px var(--seller-tint-2);}
+  .chip.buyer.sel{border-color:var(--buyer); background:var(--buyer-tint); box-shadow:0 4px 14px -4px var(--buyer-tint-2);}
+  .chip.seller.sel .tick{background:var(--seller); border-color:var(--seller); transform:scale(1);}
+  .chip.buyer.sel .tick{background:var(--buyer); border-color:var(--buyer); transform:scale(1);}
+  .chip.sel .tick svg{opacity:1; transform:scale(1);}
+  .chip.seller.sel .cname{color:var(--seller);}
+  .chip.buyer.sel .cname{color:var(--buyer);}
+
+  /* people list */
+  .people{display:flex; flex-direction:column; gap:8px;}
+  .prow{
+    display:flex; align-items:center; gap:11px; cursor:pointer; padding:9px 12px; border-radius:11px;
+    border:1.5px solid var(--line); background:var(--card); transition:border-color .16s, transform .16s, box-shadow .16s, background .16s;
+  }
+  .prow:hover{transform:translateY(-1px);}
+  .prow .ava{width:27px; height:27px; border-radius:99px; display:grid; place-items:center; color:#fff; font-size:10.5px; font-weight:700; flex:0 0 auto;}
+  .prow.seller .ava{background:linear-gradient(140deg,var(--seller-g1),var(--seller-g2));}
+  .prow.buyer .ava{background:linear-gradient(140deg,var(--buyer-g1),var(--buyer-g2));}
+  .prow .pname{flex:1; font-size:13.5px; font-weight:600; color:var(--ink);}
+  .prow .pside{font-family:var(--mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; padding:2px 7px; border-radius:6px;}
+  .prow.seller .pside{color:var(--seller); background:var(--seller-tint);}
+  .prow.buyer .pside{color:var(--buyer); background:var(--buyer-tint);}
+  .prow .tick{width:20px; height:20px; border-radius:99px; border:1.5px solid var(--line); display:grid; place-items:center; color:#fff; flex:0 0 auto; transition:all .16s; transform:scale(.9);}
+  .prow .tick svg{width:10px;height:10px;opacity:0; transform:scale(.5); transition:all .18s cubic-bezier(.3,1.5,.5,1);}
+  .prow.seller:hover{border-color:var(--seller);} .prow.buyer:hover{border-color:var(--buyer);}
+  .prow.seller.sel{border-color:var(--seller); background:var(--seller-tint);}
+  .prow.buyer.sel{border-color:var(--buyer); background:var(--buyer-tint);}
+  .prow.seller.sel .tick{background:var(--seller); border-color:var(--seller); transform:scale(1);}
+  .prow.buyer.sel .tick{background:var(--buyer); border-color:var(--buyer); transform:scale(1);}
+  .prow.sel .tick svg{opacity:1; transform:scale(1);}
+
+  .view{display:none;} .view.active{display:block; animation:fade .22s ease both;}
+  @keyframes fade{from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none}}
+
+  /* summary line */
+  .summary{display:flex; align-items:center; gap:10px; margin-top:16px; padding:12px 14px; border-radius:12px; background:var(--paper-2); border:1px solid var(--line-soft); min-height:46px;}
+  .summary .eye{width:17px; height:17px; flex:0 0 auto; color:var(--coral-deep);}
+  .summary .stext{font-size:13px; color:var(--ink-2); line-height:1.45;}
+  .summary .stext b{color:var(--ink); font-weight:650;}
+  .summary.empty .eye{color:var(--faint);} .summary.empty .stext{color:var(--muted);}
+
+  .note{margin-top:34px; font-size:12.5px; color:var(--muted); line-height:1.6; border-left:2px solid var(--coral); padding-left:14px;}
+  .note b{color:var(--ink-2);}
+  .foot{margin-top:40px; font-family:var(--mono); font-size:11.5px; color:var(--faint); letter-spacing:.02em;}
+</style>
+
+<div class="wrap">
+  <div class="page">
+    <p class="eyebrow">Log an update · Phase 6 · interactive prototype</p>
+    <h1>“Who sees this” — the real control</h1>
+    <p class="lede">The sharing control, decoupled from the participant list. Side chips carry their own colour, “specific people” opens a colour-coded picker, and the summary line tells you exactly who’ll see it. Everything below is live.</p>
+    <p class="hint"><span class="pulse"></span> Click the toggle, the chips, and “Pick specific people”.</p>
+
+    <div class="demo">
+      <div class="demo-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Log a call · with the buyer</span></div>
+      <div class="demo-body">
+
+        <div class="ctx">
+          <span class="ctxlab">Logged with</span>
+          <span class="tagpill"><span style="display:inline-grid;place-items:center;width:20px;height:20px;border-radius:99px;color:#fff;font-size:9px;font-weight:700;background:linear-gradient(140deg,var(--buyer-g1),var(--buyer-g2))">TP</span>Tom Price</span>
+        </div>
+
+        <div class="master on" id="master" role="switch" aria-checked="true" tabindex="0">
+          <span class="sw"></span>
+          <span class="mlab">Share with client<small id="mastersub">Showing this call in the portal</small></span>
+        </div>
+
+        <div class="wst show" id="wst">
+          <div class="wst-inner">
+            <div class="wst-head">
+              <span class="wst-title">Who sees this</span>
+              <button class="modebtn" id="modebtn">
+                <span id="modebtn-txt">Pick specific people</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+
+            <!-- by side -->
+            <div class="view active" id="view-side">
+              <div class="sides">
+                <div class="chip seller" data-side="seller" role="checkbox" aria-checked="false" tabindex="0">
+                  <span class="ava">SS</span>
+                  <span class="ctext"><span class="cname">Seller’s side</span><span class="csub">Jane Marsh</span></span>
+                  <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                </div>
+                <div class="chip buyer sel" data-side="buyer" role="checkbox" aria-checked="true" tabindex="0">
+                  <span class="ava">BS</span>
+                  <span class="ctext"><span class="cname">Buyer’s side</span><span class="csub">Tom Price, Priya Shah</span></span>
+                  <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- specific people -->
+            <div class="view" id="view-people">
+              <div class="people" id="peoplelist"></div>
+            </div>
+
+            <div class="summary" id="summary">
+              <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span class="stext" id="stext"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="note"><b>Default behaviour:</b> when you flick Share on, this pre-selects the side(s) of whoever you logged the call with — so the common case is zero extra taps. Here the call was with the buyer, so the buyer’s side is pre-ticked. Widen to the seller too, or switch to specific people when you want to be precise. “Both sides” genuinely reaches both — closing the broadcast gap where buyers were silently dropped.</p>
+
+    <p class="foot">Prototype for Phase 6c · side colours match the app (seller indigo, buyer pink) · clients would be the file’s real contacts</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  var PEOPLE = [
+    { id:"jane", name:"Jane Marsh", side:"seller", initials:"JM" },
+    { id:"tom", name:"Tom Price", side:"buyer", initials:"TP" },
+    { id:"priya", name:"Priya Shah", side:"buyer", initials:"PS" }
+  ];
+
+  var master = document.getElementById("master");
+  var wst = document.getElementById("wst");
+  var mastersub = document.getElementById("mastersub");
+  var modebtn = document.getElementById("modebtn");
+  var modebtnTxt = document.getElementById("modebtn-txt");
+  var viewSide = document.getElementById("view-side");
+  var viewPeople = document.getElementById("view-people");
+  var peopleList = document.getElementById("peoplelist");
+  var summary = document.getElementById("summary");
+  var stext = document.getElementById("stext");
+
+  var mode = "side";                 // "side" | "people"
+  var sides = { seller:false, buyer:true };
+  var picked = {};                   // id -> true
+
+  // build people rows
+  PEOPLE.forEach(function(p){
+    var row = document.createElement("div");
+    row.className = "prow " + p.side;
+    row.setAttribute("role","checkbox");
+    row.setAttribute("aria-checked","false");
+    row.tabIndex = 0;
+    row.dataset.id = p.id;
+    row.innerHTML =
+      '<span class="ava">'+p.initials+'</span>' +
+      '<span class="pname">'+p.name+'</span>' +
+      '<span class="pside">'+(p.side==="seller"?"Seller":"Buyer")+'</span>' +
+      '<span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
+    row.addEventListener("click", function(){ togglePerson(p.id, row); });
+    row.addEventListener("keydown", function(e){ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); togglePerson(p.id,row);} });
+    peopleList.appendChild(row);
+  });
+
+  function togglePerson(id, row){
+    picked[id] = !picked[id];
+    row.classList.toggle("sel", !!picked[id]);
+    row.setAttribute("aria-checked", picked[id] ? "true":"false");
+    render();
+  }
+
+  // master
+  function setMaster(on){
+    master.classList.toggle("on", on);
+    master.setAttribute("aria-checked", on?"true":"false");
+    wst.classList.toggle("show", on);
+    mastersub.textContent = on ? "Showing this call in the portal" : "This call stays internal";
+  }
+  master.addEventListener("click", function(){ setMaster(!master.classList.contains("on")); });
+  master.addEventListener("keydown", function(e){ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); setMaster(!master.classList.contains("on")); }});
+
+  // side chips
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function(chip){
+    function t(){
+      var s = chip.dataset.side;
+      sides[s] = !sides[s];
+      chip.classList.toggle("sel", sides[s]);
+      chip.setAttribute("aria-checked", sides[s]?"true":"false");
+      render();
+    }
+    chip.addEventListener("click", t);
+    chip.addEventListener("keydown", function(e){ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); t(); }});
+  });
+
+  // mode switch
+  modebtn.addEventListener("click", function(){
+    if(mode==="side"){
+      mode="people";
+      viewSide.classList.remove("active"); viewPeople.classList.add("active");
+      modebtnTxt.textContent = "Back to whole sides";
+      modebtn.querySelector("svg").style.transform="rotate(180deg)";
+    } else {
+      mode="side";
+      viewPeople.classList.remove("active"); viewSide.classList.add("active");
+      modebtnTxt.textContent = "Pick specific people";
+      modebtn.querySelector("svg").style.transform="";
+    }
+    render();
+  });
+
+  function joinNames(arr){
+    if(arr.length===1) return arr[0];
+    if(arr.length===2) return arr[0]+" and "+arr[1];
+    return arr.slice(0,-1).join(", ")+" and "+arr[arr.length-1];
+  }
+
+  function render(){
+    summary.classList.remove("empty");
+    if(mode==="side"){
+      var s = sides.seller, b = sides.buyer;
+      if(s && b) stext.innerHTML = "<b>Both sides</b> will see this update in their portal.";
+      else if(s) stext.innerHTML = "Only the <b>seller’s side</b> will see this.";
+      else if(b) stext.innerHTML = "Only the <b>buyer’s side</b> will see this.";
+      else { stext.innerHTML = "No one sees it yet — pick a side, or keep it internal."; summary.classList.add("empty"); }
+    } else {
+      var names = PEOPLE.filter(function(p){ return picked[p.id]; }).map(function(p){ return p.name; });
+      if(names.length===0){ stext.innerHTML = "No one selected yet — tick the people who should see this."; summary.classList.add("empty"); }
+      else stext.innerHTML = "<b>"+joinNames(names)+"</b> will see this"+(names.length===1?"":", and no one else")+".";
+    }
+  }
+
+  render();
+})();
+</script>
