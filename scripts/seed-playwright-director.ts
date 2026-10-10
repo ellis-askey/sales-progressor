@@ -40,14 +40,22 @@ async function main() {
   }
   console.log("OK — staging DB confirmed (etidawkbqctarmsdjoxp).");
 
-  // Pick the first agency with at least one active transaction so the
-  // test director has visible files to render in screenshots.
-  const agency = await prisma.agency.findFirst({
+  // Pick the agency with the MOST active transactions so the test
+  // director sees realistic data weight — an almost-empty agency makes
+  // screenshots unrepresentative and perf timings meaninglessly fast.
+  const candidates = await prisma.agency.findMany({
     where: {
       transactions: { some: { status: "active" } },
     },
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { transactions: { where: { status: "active" } } } },
+    },
   });
+  const agency = candidates.sort(
+    (a, b) => b._count.transactions - a._count.transactions
+  )[0];
   if (!agency) {
     console.error("No agency with active transactions found on staging. Seed one first.");
     process.exit(1);
