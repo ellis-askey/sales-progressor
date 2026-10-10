@@ -11,6 +11,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { DraftForEveryonePanel } from "./DraftForEveryonePanel";
 import { PasteWhatsAppPanel, type ImportableContact } from "./PasteWhatsAppPanel";
+import { VoiceNotePanel } from "./VoiceNotePanel";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { logCommAction } from "@/app/actions/comms";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -29,7 +31,7 @@ type Props = {
   onOptimisticAdd?: (type: CommType, method: CommMethod | null, content: string, contactIds: string[]) => void;
 };
 
-type Screen = "home" | "draft" | "whatsapp" | "log" | "note";
+type Screen = "home" | "draft" | "record" | "whatsapp" | "log" | "note";
 type LogChannel = "email" | "phone" | "sms" | "voicemail" | "post";
 
 type LogItem = { key: LogChannel | "note" | "whatsapp"; title: string; sub: string; icon: string };
@@ -56,6 +58,7 @@ function svg(path: string, size = 18, sw = 1.8) {
 export function LogUpdateModal(props: Props) {
   const { transactionId, contacts, solicitors = [], canPasteChat, emailConnected, canMarkPrivate, onOptimisticAdd } = props;
 
+  const { toast } = useAgentToast();
   const [open, setOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [channel, setChannel] = useState<LogChannel>("phone");
@@ -136,7 +139,17 @@ export function LogUpdateModal(props: Props) {
     }
   }
 
-  const titles: Record<Screen, string> = { home: "Log an update", draft: "Updates for each side", whatsapp: "Paste a WhatsApp chat", log: titleForChannel(channel), note: "Add a note" };
+  const titles: Record<Screen, string> = { home: "Log an update", draft: "Updates for each side", record: "Record a note", whatsapp: "Paste a WhatsApp chat", log: titleForChannel(channel), note: "Add a note" };
+
+  function finishVoice(s: { milestones: number; todos: number; sends: number; enquiry: boolean }) {
+    close();
+    const bits: string[] = [];
+    if (s.sends) bits.push(`sent ${s.sends} update${s.sends === 1 ? "" : "s"}`);
+    const fileCount = s.milestones + s.todos + (s.enquiry ? 1 : 0);
+    if (fileCount) bits.push(`made ${fileCount} change${fileCount === 1 ? "" : "s"} to the file`);
+    const sentence = bits.join(", ").replace(/^./, (c) => c.toUpperCase());
+    toast.success(bits.length ? `${sentence}.` : "Saved to the file.");
+  }
 
   const clients = contacts;
 
@@ -175,6 +188,10 @@ export function LogUpdateModal(props: Props) {
                       <button className="lum-btn lum-more" onClick={(e) => { e.stopPropagation(); setMoreOpen((v) => !v); }}>
                         <span dangerouslySetInnerHTML={{ __html: svg(IC.list, 15, 2) }} /> Log <span dangerouslySetInnerHTML={{ __html: svg(IC.chevron, 12, 2.4) }} />
                       </button>
+                      <button className="lum-btn lum-record" onClick={() => setScreen("record")}>
+                        <span className="lum-recava" dangerouslySetInnerHTML={{ __html: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>' }} />
+                        <span className="lum-rectxt">Record it</span>
+                      </button>
                     </div>
                     {moreOpen && (
                       <div className="lum-menu">
@@ -208,6 +225,10 @@ export function LogUpdateModal(props: Props) {
                 <div className="lum-fade">
                   <DraftForEveryonePanel transactionId={transactionId} contacts={clients} onClose={close} />
                 </div>
+              )}
+
+              {screen === "record" && (
+                <VoiceNotePanel transactionId={transactionId} contacts={clients} onDone={finishVoice} />
               )}
 
               {screen === "whatsapp" && (
@@ -369,5 +390,36 @@ const CSS = `
 .lum-sendbar { position:sticky; bottom:0; background:linear-gradient(180deg, rgba(255,251,245,0), var(--agent-bg-paper,#FFFBF5) 32%); padding:14px 0 2px; margin-top:8px; }
 .lum-ov :focus-visible { outline:2px solid var(--agent-coral-deep,#FF6B4A); outline-offset:2px; }
 .lum-ta:focus-visible { outline:none; }
+.lum-record:hover { border-color:#294A73; background:#fff; }
+.lum-recava { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; color:#fff; background:linear-gradient(180deg,#294A73 0%,#163152 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); flex:0 0 auto; }
+.lum-rectxt { color:#163152; }
+.lum-rec { text-align:center; }
+.lum-listen { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--agent-text-muted,rgba(45,24,16,.55)); background:rgba(45,24,16,.05); padding:5px 12px; border-radius:999px; margin:4px auto 8px; }
+.lum-listen[data-on="1"] { color:#C63E20; background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); }
+.lum-blip { width:8px; height:8px; border-radius:999px; background:var(--agent-border-strong,rgba(45,24,16,.18)); }
+.lum-listen[data-on="1"] .lum-blip { background:#F04E2C; animation:lum-blip 1.1s ease-in-out infinite; }
+@keyframes lum-blip { 0%,100%{opacity:1} 50%{opacity:.25} }
+.lum-rectime { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--agent-text-primary,#2D1810); margin:2px 0; }
+.lum-wave { display:flex; align-items:center; justify-content:center; gap:3px; height:40px; margin:6px 0; }
+.lum-wave span { width:3px; border-radius:999px; background:var(--agent-coral,#FF8A65); opacity:.85; height:12%; }
+.lum-wave.on span { animation:lum-wav .9s ease-in-out infinite; }
+@keyframes lum-wav { 0%,100%{height:14%} 50%{height:82%} }
+.lum-recbtns { display:flex; gap:9px; margin-top:14px; justify-content:center; }
+.lum-shimmer { width:40px; height:40px; border-radius:999px; margin:0 auto; border:3px solid var(--agent-coral-bg-tint,rgba(255,138,101,.18)); border-top-color:#F04E2C; animation:lum-spin .8s linear infinite; }
+@keyframes lum-spin { to { transform:rotate(360deg) } }
+.lum-checkrow { display:flex; align-items:flex-start; gap:11px; padding:11px 12px; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; margin-top:8px; background:rgba(255,255,255,.5); cursor:pointer; transition:border-color .14s, background .14s; }
+.lum-checkrow:hover { border-color:var(--agent-coral,#FF8A65); background:#fff; }
+.lum-checkrow .lum-cbx { width:21px; height:21px; border-radius:6px; border:1.5px solid var(--agent-border-strong,rgba(45,24,16,.18)); display:grid; place-items:center; color:#fff; flex:0 0 auto; margin-top:1px; transition:all .14s; }
+.lum-checkrow[aria-pressed="true"] .lum-cbx { background:#10B981; border-color:#10B981; }
+.lum-checkrow[aria-pressed="false"] .lum-cbx svg { display:none; }
+.lum-checkrow[aria-pressed="false"] { opacity:.6; }
+.lum-cr-t { font-size:13.5px; font-weight:600; color:var(--agent-text-primary,#2D1810); }
+.lum-cr-s { font-size:12px; color:var(--agent-text-muted,rgba(45,24,16,.55)); font-weight:500; }
+.lum-sidecard { border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:14px; margin-top:12px; background:rgba(255,255,255,.5); transition:opacity .2s; }
+.lum-sidecard.off { opacity:.55; }
+.lum-sc-head { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+.lum-sc-eye { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+.lum-sc-eye.seller { color:#4F46E5; } .lum-sc-eye.buyer { color:#BE185D; } .lum-sc-eye.note { color:var(--agent-text-tertiary,#7A4A2E); }
+.lum-sub { text-align:center; font-size:11.5px; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin:8px 0 0; }
 @media (prefers-reduced-motion:reduce) { .lum-ov * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
 `;
