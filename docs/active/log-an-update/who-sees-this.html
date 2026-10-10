@@ -94,9 +94,8 @@
   .chip.seller:hover{border-color:var(--seller);} .chip.buyer:hover{border-color:var(--buyer);}
 
   .avastack{display:flex; align-items:center; flex:0 0 auto;}
-  .ava{width:30px; height:30px; border-radius:99px; overflow:hidden; flex:0 0 auto; box-shadow:0 0 0 2px var(--card), 0 1px 2px rgba(0,0,0,.14);}
+  .ava{position:relative; width:30px; height:30px; border-radius:99px; overflow:hidden; flex:0 0 auto; box-shadow:0 0 0 2px var(--card), 0 1px 2px rgba(0,0,0,.14);}
   .ava svg{display:block; width:100%; height:100%;}
-  .avastack .ava + .ava{margin-left:-13px;}
 
   .ctext{flex:1; min-width:0;}
   .cname{font-size:13.5px; font-weight:650; color:var(--ink); line-height:1.25;}
@@ -238,15 +237,24 @@
   var PEOPLE = [
     { id:"stacey", name:"Stacey Marks", side:"seller" },
     { id:"tim", name:"Tim Jones", side:"buyer" },
-    { id:"nancy", name:"Nancy Bell", side:"buyer" }
+    { id:"nancy", name:"Nancy Bell", side:"buyer" },
+    { id:"raj", name:"Raj Patel", side:"buyer" }
   ];
   var bySide = { seller: PEOPLE.filter(function(p){return p.side==="seller";}), buyer: PEOPLE.filter(function(p){return p.side==="buyer";}) };
 
-  // build stacked avatars + names subtext on each chip
+  // build stacked avatars + names subtext on each chip. The more people on a
+  // side, the tighter they overlap so the stack stays compact.
   ["seller","buyer"].forEach(function(side){
     var stack = document.querySelector('[data-stack="'+side+'"]');
-    bySide[side].forEach(function(){ stack.appendChild(avaEl(side)); });
-    document.querySelector('[data-names="'+side+'"]').textContent = bySide[side].map(function(p){return p.name;}).join(", ");
+    var ppl = bySide[side];
+    var overlap = ppl.length <= 2 ? 12 : ppl.length === 3 ? 16 : 20;
+    ppl.forEach(function(_, i){
+      var el = avaEl(side);
+      if (i > 0) el.style.marginLeft = (-overlap) + "px";
+      el.style.zIndex = String(ppl.length - i); // first avatar sits on top
+      stack.appendChild(el);
+    });
+    document.querySelector('[data-names="'+side+'"]').textContent = ppl.map(function(p){return p.name;}).join(", ");
   });
 
   // context pill avatar (logged with Tim — buyer)
