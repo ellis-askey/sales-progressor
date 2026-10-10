@@ -11,8 +11,9 @@
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("next/server", () => ({ after: (fn: () => void) => { void fn; } }));
 jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
-jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn() }));
+jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn(), progressionBillingCollectEnabled: jest.fn(() => false) }));
 jest.mock("@/lib/services/progression-clients", () => ({ resolveBusinessMember: jest.fn() }));
+jest.mock("@/lib/progression/business-stripe", () => ({ businessBillingActive: jest.fn(async () => false), BillingSetupRequiredError: class extends Error {} }));
 jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -34,8 +35,9 @@ jest.mock("@/lib/services/handover-readiness", () => ({
 
 import { createTransactionAction } from "@/app/actions/transactions";
 import { requireSession } from "@/lib/session";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { resolveBusinessMember } from "@/lib/services/progression-clients";
+import { businessBillingActive } from "@/lib/progression/business-stripe";
 import { createTransaction } from "@/lib/services/transactions";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
@@ -68,6 +70,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   (requireSession as jest.Mock).mockResolvedValue(sarahSession);
   (progressionBusinessesEnabled as jest.Mock).mockReturnValue(true);
+  // Collection off by default — the card gate only bites when it's on (go-live).
+  (progressionBillingCollectEnabled as jest.Mock).mockReturnValue(false);
+  (businessBillingActive as jest.Mock).mockResolvedValue(false);
   (resolveBusinessMember as jest.Mock).mockResolvedValue({ businessId: "biz_sarah", userId: "u_sarah" });
   // A valid per-client fee is required before a sale can be created (fee gate).
   p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1", feeModel: { type: "flat", pence: 30000 } });
@@ -97,6 +102,20 @@ describe("createTransactionAction: create-for-client gates", () => {
     p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1", feeModel: null });
     await expect(createTransactionAction(baseInput)).rejects.toThrow(/fee/i);
     expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  it("throws when billing collection is on and the business has no card (no file created)", async () => {
+    (progressionBillingCollectEnabled as jest.Mock).mockReturnValue(true);
+    (businessBillingActive as jest.Mock).mockResolvedValue(false);
+    await expect(createTransactionAction(baseInput)).rejects.toThrow(/payment card/i);
+    expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  it("creates the file when billing collection is on and a card IS on file", async () => {
+    (progressionBillingCollectEnabled as jest.Mock).mockReturnValue(true);
+    (businessBillingActive as jest.Mock).mockResolvedValue(true);
+    await createTransactionAction(baseInput);
+    expect(createTransaction).toHaveBeenCalled();
   });
 });
 

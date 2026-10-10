@@ -229,6 +229,20 @@ export async function createTransactionAction(input: {
     if (!parseFeeModel(link.feeModel)) {
       throw new Error("Set your fee for this client before adding a sale.");
     }
+    // Server-side card gate (go-live). A progression business can't add a sale for
+    // a client until billing is set up (a card on file) — otherwise the £5-per-sale
+    // charge is uncollectable. The createTransaction service throws
+    // BillingSetupRequiredError as a backstop, but we gate explicitly here too, at
+    // the create-for-client boundary with a clear message, so a crafted or stale
+    // request can't slip past the add-a-card step the UI shows. Mirrors the
+    // bring-in-a-sale gate in progression-migration.ts.
+    const { progressionBillingCollectEnabled } = await import("@/lib/progression/flags");
+    if (progressionBillingCollectEnabled()) {
+      const { businessBillingActive } = await import("@/lib/progression/business-stripe");
+      if (!(await businessBillingActive(member.businessId))) {
+        throw new Error("Add a payment card before adding a sale for a client.");
+      }
+    }
     const director = await prisma.user.findFirst({
       where: { agencyId: input.clientAgencyId, role: "director" },
       orderBy: { createdAt: "asc" },
