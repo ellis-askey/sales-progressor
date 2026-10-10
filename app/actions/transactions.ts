@@ -1674,9 +1674,25 @@ export async function switchServiceTypeAction(
   // normal self-progress agency handing over to us) keeps progressionBusinessId
   // null → TSP, exactly as before.
   let handoverBusinessId: string | null = null;
+  let handoverAgencyId: string | null = null;
   if (isAgentHandover && target === "outsourced" && progressionBusinessesEnabled() && session.user.agencyId) {
     const inviting = await getInvitingProgressor(session.user.agencyId);
     handoverBusinessId = inviting?.businessId ?? null;
+    handoverAgencyId = session.user.agencyId;
+  }
+
+  // The progressor must have a rate card for this agency before taking a handed-over
+  // file, else they'd owe TSP £5 for a file they can't invoice their client against.
+  // Mirrors the fee gate on create-for-client and bring-in. The director can't set
+  // the fee, so the message points them at the progressor.
+  if (handoverBusinessId && handoverAgencyId) {
+    const feeLink = await prisma.progressionBusinessClient.findUnique({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: handoverBusinessId, agencyId: handoverAgencyId } },
+      select: { feeModel: true },
+    });
+    if (!parseFeeModel(feeLink?.feeModel ?? null)) {
+      return { ok: false, error: "Your progressor hasn't set a fee for your agency yet. Ask them to set it up before handing files over." };
+    }
   }
 
   // A handed-over file is a billable sale for the progressor (£5), so route it only

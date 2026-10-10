@@ -997,7 +997,15 @@ export async function createTransaction(input: CreateTransactionInput) {
     // recomputed. Atomic with the create below to avoid two parallel
     // first-time creates both claiming to be the anchor file. Demo files skip
     // this entirely (freeOnExchange is moot — a demo never reaches exchange).
-    const freeOnExchange = input.isDemo ? true : await stampTrialState(input.agencyId, tx);
+    // External-business files also skip it: the client agency isn't a direct TSP
+    // customer (it's the business's client, billed £5 to the business), so its TSP
+    // trial clock must not start here, and freeOnExchange is moot for them (billing
+    // -trigger ring-fences external files before any agency free-on-exchange logic).
+    const freeOnExchange = input.isDemo
+      ? true
+      : input.progressionBusinessId
+        ? false
+        : await stampTrialState(input.agencyId, tx);
 
     const created = await tx.propertyTransaction.create({
     data: {
