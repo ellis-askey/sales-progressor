@@ -20,7 +20,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { UserAvatar } from "@/components/ui/Avatar";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction, cancelTeamInviteAction, reinstateTeamMemberAction } from "@/app/actions/progression-clients";
+import { setBusinessMemberViewAllAction, inviteTeamMemberAction, removeTeamMemberAction, cancelTeamInviteAction, reinstateTeamMemberAction, resendTeamInviteAction } from "@/app/actions/progression-clients";
 import type { BusinessTeamMember } from "@/lib/services/progression-clients";
 
 function initials(name: string): string {
@@ -91,6 +91,15 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
     startTransition(async () => {
       const res = await reinstateTeamMemberAction(member.id);
       if (res.ok) { toast.success(`${member.name} reinstated`); router.refresh(); }
+      else { toast.error(res.error); }
+    });
+  }
+
+  function resend(member: BusinessTeamMember) {
+    if (pending) return;
+    startTransition(async () => {
+      const res = await resendTeamInviteAction(member.id);
+      if (res.ok) { toast.success(`Invite resent to ${member.name}`, { description: `We've emailed ${member.email} a fresh set-up link.` }); router.refresh(); }
       else { toast.error(res.error); }
     });
   }
@@ -213,7 +222,10 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
                           <button type="button" className="bt-rm-no" onClick={() => setConfirmRemoveId(null)} disabled={pending}>Keep</button>
                         </div>
                       ) : (
-                        <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title={m.pending ? "Cancel invite" : "Remove teammate"} aria-label={m.pending ? `Cancel invite to ${m.name}` : `Remove ${m.name}`}>{m.pending ? "Cancel invite" : "Remove"}</button>
+                        <>
+                          {m.pending && <button type="button" className="bt-resend" onClick={() => resend(m)} disabled={pending} title={`Resend invite to ${m.name}`}>Resend</button>}
+                          <button type="button" className="bt-rm" onClick={() => setConfirmRemoveId(m.id)} title={m.pending ? "Cancel invite" : "Remove teammate"} aria-label={m.pending ? `Cancel invite to ${m.name}` : `Remove ${m.name}`}>{m.pending ? "Cancel invite" : "Remove"}</button>
+                        </>
                       )
                     )}
                   </div>
@@ -290,6 +302,9 @@ export function BusinessTeamView({ team }: { team: BusinessTeamMember[] }) {
         :root[data-theme="dark"] .bt-pending { color: #E0B050; }
         .bt-rm { font-family: inherit; font-size: 12px; font-weight: 650; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); background: transparent; color: var(--agent-text-muted); cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s; }
         .bt-rm:hover { color: var(--agent-coral-ink, #BE3C1C); border-color: var(--agent-coral-ink, #BE3C1C); }
+        .bt-resend { font-family: inherit; font-size: 12px; font-weight: 650; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); background: transparent; color: var(--agent-text-muted); cursor: pointer; flex-shrink: 0; transition: color .15s, border-color .15s; }
+        .bt-resend:hover { color: var(--agent-coral-deep, #E2452A); border-color: var(--agent-coral-deep, #E2452A); }
+        .bt-resend:disabled { opacity: .5; cursor: default; }
         .bt-rm-confirm { display: inline-flex; gap: 6px; flex-shrink: 0; }
         .bt-rm-yes { font-family: inherit; font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 9px; border: none; background: var(--agent-coral-ink, #BE3C1C); color: #fff; cursor: pointer; }
         .bt-rm-yes:disabled { opacity: 0.6; cursor: default; }

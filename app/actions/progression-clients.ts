@@ -198,7 +198,8 @@ export async function removeClientAgencyAction(agencyId: string): Promise<Action
 export async function reinstateClientAgencyAction(agencyId: string): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
   const session = await requireSession();
-  const owner = await assertOwnerOfClient(session, agencyId);
+  // allowRemoved: reinstate is the one action that must operate ON a removed client.
+  const owner = await assertOwnerOfClient(session, agencyId, { allowRemoved: true });
   if (!owner) return { ok: false, error: "That isn't one of your clients." };
 
   await prisma.progressionBusinessClient.update({
@@ -617,7 +618,46 @@ export async function reinstateTeamMemberAction(memberId: string): Promise<Actio
 
   await prisma.user.update({ where: { id: memberId }, data: { deactivatedAt: null } });
   console.log(`[AUDIT] progression_teammate_reinstated businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
+  // Put the £39 seat back straight away — a reinstated member counts as active in
+  // getBusinessBillingSummary, so (like invite/remove/cancel) re-sync Stripe now
+  // rather than waiting for the daily cron. Only when collection is live; a failure
+  // self-heals via the cron but is surfaced, not swallowed.
+  let warning: string | undefined;
+  if (progressionBillingCollectEnabled()) {
+    try {
+      await syncBusinessSubscription(owner.businessId);
+    } catch (err) {
+      console.error("[progression] seat sync after reinstate failed:", err);
+      warning = "Reinstated, but we couldn't update your billing seat just now. We'll sort it automatically within a day.";
+    }
+  }
   revalidatePath("/agent/team");
+  return { ok: true, warning };
+}
+
+/**
+ * Re-send the set-password invite to a PENDING team member (no password yet).
+ * Owner-gated. Mints a fresh 7-day link (sendTeammateSetupEmail → mintClientSetupLink),
+ * so a lapsed invite can be recovered without cancel-and-re-invite. Mirrors
+ * resendClientPersonInviteAction for client agents.
+ */
+export async function resendTeamInviteAction(memberId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a business owner can resend invites." };
+
+  const member = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { id: true, email: true, name: true, progressionBusinessId: true, progressionBusinessRole: true, password: true },
+  });
+  if (!member || member.progressionBusinessId !== owner.businessId || member.progressionBusinessRole === "owner") {
+    return { ok: false, error: "That isn't one of your team members." };
+  }
+  if (member.password) return { ok: false, error: "They've already set up their account." };
+
+  await sendTeammateSetupEmail({ userId: member.id, email: member.email, name: member.name ?? "", businessName: await businessName(owner.businessId) });
+  console.log(`[AUDIT] progression_teammate_invite_resent businessId=${owner.businessId} userId=${memberId} by=${owner.userId}`);
   return { ok: true };
 }
 
@@ -756,18 +796,27 @@ export async function inviteClientColleagueAction(agencyId: string, formData: Fo
     select: { firmName: true },
   });
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: null, // pending until they set one via the invite link
-      role: "negotiator",
-      agencyId,
-      firmName: director?.firmName ?? null,
-      canViewAllFiles: true, // a colleague follows the sales you progress for the agency
-    },
-    select: { id: true },
-  });
+  let user: { id: string };
+  try {
+    user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: null, // pending until they set one via the invite link
+        role: "negotiator",
+        agencyId,
+        firmName: director?.firmName ?? null,
+        canViewAllFiles: true, // a colleague follows the sales you progress for the agency
+      },
+      select: { id: true },
+    });
+  } catch (e) {
+    // Check-then-create race on the email unique constraint — friendly, not a 500.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { ok: false, error: "An account already exists for that email." };
+    }
+    throw e;
+  }
 
   // Best-effort onboarding email (reuses the client-agent setup flow). A send
   // failure is logged, not fatal — the account exists and they can use Forgot

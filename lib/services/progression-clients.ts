@@ -7,6 +7,7 @@
 // always decided by PropertyTransaction.progressionBusinessId
 // (lib/security/access-scope.ts). See docs/active/progression-businesses/.
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
@@ -174,10 +175,15 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
 
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) {
-    // V1: a client agency must be NEW to the platform (one agency belongs to one
-    // progression business — see the @@unique on ProgressionBusinessClient.agencyId).
-    // Adding an agency that already exists (their own account, or another business's
-    // client) is a deferred growth feature.
+    // V1 SECURITY INVARIANT: a client agency must be NEW to the platform (one agency
+    // belongs to one progression business — see the @@unique on
+    // ProgressionBusinessClient.agencyId). This is what makes it safe for
+    // getClientAgencyDetail to expose the agency's full team roster + settings to the
+    // business owner: every client agency was provisioned BY that business, never an
+    // independently-owned one. If this rule is ever relaxed to allow linking a
+    // pre-existing agency, getClientAgencyDetail MUST be guarded so it doesn't expose
+    // an independent agency's people/settings. Adding an existing agency is a deferred
+    // growth feature.
     return { ok: false, error: "That email already has an account. For now, each client agency must be new to Sales Progressor." };
   }
 
@@ -203,6 +209,12 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
     }));
   } catch (e) {
     if (e instanceof CompanyNameUnavailableError) return { ok: false, error: e.message };
+    // Check-then-create race: the email-exists check above isn't atomic with the
+    // create, so a concurrent add on the same email can trip the unique constraint.
+    // Return the same friendly message rather than an unhandled 500.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { ok: false, error: "That email already has an account. For now, each client agency must be new to Sales Progressor." };
+    }
     throw e;
   }
 
@@ -505,6 +517,11 @@ export type ClientAgencyDetail = {
  * only ever counts files tagged to this business (never the agency's other work).
  */
 export async function getClientAgencyDetail(businessId: string, agencyId: string): Promise<ClientAgencyDetail | null> {
+  // Exposes the client agency's full team roster + settings to the business owner.
+  // This is only safe because a client agency is ALWAYS provisioned by its business
+  // (addClientAgency forbids linking a pre-existing agency — see the SECURITY
+  // INVARIANT there). If that rule is ever relaxed, add a guard here before returning
+  // the roster, or an independently-owned agency's people/settings would be exposed.
   const link = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: businessId, agencyId } },
     select: { id: true, feeModel: true, removedAt: true },
@@ -642,13 +659,26 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
 export { getInvitingProgressorName, getInvitingProgressor } from "@/lib/progression/inviting";
 export type { InvitingProgressor } from "@/lib/progression/inviting";
 
-/** Owner-scoped guard: resolve the business owner AND confirm the agency is their client. */
-export async function assertOwnerOfClient(session: Session, agencyId: string): Promise<BusinessOwner | null> {
+/**
+ * Owner-scoped guard: resolve the business owner AND confirm the agency is their
+ * client. A REMOVED (archived) client is frozen — every management action that
+ * goes through this guard is blocked until the client is reinstated. The reinstate
+ * action passes `allowRemoved` so it can still act on an archived client; the read
+ * path (getClientAgencyDetail) doesn't use this guard, so a removed client still
+ * renders (greyed, with a Reinstate control).
+ */
+export async function assertOwnerOfClient(
+  session: Session,
+  agencyId: string,
+  opts?: { allowRemoved?: boolean },
+): Promise<BusinessOwner | null> {
   const owner = await resolveBusinessOwner(session);
   if (!owner) return null;
   const link = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
-    select: { id: true },
+    select: { id: true, removedAt: true },
   });
-  return link ? owner : null;
+  if (!link) return null;
+  if (link.removedAt && !opts?.allowRemoved) return null;
+  return owner;
 }
