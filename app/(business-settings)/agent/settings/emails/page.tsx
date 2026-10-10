@@ -64,7 +64,7 @@ export default async function BusinessEmailsPage() {
         <AccountCard
           icon={<Palette size={18} weight="bold" />}
           title="Your house style"
-          subtitle="Design how your clients' emails look — colours, type, header and buttons. Every file you progress starts from this, unless a client sets their own."
+          subtitle="Design how your clients' emails look: colours, type, header and buttons. Every file you progress starts from this, unless a client sets their own."
         >
           <EmailStudio initial={houseStyle} endpoint="/api/agent/settings/email-theme" identityName={business?.name ?? "Your business"} themeOnly />
         </AccountCard>
