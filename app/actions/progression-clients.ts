@@ -635,8 +635,8 @@ export async function resendClientInviteAction(agencyId: string): Promise<Action
   });
   if (!director) return { ok: false, error: "There's no agent on this agency to invite." };
 
-  const business = await prisma.progressionBusiness.findUnique({ where: { id: owner.businessId }, select: { name: true } });
-  await sendClientAgentSetupEmail({ userId: director.id, email: director.email, businessName: business?.name ?? "Your progressor" });
+  const sender = await businessSender(owner.businessId);
+  await sendClientAgentSetupEmail({ userId: director.id, email: director.email, businessName: sender.name, senderEmail: sender.senderEmail });
   return { ok: true };
 }
 
@@ -724,6 +724,15 @@ async function businessName(businessId: string): Promise<string> {
   return b?.name ?? "Your progressor";
 }
 
+// Name + sending address for a client-agent invite. The senderEmail is what
+// makes a reply go back to the progression business (their own address) rather
+// than our neutral platform inbox — so every invite path (first send AND every
+// resend / colleague add) must pass it, matching addClientAgency.
+async function businessSender(businessId: string): Promise<{ name: string; senderEmail: string | null }> {
+  const b = await prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { name: true, senderEmail: true } });
+  return { name: b?.name ?? "Your progressor", senderEmail: b?.senderEmail ?? null };
+}
+
 /** Invite a colleague (negotiator) onto a client agency. Owner-scoped. */
 export async function inviteClientColleagueAction(agencyId: string, formData: FormData): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
@@ -764,7 +773,8 @@ export async function inviteClientColleagueAction(agencyId: string, formData: Fo
   // failure is logged, not fatal — the account exists and they can use Forgot
   // password.
   try {
-    await sendClientAgentSetupEmail({ userId: user.id, email, businessName: await businessName(owner.businessId) });
+    const sender = await businessSender(owner.businessId);
+    await sendClientAgentSetupEmail({ userId: user.id, email, businessName: sender.name, senderEmail: sender.senderEmail });
   } catch (err) {
     console.error(`[progression] colleague setup email failed for ${email}`, err);
   }
@@ -787,7 +797,8 @@ export async function resendClientPersonInviteAction(agencyId: string, userId: s
   if (!user) return { ok: false, error: "That person isn't on this agency." };
   if (user.password) return { ok: false, error: "They've already set up their login." };
 
-  await sendClientAgentSetupEmail({ userId: user.id, email: user.email, businessName: await businessName(owner.businessId) });
+  const sender = await businessSender(owner.businessId);
+  await sendClientAgentSetupEmail({ userId: user.id, email: user.email, businessName: sender.name, senderEmail: sender.senderEmail });
   revalidatePath(`/agent/clients/${agencyId}`);
   return { ok: true };
 }

@@ -44,16 +44,20 @@ export type OutsourceIntroEmail = {
 function buildOpener({
   clientFirstName,
   address,
-}: { clientFirstName: string | null; address: string | null }): {
+  saleNoun,
+}: { clientFirstName: string | null; address: string | null; saleNoun: "sale" | "purchase" }): {
   greeting: string;
   opener: string;
 } {
   const greeting = clientFirstName
     ? `Hi ${clientFirstName},`
     : "Hi there,";
-  const opener = address
-    ? `Congratulations, your sale at ${address} has been agreed! It's a big milestone and genuinely great news. From here, our job is to help get everything through to completion, and we've already made a start.`
-    : "Congratulations, your sale has been agreed! It's a big milestone and genuinely great news. From here, our job is to help get everything through to completion, and we've already made a start.";
+  // Role-aware: a seller's "sale at «address»" reads naturally; a buyer's
+  // "purchase of «address»". The no-address fallback drops the preposition.
+  const subject = saleNoun === "purchase"
+    ? (address ? `your purchase of ${address}` : "your purchase")
+    : (address ? `your sale at ${address}` : "your sale");
+  const opener = `Congratulations, ${subject} has been agreed! It's a big milestone and genuinely great news. From here, our job is to help get everything through to completion, and we've already made a start.`;
   return { greeting, opener };
 }
 
@@ -70,10 +74,12 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   const { greeting, opener } = buildOpener({
     clientFirstName: vars.clientFirstName,
     address: vars.address,
+    saleNoun,
   });
 
   const signOff = `${agentFirstName} ${agentLastName}`;
-  const subject = "Getting your sale moving";
+  // Role-aware subject: sellers "sale", buyers "purchase".
+  const subject = `Getting your ${saleNoun} moving`;
 
   // From-name is the agent + agency, comma separated. The sending address
   // (which determines whether the inbox shows a clean agency domain or
@@ -84,7 +90,7 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   const text =
     `${greeting}\n\n` +
     `${opener}\n\n` +
-    `Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They'll be your point of contact throughout the sale, so you'll always know who to speak to and where things are up to.\n\n` +
+    `Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They'll be your point of contact throughout the ${saleNoun}, so you'll always know who to speak to and where things are up to.\n\n` +
     (portalUrl
       ? `In the meantime, you can open your private portal at any time to follow your ${saleNoun} and see exactly where things are up to. We'll keep it updated as the ${saleNoun} progresses, so you always know what's happening.\n\n` +
         `Open your portal: ${portalUrl}\n\n`
@@ -111,7 +117,7 @@ export function buildOutsourceIntroEmail(vars: OutsourceIntroVars): OutsourceInt
   </p>
 
   <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#1a1d29">
-    Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They&apos;ll be your point of contact throughout the sale, so you&apos;ll always know who to speak to and where things are up to.
+    Someone from our team will give you a call within the next two working days to introduce themselves and talk you through what happens next. They&apos;ll be your point of contact throughout the ${saleNoun}, so you&apos;ll always know who to speak to and where things are up to.
   </p>
 
   ${portalUrl

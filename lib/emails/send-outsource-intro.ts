@@ -102,6 +102,10 @@ export async function sendOutsourceIntroForTransaction(
         agency: { select: { name: true } },
         progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
         serviceType: true,
+        // The progressor the file is assigned to. We sign the intro from THEM so the
+        // first email carries the same name the client sees on every later milestone
+        // update (portal.ts uses tx.assignedUser.name). Null on an unassigned file.
+        assignedUser: { select: { name: true } },
         contacts: {
           where: { roleType: { in: ["vendor", "purchaser"] } },
           select: {
@@ -139,7 +143,12 @@ export async function sendOutsourceIntroForTransaction(
       return;
     }
 
-    const { firstName: agentFirstName, lastName: agentLastName } = splitAgentName(creator.name);
+    // Sign-off + from-name use the ASSIGNED progressor's name when the file has
+    // one, so the welcome and every later update read as the same person. Falls
+    // back to the creator when the file isn't assigned yet (e.g. an agency
+    // handover that lands in the needs-assigning queue).
+    const signatoryName = tx.assignedUser?.name ?? creator.name;
+    const { firstName: agentFirstName, lastName: agentLastName } = splitAgentName(signatoryName);
     const agencyName = tx.agency?.name ?? "your agent";
     // WhatsApp CTA resolves from the responsible progression business (null =
     // TSP → the +447508862929 link, unchanged). An external business with no
