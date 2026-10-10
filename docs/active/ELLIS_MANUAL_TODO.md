@@ -4,7 +4,18 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-10
+
+---
+
+## Client "mailbox" sending path — set the sender postal address + live-test (2026-10-10)
+
+New guided **Sending address** card (client workspace Branding tab + business Emails tab) now offers a no-DNS **single-sender** method: the progressor enters a mailbox the agency gave them (e.g. `you@theiragency.co.uk`), SendGrid emails it a verification link, and once clicked we send that client's emails from it. This is brand-new plumbing to SendGrid's Single Sender Verification API — it **must be live-tested before onboarding** (it can't be verified from code):
+
+1. **Set the SendGrid sender postal address in Vercel production** (SendGrid requires a physical address on every single sender, CAN-SPAM). Add: `SENDGRID_SENDER_ADDRESS`, `SENDGRID_SENDER_CITY`, `SENDGRID_SENDER_COUNTRY`, and optionally `SENDGRID_SENDER_ZIP` — set these to The Sales Progressor's real registered address. Until set, the code falls back to placeholder values ("The Sales Progressor / London / United Kingdom") which SendGrid will accept but which aren't your real registered address.
+2. **Live-test the full cycle once** on staging or prod: open a client's Branding tab → Sending address → "I have an email address for this agency" → enter a real test mailbox you control on a non-personal domain → confirm SendGrid's verification email arrives → click the link → hit "Check verification" → confirm it flips to the green "You're all set" state and that a subsequent client email actually sends from that address. (The nightly `check-domains` cron also flips the verified flag, so even without clicking "Check" it should verify within a day.)
+3. **No migration.** This reuses existing columns (`Agency.quoteSenderEmail/quoteSenderVerified`, `ProgressionBusiness.senderEmail/senderDomain/senderVerified`). Nothing to apply.
+4. **Note:** the domain (DNS) method was already working and is unchanged. Only the mailbox method is new.
 
 ---
 

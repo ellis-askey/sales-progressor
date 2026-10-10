@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { createHash, createHmac, randomBytes } from "crypto";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildEmailVerification } from "@/lib/emails/email-verification";
+import {
+  createSingleSender,
+  findSingleSenderByEmail,
+  resendSingleSenderVerification,
+  isSingleSenderVerified,
+} from "@/lib/services/sendgrid";
 
 const PERSONAL_DOMAINS = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk",
@@ -17,6 +23,22 @@ export function isPersonalDomain(email: string): boolean {
 
 export function extractDomain(email: string): string {
   return email.split("@")[1]?.toLowerCase() ?? "";
+}
+
+/**
+ * How a set sending address was set up, for the Sending-address card's resting
+ * state + replies wording. A verified domain matching the address's domain →
+ * "domain" (send-only, replies route to the progressor). Any other set address →
+ * "single" (a real mailbox, replies land in it). Null when nothing is set up.
+ */
+export function senderMethod(
+  senderEmail: string | null,
+  domain: { domain: string; status: string } | null,
+): "domain" | "single" | null {
+  if (!senderEmail) return null;
+  const emailDomain = senderEmail.split("@")[1]?.toLowerCase();
+  const domainVerifiedMatch = !!domain && domain.status === "verified" && domain.domain.toLowerCase() === emailDomain;
+  return domainVerifiedMatch ? "domain" : "single";
 }
 
 function hashCode(code: string): string {
@@ -111,6 +133,92 @@ export async function adoptVerifiedDomainAsBusinessSender(businessId: string, do
     where: { id: businessId },
     data: { senderEmail: `updates@${d}`, senderDomain: d },
   });
+}
+
+// ─── Single-sender (no-DNS "mailbox" path) ────────────────────────────────────
+// The agency has given the progressor a real mailbox on their domain (e.g.
+// you@theiragency.co.uk). We verify that ONE address via SendGrid Single Sender
+// Verification (a link emailed to it) — no DNS. On create we store it as the
+// sending address, UNVERIFIED; the nightly check-domains cron flips the verified
+// flag once SendGrid confirms it, and the "check" action below does the same
+// immediately. No VerifiedDomain exists for it, so the sender resolver keeps
+// reply-to on the address itself (replies land in that inbox).
+
+/** Start single-sender verification for a CLIENT agency. Owner-scoped by caller. */
+export async function startAgencySingleSender(agencyId: string, email: string, fromName: string): Promise<{ ok: true } | { error: string }> {
+  const clean = email.trim().toLowerCase();
+  if (isPersonalDomain(clean)) return { error: "Use an address on the agency's own domain, not a personal account like Gmail or Outlook." };
+  if (!extractDomain(clean)) return { error: "That doesn't look like a valid email address." };
+  try {
+    await createSingleSender({ fromEmail: clean, fromName, replyTo: clean });
+  } catch {
+    return { error: "We couldn't start verification for that address. Check it's correct and try again." };
+  }
+  await prisma.agency.update({
+    where: { id: agencyId },
+    data: { quoteSenderEmail: clean, quoteSenderVerified: false, quoteSenderVerifiedAt: null },
+  });
+  return { ok: true };
+}
+
+/** Check + adopt a CLIENT agency's pending single sender. Returns whether it's verified. */
+export async function checkAgencySingleSender(agencyId: string): Promise<{ verified: boolean }> {
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { quoteSenderEmail: true } });
+  if (!agency?.quoteSenderEmail) return { verified: false };
+  const verified = await isSingleSenderVerified(agency.quoteSenderEmail);
+  if (verified) {
+    await prisma.agency.update({ where: { id: agencyId }, data: { quoteSenderVerified: true, quoteSenderVerifiedAt: new Date() } });
+  }
+  return { verified };
+}
+
+/** Re-send the verification email for a CLIENT agency's pending single sender. */
+export async function resendAgencySingleSender(agencyId: string): Promise<{ ok: true } | { error: string }> {
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { quoteSenderEmail: true } });
+  if (!agency?.quoteSenderEmail) return { error: "There's no address to resend to." };
+  const info = await findSingleSenderByEmail(agency.quoteSenderEmail);
+  if (!info) return { error: "We couldn't find that verification. Try entering the address again." };
+  try { await resendSingleSenderVerification(info.id); } catch { return { error: "We couldn't resend just now. Try again shortly." }; }
+  return { ok: true };
+}
+
+/** Start single-sender verification for a PROGRESSION BUSINESS's own default sender. */
+export async function startBusinessSingleSender(businessId: string, email: string, fromName: string): Promise<{ ok: true } | { error: string }> {
+  const clean = email.trim().toLowerCase();
+  if (isPersonalDomain(clean)) return { error: "Use an address on your business's own domain, not a personal account like Gmail or Outlook." };
+  const domain = extractDomain(clean);
+  if (!domain) return { error: "That doesn't look like a valid email address." };
+  try {
+    await createSingleSender({ fromEmail: clean, fromName, replyTo: clean });
+  } catch {
+    return { error: "We couldn't start verification for that address. Check it's correct and try again." };
+  }
+  await prisma.progressionBusiness.update({
+    where: { id: businessId },
+    data: { senderEmail: clean, senderDomain: domain, senderVerified: false, senderVerifiedAt: null },
+  });
+  return { ok: true };
+}
+
+/** Check + adopt a PROGRESSION BUSINESS's pending single sender. */
+export async function checkBusinessSingleSender(businessId: string): Promise<{ verified: boolean }> {
+  const business = await prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { senderEmail: true } });
+  if (!business?.senderEmail) return { verified: false };
+  const verified = await isSingleSenderVerified(business.senderEmail);
+  if (verified) {
+    await prisma.progressionBusiness.update({ where: { id: businessId }, data: { senderVerified: true, senderVerifiedAt: new Date() } });
+  }
+  return { verified };
+}
+
+/** Re-send the verification email for a PROGRESSION BUSINESS's pending single sender. */
+export async function resendBusinessSingleSender(businessId: string): Promise<{ ok: true } | { error: string }> {
+  const business = await prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { senderEmail: true } });
+  if (!business?.senderEmail) return { error: "There's no address to resend to." };
+  const info = await findSingleSenderByEmail(business.senderEmail);
+  if (!info) return { error: "We couldn't find that verification. Try entering the address again." };
+  try { await resendSingleSenderVerification(info.id); } catch { return { error: "We couldn't resend just now. Try again shortly." }; }
+  return { ok: true };
 }
 
 // ─── User email queries ───────────────────────────────────────────────────────

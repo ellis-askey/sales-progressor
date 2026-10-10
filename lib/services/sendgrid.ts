@@ -145,6 +145,82 @@ export async function listVerifiedSingleSenders(): Promise<Set<string>> {
   }
 }
 
+// ─── Single Sender Verification (no-DNS mailbox path) ────────────────────────
+// For the case where an agency has GIVEN the progressor a real mailbox on their
+// domain (e.g. you@theiragency.co.uk). SendGrid verifies that one address by
+// emailing it a confirmation link — no DNS, no domain authentication. Because no
+// VerifiedDomain exists for it, the sender resolver treats it as a real inbox and
+// keeps reply-to on the address itself (see lib/email/agency-sender.ts).
+//
+// SendGrid requires a physical postal address on the sender record (CAN-SPAM).
+// Read from env so the real registered address can be set without a code change;
+// the fallbacks below MUST be replaced before go-live (see ELLIS_MANUAL_TODO).
+const SENDER_POSTAL = {
+  address: process.env.SENDGRID_SENDER_ADDRESS ?? "The Sales Progressor",
+  city: process.env.SENDGRID_SENDER_CITY ?? "London",
+  country: process.env.SENDGRID_SENDER_COUNTRY ?? "United Kingdom",
+  zip: process.env.SENDGRID_SENDER_ZIP ?? "",
+};
+
+export type SingleSenderInfo = { id: number; verified: boolean; fromEmail: string };
+
+/** Find an existing single sender in SendGrid by its from-address. Null if none. */
+export async function findSingleSenderByEmail(email: string): Promise<SingleSenderInfo | null> {
+  const [, body] = await client.request({
+    method: "GET",
+    url: "/v3/verified_senders?limit=200",
+  });
+  const data = body as { results?: Array<{ id?: number; from_email?: string; verified?: boolean }> };
+  const target = email.trim().toLowerCase();
+  const match = (data.results ?? []).find((r) => r.from_email?.toLowerCase() === target);
+  if (!match || match.id == null || !match.from_email) return null;
+  return { id: match.id, verified: match.verified === true, fromEmail: match.from_email };
+}
+
+/**
+ * Create a single sender in SendGrid. SendGrid immediately emails a verification
+ * link to from_email. If the sender already exists (e.g. created by hand before),
+ * returns the existing record rather than erroring. Returns id + current verified.
+ */
+export async function createSingleSender(opts: {
+  fromEmail: string;
+  fromName: string;
+  replyTo?: string;
+}): Promise<SingleSenderInfo> {
+  const existing = await findSingleSenderByEmail(opts.fromEmail);
+  if (existing) return existing;
+  const [, body] = await client.request({
+    method: "POST",
+    url: "/v3/verified_senders",
+    body: {
+      nickname: opts.fromEmail,
+      from_email: opts.fromEmail,
+      from_name: opts.fromName,
+      reply_to: opts.replyTo ?? opts.fromEmail,
+      address: SENDER_POSTAL.address,
+      city: SENDER_POSTAL.city,
+      country: SENDER_POSTAL.country,
+      ...(SENDER_POSTAL.zip ? { zip: SENDER_POSTAL.zip } : {}),
+    },
+  });
+  const data = body as { id?: number };
+  return { id: (data.id as number) ?? 0, verified: false, fromEmail: opts.fromEmail };
+}
+
+/** Ask SendGrid to re-send the verification email for a single sender. */
+export async function resendSingleSenderVerification(id: number): Promise<void> {
+  await client.request({
+    method: "POST",
+    url: `/v3/verified_senders/resend/${id}`,
+  });
+}
+
+/** True when the given address is a verified single sender in SendGrid. */
+export async function isSingleSenderVerified(email: string): Promise<boolean> {
+  const info = await findSingleSenderByEmail(email);
+  return !!info?.verified;
+}
+
 /** Send a transactional email via SendGrid using a verified sender address. */
 export async function sendFromVerifiedAddress({
   from,
