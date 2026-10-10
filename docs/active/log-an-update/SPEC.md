@@ -136,9 +136,15 @@ who can *see* it), and the broadcast case is asymmetric. What a client actually 
 - **6a (artifact):** DONE — `docs/active/log-an-update/share-visibility.html`. Shows the true
   behaviour (side + contactIds scoping), the broadcast asymmetry, the exact portal copy, and the
   proposed explicit "Who sees this" control decoupled from participants.
-- **6b (decision — PENDING Ellis):** add explicit per-side "Who sees this" + fix broadcast
-  asymmetry (recommended), vs. only fix the asymmetry, vs. leave as-is.
-- **6c (build):** only after 6b. Wire the chosen "who sees this" model into log-a-comm + the voice
-  review sends.
+- **6b (decision — DONE):** Option A — explicit per-side "Who sees this" + fix broadcast asymmetry.
+  Cross-side sharing is allowed with a non-blocking red-eye warning ("warn, don't block").
+- **6c (build — DONE, staging, 2026-10-11):** `OutboundMessage.sharedWithContactIds` holds the
+  explicit audience; the log-a-comm "Who sees this" control (seller/buyer side chips + specific
+  people, real per-side avatars) sets it, defaulting to the logged side(s). `getPortalTimeline`
+  scopes new rows by it (legacy rows keep contactIds+side scoping untouched); push + email fan-out
+  scoped to the audience. **Staging DB needs `npm run db:push`** (sandbox couldn't reach it — see
+  ELLIS_MANUAL_TODO); prod via migrate deploy on deploy. Interactive prototype:
+  `who-sees-this.html`. Not applied to the voice-review sends (those already send per-side via
+  `sendDraftClientUpdateAction`).
 
 Each phase is its own commit (one concern per PR). Phases 1–5 are code; Phase 6 starts with the artifact + your decision before any wiring.
