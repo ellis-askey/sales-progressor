@@ -25,7 +25,7 @@ export default async function BusinessConnectionsPage() {
     <>
       <AccountPageHeader
         title="Connections"
-        subtitle="Connect your inbox so replies relating to the sales you progress are saved to the right file, and emails can be sent from your own address."
+        subtitle="Connect your inbox so replies about your sales are saved to the right file, and so the emails you write yourself go out from your own address."
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

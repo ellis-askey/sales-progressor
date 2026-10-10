@@ -219,11 +219,11 @@ export function SenderDomainSection({
         return (
           <>
             <Header />
-            <h3 className="sds-h3">{isClient ? `Send emails from ${theirPossessive} own address` : "Send emails from your business's own address"}</h3>
+            <h3 className="sds-h3">{isClient ? `Send your client updates from ${theirPossessive} own address` : "Send your client updates from your business's own address"}</h3>
             <p className="sds-body">
               {isClient
-                ? `Emails already show ${subjectName || "the agency"} as the sender, so buyers and sellers know who they're hearing from. You can also set up an email address using the agency's own domain.`
-                : "Emails already show the agency as the sender, so buyers and sellers know who they're hearing from. You can also set up an email address using your business's own domain, used for any client that hasn't got their own."}
+                ? `The automatic updates we send buyers and sellers already show ${subjectName || "the agency"} as the sender. You can also make those updates come from the agency's own email address.`
+                : "The automatic updates we send buyers and sellers already show the agency as the sender. You can also make those updates come from your business's own email address, used for any client that hasn't got their own."}
             </p>
             <Mail addr="updates@thesalesprogressor.co.uk" pill="Default address" pillKind="neutral" />
             <div className="sds-ann">
