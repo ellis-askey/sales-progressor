@@ -240,6 +240,14 @@ model ProgressionBusiness {
   senderVerified   Boolean   @default(false)
   senderVerifiedAt DateTime?
 
+  // House-style brand theme for the CLIENT-facing emails this business sends on
+  // its clients' behalf. Same JSON shape + whitelist as Agency.emailTheme (see
+  // lib/email/brand-theme.ts). The resolver order at send time is: the client
+  // agency's own emailTheme (if they've customised) → this business house style
+  // → the Sales Progressor coral defaults. Null falls back to the business's
+  // clients inheriting the platform default. The TSP row leaves this null.
+  emailTheme Json?
+
   // Billing — what the business pays TSP (£59 base + £39/extra member + £5/sale).
   // Mirrors the Agency Stripe fields. DARK until PROGRESSION_BILLING_COLLECT is on;
   // these stay null until the business adds a card + the subscription is created.
