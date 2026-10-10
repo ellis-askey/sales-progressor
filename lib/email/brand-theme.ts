@@ -43,6 +43,10 @@ export type Tracking = "tight" | "normal" | "wide";
 export type Leading = "tight" | "normal" | "airy";
 export type Align = "left" | "center";
 export type CardShadow = "none" | "soft" | "strong";
+// How the brand mark renders when there's no contained logo band to show:
+// the agency/business initials in a disc, their name as a wordmark, or (when a
+// logo is uploaded) the uploaded logo itself.
+export type LogoMode = "monogram" | "wordmark" | "logo";
 
 // The raw stored blob (Agency.emailTheme / ProgressionBusiness.emailTheme). Every
 // key optional; unset = the current coral default.
@@ -82,6 +86,29 @@ export interface EmailThemeInput {
   cardBorder?: boolean | null;
   showEyebrow?: boolean | null;
   heroPhoto?: boolean | null;
+  // ── Fine-grained numeric overrides (Email Studio sliders). When set, each wins
+  // over its coarse token above; absent → the token's value, so a token-only
+  // theme (everything before this block) renders exactly as before. Ranges are
+  // clamped in sanitizeEmailThemeInput. ─
+  headlinePx?: number | null;        // 20–46  (overrides headingSize)
+  headingWeightNum?: number | null;  // 300–900 (overrides headingWeight)
+  trackingEm?: number | null;        // -0.05–0.12 (overrides tracking)
+  lineHeight?: number | null;        // 1.2–2 (overrides leading)
+  widthPx?: number | null;           // 380–620 (overrides width)
+  padX?: number | null;              // 14–44 (overrides density)
+  buttonRadiusPx?: number | null;    // 0–999 (overrides buttonShape)
+  buttonPadY?: number | null;        // 8–22
+  buttonPadX?: number | null;        // 14–48 (with padY, overrides buttonSize)
+  buttonFontPx?: number | null;      // 12–18
+  cardRadiusPx?: number | null;      // 0–28 (overrides bandShape radius)
+  shadowAmt?: number | null;         // 0–100 (overrides cardShadow token)
+  gradAngle?: number | null;         // 0–360 header gradient angle
+  gradStop1?: number | null;         // 0–100 first colour stop
+  gradStop2?: number | null;         // 0–100 second colour stop
+  // Brand mark + photo banner ──
+  logoMode?: LogoMode | null;        // monogram / wordmark / uploaded logo
+  bannerScene?: number | null;       // 0–3 index into the photo-banner scenes
+  bannerOverlay?: number | null;     // 0–100 banner darken overlay
 }
 
 // Resolved, render-ready values.
@@ -149,6 +176,7 @@ export function sanitizeEmailThemeInput(raw: unknown): EmailThemeInput | null {
     ["leading", ["tight", "normal", "airy"]],
     ["align", ["left", "center"]],
     ["cardShadow", ["none", "soft", "strong"]],
+    ["logoMode", ["monogram", "wordmark", "logo"]],
   ];
   const sink = out as Record<string, unknown>;
   for (const [k, vals] of enumKeys) {
@@ -161,6 +189,17 @@ export function sanitizeEmailThemeInput(raw: unknown): EmailThemeInput | null {
   }
   for (const k of ["buttonArrow", "buttonFullWidth", "buttonShadow", "cardBorder", "showEyebrow", "heroPhoto"]) {
     if (typeof r[k] === "boolean") sink[k] = r[k];
+  }
+  // Numeric slider overrides — finite + clamped to range, else dropped.
+  const numKeys: Array<[string, number, number]> = [
+    ["headlinePx", 20, 46], ["headingWeightNum", 300, 900], ["trackingEm", -0.05, 0.12], ["lineHeight", 1.2, 2],
+    ["widthPx", 380, 620], ["padX", 14, 44], ["buttonRadiusPx", 0, 999], ["buttonPadY", 8, 22], ["buttonPadX", 14, 48],
+    ["buttonFontPx", 12, 18], ["cardRadiusPx", 0, 28], ["shadowAmt", 0, 100], ["gradAngle", 0, 360],
+    ["gradStop1", 0, 100], ["gradStop2", 0, 100], ["bannerScene", 0, 3], ["bannerOverlay", 0, 100],
+  ];
+  for (const [k, min, max] of numKeys) {
+    const v = r[k];
+    if (typeof v === "number" && Number.isFinite(v)) sink[k] = Math.min(max, Math.max(min, v));
   }
 
   return Object.keys(out).length ? out : null;

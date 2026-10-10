@@ -26,6 +26,7 @@ import {
   type Align,
   type CardShadow,
   type BandShape,
+  type LogoMode,
 } from "@/lib/email/brand-theme";
 
 // ── Type pairings. System-font stacks only (webfonts are unreliable across mail
@@ -49,20 +50,23 @@ export const FONT_STACKS: Record<TypeSystem, { heading: string; body: string; la
 export interface StudioTheme {
   headerStyle: HeaderStyle;
   c1: string; c2: string | null;
-  headerBg: string;        // css for the colour header styles
+  headerBg: string;        // css for the colour header styles (honours angle + stops)
   headerText: string;      // auto-contrast on c1
   accent: string;          // buttons + links
   linkColor: string;
   cardBg: string; pageBg: string;
   headingFont: string; bodyFont: string;
-  headingSizePx: number; headingWeight: HeadingWeight;
+  headingSizePx: number; headingWeight: HeadingWeight; headingWeightNum: number;
   trackingCss: string; leadingCss: string; align: Align;
   buttonFill: ButtonFill; buttonRadiusPx: number; buttonPadCss: string; buttonFontPx: number;
   buttonArrow: boolean; buttonFullWidth: boolean; buttonShadow: boolean;
   contentPadX: number; maxWidthPx: number;
   sectionStyle: SectionStyle; dividerStyle: DividerStyle; footerStyle: FooterStyle;
-  cardRadiusPx: number; cardShadow: CardShadow; cardBorder: boolean;
+  cardRadiusPx: number; cardShadow: CardShadow; cardShadowCss: string; cardBorder: boolean;
   showEyebrow: boolean; heroPhoto: boolean;
+  // gradient + brand mark + banner
+  gradAngle: number; gradStop1: number; gradStop2: number;
+  logoMode: LogoMode; bannerScene: number; bannerOverlay: number;
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -89,6 +93,16 @@ const WIDTH_PX: Record<EmailWidth, number> = { narrow: 400, standard: 470, wide:
 const BTN_RADIUS: Record<ButtonShape, number> = { rounded: 9, pill: 999, square: 0 };
 const BTN_PAD: Record<SizeToken, string> = { sm: "10px 20px", md: "13px 26px", lg: "16px 34px" };
 const BTN_FONT: Record<SizeToken, number> = { sm: 13, md: 15, lg: 16 };
+const SHADOW_TOKEN: Record<CardShadow, string> = { none: "none", soft: "0 10px 30px rgba(20,14,8,.14)", strong: "0 22px 60px rgba(20,14,8,.32)" };
+
+// A finite numeric override wins; otherwise the token fallback.
+function num(v: unknown, fb: number): number { return typeof v === "number" && Number.isFinite(v) ? v : fb; }
+// Slider amount (0–100) → a progressively deeper card shadow (matches the studio).
+function shadowFromAmt(a: number): string {
+  if (a <= 0) return "none";
+  const y = Math.round(8 + a * 0.25), bl = Math.round(18 + a * 0.6), op = (0.1 + a * 0.0025).toFixed(3);
+  return `0 ${y}px ${bl}px rgba(20,14,8,${op})`;
+}
 
 // Coral defaults = the current look.
 const D = {
@@ -108,33 +122,43 @@ export function resolveStudioTheme(input: EmailThemeInput | null | undefined): S
   // A gradient-capable style keeps a second stop; others go flat.
   const gradientCapable = headerStyle === "gradient" || headerStyle === "duotone";
   const c2 = gradientCapable ? (t.headerColor2 && HEX.test(t.headerColor2) ? t.headerColor2 : (t.headerColor ? null : D.c2)) : null;
-  const headerBg = c2 ? `linear-gradient(135deg,${c1},${c2})` : c1;
+  const gradAngle = num(t.gradAngle, 135), gradStop1 = num(t.gradStop1, 0), gradStop2 = num(t.gradStop2, 100);
+  const headerBg = c2 ? `linear-gradient(${gradAngle}deg,${c1} ${gradStop1}%,${c2} ${gradStop2}%)` : c1;
   const accent = hx(t.accentColor, hx(t.buttonColor, D.accent));
   const cardBg = hx(t.cardBg, D.cardBg);
   const typeSystem = (t.typeSystem ?? D.typeSystem) as TypeSystem;
   const buttonSize = (t.buttonSize ?? D.buttonSize) as SizeToken;
   const buttonShape = (t.buttonShape ?? D.buttonShape) as ButtonShape;
   const bandShape = (t.bandShape ?? D.bandShape) as BandShape;
+  const headingWeight = (t.headingWeight ?? D.headingWeight) as HeadingWeight;
+  const cardShadow = (t.cardShadow ?? D.cardShadow) as CardShadow;
+  // Button padding: numeric Y/X wins (either present), else the size token.
+  const buttonPadCss = (t.buttonPadY != null || t.buttonPadX != null)
+    ? `${num(t.buttonPadY, 13)}px ${num(t.buttonPadX, 26)}px`
+    : BTN_PAD[buttonSize];
   return {
     headerStyle, c1, c2, headerBg,
     headerText: hx(t.headerTextColor, contrastText(c1)),
     accent, linkColor: hx(t.linkColor, accent),
     cardBg, pageBg: hx(t.pageBg, D.pageBg),
     headingFont: FONT_STACKS[typeSystem].heading, bodyFont: FONT_STACKS[typeSystem].body,
-    headingSizePx: HEADING_PX[(t.headingSize ?? D.headingSize) as HeadingSize],
-    headingWeight: (t.headingWeight ?? D.headingWeight) as HeadingWeight,
-    trackingCss: TRACK[(t.tracking ?? D.tracking) as Tracking],
-    leadingCss: LEAD[(t.leading ?? D.leading) as Leading],
+    headingSizePx: num(t.headlinePx, HEADING_PX[(t.headingSize ?? D.headingSize) as HeadingSize]),
+    headingWeight, headingWeightNum: num(t.headingWeightNum, Number(headingWeight)),
+    trackingCss: t.trackingEm != null ? `${t.trackingEm}em` : TRACK[(t.tracking ?? D.tracking) as Tracking],
+    leadingCss: t.lineHeight != null ? String(t.lineHeight) : LEAD[(t.leading ?? D.leading) as Leading],
     align: (t.align ?? D.align) as Align,
     buttonFill: (t.buttonFill ?? D.buttonFill) as ButtonFill,
-    buttonRadiusPx: BTN_RADIUS[buttonShape], buttonPadCss: BTN_PAD[buttonSize], buttonFontPx: BTN_FONT[buttonSize],
+    buttonRadiusPx: num(t.buttonRadiusPx, BTN_RADIUS[buttonShape]), buttonPadCss, buttonFontPx: num(t.buttonFontPx, BTN_FONT[buttonSize]),
     buttonArrow: t.buttonArrow ?? true, buttonFullWidth: t.buttonFullWidth ?? false, buttonShadow: t.buttonShadow ?? false,
-    contentPadX: PAD_X[(t.density ?? D.density) as Density], maxWidthPx: WIDTH_PX[(t.width ?? D.width) as EmailWidth],
+    contentPadX: num(t.padX, PAD_X[(t.density ?? D.density) as Density]), maxWidthPx: num(t.widthPx, WIDTH_PX[(t.width ?? D.width) as EmailWidth]),
     sectionStyle: (t.sectionStyle ?? D.sectionStyle) as SectionStyle,
     dividerStyle: (t.dividerStyle ?? D.dividerStyle) as DividerStyle,
     footerStyle: (t.footerStyle ?? D.footerStyle) as FooterStyle,
-    cardRadiusPx: bandShape === "square" ? 0 : 16, cardShadow: (t.cardShadow ?? D.cardShadow) as CardShadow,
+    cardRadiusPx: num(t.cardRadiusPx, bandShape === "square" ? 0 : 16),
+    cardShadow, cardShadowCss: t.shadowAmt != null ? shadowFromAmt(t.shadowAmt) : SHADOW_TOKEN[cardShadow],
     cardBorder: t.cardBorder ?? false, showEyebrow: t.showEyebrow ?? true, heroPhoto: t.heroPhoto ?? false,
+    gradAngle, gradStop1, gradStop2,
+    logoMode: (t.logoMode ?? "monogram") as LogoMode, bannerScene: num(t.bannerScene, 0), bannerOverlay: num(t.bannerOverlay, 45),
   };
 }
 
@@ -183,6 +207,25 @@ export const LOOKS: EmailLook[] = [
   look("heritage", "Heritage", "estate green", "classic", { headerStyle: "logoband", headerColor: "#14532D", accentColor: "#14532D", cardBg: "#FFFDF8", pageBg: "#ECEADF", typeSystem: "slab", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "simple" }),
   look("oxford", "Oxford", "navy serif", "classic", { headerStyle: "solid", headerColor: "#1E293B", accentColor: "#1E293B", pageBg: "#EAECF0", typeSystem: "classic", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "simple", align: "center" }),
   look("burgundy", "Burgundy", "wine & cream", "classic", { headerStyle: "solid", headerColor: "#6B1E2E", accentColor: "#6B1E2E", cardBg: "#FFFDFA", pageBg: "#EFE7E3", typeSystem: "oldstyle", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "band" }),
+
+  look("tangerine", "Tangerine", "zesty solid", "bold", { headerStyle: "solid", headerColor: "#F97316", accentColor: "#F97316", pageBg: "#FBEEE2", typeSystem: "rounded", headingSize: "l", headingWeight: "800", buttonShape: "pill", footerStyle: "band" }),
+  look("cobalt", "Cobalt", "deep duotone", "bold", { headerStyle: "duotone", headerColor: "#1E3A8A", headerColor2: "#1E3A8A", accentColor: "#3B82F6", pageBg: "#E8EDF8", typeSystem: "grotesque", headingSize: "xl", headingWeight: "900", buttonShape: "rounded", footerStyle: "band" }),
+  look("coastal", "Coastal", "photo banner", "bold", { headerStyle: "banner", headerColor: "#2B4A6B", accentColor: "#0EA5A4", pageBg: "#E7EEF2", typeSystem: "humanist", headingSize: "xl", headingWeight: "800", buttonShape: "pill", footerStyle: "simple" }),
+
+  look("champagne", "Champagne", "cream & calm", "elegant", { headerStyle: "minimal", headerColor: "#8A7A5B", accentColor: "#8A7A5B", cardBg: "#FFFEFA", pageBg: "#F3EEE2", typeSystem: "didone", headingSize: "xl", headingWeight: "400", buttonFill: "outline", buttonShape: "pill", footerStyle: "simple", align: "center", tracking: "wide" }),
+  look("monochrome", "Monochrome", "ink editorial", "elegant", { headerStyle: "minimal", headerColor: "#1A1A1A", accentColor: "#1A1A1A", pageBg: "#ECECEC", typeSystem: "editorial", headingSize: "xl", headingWeight: "400", buttonFill: "outline", buttonShape: "square", footerStyle: "simple", dividerStyle: "hairline" }),
+
+  look("linen", "Linen", "warm minimal", "minimal", { headerStyle: "minimal", headerColor: "#6B5D4F", accentColor: "#8A6A3B", cardBg: "#FDFBF6", pageBg: "#EFEADF", typeSystem: "oldstyle", headingSize: "m", headingWeight: "600", buttonFill: "soft", buttonShape: "rounded", footerStyle: "simple", cardShadow: "none" }),
+  look("ink", "Ink", "stark black", "minimal", { headerStyle: "solid", headerColor: "#000000", accentColor: "#000000", pageBg: "#E6E6E6", typeSystem: "grotesque", headingSize: "xl", headingWeight: "900", buttonShape: "square", bandShape: "square", footerStyle: "none" }),
+
+  look("peach", "Peach", "soft sunrise", "warm", { headerStyle: "gradient", headerColor: "#FCA5A5", headerColor2: "#FDE68A", accentColor: "#F97316", cardBg: "#FFFCFA", pageBg: "#FBEFE8", typeSystem: "rounded", headingSize: "l", headingWeight: "800", buttonFill: "soft", buttonShape: "pill", footerStyle: "band" }),
+  look("sage", "Sage", "calm green", "warm", { headerStyle: "logoband", headerColor: "#5F7A5A", accentColor: "#5F7A5A", cardBg: "#FBFDF9", pageBg: "#ECF0E7", typeSystem: "humanist", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "simple" }),
+
+  look("forestnight", "Forest Night", "dark green", "dark", { headerStyle: "solid", headerColor: "#14321F", accentColor: "#6EE7B7", cardBg: "#0E241A", pageBg: "#05100A", typeSystem: "slab", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "simple", cardShadow: "strong" }),
+  look("plum", "Plum", "dark & rich", "dark", { headerStyle: "gradient", headerColor: "#3B0764", headerColor2: "#7C3AED", accentColor: "#C4B5FD", cardBg: "#1A0B2E", pageBg: "#0A0416", typeSystem: "didone", headingSize: "l", headingWeight: "400", buttonFill: "outline", buttonShape: "pill", footerStyle: "simple", align: "center", cardShadow: "strong" }),
+
+  look("racinggreen", "Racing Green", "heritage", "classic", { headerStyle: "solid", headerColor: "#14432A", accentColor: "#C8A04A", pageBg: "#EAEFEA", typeSystem: "classic", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "band", align: "center" }),
+  look("oxblood", "Oxblood", "deep & bold", "classic", { headerStyle: "logoband", headerColor: "#5A161E", accentColor: "#5A161E", cardBg: "#FFFDFB", pageBg: "#EEE5E2", typeSystem: "oldstyle", headingSize: "l", headingWeight: "600", buttonShape: "rounded", footerStyle: "simple" }),
 ];
 
 export const LOOKS_BY_KEY: Record<string, EmailLook> = Object.fromEntries(LOOKS.map((l) => [l.key, l]));
