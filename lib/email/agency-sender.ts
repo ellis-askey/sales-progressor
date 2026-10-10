@@ -18,6 +18,8 @@ import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { resolveEmailTheme, type EmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
+import { resolveStudioTheme, type StudioTheme } from "@/lib/email/email-theme-studio";
+import { effectiveLogoMode } from "@/lib/email/studio-render";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { clientFacingIdentity, progressorSenderAddress } from "@/lib/progression/identity";
 import { resolveReplyCaptureAddress } from "@/lib/email/reply-capture";
@@ -58,6 +60,11 @@ export type ResolvedSender = {
   // Resolved client-email brand theme (agency colours; coral default). Only
   // populated by the per-transaction resolver.
   theme?: EmailTheme;
+  // Full studio theme (fonts, header style, layout, button, accent) for the
+  // studio-rendered client emails, + the agency display name for the brand mark.
+  // Only populated by the per-transaction resolver.
+  studioTheme?: StudioTheme;
+  brandName?: string | null;
 };
 
 /**
@@ -166,12 +173,23 @@ export async function resolveAgencySenderForTransaction(
   // themes (hero band, button, links, footer colours).
   const rawTheme = ((tx.agency?.emailTheme ?? tx.progressionBusiness?.emailTheme) ?? null) as EmailThemeInput | null;
   const theme = resolveEmailTheme(rawTheme);
+  // Full studio theme for the studio-rendered client emails. The brand mark
+  // defaults to the uploaded logo when one exists (today's behaviour), unless the
+  // theme explicitly chose wordmark/monogram.
+  const studioTheme = resolveStudioTheme(rawTheme);
+  studioTheme.logoMode = effectiveLogoMode(rawTheme, !!tx.agency?.logoPath);
   const logo = {
     logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
     tileColor: tx.agency?.logoTileColor ?? null,
     scale: (tx.agency?.logoScale as LogoScale | null) ?? null,
     align: (tx.agency?.logoAlign as LogoAlign | null) ?? null,
     theme,
+    // Only hand the studio renderer the theme when the agency/business actually
+    // customised (non-null blob). Uncustomised files keep the existing hand-rolled
+    // email byte-for-byte — the new render only reaches those who opted in by
+    // designing a look. Big safety win: zero change for everyone who never touched it.
+    studioTheme: rawTheme ? studioTheme : undefined,
+    brandName: brand,
   };
 
   const agencyAddr = tx.agency?.quoteSenderEmail ?? null;

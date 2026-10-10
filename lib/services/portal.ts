@@ -12,6 +12,8 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
 import { resolveEmailTheme, tone, type EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getChainForTransactionV2 } from "@/lib/services/chains";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
@@ -2099,6 +2101,8 @@ export function richMilestoneEmailHtml({
   extraVars,
   logo,
   theme = resolveEmailTheme(null),
+  studioTheme,
+  identityName,
 }: {
   greeting: string;
   copy: RecipientEmailCopy;
@@ -2113,12 +2117,40 @@ export function richMilestoneEmailHtml({
   extraVars?: Record<string, string>;
   logo?: { logoUrl?: string | null; tileColor?: string | null; scale?: LogoScale | null; align?: LogoAlign | null };
   theme?: EmailTheme;
+  studioTheme?: StudioTheme;
+  identityName?: string;
 }): string {
   const vars = { address, ...extraVars };
   // Client sends use the agency's brand button; the internal progressor copy keeps its blue.
   const ctaBg    = isProgressor ? "#3B82F6" : theme.buttonBg;
   const ctaText  = isProgressor ? "#fff" : theme.buttonText;
   const ctaLabel = copy.action ?? "View portal";
+
+  // ── Client send (vendor/purchaser): render through the studio renderer so the
+  // full theme (fonts, header style, layout, accent button, footer) is applied —
+  // "preview == what's received". Internal progressor + agent-dashboard copies
+  // (no studioTheme passed) keep the legacy hand-rolled path below, unchanged.
+  if (!isProgressor && studioTheme && identityName) {
+    const blocks: Array<{ label?: string | null; html: string }> = [
+      { html: `<strong style="font-weight:600">${interpolate(copy.opening, vars)}</strong>` },
+      { html: interpolate(copy.whatHappened, vars) },
+    ];
+    if (copy.whatNext) blocks.push({ html: interpolate(copy.whatNext, vars) });
+    const clientSig = serviceType === "self_managed"
+      ? (canReply ? `<p style="margin:0;font-size:13px;color:#6b7280">Questions? Just reply to this email.</p>` : "")
+      : whatsappNumber
+        ? `<p style="margin:0 0 10px;font-size:13px;color:#6b7280">Questions? Your progressor is <strong>${progressorName}</strong>.</p><a href="https://wa.me/${whatsappNumber}" style="display:inline-block;background:#25D366;color:#fff;padding:10px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px">Message me on WhatsApp</a>`
+        : `<p style="margin:0;font-size:13px;color:#6b7280">Questions? Your progressor is <strong>${progressorName}</strong>.</p>`;
+    return renderStudioEmail(studioTheme, {
+      eyebrow: address,
+      headline: interpolate(copy.heroLabel, vars),
+      greeting,
+      blocks,
+      cta: copy.action ? { label: ctaLabel, url: ctaUrl } : null,
+      trailingHtml: clientSig || null,
+      preheaderText: "A step just moved forward. Here's where things are up to.",
+    }, { identityName, logoUrl: logo?.logoUrl ?? null, tileColor: logo?.tileColor ?? null });
+  }
 
   // Agency logo band (Option B: colour-matched full-width band above the coral
   // hero). Client sends only; progressor sends stay unbranded.
@@ -2380,7 +2412,7 @@ async function sendRichMilestoneEmails(
   const progressorEmail  = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
@@ -2482,7 +2514,7 @@ async function sendRichMilestoneEmails(
     const vars     = { address, eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, canReply: agencyCanReply, logo: { logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }, theme: agencyTheme, studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, extraVars: { eventDate: eventDateVar, eventDateClause, attendClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 

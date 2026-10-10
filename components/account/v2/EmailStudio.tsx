@@ -110,6 +110,11 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
 
   const st = useMemo(() => resolveStudioTheme(theme), [theme]);
   const shownLogo = localPreview ?? logoUrl;
+  // Logo-aware brand mark: show the uploaded logo by default, unless the theme
+  // explicitly chose wordmark/monogram. Keeps preview == test == real send.
+  const effLogoMode: LogoMode = (theme.logoMode as LogoMode | undefined) ?? (shownLogo ? "logo" : "monogram");
+  const previewSt = useMemo(() => ({ ...st, logoMode: effLogoMode }), [st, effLogoMode]);
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   function patch(p: Partial<EmailThemeInput>) { setTheme((t) => ({ ...t, ...p })); setLookKey("custom"); setSavingState("idle"); }
   function applyLook(key: string) { const l = LOOKS_BY_KEY[key]; if (!l) return; setTheme({ ...l.theme }); setLookKey(key); setSavingState("idle"); }
@@ -130,6 +135,19 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
       setSavedLogo({ tileColor: json.tileColor, scale: json.scale, align: json.align });
       patch({ logoMode: "logo" }); // uploading a logo switches the brand mark to it
     } catch { setError("Upload failed. Try again."); setLocalPreview(null); } finally { setBusy(false); }
+  }
+  async function onSendTest() {
+    if (sendState === "sending") return;
+    setSendState("sending"); setError(null);
+    try {
+      const res = await fetch("/api/agent/email-studio/test", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ theme, pv, identityName, logoMode: effLogoMode, tileColor, logoUrl: shownLogo && /^https?:\/\//.test(shownLogo) ? shownLogo : undefined }),
+      });
+      if (!res.ok) { setSendState("error"); return; }
+      setSendState("sent");
+      setTimeout(() => setSendState("idle"), 4000);
+    } catch { setSendState("error"); }
   }
   async function onSave() {
     setSavingState("saving"); setError(null);
@@ -269,7 +287,7 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
                       { v: "centered", l: "Centered", vis: <HVis h="centered" /> }, { v: "none", l: "None", vis: <HVis h="none" /> },
                     ]} />
                     <Grp label="Brand mark">
-                      <Seg value={st.logoMode === "logo" && themeOnly ? "wordmark" : st.logoMode} opts={themeOnly ? [["monogram", "Monogram"], ["wordmark", "Wordmark"]] : [["monogram", "Monogram"], ["wordmark", "Wordmark"], ["logo", "Logo"]]} onChange={(v) => patch({ logoMode: v as LogoMode })} />
+                      <Seg value={themeOnly && effLogoMode === "logo" ? "wordmark" : effLogoMode} opts={themeOnly ? [["monogram", "Monogram"], ["wordmark", "Wordmark"]] : [["monogram", "Monogram"], ["wordmark", "Wordmark"], ["logo", "Logo"]]} onChange={(v) => patch({ logoMode: v as LogoMode })} />
                       {themeOnly ? (
                         <p className="es-nudge">Each client&rsquo;s own logo appears on their emails. This house style sets the colours, type and layout they start from.</p>
                       ) : st.logoMode === "logo" ? (
@@ -369,13 +387,18 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
         {/* ── right: preview ── */}
         <div className="es-right">
           <div className="es-pv-top">
-            <div><span className="es-pv-cap">Live preview</span> <span className="es-pv-hint">click any part to edit</span></div>
-            <div className="es-tabs">{(Object.keys(PREVIEW) as PreviewKey[]).map((k) => (
-              <button key={k} type="button" className={`es-tab${pv === k ? " on" : ""}`} onClick={() => setPv(k)}>{k === "milestone" ? "Milestone" : k === "invite" ? "Invite" : "Completion"}</button>
-            ))}</div>
+            <div className="es-pv-caprow"><span className="es-pv-cap">Live preview</span> <span className="es-pv-hint">click any part to edit</span></div>
+            <div className="es-pv-row">
+              <div className="es-tabs">{(Object.keys(PREVIEW) as PreviewKey[]).map((k) => (
+                <button key={k} type="button" className={`es-tab${pv === k ? " on" : ""}`} onClick={() => setPv(k)}>{k === "milestone" ? "Milestone" : k === "invite" ? "Invite" : "Completion"}</button>
+              ))}</div>
+              <button type="button" className="es-btn es-send" onClick={onSendTest} disabled={sendState === "sending"}>
+                {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Sent ✓" : sendState === "error" ? "Try again" : <>Send test <span className="es-arr">→</span></>}
+              </button>
+            </div>
           </div>
           <div className="es-stage" style={{ background: st.pageBg }} onClick={onStageClick}>
-            <PreviewEmail st={st} pv={pv} identityName={identityName} logo={shownLogo} tileColor={tileColor} scale={scale} align={align} busy={busy} />
+            <PreviewEmail st={previewSt} pv={pv} identityName={identityName} logo={shownLogo} tileColor={tileColor} scale={scale} align={align} busy={busy} />
           </div>
           <p className="es-cap">Preview exactly what your buyers and sellers receive.</p>
         </div>
@@ -453,7 +476,7 @@ function Header({ st, c, T, mark, identityName: identityNameFromMark }: { st: St
   const bg = st.headerStyle === "duotone" ? `linear-gradient(${st.gradAngle}deg,${st.c1} 0%,${st.c1} 55%,${st.accent} 100%)` : st.headerBg;
   return (
     <div style={{ background: bg, padding: `${px + 2}px ${px}px`, textAlign: cen }}>
-      <div style={{ display: cen === "center" ? "inline-block" : "block", marginBottom: 14 }}>{mark(40, tint(tx === "#ffffff" ? "#fff" : "#000", 0.16), tx)}</div>{eyebrow(tx)}{hl(tx)}
+      <div style={{ display: cen === "center" ? "inline-block" : "block", marginBottom: 14 }}>{mark(40, tint(tx === "#ffffff" ? "#ffffff" : "#000000", 0.16), tx)}</div>{eyebrow(tx)}{hl(tx)}
       <p style={{ margin: "9px 0 0", fontSize: 14, color: tx, opacity: 0.92 }}>{c.lead}</p>
     </div>
   );
@@ -670,9 +693,12 @@ const STYLES = `
   .es-btn:hover:not(:disabled){filter:brightness(1.04);transform:translateY(-1px);} .es-btn:disabled{background:rgba(0,0,0,.08);color:#9ca3af;cursor:default;box-shadow:none;} .es-arr{transition:transform .16s;} .es-btn:hover .es-arr{transform:translateX(3px);}
   .es-err{margin:10px 18px 0;font-size:12px;color:#dc2626;}
   .es-right{display:flex;flex-direction:column;min-height:0;background:#E9E5DF;}
-  .es-pv-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:15px 18px 12px;flex-wrap:wrap;flex:none;border-bottom:1px solid var(--hair2);}
+  .es-pv-top{display:flex;flex-direction:column;gap:10px;padding:15px 18px 12px;flex:none;border-bottom:1px solid var(--hair2);}
+  .es-pv-caprow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .es-pv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
   .es-pv-cap{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);} .es-pv-hint{font-size:10.5px;color:var(--ink3);font-weight:500;}
   .es-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+  .es-send{padding:7px 14px;font-size:12px;}
   .es-tab{font:inherit;font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--hair);background:#fff;color:var(--ink2);cursor:pointer;} .es-tab.on{background:var(--ink);color:#fff;border-color:var(--ink);}
   .es-stage{flex:1;min-height:0;overflow-y:auto;padding:22px 20px;display:flex;justify-content:center;align-items:flex-start;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;transition:background .2s;}
   .es-stage::-webkit-scrollbar{width:10px;} .es-stage::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:6px;border:3px solid transparent;background-clip:padding-box;}
