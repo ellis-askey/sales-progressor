@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import type { TransactionStatus } from "@prisma/client";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -34,8 +35,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
+  // Law 7: scope the ownership guard through the access-scope helper (works for
+  // internal staff too), not the old agencyId-only filter.
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(getAccessScope(session), transactionId),
     select: { id: true, status: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });

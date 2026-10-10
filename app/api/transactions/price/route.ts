@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -22,8 +23,11 @@ export async function POST(req: NextRequest) {
     agentFeeIsVatInclusive,
   } = body;
 
+  // Law 7: scope the ownership guard through the access-scope helper so it works for
+  // internal staff (agencyId null) too, not the old agencyId-only filter (which
+  // matched zero rows for internal users and bypassed the helper).
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(getAccessScope(session), transactionId),
     select: { id: true, purchasePrice: true, activeBuyerRoundId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
