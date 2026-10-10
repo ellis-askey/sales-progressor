@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from "react";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { CommsEntry } from "./CommsEntry";
+import { LogUpdateModal } from "./LogUpdateModal";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 
@@ -118,7 +118,7 @@ export function ActivityTab(props: Props) {
       contacts={props.contacts}
       solicitors={props.solicitors}
       beforeEntries={
-        <CommsEntry
+        <LogUpdateModal
           transactionId={props.transactionId}
           contacts={props.contacts}
           solicitors={props.solicitors}
