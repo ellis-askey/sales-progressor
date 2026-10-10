@@ -1784,6 +1784,8 @@ export async function logPortalMilestoneConfirm(
           ctaText: "View your portal",
           ctaUrl: portalUrl,
           theme: agencyTheme,
+          eyebrow: address, headline: "Progress update",
+          studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
         }),
       }, { transactionId, subject: `Progress update: ${address}` });
       if (otherSent) otherIds.push(other.id);
@@ -2074,9 +2076,20 @@ export function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabe
 </body></html>`;
 }
 
-export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null) }: {
+export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null), eyebrow, headline, studioTheme, identityName, logoUrl, tileColor }: {
   greeting: string; body: string; ctaText: string; ctaUrl: string; theme?: EmailTheme;
+  eyebrow?: string | null; headline?: string; studioTheme?: StudioTheme; identityName?: string; logoUrl?: string | null; tileColor?: string | null;
 }) {
+  // Customised agency/business → full studio render; default keeps legacy below.
+  if (studioTheme && identityName) {
+    return renderStudioEmail(studioTheme, {
+      eyebrow: eyebrow ?? null,
+      headline: headline ?? "Update",
+      greeting,
+      blocks: [{ html: body }],
+      cta: { label: ctaText, url: ctaUrl },
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+  }
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 16px">${greeting}</p>
 <p style="margin:0 0 24px;line-height:1.6;color:#4a5162">${body}</p>

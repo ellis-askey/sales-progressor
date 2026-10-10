@@ -50,7 +50,7 @@ export async function sendPortalInviteByToken(
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
-  const { from: fromAddr, replyTo } = await resolveAgencySenderForTransaction(contact.transaction.id, { persona: "personal" });
+  const { from: fromAddr, replyTo, studioTheme, brandName, logoUrl: resolvedLogoUrl, tileColor: resolvedTileColor } = await resolveAgencySenderForTransaction(contact.transaction.id, { persona: "personal" });
 
   const greeting = buildGreeting(contact.name);
   const theme = resolveEmailTheme((contact.transaction.agency.emailTheme ?? null) as EmailThemeInput | null);
@@ -61,7 +61,7 @@ export async function sendPortalInviteByToken(
     scale: contact.transaction.agency.logoScale as LogoScale | null,
     align: contact.transaction.agency.logoAlign as LogoAlign | null,
   });
-  const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand });
+  const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand, studioTheme, identityName: brandName ?? agencyName, logoUrl: resolvedLogoUrl, tileColor: resolvedTileColor });
   await sendEmail({ to: contact.email, subject: invite.subject, from: fromAddr, replyTo, text: invite.text, html: invite.html });
 
   // Record the send so the contacts card can show a truthful "Invite sent",

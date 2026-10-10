@@ -18,6 +18,8 @@ import { greetingFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 
 const GATE_CODES = ["VM18", "PM25"];
 
@@ -26,8 +28,8 @@ function escapeHtml(s: string): string {
 }
 
 export function buildReadyToExchangeEmail({
-  first, address, agencyName, theme,
-}: { first: string; address: string; agencyName: string; theme: EmailTheme }): { subject: string; text: string; html: string } {
+  first, address, agencyName, theme, studioTheme, identityName, logoUrl, tileColor,
+}: { first: string; address: string; agencyName: string; theme: EmailTheme; studioTheme?: StudioTheme; identityName?: string; logoUrl?: string | null; tileColor?: string | null }): { subject: string; text: string; html: string } {
   const short = address.split(",")[0];
   const subject = `Ready to exchange on ${short}`;
 
@@ -36,6 +38,21 @@ export function buildReadyToExchangeEmail({
     `Everything's ready for exchange on ${address}. This is the last big step before exchange itself, and both sides are now in place.\n\n` +
     `If an exchange date hasn't already been agreed, your solicitor will be in touch to arrange it.\n\n` +
     `${agencyName}\n`;
+
+  if (studioTheme && identityName) {
+    const html = renderStudioEmail(studioTheme, {
+      eyebrow: address,
+      headline: "Ready to exchange",
+      greeting: `Hi ${first},`,
+      blocks: [
+        { html: `Everything's ready for exchange on <strong>${escapeHtml(address)}</strong>. This is the last big step before exchange itself, and both sides are now in place.` },
+        { html: "If an exchange date hasn't already been agreed, your solicitor will be in touch to arrange it." },
+      ],
+      cta: null,
+      preheaderText: "Both sides are ready. Here's what happens next.",
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+    return { subject, text, html };
+  }
 
   const html =
 `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("Both sides are ready. Here's what happens next.")}
@@ -93,13 +110,13 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
   // Send from the file's own agency authenticated address (branded with the
   // progressor/agent), with the file-type-aware fallback when the agency has
   // no address of its own.
-  const { from, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+  const { from, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
   const emailTheme = theme ?? resolveEmailTheme(null);
 
   for (const c of tx.contacts) {
     if (!c.email || c.unsubscribedAt) continue;
     const first = greetingFirstName(c.name);
-    const email = buildReadyToExchangeEmail({ first, address: tx.propertyAddress, agencyName, theme: emailTheme });
+    const email = buildReadyToExchangeEmail({ first, address: tx.propertyAddress, agencyName, theme: emailTheme, studioTheme, identityName: brandName ?? agencyName, logoUrl, tileColor });
     await enqueueEmail({
       emailType: "READY_TO_EXCHANGE",
       sourceId: transactionId,

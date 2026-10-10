@@ -6,6 +6,8 @@
 
 import { preheader } from "@/lib/email/preheader";
 import { emailHeroBand, emailButton, type EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 
 export function buildPortalInviteEmail(opts: {
   agencyName: string;
@@ -15,10 +17,14 @@ export function buildPortalInviteEmail(opts: {
   portalUrl: string;
   theme: EmailTheme;
   logoBand?: string;
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
 }): { subject: string; text: string; html: string } {
-  const { agencyName, address, saleWord, greeting, portalUrl, theme, logoBand = "" } = opts;
+  const { agencyName, address, saleWord, greeting, portalUrl, theme, logoBand = "", studioTheme, identityName, logoUrl, tileColor } = opts;
 
-  const subject = `Your ${saleWord} portal — ${address}`;
+  const subject = `Your ${saleWord} portal: ${address}`;
 
   const text = [
     greeting,
@@ -31,6 +37,20 @@ export function buildPortalInviteEmail(opts: {
     "",
     agencyName,
   ].join("\n");
+
+  // Customised agency/business → full studio render; default keeps legacy below.
+  if (studioTheme && identityName) {
+    const html = renderStudioEmail(studioTheme, {
+      eyebrow: address,
+      headline: `Your ${saleWord} portal is ready`,
+      greeting,
+      blocks: [{ html: `You can now track the progress of your ${saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.` }],
+      cta: { label: "Open my portal", url: portalUrl },
+      trailingHtml: `<p style="margin:0;font-size:12px;color:#6b7280">This link is personal to you, so please don't share it with others. You can bookmark it and return any time.</p>`,
+      preheaderText: `Follow every step of your ${saleWord} in one place, whenever you want to check.`,
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+    return { subject, text, html };
+  }
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${preheader(`Follow every step of your ${saleWord} in one place, whenever you want to check.`)}${logoBand}
 ${emailHeroBand({ theme, eyebrow: agencyName, headline: address, subline: `Your ${saleWord} portal is ready` })}

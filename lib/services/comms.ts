@@ -1597,7 +1597,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
     const greeting = buildGreeting(c.name);
     const portalUrl = `${base}/portal/${c.portalToken}/updates`;
 
-    const email = buildClientUpdateEmail({ agencyName: agency, address, saleWord, greeting, content, portalUrl, theme });
+    const email = buildClientUpdateEmail({ agencyName: agency, address, saleWord, greeting, content, portalUrl, theme, studioTheme: sender.studioTheme, identityName: sender.brandName ?? agency, logoUrl: sender.logoUrl, tileColor: sender.tileColor });
     await sendEmail({
       from: sender.from,
       replyTo: sender.replyTo,

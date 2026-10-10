@@ -5,6 +5,7 @@ import { greetingFirstName } from "@/lib/contacts/displayName";
 import { preheader } from "@/lib/email/preheader";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
+import { renderStudioEmail } from "@/lib/email/studio-render";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildClientNarrative } from "@/lib/services/client-narrative";
@@ -96,7 +97,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? `\n\nYou can view your progress at any time here:\n${base}/portal/${contact.portalToken}`
         : "";
 
-      const { from: fromAddr, replyTo, canReply, theme } = await resolveAgencySenderForTransaction(tx.id);
+      const { from: fromAddr, replyTo, canReply, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(tx.id);
       const emailTheme = theme ?? resolveEmailTheme(null);
 
       // Piece 1: a real per-file narrative drafted from the file's actual state.
@@ -131,7 +132,18 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? `<p style="margin:0 0 20px"><a href="${base}/portal/${contact.portalToken}" style="display:inline-block;background:${emailTheme.buttonBg};color:${emailTheme.buttonText};padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your progress →</a></p>`
         : "";
 
-      const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick update on where your move is up to.")}
+      const html = (studioTheme && brandName) ? renderStudioEmail(studioTheme, {
+        eyebrow: tx.propertyAddress,
+        headline: "Your weekly update",
+        greeting: buildGreeting(contact.name),
+        blocks: [
+          ...(introText ? [{ html: escWeekly(introText) }] : []),
+          ...bodyParas.map((p) => ({ html: p })),
+          { html: escWeekly(closing) },
+        ],
+        cta: contact.portalToken ? { label: "View your progress", url: `${base}/portal/${contact.portalToken}` } : null,
+        preheaderText: "A quick update on where your move is up to.",
+      }, { identityName: brandName, logoUrl, tileColor }) : `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">${preheader("A quick update on where your move is up to.")}
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
 ${introText ? `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${escWeekly(introText)}</p>\n` : ""}${bodyParas.map((p) => `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${p}</p>`).join("\n")}

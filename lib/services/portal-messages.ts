@@ -248,6 +248,10 @@ export async function sendProgressorPortalReply(
       content,
       portalUrl,
       theme,
+      studioTheme: sender.studioTheme,
+      identityName: sender.brandName ?? contact.transaction.agency?.name ?? undefined,
+      logoUrl: sender.logoUrl,
+      tileColor: sender.tileColor,
     });
     sendEmail({
       from:    sender.from,

@@ -1,4 +1,6 @@
 import type { EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 
 // The single branded template for a written client update: a person (agent or
 // progressor) posting a visible update to a buyer or seller. One source of truth
@@ -18,8 +20,12 @@ export function buildClientUpdateEmail(opts: {
   content: string;
   portalUrl: string;
   theme: EmailTheme;
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
 }): { subject: string; text: string; html: string } {
-  const { agencyName, address, saleWord, greeting, content, portalUrl, theme } = opts;
+  const { agencyName, address, saleWord, greeting, content, portalUrl, theme, studioTheme, identityName, logoUrl, tileColor } = opts;
 
   const subject = `Update on your ${saleWord}: ${address}`;
 
@@ -34,6 +40,19 @@ export function buildClientUpdateEmail(opts: {
     "",
     agencyName,
   ].join("\n");
+
+  // Customised agency/business → full studio render; default keeps legacy below.
+  if (studioTheme && identityName) {
+    const html = renderStudioEmail(studioTheme, {
+      eyebrow: address,
+      headline: `A new update on your ${saleWord}`,
+      greeting,
+      blocks: [{ label: "New update", html: `<span style="white-space:pre-wrap">${content}</span>` }],
+      cta: { label: "View in portal", url: portalUrl },
+      trailingHtml: `<p style="margin:0;font-size:12px;color:#6b7280">You're receiving this because you have a ${saleWord} in progress with ${agencyName}.</p>`,
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+    return { subject, text, html };
+  }
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${theme.buttonBg}">${agencyName}</p>
