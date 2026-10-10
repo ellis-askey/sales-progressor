@@ -39,6 +39,11 @@ export function VoiceNotePanel({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const baseRef = useRef("");
 
+  // Phase 5 — drive the waveform bars from real mic volume.
+  const [liveAudio, setLiveAudio] = useState(false);
+  const waveRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | null>(null);
+
   // Review edit state
   const [msOn, setMsOn] = useState<Record<string, boolean>>({});
   const [msDate, setMsDate] = useState<Record<string, string>>({});
@@ -81,10 +86,61 @@ export function VoiceNotePanel({
   }, []);
 
   useEffect(() => {
-    if (recording) { timerRef.current = setInterval(() => setSecs((s) => s + 1), 1000); }
-    else if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    if (recording) { timerRef.current = setInterval(() => setSecs((s) => s + 1), 1000); void startMeter(); }
+    return () => {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      stopMeter();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording]);
+
+  // Opens a second mic stream alongside speech recognition and reads real-time
+  // volume per frequency bin, mapping it onto the waveform bar heights. Falls
+  // back to the CSS keyframe animation if audio analysis isn't available or the
+  // user prefers reduced motion.
+  async function startMeter() {
+    if (audioRef.current) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const Ctx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.72;
+      src.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const bars = waveRef.current ? (Array.from(waveRef.current.children) as HTMLElement[]) : [];
+        const n = bars.length || 1;
+        for (let i = 0; i < bars.length; i++) {
+          const bin = 2 + Math.floor((i / n) * 40); // focus on the voice range
+          const v = data[bin] / 255;
+          const h = Math.max(8, Math.min(100, 8 + v * 150));
+          bars[i].style.height = h + "%";
+        }
+        if (audioRef.current) audioRef.current.raf = requestAnimationFrame(tick);
+      };
+      audioRef.current = { ctx, stream, raf: requestAnimationFrame(tick) };
+      setLiveAudio(true);
+    } catch {
+      setLiveAudio(false);
+    }
+  }
+
+  function stopMeter() {
+    const a = audioRef.current;
+    if (a) {
+      cancelAnimationFrame(a.raf);
+      a.stream.getTracks().forEach((t) => t.stop());
+      a.ctx.close().catch(() => { /* noop */ });
+      audioRef.current = null;
+    }
+    setLiveAudio(false);
+    if (waveRef.current) (Array.from(waveRef.current.children) as HTMLElement[]).forEach((el) => { el.style.height = ""; });
+  }
 
   function startRec() {
     if (!recRef.current) return;
@@ -167,7 +223,7 @@ export function VoiceNotePanel({
           <>
             <div className="lum-listen" data-on={recording ? "1" : undefined}><span className="lum-blip" /> {recording ? "Listening" : "Ready"}</div>
             <div className="lum-rectime">{fmtTime(secs)}</div>
-            <div className={"lum-wave" + (recording ? " on" : "")}>{Array.from({ length: 28 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />)}</div>
+            <div ref={waveRef} className={"lum-wave" + (recording && !liveAudio ? " on" : "") + (liveAudio ? " live" : "")}>{Array.from({ length: 28 }).map((_, i) => <span key={i} style={{ animationDelay: `${i * 0.045}s` }} />)}</div>
           </>
         ) : (
           <p className="lum-help" style={{ textAlign: "center", marginTop: 0 }}>Your browser can&rsquo;t record voice, so type the note instead. We&rsquo;ll still pull out the updates.</p>

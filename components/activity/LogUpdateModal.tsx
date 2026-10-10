@@ -443,6 +443,8 @@ const CSS = `
 .lum-wave span { width:3px; border-radius:999px; background:var(--agent-coral,#FF8A65); opacity:.85; height:12%; }
 .lum-wave.on span { animation:lum-wav .9s ease-in-out infinite; }
 @keyframes lum-wav { 0%,100%{height:14%} 50%{height:82%} }
+/* Live mic-driven bars (Phase 5): heights set inline per frame, smoothed. */
+.lum-wave.live span { animation:none; transition:height .08s linear; }
 .lum-recbtns { display:flex; gap:9px; margin-top:14px; justify-content:center; }
 .lum-shimmer { width:40px; height:40px; border-radius:999px; margin:0 auto; border:3px solid var(--agent-coral-bg-tint,rgba(255,138,101,.18)); border-top-color:#F04E2C; animation:lum-spin .8s linear infinite; }
 @keyframes lum-spin { to { transform:rotate(360deg) } }
