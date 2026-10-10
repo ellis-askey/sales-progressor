@@ -103,7 +103,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
     const due = computeDueClientSlots(tx, now);
     if (due.length === 0) continue;
 
-    const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined, theme: undefined }));
+    const { from, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined, theme: undefined, studioTheme: undefined, brandName: undefined, logoUrl: undefined, tileColor: undefined }));
     const emailTheme = theme ?? resolveEmailTheme(null);
     // Effective client copy — the agency's own version, else our default.
     const edContent = await resolveExchangeDayClientContent(tx.agencyId);
@@ -125,7 +125,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
         if (c.chasesPausedUntil && c.chasesPausedUntil > now) continue;
 
         const saleWord: "sale" | "purchase" = c.roleType === "vendor" ? "sale" : "purchase";
-        const vars = { firstName: firstName(c.name), address: tx.propertyAddress, addressShort, completionDate, senderName, agencyName, saleWord };
+        const vars = { firstName: firstName(c.name), address: tx.propertyAddress, addressShort, completionDate, senderName, agencyName, saleWord, studioTheme, identityName: brandName ?? agencyName, logoUrl, tileColor };
 
         let built: { subject: string; text: string; html: string };
         if (s.slot === "authority") {

@@ -23,6 +23,7 @@ import { prisma } from "@/lib/prisma";
 import { renderEditedEmailHtml } from "@/lib/email/milestone-digest";
 import { agencyLogoBand } from "@/lib/email/agency-logo-band";
 import { renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { getMilestoneCopy } from "@/lib/portal-copy";
@@ -890,6 +891,12 @@ export async function updateEmailPayload(
     const respondUrl = typeof currentPayload.respondUrl === "string" ? currentPayload.respondUrl : null;
     const pauseUrl = typeof currentPayload.pauseUrl === "string" ? currentPayload.pauseUrl : null;
     const unsubscribeUrl = typeof currentPayload.unsubscribeUrl === "string" ? currentPayload.unsubscribeUrl : null;
+    // Studio theme ingredients stored at enqueue — present only for customised
+    // agencies/businesses, so the edited chase re-renders through the studio shell.
+    const pStudioTheme = (currentPayload.studioTheme && typeof currentPayload.studioTheme === "object") ? currentPayload.studioTheme as StudioTheme : undefined;
+    const pIdentity = typeof currentPayload.identityName === "string" ? currentPayload.identityName : undefined;
+    const pLogoUrl = typeof currentPayload.studioLogoUrl === "string" ? currentPayload.studioLogoUrl : undefined;
+    const pTileColor = typeof currentPayload.studioTileColor === "string" ? currentPayload.studioTileColor : undefined;
     if (agencyName && respondUrl && pauseUrl && unsubscribeUrl) {
       rebuiltHtml = renderEditedChaseEmailHtml({
         agencyName,
@@ -899,6 +906,10 @@ export async function updateEmailPayload(
         pauseUrl,
         unsubscribeUrl,
         theme: rebuildTheme,
+        studioTheme: pStudioTheme,
+        identityName: pIdentity,
+        logoUrl: pLogoUrl,
+        tileColor: pTileColor,
       });
     }
   }

@@ -2076,9 +2076,12 @@ export function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabe
 </body></html>`;
 }
 
-export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null), eyebrow, headline, studioTheme, identityName, logoUrl, tileColor }: {
+export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resolveEmailTheme(null), eyebrow, headline, studioTheme, identityName, logoUrl, tileColor, richBody }: {
   greeting: string; body: string; ctaText: string; ctaUrl: string; theme?: EmailTheme;
   eyebrow?: string | null; headline?: string; studioTheme?: StudioTheme; identityName?: string; logoUrl?: string | null; tileColor?: string | null;
+  // richBody: the body already contains block markup (<p>, <ul>) — inject it raw
+  // via the renderer's escape hatch instead of wrapping a single styled block.
+  richBody?: boolean;
 }) {
   // Customised agency/business → full studio render; default keeps legacy below.
   if (studioTheme && identityName) {
@@ -2086,7 +2089,8 @@ export function portalEmailHtml({ greeting, body, ctaText, ctaUrl, theme = resol
       eyebrow: eyebrow ?? null,
       headline: headline ?? "Update",
       greeting,
-      blocks: [{ html: body }],
+      blocks: richBody ? [] : [{ html: body }],
+      bodyHtml: richBody ? body : undefined,
       cta: { label: ctaText, url: ctaUrl },
     }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
   }
@@ -2701,8 +2705,13 @@ export function renderCompletionPackBody(args: {
   content: CompletionPackContent;
   // Agency brand theme — only its button colour is applied (coral default).
   theme?: EmailTheme;
+  // Full studio theme + identity for customised agencies/businesses.
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
 }): { subject: string; text: string; html: string; recipientEmail: string } {
-  const { contact, address, completionDate, agentName, content } = args;
+  const { contact, address, completionDate, agentName, content, studioTheme, identityName, logoUrl, tileColor } = args;
   const emailTheme = args.theme ?? resolveEmailTheme(null);
   const base = process.env.NEXTAUTH_URL ?? "";
   const completionStr = completionDate
@@ -2748,6 +2757,8 @@ export function renderCompletionPackBody(args: {
     ctaText: "View your portal",
     ctaUrl: portalUrl,
     theme: emailTheme,
+    eyebrow: address, headline: "Completion day",
+    studioTheme, identityName, logoUrl, tileColor, richBody: true,
   });
 
   return { subject, text, html, recipientEmail: contact.email };
@@ -2806,12 +2817,12 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   if (!ctx) return;
 
   // Client-facing pack — send from the agency (Option C), not Sales Progressor.
-  const { from: agencyEmailFrom, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(transactionId);
 
   const vendorIds: string[] = [];
   let vendorPlainForLog = "";
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
     if (!sent) continue; // don't record a "sent" row for a failed send
     vendorIds.push(c.id);
@@ -2824,7 +2835,7 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
   const purchaserIds: string[] = [];
   let purchaserPlainForLog = "";
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
     if (!sent) continue; // don't record a "sent" row for a failed send
     purchaserIds.push(c.id);
@@ -2846,11 +2857,11 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
 
   // Client-facing pack — carry the agency sender through to the drain so the
   // scheduled send goes out as the agency (Option C), not Sales Progressor.
-  const { from: agencyEmailFrom, replyTo, theme } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(transactionId);
 
   const sourceIdBase = `${transactionId}:${milestoneCode}`;
   for (const c of ctx.vendors) {
-    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme });
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,
@@ -2861,7 +2872,7 @@ async function enqueueCustomerCompletionPack(transactionId: string, milestoneCod
     }).catch(() => {});
   }
   for (const c of ctx.purchasers) {
-    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme });
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     await enqueueEmail({
       emailType: "COMPLETION_PACK",
       sourceId: sourceIdBase,

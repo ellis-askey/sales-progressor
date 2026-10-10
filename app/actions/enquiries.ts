@@ -348,6 +348,10 @@ export async function getEnquiryChaseEmailAction(
       pauseUrl: buildContactPauseUrl(contact.id),
       unsubscribeUrl: buildContactUnsubscribeUrl(contact.id),
       theme,
+      studioTheme: sender.studioTheme,
+      identityName: sender.brandName ?? tx.agency?.name ?? undefined,
+      logoUrl: sender.logoUrl,
+      tileColor: sender.tileColor,
     });
     return { ok: true, data: { ...base, html } };
   }

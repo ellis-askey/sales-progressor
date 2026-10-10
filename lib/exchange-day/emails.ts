@@ -3,6 +3,8 @@
 // copy — see docs/active/exchange-day-SPEC.md. No buttons; bold sign-off name.
 
 import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 
 export type ExchangeDaySlot = "morning" | "midday" | "afternoon";
 
@@ -81,6 +83,11 @@ export type ExchangeDayClientVars = {
   senderName: string;
   agencyName: string;
   saleWord: "sale" | "purchase"; // vendor -> "sale", purchaser -> "purchase"
+  // Full studio theme + identity for customised agencies/businesses.
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
 };
 
 function clientPara(p: string): string {
@@ -132,7 +139,13 @@ export function buildExchangeDayClientMorningEmail(
   const subject = interpClient(content.subject, v);
   const paras = content.paragraphs.map((p) => interpClient(p, v));
   const text = `${paras.join("\n\n")}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
-  const html = clientShell(paras.map(clientPara).join("\n") + "\n" + clientSignOff(v.senderName, v.agencyName));
+  const bodyInner = paras.map(clientPara).join("\n") + "\n" + clientSignOff(v.senderName, v.agencyName);
+  const html = (v.studioTheme && v.identityName)
+    ? renderStudioEmail(v.studioTheme, {
+        eyebrow: v.address, headline: "Exchange day", bodyHtml: bodyInner, cta: null,
+        preheaderText: "We're aiming to exchange contracts today.",
+      }, { identityName: v.identityName, logoUrl: v.logoUrl ?? null, tileColor: v.tileColor ?? null })
+    : clientShell(bodyInner);
   return { subject, text, html };
 }
 
@@ -146,14 +159,22 @@ export function buildExchangeDayClientAuthorityEmail(
   const intro = content.intro.map((p) => interpClient(p, v));
   const closing = interpClient(content.closing, v);
   const text = `${intro.join("\n\n")}\n\nI've given authority: ${v.authorityUrl}\n\n${closing}\n\nKind regards,\n${v.senderName}\n${v.agencyName}`;
-  const html = clientShell(
-    intro.map(clientPara).join("\n") +
-      "\n" +
-      clientButton(v.authorityUrl, "I've given authority", v.theme) +
-      "\n" +
-      clientPara(closing) +
-      "\n" +
-      clientSignOff(v.senderName, v.agencyName),
-  );
+  const html = (v.studioTheme && v.identityName)
+    ? renderStudioEmail(v.studioTheme, {
+        eyebrow: v.address,
+        headline: "Your authority to exchange",
+        bodyHtml: intro.map(clientPara).join("\n") + "\n" + clientPara(closing) + "\n" + clientSignOff(v.senderName, v.agencyName),
+        cta: { label: "I've given authority", url: v.authorityUrl },
+        preheaderText: "A quick confirmation to help us exchange today.",
+      }, { identityName: v.identityName, logoUrl: v.logoUrl ?? null, tileColor: v.tileColor ?? null })
+    : clientShell(
+        intro.map(clientPara).join("\n") +
+          "\n" +
+          clientButton(v.authorityUrl, "I've given authority", v.theme) +
+          "\n" +
+          clientPara(closing) +
+          "\n" +
+          clientSignOff(v.senderName, v.agencyName),
+      );
   return { subject, text, html };
 }

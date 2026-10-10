@@ -42,6 +42,8 @@ import { getChaseOverridesForBuild, consumeSkip } from "@/lib/services/chase-ove
 import { toUKDateStr } from "@/lib/utils";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
+import { renderStudioEmail } from "@/lib/email/studio-render";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 import { resolveProviderAvailability } from "@/lib/services/provider-availability";
 
@@ -85,6 +87,13 @@ export type AssembleDigestInput = {
   agencyCopy?: { subject: string; intro: string; outro: string };
   // Agency brand theme (colours). Optional; omitted = Sales Progressor coral.
   theme?: EmailTheme;
+  // Full studio theme + identity — when present (agency/business customised) the
+  // digest renders through the studio shell (themed header/body font/button/
+  // footer) while keeping its tone body + the pause/unsubscribe compliance footer.
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
   // Critique #22: when the survey step (PM9) is being chased AND we have a
   // vetted surveyor covering the property's postcode, turn the plain "book your
   // survey" nudge into a pre-filled quote offer. Resolved by the caller (async
@@ -469,7 +478,23 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#4a5162;">Already arranged your own surveyor? <a href="${respondUrl}" style="color:${theme.buttonBg};text-decoration:underline;">Confirm it on your page</a>.</p>`
     : "";
 
-  const html = `<!DOCTYPE html>
+  // Customised agency/business → studio shell (themed header + body font + accent
+  // button + footer) while the tone body, survey callout and the pause/unsubscribe
+  // compliance links are carried through unchanged. Default keeps the legacy table.
+  const supportMail = input.supportEmail ?? "support@thesalesprogressor.co.uk";
+  const complianceFooter =
+    `<a href="${pauseUrl}" style="color:inherit;text-decoration:underline">Pause reminders for a week</a> &middot; ` +
+    `<a href="${unsubscribeUrl}" style="color:inherit;text-decoration:underline">Unsubscribe</a> &middot; ` +
+    `<a href="mailto:${supportMail}" style="color:inherit;text-decoration:underline">${supportMail}</a>`;
+  const html = (input.studioTheme && input.identityName) ? renderStudioEmail(input.studioTheme, {
+    eyebrow: address,
+    headline: `An update on your ${transactionWord}`,
+    bodyHtml: htmlInner,
+    cta: { label: ctaLabel, url: ctaHref },
+    trailingHtml: surveyOnlySecondaryHtml || null,
+    footerText: complianceFooter,
+    preheaderText: `A couple of quick things need you to keep your ${transactionWord} moving.`,
+  }, { identityName: input.identityName, logoUrl: input.logoUrl ?? null, tileColor: input.tileColor ?? null }) : `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">${preheader(`A couple of quick things need you to keep your ${transactionWord} moving.`)}
@@ -637,6 +662,10 @@ export async function enqueueClientChaseDigest(input: {
     recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
     agencyCopy,
     theme,
+    studioTheme: sender.studioTheme,
+    identityName: sender.brandName ?? transaction.agency?.name ?? undefined,
+    logoUrl: sender.logoUrl,
+    tileColor: sender.tileColor,
     // White-label the footer "need help" contact to the file's own reply-to; falls
     // back to our support address when the file has no reply-to (audit SP-polish).
     supportEmail: sender.canReply ? sender.replyTo : undefined,
@@ -656,6 +685,10 @@ export async function enqueueClientChaseDigest(input: {
       unsubscribeUrl: payload.unsubscribeUrl,
       theme,
       supportEmail: sender.canReply ? sender.replyTo : undefined,
+      studioTheme: sender.studioTheme,
+      identityName: sender.brandName ?? transaction.agency?.name ?? undefined,
+      logoUrl: sender.logoUrl,
+      tileColor: sender.tileColor,
     });
   }
 
@@ -691,6 +724,12 @@ export async function enqueueClientChaseDigest(input: {
       respondUrl: payload.respondUrl,
       unsubscribeUrl: payload.unsubscribeUrl,
       pauseUrl: buildContactPauseUrl(contact.id),
+      // Studio theme ingredients so an EDITED chase (automation.ts rebuild path)
+      // can re-render through the studio shell, not just the legacy table.
+      studioTheme: sender.studioTheme ?? undefined,
+      identityName: sender.brandName ?? transaction.agency?.name ?? undefined,
+      studioLogoUrl: sender.logoUrl ?? undefined,
+      studioTileColor: sender.tileColor ?? undefined,
       // Which milestone(s) this digest chases — carried so the send-time
       // bookkeeping (commitClientChaseSend, run by the drain) knows which
       // ClientChaseState rows + chase tasks to advance. Skipped codes are
@@ -844,8 +883,12 @@ export function renderEditedChaseEmailHtml(args: {
   unsubscribeUrl: string;
   theme?: EmailTheme;
   supportEmail?: string;
+  studioTheme?: StudioTheme;
+  identityName?: string;
+  logoUrl?: string | null;
+  tileColor?: string | null;
 }): string {
-  const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl, supportEmail } = args;
+  const { agencyName, subject, text, respondUrl, pauseUrl, unsubscribeUrl, supportEmail, studioTheme, identityName, logoUrl, tileColor } = args;
   const theme = args.theme ?? resolveEmailTheme(null);
   const isLinkLine = (line: string) =>
     (respondUrl && line.includes(respondUrl)) ||
@@ -864,6 +907,22 @@ export function renderEditedChaseEmailHtml(args: {
     .filter((block) => block.trim().length > 0)
     .map((block) => `<p style="${pStyle}">${block}</p>`)
     .join("\n          ");
+
+  // Customised agency/business → studio shell, keeping the compliance footer.
+  if (studioTheme && identityName) {
+    const supportMail = supportEmail ?? "support@thesalesprogressor.co.uk";
+    const complianceFooter =
+      `<a href="${pauseUrl}" style="color:inherit;text-decoration:underline">Pause reminders for a week</a> &middot; ` +
+      `<a href="${unsubscribeUrl}" style="color:inherit;text-decoration:underline">Unsubscribe</a> &middot; ` +
+      `<a href="mailto:${supportMail}" style="color:inherit;text-decoration:underline">${supportMail}</a>`;
+    return renderStudioEmail(studioTheme, {
+      headline: subject,
+      bodyHtml: paragraphs,
+      cta: { label: "Open the page", url: respondUrl },
+      footerText: complianceFooter,
+      preheaderText: subject,
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+  }
 
   return `<!DOCTYPE html>
 <html>

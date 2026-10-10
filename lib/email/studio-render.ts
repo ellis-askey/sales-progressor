@@ -73,7 +73,12 @@ export interface StudioEmailContent {
   headline: string;          // header headline (trusted HTML/text)
   lead?: string | null;      // subline under the headline (solid/gradient/banner headers)
   greeting?: string | null;  // "Hi Daniel,"
-  blocks: Array<{ label?: string | null; html: string }>; // body paragraphs (trusted, pre-interpolated)
+  blocks?: Array<{ label?: string | null; html: string }>; // body paragraphs (trusted, pre-interpolated); omit when using bodyHtml
+  // Escape hatch for emails with bespoke body markup (bullet lists, tone
+  // branching, compliance footers) — when set it REPLACES `blocks` in the themed
+  // body container (which still applies the body font + colour + padding), so the
+  // shell is themed while the body keeps its own structure. Greeting still renders.
+  bodyHtml?: string;
   cta?: { label: string; url: string } | null;
   trailingHtml?: string | null; // signature/contact block (trusted; inherits body font)
   footerText?: string | null;   // overrides the default footer sign-off line
@@ -114,7 +119,7 @@ export function renderStudioEmail(st: StudioTheme, content: StudioEmailContent, 
   const mark = (sz: number, bg: string, fg: string) => brandMarkHtml(st, sz, bg, fg, opts.identityName, logoUrl, tileColor);
 
   const greeting = content.greeting ? `<p style="margin:0 0 15px;font-size:14.5px;line-height:${st.leadingCss};color:${T.main};font-family:${st.bodyFont}">${content.greeting}</p>` : "";
-  const blocks = content.blocks.map((b, i) => {
+  const blocks = (content.blocks ?? []).map((b, i) => {
     const card = st.sectionStyle === "cards";
     const labelHtml = b.label ? `<span style="display:block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;color:${card ? st.accent : T.mut}">${b.label}</span>` : "";
     if (card) return `<div style="border:1px solid ${T.rule};border-radius:${st.cardRadiusPx === 0 ? "0" : "10px"};padding:14px 16px;margin-bottom:12px">${labelHtml}<span style="font-size:14.5px;line-height:${st.leadingCss};color:${T.soft};font-family:${st.bodyFont}">${b.html}</span></div>`;
@@ -151,7 +156,7 @@ export function renderStudioEmail(st: StudioTheme, content: StudioEmailContent, 
   const shadowCss = st.cardShadowCss && st.cardShadowCss !== "none" ? `box-shadow:${st.cardShadowCss};` : "";
   const pre = content.preheaderText ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(content.preheaderText)}</div>` : "";
 
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:${st.pageBg};-webkit-font-smoothing:antialiased">${pre}<div style="max-width:${st.maxWidthPx + 24}px;margin:0 auto;padding:24px 12px"><div style="max-width:${st.maxWidthPx}px;margin:0 auto;background:${st.cardBg};border-radius:${st.cardRadiusPx}px;overflow:hidden;${border}${shadowCss}">${header(st, content, T, mark, opts.identityName)}${hero}<div style="padding:${px}px ${px}px 4px;text-align:${st.align}">${greeting}${blocks}</div>${button}${trailing}${footer}</div></div></body></html>`;
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:${st.pageBg};-webkit-font-smoothing:antialiased">${pre}<div style="max-width:${st.maxWidthPx + 24}px;margin:0 auto;padding:24px 12px"><div style="max-width:${st.maxWidthPx}px;margin:0 auto;background:${st.cardBg};border-radius:${st.cardRadiusPx}px;overflow:hidden;${border}${shadowCss}">${header(st, content, T, mark, opts.identityName)}${hero}<div style="padding:${px}px ${px}px 4px;text-align:${st.align}">${greeting}${content.bodyHtml ?? blocks}</div>${button}${trailing}${footer}</div></div></body></html>`;
 }
 
 // Sample content for the three preview types — used by the "Send test" button so
