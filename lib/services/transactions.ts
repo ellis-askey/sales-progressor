@@ -986,6 +986,19 @@ export async function createTransaction(input: CreateTransactionInput) {
     if (state.kind === "blocked") throw new BusinessPaymentBlockedError();
   }
 
+  // Item 9: an agent-sent sale that arrives while the business is in the day-7 blocked
+  // stage (no card, 7+ days of owed sales) is HELD — created so the agent sees success,
+  // but inert (no intro email, no chasing, out of the active book) until the owner adds
+  // a card. releaseHeldSales starts it progressing then. Only the agent-intake path can
+  // be held; the owner's own adds are gated up front.
+  let heldPendingCardAt: Date | null = null;
+  if (input.fromAgentIntake && input.progressionBusinessId && !input.isDemo && progressionBillingCollectEnabled()) {
+    const { shouldHoldAgentIntake } = await import("@/lib/progression/card-nudge");
+    if (await shouldHoldAgentIntake(input.progressionBusinessId)) {
+      heldPendingCardAt = input.createdAt ?? new Date();
+    }
+  }
+
   const newTx = await prisma.$transaction(async (tx) => {
     // Payments: refuse new files if the agency has an overdue failed payment
     // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws
@@ -1037,6 +1050,8 @@ export async function createTransaction(input: CreateTransactionInput) {
         input.progressionBusinessId && !(input.isDemo ?? false) && !(input.isMigrated ?? false)
           ? (input.createdAt ?? new Date())
           : null,
+      // Item 9: held when an agent sends a sale to a card-less business at day 7+.
+      heldPendingCardAt,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
       // Pricing migration (2026-08): a self-run sale is free by type; an

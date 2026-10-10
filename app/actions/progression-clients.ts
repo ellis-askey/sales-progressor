@@ -342,6 +342,12 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
   if (!owner) return { ok: false, error: "Only a progression-business owner can do this." };
   try {
     await syncBusinessSubscription(owner.businessId);
+    // Item 9: a card is now on file — release any sales held while there was none, so
+    // they start progressing (reminders + the intro email). The accrued £5s collect on
+    // the next invoice. Best-effort: a release hiccup must not fail the card setup.
+    const { releaseHeldSales } = await import("@/lib/progression/card-nudge");
+    const released = await releaseHeldSales(owner.businessId).catch((e) => { console.error("[card-nudge] release after card-add failed:", e); return 0; });
+    if (released > 0) revalidatePath("/agent/hub");
     revalidatePath("/agent/settings/billing");
     return { ok: true };
   } catch (err) {

@@ -491,16 +491,21 @@ export async function createTransactionAction(input: {
   // Phase 1 commit 3: purchaser-side ReminderLog/ChaseTask rows get the
   // active round stamp; vendor-side stay file-level.
   const completedCodes = mosAutoConfirmed ? ["VM2", "PM2"] : [];
-  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes, tx.activeBuyerRoundId).catch(console.error);
-  // Full engine handles anchor-based and exchange-gated rules asynchronously
-  void evaluateTransactionReminders(tx.id).catch(console.error);
+  // A sale HELD pending a card (item 9 — agent sent it while the business was at the
+  // day-7 blocked stage) stays inert: no chasing and no client email until the owner
+  // adds a card. releaseHeldSales runs these on card-add.
+  if (!tx.heldPendingCardAt) {
+    await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes, tx.activeBuyerRoundId).catch(console.error);
+    // Full engine handles anchor-based and exchange-gated rules asynchronously
+    void evaluateTransactionReminders(tx.id).catch(console.error);
+  }
 
   // White-labelled "Getting your sale moving" intro to buyer + seller —
   // fires once per contact on outsourced sales only. Fire-and-forget so a
   // queue / DB hiccup doesn't fail the new-sale response. The orchestrator
   // gates on serviceType internally too as a belt-and-braces check, but
   // the trigger guard here keeps the call path narrow.
-  if (resolvedProgressedBy === "progressor") {
+  if (resolvedProgressedBy === "progressor" && !tx.heldPendingCardAt) {
     const { sendOutsourceIntroForTransaction } = await import("@/lib/emails/send-outsource-intro");
     void sendOutsourceIntroForTransaction(tx.id, session.user.id).catch(console.error);
   }

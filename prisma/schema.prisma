@@ -914,6 +914,13 @@ model PropertyTransaction {
   // double-charge. Null = accrued but not yet sent to Stripe (or collection dark).
   businessPerSaleInvoicedAt DateTime?
 
+  // Item 9: an agent "Send to us" sale that arrived while the progression business
+  // was in the day-7 "no card" blocked stage is HELD here — created so the agent
+  // sees success, but inert (no intro email, no chasing, excluded from the active
+  // book) until the owner adds a card. Cleared by releaseHeldSales on card-add,
+  // which then starts it progressing. Null = not held (the normal case).
+  heldPendingCardAt DateTime?
+
   // Snapshot of purchasePrice at the moment of exchange. Billing reads from this
   // snapshot, not the live purchasePrice field — immune to later price edits.
   priceAtExchange Int? // pence
