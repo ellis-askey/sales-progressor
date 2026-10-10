@@ -119,8 +119,26 @@ Phases 1–3 shipped to prod 2026-10-10.
 - Alongside speech recognition, open a mic stream + Web Audio `AnalyserNode`; drive the waveform bar heights from real-time volume (rAF loop). Graceful fallback to the current animation if audio analysis is unavailable.
 
 ### Phase 6 — "share with client" who-sees-this (largest; needs a decision)
-- **6a (artifact):** show exactly how a shared comm appears in a client's portal today (it's currently all-or-nothing to every client on the file), + the proposed per-side / per-person "who sees this" control.
-- **6b (decision):** confirm per-side sharing (recommended: yes, default everyone, full autonomy).
-- **6c (build):** wire per-contact `visibleToClient` selection into the log-a-comm + note flows.
+
+**Premise corrected after tracing the real code (2026-10-10).** It is NOT "all-or-nothing to
+every client." A shared comm (`OutboundMessage.visibleToClient = true` — there is no `CommsEntry`
+model) is scoped on read in `getPortalTimeline` (`lib/services/portal.ts:3101-3118`) by the
+viewer's side AND by the `contactIds` the agent ticked:
+- **Purchaser** sees it only if their own contactId is in `contactIds` (+ active buyer round).
+- **Vendor** sees it if `contactIds` is empty (broadcast) OR addressed to any vendor contact.
+- **Asymmetry / footgun:** a true broadcast (empty `contactIds`) reaches vendors but **NOT** any
+  purchaser (the purchaser arm requires `contactIds.has(theirId)`).
+
+So the real gap is that **audience is coupled to the participant list** (who the comm was *with* ==
+who can *see* it), and the broadcast case is asymmetric. What a client actually sees: attributed to
+**"Your team"** (no individual agent), method pill only (no inbound/outbound), `Mon, 5 Oct · 14:30`.
+
+- **6a (artifact):** DONE — `docs/active/log-an-update/share-visibility.html`. Shows the true
+  behaviour (side + contactIds scoping), the broadcast asymmetry, the exact portal copy, and the
+  proposed explicit "Who sees this" control decoupled from participants.
+- **6b (decision — PENDING Ellis):** add explicit per-side "Who sees this" + fix broadcast
+  asymmetry (recommended), vs. only fix the asymmetry, vs. leave as-is.
+- **6c (build):** only after 6b. Wire the chosen "who sees this" model into log-a-comm + the voice
+  review sends.
 
 Each phase is its own commit (one concern per PR). Phases 1–5 are code; Phase 6 starts with the artifact + your decision before any wiring.

@@ -1,0 +1,415 @@
+<style>
+  :root {
+    --paper: #FFFBF5;
+    --paper-2: #FFF5EC;
+    --ink: #2D1810;
+    --ink-2: #5A3A28;
+    --muted: rgba(45,24,16,.56);
+    --faint: rgba(45,24,16,.40);
+    --line: rgba(45,24,16,.10);
+    --line-soft: rgba(45,24,16,.07);
+    --card: #ffffff;
+    --coral: #FF6B4A;
+    --coral-deep: #F04E2C;
+    --coral-tint: rgba(255,107,74,.10);
+    --seller: #4F46E5;
+    --seller-tint: rgba(79,70,229,.10);
+    --buyer: #BE185D;
+    --buyer-tint: rgba(190,24,93,.10);
+    --team: #E8822E;
+    --green: #0E9F6E;
+    --amber: #B45309;
+    --grey: #64748B;
+    --yes: #0E9F6E;
+    --no: #C0392B;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(45,24,16,.05), 0 10px 30px -14px rgba(45,24,16,.22);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #17110d;
+      --paper-2: #1d1612;
+      --ink: #F4EBE2;
+      --ink-2: #D8C7B9;
+      --muted: rgba(244,235,226,.60);
+      --faint: rgba(244,235,226,.40);
+      --line: rgba(244,235,226,.13);
+      --line-soft: rgba(244,235,226,.08);
+      --card: #221a15;
+      --coral: #FF7E5F;
+      --coral-deep: #FF6B4A;
+      --coral-tint: rgba(255,126,95,.14);
+      --seller: #A5B4FC;
+      --seller-tint: rgba(165,180,252,.14);
+      --buyer: #F9A8D4;
+      --buyer-tint: rgba(249,168,212,.14);
+      --team: #F0A05A;
+      --green: #34D399;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 36px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #FFFBF5; --paper-2: #FFF5EC; --ink: #2D1810; --ink-2: #5A3A28;
+    --muted: rgba(45,24,16,.56); --faint: rgba(45,24,16,.40); --line: rgba(45,24,16,.10);
+    --line-soft: rgba(45,24,16,.07); --card: #ffffff;
+    --coral: #FF6B4A; --coral-deep: #F04E2C; --coral-tint: rgba(255,107,74,.10);
+    --seller: #4F46E5; --seller-tint: rgba(79,70,229,.10); --buyer: #BE185D; --buyer-tint: rgba(190,24,93,.10);
+    --team: #E8822E; --green: #0E9F6E; --shadow: 0 1px 2px rgba(45,24,16,.05), 0 10px 30px -14px rgba(45,24,16,.22);
+  }
+  :root[data-theme="dark"] {
+    --paper: #17110d; --paper-2: #1d1612; --ink: #F4EBE2; --ink-2: #D8C7B9;
+    --muted: rgba(244,235,226,.60); --faint: rgba(244,235,226,.40); --line: rgba(244,235,226,.13);
+    --line-soft: rgba(244,235,226,.08); --card: #221a15;
+    --coral: #FF7E5F; --coral-deep: #FF6B4A; --coral-tint: rgba(255,126,95,.14);
+    --seller: #A5B4FC; --seller-tint: rgba(165,180,252,.14); --buyer: #F9A8D4; --buyer-tint: rgba(249,168,212,.14);
+    --team: #F0A05A; --green: #34D399; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 36px -16px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body, .wrap { margin: 0; }
+  .wrap {
+    font-family: var(--sans);
+    background:
+      radial-gradient(1100px 520px at 82% -8%, var(--coral-tint), transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: clamp(28px, 6vw, 72px) clamp(18px, 5vw, 24px) 96px;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--coral-deep); margin: 0 0 14px; font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(27px, 5vw, 40px); line-height: 1.08; letter-spacing: -.025em;
+    margin: 0 0 16px; font-weight: 720; text-wrap: balance; max-width: 18ch;
+  }
+  .lede { font-size: clamp(15px, 2.2vw, 17.5px); color: var(--ink-2); margin: 0; max-width: 62ch; }
+  .lede b { color: var(--ink); font-weight: 650; }
+
+  section { margin-top: clamp(40px, 7vw, 64px); }
+  h2 {
+    font-size: clamp(19px, 3vw, 23px); letter-spacing: -.015em; margin: 0 0 6px; font-weight: 680;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--coral-deep);
+    background: var(--coral-tint); border-radius: 7px; padding: 2px 8px; flex: 0 0 auto; letter-spacing: 0;
+  }
+  .sub { color: var(--muted); font-size: 14.5px; margin: 0 0 22px; max-width: 64ch; }
+
+  /* Two device frames */
+  .frames { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 720px) { .frames { grid-template-columns: 1fr; } }
+  .frame {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+  }
+  .frame-bar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    border-bottom: 1px solid var(--line-soft); background: var(--paper-2);
+  }
+  .frame-bar .dot { width: 9px; height: 9px; border-radius: 99px; background: var(--line); }
+  .frame-bar .lbl { margin-left: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .frame-body { padding: 16px 16px 18px; flex: 1; }
+
+  .mini-eyebrow { font-family: var(--mono); font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin: 0 0 9px; }
+
+  /* Agent "Who" picker */
+  .who { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; position: relative; }
+  .who::before { content: ""; position: absolute; top: 2px; bottom: 2px; left: 50%; width: 1px; background: var(--line-soft); }
+  .wholab { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 8px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+    padding: 4px 11px 4px 4px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .pill.on { border-color: var(--coral); box-shadow: 0 2px 8px rgba(255,107,74,.18); }
+  .av { width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; color: #fff; font-size: 9px; font-weight: 700; flex: 0 0 auto; }
+  .av.s { background: linear-gradient(140deg,#6366F1,#4338CA); }
+  .av.b { background: linear-gradient(140deg,#EC4899,#9D174D); }
+
+  .toggle-row { display: flex; align-items: center; gap: 11px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+  .sw { width: 40px; height: 23px; border-radius: 99px; position: relative; flex: 0 0 auto; background: linear-gradient(180deg,var(--coral),var(--coral-deep)); }
+  .sw::after { content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 99px; background: #fff; transform: translateX(17px); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .sw.off { background: var(--line); }
+  .sw.off::after { transform: none; }
+  .sw-lab { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+  .sw-lab small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+
+  /* Portal feed card */
+  .portal { background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.3)); }
+  @media (prefers-color-scheme: dark) { .portal { background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); } }
+  .feed-card { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+  .team-av { width: 32px; height: 32px; border-radius: 99px; flex: 0 0 auto; background: linear-gradient(140deg,#F0A05A,#E8822E); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .feed-body { min-width: 0; flex: 1; }
+  .feed-text { font-size: 13.5px; color: var(--ink); margin: 0; line-height: 1.5; }
+  .feed-meta { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .feed-time { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ppill { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 99px; letter-spacing: .01em; }
+  .ppill.coral { background: var(--coral-tint); color: var(--coral-deep); }
+  .ppill.green { background: rgba(14,159,110,.12); color: var(--green); }
+  .ppill.blue { background: rgba(37,99,235,.12); color: #2563EB; }
+  .callout-mini { margin-top: 12px; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
+  .callout-mini b { color: var(--ink-2); }
+
+  /* Truth table */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; padding: 13px 16px; border-bottom: 1px solid var(--line); background: var(--paper-2);
+  }
+  thead th.c { text-align: center; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.warn td { background: rgba(192,57,43,.05); }
+  @media (prefers-color-scheme: dark) { tbody tr.warn td { background: rgba(255,120,100,.07); } }
+  .case { font-weight: 600; color: var(--ink); }
+  .case small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  td.c { text-align: center; }
+  .mark { font-weight: 800; font-size: 15px; }
+  .mark.y { color: var(--yes); }
+  .mark.n { color: var(--no); }
+  .flag { font-size: 10px; font-weight: 700; color: var(--no); font-family: var(--mono); letter-spacing: .06em; }
+
+  /* Rule box */
+  .rule { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; }
+  .rule-item { display: flex; gap: 13px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .rule-item:first-child { padding-top: 0; } .rule-item:last-child { border-bottom: 0; padding-bottom: 0; }
+  .rule-side { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; padding: 3px 9px; border-radius: 7px; height: fit-content; flex: 0 0 auto; margin-top: 1px; }
+  .rule-side.s { color: var(--seller); background: var(--seller-tint); }
+  .rule-side.b { color: var(--buyer); background: var(--buyer-tint); }
+  .rule-txt { font-size: 13.5px; color: var(--ink-2); }
+  .rule-txt b { color: var(--ink); font-weight: 650; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--paper-2); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+
+  /* Gap / decision */
+  .gap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .gap-grid { grid-template-columns: 1fr; } }
+  .gap-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+  .gap-card h3 { margin: 0 0 7px; font-size: 14.5px; font-weight: 680; display: flex; align-items: center; gap: 8px; }
+  .gap-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .tag { font-size: 9.5px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+  .tag.bug { color: var(--no); background: rgba(192,57,43,.1); }
+  .tag.friction { color: var(--amber); background: rgba(180,83,9,.1); }
+
+  .options { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+  .opt { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; background: var(--card); box-shadow: var(--shadow); display: flex; gap: 14px; align-items: flex-start; }
+  .opt.rec { border-color: var(--coral); background: linear-gradient(180deg, var(--coral-tint), transparent 70%); }
+  .opt-key { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--coral-deep); width: 22px; flex: 0 0 auto; }
+  .opt-main h3 { margin: 0 0 3px; font-size: 15px; font-weight: 680; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .opt-main p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .rec-badge { font-size: 9.5px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: #fff; background: linear-gradient(180deg,var(--coral),var(--coral-deep)); padding: 2px 8px; border-radius: 99px; }
+
+  .proposal { background: var(--card); border: 1px dashed var(--coral); border-radius: var(--radius); padding: 18px 18px 20px; margin-top: 8px; }
+  .proposal .seg { display: inline-flex; background: var(--paper-2); border: 1px solid var(--line); border-radius: 99px; padding: 3px; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
+  .proposal .seg button { border: 0; font: inherit; font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 99px; cursor: default; color: var(--muted); background: transparent; }
+  .proposal .seg button.sel { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .proposal .seg button.sel.s { color: var(--seller); } .proposal .seg button.sel.b { color: var(--buyer); }
+
+  .foot { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--faint); font-family: var(--mono); letter-spacing: .02em; }
+  .foot a, .wrap a { color: var(--coral-deep); }
+</style>
+
+<div class="wrap">
+  <div class="page">
+
+    <p class="eyebrow">Log an update · Phase 6a</p>
+    <h1>Who actually sees a “shared” update</h1>
+    <p class="lede">Before we build a “who sees this” control, here is exactly what happens today when you flick <b>Share with client</b> on a logged call, email or text — traced from the live portal code, not assumed. The short version: it was never “everyone,” and one case is quietly broken.</p>
+
+    <!-- 1 -->
+    <section>
+      <h2><span class="num">01</span> The one control you have today</h2>
+      <p class="sub">When you log a communication, you tick who it was with and flick a single <b>Share with client</b> switch. There is no separate “audience” setting — the people you tick <em>are</em> the audience.</p>
+      <div class="frames">
+        <div class="frame">
+          <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="lbl">Agent · Log an update</span></div>
+          <div class="frame-body">
+            <p class="mini-eyebrow">Who</p>
+            <div class="who">
+              <div>
+                <span class="wholab">Seller’s side</span>
+                <div class="pills">
+                  <span class="pill"><span class="av s">JM</span>Jane</span>
+                </div>
+              </div>
+              <div>
+                <span class="wholab">Buyer’s side</span>
+                <div class="pills">
+                  <span class="pill on"><span class="av b">TP</span>Tom</span>
+                </div>
+              </div>
+            </div>
+            <div class="toggle-row">
+              <span class="sw"></span>
+              <span class="sw-lab">Visible in client portal<small>Flicked on for this call</small></span>
+            </div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="lbl">What it maps to</span></div>
+          <div class="frame-body">
+            <p class="mini-eyebrow">Stored on the record</p>
+            <div style="font-family:var(--mono);font-size:12.5px;line-height:2;color:var(--ink-2)">
+              <div><code>visibleToClient</code> = <b style="color:var(--green)">true</b></div>
+              <div><code>contactIds</code> = <b style="color:var(--buyer)">[ Tom ]</b></div>
+              <div><code>method</code> = <span style="color:var(--green)">phone</span></div>
+            </div>
+            <p class="callout-mini" style="margin-top:16px"><span>→</span><span><b>There is no per-person “can see this” flag.</b> Visibility is this one boolean. The audience is inferred from <code>contactIds</code> and then re-filtered by side when the portal loads.</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <h2><span class="num">02</span> The rule the portal actually applies</h2>
+      <p class="sub">On read, the portal shows a shared comm only if it’s <code>visibleToClient</code> <b>and</b> it passes a side check tied to who you ticked. The two sides are treated differently.</p>
+      <div class="rule">
+        <div class="rule-item">
+          <span class="rule-side b">Buyer view</span>
+          <span class="rule-txt">A buyer sees it <b>only if their own name is in <code>contactIds</code></b> (and it’s for their active round). Tick Tom, and only Tom sees it — not a second buyer you didn’t tick.</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-side s">Seller view</span>
+          <span class="rule-txt">A seller sees it if it was addressed to <b>any seller contact</b>, <b>or</b> if it has <b>no contacts at all</b> (a file-wide broadcast).</span>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:16px;margin-bottom:0">So in the example above — shared, ticked to Tom the buyer — <b>Tom sees it; Jane the seller does not.</b> It was never “all clients.”</p>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <h2><span class="num">03</span> Every case, side by side</h2>
+      <p class="sub">What “Share with client” does for each way you might tick the Who picker. The last row is the one to notice.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>You tick… (and Share on)</th>
+              <th class="c">Seller sees it?</th>
+              <th class="c">Buyer sees it?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="case">A buyer <small>e.g. Tom</small></td>
+              <td class="c"><span class="mark n">✕</span></td>
+              <td class="c"><span class="mark y">✓</span> <span style="color:var(--muted);font-size:11px">that buyer</span></td>
+            </tr>
+            <tr>
+              <td class="case">A seller <small>e.g. Jane</small></td>
+              <td class="c"><span class="mark y">✓</span></td>
+              <td class="c"><span class="mark n">✕</span></td>
+            </tr>
+            <tr>
+              <td class="case">A seller + a buyer <small>both ticked</small></td>
+              <td class="c"><span class="mark y">✓</span></td>
+              <td class="c"><span class="mark y">✓</span></td>
+            </tr>
+            <tr class="warn">
+              <td class="case">Nobody <small>“just share it with everyone”</small> <span class="flag">⚠ asymmetric</span></td>
+              <td class="c"><span class="mark y">✓</span></td>
+              <td class="c"><span class="mark n">✕</span> <span class="flag">silently hidden</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sub" style="margin-top:16px;margin-bottom:0">A comm shared with <b>no one ticked</b> reaches the seller but is <b>invisible to every buyer</b> — because the buyer check needs their name in the list and the seller check treats an empty list as a broadcast. That mismatch is a genuine bug, not a design choice.</p>
+    </section>
+
+    <!-- 4 -->
+    <section>
+      <h2><span class="num">04</span> What the client actually reads</h2>
+      <p class="sub">When it does reach a client, this is the exact card in their portal — the real copy, attribution and formatting.</p>
+      <div class="frame portal" style="max-width:520px">
+        <div class="frame-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="lbl">Buyer portal · Updates</span></div>
+        <div class="frame-body">
+          <div class="feed-card">
+            <span class="team-av">YT</span>
+            <div class="feed-body">
+              <p class="feed-text">Spoke with you about the searches coming back clear and the plan to raise enquiries with the seller’s solicitor this week.</p>
+              <div class="feed-meta">
+                <span class="feed-time">Mon, 5 Oct · 14:30</span>
+                <span class="ppill coral">New</span>
+                <span class="ppill green">Phone call</span>
+              </div>
+            </div>
+          </div>
+          <p class="callout-mini"><span>·</span><span>Attributed to <b>“Your team”</b> with the orange team avatar — <b>not</b> the individual agent’s name or photo (manually logged comms always read as the team).</span></p>
+          <p class="callout-mini"><span>·</span><span>The client sees the <b>method only</b> (“Phone call”). They never see inbound vs outbound, and any links in the text are stripped out.</span></p>
+          <p class="callout-mini"><span>·</span><span>A note (no method) would show the same card with <b>no pill</b> — but notes are internal and never shared.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section>
+      <h2><span class="num">05</span> The real gap</h2>
+      <p class="sub">Two problems fall out of coupling “who it was with” to “who can see it.”</p>
+      <div class="gap-grid">
+        <div class="gap-card">
+          <h3><span class="tag friction">Friction</span> You can’t aim it</h3>
+          <p>To show the seller a summary of a call you had with the buyer, you’d have to tick the seller as a participant of that call — misrepresenting who you actually spoke to. Audience and participants are the same field, so you can’t keep the record honest and choose the audience.</p>
+        </div>
+        <div class="gap-card">
+          <h3><span class="tag bug">Bug</span> “Everyone” drops buyers</h3>
+          <p>The most intuitive action — share with no one specific, meaning “tell both sides” — reaches sellers and silently skips every buyer. Nobody would predict that from the switch, and there’s no warning.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section>
+      <h2><span class="num">06</span> What I’d propose</h2>
+      <p class="sub">Give sharing its own small control, separate from the participant list, defaulting to the obvious side so the common case stays one tap.</p>
+      <div class="proposal">
+        <p class="mini-eyebrow">Proposed — when Share is on</p>
+        <span class="sw-lab" style="font-weight:600">Who sees this</span>
+        <div class="seg">
+          <button class="sel s">Seller’s side</button>
+          <button class="sel b">Buyer’s side</button>
+          <button>Specific people…</button>
+        </div>
+        <p class="callout-mini" style="margin-top:14px"><span>→</span><span>Defaults to the side(s) of whoever you ticked as participants, so it’s zero extra effort normally. Widen to both sides, or narrow to named people, when you want to. And “both sides” genuinely means both — fixing the broadcast bug on the way.</span></p>
+      </div>
+
+      <p class="sub" style="margin-top:28px;margin-bottom:14px">Your call:</p>
+      <div class="options">
+        <div class="opt rec">
+          <span class="opt-key">A</span>
+          <div class="opt-main">
+            <h3>Explicit “Who sees this” + fix the bug <span class="rec-badge">Recommended</span></h3>
+            <p>Add the control above and make an empty/both-sides share reach everyone. Decouples audience from participants, kills the silent-drop bug, keeps the one-tap default. Most work — a new field on the send path plus UI in log-a-comm and the voice review.</p>
+          </div>
+        </div>
+        <div class="opt">
+          <span class="opt-key">B</span>
+          <div class="opt-main">
+            <h3>Just fix the broadcast bug</h3>
+            <p>Leave the coupling, but make “shared with no one ticked” reach both sides. Smallest change, removes the footgun, but you still can’t aim an update at the opposite side without misusing the participant list.</p>
+          </div>
+        </div>
+        <div class="opt">
+          <span class="opt-key">C</span>
+          <div class="opt-main">
+            <h3>Leave it as-is</h3>
+            <p>Document the behaviour and move on. No code change, but the broadcast bug stays and agents keep hitting the aiming limitation.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot">Traced from lib/services/portal.ts (getPortalTimeline) · prisma OutboundMessage · app/portal/[token]/updates · components/activity/LogUpdateModal.tsx — 2026-10-10</p>
+
+  </div>
+</div>
