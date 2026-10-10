@@ -106,12 +106,16 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
 
 export async function pushToTransaction(
   transactionId: string,
-  payload: Omit<PushPayload, "url"> & { urlPath: string }
+  payload: Omit<PushPayload, "url"> & { urlPath: string },
+  // When provided, only push to these contacts (the explicit share audience).
+  // Omitted/empty = every contact on the file (legacy behaviour).
+  only?: string[]
 ): Promise<void> {
-  const contacts = await prisma.contact.findMany({
+  const audience = only && only.length ? new Set(only) : null;
+  const contacts = (await prisma.contact.findMany({
     where: { propertyTransactionId: transactionId },
     select: { id: true, portalToken: true },
-  });
+  })).filter((c) => !audience || audience.has(c.id));
 
   await Promise.allSettled(
     contacts.map((c) =>

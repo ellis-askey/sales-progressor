@@ -7,7 +7,7 @@
 // panels + actions. The record → review flow lands in Phase 3; its button is
 // deliberately absent until it's real (no dead controls).
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DraftForEveryonePanel } from "./DraftForEveryonePanel";
 import { PasteWhatsAppPanel, type ImportableContact } from "./PasteWhatsAppPanel";
@@ -74,6 +74,13 @@ export function LogUpdateModal(props: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // "Who sees this" audience (Phase 6c) — decoupled from the participant picker.
+  const [audMode, setAudMode] = useState<"side" | "people">("side");
+  const [audSides, setAudSides] = useState<{ seller: boolean; buyer: boolean }>({ seller: false, buyer: true });
+  const [audPeople, setAudPeople] = useState<string[]>([]);
+  const [eyeKey, setEyeKey] = useState(0); // bump to replay the eye flash
+  const wasBothRef = useRef(false);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
     if (open) document.addEventListener("keydown", onKey);
@@ -86,7 +93,32 @@ export function LogUpdateModal(props: Props) {
   function close() { if (closing) return; setMoreOpen(false); setClosing(true); }
   function reallyClose() { setOpen(false); setClosing(false); }
   function goHome() { setMoreOpen(false); setScreen("home"); }
-  function resetForm() { setDirection("outbound"); setSelected([]); setContent(""); setShare(false); setPriv(true); setErr(null); }
+  function resetForm() {
+    setDirection("outbound"); setSelected([]); setContent(""); setShare(false); setPriv(true); setErr(null);
+    setAudMode("side"); setAudSides({ seller: false, buyer: true }); setAudPeople([]);
+  }
+
+  // Which sides the logged participants are on (clients OR solicitors). Drives the
+  // default audience and the cross-side warning.
+  function sidesOfSelected(): { seller: boolean; buyer: boolean } {
+    let seller = false, buyer = false;
+    for (const id of selected) {
+      if (sellerClients.some((c) => c.id === id) || sellerSols.some((s) => s.id === id)) seller = true;
+      if (buyerClients.some((c) => c.id === id) || buyerSols.some((s) => s.id === id)) buyer = true;
+    }
+    return { seller, buyer };
+  }
+
+  // Flicking Share on pre-selects the side(s) the comm was logged with.
+  function toggleShare() {
+    const next = !share;
+    if (next) {
+      const d = sidesOfSelected();
+      setAudSides(d.seller || d.buyer ? d : { seller: false, buyer: true });
+      setAudMode("side"); setAudPeople([]);
+    }
+    setShare(next);
+  }
 
   const whatsappContacts: ImportableContact[] = [
     ...contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone ?? null, roleLabel: c.roleType === "vendor" ? "Vendor" : c.roleType === "purchaser" ? "Purchaser" : "Contact" })),
@@ -120,6 +152,16 @@ export function LogUpdateModal(props: Props) {
     const text = content.trim();
     if (!text) { setErr("Add a short note of what was said."); return; }
     if (!isNote && selected.length === 0) { setErr("Pick who this was with."); return; }
+    // The explicit "who sees this" audience — only when sharing a (non-note) comm.
+    const audience = !isNote && share
+      ? (audMode === "people"
+          ? audPeople
+          : [
+              ...(audSides.seller ? sellerClients.map((c) => c.id) : []),
+              ...(audSides.buyer ? buyerClients.map((c) => c.id) : []),
+            ])
+      : [];
+    if (!isNote && share && audience.length === 0) { setErr("Pick who sees this update."); return; }
     setSaving(true); setErr(null);
     const type: CommType = (isNote ? "internal_note" : direction === "outbound" ? "outbound" : "inbound") as CommType;
     const method: CommMethod | null = isNote ? null : (channel as CommMethod);
@@ -131,6 +173,7 @@ export function LogUpdateModal(props: Props) {
         contactIds: isNote ? [] : selected,
         content: text,
         visibleToClient: isNote ? false : share,
+        sharedWithContactIds: audience,
         businessOnly: isNote && canMarkPrivate ? priv : false,
       });
       onOptimisticAdd?.(type, method, text, isNote ? [] : selected);
@@ -179,6 +222,72 @@ export function LogUpdateModal(props: Props) {
       {s.name}
     </button>
   );
+
+  // ── "Who sees this" derived state ──
+  const audienceSides = audMode === "side" ? audSides : {
+    seller: audPeople.some((id) => sellerClients.some((c) => c.id === id)),
+    buyer: audPeople.some((id) => buyerClients.some((c) => c.id === id)),
+  };
+  const partSides = sidesOfSelected();
+  const crossSide = (audienceSides.seller && !partSides.seller) || (audienceSides.buyer && !partSides.buyer);
+  const bothSel = audienceSides.seller && audienceSides.buyer;
+
+  useEffect(() => {
+    if (bothSel && !crossSide && !wasBothRef.current) setEyeKey((k) => k + 1);
+    wasBothRef.current = bothSel && !crossSide;
+  }, [bothSel, crossSide]);
+
+  // Stacked per-side avatars — tighter overlap as the count grows.
+  const avatarStack = (people: Contact[]) => {
+    const ov = people.length <= 2 ? 10 : people.length === 3 ? 14 : 17;
+    return (
+      <span className="lum-avastack">
+        {people.map((c, i) => (
+          <span key={c.id} className="lum-avai" style={{ marginLeft: i ? -ov : 0, zIndex: people.length - i }}>
+            <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={26} />
+          </span>
+        ))}
+      </span>
+    );
+  };
+  const sideChip = (side: "seller" | "buyer", people: Contact[]) => (
+    <button type="button" className={"lum-sidechip lum-" + side + (audSides[side] ? " on" : "")} aria-pressed={audSides[side]} onClick={() => setAudSides((s) => ({ ...s, [side]: !s[side] }))}>
+      {avatarStack(people)}
+      <span className="lum-sctext">
+        <span className="lum-scname">{side === "seller" ? "Seller’s side" : "Buyer’s side"}</span>
+        <span className="lum-scsub">{people.map((c) => extractFirstName(c.name)).join(", ")}</span>
+      </span>
+      <span className="lum-sctick" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 11, 3.4) }} />
+    </button>
+  );
+  const personRow = (c: Contact, side: "seller" | "buyer") => {
+    const on = audPeople.includes(c.id);
+    return (
+      <button key={c.id} type="button" className={"lum-prow lum-" + side + (on ? " on" : "")} aria-pressed={on} onClick={() => setAudPeople((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))}>
+        <span className="lum-avai"><ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={24} /></span>
+        <span className="lum-prname">{c.name}</span>
+        <span className="lum-prside">{side === "seller" ? "Seller" : "Buyer"}</span>
+        <span className="lum-sctick" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 10, 3.4) }} />
+      </button>
+    );
+  };
+  function audienceSummary() {
+    if (crossSide) {
+      const otherSide = audienceSides.seller && !partSides.seller ? "seller" : "buyer";
+      return <>Heads up. This was logged with the {otherSide === "seller" ? "buyer" : "seller"}, so sharing with the <b>{otherSide}’s side</b> shows them a conversation they weren’t part of.</>;
+    }
+    if (audMode === "side") {
+      if (audSides.seller && audSides.buyer) return <><b>Both sides</b> will see this in their portal.</>;
+      if (audSides.seller) return <>Only the <b>seller’s side</b> will see this.</>;
+      if (audSides.buyer) return <>Only the <b>buyer’s side</b> will see this.</>;
+      return <>Pick who sees this, or turn sharing off.</>;
+    }
+    const names = [...sellerClients, ...buyerClients].filter((c) => audPeople.includes(c.id)).map((c) => extractFirstName(c.name));
+    if (names.length === 0) return <>Tick the people who should see this.</>;
+    const joined = names.length === 1 ? names[0] : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    return <><b>{joined}</b> will see this{names.length === 1 ? "" : ", and no one else"}.</>;
+  }
+  const audienceEmpty = audMode === "side" ? !audSides.seller && !audSides.buyer : audPeople.length === 0;
 
   return (
     <>
@@ -305,10 +414,41 @@ export function LogUpdateModal(props: Props) {
                   )}
                   <textarea className="lum-ta" value={content} onChange={(e) => setContent(e.target.value)} placeholder={screen === "note" ? "Add an internal note…" : "What was discussed or communicated?"} rows={screen === "note" ? 4 : 3} />
                   {screen === "log" && (
-                    <div className="lum-togline">
-                      <button className="lum-sw" aria-pressed={share} onClick={() => setShare((v) => !v)} />
-                      <span className="lum-swlab">{share ? "Visible in client portal" : "Share with client"}</span>
-                    </div>
+                    <>
+                      <div className="lum-togline">
+                        <button className="lum-sw" aria-pressed={share} onClick={toggleShare} />
+                        <span className="lum-swlab">{share ? "Visible in client portal" : "Share with client"}</span>
+                      </div>
+                      {share && (
+                        <div className="lum-wst">
+                          <div className="lum-wsthead">
+                            <span className="lum-wsttitle">Who sees this</span>
+                            {sellerClients.length > 0 && buyerClients.length > 0 && (
+                              <button type="button" className="lum-modebtn" onClick={() => setAudMode((m) => (m === "side" ? "people" : "side"))}>
+                                {audMode === "side" ? "Pick specific people" : "Back to whole sides"}
+                              </button>
+                            )}
+                          </div>
+                          {audMode === "side" ? (
+                            <div className="lum-sides">
+                              {sellerClients.length > 0 && sideChip("seller", sellerClients)}
+                              {buyerClients.length > 0 && sideChip("buyer", buyerClients)}
+                            </div>
+                          ) : (
+                            <div className="lum-people">
+                              {sellerClients.map((c) => personRow(c, "seller"))}
+                              {buyerClients.map((c) => personRow(c, "buyer"))}
+                            </div>
+                          )}
+                          <div className={"lum-summaryline" + (crossSide ? " warn" : "") + (audienceEmpty ? " dim" : "")}>
+                            <span key={eyeKey} className="lum-eye" dangerouslySetInnerHTML={{ __html: crossSide
+                              ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>'
+                              : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' }} />
+                            <span className="lum-stext">{audienceSummary()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   {screen === "note" && canMarkPrivate && (
                     <div className="lum-togline">
@@ -425,6 +565,56 @@ const CSS = `
 .lum-sw::after { content:""; position:absolute; top:2.5px; left:2.5px; width:18px; height:18px; border-radius:999px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .18s; }
 .lum-sw[aria-pressed="true"]::after { transform:translateX(17px); }
 .lum-sw:hover { filter:brightness(1.06); }
+/* "Who sees this" audience control (Phase 6c). Seller = blue, buyer = green,
+   matching the real per-side avatar tones in components/ui/Avatar.tsx. */
+.lum-wst { margin-top:14px; padding:14px; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; background:rgba(255,255,255,.4); animation:lum-fade .22s ease both; }
+.lum-wsthead { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:11px; }
+.lum-wsttitle { font-size:12.5px; font-weight:700; color:var(--agent-text-primary,#2D1810); }
+.lum-modebtn { font:inherit; font-size:12px; font-weight:600; color:var(--agent-coral-deep,#F04E2C); background:none; border:0; cursor:pointer; padding:2px; transition:opacity .14s; }
+.lum-modebtn:hover { opacity:.72; }
+.lum-sides { display:flex; gap:9px; flex-wrap:wrap; }
+.lum-sidechip { flex:1 1 0; min-width:150px; display:flex; align-items:center; gap:11px; cursor:pointer; padding:11px 13px; border-radius:12px; border:1.5px solid var(--agent-border-default,rgba(45,24,16,.1)); background:#fff; font:inherit; text-align:left; transition:border-color .16s, transform .16s, box-shadow .16s, background .16s; }
+.lum-sidechip:hover { transform:translateY(-1px); }
+.lum-avastack { display:flex; align-items:center; flex:0 0 auto; }
+.lum-avai { position:relative; border-radius:999px; overflow:hidden; flex:0 0 auto; box-shadow:0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.14); line-height:0; }
+.lum-sctext { flex:1; min-width:0; }
+.lum-scname { display:block; font-size:13px; font-weight:650; color:var(--agent-text-primary,#2D1810); line-height:1.25; }
+.lum-scsub { display:block; font-size:11px; color:var(--agent-text-muted,rgba(45,24,16,.55)); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lum-sctick { width:20px; height:20px; border-radius:999px; border:1.5px solid var(--agent-border-default,rgba(45,24,16,.1)); display:grid; place-items:center; color:#fff; flex:0 0 auto; transform:scale(.9); transition:all .16s; }
+.lum-sctick svg { opacity:0; transform:scale(.5); transition:all .18s cubic-bezier(.3,1.5,.5,1); }
+.lum-sidechip.lum-seller:hover, .lum-prow.lum-seller:hover { border-color:#2E6DB4; }
+.lum-sidechip.lum-buyer:hover, .lum-prow.lum-buyer:hover { border-color:#1E9273; }
+.lum-sidechip.lum-seller.on { background:linear-gradient(180deg,#2E6DB4,#0C447C); border-color:#0C447C; box-shadow:0 6px 16px -6px rgba(12,68,124,.5); }
+.lum-sidechip.lum-buyer.on { background:linear-gradient(180deg,#1E9273,#085041); border-color:#085041; box-shadow:0 6px 16px -6px rgba(8,80,65,.5); }
+.lum-sidechip.on .lum-scname { color:#fff; } .lum-sidechip.on .lum-scsub { color:rgba(255,255,255,.82); }
+.lum-sidechip.on .lum-avai { box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.2); }
+.lum-sidechip.on .lum-sctick, .lum-prow.on .lum-sctick { background:#fff; border-color:#fff; transform:scale(1); }
+.lum-sidechip.lum-seller.on .lum-sctick, .lum-prow.lum-seller.on .lum-sctick { color:#0C447C; }
+.lum-sidechip.lum-buyer.on .lum-sctick, .lum-prow.lum-buyer.on .lum-sctick { color:#085041; }
+.lum-sidechip.on .lum-sctick svg, .lum-prow.on .lum-sctick svg { opacity:1; transform:scale(1); }
+.lum-people { display:flex; flex-direction:column; gap:7px; }
+.lum-prow { display:flex; align-items:center; gap:10px; cursor:pointer; padding:8px 11px; border-radius:10px; border:1.5px solid var(--agent-border-default,rgba(45,24,16,.1)); background:#fff; font:inherit; text-align:left; transition:border-color .16s, transform .16s, background .16s; }
+.lum-prow:hover { transform:translateY(-1px); }
+.lum-prow .lum-avai { box-shadow:0 0 0 2px #fff, 0 1px 2px rgba(0,0,0,.12); }
+.lum-prname { flex:1; font-size:13px; font-weight:600; color:var(--agent-text-primary,#2D1810); }
+.lum-prside { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:6px; }
+.lum-prow.lum-seller .lum-prside { color:#2E6DB4; background:rgba(46,109,180,.1); }
+.lum-prow.lum-buyer .lum-prside { color:#1E9273; background:rgba(30,146,115,.1); }
+.lum-prow.lum-seller.on { background:linear-gradient(180deg,#2E6DB4,#0C447C); border-color:#0C447C; }
+.lum-prow.lum-buyer.on { background:linear-gradient(180deg,#1E9273,#085041); border-color:#085041; }
+.lum-prow.on .lum-prname { color:#fff; }
+.lum-prow.on .lum-prside { background:rgba(255,255,255,.22); color:#fff; }
+.lum-prow.on .lum-avai { box-shadow:0 0 0 2px rgba(255,255,255,.9); }
+.lum-summaryline { display:flex; align-items:center; gap:9px; margin-top:13px; min-height:20px; }
+.lum-eye { width:17px; height:17px; flex:0 0 auto; color:var(--agent-coral-deep,#F04E2C); display:grid; place-items:center; animation:lum-eyeflash .5s ease; }
+.lum-eye svg { width:17px; height:17px; }
+.lum-summaryline.dim .lum-eye { color:var(--agent-text-disabled,rgba(45,24,16,.35)); }
+.lum-summaryline.warn .lum-eye { color:#C0392B; }
+@keyframes lum-eyeflash { 0%{transform:scale(1)} 30%{transform:scale(1.35); filter:drop-shadow(0 0 6px rgba(240,78,44,.55))} 100%{transform:scale(1); filter:none} }
+.lum-stext { font-size:12.5px; color:var(--agent-text-secondary,#5A3A28); line-height:1.4; }
+.lum-stext b { color:var(--agent-text-primary,#2D1810); font-weight:650; }
+.lum-summaryline.warn .lum-stext { color:#C0392B; }
+.lum-summaryline.warn .lum-stext b { color:#A5281B; }
 .lum-err { margin:10px 0 0; font-size:12.5px; color:#c0392b; }
 .lum-sendbar { position:sticky; bottom:0; background:linear-gradient(180deg, rgba(255,251,245,0), var(--agent-bg-paper,#FFFBF5) 32%); padding:14px 0 2px; margin-top:8px; }
 .lum-ov :focus-visible { outline:2px solid var(--agent-coral-deep,#FF6B4A); outline-offset:2px; }

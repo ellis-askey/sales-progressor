@@ -3098,22 +3098,40 @@ export async function getPortalTimeline(
           select: { id: true },
         })).map((c) => c.id)
       : [];
+    // Visibility model (Phase 6c): a comm shared via the "Who sees this" control
+    // carries an explicit sharedWithContactIds audience. New rows are scoped by
+    // that audience; rows with an empty audience (legacy + pre-6c) fall back to
+    // the old contactIds + side scoping, so existing shared comms are unchanged.
     const messageWhere = side === "purchaser"
       ? {
           transactionId,
           visibleToClient: true,
-          contactIds: { has: contactId },
           OR: [
-            { buyerRoundId: null },
-            { buyerRoundId: opts.buyerRoundId },
+            // New model — explicitly shared with this buyer contact.
+            { sharedWithContactIds: { has: contactId } },
+            // Legacy fallback — addressed to me, within my round.
+            {
+              AND: [
+                { sharedWithContactIds: { isEmpty: true } },
+                { contactIds: { has: contactId } },
+                { OR: [{ buyerRoundId: null }, { buyerRoundId: opts.buyerRoundId }] },
+              ],
+            },
           ],
         }
       : {
           transactionId,
           visibleToClient: true,
           OR: [
-            { contactIds: { isEmpty: true } },
-            { contactIds: { hasSome: vendorContactIds } },
+            // New model — explicitly shared with any seller contact.
+            { sharedWithContactIds: { hasSome: vendorContactIds } },
+            // Legacy fallback — file-wide broadcast or addressed to a seller.
+            {
+              AND: [
+                { sharedWithContactIds: { isEmpty: true } },
+                { OR: [{ contactIds: { isEmpty: true } }, { contactIds: { hasSome: vendorContactIds } }] },
+              ],
+            },
           ],
         };
     // Documents: a client only ever sees uploads from their OWN side, never the

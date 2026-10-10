@@ -2274,6 +2274,12 @@ model OutboundMessage {
   type       CommType
   method     CommMethod?
   contactIds String[]
+  // The explicit "who can see this" audience for a client-shared comm, decoupled
+  // from contactIds (who the comm was WITH). Set by the log-a-update "Who sees
+  // this" control. Empty on legacy rows + internal comms, in which case the
+  // portal read falls back to the old contactIds-based side scoping. See
+  // getPortalTimeline in lib/services/portal.ts.
+  sharedWithContactIds String[] @default([])
   content    String
   subject    String?
   bodyFormat String      @default("plain")

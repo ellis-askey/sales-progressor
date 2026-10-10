@@ -1000,6 +1000,11 @@ export type CreateCommInput = {
   type: CommType;
   method?: CommMethod | null;
   contactIds: string[];
+  // Explicit client-visible audience, decoupled from contactIds (participants).
+  // Only meaningful when visibleToClient is true. Empty = legacy fallback (the
+  // portal scopes by contactIds + side). Set by the log-a-update "Who sees this"
+  // control. Also scopes the push + email fan-out below to just this audience.
+  sharedWithContactIds?: string[];
   content: string;
   ccEmails?: string;
   generatedText?: string | null;
@@ -1061,6 +1066,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       type: input.type,
       method: input.method ?? null,
       contactIds: input.contactIds,
+      sharedWithContactIds: input.sharedWithContactIds ?? [],
       content: input.content,
       ccEmails: input.ccEmails ?? null,
       generatedText: input.generatedText ?? null,
@@ -1119,20 +1125,27 @@ export async function createCommunicationRecord(input: CreateCommInput) {
 
   touchLastActivity(input.transactionId).catch(() => {});
 
-  // Notify subscribed contacts when a client-visible update is logged
+  // Notify subscribed contacts when a client-visible update is logged. When an
+  // explicit audience is set (the "Who sees this" control), scope both the push
+  // and the email to exactly that audience — otherwise we'd email the seller
+  // about a buyer-only share. Empty audience = legacy behaviour (notify all).
   if (input.visibleToClient) {
     const preview = input.content.length > 100
       ? input.content.slice(0, 97) + "…"
       : input.content;
+
+    const audience = input.sharedWithContactIds && input.sharedWithContactIds.length
+      ? input.sharedWithContactIds
+      : undefined;
 
     const short = tx.propertyAddress.split(",")[0];
     pushToTransaction(input.transactionId, {
       title: `New update: ${short}`,
       body: preview,
       urlPath: "/updates",
-    }).catch(() => {});
+    }, audience).catch(() => {});
 
-    emailVisibleUpdateToClients(input.transactionId, input.content).catch(() => {});
+    emailVisibleUpdateToClients(input.transactionId, input.content, audience).catch(() => {});
   }
 
   return record;
@@ -1571,7 +1584,7 @@ function buildDedupeHash(content: string, timestamp: Date): string {
   return `${minuteBucket}:${normalised}`;
 }
 
-async function emailVisibleUpdateToClients(transactionId: string, content: string): Promise<void> {
+async function emailVisibleUpdateToClients(transactionId: string, content: string, audienceIds?: string[]): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -1585,13 +1598,17 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
   });
   if (!tx) return;
 
+  // When the comm carries an explicit audience, only email those contacts.
+  const audience = audienceIds && audienceIds.length ? new Set(audienceIds) : null;
+  const recipients = audience ? tx.contacts.filter((c) => audience.has(c.id)) : tx.contacts;
+
   const base      = process.env.NEXTAUTH_URL ?? "";
   const address   = tx.propertyAddress;
   const agency    = tx.agency.name;
   const sender    = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
   const theme     = sender.theme ?? resolveEmailTheme(null);
 
-  for (const c of tx.contacts) {
+  for (const c of recipients) {
     if (!c.email || !c.portalToken) continue;
     const saleWord  = c.roleType === "vendor" ? "sale" : "purchase";
     const greeting = buildGreeting(c.name);

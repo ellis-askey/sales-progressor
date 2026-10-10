@@ -92,6 +92,9 @@ export async function logCommAction(input: {
   contactIds: string[];
   content: string;
   visibleToClient: boolean;
+  // Explicit "who sees this" audience (contact ids), decoupled from contactIds.
+  // Only meaningful when visibleToClient is true; empty = legacy side scoping.
+  sharedWithContactIds?: string[];
   // Progression-business private note. Only honoured for a business-scope author
   // (enforced in createCommunicationRecord); ignored otherwise.
   businessOnly?: boolean;
@@ -104,6 +107,7 @@ export async function logCommAction(input: {
     contactIds: input.contactIds,
     content: input.content,
     visibleToClient: input.visibleToClient,
+    sharedWithContactIds: input.visibleToClient ? (input.sharedWithContactIds ?? []) : [],
     businessOnly: input.businessOnly ?? false,
     createdById: session.user.id,
     createdByRole: session.user.role,

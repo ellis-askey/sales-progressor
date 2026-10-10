@@ -4,7 +4,30 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
+
+---
+
+## Apply the `sharedWithContactIds` column to staging (Log an update · Phase 6c, 2026-10-11)
+
+Phase 6c ("Who sees this" sharing control) adds one additive column — `OutboundMessage.sharedWithContactIds` (`TEXT[] default '{}'`). The schema + a prod migration are committed, but my sandbox can't reach the staging DB directly (`db.etidawkbqctarmsdjoxp.supabase.co:5432` is IPv6-only / unreachable from the sandbox, same pattern as the Elevra DB), so I couldn't run the staging push myself.
+
+**Before testing Phase 6c on local :3001** (your local uses the staging DB), apply the column once:
+
+1. In the repo: `npm run db:push` (runs `prisma db push` against `DATABASE_URL`, which points at staging). It's additive — adds the column, no data change.
+2. That's it for staging + local. **Production** gets it automatically on the next prod deploy — Vercel runs `migrate deploy`, which applies the committed migration `20261010234900_outbound_message_shared_with_contact_ids`.
+
+If `db push` warns about anything beyond adding this column, stop and tell me (it shouldn't — the only schema delta is the new column).
+
+---
+
+## Refresh the local EPC_API_KEY (sold-for game prototype, 2026-10-10)
+
+The `/dev/sold-for` loading-game prototype enriches each sold-price card with floor area + EPC band from the EPC register, but the `EPC_API_KEY` in your local `.env.local` now returns **403 Forbidden** (stale bearer token). Optional for the game (fields hide gracefully), but worth doing because the same key powers the live Property Intel card's EPC lookups in local dev:
+
+1. Log in at the EPC register account page (get-energy-performance-data.communities.gov.uk) → copy the ready-made bearer token from "my account".
+2. Replace `EPC_API_KEY` in `.env.local` with it (used verbatim, not base64-encoded).
+3. Check whether the **production** Vercel env var is the same stale token — if so, refresh it there too or prod EPC lookups are silently dark.
 
 ---
 
