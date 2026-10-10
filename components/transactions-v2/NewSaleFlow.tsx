@@ -1373,7 +1373,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   onChange={(e) => updateFormFields({ assignToUserId: e.target.value })}
                 >
                   {businessMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.id === currentUserId ? `${m.name} (you)` : m.name}</option>
+                    <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>
               </label>
@@ -1381,9 +1381,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
                 <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", borderRadius: 10, background: "var(--nv2-surface-raised)", border: "1px solid var(--nv2-border-medium)", fontSize: 13.5, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
-                  {businessMembers[0]
-                    ? (businessMembers[0].id === currentUserId ? `${businessMembers[0].name} (you)` : businessMembers[0].name)
-                    : "You"}
+                  {businessMembers[0] ? businessMembers[0].name : "You"}
                 </div>
               </div>
             )}
