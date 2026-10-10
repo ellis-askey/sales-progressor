@@ -237,12 +237,14 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
             ]}
           />
         </Field>
-        <Field label="Step">
+        <Field label="Step" style={{ flex: "1 1 100%", minWidth: 0 }}>
           <select
             value={code}
             onChange={(e) => setCode(e.target.value)}
             style={{
-              minWidth: 300,
+              width: "100%",
+              minWidth: 0,
+              maxWidth: "100%",
               border: "1px solid rgba(0,0,0,0.14)",
               borderRadius: 9,
               background: "#fff",
@@ -321,9 +323,9 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 6, ...style }}>
       <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: FAINT }}>
         {label}
       </span>
@@ -583,7 +585,7 @@ function Editor({
             value={tenureScope}
             onChange={(v) => setTenureScope(v as "this" | "any")}
             options={[
-              { value: "this", label: `${tenure} only` },
+              { value: "this", label: `${tenure.charAt(0).toUpperCase()}${tenure.slice(1)} only` },
               { value: "any", label: "All tenures" },
             ]}
           />
@@ -603,8 +605,19 @@ function Editor({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="agent-btn agent-btn-primary"
-          style={{ opacity: saving ? 0.6 : 1 }}
+          style={{
+            font: "inherit",
+            fontSize: 13.5,
+            fontWeight: 700,
+            color: "#fff",
+            border: "none",
+            borderRadius: 9,
+            padding: "10px 20px",
+            cursor: saving ? "default" : "pointer",
+            background: "linear-gradient(180deg,#FF7A5C,#E2452A)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 4px 14px -5px rgba(255,107,74,.5)",
+            opacity: saving ? 0.6 : 1,
+          }}
         >
           {saving ? "Saving…" : "Save"}
         </button>

@@ -10,7 +10,7 @@
 // PATCH already sanitises + stores the whole EmailThemeInput blob. The component is
 // identity-agnostic: the three mount sites pass their own endpoint + identityName.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EmailThemeInput, LogoMode } from "@/lib/email/brand-theme";
 import { resolveStudioTheme, tint, luminance, FONT_STACKS, LOOKS, LOOKS_BY_KEY, LOOK_CATEGORIES, type StudioTheme, type LookCategory } from "@/lib/email/email-theme-studio";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
@@ -102,6 +102,10 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
   const inputRef = useRef<HTMLInputElement>(null);
   const gradRef = useRef<HTMLDivElement>(null);
   const dragStop = useRef<1 | 2 | null>(null);
+  // Looks carousel edge-fade (mobile/tablet): no fade at the starting edge, a fade
+  // on the far side until you reach the end.
+  const looksRef = useRef<HTMLDivElement>(null);
+  const [looksFade, setLooksFade] = useState({ l: false, r: false });
 
   const themeJson = JSON.stringify(theme);
   const [savedJson, setSavedJson] = useState(themeJson);
@@ -178,6 +182,22 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
   const gradientMode = st.headerStyle === "gradient" || st.headerStyle === "duotone";
   const showBanner = st.headerStyle === "banner" || st.heroPhoto;
 
+  const updateLooksFade = useCallback(() => {
+    const el = looksRef.current;
+    if (!el) return;
+    const scrollable = el.scrollWidth - el.clientWidth > 4;
+    setLooksFade({
+      l: scrollable && el.scrollLeft > 2,
+      r: scrollable && el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }, []);
+  useEffect(() => {
+    if (step !== 1) return;
+    updateLooksFade();
+    window.addEventListener("resize", updateLooksFade);
+    return () => window.removeEventListener("resize", updateLooksFade);
+  }, [step, cat, updateLooksFade]);
+
   return (
     <div className="es">
       <div className="es-frame">
@@ -200,13 +220,17 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
                     <button key={c.key} type="button" className={`es-cat${c.key === cat ? " on" : ""}`} onClick={() => setCat(c.key as LookCategory | "all")}>{c.label}</button>
                   ))}
                 </div>
-                <div className="es-looks">
-                  {looks.map((l) => (
-                    <button key={l.key} type="button" className={`es-look${l.key === lookKey ? " on" : ""}`} onClick={() => applyLook(l.key)}>
-                      <Thumb theme={l.theme} />
-                      <span className="es-lk-meta"><b>{l.label}</b><span>{l.tag}</span></span>
-                    </button>
-                  ))}
+                <div className={`es-looks-wrap${looksFade.l ? " fl" : ""}${looksFade.r ? " fr" : ""}`}>
+                  <div className="es-looks" ref={looksRef} onScroll={updateLooksFade}>
+                    {looks.map((l) => (
+                      <button key={l.key} type="button" className={`es-look${l.key === lookKey ? " on" : ""}`} onClick={() => applyLook(l.key)}>
+                        <Thumb theme={l.theme} />
+                        <span className="es-lk-meta"><b>{l.label}</b><span>{l.tag}</span></span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="es-looks-fade l" aria-hidden="true" />
+                  <div className="es-looks-fade r" aria-hidden="true" />
                 </div>
               </div>
             ) : (
@@ -637,6 +661,7 @@ const STYLES = `
   .es-pip-n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12.5px;font-weight:800;flex:none;color:#9ca3af;background:linear-gradient(180deg,#f4f5f7,#e2e5e9);box-shadow:inset 0 1.5px 1px rgba(255,255,255,.9),inset 0 -2px 4px rgba(0,0,0,.07),0 2px 4px -2px rgba(15,23,42,.18);transition:all .2s;}
   .es-pip.on .es-pip-n,.es-pip.done .es-pip-n{background:linear-gradient(180deg,#FF8A5C,#E2452A);color:#fff;box-shadow:inset 0 1.5px 1px rgba(255,255,255,.45),inset 0 -2px 5px rgba(0,0,0,.18),0 3px 8px -2px rgba(255,107,74,.55);}
   .es-pip-tx{font-size:13px;font-weight:700;color:var(--ink);line-height:1.15;} .es-pip-tx span{display:block;font-size:10.5px;font-weight:500;color:var(--ink3);margin-top:1px;}
+  @media(max-width:900px){.es-pip:not(.on){display:none;}}
   .es-body{flex:1;min-height:0;overflow-y:auto;padding:18px 20px;scrollbar-width:thin;scrollbar-color:var(--scroll) transparent;}
   .es-body::-webkit-scrollbar{width:10px;} .es-body::-webkit-scrollbar-track{background:transparent;} .es-body::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:6px;border:3px solid transparent;background-clip:padding-box;}
   .es-pane{animation:esf .24s cubic-bezier(.22,1,.36,1) both;} @keyframes esf{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
@@ -645,6 +670,17 @@ const STYLES = `
   .es-cat{font:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--hair);background:var(--card2);color:var(--ink2);cursor:pointer;transition:all .13s;}
   .es-cat:hover{border-color:var(--coral);color:var(--ink);} .es-cat.on{background:var(--ink);color:#fff;border-color:var(--ink);}
   .es-looks{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;} @media(min-width:1050px){.es-looks{grid-template-columns:repeat(3,1fr);}}
+  .es-looks-wrap{position:relative;}
+  .es-looks-fade{position:absolute;top:0;bottom:0;width:44px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:3;}
+  .es-looks-fade.l{left:0;background:linear-gradient(to right,#fff,rgba(255,255,255,0));}
+  .es-looks-fade.r{right:0;background:linear-gradient(to left,#fff,rgba(255,255,255,0));}
+  .es-looks-wrap.fl .es-looks-fade.l{opacity:1;} .es-looks-wrap.fr .es-looks-fade.r{opacity:1;}
+  @media(min-width:1025px){.es-looks-fade{display:none;}}
+  @media(max-width:1024px){
+    .es-looks{grid-template-columns:none;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:46%;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none;}
+    .es-looks::-webkit-scrollbar{display:none;}
+    .es-look{scroll-snap-align:start;}
+  }
   .es-look{cursor:pointer;border:1.5px solid var(--hair);border-radius:12px;overflow:hidden;background:var(--card2);padding:7px;transition:transform .14s,border-color .14s,box-shadow .14s;text-align:left;font:inherit;}
   .es-look:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(40,26,20,.12);} .es-look.on{border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-tint);}
   .es-lk-meta{display:block;padding:7px 3px 2px;} .es-lk-meta b{font-size:12px;font-weight:700;display:block;color:var(--ink);} .es-lk-meta span{font-size:10px;color:var(--ink3);display:block;margin-top:1px;}
