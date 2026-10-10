@@ -225,6 +225,23 @@ export async function cancelBusinessSubscription(businessId: string): Promise<{ 
   if (!business?.stripeSubscriptionId) return { ok: false, error: "There's no active plan to cancel." };
   const stripe = getStripeClient();
 
+  // 0. Settle up for every BROUGHT-IN sale still on the books. A migrated sale is
+  //    normally charged the £5 only if it reaches exchange — a kindness, so there's no
+  //    big bill up front. But on cancellation the business is leaving, so we stamp the
+  //    £5 now for every in-progress migrated sale too, so it's collected in the final
+  //    invoice below (step 1) alongside the normally-added ones, rather than escaping
+  //    when the sale exchanges after the subscription is gone (founder decision).
+  await prisma.propertyTransaction.updateMany({
+    where: {
+      progressionBusinessId: businessId,
+      isMigrated: true,
+      isDemo: false,
+      businessPerSaleChargedAt: null,
+      status: { in: ["active", "on_hold"] },
+    },
+    data: { businessPerSaleChargedAt: new Date() },
+  });
+
   // 1. Collect accrued £5 per-sale charges now, while the card is on file.
   try {
     const pushed = await pushPendingPerSaleItems(businessId);
