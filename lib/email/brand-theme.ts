@@ -232,7 +232,11 @@ export function resolveEmailTheme(input: EmailThemeInput | null | undefined): Em
   const dir: GradientDir = t.gradientDir && GRAD_ANGLE[t.gradientDir] ? t.gradientDir : "diagonal";
   const headerBg = c2 ? `linear-gradient(${GRAD_ANGLE[dir]},${c1} 0%,${c2} 100%)` : c1;
   const headerText = hex(t.headerTextColor, contrastText(c1));
-  const buttonBg = hex(t.buttonColor, DEFAULT_BUTTON);
+  // The Email Studio stores the brand accent as accentColor; the legacy field is
+  // buttonColor. Fall back buttonColor -> accentColor so an agency's chosen accent
+  // colours the button + links on EVERY client email (not just the studio-rendered
+  // milestone family), and uncustomised files still get the coral default.
+  const buttonBg = hex(t.buttonColor, hex(t.accentColor, DEFAULT_BUTTON));
   const buttonText = contrastText(buttonBg);
   const linkColor = hex(t.linkColor, buttonBg);
   const footerBg = typeof t.footerBg === "string" && HEX.test(t.footerBg) ? t.footerBg : null;

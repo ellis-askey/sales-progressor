@@ -1526,7 +1526,7 @@ export async function logPortalMilestoneConfirm(
   const progressorEmail = tx.assignedUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
@@ -1736,6 +1736,7 @@ export async function logPortalMilestoneConfirm(
           portalUrl,
           logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
           theme: agencyTheme,
+          studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
         }),
       }, { transactionId, subject: confirmSubject });
       if (confirmSent) {
@@ -1901,7 +1902,7 @@ export async function sendAdminMilestoneNotificationToPortal(
 
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17).
-  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme } = await resolveAgencySenderForTransaction(transactionId);
+  const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
   const logoBand = agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign });
 
   // Use per-recipient rich email when available
@@ -1972,7 +1973,7 @@ export async function sendAdminMilestoneNotificationToPortal(
       stepLabel = portalLabel;
     }
 
-    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand, theme: agencyTheme });
+    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand, theme: agencyTheme, studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor });
     const lines = [`Hi ${firstName},`, "", intro.replace(/<[^>]+>/g, ""), ""];
     if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? `: ${stepDate}` : ""}`, "");
     lines.push(`View your portal: ${portalUrl}`);
@@ -1995,10 +1996,22 @@ export async function sendAdminMilestoneNotificationToPortal(
   }
 }
 
-export function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
+export function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl, logoBand = "", theme = resolveEmailTheme(null), studioTheme, identityName, logoUrl, tileColor }: {
   firstName: string; address: string; headline: string; intro: string;
   stepLabel: string | null; stepDate: string | null; portalUrl: string; logoBand?: string; theme?: EmailTheme;
+  studioTheme?: StudioTheme; identityName?: string; logoUrl?: string | null; tileColor?: string | null;
 }) {
+  // Customised agency/business → full studio render (preview == received). Default
+  // (no studioTheme) keeps the legacy hand-rolled email below, byte-for-byte.
+  if (studioTheme && identityName) {
+    const blocks: Array<{ label?: string | null; html: string }> = [{ html: intro }];
+    if (stepLabel) blocks.push({ label: "Step completed", html: stepDate ? `${stepLabel} &middot; ${stepDate}` : stepLabel });
+    return renderStudioEmail(studioTheme, {
+      eyebrow: address, headline, greeting: `Hi ${firstName},`, blocks,
+      cta: { label: "View your portal", url: portalUrl },
+      trailingHtml: `<p style="margin:0;font-size:13px;color:#6b7280">If you have any questions, please contact your sales progressor.</p>`,
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+  }
   const stepBlock = stepLabel ? `
   <div style="margin:0 0 24px;padding:14px 18px;background:#F0FDF4;border-left:3px solid #10B981;border-radius:8px">
     <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#10B981">Step completed</p>
@@ -2023,9 +2036,23 @@ export function portalProgressEmailHtml({ firstName, address, headline, intro, s
 </body></html>`;
 }
 
-export function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "", theme = resolveEmailTheme(null) }: {
+export function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl, logoBand = "", theme = resolveEmailTheme(null), studioTheme, identityName, logoUrl, tileColor }: {
   firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string; logoBand?: string; theme?: EmailTheme;
+  studioTheme?: StudioTheme; identityName?: string; logoUrl?: string | null; tileColor?: string | null;
 }) {
+  // Customised agency/business → full studio render; default keeps legacy below.
+  if (studioTheme && identityName) {
+    return renderStudioEmail(studioTheme, {
+      eyebrow: address, headline: "Step confirmed", greeting: `Hi ${firstName},`,
+      blocks: [
+        { html: `Thanks for confirming the following step on your ${saleWord}:` },
+        { label: "Confirmed", html: stepLabel },
+        { html: "Your conveyancing is moving forward. We'll be in touch when there's something new to update you on." },
+      ],
+      cta: { label: "View your portal", url: portalUrl },
+      trailingHtml: `<p style="margin:0;font-size:13px;color:#6b7280">If you have any questions, please contact your sales progressor.</p>`,
+    }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
+  }
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">${logoBand}
 <div style="background:${theme.headerBg};padding:32px 32px 28px;border-radius:${theme.bandRadius}">
   <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${tone(theme.headerText, "rgba(255,255,255,0.75)", "rgba(0,0,0,0.55)")}">${address}</p>
