@@ -63,6 +63,7 @@ export function LogUpdateModal(props: Props) {
   const [screen, setScreen] = useState<Screen>("home");
   const [channel, setChannel] = useState<LogChannel>("phone");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   // log/note form state
   const [direction, setDirection] = useState<"outbound" | "inbound">("outbound");
@@ -80,8 +81,10 @@ export function LogUpdateModal(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  function openModal() { resetForm(); setScreen("home"); setMoreOpen(false); setOpen(true); }
-  function close() { setOpen(false); setMoreOpen(false); }
+  function openModal() { resetForm(); setScreen("home"); setMoreOpen(false); setClosing(false); setOpen(true); }
+  // Animate out (reverse of the entry), then unmount on animationend.
+  function close() { if (closing) return; setMoreOpen(false); setClosing(true); }
+  function reallyClose() { setOpen(false); setClosing(false); }
   function goHome() { setMoreOpen(false); setScreen("home"); }
   function resetForm() { setDirection("outbound"); setSelected([]); setContent(""); setShare(false); setPriv(true); setErr(null); }
 
@@ -155,6 +158,9 @@ export function LogUpdateModal(props: Props) {
 
   return (
     <>
+      {/* Styles live here (always mounted) so the trigger button is styled even
+          when the modal is closed. */}
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="lum-launch">
         <button type="button" className="lum-trigger" onClick={openModal}>
           <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 16, 2) }} />
@@ -163,17 +169,16 @@ export function LogUpdateModal(props: Props) {
       </div>
 
       {open && typeof document !== "undefined" && createPortal(
-        <div className="lum-ov" role="dialog" aria-modal="true" aria-label="Log an update">
-          <style dangerouslySetInnerHTML={{ __html: CSS }} />
+        <div className="lum-ov" role="dialog" aria-modal="true" aria-label="Log an update" data-closing={closing ? "1" : undefined}>
           <div className="lum-bg" onClick={close} />
-          <div className="lum-sheet" data-tall={moreOpen ? "1" : undefined}>
+          <div className={"lum-sheet" + (closing ? " lum-closing" : "")} data-tall={moreOpen ? "1" : undefined} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
             <div className="lum-grab" />
             <div className="lum-head">
               {screen !== "home" && (
                 <button className="lum-ic" onClick={goHome} aria-label="Back" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
               )}
               <h2 className="lum-title">{titles[screen]}</h2>
-              <button className="lum-ic" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
+              <button className="lum-ic lum-ic-x" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
             </div>
 
             <div className="lum-body">
@@ -382,7 +387,7 @@ const CSS = `
 .lum-togline { display:flex; align-items:center; gap:10px; margin-top:14px; }
 .lum-swlab { font-size:13px; color:var(--agent-text-secondary,#5A3A28); }
 .lum-sw { position:relative; width:40px; height:23px; border-radius:999px; background:var(--agent-border-strong,rgba(45,24,16,.18)); border:0; cursor:pointer; flex:0 0 auto; transition:background .18s; padding:0; }
-.lum-sw[aria-pressed="true"] { background:var(--agent-coral-deep,#FF6B4A); }
+.lum-sw[aria-pressed="true"] { background:linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%); }
 .lum-sw::after { content:""; position:absolute; top:2.5px; left:2.5px; width:18px; height:18px; border-radius:999px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .18s; }
 .lum-sw[aria-pressed="true"]::after { transform:translateX(17px); }
 .lum-sw:hover { filter:brightness(1.06); }
@@ -394,10 +399,10 @@ const CSS = `
 .lum-recava { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; color:#fff; background:linear-gradient(180deg,#294A73 0%,#163152 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); flex:0 0 auto; }
 .lum-rectxt { color:#163152; }
 .lum-rec { text-align:center; }
-.lum-listen { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--agent-text-muted,rgba(45,24,16,.55)); background:rgba(45,24,16,.05); padding:5px 12px; border-radius:999px; margin:4px auto 8px; }
-.lum-listen[data-on="1"] { color:#C63E20; background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); }
-.lum-blip { width:8px; height:8px; border-radius:999px; background:var(--agent-border-strong,rgba(45,24,16,.18)); }
-.lum-listen[data-on="1"] .lum-blip { background:#F04E2C; animation:lum-blip 1.1s ease-in-out infinite; }
+.lum-listen { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; letter-spacing:.01em; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin:6px auto 8px; }
+.lum-listen[data-on="1"] { color:#C63E20; }
+.lum-blip { width:10px; height:10px; border-radius:999px; background:radial-gradient(circle at 34% 30%, #ffffff 0%, rgba(255,255,255,.55) 20%, #c9b9af 62%, #a7968c 100%); box-shadow:inset 0 0 0 .5px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.18); }
+.lum-listen[data-on="1"] .lum-blip { background:radial-gradient(circle at 34% 28%, #ffffff 0%, rgba(255,255,255,.7) 16%, #FF6F4E 44%, #F04E2C 100%); box-shadow:inset 0 0 0 .5px rgba(255,255,255,.5), 0 0 0 4px rgba(240,78,44,.14), 0 1px 3px rgba(240,78,44,.4); animation:lum-blip 1.2s ease-in-out infinite; }
 @keyframes lum-blip { 0%,100%{opacity:1} 50%{opacity:.25} }
 .lum-rectime { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--agent-text-primary,#2D1810); margin:2px 0; }
 .lum-wave { display:flex; align-items:center; justify-content:center; gap:3px; height:40px; margin:6px 0; }
@@ -421,5 +426,21 @@ const CSS = `
 .lum-sc-eye { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
 .lum-sc-eye.seller { color:#4F46E5; } .lum-sc-eye.buyer { color:#BE185D; } .lum-sc-eye.note { color:var(--agent-text-tertiary,#7A4A2E); }
 .lum-sub { text-align:center; font-size:11.5px; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin:8px 0 0; }
+/* Close (X) — tinted hover + the X rotates. */
+.lum-ic-x svg { transition:transform .2s ease; }
+.lum-ic-x:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.12)); color:#C63E20; border-color:var(--agent-coral,#FF8A65); }
+.lum-ic-x:hover svg { transform:rotate(90deg); }
+/* Start-recording button: border lights coral, mic icon pulses on hover. */
+.lum-recbtn:hover { border-color:var(--agent-coral,#FF8A65); color:#C63E20; }
+.lum-recbtn svg { transition:transform .18s ease; }
+.lum-recbtn:hover svg { animation:lum-mic 1s ease-in-out infinite; }
+@keyframes lum-mic { 0%,100%{transform:scale(1)} 50%{transform:scale(1.16)} }
+/* Exit animation — reverse of the entry. */
+.lum-sheet.lum-closing { animation:lum-out .24s cubic-bezier(.4,0,1,1) forwards; }
+@keyframes lum-out { from { transform:translate(-50%,-50%) scale(1); opacity:1 } to { transform:translate(-50%,-48%) scale(.97); opacity:0 } }
+@media (max-width:1024px) { .lum-sheet.lum-closing { animation:lum-down .3s cubic-bezier(.4,0,1,1) forwards; } }
+@keyframes lum-down { from { transform:translateY(0) } to { transform:translateY(100%) } }
+.lum-ov[data-closing="1"] .lum-bg { animation:lum-bgout .24s ease forwards; }
+@keyframes lum-bgout { to { opacity:0 } }
 @media (prefers-reduced-motion:reduce) { .lum-ov * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
 `;

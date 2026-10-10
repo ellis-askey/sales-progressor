@@ -92,3 +92,35 @@ proposes the direction pre-selected; review shows a small left/right control to 
 1. **LogUpdateModal shell + the three existing modes wired**, replacing the composer trigger on the file.
 2. **Mark-done (+ prerequisite expansion + step-tab fields) + to-do create + enquiry side-control** — reusing actions.
 3. **Record (browser speech) + extraction prompt + review-apply** — built last on proven actions.
+
+Phases 1–3 shipped to prod 2026-10-10.
+
+---
+
+## Feedback round 1 — phased plan (quickest → longest)
+
+### Phase 1 — bug + micro-fixes (minutes)
+- **Fix:** the "Log an update" trigger renders unstyled until the modal opens — its CSS lives in a `<style>` only mounted with the modal. Render the styles always (outside the open-gated portal).
+- "· needed for the above" → **"Requires previous step"**, on its own line, capitalised.
+- Nicer **hover on the X close** (coral-tint + slight rotate/scale).
+
+### Phase 2 — control styling (small)
+- **Toggles**: on-state = solid coral gradient track, knob slides across (replace white-on-white). Modal toggles first; optionally align the reused Draft/WhatsApp panel toggles.
+- **Ready/Listening indicator**: drop the pill background, keep dot + text, **gloss the dot**.
+- **Start-recording button**: add a speaking/mic icon that animates on hover; slim border lights **coral** on hover.
+
+### Phase 3 — exit animation (small–medium)
+- On close (incl. click-off / Esc), play the **reverse of the entry** (desktop scale+fade out, mobile slide down) via a `closing` state + `onAnimationEnd` → unmount.
+
+### Phase 4 — recipient layout (medium)
+- "Who" picker + review recipient rows: **seller(s) left, buyer(s) right** (solicitors split vendor-left / purchaser-right). Under ~800px, stack with a small labelled sub-header per side + hairline divider (no ambiguous gap).
+
+### Phase 5 — live decibel waveform (medium–large)
+- Alongside speech recognition, open a mic stream + Web Audio `AnalyserNode`; drive the waveform bar heights from real-time volume (rAF loop). Graceful fallback to the current animation if audio analysis is unavailable.
+
+### Phase 6 — "share with client" who-sees-this (largest; needs a decision)
+- **6a (artifact):** show exactly how a shared comm appears in a client's portal today (it's currently all-or-nothing to every client on the file), + the proposed per-side / per-person "who sees this" control.
+- **6b (decision):** confirm per-side sharing (recommended: yes, default everyone, full autonomy).
+- **6c (build):** wire per-contact `visibleToClient` selection into the log-a-comm + note flows.
+
+Each phase is its own commit (one concern per PR). Phases 1–5 are code; Phase 6 starts with the artifact + your decision before any wiring.

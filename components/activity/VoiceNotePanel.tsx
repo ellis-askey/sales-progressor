@@ -176,7 +176,10 @@ export function VoiceNotePanel({
         {err && <p className="lum-err">{err}</p>}
         <div className="lum-recbtns">
           {supported && (
-            <button type="button" className="lum-btn" onClick={recording ? stopRec : startRec}>
+            <button type="button" className="lum-btn lum-recbtn" onClick={recording ? stopRec : startRec}>
+              <span dangerouslySetInnerHTML={{ __html: recording
+                ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>'
+                : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>' }} />
               {recording ? "Stop" : transcript.trim() ? "Resume" : "Start recording"}
             </button>
           )}
@@ -197,7 +200,8 @@ export function VoiceNotePanel({
         <div key={m.code} className="lum-checkrow" aria-pressed={msOn[m.code]} onClick={() => setMsOn((p) => ({ ...p, [m.code]: !p[m.code] }))}>
           <span className="lum-cbx"><CheckSvg /></span>
           <div style={{ flex: 1 }}>
-            <div className="lum-cr-t">Mark &ldquo;{m.name}&rdquo;{m.isPrereq ? <span className="lum-cr-s"> · needed for the above</span> : null}</div>
+            <div className="lum-cr-t">Mark &ldquo;{m.name}&rdquo;</div>
+            {m.isPrereq && <div className="lum-cr-s">Requires previous step</div>}
             {msOn[m.code] && m.needsEventDate && (
               <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <input type="date" className="lum-ta" style={{ width: "auto", marginTop: 0, padding: "7px 10px" }} value={msDate[m.code]} disabled={msDesktop[m.code]} onChange={(e) => setMsDate((p) => ({ ...p, [m.code]: e.target.value }))} />
