@@ -156,6 +156,30 @@ export function LogUpdateModal(props: Props) {
 
   const clients = contacts;
 
+  // Phase 4 — recipient layout: seller's side left, buyer's side right.
+  // Solicitors split the same way (anything not a vendor solicitor sits on the
+  // buyer side, matching the existing sideTint convention). Contacts that are
+  // neither vendor nor purchaser fall into a full-width "other" group so no one
+  // is ever dropped from the picker.
+  const sellerClients = clients.filter((c) => c.roleType === "vendor");
+  const buyerClients = clients.filter((c) => c.roleType === "purchaser");
+  const otherClients = clients.filter((c) => c.roleType !== "vendor" && c.roleType !== "purchaser");
+  const sellerSols = solicitors.filter((s) => s.role === "Vendor solicitor");
+  const buyerSols = solicitors.filter((s) => s.role !== "Vendor solicitor");
+
+  const clientPill = (c: Contact) => (
+    <button key={c.id} className="lum-pill" aria-pressed={selected.includes(c.id)} onClick={() => toggleSel(c.id)}>
+      <span className="lum-av"><ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} /><span className="lum-chk" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 9, 3.2) }} /></span>
+      {extractFirstName(c.name)}
+    </button>
+  );
+  const solPill = (s: Solicitor, tint: "vendor" | "purchaser") => (
+    <button key={s.id} className="lum-pill" aria-pressed={selected.includes(s.id)} onClick={() => toggleSel(s.id)}>
+      <span className="lum-av"><ContactAvatar contact={{ name: s.name, roleType: "solicitor" }} sideTint={tint} size={22} /><span className="lum-chk" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 9, 3.2) }} /></span>
+      {s.name}
+    </button>
+  );
+
   return (
     <>
       {/* Styles live here (always mounted) so the trigger button is styled even
@@ -252,30 +276,28 @@ export function LogUpdateModal(props: Props) {
                         <button aria-pressed={direction === "inbound"} onClick={() => setDirection("inbound")}>Inbound (received)</button>
                       </div>
                       <p className="lum-eyebrow" style={{ marginTop: 18 }}>Who</p>
-                      {clients.length > 0 && (
-                        <div className="lum-pillgroup">
-                          <span className="lum-grouplab">Clients</span>
+                      <div className="lum-who">
+                        <div className="lum-whocol">
+                          <span className="lum-wholab">Seller&rsquo;s side</span>
                           <div className="lum-pills">
-                            {clients.map((c) => (
-                              <button key={c.id} className="lum-pill" aria-pressed={selected.includes(c.id)} onClick={() => toggleSel(c.id)}>
-                                <span className="lum-av"><ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} /><span className="lum-chk" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 9, 3.2) }} /></span>
-                                {extractFirstName(c.name)}
-                              </button>
-                            ))}
+                            {sellerClients.map(clientPill)}
+                            {sellerSols.map((s) => solPill(s, "vendor"))}
+                            {sellerClients.length + sellerSols.length === 0 && <span className="lum-whoempty">No one on this side yet</span>}
                           </div>
                         </div>
-                      )}
-                      {solicitors.length > 0 && (
-                        <div className="lum-pillgroup">
-                          <span className="lum-grouplab">Solicitors</span>
+                        <div className="lum-whocol">
+                          <span className="lum-wholab">Buyer&rsquo;s side</span>
                           <div className="lum-pills">
-                            {solicitors.map((s) => (
-                              <button key={s.id} className="lum-pill" aria-pressed={selected.includes(s.id)} onClick={() => toggleSel(s.id)}>
-                                <span className="lum-av"><ContactAvatar contact={{ name: s.name, roleType: "solicitor" }} sideTint={s.role === "Vendor solicitor" ? "vendor" : "purchaser"} size={22} /><span className="lum-chk" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 9, 3.2) }} /></span>
-                                {s.name}
-                              </button>
-                            ))}
+                            {buyerClients.map(clientPill)}
+                            {buyerSols.map((s) => solPill(s, "purchaser"))}
+                            {buyerClients.length + buyerSols.length === 0 && <span className="lum-whoempty">No one on this side yet</span>}
                           </div>
+                        </div>
+                      </div>
+                      {otherClients.length > 0 && (
+                        <div className="lum-pillgroup" style={{ marginTop: 14 }}>
+                          <span className="lum-grouplab">Other contacts</span>
+                          <div className="lum-pills">{otherClients.map(clientPill)}</div>
                         </div>
                       )}
                       <p className="lum-eyebrow" style={{ marginTop: 18 }}>What was said</p>
@@ -373,6 +395,18 @@ const CSS = `
 .lum-seg button:hover:not([aria-pressed="true"]) { color:var(--agent-text-primary,#2D1810); }
 .lum-pillgroup { margin-top:10px; }
 .lum-grouplab { display:block; font-size:12px; font-weight:600; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin-bottom:7px; }
+/* Who — seller's side (left) / buyer's side (right), hairline between. */
+.lum-who { display:grid; grid-template-columns:1fr 1fr; gap:16px; position:relative; }
+.lum-who::before { content:""; position:absolute; top:2px; bottom:2px; left:50%; width:1px; background:var(--agent-border-subtle,rgba(45,24,16,.08)); transform:translateX(-.5px); }
+.lum-whocol { min-width:0; }
+.lum-wholab { display:block; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin-bottom:9px; }
+.lum-whoempty { font-size:12px; font-style:italic; color:var(--agent-text-disabled,rgba(45,24,16,.35)); }
+/* Under ~800px: stack the two sides with a labelled hairline, no ambiguous gap. */
+@media (max-width:800px) {
+  .lum-who { grid-template-columns:1fr; gap:0; }
+  .lum-who::before { display:none; }
+  .lum-who .lum-whocol + .lum-whocol { border-top:1px solid var(--agent-border-subtle,rgba(45,24,16,.08)); margin-top:14px; padding-top:14px; }
+}
 .lum-pills { display:flex; gap:7px; flex-wrap:wrap; }
 .lum-pill { display:inline-flex; align-items:center; gap:8px; font:inherit; font-size:12.5px; font-weight:600; padding:4px 13px 4px 4px; border-radius:999px; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); background:#fff; color:var(--agent-text-primary,#2D1810); cursor:pointer; transition:border-color .14s, transform .14s, box-shadow .14s; }
 .lum-pill:hover { border-color:var(--agent-coral-deep,#FF6B4A); }
