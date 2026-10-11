@@ -18,6 +18,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { inviteNewClientToPortalAction, resendPortalInviteAction } from "@/app/actions/portal-invite";
 
 export type PortalPreviewClient = {
@@ -40,6 +41,13 @@ export function ClientPortalPreview({
 }) {
   const [active, setActive] = useState(0);
   const activeClient = clients[active] ?? null;
+
+  // Multiple sellers or multiple buyers (in practice 3+ people) overflow the
+  // pill row into unreadable truncation — those files get a dropdown instead
+  // (critique #234). A straightforward 1-seller-1-buyer file keeps the pills.
+  const sellerCount = clients.filter((c) => c.roleType === "vendor").length;
+  const buyerCount = clients.filter((c) => c.roleType !== "vendor").length;
+  const useDropdown = sellerCount > 1 || buyerCount > 1 || clients.length >= 3;
 
   // Sliding pill across the client names (the app's measured-indicator pattern —
   // no framer-motion). Re-measures when the client list changes.
@@ -86,8 +94,14 @@ export function ClientPortalPreview({
       <div style={{ display: "flex", gap: 28, alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap" }}>
         {/* ── Left: switcher + framed portal ── */}
         <div style={{ flex: "0 0 auto", maxWidth: "100%" }}>
-          {/* Client switcher — sliding pill across correctly-phrased names. */}
-          {clients.length > 1 && (
+          {/* Client switcher. 2 clients: sliding pills. More sellers/buyers than
+              that: a dropdown, since 3+ names truncate into uselessness. Role
+              reads from the avatar colour (seller blue / buyer green) — no
+              "Seller"/"Buyer" text next to names. */}
+          {useDropdown && (
+            <ClientSwitcherDropdown clients={clients} active={active} onSelect={setActive} reduced={reduced} />
+          )}
+          {clients.length > 1 && !useDropdown && (
             <div
               role="tablist"
               aria-label="Choose a client"
@@ -136,19 +150,21 @@ export function ClientPortalPreview({
                       border: 0,
                       background: "transparent",
                       cursor: "pointer",
-                      padding: "8px 14px",
+                      padding: "6px 12px",
                       borderRadius: 999,
                       fontFamily: "inherit",
                       fontSize: 13.5,
                       fontWeight: 700,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 7,
                       color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
                       transition: "color 180ms ease",
                     }}
                   >
-                    {c.name}
+                    <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={20} />
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
                   </button>
                 );
               })}
@@ -247,7 +263,169 @@ export function ClientPortalPreview({
         </div>
       </div>
 
-      <style>{`@keyframes cpp-spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes cpp-spin { to { transform: rotate(360deg); } }
+        @keyframes cpp-dd-in { 0% { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.97); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+        .cpp-dd-item { transition: background-color 130ms ease; }
+        .cpp-dd-item:hover { background-color: var(--agent-hover-tint, rgba(255,255,255,0.65)); }
+        .cpp-dd-trigger:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
+        @media (prefers-reduced-motion: reduce) {
+          .cpp-dd-menu { animation: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Client switcher dropdown (3+ people on the portal) ──
+// Trigger shows the framed client (side-coloured avatar + name); the menu lists
+// everyone. Same measured-feel animation family as the app's popovers.
+function ClientSwitcherDropdown({
+  clients,
+  active,
+  onSelect,
+  reduced,
+}: {
+  clients: PortalPreviewClient[];
+  active: number;
+  onSelect: (i: number) => void;
+  reduced: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current = clients[active];
+  if (!current) return null;
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "fit-content", margin: "0 auto 16px" }}>
+      <button
+        type="button"
+        className="cpp-dd-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Choose a client"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "6px 14px 6px 8px",
+          borderRadius: 999,
+          border: "1px solid var(--agent-border-subtle)",
+          background: "var(--agent-surface-elevated, #fff)",
+          boxShadow: "0 1px 3px rgba(15,23,42,0.10)",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: "var(--agent-text-primary)",
+          maxWidth: 300,
+        }}
+      >
+        <ContactAvatar contact={{ name: current.name, roleType: current.roleType }} size={24} />
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current.name}</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            color: "var(--agent-text-muted)",
+            transform: open ? "rotate(180deg)" : "none",
+            transition: reduced ? "none" : "transform 180ms ease",
+          }}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Choose a client"
+          className="cpp-dd-menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            minWidth: 230,
+            maxWidth: 300,
+            padding: 5,
+            borderRadius: 13,
+            background: "var(--agent-surface-elevated, #fff)",
+            border: "1px solid var(--agent-border-subtle)",
+            boxShadow: "0 12px 34px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.08)",
+            animation: reduced ? "none" : "cpp-dd-in 160ms cubic-bezier(0.16,1,0.3,1) both",
+            transformOrigin: "top center",
+          }}
+        >
+          {clients.map((c, i) => {
+            const on = i === active;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="option"
+                aria-selected={on}
+                className="cpp-dd-item"
+                onClick={() => {
+                  onSelect(i);
+                  setOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  width: "100%",
+                  border: 0,
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: "7px 10px",
+                  borderRadius: 9,
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  fontWeight: on ? 700 : 600,
+                  color: "var(--agent-text-primary)",
+                  textAlign: "left",
+                }}
+              >
+                <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} />
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                {on && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--agent-coral-deep)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -261,6 +439,14 @@ function InviteCard({ transactionId, lead = false }: { transactionId: string; le
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Sliding indicator on the seller/buyer toggle — same measured pattern as
+  // the client switcher, so the side flip glides instead of snapping.
+  const { btnRefs: roleRefs, ind: roleInd } = useTabIndicator(role === "seller" ? 0 : 1);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
 
   function submit() {
     setError(null);
@@ -303,17 +489,36 @@ function InviteCard({ transactionId, lead = false }: { transactionId: string; le
       <div
         role="tablist"
         aria-label="Client side"
-        style={{ display: "inline-flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(var(--agent-text-muted-rgb, 120,120,130),0.10)", border: "1px solid var(--agent-border-default)", marginBottom: 12 }}
+        style={{ position: "relative", display: "inline-flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(var(--agent-text-muted-rgb, 120,120,130),0.10)", border: "1px solid var(--agent-border-default)", marginBottom: 12 }}
       >
-        {(["seller", "buyer"] as const).map((r) => {
+        {roleInd && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 3,
+              bottom: 3,
+              left: roleInd.left,
+              width: roleInd.width,
+              borderRadius: 8,
+              background: "var(--agent-surface-elevated, #fff)",
+              boxShadow: "0 1px 3px rgba(15,23,42,0.14)",
+              transition: reduced ? "none" : "left 260ms cubic-bezier(0.16,1,0.3,1), width 260ms cubic-bezier(0.16,1,0.3,1)",
+            }}
+          />
+        )}
+        {(["seller", "buyer"] as const).map((r, i) => {
           const on = role === r;
           return (
             <button
               key={r}
+              ref={(el) => { roleRefs.current[i] = el; }}
               role="tab"
               aria-selected={on}
               onClick={() => setRole(r)}
               style={{
+                position: "relative",
+                zIndex: 1,
                 border: 0,
                 cursor: "pointer",
                 padding: "7px 20px",
@@ -321,10 +526,10 @@ function InviteCard({ transactionId, lead = false }: { transactionId: string; le
                 fontFamily: "inherit",
                 fontSize: 12.5,
                 fontWeight: 700,
-                background: on ? "var(--agent-surface-elevated, #fff)" : "transparent",
-                boxShadow: on ? "0 1px 3px rgba(15,23,42,0.14)" : "none",
+                background: "transparent",
                 color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
                 textTransform: "capitalize",
+                transition: "color 180ms ease",
               }}
             >
               {r}
@@ -403,8 +608,11 @@ function ResendList({ clients }: { clients: PortalPreviewClient[] }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {clients.map((c) => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "7px 2px", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-            <span style={{ fontSize: 13, color: "var(--agent-text-primary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {c.name} <span style={{ color: "var(--agent-text-muted)", fontSize: 11.5 }}>· {roleLabel(c.roleType)}</span>
+            {/* Side reads from the avatar colour (seller blue / buyer green) —
+                no "· Seller"/"· Buyer" text (critique #234). */}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--agent-text-primary)", minWidth: 0 }}>
+              <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} />
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
             </span>
             <button
               onClick={() => resend(c)}
