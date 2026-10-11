@@ -108,3 +108,52 @@ File tabs revisited within the 5-minute client-cache window switch in ~350–500
 - A production director login for the harness (or say the word to push staging and I'll measure the fresh staging deployment instead).
 - The Vercel **Speed Insights** toggle (see ELLIS_MANUAL_TODO).
 - Optional: Sentry read access (auth token + org/project slug) to mine the existing 10% server traces instead of re-deriving them.
+
+---
+
+# Addendum — first real-infrastructure run (staging on dub1), 2026-10-11
+
+Same harness, same test director, same file id, 3 runs per page (vs 5 in the local baseline). Target: the fresh staging deployment (today's 16 staging commits including the F2 region pin), functions verified in **dub1** via `X-Vercel-Id: …::dub1` and `vercel inspect` (all lambdas `[dub1]`). Raw results: `e2e/perf/results/staging-dub1-2026-10-11T07-47-36.jsonl` + `-summary.json`.
+
+## Headline: the 16–20s TTFB band collapsed to 266–385ms
+
+| Page | TTFB (med) | Settled (med) | Local-baseline TTFB |
+|---|---|---|---|
+| Hub | 385 | 1,094 | 16,308 |
+| Work queue | 328 | 1,018 | 17,155 |
+| Enquiries | 297 | 1,105 | 16,157 |
+| Completions | 331 | 944 | 17,276 |
+| To-Do | 309 | 872 | 16,825 |
+| Comms | 302 | 919 | 17,467 |
+| Auto emails | 287 | 945 | 18,390 |
+| Files list | 291 | 996 | 16,368 |
+| Chains | 266 | 943 | 17,060 |
+| Analytics | 319 | 933 | 16,344 |
+| Partners | 349 | 919 | 17,821 |
+| Account: profile | 280 | 664 | ~8,000 |
+| Account: billing | 353 | 716 | ~8,000 |
+| File: overview | 332 | 917 | 19,843 |
+| File: activity | 330 | 906 | 16,909 |
+| File: milestones | 293 | 899 | 17,828 |
+| File: chain | 268 | 874 | 19,249 |
+| File: documents | 320 | 949 | 17,066 |
+| File: reminders | 280 | 905 | 18,379 |
+| File: chase | 334 | 945 | 19,555 |
+| File: todos | 339 | 908 | 16,479 |
+| File: client portal | 349 | 1,001 | 18,815 |
+| File: setup | 345 | 972 | 15,982 |
+
+Warm navigation medians: ack 387–1,900ms, settled 557ms–1.7s (except To-Do and work queue, below). Warm file-tab switches: 397–775ms ack, all under 900ms settled.
+
+## What this does to the findings
+
+- **F1 (shared layout tax) — severity revised sharply down.** The local baseline's 16–20s band was the sequential layout query chain *amplified by* a home-connection ~25–40ms per round trip and a single-machine build. On dub1, each round trip costs ~1–3ms, so the same chain lands in the ~300ms TTFB range. The sequential chain is still real (Track 3 can still consolidate it), but it is a keep-it-fast-as-data-grows item, not a user-facing emergency. The audit's original interpretation over-weighted it; this run is the corrective.
+- **F2 (region) — fixed and verified.** Region pin committed (48c054bf), deployed, verified in headers and build output. Prod gets it on the next master merge.
+- **F3 (stale staging) — root cause found.** The Vercel staging branch alias does **not** repoint automatically when new staging deployments go Ready; today's two builds succeeded but the alias stayed on a weeks-old deployment until manually re-aliased (`vercel alias set`). Until the cause is fixed, every staging push needs a manual alias step or testing happens on old code silently.
+- **F5 (hub heaviest) — did not reproduce on real infra.** Hub settles at 1.1s median, band-typical. The 38s local figure was environmental.
+- **F8 (To-Do post-paint fetching) — confirmed, environment-independent, now the top product finding.** Warm-nav To-Do settled at 30.5s and 31.3s in 2 of 3 circuits on real infrastructure (third: 1.6s). Cold loads are fine (872ms settled), so it's specifically what the page fetches after a client-side navigation. Work queue shows a milder version (3.4–4.1s warm settles, `neverQuiet` cold). These two are the Track 2 deep-dive list.
+- **Harness gaps (unchanged):** Activity / Client portal / File setup tabs sit outside the tab bar's scroll viewport so warm-tab clicks time out (cold direct loads cover them); LCP only captures on run #1 per page.
+
+## Comparison caveat
+
+Old-vs-new here conflates three changes at once: real Vercel infra vs local build, dub1 vs home-connection-to-Dublin, and 16 commits of new code. No pure region A/B was run (the old iad1 deployment also runs old code). The honest claim is: **on production-grade infrastructure with the region pin, every agent page serves in ~300ms and settles in ~1s** — and the pre-pin prod would have paid ~80–100ms per DB query on top of its own query chain, which the pin removes.
