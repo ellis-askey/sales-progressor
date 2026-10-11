@@ -190,7 +190,9 @@ async function login(browser) {
     }
   }
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/agent\//, { timeout: 45000 });
+  // Generous: the very first authenticated load can exceed 45s while the
+  // server warms its DB pool (observed locally against the Dublin DB).
+  await page.waitForURL(/\/agent\//, { timeout: 120000 });
   await settle(page);
   // Dismiss the cookie banner once; consent persists via storageState so
   // no later context ever renders (or pays for) the banner. "Essential
@@ -230,7 +232,15 @@ async function discoverFileId(browser, state) {
   });
   let chosen = null;
   for (const href of hrefs.slice(0, 6)) {
-    await page.goto(`${BASE}${href}`, { waitUntil: "domcontentloaded" });
+    try {
+      await page.goto(`${BASE}${href}`, {
+        waitUntil: "domcontentloaded",
+        timeout: 90000,
+      });
+    } catch {
+      console.log(`Skipping ${href} — page did not load within 90s.`);
+      continue;
+    }
     try {
       // Real tab chrome = anchors to the file's route segments. Give the
       // streamed shell time to arrive — the demo file never renders them.
@@ -355,18 +365,24 @@ try {
   const fileId = await discoverFileId(browser, state);
   const fileBase = `/agent/transactions/${fileId}`;
 
-  // --- Pass 1: cold full loads ---
-  for (let run = 1; run <= RUNS; run++) {
-    for (const p of PAGES) await coldRun(browser, state, p.key, p.path, run);
-    for (const t of FILE_TABS)
-      await coldRun(browser, state, `${t.key}-direct`, `${fileBase}${t.seg}`, run);
+  // --- Pass 1: cold full loads --- (PERF_SKIP_COLD=1 to skip, e.g. when
+  // resuming a run that already banked the cold data)
+  if (!process.env.PERF_SKIP_COLD) {
+    for (let run = 1; run <= RUNS; run++) {
+      for (const p of PAGES) await coldRun(browser, state, p.key, p.path, run);
+      for (const t of FILE_TABS)
+        await coldRun(browser, state, `${t.key}-direct`, `${fileBase}${t.seg}`, run);
+    }
   }
 
   // --- Pass 2: warm sidebar circuits ---
   {
     const context = await browser.newContext({ storageState: state });
     const page = await context.newPage();
-    await page.goto(`${BASE}/agent/hub`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/agent/hub`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90000,
+    });
     await settle(page);
     for (let circuit = 1; circuit <= RUNS; circuit++) {
       for (const key of NAV_KEYS) {
@@ -384,7 +400,10 @@ try {
   {
     const context = await browser.newContext({ storageState: state });
     const page = await context.newPage();
-    await page.goto(`${BASE}${fileBase}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}${fileBase}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 90000,
+    });
     await settle(page);
     for (let circuit = 1; circuit <= RUNS; circuit++) {
       for (const t of FILE_TABS) {
