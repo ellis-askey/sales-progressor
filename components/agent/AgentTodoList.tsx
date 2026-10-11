@@ -22,7 +22,10 @@ function splitTodoAddress(address: string): { line: string; location: string } {
 }
 
 // Bespoke composer per Skeleton.tsx's contract — encodes the to-do
-// ghost layout. Inner pulses wrap the canonical Skeleton primitive.
+// ghost layout. Wraps the canonical Skeleton primitive with the shimmer
+// OFF: this ghost is settled decorative content, not a loading state, so
+// it must not animate (perf audit F8 — a permanent shimmer reads as
+// "still loading" to users and measurement alike).
 // Mirrors hub loading.tsx (Surface 2 D1) + work-queue (Surface 3 E1).
 function Bar({ width, height, mt = 0, mb = 0, radius = 4, flex, maxWidth }: {
   width: string | number;
@@ -36,6 +39,7 @@ function Bar({ width, height, mt = 0, mb = 0, radius = 4, flex, maxWidth }: {
   return (
     <Skeleton
       variant="block"
+      animated={false}
       width={width}
       height={height}
       style={{
@@ -236,7 +240,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
                 display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
                 borderBottom: i === 0 ? "0.5px solid var(--agent-border-subtle)" : "none",
               }}>
-                <Skeleton variant="circle" width={18} style={{ flexShrink: 0, display: "block" }} />
+                <Skeleton variant="circle" width={18} animated={false} style={{ flexShrink: 0, display: "block" }} />
                 <Bar width="auto" height={13} flex={1} maxWidth={w} />
                 <Bar width={36} height={11} />
               </div>

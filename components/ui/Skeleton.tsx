@@ -31,6 +31,11 @@ export type SkeletonProps = HTMLAttributes<HTMLDivElement> & {
   // Height override. Only applies to variant="block" — line/circle/card
   // ignore this (their heights are spec-locked).
   height?: number | string;
+  // Shimmer toggle. Default true (loading states). Pass false for
+  // decorative ghost previews — static placeholder shapes that are part
+  // of settled content. A shimmering bar signals "still loading"; content
+  // that is done loading must never shimmer (perf audit F8, 2026-10-11).
+  animated?: boolean;
 };
 
 const baseStyle = (animated: boolean): React.CSSProperties => ({
@@ -46,13 +51,14 @@ export function Skeleton({
   height,
   className = "",
   style,
+  animated = true,
   ...rest
 }: SkeletonProps) {
   // Respect prefers-reduced-motion at the OS level via CSS — the
   // animation keyframe is `agent-shimmer` which is set up to honour
   // reduced motion (see agent-system.css). No JS check needed.
 
-  let composed: React.CSSProperties = { ...baseStyle(true), ...style };
+  let composed: React.CSSProperties = { ...baseStyle(animated), ...style };
 
   switch (variant) {
     case "line": {
@@ -105,11 +111,11 @@ export function Skeleton({
           {...rest}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-            <Skeleton variant="circle" width={32} />
-            <Skeleton variant="line" width="40%" />
+            <Skeleton variant="circle" width={32} animated={animated} />
+            <Skeleton variant="line" width="40%" animated={animated} />
           </div>
-          <Skeleton variant="line" width="80%" style={{ marginBottom: 8 }} />
-          <Skeleton variant="line" width="60%" />
+          <Skeleton variant="line" width="80%" style={{ marginBottom: 8 }} animated={animated} />
+          <Skeleton variant="line" width="60%" animated={animated} />
         </div>
       );
     }

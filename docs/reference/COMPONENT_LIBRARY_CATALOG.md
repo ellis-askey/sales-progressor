@@ -371,9 +371,11 @@ Patterns that are duplicated multiple times across domain folders and should bec
   <Skeleton variant="block"  width="50%" height={140} />
   <Skeleton variant="circle" width={48} />         // avatar / role icon
   <Skeleton variant="card" />                      // compound: circle + 3 lines inside a glass-card
+  <Skeleton variant="line" animated={false} />     // static ghost — decorative placeholder in settled content
   ```
 - **What the primitive owns:** the shimmer gradient + animation, sensible default sizes per variant, ARIA `aria-hidden` (skeletons are visual-only — screen readers shouldn't announce them). Animation uses the existing `agent-shimmer` keyframe in agent-system.css which honours `prefers-reduced-motion` at the OS level.
-- **States rendered in gallery:** line (3 widths) + block (default + custom) + circle (4 sizes) + card (compound) + a real-world composed row (avatar + two lines + action block).
+- **`animated` prop (added 2026-10-11, perf audit F8):** default `true`. Pass `animated={false}` for decorative ghost previews — placeholder shapes that are part of settled content (e.g. the To-Do empty-state section preview in `AgentTodoList`). Rule: **content that is done loading must never shimmer** — a permanent shimmer reads as "still loading" to users and to measurement tooling alike.
+- **States rendered in gallery:** line (3 widths) + block (default + custom) + circle (4 sizes) + card (compound) + a real-world composed row (avatar + two lines + action block) + static ghost (`animated={false}`).
 - **Gallery:** [/dev/gallery/skeleton](../../app/dev/gallery/skeleton/page.tsx).
 - **Visual regression:** [e2e/gallery-skeleton.spec.ts](../../e2e/gallery-skeleton.spec.ts). All captures disable animations so shimmer doesn't diff every run.
 - **Deliberate scope limits (locked Week 8-9):**
