@@ -86,7 +86,7 @@ export default function SkeletonGallery() {
           </div>
         </Section>
 
-        <Section title="Static ghost" subtitle="animated={false} — decorative placeholder inside settled content (e.g. empty-state section previews). Never shimmers: done content must not look like it's loading.">
+        <Section title="Static ghost" subtitle="animated={false}: decorative placeholder inside settled content (e.g. empty-state section previews). Never shimmers: done content must not look like it's loading.">
           <div data-testid="skel-static-ghost" style={{ opacity: 0.35 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Skeleton variant="circle" width={18} animated={false} />
