@@ -228,6 +228,9 @@ export const config = {
     // can be reached without auth. Prod-blocked at the page level via
     // process.env.NODE_ENV === "production" → notFound() per Phase 2 of
     // docs/BUILD_PLAN.md. Added 2026-06-26 with the Card primitive.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    // api/dev follows the same convention: data endpoints for /dev prototypes
+    // (e.g. /dev/sold-for), each prod-blocked inside the handler with the same
+    // NODE_ENV check, so excluding them here exposes nothing in production.
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };
