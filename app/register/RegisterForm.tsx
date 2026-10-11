@@ -166,8 +166,9 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
       {/* Architectural line-drawing background. Centre is clean white space for
-          the card; a faint white veil keeps it legible on narrow screens. */}
-      <div aria-hidden style={{
+          the card; a faint white veil keeps it legible on narrow screens. The
+          image fades in on load so it materialises alongside the card. */}
+      <div aria-hidden className="auth-bg-enter" style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
         backgroundImage: "url(/register-bg.png)",
@@ -231,6 +232,11 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         }
         .reg-enter { animation: reg-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         @media (prefers-reduced-motion: reduce) { .reg-enter { animation: none; } }
+        /* Background develops in on load so it appears alongside the card —
+           a touch slower than the card's rise so the street gently resolves. */
+        @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
+        .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        @media (prefers-reduced-motion: reduce) { .auth-bg-enter { animation: none; } }
       `}</style>
 
       <div className="reg-enter" style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>

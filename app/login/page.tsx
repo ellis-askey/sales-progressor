@@ -20,11 +20,22 @@ export default async function LoginPage() {
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
+      {/* Entrance motion: the background develops in and the card rises + fades,
+          so they appear together on load. Matches the register page's house
+          motion. Disabled under prefers-reduced-motion. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
+        .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
+      ` }} />
+
       {/* Architectural line-drawing background (agent desk + UK street). The
           centre of the artwork is clean white space, where the card sits. A
           faint white veil keeps the card area legible on narrow screens where
           the illustration crops inward. */}
-      <div aria-hidden style={{
+      <div aria-hidden className="auth-bg-enter" style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
         backgroundImage: "url(/login-bg.png)",
@@ -37,7 +48,7 @@ export default async function LoginPage() {
         background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
       }} />
 
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
+      <div className="auth-enter" style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
           {/* Logo lockup: coral mark + TSP / SALES PROGRESSOR wordmark. */}
