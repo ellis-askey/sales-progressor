@@ -2120,6 +2120,9 @@ export type CheckInRow = {
   // Our full private update trail on this node (our team side only), newest first.
   // Powers the ⋯ menu "Update history". Capped at the 30 most recent entries loaded.
   history: Array<{ at: string; body: string }>;
+  // Our side's "Confirm progress" marks on this node (critique #235) — step keys
+  // from lib/chain/check-in-steps.ts. Private to us, like the entries.
+  steps: string[];
   chainId: string;
   chainName: string | null;
   ourAddress: string | null;     // our own file's address in this chain (group header context)
@@ -2174,6 +2177,8 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
             take: 30,
             select: { body: true, createdAt: true, authorSideKey: true },
           },
+          // Confirm-progress marks; filtered to our side key below (#235).
+          stepMarks: { select: { stepKey: true, sideKey: true } },
         },
       },
     },
@@ -2210,6 +2215,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         lastUpdateAt: latest?.createdAt.toISOString() ?? null,
         lastUpdateBody: latest?.body ?? null,
         history: ourEntries.map((e) => ({ at: e.createdAt.toISOString(), body: e.body })),
+        steps: sideKey ? l.stepMarks.filter((m) => m.sideKey === sideKey).map((m) => m.stepKey) : [],
         chainId: chain.id,
         chainName: chain.name,
         ourAddress: our?.address ?? null,

@@ -21,13 +21,23 @@ If `db push` warns about anything beyond adding this column, stop and tell me (i
 
 ---
 
+## Apply the ChainNodeStepMark table to staging (Confirm progress on check-ins, critique #235, 2026-10-11)
+
+The Chains → Check-ins "Confirm progress" pills store marks in a new table, `ChainNodeStepMark` (one row per link + side + step). Schema + prod migration (`20261011210000_chain_node_step_marks`) are committed, but the staging DB is IPv6-only from my sandbox so I couldn't push it myself — same situation as the Phase 6c column above:
+
+1. **Before testing the pills on local :3001**: run `npm run db:push` once (additive — one new table, no data change).
+2. **Production** applies the committed migration automatically on the next prod deploy via `migrate deploy`. Nothing else to do.
+
+If this lands in the same `db push` as the Phase 6c one above, one run covers both.
+
+---
+
 ## Refresh the local EPC_API_KEY (sold-for game prototype, 2026-10-10)
 
-The `/dev/sold-for` loading-game prototype enriches each sold-price card with floor area + EPC band from the EPC register, but the `EPC_API_KEY` in your local `.env.local` now returns **403 Forbidden** (stale bearer token). Optional for the game (fields hide gracefully), but worth doing because the same key powers the live Property Intel card's EPC lookups in local dev:
+**Prod is fine — Ellis confirmed EPC lookups working live on prod, 2026-10-11.** Only the copy of `EPC_API_KEY` in local `.env.local` returns 403 Forbidden from the register, so EPC enrichment (floor area + band on `/dev/sold-for` cards, and the Property Intel card's EPC lookup) is dark in **local dev only**. Optional, the fields hide gracefully:
 
-1. Log in at the EPC register account page (get-energy-performance-data.communities.gov.uk) → copy the ready-made bearer token from "my account".
+1. Copy the working token from the Vercel production env var (or grab a fresh one from the EPC register's "my account" page).
 2. Replace `EPC_API_KEY` in `.env.local` with it (used verbatim, not base64-encoded).
-3. Check whether the **production** Vercel env var is the same stale token — if so, refresh it there too or prod EPC lookups are silently dark.
 
 ---
 

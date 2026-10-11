@@ -16,7 +16,8 @@
 import { useState, useTransition, useRef, useLayoutEffect, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { addChainEntryAction } from "@/app/actions/chain-intel";
+import { addChainEntryAction, toggleChainStepAction } from "@/app/actions/chain-intel";
+import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
@@ -114,6 +115,62 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     for (const [id, el] of nodeRefs.current) prevRects.current.set(id, el.getBoundingClientRect().top);
   }
 
+  // "Confirm progress" pill toggles (#235). Optimistic: flip locally, then
+  // reconcile with the server's step list. Marking also logs a dated entry, so
+  // the row's "Last update" line and history update in place. Deliberately NO
+  // re-sort here — an agent often taps several pills in one sitting, and the
+  // row jumping to the bottom of its chain mid-tap would pull the pills out
+  // from under their cursor. The next page load applies the normal ordering.
+  const [stepBusy, setStepBusy] = useState<Set<string>>(new Set());
+  function toggleStep(row: CheckInRow, stepKey: string) {
+    const busyKey = `${row.linkId}:${stepKey}`;
+    if (stepBusy.has(busyKey)) return;
+    const wasDone = row.steps.includes(stepKey);
+    const next = !wasDone;
+    setStepBusy((s) => new Set(s).add(busyKey));
+    setRows((cur) =>
+      cur.map((r) =>
+        r.linkId === row.linkId
+          ? { ...r, steps: next ? [...r.steps, stepKey] : r.steps.filter((k) => k !== stepKey) }
+          : r,
+      ),
+    );
+    startTransition(async () => {
+      try {
+        const res = await toggleChainStepAction(row.linkId, stepKey, next, row.ourTransactionId ?? undefined);
+        setRows((cur) =>
+          cur.map((r) =>
+            r.linkId === row.linkId
+              ? {
+                  ...r,
+                  steps: res.steps,
+                  ...(res.entry
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, history: [{ at: res.entry.at, body: res.entry.body }, ...r.history] }
+                    : {}),
+                }
+              : r,
+          ),
+        );
+      } catch (e) {
+        // Revert the optimistic flip.
+        setRows((cur) =>
+          cur.map((r) =>
+            r.linkId === row.linkId
+              ? { ...r, steps: wasDone ? [...r.steps, stepKey] : r.steps.filter((k) => k !== stepKey) }
+              : r,
+          ),
+        );
+        toast.error(e instanceof Error ? e.message : "Couldn't update that step.");
+      } finally {
+        setStepBusy((s) => {
+          const n = new Set(s);
+          n.delete(busyKey);
+          return n;
+        });
+      }
+    });
+  }
+
   function logUpdate(row: CheckInRow) {
     const text = draft.trim();
     if (!text) return;
@@ -167,6 +224,34 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
 
   return (
     <>
+    <style>{`
+      .ciq-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        height: 30px; padding: 0 12px; border-radius: 999px;
+        border: 1px solid var(--agent-border-default);
+        background: var(--agent-surface-elevated, #fff);
+        font-family: inherit; font-size: 12px; font-weight: 650;
+        color: var(--agent-text-secondary); cursor: pointer; white-space: nowrap;
+        transition: border-color 130ms ease, background 130ms ease, color 130ms ease, transform 130ms ease;
+      }
+      .ciq-pill:hover:not(:disabled) { border-color: rgba(var(--agent-coral-rgb), 0.45); color: var(--agent-coral-darker); }
+      .ciq-pill:active:not(:disabled) { transform: scale(0.96); }
+      .ciq-pill:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
+      .ciq-pill:disabled { opacity: 0.6; cursor: default; }
+      .ciq-done { border-color: rgba(var(--agent-coral-rgb), 0.55); color: var(--agent-coral-darker); animation: ciq-pop 180ms ease; }
+      .ciq-finale-done {
+        border-color: transparent;
+        background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep));
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.32), inset 0 1px 0 rgba(255,255,255,0.28);
+      }
+      .ciq-finale-done:hover:not(:disabled) { color: #fff; border-color: transparent; }
+      @keyframes ciq-pop { 0% { transform: scale(0.94); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
+      @media (prefers-reduced-motion: reduce) {
+        .ciq-pill { transition: none; }
+        .ciq-done { animation: none; }
+      }
+    `}</style>
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <p style={{ margin: "0 0 2px", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
         Every other property in your chains, grouped by chain and quietest first. Check in on the ones at the top, log what you hear, and the row drops to the bottom of its chain so the cycle keeps turning. Your notes stay private to your side.
@@ -339,6 +424,46 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                 </div>
               </div>
             )}
+
+            {/* Confirm progress — the basic steps of their sale as tappable
+                pills, any order (#235). Our side's marks only. */}
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--agent-border-subtle)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 9 }}>
+                <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+                  Confirm progress
+                </p>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                  {row.steps.length} of {CHECK_IN_STEPS.length}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                {CHECK_IN_STEPS.map((step, si) => {
+                  const done = row.steps.includes(step.key);
+                  const firstFinale = step.finale && !CHECK_IN_STEPS[si - 1]?.finale;
+                  return (
+                    <span key={step.key} style={{ display: "contents" }}>
+                      {firstFinale && <span aria-hidden style={{ width: 1, height: 18, background: "var(--agent-border-default)", margin: "0 3px", flex: "0 0 auto" }} />}
+                      <button
+                        type="button"
+                        onClick={() => toggleStep(row, step.key)}
+                        disabled={stepBusy.has(`${row.linkId}:${step.key}`)}
+                        aria-pressed={done}
+                        className={`ciq-pill${done ? " ciq-done" : ""}${step.finale && done ? " ciq-finale-done" : ""}`}
+                      >
+                        {done && <span aria-hidden style={{ fontSize: 11, lineHeight: 1, color: step.finale ? "#fff" : "var(--agent-coral-deep)" }}>✓</span>}
+                        {step.label}
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+              {row.steps.length === CHECK_IN_STEPS.length && (
+                <p style={{ display: "flex", alignItems: "center", gap: 7, margin: "10px 0 0", fontSize: 12, fontWeight: 650, color: "var(--agent-success)" }}>
+                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: 99, background: "var(--agent-success)", flex: "0 0 auto" }} />
+                  All steps in. This property is flagged ready to exchange on your chain.
+                </p>
+              )}
+            </div>
           </div>
         );
           })}

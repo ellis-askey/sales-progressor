@@ -11,6 +11,7 @@ import {
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
 } from "@/lib/chain/intel";
+import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel } from "@/lib/chain/check-in-steps";
 
 // Shared guard: load the link's ownership facts and assert the caller may edit
 // this node (canEditNodeIntel). Own-side only — never another agency, never the
@@ -199,4 +200,120 @@ export async function addChainEntryAction(
   }
 
   return { id: entry.id, body: entry.body, authorName: entry.authorName, createdAt: entry.createdAt.toISOString() };
+}
+
+// Toggle a "Confirm progress" step on a chain check-in node (critique #235).
+// Same access + side-key model as addChainEntryAction: you can mark steps on a
+// node you own or a neighbour node in a chain you're part of, and the marks are
+// private to your side. Marking also writes a dated chase-log entry (so the
+// steps and the notes stay one record); unmarking just removes the mark.
+// When every step is marked, the link is flagged ready to exchange
+// (exchangeReadyConfirmedAt — the field the push-to-exchange surface reads).
+export async function toggleChainStepAction(
+  linkId: string,
+  stepKey: string,
+  done: boolean,
+  contextTransactionId?: string,
+): Promise<{
+  steps: string[]; // our side's marked step keys after the toggle
+  entry: { at: string; body: string } | null; // the logged line (mark only)
+}> {
+  const session = await requireSession();
+  if (!CHECK_IN_STEP_KEYS.has(stepKey)) throw new Error("Unknown step.");
+
+  // Access: own-side node, or a neighbour node in a chain we're part of —
+  // identical to addChainEntryAction (#chain-checkins).
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: {
+      id: true, chainId: true, transactionId: true, createdByUserId: true,
+      exchangeReadyConfirmedAt: true,
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
+    },
+  });
+  if (!link) throw new Error("Chain link not found");
+
+  const scope = getAccessScope(session);
+  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, businessId: session.user.progressionBusinessId ?? null, scope };
+  const ownSide = canEditNodeIntel(viewer, {
+    transactionId: link.transactionId,
+    linkCreatedByUserId: link.createdByUserId,
+    linkCreatedByAgencyId: link.createdBy?.agencyId ?? null,
+    txAgencyId: link.transaction?.agencyId ?? null,
+    txAssignedUserId: link.transaction?.assignedUserId ?? null,
+    txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
+  });
+  if (!ownSide) {
+    const inChain = await prisma.propertyTransaction.findFirst({
+      where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+      select: { id: true },
+    });
+    if (!inChain) throw new Error("You don't have permission to update this chain node.");
+  }
+
+  // Side key resolution — identical to addChainEntryAction, so marks and log
+  // entries always live under the same team scope.
+  let contextTx: { id: string; agencyId: string } | null = null;
+  if (contextTransactionId) {
+    contextTx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, contextTransactionId),
+      select: { id: true, agencyId: true },
+    });
+  }
+  const sideKey = contextTx
+    ? agencySideKey(contextTx.agencyId)
+    : ownSide && link.transaction?.agencyId
+      ? agencySideKey(link.transaction.agencyId)
+      : noteSideKey(viewer);
+
+  let entry: { at: string; body: string } | null = null;
+  if (done) {
+    await prisma.chainNodeStepMark.upsert({
+      where: { chainLinkId_sideKey_stepKey: { chainLinkId: linkId, sideKey, stepKey } },
+      create: { chainLinkId: linkId, sideKey, stepKey, markedById: session.user.id, markedByName: session.user.name ?? null },
+      update: {},
+    });
+    // The mark doubles as a dated check-in line, so the row's "Last update"
+    // and history reflect it without a separate note.
+    const label = checkInStepLabel(stepKey) ?? stepKey;
+    const created = await prisma.chainLinkEntry.create({
+      data: {
+        chainLinkId: linkId,
+        body: `Confirmed: ${label.toLowerCase()}`,
+        authorId: session.user.id,
+        authorName: session.user.name ?? null,
+        authorSideKey: sideKey,
+        authorAgencyId: session.user.agencyId ?? null,
+        authorBusinessId: session.user.progressionBusinessId ?? null,
+      },
+      select: { body: true, createdAt: true },
+    });
+    entry = { at: created.createdAt.toISOString(), body: created.body };
+  } else {
+    await prisma.chainNodeStepMark.deleteMany({
+      where: { chainLinkId: linkId, sideKey, stepKey },
+    });
+  }
+
+  const marks = await prisma.chainNodeStepMark.findMany({
+    where: { chainLinkId: linkId, sideKey },
+    select: { stepKey: true },
+  });
+  const steps = marks.map((m) => m.stepKey);
+
+  // Every step in (including both signed-and-returned finales) = this node is
+  // ready to exchange. Stamp the existing agent-maintained flag the
+  // push-to-exchange surface reads. Set once; never cleared from here, so a
+  // mis-tap undo doesn't silently retract a readiness the team may have
+  // already acted on — the exchange surface owns un-confirming.
+  if (steps.length === CHECK_IN_STEPS.length && !link.exchangeReadyConfirmedAt) {
+    await prisma.chainLink.update({
+      where: { id: linkId },
+      data: { exchangeReadyConfirmedAt: new Date(), exchangeReadyConfirmedById: session.user.id },
+    });
+  }
+
+  return { steps, entry };
 }

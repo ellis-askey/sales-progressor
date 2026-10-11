@@ -2854,6 +2854,7 @@ model ChainLink {
   neighbourUpdates       ChainNeighbourUpdate[]
   prospects              Prospect[] // acquisition prospects sourced from this chain invite (Command Centre → Prospects)
   entries                ChainLinkEntry[] // own-side chase-log entries on this node (b1ey9l)
+  stepMarks              ChainNodeStepMark[] // own-side confirm-progress marks (critique #235)
 
   @@unique([chainId, branchKey, position])
   @@index([forkFromLinkId])
@@ -2889,6 +2890,29 @@ model ChainLinkEntry {
   chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
 
   @@index([chainLinkId, createdAt])
+}
+
+// ─── ChainNodeStepMark ────────────────────────────────────────────────────────
+// "Confirm progress" on a chain check-in row (critique #235): the basic
+// conveyancing steps an agent hears have happened on a NEIGHBOUR'S sale, marked
+// as tappable pills in any order. One row per (link, side, step); unmarking
+// deletes the row. SAME privacy model as ChainLinkEntry — sideKey is the
+// noteSideKey scope (`agency:<id>` / `business:<id>` / `tsp-internal`): our
+// marks are ours alone, the neighbour never sees them and keeps their own.
+// Step keys are the closed set in lib/chain/check-in-steps.ts.
+model ChainNodeStepMark {
+  id           String   @id @default(cuid())
+  chainLinkId  String
+  sideKey      String
+  stepKey      String
+  markedById   String? // user who tapped it (id only, no FK — standalone, like ChainLinkEntry.authorId)
+  markedByName String? // display name captured at write time
+  createdAt    DateTime @default(now())
+
+  chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([chainLinkId, sideKey, stepKey])
+  @@index([chainLinkId])
 }
 
 // ─── ChainNeighbourUpdate ─────────────────────────────────────────────────────
