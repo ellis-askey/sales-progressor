@@ -33,11 +33,11 @@ The `/dev/sold-for` loading-game prototype enriches each sold-price card with fl
 
 ## Turn on Speed Insights in Vercel (perf audit Track 1, 2026-10-10)
 
-The agent app now mounts Vercel's real-user speed monitoring (`<SpeedInsights/>` in `app/agent/layout.tsx`), so every real session reports Core Web Vitals per route. It sends nothing until the feature is enabled on the project:
+The agent app now mounts Vercel's real-user speed monitoring (`<SpeedInsights/>` in `app/agent/layout.tsx`), so every real session reports Core Web Vitals per route.
 
-1. Vercel dashboard → the **sales-progressor** project → **Speed Insights** tab → **Enable**. One click; takes effect on the next deployment (the code is already deployed ahead of it, so just enable and redeploy or wait for the next push).
-2. Note: Speed Insights has a free tier (10k data points/month) which is plenty at current usage; no card step needed.
-3. After a few days of real use, the dashboard shows which routes are slowest for real users — this becomes the ongoing scoreboard the perf audit's fixes get judged against.
+1. **No dashboard toggle needed** (verified 2026-10-11: the Speed Insights tab shows a "Get Started" page — Vercel activates automatically on first data; its steps 1 and 2, package + component, are already done in commit `56b866d8` on staging).
+2. **The only remaining step is deploying that commit to production** via the normal staging → master flow. Within minutes of the first real page view, the Get Started screen becomes the charts.
+3. Free tier (10k data points/month) is plenty at current usage; no card needed. After a few days the dashboard shows which routes are slowest for real users — the ongoing scoreboard the perf audit's fixes get judged against.
 
 Also pre-wired (nothing to do yet): PostHog web-vitals capture is enabled in the PostHog init config, but stays dormant until `NEXT_PUBLIC_POSTHOG_KEY` is set (the existing "pending DPA + key" item).
 
