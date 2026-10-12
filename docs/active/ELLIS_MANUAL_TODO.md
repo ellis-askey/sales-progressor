@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
+
+---
+
+## Fix Vercel's stuck staging URL — dashboard check (perf audit F3, 2026-10-12)
+
+The staging link (`salesprogressor-git-staging-….vercel.app`) does not follow new builds: staging deployments go Ready, correctly tagged with the staging branch, but Vercel never repoints the URL (confirmed by controlled test 2026-10-12 — a Ready staging build sat 20+ minutes while the URL kept serving the manually-set one). This is why staging silently served weeks-old code for most of September/October. The cause is in dashboard-only settings the CLI can't read.
+
+**Interim workaround (already in place):** after any staging push, run `npm run staging:alias` — it waits for the newest staging build to go Ready and repoints the URL. CC runs it automatically when it pushes.
+
+**What to check in the dashboard (5 minutes):**
+1. Vercel → `salesprogressor` project → **Settings → Git**: confirm the connected repo is `ellis-askey/sales-progressor` and there's no "Ignored Build Step" or branch filter that would stop staging previews being treated normally.
+2. **Settings → Domains**: look for an entry like `salesprogressor-git-staging-…vercel.app`. If it's listed as a custom domain pinned to a specific deployment/branch in an unusual way, remove it — the git-branch URL should be automatic, not a managed domain entry.
+3. There's also an old sibling project (`full`) connected to the same repo (visible in the alias list). If it still has git integration enabled, consider disconnecting it — two projects watching one repo is a classic source of weird preview behaviour.
+4. After any change: push anything to staging and see whether the URL repoints on its own (no `npm run staging:alias`). If it does, tell CC — the workaround script then gets deleted per its registry entry.
 
 ---
 

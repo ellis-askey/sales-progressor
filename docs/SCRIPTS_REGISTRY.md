@@ -88,6 +88,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete only if Phase 3 surface remediation is complete AND the autonomous capture spec is also deleted.
 - **Justification:** seeds an idempotent, scoped test user. Refuses to run against prod DB at runtime (checks `DATABASE_URL` host before any write). Not a feature, not an npm script — proper one-shot/ongoing staging-only seeder.
 
+### scripts/point-staging-alias.mjs
+
+- **Purpose:** Points `salesprogressor-git-staging-….vercel.app` at the newest Ready staging deployment (`npm run staging:alias`). Vercel's automatic branch aliasing is broken for this project (perf audit F3, root-caused 2026-10-12): staging builds go Ready correctly tagged but the branch URL never follows, so manual testing silently lands on weeks-old code. Run after every staging push until the dashboard-side cause is fixed.
+- **Lifetime:** `ongoing`
+- **Author:** CC (perf audit wrap-up), 2026-10-12
+- **Deletion criteria:** delete + deregister once Vercel automatic branch aliasing demonstrably works again (push to staging, confirm the branch URL repoints with no manual step).
+- **Justification:** operational tool wrapping the Vercel CLI; not a feature or test. npm-script-wrapped (`staging:alias`) but the logic (newest-staging lookup, Ready wait, alias) warrants a script file.
+
 ### scripts/inventory/surfaces.ts
 
 - **Purpose:** Walks `app/` for `page.tsx` files and emits `docs/inventory/SURFACES.md` listing every route with audience role and rough complexity score.
