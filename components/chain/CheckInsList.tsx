@@ -122,6 +122,17 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // row jumping to the bottom of its chain mid-tap would pull the pills out
   // from under their cursor. The next page load applies the normal ordering.
   const [stepBusy, setStepBusy] = useState<Set<string>>(new Set());
+  // Which rows have their milestone line expanded. Closed by default — the
+  // summary bar's mini dots carry the read; opening is only for confirming.
+  const [stepsOpen, setStepsOpen] = useState<Set<string>>(new Set());
+  function toggleStepsOpen(linkId: string) {
+    setStepsOpen((cur) => {
+      const next = new Set(cur);
+      if (next.has(linkId)) next.delete(linkId);
+      else next.add(linkId);
+      return next;
+    });
+  }
   function toggleStep(row: CheckInRow, stepKey: string) {
     const busyKey = `${row.linkId}:${stepKey}`;
     if (stepBusy.has(busyKey)) return;
@@ -225,31 +236,67 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   return (
     <>
     <style>{`
-      .ciq-pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        height: 30px; padding: 0 12px; border-radius: 999px;
-        border: 1px solid var(--agent-border-default);
-        background: var(--agent-surface-elevated, #fff);
-        font-family: inherit; font-size: 12px; font-weight: 650;
-        color: var(--agent-text-secondary); cursor: pointer; white-space: nowrap;
-        transition: border-color 130ms ease, background 130ms ease, color 130ms ease, transform 130ms ease;
+      /* Confirm progress v2 (#235): summary bar + collapsible milestone line. */
+      .ciq-bar {
+        display: flex; align-items: center; gap: 10px; width: 100%;
+        border: 0; border-top: 1px solid var(--agent-border-subtle);
+        background: transparent; font-family: inherit; cursor: pointer;
+        padding: 10px 16px; border-radius: 0 0 13px 13px;
+        transition: background 130ms ease;
       }
-      .ciq-pill:hover:not(:disabled) { border-color: rgba(var(--agent-coral-rgb), 0.45); color: var(--agent-coral-darker); }
-      .ciq-pill:active:not(:disabled) { transform: scale(0.96); }
-      .ciq-pill:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
-      .ciq-pill:disabled { opacity: 0.6; cursor: default; }
-      .ciq-done { border-color: rgba(var(--agent-coral-rgb), 0.55); color: var(--agent-coral-darker); animation: ciq-pop 180ms ease; }
-      .ciq-finale-done {
-        border-color: transparent;
+      .ciq-bar:hover { background: var(--agent-hover-shade, rgba(45,24,16,0.025)); }
+      .ciq-bar:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.5); }
+      .ciq-bar.ciq-open { border-radius: 0; }
+      .ciq-dots { display: inline-flex; align-items: center; gap: 3.5px; flex: 0 0 auto; }
+      .ciq-md { width: 7px; height: 7px; border-radius: 99px; border: 1.5px solid var(--agent-border-default); background: var(--agent-surface-elevated, #fff); transition: background 130ms ease, border-color 130ms ease; }
+      .ciq-md.on { background: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
+      .ciq-md.gap { margin-left: 4px; }
+      .ciq-allin .ciq-md.on { background: var(--agent-success); border-color: var(--agent-success); }
+      .ciq-barlabel { font-size: 11.5px; font-weight: 700; color: var(--agent-text-secondary); white-space: nowrap; }
+      .ciq-ready { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--agent-success); white-space: nowrap; }
+      .ciq-rdot { width: 6px; height: 6px; border-radius: 99px; background: var(--agent-success); }
+      .ciq-hint { font-size: 11px; font-weight: 650; color: var(--agent-text-muted); white-space: nowrap; }
+      .ciq-chev { flex: 0 0 auto; color: var(--agent-text-muted); display: grid; place-items: center; }
+      .ciq-chev svg { transition: transform 200ms ease; display: block; }
+      .ciq-chev.open svg { transform: rotate(180deg); }
+      .ciq-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms cubic-bezier(0.22,1,0.36,1); }
+      .ciq-body > div { overflow: hidden; min-height: 0; }
+      .ciq-body.open { grid-template-rows: 1fr; }
+      .ciq-track { display: flex; padding: 6px 16px 16px; opacity: 0; transition: opacity 180ms ease 60ms; overflow-x: auto; }
+      .ciq-body.open .ciq-track { opacity: 1; }
+      .ciq-step {
+        flex: 1 1 0; min-width: 64px; position: relative;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        border: 0; background: none; font-family: inherit; cursor: pointer; padding: 0;
+      }
+      .ciq-step::before, .ciq-step::after { content: ""; position: absolute; top: 13px; height: 2px; background: var(--agent-border-subtle); width: 50%; }
+      .ciq-step::before { left: 0; } .ciq-step::after { right: 0; }
+      .ciq-step:first-child::before, .ciq-step:last-child::after { display: none; }
+      .ciq-step:disabled { cursor: default; opacity: 0.6; }
+      .ciq-node {
+        position: relative; z-index: 1; width: 27px; height: 27px; border-radius: 50%;
+        background: var(--agent-surface-elevated, #fff); border: 1.5px solid var(--agent-border-default);
+        display: grid; place-items: center; font-size: 12px; color: transparent;
+        transition: border-color 130ms ease, background 130ms ease, transform 130ms ease;
+      }
+      .ciq-step:hover:not(:disabled) .ciq-node { border-color: rgba(var(--agent-coral-rgb), 0.55); transform: scale(1.07); }
+      .ciq-step:focus-visible { outline: none; }
+      .ciq-step:focus-visible .ciq-node { box-shadow: var(--agent-focus-ring); }
+      .ciq-step.done .ciq-node {
         background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep));
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.32), inset 0 1px 0 rgba(255,255,255,0.28);
+        border-color: transparent; color: #fff;
+        box-shadow: 0 2px 7px rgba(var(--agent-coral-rgb), 0.32);
+        animation: ciq-pop 200ms ease;
       }
-      .ciq-finale-done:hover:not(:disabled) { color: #fff; border-color: transparent; }
-      @keyframes ciq-pop { 0% { transform: scale(0.94); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
+      .ciq-lbl { font-size: 10px; font-weight: 650; color: var(--agent-text-muted); line-height: 1.25; text-align: center; max-width: 76px; }
+      .ciq-step.done .ciq-lbl { color: var(--agent-coral-darker); font-weight: 700; }
+      .ciq-step.fin .ciq-lbl { font-weight: 750; color: var(--agent-text-secondary); }
+      .ciq-step.fin .ciq-node { border-style: double; border-width: 3px; }
+      .ciq-step.fin.done .ciq-node { border-style: solid; border-width: 1.5px; }
+      @keyframes ciq-pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
       @media (prefers-reduced-motion: reduce) {
-        .ciq-pill { transition: none; }
-        .ciq-done { animation: none; }
+        .ciq-bar, .ciq-md, .ciq-chev svg, .ciq-body, .ciq-track, .ciq-node { transition: none; }
+        .ciq-step.done .ciq-node { animation: none; }
       }
     `}</style>
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -425,45 +472,67 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               </div>
             )}
 
-            {/* Confirm progress — the basic steps of their sale as tappable
-                pills, any order (#235). Our side's marks only. */}
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--agent-border-subtle)" }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 9 }}>
-                <p style={{ margin: 0, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
-                  Confirm progress
-                </p>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-                  {row.steps.length} of {CHECK_IN_STEPS.length}
-                </span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                {CHECK_IN_STEPS.map((step, si) => {
-                  const done = row.steps.includes(step.key);
-                  const firstFinale = step.finale && !CHECK_IN_STEPS[si - 1]?.finale;
-                  return (
-                    <span key={step.key} style={{ display: "contents" }}>
-                      {firstFinale && <span aria-hidden style={{ width: 1, height: 18, background: "var(--agent-border-default)", margin: "0 3px", flex: "0 0 auto" }} />}
-                      <button
-                        type="button"
-                        onClick={() => toggleStep(row, step.key)}
-                        disabled={stepBusy.has(`${row.linkId}:${step.key}`)}
-                        aria-pressed={done}
-                        className={`ciq-pill${done ? " ciq-done" : ""}${step.finale && done ? " ciq-finale-done" : ""}`}
-                      >
-                        {done && <span aria-hidden style={{ fontSize: 11, lineHeight: 1, color: step.finale ? "#fff" : "var(--agent-coral-deep)" }}>✓</span>}
-                        {step.label}
-                      </button>
+            {/* Confirm progress (#235): summary bar + collapsible milestone
+                line. The bar's mini dots mirror the circles one-to-one, so a
+                closed card still shows the read; opening is only for tapping.
+                Negative margins bleed the bar to the card's edges. */}
+            {(() => {
+              const allIn = row.steps.length === CHECK_IN_STEPS.length;
+              const open = stepsOpen.has(row.linkId);
+              return (
+                <div style={{ margin: "12px -16px -13px" }}>
+                  <button
+                    type="button"
+                    className={`ciq-bar${open ? " ciq-open" : ""}${allIn ? " ciq-allin" : ""}`}
+                    aria-expanded={open}
+                    onClick={() => toggleStepsOpen(row.linkId)}
+                  >
+                    <span className="ciq-dots" aria-hidden>
+                      {CHECK_IN_STEPS.map((step, si) => (
+                        <span
+                          key={step.key}
+                          className={`ciq-md${row.steps.includes(step.key) ? " on" : ""}${step.finale && !CHECK_IN_STEPS[si - 1]?.finale ? " gap" : ""}`}
+                        />
+                      ))}
                     </span>
-                  );
-                })}
-              </div>
-              {row.steps.length === CHECK_IN_STEPS.length && (
-                <p style={{ display: "flex", alignItems: "center", gap: 7, margin: "10px 0 0", fontSize: 12, fontWeight: 650, color: "var(--agent-success)" }}>
-                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: 99, background: "var(--agent-success)", flex: "0 0 auto" }} />
-                  All steps in. This property is flagged ready to exchange on your chain.
-                </p>
-              )}
-            </div>
+                    {allIn ? (
+                      <span className="ciq-ready"><span className="ciq-rdot" aria-hidden />Ready to exchange</span>
+                    ) : (
+                      <span className="ciq-barlabel">
+                        Confirm progress · <span style={{ fontVariantNumeric: "tabular-nums" }}>{row.steps.length} of {CHECK_IN_STEPS.length}</span>
+                      </span>
+                    )}
+                    <span style={{ flex: 1 }} />
+                    <span className="ciq-hint">Tap what you hear</span>
+                    <span className={`ciq-chev${open ? " open" : ""}`} aria-hidden>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </span>
+                  </button>
+                  <div className={`ciq-body${open ? " open" : ""}`}>
+                    <div>
+                      <div className="ciq-track">
+                        {CHECK_IN_STEPS.map((step) => {
+                          const done = row.steps.includes(step.key);
+                          return (
+                            <button
+                              key={step.key}
+                              type="button"
+                              onClick={() => toggleStep(row, step.key)}
+                              disabled={stepBusy.has(`${row.linkId}:${step.key}`)}
+                              aria-pressed={done}
+                              className={`ciq-step${done ? " done" : ""}${step.finale ? " fin" : ""}`}
+                            >
+                              <span className="ciq-node" aria-hidden>✓</span>
+                              <span className="ciq-lbl">{step.shortLabel ?? step.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
           })}

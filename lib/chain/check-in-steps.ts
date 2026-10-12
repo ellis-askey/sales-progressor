@@ -10,7 +10,10 @@
 export type CheckInStep = {
   key: string;
   label: string;
-  // The grand-finale pair: rendered past a divider, solid coral when done.
+  // Compact label for the milestone-line node (two short lines max). Falls
+  // back to `label` when absent. `label` stays canonical for log entries.
+  shortLabel?: string;
+  // The grand-finale pair: the exchange-readiness signal, visually distinct.
   finale: boolean;
 };
 
@@ -21,8 +24,8 @@ export const CHECK_IN_STEPS: readonly CheckInStep[] = [
   { key: "enquiries_raised", label: "Enquiries raised", finale: false },
   { key: "enquiries_satisfied", label: "Enquiries satisfied", finale: false },
   { key: "contracts_issued", label: "Contracts issued", finale: false },
-  { key: "seller_signed_returned", label: "Seller signed & returned", finale: true },
-  { key: "buyer_signed_returned", label: "Buyer signed & returned", finale: true },
+  { key: "seller_signed_returned", label: "Seller signed & returned", shortLabel: "Seller signed", finale: true },
+  { key: "buyer_signed_returned", label: "Buyer signed & returned", shortLabel: "Buyer signed", finale: true },
 ] as const;
 
 export const CHECK_IN_STEP_KEYS = new Set(CHECK_IN_STEPS.map((s) => s.key));
