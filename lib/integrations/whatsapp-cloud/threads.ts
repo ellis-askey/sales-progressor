@@ -108,11 +108,13 @@ export async function routeUnprocessedEvents(limit = 50): Promise<number> {
         data: { threadId: thread.id, processedAt: new Date() },
       }),
     ]);
-    // Phase 3: assigned threads write straight into the comms ledger (idempotent).
+    // Phase 3: assigned threads write straight into the comms ledger (idempotent;
+    // Phase 4b fetches + stores any media file via the business number's token).
     await writeInboundLedgerRow(
       { id: thread.id, waId: thread.waId, displayName: key.displayName ?? thread.displayName, transactionId: thread.transactionId, contactIds: thread.contactIds },
       msg,
       at,
+      event.phoneNumberId,
     );
     routed += 1;
   }

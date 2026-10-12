@@ -180,6 +180,10 @@
       "schedule": "*/30 7-19 * * 1-6"
     },
     {
+      "path": "/api/cron/whatsapp-cloud-health",
+      "schedule": "0 7,15 * * *"
+    },
+    {
       "path": "/api/cron/todo-reminders",
       "schedule": "*/5 * * * *"
     }

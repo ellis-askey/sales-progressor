@@ -9,7 +9,8 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { statusAdvances } from "./signature";
-import { previewFromMessage, ledgerUpdateForWaStatus, waRankOfLedgerStatus } from "./routing";
+import { previewFromMessage, ledgerUpdateForWaStatus, waRankOfLedgerStatus, mediaRefFromMessage, mediaPlaceholder } from "./routing";
+import { fetchAndStoreCloudMedia } from "./media";
 
 type WebhookMessage = {
   id?: string;
@@ -35,8 +36,15 @@ function messageTime(msg: WebhookMessage, fallback: Date): Date {
 
 // Write one INBOUND cloud message into the ledger. No-op when the thread has
 // no sale yet, or the wamid already exists (app-level dedup + the prod partial
-// unique index as belt-and-braces).
-export async function writeInboundLedgerRow(thread: ThreadLite, msg: WebhookMessage, receivedAt: Date): Promise<void> {
+// unique index as belt-and-braces). Media messages fetch + store their file
+// (Phase 4b) best-effort — on failure the typed placeholder stands and the raw
+// event remains for a retry.
+export async function writeInboundLedgerRow(
+  thread: ThreadLite,
+  msg: WebhookMessage,
+  receivedAt: Date,
+  phoneNumberId?: string | null,
+): Promise<void> {
   if (!thread.transactionId || !msg.id) return;
   const existing = await prisma.outboundMessage.findFirst({
     where: { providerMessageId: msg.id, channel: "whatsapp" },
@@ -49,7 +57,17 @@ export async function writeInboundLedgerRow(thread: ThreadLite, msg: WebhookMess
     select: { agencyId: true },
   });
   const at = messageTime(msg, receivedAt);
-  const body = msg.type === "text" ? (msg.text?.body ?? "") : previewFromMessage(msg);
+
+  const media = mediaRefFromMessage(msg);
+  let mediaUrl: string | null = null;
+  if (media && phoneNumberId) {
+    mediaUrl = await fetchAndStoreCloudMedia({ mediaId: media.mediaId, phoneNumberId, mimeType: media.mimeType });
+  }
+  const body = msg.type === "text"
+    ? (msg.text?.body ?? "")
+    : media
+      ? (media.caption ?? mediaPlaceholder(media))
+      : previewFromMessage(msg);
 
   try {
     await prisma.outboundMessage.create({
@@ -71,8 +89,14 @@ export async function writeInboundLedgerRow(thread: ThreadLite, msg: WebhookMess
         senderLabel: thread.displayName ?? `+${thread.waId}`,
         recipientHandle: `+${thread.waId}`,
         contactIds: thread.contactIds,
+        mediaUrl,
         createdByRole: "system",
-        providerWebhookData: { source: "cloud", waId: thread.waId, type: msg.type ?? "text" } as Prisma.InputJsonValue,
+        providerWebhookData: {
+          source: "cloud",
+          waId: thread.waId,
+          type: msg.type ?? "text",
+          ...(media ? { media: { kind: media.kind, mime: media.mimeType, filename: media.filename, voice: media.voice } } : {}),
+        } as Prisma.InputJsonValue,
       },
     });
   } catch (e) {
@@ -87,7 +111,10 @@ export async function writeInboundLedgerRow(thread: ThreadLite, msg: WebhookMess
 export async function backfillThreadLedger(threadId: string): Promise<number> {
   const thread = await prisma.whatsAppThread.findUnique({
     where: { id: threadId },
-    select: { id: true, waId: true, displayName: true, transactionId: true, contactIds: true },
+    select: {
+      id: true, waId: true, displayName: true, transactionId: true, contactIds: true,
+      businessNumber: { select: { phoneNumberId: true } },
+    },
   });
   if (!thread?.transactionId) return 0;
   const events = await prisma.whatsAppCloudEvent.findMany({
@@ -101,7 +128,7 @@ export async function backfillThreadLedger(threadId: string): Promise<number> {
     const msg = (value.messages ?? []).find((m) => m.id === event.wamid) ?? (value.messages ?? [])[0];
     if (!msg) continue;
     const before = await prisma.outboundMessage.count({ where: { providerMessageId: msg.id, channel: "whatsapp" } });
-    await writeInboundLedgerRow(thread, msg, event.receivedAt);
+    await writeInboundLedgerRow(thread, msg, event.receivedAt, thread.businessNumber.phoneNumberId);
     if (before === 0) created += 1;
   }
   return created;

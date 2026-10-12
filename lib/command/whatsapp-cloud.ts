@@ -13,6 +13,7 @@ export type CloudPhase1Status = {
   wabaId: string | null;
   lastEventAt: string | null;
   tokenExpiresAt: string | null;
+  lastError: string | null; // watchdog / send problems — red line on the card
   // 24h intake counts — proof the webhook genuinely flows.
   messages24h: number;
   statuses24h: number;
@@ -86,6 +87,7 @@ export async function getCloudPhase1Status(): Promise<CloudPhase1Status> {
       wabaId: null,
       lastEventAt: null,
       tokenExpiresAt: null,
+      lastError: null,
       messages24h: 0,
       statuses24h: 0,
       unprocessed: 0,
@@ -106,6 +108,7 @@ export async function getCloudPhase1Status(): Promise<CloudPhase1Status> {
     wabaId: row?.wabaId ?? env?.wabaId ?? null,
     lastEventAt: row?.lastEventAt?.toISOString() ?? null,
     tokenExpiresAt: row?.tokenExpiresAt?.toISOString() ?? null,
+    lastError: row?.lastError ?? null,
     messages24h,
     statuses24h,
     unprocessed,

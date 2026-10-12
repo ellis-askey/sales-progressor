@@ -117,6 +117,26 @@ export function CloudConversation({ thread: initialThread, messages: initialMess
                 {!out && m.senderLabel && (
                   <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep, #E2452A)" }}>{m.senderLabel}</p>
                 )}
+                {/* Media (Phase 4b): photo inline, voice/audio as a player, the rest as a link */}
+                {m.mediaUrl && (m.mediaKind === "image" || m.mediaKind === "sticker") && (
+                  <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginBottom: 6 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.mediaUrl} alt="" style={{ maxWidth: "100%", maxHeight: 260, borderRadius: 10, display: "block" }} />
+                  </a>
+                )}
+                {m.mediaUrl && m.mediaKind === "audio" && (
+                  <audio controls src={m.mediaUrl} style={{ width: 230, maxWidth: "100%", marginBottom: 6 }} />
+                )}
+                {m.mediaUrl && (m.mediaKind === "document" || m.mediaKind === "video") && (
+                  <a
+                    href={m.mediaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12.5, fontWeight: 650, color: "var(--agent-coral-deep, #E2452A)", textDecoration: "none", border: "1px solid var(--agent-border-default)", borderRadius: 9, padding: "6px 10px" }}
+                  >
+                    📄 {m.mediaFilename ?? (m.mediaKind === "video" ? "Video" : "Document")}
+                  </a>
+                )}
                 <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.45, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                   {m.content}
                 </p>

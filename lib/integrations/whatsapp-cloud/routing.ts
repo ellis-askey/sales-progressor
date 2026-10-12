@@ -37,6 +37,57 @@ export function previewFromMessage(msg: WebhookMessage): string {
   return msg.type ? `[${msg.type}]` : "[message]";
 }
 
+// ── Media (Phase 4b) ────────────────────────────────────────────────────────
+// A media message carries an object keyed by its type with a Meta media id;
+// the file itself must be fetched within Meta's 30-day retention and stored in
+// our own bucket. `kind` drives rendering: image inline, audio as a player,
+// document/video as a download link.
+
+export type MediaRef = {
+  kind: "image" | "document" | "audio" | "video" | "sticker";
+  mediaId: string;
+  mimeType: string | null;
+  filename: string | null;
+  caption: string | null;
+  voice: boolean;
+};
+
+type MediaObject = { id?: string; mime_type?: string; caption?: string; filename?: string; voice?: boolean };
+type MediaMessage = WebhookMessage & {
+  image?: MediaObject;
+  document?: MediaObject;
+  audio?: MediaObject;
+  video?: MediaObject;
+  sticker?: MediaObject;
+};
+
+export function mediaRefFromMessage(msg: MediaMessage): MediaRef | null {
+  const kinds = ["image", "document", "audio", "video", "sticker"] as const;
+  for (const kind of kinds) {
+    const obj = msg[kind];
+    if (obj?.id) {
+      return {
+        kind,
+        mediaId: obj.id,
+        mimeType: obj.mime_type ?? null,
+        filename: obj.filename ?? null,
+        caption: obj.caption ?? null,
+        voice: !!obj.voice,
+      };
+    }
+  }
+  return null;
+}
+
+// What a media message shows as its text line when there's no caption.
+export function mediaPlaceholder(ref: MediaRef): string {
+  if (ref.kind === "image") return "[photo]";
+  if (ref.kind === "audio") return ref.voice ? "[voice note]" : "[audio]";
+  if (ref.kind === "video") return "[video]";
+  if (ref.kind === "sticker") return "[sticker]";
+  return ref.filename ? `[file] ${ref.filename}` : "[document]";
+}
+
 // Phone identity: WhatsApp wa_ids are international digits ("4475088…");
 // stored contact phones are UK-formatted. The last 9 digits are the stable
 // common core (same rule the Baileys ingest used).

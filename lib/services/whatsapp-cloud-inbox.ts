@@ -32,6 +32,11 @@ export type ThreadMessage = {
   senderLabel: string | null;
   failureReason: string | null;
   at: string;
+  // Media (Phase 4b): a signed, time-limited URL to our stored copy, plus the
+  // kind that drives rendering (image inline, audio player, file link).
+  mediaUrl: string | null;
+  mediaKind: string | null;
+  mediaFilename: string | null;
 };
 
 function toSummary(t: {
@@ -116,19 +121,28 @@ export async function getThreadMessages(
     },
     orderBy: [{ sentAt: "asc" }, { createdAt: "asc" }],
     take: 500,
-    select: { id: true, type: true, content: true, status: true, senderLabel: true, failureReason: true, sentAt: true, createdAt: true },
+    select: { id: true, type: true, content: true, status: true, senderLabel: true, failureReason: true, sentAt: true, createdAt: true, mediaUrl: true, providerWebhookData: true },
   });
+  // Sign stored media paths in one round trip (1h links; re-signed each read).
+  const { getWhatsAppMediaSignedUrlMap } = await import("@/lib/supabase-storage");
+  const signed = await getWhatsAppMediaSignedUrlMap(rows.map((r) => r.mediaUrl));
   return {
     thread: toSummary(thread),
-    messages: rows.map((r) => ({
-      id: r.id,
-      direction: r.type === "inbound" ? "inbound" : "outbound",
-      content: r.content,
-      status: r.status,
-      senderLabel: r.senderLabel,
-      failureReason: r.failureReason,
-      at: (r.sentAt ?? r.createdAt).toISOString(),
-    })),
+    messages: rows.map((r) => {
+      const media = (r.providerWebhookData as { media?: { kind?: string; filename?: string } } | null)?.media;
+      return {
+        id: r.id,
+        direction: r.type === "inbound" ? ("inbound" as const) : ("outbound" as const),
+        content: r.content,
+        status: r.status,
+        senderLabel: r.senderLabel,
+        failureReason: r.failureReason,
+        at: (r.sentAt ?? r.createdAt).toISOString(),
+        mediaUrl: r.mediaUrl ? signed.get(r.mediaUrl) ?? null : null,
+        mediaKind: media?.kind ?? null,
+        mediaFilename: media?.filename ?? null,
+      };
+    }),
   };
 }
 
