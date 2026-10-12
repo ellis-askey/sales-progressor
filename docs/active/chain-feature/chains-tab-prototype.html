@@ -1,0 +1,569 @@
+<style>
+  /* ── Real Sales Progressor agent-app tokens (design/tokens.ts, themes.css, agent-system.css) ── */
+  :root{
+    --coral:#FF8A65; --coral-deep:#FF6B4A; --coral-darker:#E55B3D; --coral-light:#FFB18F; --coral-pale:#FFD4C2;
+    --coral-rgb:255,107,74; --coral-base-rgb:255,138,101;
+    --ink:#2D1810; --ink-2:#5A3A28; --ink-3:#7A4A2E; --muted:rgba(45,24,16,.55); --disabled:rgba(45,24,16,.35);
+    --surface:#FFFFFF; --paper:#FFFBF5;
+    --b-subtle:rgba(45,24,16,.06); --b-default:rgba(45,24,16,.10); --b-strong:rgba(45,24,16,.18);
+    --success:#1F8A4A; --success-rgb:31,138,74; --warning:#C97D1A; --warning-rgb:201,125,26; --danger:#C73E3E; --danger-rgb:199,62,62; --info:#3D7AB8;
+    --r-sm:6px; --r-md:8px; --r-lg:12px; --r-xl:16px;
+    --ease:cubic-bezier(0.4,0,0.2,1); --spring:cubic-bezier(0.34,1.56,0.64,1); --soft:cubic-bezier(0.22,1,0.36,1); --press:cubic-bezier(0.16,1,0.3,1);
+    --glass-shadow:0 12px 32px rgba(15,26,46,.08), 0 1px 2px rgba(15,26,46,.04), inset 0 1px 0 rgba(255,255,255,.55);
+    --card-shadow:0 2px 8px rgba(15,26,46,.10), 0 1px 2px rgba(15,26,46,.05);
+    --card-shadow-hover:0 10px 22px rgba(15,26,46,.15), 0 2px 6px rgba(15,26,46,.08);
+    --focus:0 0 0 1.5px rgba(255,138,101,.50), 0 0 12px 2px rgba(255,138,101,.18);
+    --hover-shade:rgba(45,24,16,.05);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,"Helvetica Neue",sans-serif;
+  }
+  :root[data-theme="dark"]{
+    --ink:#F4EBE2; --ink-2:#E2D3C6; --ink-3:#CDB7A6; --muted:rgba(244,235,226,.58); --disabled:rgba(244,235,226,.35);
+    --surface:#241b15; --paper:#1d1611;
+    --b-subtle:rgba(244,235,226,.08); --b-default:rgba(244,235,226,.14); --b-strong:rgba(244,235,226,.24);
+    --glass-shadow:0 12px 34px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
+    --card-shadow:0 2px 8px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.28);
+    --card-shadow-hover:0 10px 24px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.35);
+    --hover-shade:rgba(255,255,255,.06);
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --ink:#F4EBE2; --ink-2:#E2D3C6; --ink-3:#CDB7A6; --muted:rgba(244,235,226,.58); --disabled:rgba(244,235,226,.35);
+    --surface:#241b15; --paper:#1d1611;
+    --b-subtle:rgba(244,235,226,.08); --b-default:rgba(244,235,226,.14); --b-strong:rgba(244,235,226,.24);
+    --glass-shadow:0 12px 34px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.08);
+    --card-shadow:0 2px 8px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.28);
+    --card-shadow-hover:0 10px 24px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.35);
+    --hover-shade:rgba(255,255,255,.06);
+  }}
+
+  *{box-sizing:border-box;}
+  .wrap{
+    margin:0; font-family:var(--sans); color:var(--ink); -webkit-font-smoothing:antialiased; line-height:1.45;
+    min-height:100vh; padding:clamp(16px,4vw,34px) clamp(12px,4vw,30px) 120px;
+    background:
+      radial-gradient(75% 55% at 8% 4%, rgba(255,188,168,.30), transparent 70%),
+      radial-gradient(68% 50% at 94% 10%, rgba(196,180,255,.20), transparent 72%),
+      radial-gradient(90% 60% at 50% 98%, rgba(255,208,176,.32), transparent 74%),
+      #FFF5EC;
+  }
+  :root[data-theme="dark"] .wrap, :root:not([data-theme="light"]) .wrap{
+    background:
+      radial-gradient(75% 55% at 8% 4%, rgba(120,70,50,.34), transparent 70%),
+      radial-gradient(68% 50% at 94% 10%, rgba(70,60,110,.30), transparent 72%),
+      radial-gradient(90% 60% at 50% 98%, rgba(110,70,40,.32), transparent 74%),
+      #17110d;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .wrap{
+    background:
+      radial-gradient(75% 55% at 8% 4%, rgba(120,70,50,.34), transparent 70%),
+      radial-gradient(68% 50% at 94% 10%, rgba(70,60,110,.30), transparent 72%),
+      radial-gradient(90% 60% at 50% 98%, rgba(110,70,40,.32), transparent 74%),
+      #17110d; } }
+  .app{max-width:900px;margin:0 auto;}
+
+  .note{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.04em;color:var(--muted);text-align:center;margin:0 0 18px;}
+  .note b{color:var(--coral-deep);}
+
+  /* page header */
+  .pghead{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap;}
+  .pghead h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--ink);}
+  .pghead p{margin:4px 0 0;font-size:13px;color:var(--muted);}
+
+  /* glass summary card */
+  .frost{background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(40px) saturate(1.3);backdrop-filter:blur(40px) saturate(1.3);border:1px solid rgba(255,255,255,.5);box-shadow:var(--glass-shadow);border-radius:14px;}
+  :root[data-theme="dark"] .frost, :root:not([data-theme="light"]) .frost{background:rgba(40,30,24,.5);border:1px solid rgba(255,255,255,.1);}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .frost{background:rgba(40,30,24,.5);border:1px solid rgba(255,255,255,.1);}}
+
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);overflow:hidden;margin-bottom:16px;}
+  @media (max-width:640px){ .summary{grid-template-columns:repeat(2,1fr);} }
+  .tile{display:flex;align-items:center;gap:12px;padding:14px 16px;border:none;border-left:1px solid var(--b-subtle);background:transparent;text-align:left;width:100%;font:inherit;cursor:pointer;border-radius:12px;transition:transform 180ms var(--press);}
+  .tile:first-child{border-left:0;}
+  @media (max-width:640px){ .tile:nth-child(odd){border-left:0;} }
+  .tile:hover{transform:scale(1.04);position:relative;z-index:1;}
+  .tile:active{transform:scale(.98);}
+  .tile.hot{background:rgba(var(--coral-base-rgb),.06);}
+  .scircle{width:40px;height:40px;border-radius:999px;flex-shrink:0;display:grid;place-items:center;color:var(--sc-ic);background:linear-gradient(145deg,rgba(var(--sc),.22),rgba(var(--sc),.06));border:.5px solid rgba(var(--sc),.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 7px rgba(var(--sc),.2);}
+  .scircle svg{width:21px;height:21px;}
+  .sc-coral{--sc:var(--coral-base-rgb);--sc-ic:var(--coral-deep);}
+  .sc-info{--sc:13,148,136;--sc-ic:#0d9488;}
+  .sc-warn{--sc:var(--warning-rgb);--sc-ic:var(--warning);}
+  .sc-danger{--sc:var(--danger-rgb);--sc-ic:var(--danger);}
+  .t-txt{min-width:0;flex:1;}
+  .t-num{font-size:22px;font-weight:600;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .t-lbl{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.2;margin-top:3px;}
+  .t-sub{font-size:10.5px;color:var(--muted);line-height:1.2;margin-top:2px;}
+  .t-caret{margin-left:auto;color:var(--muted);flex:0 0 auto;}
+
+  /* controls row */
+  .controls{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+  .tabbar{position:relative;flex:1 1 300px;min-width:0;display:flex;border-bottom:1px solid var(--b-subtle);}
+  .tab{position:relative;padding:10px 14px;font-size:13px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:color 150ms var(--ease);font-family:inherit;}
+  .tab:hover{color:var(--ink-2);}
+  .tab[aria-selected="true"]{color:var(--ink);}
+  .tab .cp{font-size:12px;border-radius:999px;padding:1px 7px;font-weight:500;line-height:1.3;background:rgba(var(--coral-base-rgb),.12);color:var(--coral-deep);}
+  .tab[aria-selected="true"] .cp{background:var(--coral);color:#fff;}
+  .tab-ind{position:absolute;bottom:0;height:2px;background:var(--coral);border-radius:1px 1px 0 0;transition:left 200ms var(--ease),width 200ms var(--ease);pointer-events:none;}
+
+  .seg{height:32px;display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--b-default);color:var(--ink-2);font-size:13px;font-weight:500;cursor:pointer;transition:all 150ms var(--ease);font-family:inherit;position:relative;}
+  .seg:hover{background:rgba(var(--coral-rgb),.12);border-color:rgba(var(--coral-rgb),.5);color:var(--coral-deep);transform:translateY(-1px);box-shadow:0 2px 4px rgba(var(--coral-rgb),.1);}
+  .seg:active{transform:scale(.97);}
+  .seg .fdot{width:6px;height:6px;border-radius:999px;background:var(--coral-deep);}
+  .popover{position:absolute;top:calc(100% + 6px);right:0;z-index:40;width:220px;background:var(--surface);border:1px solid var(--b-default);border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.16);padding:8px;animation:dropIn 120ms ease-out both;}
+  @keyframes dropIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+  .pop-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:4px 10px 6px;}
+  .pop-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:12.5px;color:var(--ink);cursor:pointer;transition:background 120ms var(--ease);}
+  .pop-item:hover{background:var(--hover-shade);}
+  .pop-radio{width:15px;height:15px;border-radius:999px;border:1.5px solid var(--b-strong);flex:0 0 auto;display:grid;place-items:center;}
+  .pop-item.on .pop-radio{border-color:var(--coral-deep);}
+  .pop-item.on .pop-radio::after{content:"";width:7px;height:7px;border-radius:999px;background:var(--coral-deep);}
+
+  .panel{display:none;padding-top:16px;}
+  .panel.active{display:block;animation:fadeUp 300ms var(--soft) both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+
+  /* chain cards */
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));}
+  .ccard{padding:16px;border-radius:14px;display:flex;flex-direction:column;gap:13px;box-shadow:var(--card-shadow);transition:transform .16s ease,box-shadow .16s ease;}
+  .ccard:hover{transform:translateY(-2px);box-shadow:var(--card-shadow-hover);}
+  .cc-top{display:flex;gap:14px;align-items:flex-start;}
+  .thumb{width:60px;height:60px;border-radius:13px;flex:0 0 auto;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#FFC2AC,#FF8A65);box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
+  .thumb svg{width:34px;height:28px;}
+  .cc-addr{flex:1;min-width:0;}
+  .cc-street{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cc-town{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .cc-meta-line{font-size:10.5px;color:var(--muted);margin-top:3px;}
+  .cc-links{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;}
+  .cc-links svg{width:13px;height:13px;color:var(--coral-deep);}
+
+  /* spread mini bars */
+  .spread{display:flex;gap:6px;}
+  .sp-node{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .sp-bar{height:6px;border-radius:4px;background:var(--b-subtle);overflow:hidden;}
+  .sp-bar i{display:block;height:100%;border-radius:4px;}
+  .sp-bar i.coral{background:linear-gradient(90deg,var(--coral),var(--coral-deep));}
+  .sp-bar i.good{background:linear-gradient(90deg,#34D399,#0E9F6E);}
+  .sp-bar i.bad{background:linear-gradient(90deg,#F0806F,#D23B2C);}
+  .sp-lbl{font-size:9px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sp-lbl.bad{color:var(--danger);font-weight:700;}
+
+  .cc-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;row-gap:6px;}
+  .mi{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+  .mi svg{width:13px;height:13px;}
+  .mi.mut{color:var(--muted);font-weight:500;} .mi.warn{color:var(--warning);} .mi.good{color:var(--success);} .mi.bad{color:var(--danger);}
+  .mi-div{width:1px;height:11px;background:var(--b-subtle);}
+  .cc-foot{display:flex;justify-content:flex-end;}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:500;line-height:1;border:none;border-radius:var(--r-md);cursor:pointer;transition:transform 150ms var(--ease),box-shadow 150ms var(--ease),filter 150ms var(--ease),background 150ms var(--ease);white-space:nowrap;font-family:inherit;height:40px;padding:0 16px;}
+  .btn:focus-visible{outline:none;box-shadow:var(--focus);}
+  .btn:active{transform:scale(.98);}
+  .btn-sm{height:32px;padding:0 12px;font-size:13px;}
+  .btn-primary{background:linear-gradient(135deg,var(--coral-deep),var(--coral-light));color:#fff;box-shadow:0 4px 16px rgba(var(--coral-rgb),.28);}
+  .btn-primary:hover{filter:brightness(1.06);box-shadow:0 6px 20px rgba(var(--coral-rgb),.38);transform:translateY(-1px);}
+  .btn-secondary{background:var(--surface);border:1px solid var(--b-default);color:var(--ink);box-shadow:var(--card-shadow);}
+  .btn-secondary:hover{border-color:rgba(var(--coral-rgb),.4);color:var(--coral-deep);transform:translateY(-1px);}
+  .btn svg{width:15px;height:15px;}
+
+  /* check-in rows */
+  .rows{display:flex;flex-direction:column;gap:12px;}
+  .row{border-radius:13px;background:var(--surface);border:1px solid var(--b-subtle);box-shadow:0 1px 2px rgba(45,24,16,.04);overflow:hidden;transition:box-shadow .16s ease;}
+  .row:hover{box-shadow:var(--card-shadow);}
+  .row-main{display:flex;align-items:center;gap:13px;padding:13px 16px;}
+  .row-photo{width:52px;height:52px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#FFC2AC,#FF8A65);}
+  .row-photo.grey{background:linear-gradient(145deg,#CFC3BA,#9A8B80);}
+  .row-photo svg{width:28px;height:24px;}
+  .row-info{flex:1;min-width:0;}
+  .row-name{font-size:14px;font-weight:650;color:var(--ink);display:flex;align-items:center;gap:8px;}
+  .row-name .chip{font-size:10.5px;font-weight:700;color:var(--muted);background:rgba(45,24,16,.06);padding:2px 7px;border-radius:99px;}
+  :root[data-theme="dark"] .row-name .chip,:root:not([data-theme="light"]) .row-name .chip{background:rgba(255,255,255,.08);}
+  .row-agent{font-size:12px;color:var(--muted);margin-top:2px;}
+  .row-prog{flex:0 0 96px;display:flex;align-items:center;gap:8px;}
+  .row-track{display:block;flex:1;height:6px;border-radius:4px;background:var(--b-subtle);overflow:hidden;}
+  .row-track i{display:block;height:100%;background:linear-gradient(90deg,var(--coral),var(--coral-deep));transition:width 300ms var(--soft);}
+  .row-pct{font-size:11.5px;font-weight:700;color:var(--ink-2);min-width:30px;text-align:right;font-variant-numeric:tabular-nums;}
+  .row-right{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+  .upill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;}
+  .upill.ok{color:var(--ink-2);background:rgba(45,24,16,.05);}
+  .upill.warn{color:var(--warning);background:rgba(var(--warning-rgb),.12);}
+  .upill.danger{color:var(--danger);background:rgba(var(--danger-rgb),.1);}
+  :root[data-theme="dark"] .upill.ok,:root:not([data-theme="light"]) .upill.ok{background:rgba(255,255,255,.07);}
+
+  /* confirm-progress step bar */
+  .ciq-bar{border-top:1px solid var(--b-subtle);padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 130ms ease;user-select:none;}
+  .ciq-bar:hover{background:var(--hover-shade);}
+  .ciq-bar .ciq-t{font-size:12px;font-weight:650;color:var(--ink-2);}
+  .ciq-bar .ciq-hint{font-size:11px;color:var(--muted);margin-left:2px;}
+  .ciq-mini{display:flex;gap:4px;margin-left:auto;}
+  .ciq-md{width:7px;height:7px;border-radius:999px;border:1.5px solid var(--b-default);background:var(--surface);}
+  .ciq-md.on{background:var(--coral-deep);border-color:var(--coral-deep);}
+  .ciq-allin .ciq-md.on{background:var(--success);border-color:var(--success);}
+  .ciq-chev{color:var(--muted);transition:transform 200ms var(--soft);}
+  .ciq-bar[aria-expanded="true"] .ciq-chev{transform:rotate(180deg);}
+  .ciq-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows 240ms var(--soft);}
+  .ciq-body.open{grid-template-rows:1fr;}
+  .ciq-inner{overflow:hidden;}
+  .ciq-steps{display:flex;padding:16px 10px 18px;gap:0;overflow-x:auto;}
+  .ciq-step{position:relative;flex:1 0 64px;display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;}
+  .ciq-step::before,.ciq-step::after{content:"";position:absolute;top:13px;height:2px;background:var(--b-subtle);width:50%;z-index:0;}
+  .ciq-step::before{left:0;} .ciq-step::after{right:0;}
+  .ciq-step:first-child::before,.ciq-step:last-child::after{display:none;}
+  .ciq-step.done::before,.ciq-step.done.prevdone::before{background:var(--coral);}
+  .ciq-node{position:relative;z-index:1;width:27px;height:27px;border-radius:50%;background:var(--surface);border:1.5px solid var(--b-default);display:grid;place-items:center;color:transparent;transition:border-color 130ms ease,background 130ms ease,transform 130ms ease;}
+  .ciq-node svg{width:13px;height:13px;}
+  .ciq-step:hover .ciq-node{border-color:rgba(var(--coral-rgb),.55);transform:scale(1.07);}
+  .ciq-step.done .ciq-node{background:linear-gradient(180deg,var(--coral),var(--coral-deep));border-color:transparent;color:#fff;box-shadow:0 2px 7px rgba(var(--coral-rgb),.32);animation:ciqpop 200ms ease;}
+  .ciq-step.fin .ciq-node{border-style:double;border-width:3px;}
+  .ciq-step.fin.done .ciq-node{border-style:solid;}
+  @keyframes ciqpop{0%{transform:scale(.9);}60%{transform:scale(1.08);}100%{transform:scale(1);}}
+  .ciq-lbl{font-size:10px;font-weight:650;color:var(--muted);text-align:center;line-height:1.2;max-width:62px;}
+  .ciq-step.done .ciq-lbl{color:var(--coral-darker);font-weight:700;}
+  .ciq-act{display:flex;gap:8px;padding:0 16px 14px;}
+
+  /* needs setup cards */
+  .ns{padding:16px;border-radius:14px;background:var(--surface);border:1px solid var(--b-subtle);box-shadow:var(--card-shadow);display:flex;flex-direction:column;gap:12px;}
+  .ns-pills{display:flex;gap:6px;flex-wrap:wrap;}
+  .ns-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;background:rgba(var(--coral-base-rgb),.1);color:var(--coral-darker);}
+  .ns-pill.mut{background:rgba(45,24,16,.05);color:var(--muted);}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;z-index:90;background:rgba(45,24,16,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity 200ms ease;}
+  .scrim.open{opacity:1;pointer-events:auto;}
+  .drawer{position:fixed;top:0;right:0;bottom:0;z-index:91;width:min(520px,100vw);background:var(--paper);box-shadow:-12px 0 48px rgba(45,24,16,.22);transform:translateX(100%);transition:transform 280ms var(--spring);display:flex;flex-direction:column;}
+  .drawer.open{transform:none;}
+  .dw-head{display:flex;align-items:center;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--b-subtle);}
+  .dw-head h2{font-size:17px;font-weight:600;margin:0;flex:1;color:var(--ink);letter-spacing:-.01em;}
+  .dw-x{width:32px;height:32px;border-radius:999px;border:1px solid var(--b-default);background:var(--surface);display:grid;place-items:center;color:var(--ink-2);cursor:pointer;transition:all 150ms var(--ease);flex:0 0 auto;}
+  .dw-x:hover{background:rgba(var(--coral-base-rgb),.12);color:var(--coral-deep);border-color:var(--coral);}
+  .dw-x svg{width:15px;height:15px;transition:transform .2s ease;}
+  .dw-x:hover svg{transform:rotate(90deg);}
+  .dw-body{overflow-y:auto;padding:18px 20px 40px;flex:1;}
+  .dw-sum{display:flex;gap:18px;flex-wrap:wrap;padding:14px 16px;border-radius:12px;margin-bottom:18px;}
+  .dw-stat .k{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+  .dw-stat .v{font-size:18px;font-weight:700;color:var(--ink);margin-top:3px;letter-spacing:-.01em;}
+  .dw-stat .v.bad{color:var(--danger);}
+  .spine{display:flex;flex-direction:column;gap:0;}
+  .sp-row{position:relative;padding-left:30px;padding-bottom:18px;}
+  .sp-row::before{content:"";position:absolute;left:9px;top:4px;width:12px;height:12px;border-radius:999px;background:var(--coral);box-shadow:0 0 0 3px rgba(var(--coral-rgb),.15);z-index:1;}
+  .sp-row.stub::before{background:var(--surface);border:2px solid var(--b-strong);box-shadow:none;}
+  .sp-row.stall::before{background:var(--danger);box-shadow:0 0 0 3px rgba(var(--danger-rgb),.18);}
+  .sp-row:not(:last-child)::after{content:"";position:absolute;left:14px;top:14px;bottom:0;width:2px;background:var(--b-subtle);}
+  .sp-card{border-radius:12px;border:1px solid var(--b-subtle);background:var(--surface);box-shadow:0 1px 2px rgba(45,24,16,.04);overflow:hidden;}
+  .sp-card.stallcard{border-color:rgba(var(--danger-rgb),.4);box-shadow:0 0 0 3px rgba(var(--danger-rgb),.08);}
+  .sp-main{display:flex;align-items:center;gap:12px;padding:12px 14px;}
+  .sp-ph{width:44px;height:44px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#FFC2AC,#FF8A65);}
+  .sp-ph.grey{background:linear-gradient(145deg,#CFC3BA,#9A8B80);}
+  .sp-ph svg{width:24px;height:20px;}
+  .sp-nm{font-size:13.5px;font-weight:650;color:var(--ink);}
+  .sp-ag{font-size:11px;color:var(--muted);margin-top:1px;}
+  .sp-tag{font-size:9px;font-weight:700;font-family:ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;margin-left:auto;align-self:flex-start;}
+  .sp-tag.you{background:var(--coral);color:#fff;} .sp-tag.live{background:rgba(var(--success-rgb),.14);color:var(--success);} .sp-tag.stub{background:rgba(45,24,16,.06);color:var(--muted);} .sp-tag.stall{background:var(--danger);color:#fff;}
+  .sp-mini{display:flex;align-items:center;gap:8px;padding:0 14px 12px;}
+  .sp-spark{flex:0 0 auto;}
+  .sp-delta{font-size:11px;font-weight:650;}
+  .sp-delta.good{color:var(--success);} .sp-delta.bad{color:var(--danger);} .sp-delta.mut{color:var(--muted);}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:200;background:var(--ink);color:var(--paper);font-size:13px;font-weight:600;padding:11px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(45,24,16,.3);display:flex;align-items:center;gap:9px;opacity:0;pointer-events:none;transition:opacity 220ms ease,transform 220ms var(--spring);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast svg{width:16px;height:16px;color:#6EE7B7;}
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important;}}
+</style>
+
+<div class="wrap">
+  <div class="app">
+    <p class="note">Interactive prototype · real app styling · <b>click the tabs, tap the check-in circles, open a chain, chase a stub</b></p>
+
+    <div class="pghead">
+      <div><h1>Chains</h1><p>Track every sale in the chain — and pull the other agents in.</p></div>
+    </div>
+
+    <!-- summary -->
+    <div class="frost summary" id="summary">
+      <button class="tile" data-go="chains"><span class="scircle sc-coral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg></span><span class="t-txt"><span class="t-num">7</span><span class="t-lbl">Active sales</span><span class="t-sub">in your chains</span></span></button>
+      <button class="tile" data-go="chains"><span class="scircle sc-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg></span><span class="t-txt"><span class="t-num">2</span><span class="t-lbl">In chains</span><span class="t-sub">linked up</span></span></button>
+      <button class="tile hot" data-go="checkins"><span class="scircle sc-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span><span class="t-txt"><span class="t-num">2</span><span class="t-lbl">Stalled</span><span class="t-sub">chase these</span></span><span class="t-caret"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></button>
+      <button class="tile hot" data-go="checkins"><span class="scircle sc-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/></svg></span><span class="t-txt"><span class="t-num">3</span><span class="t-lbl">To invite</span><span class="t-sub">pull them in</span></span><span class="t-caret"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></button>
+    </div>
+
+    <!-- controls -->
+    <div class="controls">
+      <div class="tabbar" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="chains">In chains <span class="cp">2</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="checkins">Check-ins <span class="cp">5</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="needs">Needs setup <span class="cp">1</span></button>
+        <span class="tab-ind" id="tabInd"></span>
+      </div>
+      <div style="position:relative">
+        <button class="seg" id="filterBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Sort<span class="fdot"></span></button>
+        <div class="popover" id="filterPop" style="display:none">
+          <div class="pop-lbl">Sort chains by</div>
+          <div class="pop-item on" data-sort><span class="pop-radio"></span>Needs attention</div>
+          <div class="pop-item" data-sort><span class="pop-radio"></span>Most stalled</div>
+          <div class="pop-item" data-sort><span class="pop-radio"></span>Recently agreed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── IN CHAINS ── -->
+    <div class="panel active" data-panel="chains">
+      <div class="grid">
+        <div class="frost ccard" role="button" tabindex="0" data-open="powis">
+          <div class="cc-top">
+            <div class="thumb"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
+            <div class="cc-addr"><div class="cc-street">42 Powis Square</div><div class="cc-town">London W11 2AY</div><div class="cc-meta-line">Agreed 6 weeks ago&nbsp;&nbsp;·&nbsp;&nbsp;4 in chain</div></div>
+            <div class="cc-links"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg>4 links</div>
+          </div>
+          <div class="spread">
+            <div class="sp-node"><div class="sp-bar"><i class="good" style="width:72%"></i></div><div class="sp-lbl">You</div></div>
+            <div class="sp-node"><div class="sp-bar"><i class="coral" style="width:61%"></i></div><div class="sp-lbl">Hartwell</div></div>
+            <div class="sp-node"><div class="sp-bar"><i class="bad" style="width:37%"></i></div><div class="sp-lbl bad">Barlow</div></div>
+            <div class="sp-node"><div class="sp-bar"><i style="width:0%"></i></div><div class="sp-lbl">Invite</div></div>
+          </div>
+          <div class="cc-meta">
+            <span class="mi mut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>2 below</span>
+            <span class="mi-div"></span>
+            <span class="mi good"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>2 connected</span>
+            <span class="mi-div"></span>
+            <span class="mi bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>1 stalled</span>
+            <span class="mi-div"></span>
+            <span class="mi warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg>1 to invite</span>
+          </div>
+          <div class="cc-foot"><button class="btn btn-secondary btn-sm" data-open="powis">Open chain</button></div>
+        </div>
+
+        <div class="frost ccard" role="button" tabindex="0" data-open="oak">
+          <div class="cc-top">
+            <div class="thumb"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
+            <div class="cc-addr"><div class="cc-street">5 Oak Lane</div><div class="cc-town">Reading RG1 7JX</div><div class="cc-meta-line">Agreed 3 weeks ago&nbsp;&nbsp;·&nbsp;&nbsp;3 in chain</div></div>
+            <div class="cc-links"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg>3 links</div>
+          </div>
+          <div class="spread">
+            <div class="sp-node"><div class="sp-bar"><i class="good" style="width:55%"></i></div><div class="sp-lbl">You</div></div>
+            <div class="sp-node"><div class="sp-bar"><i class="coral" style="width:48%"></i></div><div class="sp-lbl">Dove &amp; Hart</div></div>
+            <div class="sp-node"><div class="sp-bar"><i class="coral" style="width:44%"></i></div><div class="sp-lbl">Keystone</div></div>
+          </div>
+          <div class="cc-meta">
+            <span class="mi good"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>All agents connected</span>
+            <span class="mi-div"></span>
+            <span class="mi mut">Moving steadily</span>
+          </div>
+          <div class="cc-foot"><button class="btn btn-secondary btn-sm" data-open="oak">Open chain</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHECK-INS ── -->
+    <div class="panel" data-panel="checkins">
+      <div class="rows" id="checkinRows"></div>
+    </div>
+
+    <!-- ── NEEDS SETUP ── -->
+    <div class="panel" data-panel="needs">
+      <div class="grid">
+        <div class="ns">
+          <div class="cc-top">
+            <div class="thumb" style="width:52px;height:52px;border-radius:11px"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
+            <div class="cc-addr"><div class="cc-street">21 Beckett Road</div><div class="cc-town">Bristol BS8 1QU</div><div class="cc-meta-line">Agreed 5 days ago</div></div>
+          </div>
+          <div class="ns-pills"><span class="ns-pill">First-time buyer</span><span class="ns-pill mut">Seller buying onward?</span></div>
+          <div class="cc-foot" style="gap:8px"><button class="btn btn-secondary btn-sm" onclick="toast('Marked as no chain')">No chain</button><button class="btn btn-primary btn-sm" onclick="toast('Chain setup started')">Set up chain</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- drawer -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="dw-head"><h2 id="dwTitle">42 Powis Square · chain</h2><button class="dw-x" id="dwClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dw-body" id="dwBody"></div>
+  </aside>
+
+  <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="toastMsg"></span></div>
+</div>
+
+<script>
+(function(){
+  var STEPS=[{l:"DCP issued"},{l:"Searches ordered"},{l:"Searches received"},{l:"Enquiries raised"},{l:"Enquiries satisfied"},{l:"Contracts issued"},{l:"Seller signed",fin:1},{l:"Buyer signed",fin:1}];
+  function ck(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';}
+  function house(){return '<svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg>';}
+
+  // ── toast ──
+  var toastEl=document.getElementById('toast'),toastMsg=document.getElementById('toastMsg'),toastT;
+  window.toast=function(m){toastMsg.textContent=m;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){toastEl.classList.remove('show');},2200);};
+
+  // ── tabs ──
+  var tabs=[].slice.call(document.querySelectorAll('.tab')),ind=document.getElementById('tabInd'),panels=[].slice.call(document.querySelectorAll('.panel'));
+  function moveInd(btn){ind.style.left=btn.offsetLeft+'px';ind.style.width=btn.offsetWidth+'px';}
+  function switchTab(key){
+    tabs.forEach(function(t){t.setAttribute('aria-selected',t.dataset.tab===key?'true':'false');if(t.dataset.tab===key)moveInd(t);});
+    panels.forEach(function(p){p.classList.toggle('active',p.dataset.panel===key);});
+  }
+  tabs.forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.tab);});});
+  document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.go);});});
+  window.addEventListener('resize',function(){var a=document.querySelector('.tab[aria-selected="true"]');if(a)moveInd(a);});
+  setTimeout(function(){moveInd(tabs[0]);},60);
+
+  // ── filters popover ──
+  var fb=document.getElementById('filterBtn'),fp=document.getElementById('filterPop');
+  fb.addEventListener('click',function(e){e.stopPropagation();fp.style.display=fp.style.display==='none'?'block':'none';});
+  document.addEventListener('click',function(){fp.style.display='none';});
+  fp.addEventListener('click',function(e){e.stopPropagation();});
+  fp.querySelectorAll('[data-sort]').forEach(function(it){it.addEventListener('click',function(){fp.querySelectorAll('[data-sort]').forEach(function(x){x.classList.remove('on');});it.classList.add('on');fp.style.display='none';toast('Sorted · '+it.textContent.trim());});});
+
+  // ── build a confirm-progress step bar ──
+  function buildCiq(container,done){
+    var inner=container.querySelector('.ciq-steps');
+    inner.innerHTML='';
+    STEPS.forEach(function(s,i){
+      var b=document.createElement('button');
+      b.className='ciq-step'+(i<done?' done':'')+(s.fin?' fin':'');
+      b.innerHTML='<span class="ciq-node">'+ck()+'</span><span class="ciq-lbl">'+s.l+'</span>';
+      b.addEventListener('click',function(){onStep(container,i);});
+      inner.appendChild(b);
+    });
+    paintMini(container);
+  }
+  function stepsDone(container){return container.querySelectorAll('.ciq-step.done').length;}
+  function onStep(container,i){
+    var steps=container.querySelectorAll('.ciq-step');
+    var currentlyDone=steps[i].classList.contains('done');
+    // tapping sets everything up to i done; tapping a done one unsets from i onward (natural "progress to here")
+    steps.forEach(function(st,j){
+      if(!currentlyDone){ st.classList.toggle('done', j<=i); }
+      else { st.classList.toggle('done', j<i); }
+    });
+    afterStep(container);
+  }
+  function afterStep(container){
+    var n=stepsDone(container);
+    paintMini(container);
+    // update linked progress bar + count + stall
+    var node=container.closest('[data-node]');
+    if(node){
+      var pct=Math.round(n/8*100);
+      var fill=node.querySelector('[data-fill]'); if(fill)fill.style.width=pct+'%';
+      var pctl=node.querySelector('[data-pct]'); if(pctl)pctl.textContent=pct+'%';
+      var pill=node.querySelector('[data-upill]');
+      if(pill){ pill.className='upill ok'; pill.setAttribute('data-upill',''); pill.textContent='Updated now'; }
+      var count=node.querySelector('[data-count]'); if(count)count.textContent=n+' of 8';
+      // row flash
+      node.style.transition='background 600ms ease'; node.style.background='rgba(31,138,74,0.07)';
+      setTimeout(function(){node.style.background='';},620);
+    }
+    var count2=container.querySelector('[data-barcount]'); if(count2)count2.textContent=n+' of 8';
+    if(n===8)toast('All 8 confirmed · ready to exchange');
+  }
+  function paintMini(container){
+    var n=stepsDone(container);
+    var mini=container.querySelector('.ciq-mini'); if(mini){mini.classList.toggle('ciq-allin',n===8);}
+    var dots=container.querySelectorAll('.ciq-md'); dots.forEach(function(d,j){d.classList.toggle('on',j<n);});
+  }
+
+  // ── check-ins rows ──
+  var ROWS=[
+    {id:'cornfield',name:'9 Cornfield Road',agent:'Hartwell & Co',claimed:true,pct:61,upill:['ok','Live'],steps:null},
+    {id:'elm',name:'14 Elm Road',agent:'Barlow Residential',claimed:false,done:3,upill:['danger','Stalled 18d'],stall:true},
+    {id:'marine',name:'8 Marine Parade',agent:'Unknown agent',claimed:false,done:0,upill:['warn','No email'],noemail:true}
+  ];
+  var rowsEl=document.getElementById('checkinRows');
+  ROWS.forEach(function(r){
+    var pct = r.claimed? r.pct : Math.round((r.done||0)/8*100);
+    var el=document.createElement('div'); el.className='row'; el.setAttribute('data-node',r.id);
+    var head=
+      '<div class="row-main">'+
+        '<div class="row-photo'+(r.claimed?'':' grey')+'">'+house()+'</div>'+
+        '<div class="row-info"><div class="row-name">'+r.name+(r.claimed?'':' <span class="chip">Not yet claimed</span>')+'</div><div class="row-agent">'+r.agent+'</div></div>'+
+        '<div class="row-prog"><span class="row-track"><i data-fill style="width:'+pct+'%"></i></span><span class="row-pct" data-pct>'+pct+'%</span></div>'+
+        '<div class="row-right"><span class="upill '+r.upill[0]+'" data-upill>'+r.upill[1]+'</span>'+
+          (r.noemail? '<button class="btn btn-primary btn-sm" data-add>Add &amp; invite</button>' : '<button class="btn btn-primary btn-sm" data-chase>Chase</button>')+
+        '</div>'+
+      '</div>';
+    if(r.claimed){
+      el.innerHTML=head+'<div class="ciq-bar" style="cursor:default"><span class="ciq-t">Live progress</span><span class="ciq-hint">updates as they work their file</span></div>';
+    } else if(r.noemail){
+      el.innerHTML=head;
+    } else {
+      el.innerHTML=head+
+      '<div class="ciq-bar" role="button" aria-expanded="false"><span class="ciq-t">Confirm progress ·</span><span class="ciq-t" data-barcount>'+r.done+' of 8</span><span class="ciq-hint">tap what you hear</span>'+
+        '<span class="ciq-mini">'+Array.from({length:8}).map(function(_,i){return '<span class="ciq-md'+(i<r.done?' on':'')+'"></span>';}).join('')+'</span>'+
+        '<span class="ciq-chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>'+
+      '</div>'+
+      '<div class="ciq-body"><div class="ciq-inner"><div class="ciq-steps"></div>'+
+        '<div class="ciq-act"><button class="btn btn-secondary btn-sm" data-log>Log update</button></div>'+
+      '</div></div>';
+    }
+    rowsEl.appendChild(el);
+    if(!r.claimed && !r.noemail){ buildCiq(el,r.done);
+      var bar=el.querySelector('.ciq-bar'),body=el.querySelector('.ciq-body');
+      bar.addEventListener('click',function(){var o=body.classList.toggle('open');bar.setAttribute('aria-expanded',o?'true':'false');});
+    }
+    var chase=el.querySelector('[data-chase]'); if(chase)chase.addEventListener('click',function(ev){ev.stopPropagation();toast('Chased '+r.agent.split(' ')[0]+' — invite sent');});
+    var add=el.querySelector('[data-add]'); if(add)add.addEventListener('click',function(ev){ev.stopPropagation();toast('Details added — invite sent');});
+    var log=el.querySelector('[data-log]'); if(log)log.addEventListener('click',function(ev){ev.stopPropagation();toast('Update logged');});
+  });
+
+  // ── drawer ──
+  var scrim=document.getElementById('scrim'),drawer=document.getElementById('drawer'),dwBody=document.getElementById('dwBody'),dwTitle=document.getElementById('dwTitle');
+  var CHAINS={
+    powis:{title:'42 Powis Square · chain',sum:[['Chain progress','34%','bad'],['Bottleneck','14 Elm Rd',''],['Value','£1.41m','']],
+      nodes:[
+        {nm:'42 Powis Square',ag:'Your sale',tag:['you','You'],kind:'you',spark:'good',delta:['good','+8% · 7d'],bar:['good',72]},
+        {nm:'9 Cornfield Road',ag:'Hartwell & Co · claimed',tag:['live','Live'],kind:'live',spark:'good',delta:['good','+5% · 7d'],bar:['coral',61]},
+        {nm:'14 Elm Road',ag:'Barlow Residential · unclaimed',tag:['stall','Stalled 18d'],kind:'stall',spark:'bad',delta:['bad','flat · 18d'],done:3},
+        {nm:'8 Marine Parade',ag:'No email yet',tag:['stub','Add email'],kind:'stub'}
+      ]},
+    oak:{title:'5 Oak Lane · chain',sum:[['Chain progress','44%',''],['Momentum','all moving',''],['Value','£890k','']],
+      nodes:[
+        {nm:'5 Oak Lane',ag:'Your sale',tag:['you','You'],kind:'you',spark:'good',delta:['good','+6% · 7d'],bar:['good',55]},
+        {nm:'Dove & Hart',ag:'claimed',tag:['live','Live'],kind:'live',spark:'good',delta:['good','+4% · 7d'],bar:['coral',48]},
+        {nm:'Keystone',ag:'claimed',tag:['live','Live'],kind:'live',spark:'good',delta:['good','+7% · 7d'],bar:['coral',44]}
+      ]}
+  };
+  function sparkSvg(kind){
+    if(kind==='good')return '<svg width="54" height="22" viewBox="0 0 64 24" fill="none"><polyline points="2,19 14,17 26,14 38,11 50,8 62,5" stroke="#1F8A4A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<svg width="54" height="22" viewBox="0 0 64 24" fill="none"><polyline points="2,12 16,12 30,11 44,12 62,12" stroke="#C73E3E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="62" cy="12" r="2.4" fill="#C73E3E"/></svg>';
+  }
+  function openChain(id){
+    var c=CHAINS[id]; if(!c)return;
+    dwTitle.textContent=c.title;
+    var sum='<div class="frost dw-sum">'+c.sum.map(function(s){return '<div class="dw-stat"><div class="k">'+s[0]+'</div><div class="v '+(s[2]||'')+'">'+s[1]+'</div></div>';}).join('')+'</div>';
+    var spine='<div class="spine">'+c.nodes.map(function(n,i){
+      var photo='<div class="sp-ph'+(n.kind==='you'||n.kind==='live'?'':' grey')+'">'+house()+'</div>';
+      var main='<div class="sp-main">'+photo+'<div style="min-width:0;flex:1"><div class="sp-nm">'+n.nm+'</div><div class="sp-ag">'+n.ag+'</div></div><span class="sp-tag '+n.tag[0]+'">'+n.tag[1]+'</span></div>';
+      var body='';
+      if(n.kind==='you'||n.kind==='live'){
+        body='<div class="sp-mini"><span class="row-track" style="flex:1"><i style="width:'+n.bar[1]+'%;display:block;height:100%;border-radius:4px;background:'+(n.bar[0]==='good'?'linear-gradient(90deg,#34D399,#0E9F6E)':'linear-gradient(90deg,var(--coral),var(--coral-deep))')+'"></i></span><span class="sp-spark">'+sparkSvg(n.spark)+'</span><span class="sp-delta '+n.delta[0]+'">'+n.delta[1]+'</span></div>';
+      } else if(n.kind==='stall'){
+        body='<div class="sp-mini"><span class="sp-spark">'+sparkSvg('bad')+'</span><span class="sp-delta bad">'+n.delta[1]+'</span><span style="margin-left:auto"><button class="btn btn-primary btn-sm" data-dchase>Chase for update</button></span></div>'+
+          '<div class="ciq-bar" style="cursor:default"><span class="ciq-t">Confirm progress ·</span><span class="ciq-t" data-barcount>'+n.done+' of 8</span><span class="ciq-hint">tap what you hear</span>'+
+            '<span class="ciq-mini">'+Array.from({length:8}).map(function(_,i){return '<span class="ciq-md'+(i<n.done?' on':'')+'"></span>';}).join('')+'</span></div>'+
+          '<div class="ciq-body open"><div class="ciq-inner"><div class="ciq-steps"></div></div></div>';
+      } else {
+        body='<div class="sp-mini"><span class="sp-delta mut">You typed their details — no email yet</span><span style="margin-left:auto"><button class="btn btn-primary btn-sm" data-dadd>Add &amp; invite</button></span></div>';
+      }
+      var cls='sp-card'+(n.kind==='stall'?' stallcard':'');
+      var rowcls='sp-row'+(n.kind==='stub'?' stub':'')+(n.kind==='stall'?' stall':'');
+      return '<div class="'+rowcls+'" '+(n.kind==='stall'?'data-node="elmwrap"':'')+'><div class="'+cls+'">'+main+body+'</div></div>';
+    }).join('')+'</div>';
+    dwBody.innerHTML=sum+spine;
+    // wire the stall node's tappable steps (container = the .sp-card holding the bar + body)
+    var stallCard=dwBody.querySelector('.stallcard');
+    if(stallCard){
+      var sn=c.nodes.find(function(x){return x.kind==='stall';});
+      buildCiq(stallCard, sn?sn.done:0);
+    }
+    var dchase=dwBody.querySelector('[data-dchase]'); if(dchase)dchase.addEventListener('click',function(){toast('Chased Barlow — invite sent');});
+    var dadd=dwBody.querySelector('[data-dadd]'); if(dadd)dadd.addEventListener('click',function(){toast('Details added — invite sent');});
+    scrim.classList.add('open');drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');
+  }
+  function closeDrawer(){scrim.classList.remove('open');drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');}
+  document.querySelectorAll('[data-open]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();openChain(el.dataset.open);});el.addEventListener('keydown',function(e){if(e.key==='Enter')openChain(el.dataset.open);});});
+  document.getElementById('dwClose').addEventListener('click',closeDrawer);
+  scrim.addEventListener('click',closeDrawer);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer();});
+
+  // afterStep needs to also update the drawer bar count when steps live in the drawer
+  // (buildCiq attaches onStep → afterStep which walks closest [data-node]; drawer bar has data-node="d-elm")
+})();
+</script>
