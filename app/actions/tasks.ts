@@ -518,12 +518,39 @@ export async function escalateTaskAction(taskId: string, pathname: string, reaso
 
 export async function runReminderEngineAction(pathname: string) {
   const session = await requireSession();
+  // Freshness backstop on work-queue mount (PERF-03, 2026-09-18) — kept.
+  // What changed (2026-10-12, perf audit follow-up): the revalidate below
+  // used to fire unconditionally, purging the router cache on EVERY visit,
+  // so the work queue never rode the 5-minute client cache the other agent
+  // pages use. The engine run almost never changes anything mid-session
+  // (the nightly cron + every mutation path already keep it fresh), so we
+  // fingerprint the viewer's reminder rows before and after and only
+  // revalidate when the engine actually wrote something. The fingerprint
+  // scope mirrors runReminderEngine's own scoping exactly.
+  const txWhere = session.user.role === "sales_progressor"
+    ? { assignedUserId: session.user.id }
+    : session.user.agencyId
+      ? { agencyId: session.user.agencyId }
+      : {};
+  const fingerprint = async () => {
+    const [logs, tasks] = await Promise.all([
+      prisma.reminderLog.aggregate({ where: { transaction: txWhere }, _count: { _all: true }, _max: { updatedAt: true } }),
+      prisma.chaseTask.aggregate({ where: { transaction: txWhere }, _count: { _all: true }, _max: { updatedAt: true } }),
+    ]);
+    return [
+      logs._count._all, logs._max.updatedAt?.getTime() ?? 0,
+      tasks._count._all, tasks._max.updatedAt?.getTime() ?? 0,
+    ].join("|");
+  };
+  const before = await fingerprint();
   if (session.user.role === "sales_progressor") {
     await runReminderEngine(undefined, session.user.id);
   } else {
     await runReminderEngine(session.user.agencyId || undefined);
   }
-  revalidateReminderSurfaces(pathname);
+  if ((await fingerprint()) !== before) {
+    revalidateReminderSurfaces(pathname);
+  }
 }
 
 export async function getTransactionReminderCountAction(transactionId: string): Promise<number> {
