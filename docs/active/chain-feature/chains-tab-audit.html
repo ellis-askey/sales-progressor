@@ -29,307 +29,252 @@
   .wrap{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;
     background:radial-gradient(1100px 520px at 85% -10%,var(--coral-tint),transparent 58%),var(--paper);
     min-height:100vh;padding:clamp(26px,5vw,58px) clamp(14px,4vw,22px) 90px;}
-  .page{max-width:940px;margin:0 auto;}
+  .page{max-width:960px;margin:0 auto;}
   .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--coral-deep);font-weight:600;margin:0 0 12px;}
-  h1{font-size:clamp(26px,4.6vw,40px);line-height:1.06;letter-spacing:-.025em;margin:0 0 12px;font-weight:740;text-wrap:balance;max-width:17ch;}
-  .lede{font-size:clamp(14.5px,2vw,16.5px);color:var(--ink-2);margin:0;max-width:60ch;}
+  h1{font-size:clamp(26px,4.6vw,40px);line-height:1.06;letter-spacing:-.025em;margin:0 0 12px;font-weight:740;text-wrap:balance;max-width:18ch;}
+  .lede{font-size:clamp(14.5px,2vw,16.5px);color:var(--ink-2);margin:0;max-width:62ch;}
   .lede b{color:var(--ink);font-weight:650;}
 
-  section{margin-top:clamp(40px,6vw,60px);}
+  section{margin-top:clamp(40px,6vw,58px);}
   .cap{display:flex;align-items:baseline;gap:11px;margin:0 0 4px;}
   .cap .n{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--coral-deep);background:var(--coral-tint);border-radius:7px;padding:2px 8px;flex:0 0 auto;}
   .cap h2{font-size:clamp(17px,2.6vw,21px);letter-spacing:-.015em;margin:0;font-weight:690;}
-  .capsub{color:var(--muted);font-size:13.5px;margin:0 0 20px 44px;max-width:62ch;}
+  .capsub{color:var(--muted);font-size:13.5px;margin:0 0 20px 44px;max-width:64ch;}
   @media (max-width:560px){ .capsub{margin-left:0;} }
+  .capsub b{color:var(--ink-2);}
 
-  /* ── CHAIN DIAGRAM ── */
   .frame{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:clamp(16px,3vw,24px);}
-  .chainhead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:20px;}
-  .ch-big{font-size:34px;font-weight:760;letter-spacing:-.02em;line-height:1;color:var(--ink);}
-  .ch-big .pct{color:var(--bad);}
-  .ch-lbl{font-size:12px;color:var(--muted);margin-top:4px;}
-  .ch-lbl b{color:var(--ink-2);}
-  .ch-pills{display:flex;gap:8px;flex-wrap:wrap;}
-  .mini-pill{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:99px;display:inline-flex;align-items:center;gap:6px;}
-  .mini-pill.bad{color:var(--bad);background:var(--bad-tint);}
-  .mini-pill.warn{color:var(--warn);background:var(--warn-tint);}
-  .mini-pill .d{width:7px;height:7px;border-radius:99px;background:currentColor;}
 
+  /* chain row */
   .chain{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:6px;}
-  .node{flex:1 0 190px;min-width:190px;background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:13px;display:flex;flex-direction:column;gap:9px;position:relative;}
-  .node.stall{border-color:var(--bad);box-shadow:0 0 0 3px var(--bad-tint);}
+  .node{flex:1 0 186px;min-width:186px;background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:13px;display:flex;flex-direction:column;gap:9px;position:relative;}
   .node.you{border-color:var(--coral);}
-  .link-join{flex:0 0 26px;display:flex;align-items:center;justify-content:center;color:var(--coral);}
-  .link-join svg{width:20px;height:20px;opacity:.7;}
-  @media (max-width:560px){ .node{flex-basis:168px;min-width:168px;} }
+  .node.stub{background:transparent;border-style:dashed;border-color:var(--line);}
+  .link-join{flex:0 0 24px;display:flex;align-items:center;justify-content:center;color:var(--coral);}
+  .link-join svg{width:19px;height:19px;opacity:.6;}
+  @media (max-width:560px){ .node{flex-basis:162px;min-width:162px;} }
 
   .n-top{display:flex;gap:10px;align-items:center;}
-  .n-photo{width:42px;height:42px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,#FFB49E,#FF7E5F);}
-  .n-photo.grey{background:linear-gradient(140deg,#C9BDB4,#9A8B80);}
-  .n-photo svg{width:26px;height:22px;}
+  .n-photo{width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,#FFB49E,#FF7E5F);}
+  .n-photo.grey{background:transparent;border:1.5px dashed var(--line);color:var(--faint);}
+  .n-photo svg{width:24px;height:20px;}
   .n-addr{min-width:0;}
-  .n-street{font-size:13px;font-weight:680;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .n-street{font-size:12.5px;font-weight:680;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .n-agent{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .n-tag{position:absolute;top:-9px;right:12px;font-size:9.5px;font-weight:700;font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
+  .n-tag{position:absolute;top:-9px;right:12px;font-size:9px;font-weight:700;font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;}
   .n-tag.you{background:var(--coral);color:#fff;}
-  .n-tag.stall{background:var(--bad);color:#fff;}
-  .n-tag.stub{background:var(--warn-tint);color:var(--warn);}
+  .n-tag.stub{background:var(--paper-2);color:var(--faint);border:1px solid var(--line);}
+  @media (prefers-color-scheme:dark){.n-tag.stub{background:var(--card);}}
 
-  .prog-row{display:flex;align-items:baseline;justify-content:space-between;}
-  .prog-pct{font-size:19px;font-weight:740;letter-spacing:-.02em;}
-  .prog-pct.bad{color:var(--bad);} .prog-pct.good{color:var(--good);}
-  .prog-pct.mut{color:var(--faint);font-size:13px;font-weight:600;}
+  .prog-pct{font-size:18px;font-weight:740;letter-spacing:-.02em;}
+  .prog-pct.good{color:var(--good);} .prog-pct.mut{color:var(--faint);font-size:12.5px;font-weight:600;}
   .bar{height:7px;border-radius:99px;background:rgba(45,24,16,.08);overflow:hidden;}
   @media (prefers-color-scheme:dark){.bar{background:rgba(255,255,255,.1);}}
   .bar i{display:block;height:100%;border-radius:99px;}
-  .bar i.coral{background:linear-gradient(90deg,#FF8A65,#F04E2C);}
-  .bar i.bad{background:linear-gradient(90deg,#F0806F,#D23B2C);}
-  .bar i.good{background:linear-gradient(90deg,#34D399,#0E9F6E);}
+  .bar i.coral{background:linear-gradient(90deg,#FF8A65,#F04E2C);} .bar i.good{background:linear-gradient(90deg,#34D399,#0E9F6E);}
+  .stub-cta{margin-top:auto;font:inherit;font-size:11.5px;font-weight:650;color:#fff;background:linear-gradient(180deg,#FF8A65,#F04E2C);border:0;border-radius:8px;padding:8px;cursor:default;text-align:center;box-shadow:0 2px 0 #C63E20;}
+  .stub-sub{font-size:10.5px;color:var(--faint);text-align:center;}
 
-  .spark{display:flex;align-items:center;gap:8px;}
-  .spark svg{width:56px;height:22px;flex:0 0 auto;}
-  .spark .delta{font-size:11px;font-weight:650;}
-  .spark .delta.good{color:var(--good);} .spark .delta.bad{color:var(--bad);} .spark .delta.mut{color:var(--faint);}
+  .banner{display:flex;align-items:center;gap:10px;margin-top:16px;padding:11px 14px;border-radius:12px;background:var(--warn-tint);color:var(--warn);font-size:12.5px;font-weight:600;}
+  .banner svg{width:16px;height:16px;flex:0 0 auto;}
+  .banner.good{background:var(--good-tint);color:var(--good);}
 
-  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:11.5px;color:var(--muted);}
-  .legend span{display:inline-flex;align-items:center;gap:6px;}
-  .legend .sw{width:11px;height:11px;border-radius:3px;}
+  /* manual node spotlight */
+  .spot{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:stretch;}
+  @media (max-width:640px){ .spot{grid-template-columns:1fr;} }
+  .spot-card{background:var(--paper-2);border:1.5px dashed var(--line);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:12px;}
+  .contact{display:flex;align-items:center;gap:10px;}
+  .contact .av{width:38px;height:38px;border-radius:99px;background:linear-gradient(140deg,#C9BDB4,#9A8B80);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;flex:0 0 auto;}
+  .contact .nm{font-size:13px;font-weight:680;} .contact .fm{font-size:11px;color:var(--muted);}
+  .cbtns{display:flex;gap:7px;}
+  .cbtn{flex:1;font-size:11px;font-weight:600;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink-2);display:flex;align-items:center;justify-content:center;gap:5px;}
+  .cbtn svg{width:13px;height:13px;}
+  .cbtn.primary{background:linear-gradient(180deg,#FF8A65,#F04E2C);color:#fff;border-color:transparent;}
+  .spot-info{display:flex;flex-direction:column;gap:14px;justify-content:center;}
+  .mini-h{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:0 0 9px;}
+  .cisteps{display:flex;flex-wrap:wrap;gap:6px;}
+  .cistep{font-size:11px;font-weight:600;padding:5px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--card);display:inline-flex;align-items:center;gap:5px;}
+  .cistep.on{background:var(--coral);color:#fff;border-color:transparent;}
+  .cistep.on svg{width:10px;height:10px;}
+  .stallnote{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--bad);font-weight:600;}
+  .stallnote .sd{width:40px;height:20px;flex:0 0 auto;}
 
-  /* ── SHARED VS PRIVATE ── */
-  .reveal{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  @media (max-width:640px){ .reveal{grid-template-columns:1fr;} }
-  .rev-col{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-  .rev-h{padding:13px 16px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line-soft);}
-  .rev-h.good{color:var(--good);background:var(--good-tint);}
-  .rev-h.bad{color:var(--bad);background:var(--bad-tint);}
-  .rev-body{padding:6px 16px 12px;}
-  .rev-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft);font-size:13px;}
-  .rev-item:first-child{border-top:0;}
-  .rev-item .ic{width:18px;height:18px;flex:0 0 auto;display:grid;place-items:center;}
-  .rev-item.locked{color:var(--faint);}
-  .rev-item.locked .txt{filter:blur(2.5px);user-select:none;}
-  .rev-item .ck{color:var(--good);} .rev-item .lk{color:var(--faint);}
+  /* growth flow */
+  .flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .fstep{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:13px 15px;text-align:center;min-width:128px;flex:1 1 128px;max-width:200px;}
+  .fstep .fi{width:34px;height:34px;border-radius:10px;margin:0 auto 8px;display:grid;place-items:center;}
+  .fstep .fi svg{width:19px;height:19px;}
+  .fi.a{background:var(--line-soft);color:var(--muted);} .fi.b{background:var(--coral-tint);color:var(--coral-deep);} .fi.c{background:var(--good-tint);color:var(--good);}
+  .fstep .ft{font-size:12.5px;font-weight:680;line-height:1.25;} .fstep .fd{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .farrow{color:var(--faint);flex:0 0 auto;} .farrow svg{width:22px;height:22px;}
+  @media (max-width:620px){ .farrow{transform:rotate(90deg);} .fstep{max-width:none;} }
 
-  /* ── BEFORE / AFTER ── */
-  .ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
-  @media (max-width:640px){ .ba{grid-template-columns:1fr;} }
-  .ba-col{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;}
-  .ba-col.after{border-color:var(--good);}
-  .ba-t{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:0 0 12px;}
-  .ba-t.now{color:var(--muted);} .ba-t.new{color:var(--good);}
-  .stat{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line-soft);font-size:13.5px;}
-  .stat:first-of-type{border-top:0;}
-  .stat .k{font-weight:600;}
-  .stat.dead .k{text-decoration:line-through;color:var(--faint);}
-  .stat .v{font-size:11.5px;font-weight:700;font-family:var(--mono);padding:3px 8px;border-radius:7px;}
-  .v.drop{color:var(--bad);background:var(--bad-tint);}
-  .v.heur{color:var(--warn);background:var(--warn-tint);}
-  .v.dead{color:var(--faint);background:var(--line-soft);}
-  .v.ok{color:var(--good);background:var(--good-tint);}
-  .stat .realv{font-weight:740;font-size:15px;color:var(--ink);}
+  /* progressive enhancement before/after */
+  .pe{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;}
+  @media (max-width:640px){ .pe{grid-template-columns:1fr;} .pe .pe-arrow{transform:rotate(90deg);margin:-4px auto;} }
+  .pe-arrow{color:var(--coral);} .pe-arrow svg{width:26px;height:26px;}
+  .pe-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;margin:0 0 8px;}
+  .pe-lbl.a{color:var(--muted);} .pe-lbl.b{color:var(--good);}
 
-  /* ── MOMENTUM ── */
-  .moms{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  @media (max-width:560px){ .moms{grid-template-columns:1fr;} }
-  .mom{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;}
-  .mom.alert{border-color:var(--bad);}
-  .mom svg.big{width:100%;height:60px;margin:6px 0 12px;}
-  .mom-t{font-size:14px;font-weight:680;display:flex;align-items:center;gap:8px;}
-  .mom-t .tag{font-size:10.5px;font-weight:700;font-family:var(--mono);padding:2px 8px;border-radius:99px;}
-  .mom-t .tag.good{color:var(--good);background:var(--good-tint);}
-  .mom-t .tag.bad{color:var(--bad);background:var(--bad-tint);}
-  .mom-d{font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.5;}
-
-  /* ── FIRST PASS strip ── */
+  /* build strip */
   .fp{display:flex;flex-direction:column;gap:9px;counter-reset:f;}
   .fp-row{display:flex;gap:13px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:13px 16px;}
   .fp-row::before{counter-increment:f;content:counter(f);font-family:var(--mono);font-weight:700;font-size:12.5px;color:#fff;background:linear-gradient(180deg,var(--coral),var(--coral-deep));width:24px;height:24px;border-radius:99px;display:grid;place-items:center;flex:0 0 auto;}
-  .fp-row .fp-t{font-size:13.5px;font-weight:620;flex:1;}
+  .fp-row .fp-t{font-size:13.5px;font-weight:620;flex:1;} .fp-row .fp-t b{color:var(--ink);}
   .fp-row .fp-e{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);white-space:nowrap;}
   .fp-row.lead{border-color:var(--coral);background:linear-gradient(180deg,var(--coral-tint),transparent 80%);}
 
   .foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);font-size:11px;color:var(--faint);font-family:var(--mono);line-height:1.7;}
+  .hsvg{width:100%;height:100%;}
 </style>
 
 <div class="wrap">
   <div class="page">
 
-    <p class="eyebrow">Chains tab · audit &amp; rebuild · #236</p>
-    <h1>What the Chains tab could look like</h1>
-    <p class="lede"><b>“Oldest sale” is gone</b> — it measured time since a file joined the chain, not the age of the sale. Here's what we can build instead, using only what agents genuinely share.</p>
+    <p class="eyebrow">Chains tab · rebuild · #236</p>
+    <h1>A Chains tab that works before the network does</h1>
+    <p class="lede">Most of your chain is <b>unclaimed stubs</b> — the other agents aren't on the platform yet. So the tab can't lean on their live data. It has to earn its keep <b>solo</b>, and be the thing that <b>pulls them in</b>. The live-data payoff comes later, for free, on the same surfaces.</p>
 
-    <!-- 1 -->
+    <!-- 1 the reality -->
     <section>
-      <div class="cap"><span class="n">01</span><h2>One chain, reading honestly</h2></div>
-      <p class="capsub">Live progress on every node, momentum on each, and the bottleneck flagged. No invented numbers.</p>
-
+      <div class="cap"><span class="n">01</span><h2>The honest starting point</h2></div>
+      <p class="capsub">One real file (yours), three slots you've mapped but no one has claimed. This is early-stage reality — and the tab still has to be useful here.</p>
       <div class="frame">
-        <div class="chainhead">
-          <div>
-            <div class="ch-big"><span class="pct">34%</span></div>
-            <div class="ch-lbl"><b>Chain progress</b> · a chain moves at its slowest link</div>
-          </div>
-          <div class="ch-pills">
-            <span class="mini-pill bad"><span class="d"></span>1 stalled</span>
-            <span class="mini-pill warn"><span class="d"></span>1 to invite</span>
-          </div>
-        </div>
-
         <div class="chain">
-          <!-- node 1 -->
           <div class="node you">
             <span class="n-tag you">You</span>
-            <div class="n-top">
-              <div class="n-photo"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
-              <div class="n-addr"><div class="n-street">42 Powis Sq</div><div class="n-agent">Your sale</div></div>
-            </div>
-            <div class="prog-row"><span class="prog-pct good">72%</span></div>
+            <div class="n-top"><div class="n-photo"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">42 Powis Sq</div><div class="n-agent">Your sale · live</div></div></div>
+            <div class="prog-pct good">72%</div>
             <div class="bar"><i class="good" style="width:72%"></i></div>
-            <div class="spark"><svg viewBox="0 0 64 24" fill="none"><polyline points="2,19 14,17 26,15 38,11 50,8 62,5" stroke="#0E9F6E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="delta good">+8% · 7d</span></div>
           </div>
-
           <div class="link-join"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg></div>
-
-          <!-- node 2 -->
-          <div class="node">
-            <div class="n-top">
-              <div class="n-photo"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
-              <div class="n-addr"><div class="n-street">9 Cornfield Rd</div><div class="n-agent">Hartwell &amp; Co</div></div>
-            </div>
-            <div class="prog-row"><span class="prog-pct">61%</span></div>
-            <div class="bar"><i class="coral" style="width:61%"></i></div>
-            <div class="spark"><svg viewBox="0 0 64 24" fill="none"><polyline points="2,18 14,17 26,14 38,13 50,10 62,8" stroke="#F04E2C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="delta good">+5% · 7d</span></div>
+          <div class="node stub">
+            <span class="n-tag stub">Unclaimed</span>
+            <div class="n-top"><div class="n-photo grey"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">9 Cornfield Rd</div><div class="n-agent">Hartwell &amp; Co</div></div></div>
+            <div class="prog-pct mut">Track it yourself</div>
+            <button class="stub-cta">Chase for an update</button>
+            <div class="stub-sub">…which invites them in</div>
           </div>
-
           <div class="link-join"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg></div>
-
-          <!-- node 3 bottleneck -->
-          <div class="node stall">
-            <span class="n-tag stall">Stalled 18d</span>
-            <div class="n-top">
-              <div class="n-photo"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
-              <div class="n-addr"><div class="n-street">14 Elm Road</div><div class="n-agent">Barlow Residential</div></div>
-            </div>
-            <div class="prog-row"><span class="prog-pct bad">34%</span></div>
-            <div class="bar"><i class="bad" style="width:34%"></i></div>
-            <div class="spark"><svg viewBox="0 0 64 24" fill="none"><polyline points="2,12 14,12 26,11 38,12 50,12 62,12" stroke="#D23B2C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="62" cy="12" r="2.4" fill="#D23B2C"/></svg><span class="delta bad">flat · 18d</span></div>
+          <div class="node stub">
+            <span class="n-tag stub">Unclaimed</span>
+            <div class="n-top"><div class="n-photo grey"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">14 Elm Road</div><div class="n-agent">Barlow Residential</div></div></div>
+            <div class="prog-pct mut">Track it yourself</div>
+            <button class="stub-cta">Chase for an update</button>
+            <div class="stub-sub">…which invites them in</div>
           </div>
-
           <div class="link-join"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg></div>
+          <div class="node stub">
+            <span class="n-tag stub">No email yet</span>
+            <div class="n-top"><div class="n-photo grey"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">8 Marine Pde</div><div class="n-agent">Unknown agent</div></div></div>
+            <div class="prog-pct mut">Add their details</div>
+            <button class="stub-cta">Add &amp; invite</button>
+            <div class="stub-sub">build the chain out</div>
+          </div>
+        </div>
+        <div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>If the tab only works once everyone's claimed, it works for nobody today. So design for this picture first.</div>
+      </div>
+    </section>
 
-          <!-- node 4 stub -->
-          <div class="node">
-            <span class="n-tag stub">Invite sent</span>
-            <div class="n-top">
-              <div class="n-photo grey"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div>
-              <div class="n-addr"><div class="n-street">8 Marine Pde</div><div class="n-agent">Not yet claimed</div></div>
+    <!-- 2 solo value -->
+    <section>
+      <div class="cap"><span class="n">02</span><h2>What earns its keep with no one else on the platform</h2></div>
+      <p class="capsub">You run the chain by phone anyway. The tab becomes the memory: their contacts, what you heard, and — crucially — <b>a stall signal built from your own check-in cadence, no other agent required.</b></p>
+      <div class="frame">
+        <div class="spot">
+          <div class="spot-card">
+            <span class="n-tag stub" style="position:static;align-self:flex-start">14 Elm Road · unclaimed</span>
+            <div class="contact"><span class="av">RB</span><div><div class="nm">Rachel Barlow</div><div class="fm">Barlow Residential</div></div></div>
+            <div class="cbtns">
+              <span class="cbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>Call</span>
+              <span class="cbtn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>Chase</span>
             </div>
-            <div class="prog-row"><span class="prog-pct mut">No data yet</span></div>
-            <div class="bar"><i style="width:0%"></i></div>
-            <div class="spark"><span class="delta mut">Awaiting the agent</span></div>
+          </div>
+          <div class="spot-info">
+            <div>
+              <p class="mini-h">Progress you log from what you hear</p>
+              <div class="cisteps">
+                <span class="cistep on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>DCP issued</span>
+                <span class="cistep on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Searches ordered</span>
+                <span class="cistep on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Searches in</span>
+                <span class="cistep">Enquiries raised</span>
+                <span class="cistep">Enquiries done</span>
+                <span class="cistep">Contracts out</span>
+                <span class="cistep">Seller signed</span>
+                <span class="cistep">Buyer signed</span>
+              </div>
+            </div>
+            <div class="stallnote">
+              <svg class="sd" viewBox="0 0 64 24" fill="none"><polyline points="2,12 16,12 30,11 44,12 62,12" stroke="#D23B2C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="62" cy="12" r="2.6" fill="#D23B2C"/></svg>
+              No update logged in 18 days — chase Rachel.
+            </div>
           </div>
         </div>
-
-        <div class="legend">
-          <span><span class="sw" style="background:linear-gradient(90deg,#34D399,#0E9F6E)"></span>ahead &amp; moving</span>
-          <span><span class="sw" style="background:linear-gradient(90deg,#FF8A65,#F04E2C)"></span>progressing</span>
-          <span><span class="sw" style="background:linear-gradient(90deg,#F0806F,#D23B2C)"></span>stalled — chase this one</span>
-          <span><span class="sw" style="background:linear-gradient(140deg,#C9BDB4,#9A8B80)"></span>unclaimed</span>
-        </div>
+        <div class="banner good"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Momentum works today — it reads <b style="margin:0 4px">when you last logged</b>, not whether the other agent is on the platform.</div>
       </div>
     </section>
 
-    <!-- 2 -->
+    <!-- 3 growth loop -->
     <section>
-      <div class="cap"><span class="n">02</span><h2>Why it has to be built this way</h2></div>
-      <p class="capsub">This is all one agent ever sees of another's file. Everything above is built from the left. We never fake the right.</p>
-      <div class="reveal">
-        <div class="rev-col">
-          <div class="rev-h good"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Shared &amp; live — build from this</div>
-          <div class="rev-body">
-            <div class="rev-item"><span class="ic ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="txt">Progress % — moves as they work</span></div>
-            <div class="rev-item"><span class="ic ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="txt">Status · agent &amp; firm name</span></div>
-            <div class="rev-item"><span class="ic ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="txt">Address · photo · buyer position</span></div>
-            <div class="rev-item"><span class="ic ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="txt">Chain value · invite &amp; claim state</span></div>
-            <div class="rev-item"><span class="ic ck"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="txt">Readiness &amp; (opt-in) milestone feed</span></div>
+      <div class="cap"><span class="n">03</span><h2>Every stub is the growth loop</h2></div>
+      <p class="capsub">The one action — chase the other agent for an update — is also how they land on the platform. The tab is your acquisition engine, and it compounds.</p>
+      <div class="frame">
+        <div class="flow">
+          <div class="fstep"><div class="fi a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26" /><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 3"/></svg></div><div class="ft">Unclaimed stub</div><div class="fd">You typed their details</div></div>
+          <span class="farrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div class="fstep"><div class="fi b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></div><div class="ft">You chase for an update</div><div class="fd">A warm, useful email — with a link</div></div>
+          <span class="farrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div class="fstep"><div class="fi b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/></svg></div><div class="ft">They claim their file</div><div class="fd">Now they're a user too</div></div>
+          <span class="farrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div class="fstep"><div class="fi c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7"/><path d="M21 8V3h-5"/></svg></div><div class="ft">Node goes live</div><div class="fd">…and so do their chains</div></div>
+        </div>
+        <div class="banner good"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7"/><path d="M21 8V3h-5"/></svg>Each claim brings that agent's <b style="margin:0 4px">other</b> chains with them. The chase isn't admin — it's the exponential loop you're chasing.</div>
+      </div>
+    </section>
+
+    <!-- 4 progressive enhancement -->
+    <section>
+      <div class="cap"><span class="n">04</span><h2>The same card, richer as they join</h2></div>
+      <p class="capsub">Nothing built for the solo case is thrown away. The manual node just fills with live data the moment they claim — manual taps become a live %, your cadence becomes their real momentum.</p>
+      <div class="frame">
+        <div class="pe">
+          <div>
+            <p class="pe-lbl a">Before · you track it</p>
+            <div class="node stub" style="min-width:0">
+              <span class="n-tag stub">Unclaimed</span>
+              <div class="n-top"><div class="n-photo grey"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">14 Elm Road</div><div class="n-agent">3 of 8 steps · you logged</div></div></div>
+              <div class="bar"><i class="coral" style="width:37%"></i></div>
+              <div class="stub-sub" style="text-align:left">Stall: no update in 18d</div>
+            </div>
+          </div>
+          <span class="pe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <div>
+            <p class="pe-lbl b">After · they claimed</p>
+            <div class="node you" style="min-width:0">
+              <span class="n-tag you">Live</span>
+              <div class="n-top"><div class="n-photo"><svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 L32 9 L56 26"/><path d="M14 23 V40 H50 V23"/><rect x="28" y="30" width="8" height="10"/></svg></div><div class="n-addr"><div class="n-street">14 Elm Road</div><div class="n-agent">Barlow Residential · live</div></div></div>
+              <div class="prog-pct good">41%</div>
+              <div class="bar"><i class="good" style="width:41%"></i></div>
+              <div class="stub-sub" style="text-align:left;color:var(--good)">Real progress, updating itself</div>
+            </div>
           </div>
         </div>
-        <div class="rev-col">
-          <div class="rev-h bad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Private to them — never ours</div>
-          <div class="rev-body">
-            <div class="rev-item locked"><span class="ic lk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="txt">Which step they're stuck on</span></div>
-            <div class="rev-item locked"><span class="ic lk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="txt">Milestone dates &amp; detail</span></div>
-            <div class="rev-item locked"><span class="ic lk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="txt">Their predicted exchange date</span></div>
-            <div class="rev-item locked"><span class="ic lk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="txt">Enquiries · documents · contacts</span></div>
-            <div class="rev-item locked"><span class="ic lk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="txt">Their individual sale price</span></div>
-          </div>
-        </div>
       </div>
     </section>
 
-    <!-- 3 -->
+    <!-- 5 build order -->
     <section>
-      <div class="cap"><span class="n">03</span><h2>The summary, fixed</h2></div>
-      <p class="capsub">Three of today's six rows don't hold up. Swap them for facts.</p>
-      <div class="ba">
-        <div class="ba-col">
-          <p class="ba-t now">Today</p>
-          <div class="stat"><span class="k">Chain value</span><span class="v ok">keep</span></div>
-          <div class="stat"><span class="k">Claim rate</span><span class="v ok">keep</span></div>
-          <div class="stat dead"><span class="k">Oldest sale</span><span class="v drop">misleading</span></div>
-          <div class="stat"><span class="k">Weakest link</span><span class="v heur">heuristic</span></div>
-          <div class="stat"><span class="k">Chain risk</span><span class="v heur">heuristic</span></div>
-          <div class="stat"><span class="k">Predicted completion</span><span class="v dead">never shows</span></div>
-        </div>
-        <div class="ba-col after">
-          <p class="ba-t new">Proposed</p>
-          <div class="stat"><span class="k">Chain progress</span><span class="realv">34%</span></div>
-          <div class="stat"><span class="k">Bottleneck</span><span class="realv">14 Elm Rd</span></div>
-          <div class="stat"><span class="k">Momentum</span><span class="realv">2 stalled</span></div>
-          <div class="stat"><span class="k">Ready to exchange</span><span class="realv">1 of 4</span></div>
-          <div class="stat"><span class="k">Chain value</span><span class="realv">£1.41m</span></div>
-          <div class="stat"><span class="k">Claimed</span><span class="realv">3 of 4</span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4 -->
-    <section>
-      <div class="cap"><span class="n">04</span><h2>Momentum — the real replacement</h2></div>
-      <p class="capsub">Snapshot the shared % once a day (tiny) and movement becomes visible. A stalled sale is the honest risk — true whenever it started.</p>
-      <div class="moms">
-        <div class="mom">
-          <div class="mom-t">9 Cornfield Rd <span class="tag good">moving</span></div>
-          <svg class="big" viewBox="0 0 220 60" fill="none" preserveAspectRatio="none">
-            <polyline points="4,52 40,48 76,40 112,34 148,24 184,16 216,8" stroke="#0E9F6E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="216" cy="8" r="4" fill="#0E9F6E"/>
-          </svg>
-          <p class="mom-d"><b style="color:var(--good)">+18%</b> over three weeks. No chase needed.</p>
-        </div>
-        <div class="mom alert">
-          <div class="mom-t">14 Elm Road <span class="tag bad">stalled</span></div>
-          <svg class="big" viewBox="0 0 220 60" fill="none" preserveAspectRatio="none">
-            <polyline points="4,30 40,29 76,30 112,29 148,30 184,30 216,30" stroke="#D23B2C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="216" cy="30" r="4" fill="#D23B2C"/>
-          </svg>
-          <p class="mom-d"><b style="color:var(--bad)">0%</b> in 18 days. This is who you chase — one tap from here.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5 -->
-    <section>
-      <div class="cap"><span class="n">05</span><h2>Order to build it</h2></div>
+      <div class="cap"><span class="n">05</span><h2>Order to build it — solo value first</h2></div>
       <div class="fp">
-        <div class="fp-row"><span class="fp-t">Drop “Oldest sale”; lead the summary with chain progress + bottleneck</span><span class="fp-e">small</span></div>
-        <div class="fp-row lead"><span class="fp-t">Daily % snapshot → momentum: stall detection &amp; “moved this week”</span><span class="fp-e">medium · the big win</span></div>
-        <div class="fp-row"><span class="fp-t">Rebuild “Weakest link” + “Chain risk” on real signals (slowest / stalled)</span><span class="fp-e">small</span></div>
-        <div class="fp-row"><span class="fp-t">Progress-spread bars on the chain card + chase-the-bottleneck</span><span class="fp-e">small</span></div>
-        <div class="fp-row"><span class="fp-t">Decide “Predicted completion”: wire the medians or delete the dead row</span><span class="fp-e">your call</span></div>
+        <div class="fp-row"><span class="fp-t"><b>Drop “Oldest sale.”</b> Replace the summary with counts that work unclaimed: mapped / claimed / to invite / stalled</span><span class="fp-e">small</span></div>
+        <div class="fp-row lead"><span class="fp-t"><b>Momentum from your own cadence</b> — “no update logged in N days” on every node, claimed or not</span><span class="fp-e">medium · the win</span></div>
+        <div class="fp-row"><span class="fp-t"><b>Make the chase the hero</b> — surface stalled stubs, one tap to chase-for-update = invite; track who you've pulled in</span><span class="fp-e">small–med · growth</span></div>
+        <div class="fp-row"><span class="fp-t">Progress-spread bars on the card (manual taps now, live % on claim — same surface)</span><span class="fp-e">small</span></div>
+        <div class="fp-row"><span class="fp-t">Live signals (real %, real momentum, bottleneck) light up automatically as nodes get claimed</span><span class="fp-e">later · free</span></div>
       </div>
     </section>
 
-    <p class="foot">Mock numbers for illustration. Grounded in lib/chain/summary.ts · lib/services/chains.ts (getChainV2 cross-agent allowlist, computeWeightedProgress) · lib/chain/check-in-steps.ts · ChainsWorkspace / ChainDrawer / CheckInsList. No code changed — planning only, #236.</p>
+    <p class="foot">Mock numbers for illustration. Manual layer already exists: lib/chain/check-in-steps.ts (the 8 taps), CheckInsList (log update, private to your side), neighbour-chase (chase-an-unclaimed-stub = invite). Live layer: computeWeightedProgress / getChainV2. No code changed — planning only, #236.</p>
 
   </div>
 </div>
