@@ -242,7 +242,7 @@ export function SenderDomainSection({
               <span className="sds-opt-top">
                 <EnvelopeSimple size={21} weight="bold" className="sds-opt-ic" />
                 <span className="sds-opt-ttl">{isClient ? "I have an email address for this agency" : "I have an email address for my business"}</span>
-                <span className="sds-rec">Easiest option</span>
+                <span className="sds-rec sds-rec-top">Easiest option</span>
               </span>
               <span className="sds-opt-sub">
                 {isClient
@@ -254,6 +254,9 @@ export function SenderDomainSection({
                 <span><Sparkle size={13} weight="bold" /> No technical setup</span>
                 <span><ArrowBendUpLeft size={13} weight="bold" /> Replies go to that email inbox</span>
               </span>
+              {/* Mobile twin of the Easiest option pill: shown below the facts so
+                  the title gets the full line width on narrow screens. */}
+              <span className="sds-rec sds-rec-below">Easiest option</span>
             </button>
 
             <button type="button" className={`sds-opt ${chosen === "domain" ? "on" : ""}`} onClick={() => setChosen("domain")} aria-pressed={chosen === "domain"}>
@@ -522,6 +525,7 @@ export function SenderDomainSection({
           background: linear-gradient(180deg, #ffffff, #fdf1ec); border: 1px solid rgba(226,69,42,0.18); padding: 3px 8px; border-radius: 7px;
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(226,69,42,0.14); white-space: nowrap; }
         .sds-opt.on .sds-rec { border-color: transparent; }
+        .sds-rec-below { display: none; }
         .sds-opt-sub { display: block; font-size: 13px; color: var(--agent-text-secondary); margin: 9px 0 0; line-height: 1.5; }
         .sds-opt.on .sds-opt-sub { color: rgba(255,255,255,0.92); }
         .sds-ex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
@@ -554,11 +558,18 @@ export function SenderDomainSection({
 
         /* Phone: stack the tight 2-column bits into rows so nothing bunches. */
         @media (max-width: 560px) {
-          .sds-opt-top { align-items: flex-start; }
+          .sds-opt-top { align-items: flex-start; padding-right: 30px; }
+          .sds-opt { padding-right: 16px; }
           .sds-opt-facts { flex-direction: column; gap: 6px; }
+          /* The Easiest option pill moves below the facts so the title can
+             spread across the whole line. */
+          .sds-rec-top { display: none; }
+          .sds-rec-below { display: inline-flex; margin-top: 10px; }
+          /* Sender identity card: name + address take the full width (no more
+             one-character-per-line email); the pill drops underneath, right. */
           .sds-mail-row { flex-wrap: wrap; }
-          .sds-mail-id { flex: 1 1 0; }
-          .sds-pill { margin-left: 50px; margin-top: 4px; }
+          .sds-mail-id { flex: 1 1 calc(100% - 50px); }
+          .sds-pill { margin-left: auto; margin-top: 8px; }
         }
       `}</style>
     </div>

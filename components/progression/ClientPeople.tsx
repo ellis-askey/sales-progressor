@@ -115,9 +115,13 @@ export function ClientPeople({
       <div className="cp-row">
         <Avatar name={p.name} image={p.image} lead={isDir} />
         <div className="cp-main">
-          <div className="cp-name">{p.name} <span className={`cp-badge ${isDir ? "lead" : ""}`}>{isDir ? "Main contact" : "Colleague"}</span></div>
+          <div className="cp-name"><span className="cp-nm-txt">{p.name}</span> <span className={`cp-badge ${isDir ? "lead" : ""}`}>{isDir ? "Main contact" : "Colleague"}</span></div>
           <div className="cp-email">{p.email}</div>
         </div>
+        {/* Mobile twin of the email: on narrow screens it takes the card's full
+            width as its own row (the desktop copy above is display:none there,
+            so it never duplicates for screen readers). */}
+        <div className="cp-email-m">{p.email}</div>
         {!isDir && (
           <button className={`cp-acc ${p.canViewAll ? "" : "own"}`} onClick={() => toggleAccess(p)} disabled={busyId === p.id} title="Click to change what they can see">
             {p.canViewAll ? "All sales" : "Own files"}
@@ -129,12 +133,14 @@ export function ClientPeople({
             ? (p.inviteExpiresAt != null && <span className="sub">{expiryText(p.inviteExpiresAt)}</span>)
             : (p.lastLoginAt != null && <span className="sub">active {relTime(p.lastLoginAt)}</span>)}
         </div>
-        <div className="cp-actions">
-          {p.pending && (
+        {p.pending && (
+          <div className="cp-actions">
             <button className="cp-act" onClick={() => resend(p)} disabled={busyId === p.id}>
               <ArrowClockwise size={14} weight="bold" /> {busyId === p.id ? "…" : "Resend"}
             </button>
-          )}
+          </div>
+        )}
+        <div className="cp-menu">
           <RowActionsMenu items={menuItems(p)} label={`Actions for ${p.name}`} />
         </div>
       </div>
@@ -177,9 +183,10 @@ export function ClientPeople({
                 <div className="cp-row gone" key={rp.id}>
                   <Avatar name={rp.name} image={rp.image} />
                   <div className="cp-main">
-                    <div className="cp-name">{rp.name} <span className="cp-badge">Removed</span></div>
+                    <div className="cp-name"><span className="cp-nm-txt">{rp.name}</span> <span className="cp-badge">Removed</span></div>
                     <div className="cp-email">{rp.email}</div>
                   </div>
+                  <div className="cp-email-m">{rp.email}</div>
                   <button className="cp-reinstate" onClick={() => reinstate(rp)} disabled={busyId === rp.id}>
                     <ArrowUUpLeft size={13} weight="bold" /> {busyId === rp.id ? "…" : "Reinstate"}
                   </button>
@@ -232,6 +239,11 @@ export function ClientPeople({
         .cp-stat .sub { font-size: 10px; color: var(--agent-text-faint, var(--agent-text-muted)); margin-top: 2px; }
 
         .cp-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        /* Kebab lives in its own block (so mobile can pin it top-right); the
+           negative margin restores the old tight 4px pairing with Resend on
+           desktop, where the row's 13px gap would otherwise push it out. */
+        .cp-menu { display: inline-flex; flex-shrink: 0; margin-left: -9px; }
+        .cp-email-m { display: none; }
         .cp-act { appearance: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 650; color: var(--agent-text-secondary); background: none; border: 1px solid var(--agent-border-subtle); border-radius: 9px; padding: 6px 10px; cursor: pointer; transition: background .15s, color .15s, border-color .15s, transform .09s; }
         .cp-act:hover:not(:disabled) { background: var(--agent-glass-bg, rgba(0,0,0,0.04)); color: var(--agent-text-primary); }
         .cp-act:active:not(:disabled) { transform: scale(0.97); }
@@ -247,11 +259,36 @@ export function ClientPeople({
 
         .cp-note { margin: 16px 0 0; font-size: 11.5px; color: var(--agent-text-muted); line-height: 1.6; padding-top: 14px; border-top: 1px solid var(--agent-border-subtle); }
 
+        /* Phone: the row becomes three strict rows (identity / email / footer)
+           so nothing shares a line it can't afford — approved mock 2026-10-12.
+           Desktop keeps the single-line flex layout above. */
         @media (max-width: 640px) {
-          .cp-row { flex-wrap: wrap; }
-          .cp-acc { order: 3; }
-          .cp-stat { order: 4; align-items: flex-start; min-width: auto; }
-          .cp-actions { order: 5; margin-left: auto; }
+          .cp-head { flex-direction: column; align-items: flex-start; }
+          .cp-row {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr) auto auto;
+            grid-template-areas:
+              "av   main main menu"
+              "em   em   em   em"
+              "line line line line"
+              "foot foot acc  act";
+            column-gap: 11px; row-gap: 0;
+            align-items: start;
+          }
+          .cp-av-wrap { grid-area: av; }
+          .cp-main { grid-area: main; }
+          .cp-main .cp-email { display: none; }
+          .cp-menu { grid-area: menu; justify-self: end; margin-left: 0; }
+          .cp-name { flex-direction: column; align-items: flex-start; gap: 4px; }
+          .cp-nm-txt { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .cp-email-m { grid-area: em; display: block; font-size: 12.5px; color: var(--agent-text-muted); margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .cp-row::before { content: ""; grid-area: line; border-top: 1px solid var(--agent-border-subtle); margin-top: 11px; }
+          .cp-stat { grid-area: foot; flex-direction: row; align-items: baseline; gap: 5px; min-width: 0; margin-top: 10px; align-self: center; }
+          .cp-stat .sub { margin-top: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .cp-stat .sub::before { content: "· "; }
+          .cp-acc { grid-area: acc; justify-self: end; align-self: center; margin-top: 8px; }
+          .cp-actions { grid-area: act; justify-self: end; align-self: center; margin-top: 8px; }
+          .cp-reinstate { grid-area: act; justify-self: end; align-self: center; margin-top: 10px; }
         }
       `}</style>
     </div>

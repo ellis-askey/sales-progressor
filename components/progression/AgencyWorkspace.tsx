@@ -38,6 +38,14 @@ function salePill(status: string): { label: string; cls: string } {
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
+// "Walnut Tree Barn, Drayton Beauchamp, HP22 5LT" → first line as the headline,
+// the rest (town/postcode) as subtext under it.
+function splitAddress(a: string): { main: string; sub: string | null } {
+  const i = a.indexOf(",");
+  if (i === -1) return { main: a, sub: null };
+  const sub = a.slice(i + 1).trim();
+  return { main: a.slice(0, i).trim(), sub: sub || null };
+}
 
 type SalesActionsData = {
   needsCard: boolean;
@@ -278,10 +286,22 @@ export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: {
                   )
                 : detail.sales.map((s) => {
                     const p = salePill(s.status);
+                    const { main, sub } = splitAddress(s.address);
                     return (
                       <Link key={s.id} href={`/agent/transactions/${s.id}`} className="aw-salerow">
-                        <span className="ad">{s.address}</span>
-                        <span className={`aw-spill ${p.cls}`}>{p.label}</span>
+                        <span className="aw-salephoto">
+                          {s.photoUrl
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={s.photoUrl} alt="" loading="lazy" />
+                            : <span className="property-photo-fallback" aria-hidden />}
+                        </span>
+                        <span className="aw-saleinfo">
+                          <span className="ad">{main}</span>
+                          {sub && <span className="aw-salesub">{sub}</span>}
+                        </span>
+                        {/* The list is active sales by default — only a departure
+                            from that (completed/withdrawn/draft) earns a pill. */}
+                        {p.cls !== "live" && <span className={`aw-spill ${p.cls}`}>{p.label}</span>}
                         <CaretRight size={15} weight="bold" className="aw-salechev" />
                       </Link>
                     );
@@ -410,10 +430,10 @@ export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: {
         .aw-card { background: var(--agent-glass-bg, rgba(255,255,255,0.5)); border: 1px solid var(--agent-border-subtle); border-radius: 15px; padding: 17px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
         .aw-card.full { grid-column: 1 / -1; }
         .aw-card h4 { margin: 0 0 13px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
-        .aw-sales-hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .aw-sales-hdr h4 { margin: 0 0 13px; }
-        .aw-invoice-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); text-decoration: none; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--agent-border-subtle); transition: border-color .15s, background .15s; }
-        .aw-invoice-link:hover { border-color: var(--agent-coral); background: rgba(var(--agent-coral-rgb),0.06); }
+        .aw-sales-hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+        .aw-sales-hdr h4 { margin: 0; }
+        .aw-invoice-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); text-decoration: none; padding: 6px 8px; border-radius: 9px; border: none; margin-left: auto; transition: background .15s; }
+        .aw-invoice-link:hover { background: rgba(var(--agent-coral-rgb),0.08); }
         .aw-empty { font-size: 13px; color: var(--agent-text-muted); margin: 0; }
 
         .aw-ov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -424,7 +444,11 @@ export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: {
         .aw-salerow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--agent-border-subtle); text-decoration: none; transition: padding .15s; }
         .aw-salerow:first-of-type { border-top: 0; }
         .aw-salerow:hover { padding-left: 4px; }
-        .aw-salerow .ad { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .aw-salephoto { flex: none; width: 42px; height: 42px; border-radius: 9px; overflow: hidden; background: var(--agent-border-subtle); }
+        .aw-salephoto img, .aw-salephoto .property-photo-fallback { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .aw-saleinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .aw-salerow .ad { font-size: 13px; font-weight: 600; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .aw-salesub { font-size: 11.5px; color: var(--agent-text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .aw-salechev { color: var(--agent-text-muted); flex-shrink: 0; }
         .aw-spill { font-size: 10px; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
         .aw-spill.live { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }

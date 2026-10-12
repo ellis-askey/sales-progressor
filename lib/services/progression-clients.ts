@@ -451,7 +451,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
 
 // ─── Single client agency: the detail workspace at /agent/clients/[agencyId] ──
 
-export type AgencySale = { id: string; address: string; status: string };
+export type AgencySale = { id: string; address: string; status: string; photoUrl: string | null };
 export type AgencyPerson = {
   id: string; name: string; email: string; role: string; pending: boolean;
   image: string | null;          // avatar URL, if they've set a photo
@@ -549,8 +549,17 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     // owner's fee/earned/exchanged figures must match it (audit SP-6).
     where: { progressionBusinessId: businessId, agencyId, isDemo: false },
     orderBy: { createdAt: "desc" },
-    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true },
+    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true, photoStoragePath: true },
   });
+
+  // Property thumbnails for the Sales tab rows — same signed-URL pattern as the
+  // chains service; missing photos fall back to the standard art client-side.
+  const photoPaths = [...new Set(txns.map((t) => t.photoStoragePath).filter((p): p is string => !!p))];
+  let photoMap = new Map<string, string>();
+  if (photoPaths.length) {
+    const { getSignedUrlMap } = await import("@/lib/supabase-storage");
+    photoMap = await getSignedUrlMap(photoPaths);
+  }
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -623,7 +632,12 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     active, inProgress: active + onHold, pipelinePence: pipeline, exchanged,
     completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
-    sales: txns.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
+    sales: txns.map((t) => ({
+      id: t.id,
+      address: t.propertyAddress,
+      status: t.status,
+      photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
+    })),
     people: activeUsers.map((u) => ({
       id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password,
       image: getAvatarPublicUrl(u.image), canViewAll: u.canViewAllFiles,
