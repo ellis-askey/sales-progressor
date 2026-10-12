@@ -1,0 +1,331 @@
+<style>
+  :root {
+    --paper:#FFFBF5; --paper-2:#FFF5EC; --ink:#2D1810; --ink-2:#5A3A28;
+    --muted:rgba(45,24,16,.56); --faint:rgba(45,24,16,.40); --line:rgba(45,24,16,.10); --line-soft:rgba(45,24,16,.06);
+    --card:#ffffff;
+    --coral:#FF6B4A; --coral-deep:#F04E2C; --coral-tint:rgba(255,107,74,.10);
+    --good:#0E7C5A; --good-tint:rgba(14,124,90,.10);
+    --warn:#B45309; --warn-tint:rgba(180,83,9,.10);
+    --bad:#C0392B; --bad-tint:rgba(192,57,43,.09);
+    --blue:#2E6DB4; --blue-tint:rgba(46,109,180,.10);
+    --radius:16px;
+    --shadow:0 1px 2px rgba(45,24,16,.05), 0 12px 32px -16px rgba(45,24,16,.24);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#17110d; --paper-2:#1d1612; --ink:#F4EBE2; --ink-2:#D8C7B9;
+      --muted:rgba(244,235,226,.60); --faint:rgba(244,235,226,.40); --line:rgba(244,235,226,.13); --line-soft:rgba(244,235,226,.07);
+      --card:#221a15;
+      --coral:#FF7E5F; --coral-deep:#FF6B4A; --coral-tint:rgba(255,126,95,.14);
+      --good:#34D399; --good-tint:rgba(52,211,153,.13);
+      --warn:#FBBF77; --warn-tint:rgba(251,191,119,.13);
+      --bad:#F0806F; --bad-tint:rgba(240,128,111,.13);
+      --blue:#7FB0E6; --blue-tint:rgba(127,176,230,.14);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px -18px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{ --paper:#FFFBF5; --paper-2:#FFF5EC; --ink:#2D1810; --ink-2:#5A3A28; --muted:rgba(45,24,16,.56); --faint:rgba(45,24,16,.40); --line:rgba(45,24,16,.10); --line-soft:rgba(45,24,16,.06); --card:#fff; --coral:#FF6B4A; --coral-deep:#F04E2C; --coral-tint:rgba(255,107,74,.10); --good:#0E7C5A; --good-tint:rgba(14,124,90,.10); --warn:#B45309; --warn-tint:rgba(180,83,9,.10); --bad:#C0392B; --bad-tint:rgba(192,57,43,.09); --blue:#2E6DB4; --blue-tint:rgba(46,109,180,.10); --shadow:0 1px 2px rgba(45,24,16,.05),0 12px 32px -16px rgba(45,24,16,.24); }
+  :root[data-theme="dark"]{ --paper:#17110d; --paper-2:#1d1612; --ink:#F4EBE2; --ink-2:#D8C7B9; --muted:rgba(244,235,226,.60); --faint:rgba(244,235,226,.40); --line:rgba(244,235,226,.13); --line-soft:rgba(244,235,226,.07); --card:#221a15; --coral:#FF7E5F; --coral-deep:#FF6B4A; --coral-tint:rgba(255,126,95,.14); --good:#34D399; --good-tint:rgba(52,211,153,.13); --warn:#FBBF77; --warn-tint:rgba(251,191,119,.13); --bad:#F0806F; --bad-tint:rgba(240,128,111,.13); --blue:#7FB0E6; --blue-tint:rgba(127,176,230,.14); --shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -18px rgba(0,0,0,.6); }
+
+  *{box-sizing:border-box;}
+  .wrap{margin:0; font-family:var(--sans); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;
+    background:radial-gradient(1100px 520px at 85% -8%, var(--coral-tint), transparent 60%), var(--paper);
+    min-height:100vh; padding:clamp(28px,6vw,68px) clamp(16px,5vw,24px) 100px;}
+  .page{max-width:900px; margin:0 auto;}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--coral-deep); font-weight:600; margin:0 0 13px;}
+  h1{font-size:clamp(27px,5vw,42px); line-height:1.07; letter-spacing:-.025em; margin:0 0 16px; font-weight:730; text-wrap:balance; max-width:20ch;}
+  .lede{font-size:clamp(15px,2.2vw,17.5px); color:var(--ink-2); margin:0; max-width:64ch;}
+  .lede b{color:var(--ink); font-weight:650;}
+
+  section{margin-top:clamp(42px,7vw,66px);}
+  h2{font-size:clamp(19px,3vw,24px); letter-spacing:-.015em; margin:0 0 6px; font-weight:690; display:flex; align-items:baseline; gap:12px; text-wrap:balance;}
+  h2 .num{font-family:var(--mono); font-size:13px; font-weight:600; color:var(--coral-deep); background:var(--coral-tint); border-radius:7px; padding:2px 8px; flex:0 0 auto; letter-spacing:0;}
+  .sub{color:var(--muted); font-size:14.5px; margin:0 0 22px; max-width:66ch;}
+
+  /* palette columns */
+  .cols{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+  @media (max-width:760px){ .cols{grid-template-columns:1fr;} }
+  .col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; display:flex; flex-direction:column;}
+  .col-h{display:flex; align-items:center; gap:9px; margin-bottom:4px;}
+  .col-dot{width:9px; height:9px; border-radius:99px; flex:0 0 auto;}
+  .col-h.good .col-dot{background:var(--good);} .col-h.warn .col-dot{background:var(--warn);} .col-h.bad .col-dot{background:var(--bad);}
+  .col-t{font-size:13.5px; font-weight:700; letter-spacing:-.01em;}
+  .col-s{font-size:11.5px; color:var(--muted); margin:0 0 13px;}
+  .chip{display:block; font-size:12.5px; color:var(--ink-2); padding:7px 0; border-top:1px solid var(--line-soft); line-height:1.4;}
+  .chip:first-of-type{border-top:0;}
+  .chip b{color:var(--ink); font-weight:620;}
+  .chip .t{font-family:var(--mono); font-size:10px; color:var(--faint); display:block; margin-top:1px;}
+
+  /* audit table */
+  .tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); background:var(--card);}
+  table{border-collapse:collapse; width:100%; min-width:620px; font-size:13.5px;}
+  thead th{text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:13px 16px; border-bottom:1px solid var(--line); background:var(--paper-2);}
+  tbody td{padding:12px 16px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:0;}
+  .metric{font-weight:650; color:var(--ink);}
+  .metric small{display:block; font-weight:400; color:var(--muted); font-size:11.5px; margin-top:2px; line-height:1.4;}
+  .verdict{font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 9px; border-radius:7px; white-space:nowrap; display:inline-block;}
+  .v-keep{color:var(--good); background:var(--good-tint);}
+  .v-fix{color:var(--warn); background:var(--warn-tint);}
+  .v-drop{color:var(--bad); background:var(--bad-tint);}
+  .v-dead{color:var(--muted); background:var(--line-soft);}
+
+  /* functionality groups */
+  .grp{margin-top:26px;}
+  .grp-h{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .grp-k{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--coral-deep); letter-spacing:.04em;}
+  .grp-t{font-size:15.5px; font-weight:680;}
+  .grp-note{font-size:12.5px; color:var(--muted); margin:-6px 0 14px;}
+  .fcards{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:680px){ .fcards{grid-template-columns:1fr;} }
+  .fcard{background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:15px 16px; display:flex; flex-direction:column; gap:7px;}
+  .fcard.hero{border-color:var(--coral); background:linear-gradient(180deg,var(--coral-tint),transparent 72%); grid-column:1/-1;}
+  .fc-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .fc-name{font-size:14px; font-weight:680; line-height:1.3;}
+  .fc-desc{font-size:12.5px; color:var(--muted); line-height:1.5; margin:0;}
+  .fc-src{font-family:var(--mono); font-size:10.5px; color:var(--ink-2); margin-top:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .fc-src .lbl{color:var(--faint);}
+  .badge{font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:3px 7px; border-radius:6px; white-space:nowrap; flex:0 0 auto;}
+  .b-good{color:var(--good); background:var(--good-tint);}
+  .b-warn{color:var(--warn); background:var(--warn-tint);}
+  .b-new{color:var(--coral-deep); background:var(--coral-tint);}
+
+  /* cant-do list */
+  .cant{background:var(--card); border:1px solid var(--line); border-left:3px solid var(--bad); border-radius:12px; box-shadow:var(--shadow); padding:6px 20px;}
+  .cant-row{display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--line-soft); align-items:flex-start;}
+  .cant-row:first-child{border-top:0;}
+  .cant-x{color:var(--bad); font-weight:800; flex:0 0 auto; font-size:14px; line-height:1.5;}
+  .cant-row b{color:var(--ink); font-weight:620;} .cant-row span.d{font-size:13px; color:var(--muted);}
+
+  /* recommended */
+  .steps{display:flex; flex-direction:column; gap:10px; counter-reset:s;}
+  .step{display:flex; gap:14px; background:var(--card); border:1px solid var(--line); border-radius:13px; box-shadow:var(--shadow); padding:15px 17px; align-items:flex-start;}
+  .step::before{counter-increment:s; content:counter(s); font-family:var(--mono); font-weight:700; font-size:13px; color:#fff; background:linear-gradient(180deg,var(--coral),var(--coral-deep)); width:26px; height:26px; border-radius:99px; display:grid; place-items:center; flex:0 0 auto;}
+  .step-b h3{margin:0 0 3px; font-size:14.5px; font-weight:680;}
+  .step-b p{margin:0; font-size:13px; color:var(--muted); line-height:1.5;}
+  .step-b .effort{font-family:var(--mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--faint); margin-top:5px;}
+
+  .foot{margin-top:56px; padding-top:22px; border-top:1px solid var(--line); font-size:12px; color:var(--faint); font-family:var(--mono); letter-spacing:.02em; line-height:1.7;}
+  .foot a, .wrap a{color:var(--coral-deep);}
+  .inline-chain{display:inline-flex; gap:3px; vertical-align:middle; margin-left:4px;}
+  .inline-chain i{width:7px; height:7px; border-radius:2px; background:var(--coral); opacity:.9; display:block;}
+  .inline-chain i:nth-child(2){opacity:.6;} .inline-chain i:nth-child(3){opacity:.35;}
+</style>
+
+<div class="wrap">
+  <div class="page">
+
+    <p class="eyebrow">Chains tab · audit &amp; rebuild · critique #236</p>
+    <h1>What the Chains tab can honestly do<span class="inline-chain"><i></i><i></i><i></i></span></h1>
+    <p class="lede">The tab's only had one pass, and “Oldest sale” exposed the real constraint: <b>we can only build on what agents genuinely share with each other.</b> So this starts there — the honest data palette — then audits what's on the tab today and lays out everything we could build on top of it. Nothing here invents a number we don't have.</p>
+
+    <!-- 1. PALETTE -->
+    <section>
+      <h2><span class="num">01</span> What one agent actually knows about another's file</h2>
+      <p class="sub">Every cross-agent read goes through one allowlist. This is the whole palette — build from the green column, treat the amber as soft, and never imply we have the red.</p>
+      <div class="cols">
+        <div class="col">
+          <div class="col-h good"><span class="col-dot"></span><span class="col-t">Live &amp; reliable</span></div>
+          <p class="col-s">Recomputed every load from their real data — moves as they work the file.</p>
+          <span class="chip"><b>Progress %</b> — weighted across both sides' milestones<span class="t">0–100, live</span></span>
+          <span class="chip"><b>Status</b> — Claimed / Live / Withdrawn<span class="t">enum, live</span></span>
+          <span class="chip"><b>Agent + firm name</b><span class="t">from their account</span></span>
+          <span class="chip"><b>Address + property photo</b></span>
+          <span class="chip"><b>Buyer position</b> — Cash / First-time buyer</span>
+          <span class="chip"><b>Chain total value</b> — sum of priced nodes<span class="t">individual prices hidden</span></span>
+          <span class="chip"><b>Invite / claim state + position</b></span>
+          <span class="chip"><b>Milestone-confirmation feed</b><span class="t">only if they opt in</span></span>
+        </div>
+        <div class="col">
+          <div class="col-h warn"><span class="col-dot"></span><span class="col-t">Manual · your side only</span></div>
+          <p class="col-s">Typed by you about a neighbour. Can be stale, and private to your side.</p>
+          <span class="chip"><b>Your check-in taps</b> — the 8 “what you hear” steps<span class="t">private to you</span></span>
+          <span class="chip"><b>Your chase notes / update log</b><span class="t">private to you</span></span>
+          <span class="chip"><b>Stub contact you typed</b> — for uninvited slots</span>
+          <span class="chip"><b>“Ready to exchange” flag</b> — set when all 8 taps done<span class="t">the one manual signal that crosses to them — and can go stale</span></span>
+        </div>
+        <div class="col">
+          <div class="col-h bad"><span class="col-dot"></span><span class="col-t">Private to them</span></div>
+          <p class="col-s">Deliberately stripped at the wire. We never see it, so we never show it.</p>
+          <span class="chip"><b>Milestone detail &amp; dates</b> — which step, when</span>
+          <span class="chip"><b>Which step they're stuck on</b></span>
+          <span class="chip"><b>Their predicted exchange date</b></span>
+          <span class="chip"><b>Enquiries, documents, client contacts</b></span>
+          <span class="chip"><b>Individual sale price</b></span>
+          <span class="chip"><b>Their own notes &amp; intel</b></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. AUDIT -->
+    <section>
+      <h2><span class="num">02</span> The tab today</h2>
+      <p class="sub">Five tabs (In chains · Check-ins · Push to exchange · Needs chain setup · No chain) — all sound, keep them. The weak spots are in the summary metrics, which have never been pressure-tested against the palette above.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Summary metric</th><th>What it really does</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="metric">Chain value</td>
+              <td>Sum of priced nodes. Real prices, honest.</td>
+              <td><span class="verdict v-keep">Keep</span></td>
+            </tr>
+            <tr>
+              <td class="metric">Claim rate</td>
+              <td>Claimed links ÷ total. A real connection measure.</td>
+              <td><span class="verdict v-keep">Keep</span></td>
+            </tr>
+            <tr>
+              <td class="metric">Oldest sale <small>“N days”</small></td>
+              <td>Time since the file was <b>claimed into the chain</b> — not since the sale was agreed. Misreads a months-old sale linked yesterday as brand new.</td>
+              <td><span class="verdict v-drop">Drop</span></td>
+            </tr>
+            <tr>
+              <td class="metric">Weakest link</td>
+              <td>Heuristic: withdrawn → dead invite → lowest-progress file only if ≥20 pts behind. Right idea, blunt rule.</td>
+              <td><span class="verdict v-fix">Rebuild</span></td>
+            </tr>
+            <tr>
+              <td class="metric">Chain risk <small>High / Med / Low</small></td>
+              <td>Heuristic partly built on the same proxies (incl. the 90-day “oldest file” rule).</td>
+              <td><span class="verdict v-fix">Rebuild</span></td>
+            </tr>
+            <tr>
+              <td class="metric">Predicted completion</td>
+              <td>Hard-gated off (<span class="fc-src" style="display:inline">MEDIANS_READY = false</span>) — the row has never once rendered.</td>
+              <td><span class="verdict v-dead">Dead · decide</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="sub" style="margin-top:14px;margin-bottom:0">The four workspace tiles (Active sales · In chains · Need setup · Agents to invite) are all honest counts — keep. The gap is that the <b>richest signal we have — live progress — is barely used</b>: one pooled % per node, no movement, no spread, no bottleneck.</p>
+    </section>
+
+    <!-- 3. ALL POSSIBLE FUNCTIONALITY -->
+    <section>
+      <h2><span class="num">03</span> Everything we could build on the honest palette</h2>
+      <p class="sub">Grouped by the signal they lean on. Each is tagged with its data source and whether it's solid, soft, or needs one small new thing.</p>
+
+      <!-- A -->
+      <div class="grp">
+        <div class="grp-h"><span class="grp-k">A</span><span class="grp-t">Make live progress earn its keep</span></div>
+        <p class="grp-note">We already fetch a live, weighted % for every claimed node. Today it's one bar. It can carry the whole tab.</p>
+        <div class="fcards">
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Progress spread</span><span class="badge b-good">Solid</span></div>
+            <p class="fc-desc">A mini bar per node on the chain card — see at a glance who's ahead and who's dragging, without opening the drawer.</p>
+            <div class="fc-src"><span class="lbl">uses</span> live progress % per node</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Bottleneck node</span><span class="badge b-good">Solid</span></div>
+            <p class="fc-desc">The genuinely slowest file = lowest live %. This is what “weakest link” should mean — a fact, not a 20-point rule.</p>
+            <div class="fc-src"><span class="lbl">uses</span> live progress % (min across nodes)</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Chain progress</span><span class="badge b-good">Solid</span></div>
+            <p class="fc-desc">One honest headline for the whole chain — the slowest node sets the pace (a chain moves at its weakest link), shown alongside the average.</p>
+            <div class="fc-src"><span class="lbl">uses</span> live progress % (min + avg)</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Ready count</span><span class="badge b-good">Solid</span></div>
+            <p class="fc-desc">“4 of 5 ready to exchange” — rolls up the readiness signal the Push-to-exchange tab already computes.</p>
+            <div class="fc-src"><span class="lbl">uses</span> exchange-ready signal per node</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="grp">
+        <div class="grp-h"><span class="grp-k">B</span><span class="grp-t">Momentum — the one thing missing, and the biggest win</span></div>
+        <p class="grp-note">We never store yesterday's %, so we can't see movement. Snapshot the shared % daily (tiny, cheap) and a whole honest layer opens up — this is what “Oldest sale” was fumbling toward.</p>
+        <div class="fcards">
+          <div class="fcard hero">
+            <div class="fc-top"><span class="fc-name">Stalled detection — “no movement in 14 days”</span><span class="badge b-new">Needs % history</span></div>
+            <p class="fc-desc">The honest replacement for “oldest sale.” A sale that hasn't moved is the real risk — and it's true regardless of when the sale started or joined the chain. Flag the node, surface it on Check-ins, and <i>that's</i> who you chase.</p>
+            <div class="fc-src"><span class="lbl">uses</span> live % + a daily snapshot history</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">“Moved +12% this week”</span><span class="badge b-new">Needs % history</span></div>
+            <p class="fc-desc">Per node and per chain. Turns a static bar into a living signal of who's actually progressing.</p>
+            <div class="fc-src"><span class="lbl">uses</span> % delta over time</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Slowest-moving node</span><span class="badge b-new">Needs % history</span></div>
+            <p class="fc-desc">Different from lowest %: a node at 40% that's climbing is fine; one stuck at 70% for a month is the problem. Momentum catches it.</p>
+            <div class="fc-src"><span class="lbl">uses</span> % velocity across nodes</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Honest chain risk</span><span class="badge b-warn">Rebuild</span></div>
+            <p class="fc-desc">Rebuild High/Med/Low on real signals only: a withdrawal, a dead invite, a stalled node, unclaimed slots. No proxy ages.</p>
+            <div class="fc-src"><span class="lbl">uses</span> withdrawals + invites + stall + claim rate</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C -->
+      <div class="grp">
+        <div class="grp-h"><span class="grp-k">C</span><span class="grp-t">Connection &amp; readiness — tighten what's there</span></div>
+        <div class="fcards">
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Connection health</span><span class="badge b-good">Keep</span></div>
+            <p class="fc-desc">Agents connected · to invite · bounced · declined — already honest. Keep, and let a dead/bounced invite nudge a re-send.</p>
+            <div class="fc-src"><span class="lbl">uses</span> invite status</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Fix the stale readiness flag</span><span class="badge b-warn">Tidy</span></div>
+            <p class="fc-desc">“Ready to exchange” (all 8 taps) crosses to the other agent but never clears. Either clear it on movement or date-stamp it so it can't mislead.</p>
+            <div class="fc-src"><span class="lbl">uses</span> exchangeReadyConfirmedAt</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- D -->
+      <div class="grp">
+        <div class="grp-h"><span class="grp-k">D</span><span class="grp-t">Actions the data earns</span></div>
+        <div class="fcards">
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Chase the bottleneck</span><span class="badge b-good">Solid</span></div>
+            <p class="fc-desc">One tap from “this node is slowest / stalled” to chasing that agent (the chase path already exists) — the tab tells you who, and acts on it.</p>
+            <div class="fc-src"><span class="lbl">uses</span> live % / stall + existing chase</div>
+          </div>
+          <div class="fcard">
+            <div class="fc-top"><span class="fc-name">Sort / filter by momentum</span><span class="badge b-new">Small</span></div>
+            <p class="fc-desc">Add “Most stalled” and “Slowest moving” to the Filters popover so the chains needing attention float up.</p>
+            <div class="fc-src"><span class="lbl">uses</span> stall + velocity</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. CANT -->
+    <section>
+      <h2><span class="num">04</span> What we deliberately won't build</h2>
+      <p class="sub">So we never ship a number we can't stand behind. These need data that stays private to the other side.</p>
+      <div class="cant">
+        <div class="cant-row"><span class="cant-x">✕</span><div><b>Their predicted exchange date</b> <span class="d">— private forecast, stripped at the wire. We can show readiness, not a date.</span></div></div>
+        <div class="cant-row"><span class="cant-x">✕</span><div><b>Which milestone / step they're stuck on</b> <span class="d">— we get a %, never the step behind it.</span></div></div>
+        <div class="cant-row"><span class="cant-x">✕</span><div><b>Their enquiries, documents, individual price</b> <span class="d">— never selected into the chain read.</span></div></div>
+        <div class="cant-row"><span class="cant-x">✕</span><div><b>“Oldest sale since agreed”</b> <span class="d">— no reliable offer-accepted date exists across files; even createdAt is only a proxy. This is why #236 was right.</span></div></div>
+      </div>
+    </section>
+
+    <!-- 5. FIRST PASS -->
+    <section>
+      <h2><span class="num">05</span> A recommended first pass</h2>
+      <p class="sub">Ordered by honesty-per-effort. The first three are the heart of the fix.</p>
+      <div class="steps">
+        <div class="step"><div class="step-b"><h3>Drop “Oldest sale,” rebuild the summary on live progress</h3><p>Remove the misleading row; lead instead with chain progress + bottleneck node, both facts.</p><p class="effort">Effort: small · no new data</p></div></div>
+        <div class="step"><div class="step-b"><h3>Add a daily progress snapshot → momentum</h3><p>One tiny table storing each claimed node's % over time. Unlocks stall detection, “moved this week,” and slowest-moving — the honest answer to what “oldest sale” was reaching for.</p><p class="effort">Effort: medium · one small new store</p></div></div>
+        <div class="step"><div class="step-b"><h3>Rebuild “Weakest link” and “Chain risk” on real signals</h3><p>Weakest link = slowest / most-stalled node. Risk = withdrawals + dead invites + stall + unclaimed, no proxy ages.</p><p class="effort">Effort: small–medium</p></div></div>
+        <div class="step"><div class="step-b"><h3>Progress spread on the chain card + chase-the-bottleneck</h3><p>Mini per-node bars at a glance, and one tap from “slowest” to the existing chase flow.</p><p class="effort">Effort: small</p></div></div>
+        <div class="step"><div class="step-b"><h3>Decide “Predicted completion”: wire the medians or remove the dead row</h3><p>It's been invisible since launch. Either turn it on honestly or delete it.</p><p class="effort">Effort: your call</p></div></div>
+        <div class="step"><div class="step-b"><h3>Tidy the stale cross-agent readiness flag</h3><p>Clear or date-stamp “ready to exchange” so it can't go stale on the other agent's view.</p><p class="effort">Effort: small</p></div></div>
+      </div>
+    </section>
+
+    <p class="foot">Grounded in: lib/chain/summary.ts (computeChainSummary) · lib/services/chains.ts (getChainV2 cross-agent allowlist, computeWeightedProgress, listCheckInsForScope) · lib/chain/check-in-steps.ts · components/chain/ChainsWorkspace.tsx · ChainDrawer.tsx · CheckInsList.tsx — 2026-10-12. No code changed; this is a planning artifact for critique #236.</p>
+
+  </div>
+</div>
