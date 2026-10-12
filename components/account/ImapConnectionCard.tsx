@@ -202,7 +202,7 @@ export function ImapConnectionCard() {
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [syncMsg, setSyncMsg] = useState<{ id: string; text: string } | null>(null);
+  const [syncMsg, setSyncMsg] = useState<{ id: string; text: string; isError: boolean } | null>(null);
 
   // Connect form
   const [selectedTile, setSelectedTile] = useState<TileKey | null>(null);
@@ -319,9 +319,11 @@ export function ImapConnectionCard() {
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; summary?: { logged: unknown[]; checked: number } };
       if (res.ok && data.ok && data.summary) {
         const n = data.summary.logged.length;
-        setSyncMsg({ id, text: n > 0 ? `Saved ${n} matching email${n === 1 ? "" : "s"} to their files.` : "Checked. No new matching emails." });
+        setSyncMsg({ id, text: n > 0 ? `Saved ${n} matching email${n === 1 ? "" : "s"} to their files.` : "Checked. No new matching emails.", isError: false });
       } else {
-        setSyncMsg({ id, text: "We couldn't check that inbox just now. Please try again." });
+        // Calm, honest failure: the scheduled checks keep running regardless,
+        // so we never tell the agent to mash the button.
+        setSyncMsg({ id, text: "We couldn't check just now. We'll keep trying automatically.", isError: true });
       }
       await load();
     } finally {
@@ -431,8 +433,13 @@ export function ImapConnectionCard() {
                         c.email === status?.sendsFrom.address;
                       return (
                       <li key={c.id} className="px-3 py-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-2.5">
+                        {/* Responsive row (2026-10-12, founder report): two columns only on
+                            wide screens; below lg the actions drop under the identity as a
+                            wrapped row behind a hairline; below sm the buttons go two-up
+                            with Disconnect full-width. The identity column never gets
+                            crushed sideways again. */}
+                        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-4">
+                          <div className="flex min-w-0 items-start gap-2.5">
                             <ProviderLogo provider={c.provider} email={c.email} size={28} />
                             <div className="min-w-0">
                               <p className="flex items-center gap-1.5 truncate text-sm text-gray-800">
@@ -497,12 +504,12 @@ export function ImapConnectionCard() {
                               )}
                             </div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5 lg:mt-0 lg:max-w-[340px] lg:justify-end lg:border-t-0 lg:pt-0">
                             {(c.sendState === "offer" || c.sendState === "sends") && (
                               <button
                                 onClick={() => toggleSend(c.id, c.sendState === "offer")}
                                 disabled={sendTogglingId === c.id}
-                                className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
                               >
                                 <PaperPlaneTilt size={14} weight="bold" className={sendTogglingId === c.id ? "pbtn-spin" : ""} />
                                 {sendTogglingId === c.id ? "Updating…" : c.sendState === "sends" ? "Turn off sending" : "Turn on sending"}
@@ -512,31 +519,38 @@ export function ImapConnectionCard() {
                               <button
                                 onClick={() => toggleSend(c.id, true)}
                                 disabled={sendTogglingId === c.id}
-                                className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
                                 title="Send a test email from this address to itself"
                               >
                                 <PaperPlaneTilt size={14} weight="bold" />
                                 Send test
                               </button>
                             )}
-                            <button
-                              onClick={() => syncNow(c.id)}
-                              disabled={syncingId === c.id}
-                              className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                              <ArrowClockwise size={14} weight="bold" className={syncingId === c.id ? "pbtn-spin" : ""} />
-                              {syncingId === c.id ? "Checking…" : "Check reading"}
-                            </button>
+                            {/* Reading is irrelevant when reply-capture handles this inbox —
+                                no button that can routinely fail (eXp/Zoho throttle reads)
+                                right next to "you don't need to do anything here". */}
+                            {!captured && (
+                              <button
+                                onClick={() => syncNow(c.id)}
+                                disabled={syncingId === c.id}
+                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
+                              >
+                                <ArrowClockwise size={14} weight="bold" className={syncingId === c.id ? "pbtn-spin" : ""} />
+                                {syncingId === c.id ? "Checking…" : "Check reading"}
+                              </button>
+                            )}
                             <button
                               onClick={() => disconnect(c.id)}
                               disabled={removingId === c.id}
-                              className="pbtn pbtn-press rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              className="pbtn pbtn-press w-full justify-center rounded-lg border border-gray-100 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-400 hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 sm:w-auto sm:justify-start sm:py-1.5"
                             >
                               {removingId === c.id ? "Removing…" : "Disconnect"}
                             </button>
                           </div>
                         </div>
-                        {syncMsg?.id === c.id && <p className="mt-2 text-[12px] text-emerald-700">{syncMsg.text}</p>}
+                        {syncMsg?.id === c.id && (
+                          <p className={`mt-2 text-[12px] ${syncMsg.isError ? "text-amber-700" : "text-emerald-700"}`}>{syncMsg.text}</p>
+                        )}
                         {sendMsg?.id === c.id && (
                           <p className={`mt-2 text-[12px] ${sendMsg.isError ? "text-red-600" : "text-emerald-700"}`}>{sendMsg.text}</p>
                         )}
