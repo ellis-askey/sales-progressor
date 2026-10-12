@@ -1,18 +1,9 @@
+// Legacy route: the Forms app moved to /boardwalk/forms when Boardwalk To Do
+// joined the suite (2026-10-12). Kept as a permanent redirect so bookmarks
+// and old links keep working. Public /f/* URLs were never under this path
+// and are untouched.
 import { redirect } from "next/navigation";
-import { getFormsSession } from "@/lib/forms/auth";
-import { listForms } from "@/lib/forms/service";
-import { FormsDashboard } from "@/components/boardwalk/FormsDashboard";
-import { extractFirstName } from "@/lib/contacts/displayName";
 
-export const dynamic = "force-dynamic";
-
-export const metadata = { title: "Your forms" };
-
-export default async function BoardwalkFormsPage() {
-  const session = await getFormsSession();
-  if (!session) redirect("/boardwalk/login");
-
-  const forms = await listForms(session.tenantId);
-
-  return <FormsDashboard initialForms={forms} firstName={extractFirstName(session.name)} />;
+export default function LegacyTypeformIndex() {
+  redirect("/boardwalk/forms");
 }

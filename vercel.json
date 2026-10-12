@@ -1,5 +1,7 @@
 {
-  "regions": ["dub1"],
+  "regions": [
+    "dub1"
+  ],
   "crons": [
     {
       "path": "/api/reminders/run",
@@ -89,7 +91,7 @@
       "path": "/api/cron/rollup-metrics",
       "schedule": "0 2 * * *"
     },
-{
+    {
       "path": "/api/cron/signals",
       "schedule": "0 3 * * *"
     },
@@ -176,6 +178,10 @@
     {
       "path": "/api/cron/whatsapp-promises",
       "schedule": "*/30 7-19 * * 1-6"
+    },
+    {
+      "path": "/api/cron/todo-reminders",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

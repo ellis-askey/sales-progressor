@@ -28,7 +28,7 @@ export function WelcomePasswordCard({ name }: { name: string }) {
         method: "POST",
         body: JSON.stringify({ currentPassword: current, newPassword: next }),
       });
-      router.replace("/boardwalk/typeform");
+      router.replace("/boardwalk/forms");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

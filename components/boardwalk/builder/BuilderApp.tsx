@@ -300,7 +300,7 @@ export function BuilderApp({
           flexWrap: "wrap",
         }}
       >
-        <Link href="/boardwalk/typeform" className="bw-btn bw-btn-ghost bw-btn-sm" style={{ flexShrink: 0 }}>
+        <Link href="/boardwalk/forms" className="bw-btn bw-btn-ghost bw-btn-sm" style={{ flexShrink: 0 }}>
           ← Forms
         </Link>
 
@@ -348,7 +348,7 @@ export function BuilderApp({
           ))}
         </div>
 
-        <Link href={`/boardwalk/typeform/${formId}/responses`} className="bw-btn bw-btn-secondary bw-btn-sm" style={{ flexShrink: 0 }}>
+        <Link href={`/boardwalk/forms/${formId}/responses`} className="bw-btn bw-btn-secondary bw-btn-sm" style={{ flexShrink: 0 }}>
           Results{responseCount ? ` (${responseCount})` : ""}
         </Link>
 

@@ -47,23 +47,28 @@ export function BoardwalkShell({
             gap: 22,
           }}
         >
-          <Link href="/boardwalk/typeform" style={{ textDecoration: "none" }}>
+          <Link href="/boardwalk/forms" style={{ textDecoration: "none" }}>
             <BoardwalkWordmark size={19} />
           </Link>
 
-          <nav style={{ display: "flex", gap: 4, flex: 1 }}>
+          {/* Suite switcher: one login, two products */}
+          <nav aria-label="Boardwalk apps" className="bw-seg" style={{ flexShrink: 0 }}>
             <Link
-              href="/boardwalk/typeform"
-              className="bw-btn bw-btn-ghost bw-btn-sm"
-              style={
-                pathname === "/boardwalk/typeform"
-                  ? { background: "rgba(28,36,32,0.07)", color: "var(--bw-ink)" }
-                  : undefined
-              }
+              href="/boardwalk/forms"
+              data-active={pathname?.startsWith("/boardwalk/forms") || pathname?.startsWith("/boardwalk/typeform")}
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", padding: "6px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, letterSpacing: "0.03em", color: pathname?.startsWith("/boardwalk/forms") ? "var(--bw-ink-strong)" : "var(--bw-ink-soft)", background: pathname?.startsWith("/boardwalk/forms") ? "var(--bw-paper-raised)" : "transparent", boxShadow: pathname?.startsWith("/boardwalk/forms") ? "var(--bw-shadow-sm)" : "none" }}
             >
               Forms
             </Link>
+            <Link
+              href="/boardwalk/todo"
+              data-active={pathname?.startsWith("/boardwalk/todo")}
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", padding: "6px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, letterSpacing: "0.03em", color: pathname?.startsWith("/boardwalk/todo") ? "var(--bw-ink-strong)" : "var(--bw-ink-soft)", background: pathname?.startsWith("/boardwalk/todo") ? "var(--bw-paper-raised)" : "transparent", boxShadow: pathname?.startsWith("/boardwalk/todo") ? "var(--bw-shadow-sm)" : "none" }}
+            >
+              To Do
+            </Link>
           </nav>
+          <div style={{ flex: 1 }} />
 
           <BwMenu
             align="right"

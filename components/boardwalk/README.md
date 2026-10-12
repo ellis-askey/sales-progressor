@@ -30,3 +30,23 @@ Law 9: Boardwalk is a deliberately independent visual surface (paper cream + dee
 | `responses/ResponsesClient.tsx` | Response table, analytics strip, detail viewer, CSV export, delete. |
 
 Server logic lives in `lib/forms/` (tenant-scoped service, logic engine, validation, auth). See the Prisma models under the "Boardwalk Forms" banner in `prisma/schema.prisma`.
+
+## To Do (components/boardwalk/todo)
+
+Second product in the suite — Boardwalk To Do, a Todoist-style task manager sharing the login, tenant and design system with Forms. Server logic in `lib/todo/` (tenant- and permission-scoped service, recurrence engine, NL parser); pages under `app/boardwalk/(app)/todo/`.
+
+| File | What it is |
+|---|---|
+| `TodoProvider.tsx` | Client store: bootstrap data, per-view task cache, optimistic mutations with rollback + undo toasts. |
+| `TodoChrome.tsx` | Sidebar/mobile-nav shell, global shortcuts (Q add, / or Ctrl+K search, g-t/i/u nav), overlay mounting. |
+| `TodoSidebar.tsx` | Desktop sidebar: counts, favourites, filters, My/Shared projects, collapsible sections. |
+| `TaskList.tsx` | `TaskRow` + `TaskList` + `InlineAdd` — completion, hover actions, grouping, dnd-kit reorder, NL inline add. |
+| `QuickAddModal.tsx` | Global capture with live natural-language parse chips. |
+| `TaskDetailPanel.tsx` | Full task editor: fields, subtasks, comments/@mentions, attachments, reminders, activity. |
+| `Pickers.tsx` | Shared popovers: due date (mini calendar + NL + recurrence), priority, labels, assignee, project. |
+| `ProjectModal.tsx` | Create/edit project + agency template picker; `ShareModal` for membership. |
+| `SearchOverlay.tsx` | Global search (tasks/comments server-side, projects/labels client-side). |
+| `BulkBar.tsx` | Floating multi-select actions: reschedule, priority, assign, move, complete. |
+| `NotificationsPopover.tsx` | Notification centre + browser-notification opt-in. |
+| `ProjectBrowserSheet.tsx` | Mobile bottom-sheet navigation. |
+| `ViewHeader.tsx` | Shared editorial view header/shell/empty-note. |

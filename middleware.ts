@@ -238,6 +238,6 @@ export const config = {
     // api/dev follows the same convention: data endpoints for /dev prototypes
     // (e.g. /dev/sold-for), each prod-blocked inside the handler with the same
     // NODE_ENV check, so excluding them here exposes nothing in production.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|boardwalk|f/|api/forms|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|boardwalk|f/|api/forms|api/todo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

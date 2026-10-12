@@ -13,6 +13,6 @@ export const metadata = { title: "Welcome" };
 export default async function BoardwalkWelcomePage() {
   const session = await getFormsSession();
   if (!session) redirect("/boardwalk/login");
-  if (!session.mustChangePassword) redirect("/boardwalk/typeform");
+  if (!session.mustChangePassword) redirect("/boardwalk/forms");
   return <WelcomePasswordCard name={session.name} />;
 }

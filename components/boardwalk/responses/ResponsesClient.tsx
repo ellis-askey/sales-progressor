@@ -125,7 +125,7 @@ export function ResponsesClient({
     <div style={{ maxWidth: 1060, width: "100%", margin: "0 auto", padding: "26px 20px 80px" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <Link href={`/boardwalk/typeform/${formId}`} className="bw-btn bw-btn-ghost bw-btn-sm">
+        <Link href={`/boardwalk/forms/${formId}`} className="bw-btn bw-btn-ghost bw-btn-sm">
           ← Back to editor
         </Link>
         <h1 className="bw-display" style={{ fontSize: 22, margin: 0, flex: 1 }}>

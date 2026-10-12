@@ -67,7 +67,7 @@ export async function sendSubmissionNotification(opts: {
     })
     .join("");
 
-  const responsesUrl = `${opts.baseUrl}/boardwalk/typeform/${opts.formId}/responses`;
+  const responsesUrl = `${opts.baseUrl}/boardwalk/forms/${opts.formId}/responses`;
   const bodyHtml = `
 <p style="margin:0 0 16px;">You've received a new response to <strong>${escapeHtml(opts.formTitle)}</strong>.</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>

@@ -39,7 +39,7 @@ export function LoginCard() {
         "/api/forms/auth/login",
         { method: "POST", body: JSON.stringify({ tenant: TENANT, email, password }) }
       );
-      router.replace(result.mustChangePassword ? "/boardwalk/welcome" : "/boardwalk/typeform");
+      router.replace(result.mustChangePassword ? "/boardwalk/welcome" : "/boardwalk/forms");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

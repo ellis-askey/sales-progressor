@@ -64,7 +64,7 @@ Each role uses a distinct surface. Do not mix them:
 | **Internal dashboard** | `/dashboard` redirects to `/agent/hub` (internal staff land on the agent hub). The `AppShell` chrome is used on `/admin/*` and the internal `/transactions/[id]` file view. | `admin`, `sales_progressor`, `superadmin` | Dark + glass + property photography backdrop (`AppShell`) |
 | **Command Centre** | `portal.thesalesprogressor.co.uk/command/*` | `superadmin` only | Utilitarian dark, hairline borders, no glass, no photography (layout inline in `app/command/(protected)/layout.tsx`) |
 | **Buyer/seller portal** | `portal.thesalesprogressor.co.uk/portal/[token]` | Token-authenticated visitors | Light, clean, mobile-first |
-| **Boardwalk Forms** | `/boardwalk/*` (login, dashboard, builder), `/f/[publicId]` (public forms, no auth) | `FormTenantUser` accounts — a separate session system (`lib/forms/auth.ts`, `forms_session` cookie), NOT NextAuth, NOT the roles above | Paper cream + deep green + Fraunces; scoped `.bw-scope` tokens in `app/boardwalk/boardwalk.css`. White-label form-builder platform; Boardwalk is the first `FormTenant` row. |
+| **Boardwalk suite** | `/boardwalk/*` (login + two products: Forms at `/boardwalk/forms`, To Do at `/boardwalk/todo`), `/f/[publicId]` (public forms, no auth) | `FormTenantUser` accounts — a separate session system (`lib/forms/auth.ts`, `forms_session` cookie), NOT NextAuth, NOT the roles above | Real Boardwalk brand (charcoal #404648 on stone #f3f0ee); scoped `.bw-scope` tokens in `app/boardwalk/boardwalk.css`. White-label platform; Boardwalk is the first `FormTenant` row. `/boardwalk/typeform` is a legacy redirect to `/boardwalk/forms`. |
 
 The agent app and the internal dashboard use **different layout shells** (`AgentShell` vs `AppShell`). Don't mix imports between them.
 
@@ -97,13 +97,14 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   /agent/*               Agent app (director, negotiator)
   /dashboard             Redirects to /agent/hub (AppShell chrome now lives on /admin/* + /transactions/[id])
   /portal/[token]        Buyer/seller portal
-  /boardwalk             Boardwalk Forms (white-label form builder; own login, own tokens)
+  /boardwalk             Boardwalk suite: Forms (/forms) + To Do (/todo); own login, own tokens
   /f/[publicId]          Public published forms (no auth; respondent-facing)
   /command               Command Centre (superadmin only)
     /(protected)         Auth-gated command centre routes
   /api                   API route handlers
     /command             Command Centre API endpoints (superadmin only)
     /forms               Boardwalk Forms API (own session; public/* endpoints rate-limited)
+    /todo                Boardwalk To Do API (same session; tenant+membership scoped in lib/todo/service.ts)
     /cron                Scheduled jobs (Vercel cron)
     /webhooks            External webhooks (Vercel deploy, etc.)
 /components
@@ -119,6 +120,7 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   /ui                    Canonical primitives (see docs/reference/COMPONENT_LIBRARY_CATALOG.md)
 /lib                     Server-side utilities, services, helpers
   /forms                 Boardwalk Forms server core (tenant-scoped service, logic engine, validation, own auth)
+  /todo                  Boardwalk To Do server core (tenant+membership-scoped service, recurrence engine, NL parser)
   /command               Command-Centre-specific server code
     /content             Content drafting, voice, image generation
     /insights            Daily brief, weekly review, signal detectors

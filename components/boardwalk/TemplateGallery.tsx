@@ -1,6 +1,6 @@
 "use client";
 
-// Full-page template gallery at /boardwalk/typeform/new. Every card draws a
+// Full-page template gallery at /boardwalk/forms/new. Every card draws a
 // true miniature from the template's REAL definition (theme + welcome copy),
 // lists its first questions, and offers Preview (full-screen, interactive,
 // nothing saved) and Use (creates the form, straight into the builder).
@@ -71,7 +71,7 @@ export function TemplateGallery({ tenantName }: { tenantName: string }) {
         method: "POST",
         body: JSON.stringify(templateId ? { templateId } : {}),
       });
-      router.push(`/boardwalk/typeform/${res.id}`);
+      router.push(`/boardwalk/forms/${res.id}`);
     } catch (err) {
       toast((err as Error).message, "error");
       setBusyId(null);
@@ -82,7 +82,7 @@ export function TemplateGallery({ tenantName }: { tenantName: string }) {
     <div style={{ maxWidth: 1180, width: "100%", margin: "0 auto", padding: "34px 24px 90px" }}>
       {/* ── Header ── */}
       <div style={{ marginBottom: 26 }}>
-        <Link href="/boardwalk/typeform" className="bw-btn bw-btn-ghost bw-btn-sm" style={{ marginLeft: -10, marginBottom: 14 }}>
+        <Link href="/boardwalk/forms" className="bw-btn bw-btn-ghost bw-btn-sm" style={{ marginLeft: -10, marginBottom: 14 }}>
           ← Your forms
         </Link>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>

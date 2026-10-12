@@ -8,6 +8,6 @@ export const metadata = { title: "Sign in" };
 
 export default async function BoardwalkLoginPage() {
   const session = await getFormsSession();
-  if (session) redirect("/boardwalk/typeform");
+  if (session) redirect("/boardwalk/forms");
   return <LoginCard />;
 }

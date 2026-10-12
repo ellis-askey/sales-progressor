@@ -225,9 +225,18 @@ interface ToastItem {
   id: number;
   message: string;
   tone: "ok" | "error";
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-const ToastContext = createContext<{ toast: (message: string, tone?: "ok" | "error") => void }>({
+export interface ToastOpts {
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+const ToastContext = createContext<{
+  toast: (message: string, tone?: "ok" | "error", opts?: ToastOpts) => void;
+}>({
   toast: () => {},
 });
 
@@ -238,10 +247,10 @@ export function useBwToast() {
 export function BwToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const next = useRef(1);
-  const toast = useCallback((message: string, tone: "ok" | "error" = "ok") => {
+  const toast = useCallback((message: string, tone: "ok" | "error" = "ok", opts?: ToastOpts) => {
     const id = next.current++;
-    setItems((prev) => [...prev.slice(-3), { id, message, tone }]);
-    setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 3600);
+    setItems((prev) => [...prev.slice(-3), { id, message, tone, ...opts }]);
+    setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), opts?.actionLabel ? 5200 : 3600);
   }, []);
   return (
     <ToastContext.Provider value={{ toast }}>
@@ -274,9 +283,35 @@ export function BwToastProvider({ children }: { children: ReactNode }) {
               borderRadius: 999,
               boxShadow: "var(--bw-shadow-lg)",
               fontFamily: "var(--bw-font-sans)",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              pointerEvents: "auto",
             }}
           >
             {t.message}
+            {t.actionLabel && (
+              <button
+                onClick={() => {
+                  t.onAction?.();
+                  setItems((prev) => prev.filter((x) => x.id !== t.id));
+                }}
+                style={{
+                  background: "rgba(255,255,255,0.16)",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  padding: "4px 12px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {t.actionLabel}
+              </button>
+            )}
           </div>
         ))}
       </div>

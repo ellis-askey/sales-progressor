@@ -2,7 +2,7 @@
 
 // Boardwalk forms dashboard. Each card carries a true miniature of the form's
 // welcome screen (its real theme + copy). Creation routes to the full-page
-// template gallery at /boardwalk/typeform/new.
+// template gallery at /boardwalk/forms/new.
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -95,7 +95,7 @@ export function FormsDashboard({
       if (action === "duplicate") {
         const res = await formsApi<{ id: string }>(`/api/forms/${form.id}/duplicate`, { method: "POST" });
         toast("Copy created.");
-        router.push(`/boardwalk/typeform/${res.id}`);
+        router.push(`/boardwalk/forms/${res.id}`);
         return;
       }
       await formsApi(`/api/forms/${form.id}/status`, {
@@ -165,14 +165,14 @@ export function FormsDashboard({
           )}
         </div>
         {!isEmpty && (
-          <BwButton variant="primary" onClick={() => router.push("/boardwalk/typeform/new")}>
+          <BwButton variant="primary" onClick={() => router.push("/boardwalk/forms/new")}>
             + New form
           </BwButton>
         )}
       </div>
 
       {isEmpty ? (
-        <EmptyState onCreate={() => router.push("/boardwalk/typeform/new")} />
+        <EmptyState onCreate={() => router.push("/boardwalk/forms/new")} />
       ) : (
         <>
           {/* ── Toolbar ── */}
@@ -211,7 +211,7 @@ export function FormsDashboard({
                   key={form.id}
                   className="bw-card bw-card-hover bw-fade-up"
                   style={{ cursor: "pointer", overflow: "hidden", display: "flex", flexDirection: "column" }}
-                  onClick={() => router.push(`/boardwalk/typeform/${form.id}`)}
+                  onClick={() => router.push(`/boardwalk/forms/${form.id}`)}
                 >
                   {/* True miniature of the form's welcome screen */}
                   <div style={{ borderBottom: "1px solid var(--bw-line)", position: "relative" }}>
@@ -238,9 +238,9 @@ export function FormsDashboard({
                           </button>
                         }
                       >
-                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}`); }}>Edit</button>
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/forms/${form.id}`); }}>Edit</button>
                         <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); window.open(`/f/${form.publicId}?preview=1`, "_blank"); }}>Preview</button>
-                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}/responses`); }}>Responses</button>
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/forms/${form.id}/responses`); }}>Responses</button>
                         <div className="bw-menu-sep" />
                         <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); setRenameTarget(form); setRenameValue(form.title); }}>Rename</button>
                         <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); void act(form, "duplicate", ""); }}>Duplicate</button>

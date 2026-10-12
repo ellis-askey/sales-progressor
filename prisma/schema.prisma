@@ -6090,3 +6090,234 @@ model TenantFormStat {
 
   @@unique([formId, date])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Boardwalk To Do — Todoist-style task management, second product in the
+// Boardwalk suite. Shares FormTenant / FormTenantUser (one login, one tenant)
+// but owns its own data graph. User references (createdById, assigneeId,
+// authorId, actorId…) are plain FormTenantUser ids validated in
+// lib/todo/service.ts — every read and write there is tenant-scoped, same
+// discipline as lib/forms. FKs exist within the todo graph for cascades.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model TodoProject {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name        String
+  color       String  @default("#404648")
+  icon        String? // lucide icon name
+  description String?
+  // "team": every tenant member sees it. "private": members only.
+  visibility  String  @default("team")
+  isTemplate  Boolean @default(false)
+  archivedAt  DateTime?
+  order       Int     @default(0)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sections TodoSection[]
+  tasks    TodoTask[]
+  members  TodoProjectMember[]
+
+  @@index([tenantId, archivedAt, order])
+}
+
+// Per-user relationship to a project: explicit access for private projects,
+// plus personal favourite flag and remembered view (list | board | calendar).
+model TodoProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  project   TodoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+
+  role       String  @default("member") // owner | member
+  isFavorite Boolean @default(false)
+  viewPref   String?
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model TodoSection {
+  id        String      @id @default(cuid())
+  projectId String
+  project   TodoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  tasks TodoTask[]
+
+  @@index([projectId, order])
+}
+
+model TodoTask {
+  id       String @id @default(cuid())
+  tenantId String
+
+  projectId String?
+  project   TodoProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sectionId String?
+  section   TodoSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  parentId  String?
+  parent    TodoTask?    @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks  TodoTask[]   @relation("Subtasks")
+
+  title       String
+  description String?
+
+  // Due dates are WALL-CLOCK (Europe/London): dueDate is a calendar date,
+  // dueTime an optional "HH:MM". Recurrence maths runs on calendar dates so
+  // daylight-saving shifts can never move a task's day.
+  dueDate  DateTime? @db.Date
+  dueTime  String?
+  duration Int? // minutes
+
+  priority   Int   @default(4) // 1 = highest, 4 = none (Todoist convention)
+  order      Float @default(0)
+  recurrence Json? // lib/todo/recurrence.ts RecurrenceRule
+
+  // Inbox tasks: projectId null + inboxOwnerId = whose inbox.
+  inboxOwnerId String?
+
+  assigneeId    String?
+  createdById   String
+  completedAt   DateTime?
+  completedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  labels      TodoTaskLabel[]
+  comments    TodoComment[]
+  attachments TodoAttachment[]
+  reminders   TodoReminder[]
+  activity    TodoActivity[]
+
+  @@index([tenantId, completedAt, dueDate])
+  @@index([tenantId, assigneeId, completedAt])
+  @@index([tenantId, inboxOwnerId, completedAt])
+  @@index([projectId, sectionId, order])
+  @@index([parentId])
+}
+
+model TodoLabel {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String
+  color    String @default("#c3c5c1")
+  order    Int    @default(0)
+  createdAt DateTime @default(now())
+
+  tasks TodoTaskLabel[]
+
+  @@unique([tenantId, name])
+}
+
+model TodoTaskLabel {
+  taskId  String
+  task    TodoTask  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  labelId String
+  label   TodoLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+}
+
+model TodoComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  attachments TodoAttachment[]
+
+  @@index([taskId, createdAt])
+}
+
+model TodoAttachment {
+  id         String       @id @default(cuid())
+  taskId     String
+  task       TodoTask     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    TodoComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  uploaderId String
+
+  storagePath String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TodoReminder {
+  id     String   @id @default(cuid())
+  taskId String
+  task   TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+
+  // Actual UTC instant to fire at (wall time resolved via Europe/London).
+  remindAt      DateTime
+  offsetMinutes Int? // null = custom absolute time; 0 = at due time
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([sentAt, remindAt])
+  @@index([taskId])
+}
+
+model TodoNotification {
+  id       String  @id @default(cuid())
+  tenantId String
+  userId   String // recipient
+  actorId  String?
+  type     String // assigned | mention | comment | reminder | project_shared | completed
+  taskId    String?
+  projectId String?
+  message  String
+  readAt    DateTime?
+  emailedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model TodoActivity {
+  id      String   @id @default(cuid())
+  taskId  String
+  task    TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorId String
+  type    String // created | completed | reopened | due_changed | assigned | priority | moved | comment | recurred
+  data    Json?
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+model TodoFilter {
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+
+  name       String
+  query      Json // lib/todo/types.ts FilterQuery
+  isFavorite Boolean @default(false)
+  order      Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, order])
+}
+
+model TodoUserPref {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  data      Json // { collapsedSidebarSections, notificationPrefs, lastView, … }
+  updatedAt DateTime @updatedAt
+}

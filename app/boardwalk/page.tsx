@@ -5,5 +5,5 @@ export const dynamic = "force-dynamic";
 
 export default async function BoardwalkRoot() {
   const session = await getFormsSession();
-  redirect(session ? "/boardwalk/typeform" : "/boardwalk/login");
+  redirect(session ? "/boardwalk/forms" : "/boardwalk/login");
 }
