@@ -2,7 +2,8 @@
 // auto-attached when its sender matches exactly ONE live sale; several sales →
 // candidates queue; unknown → queue. Plus thread-key parsing and phone cores.
 
-import { threadKeyFromMessage, previewFromMessage, last9, chooseAssignment } from "@/lib/integrations/whatsapp-cloud/routing";
+import { threadKeyFromMessage, previewFromMessage, last9, chooseAssignment, ledgerUpdateForWaStatus, waRankOfLedgerStatus } from "@/lib/integrations/whatsapp-cloud/routing";
+import { statusAdvances } from "@/lib/integrations/whatsapp-cloud/signature";
 
 describe("threadKeyFromMessage", () => {
   const value = {
@@ -77,5 +78,23 @@ describe("chooseAssignment — the accuracy rule", () => {
   it("unknown sender → queued with no candidates", () => {
     const d = chooseAssignment([]);
     expect(d).toMatchObject({ state: "needs_assigning", transactionId: null, candidates: [] });
+  });
+});
+
+describe("ledger status mapping (Phase 3)", () => {
+  it("maps WhatsApp lifecycle to ledger status + timestamp column", () => {
+    expect(ledgerUpdateForWaStatus("sent")).toEqual({ status: "sent", stampField: "sentAt" });
+    expect(ledgerUpdateForWaStatus("delivered")).toEqual({ status: "delivered", stampField: "deliveredAt" });
+    expect(ledgerUpdateForWaStatus("read")).toEqual({ status: "opened", stampField: "openedAt" });
+    expect(ledgerUpdateForWaStatus("failed")).toEqual({ status: "failed", stampField: "failedAt" });
+    expect(ledgerUpdateForWaStatus("played")).toBeNull();
+  });
+
+  it("advance-only holds across the ledger's opened≙read rename", () => {
+    // Row already at opened (read): a late delivered must not regress it…
+    expect(statusAdvances(waRankOfLedgerStatus("opened"), "delivered")).toBe(false);
+    // …but a failure still lands, and sent → read advances.
+    expect(statusAdvances(waRankOfLedgerStatus("opened"), "failed")).toBe(true);
+    expect(statusAdvances(waRankOfLedgerStatus("sent"), "read")).toBe(true);
   });
 });

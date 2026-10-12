@@ -56,6 +56,31 @@ export type Assignment =
   | { state: "auto"; transactionId: string; side: "BUYER" | "SELLER" | null; contactIds: string[]; candidates: [] }
   | { state: "needs_assigning"; transactionId: null; side: null; contactIds: string[]; candidates: string[] };
 
+// ── Ledger status mapping (Phase 3) ─────────────────────────────────────────
+// WhatsApp lifecycle → the OutboundMessage status enum + its timestamp column.
+// `read` maps to `opened` (the ledger's email-era name for the same truth).
+
+export type LedgerStatusUpdate = {
+  status: "sent" | "delivered" | "opened" | "failed";
+  stampField: "sentAt" | "deliveredAt" | "openedAt" | "failedAt";
+};
+
+export function ledgerUpdateForWaStatus(waStatus: string): LedgerStatusUpdate | null {
+  switch (waStatus) {
+    case "sent": return { status: "sent", stampField: "sentAt" };
+    case "delivered": return { status: "delivered", stampField: "deliveredAt" };
+    case "read": return { status: "opened", stampField: "openedAt" };
+    case "failed": return { status: "failed", stampField: "failedAt" };
+    default: return null; // `played` etc. — no ledger column; event store keeps it
+  }
+}
+
+// Translate a ledger status back to WhatsApp-rank space so advance-only
+// ordering works on the row (opened ≙ read).
+export function waRankOfLedgerStatus(ledgerStatus: string): string {
+  return ledgerStatus === "opened" ? "read" : ledgerStatus;
+}
+
 // The ladder's decision step. `matches` = every live-sale contact whose phone
 // shares the sender's last-9 core.
 export function chooseAssignment(matches: ContactMatch[]): Assignment {

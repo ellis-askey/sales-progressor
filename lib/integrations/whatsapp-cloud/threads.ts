@@ -11,6 +11,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { WhatsAppSide, TransactionStatus } from "@prisma/client";
 import { threadKeyFromMessage, previewFromMessage, last9, chooseAssignment, type ContactMatch } from "./routing";
+import { writeInboundLedgerRow, backfillThreadLedger, moveThreadLedger } from "./ledger";
 
 const LIVE_STATUSES: TransactionStatus[] = ["draft", "active", "on_hold"];
 
@@ -107,6 +108,12 @@ export async function routeUnprocessedEvents(limit = 50): Promise<number> {
         data: { threadId: thread.id, processedAt: new Date() },
       }),
     ]);
+    // Phase 3: assigned threads write straight into the comms ledger (idempotent).
+    await writeInboundLedgerRow(
+      { id: thread.id, waId: thread.waId, displayName: key.displayName ?? thread.displayName, transactionId: thread.transactionId, contactIds: thread.contactIds },
+      msg,
+      at,
+    );
     routed += 1;
   }
   return routed;
@@ -125,6 +132,10 @@ export async function assignCloudThread(threadId: string, transactionId: string,
     where: { id: threadId },
     data: { transactionId, side, assignmentState: "manual", candidateTransactionIds: [] },
   });
+  // Phase 3: history moves with the mapping — existing ledger rows repoint to
+  // the new sale, and any not-yet-written messages backfill onto it.
+  await moveThreadLedger(threadId, transactionId);
+  await backfillThreadLedger(threadId);
 }
 
 // Dismiss a conversation that isn't sales traffic (wrong number, spam). The
@@ -135,4 +146,7 @@ export async function ignoreCloudThread(threadId: string) {
     where: { id: threadId },
     data: { assignmentState: "ignored", transactionId: null, side: null, candidateTransactionIds: [] },
   });
+  // Detach any ledger rows a previous (wrong) assignment created, so a
+  // dismissed conversation never lingers on a file's timeline.
+  await moveThreadLedger(threadId, null);
 }

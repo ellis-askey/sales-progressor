@@ -48,13 +48,19 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Store failed", { status: 500 });
   }
 
-  // Route stored messages into threads (Phase 2). Best-effort on the hot path:
-  // a routing failure never fails the webhook (events stay unprocessed and the
-  // next delivery's pass picks them up).
+  // Route stored messages into threads (Phase 2) and apply status events to
+  // the ledger (Phase 3). Best-effort on the hot path: a failure never fails
+  // the webhook (events stay unprocessed; the next delivery's pass resumes).
   try {
     await routeUnprocessedEvents();
   } catch (e) {
     console.error("[whatsapp-cloud] thread routing failed", e);
+  }
+  try {
+    const { applyUnprocessedStatuses } = await import("@/lib/integrations/whatsapp-cloud/ledger");
+    await applyUnprocessedStatuses();
+  } catch (e) {
+    console.error("[whatsapp-cloud] status apply failed", e);
   }
   return NextResponse.json({ ok: true });
 }

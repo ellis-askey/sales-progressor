@@ -225,9 +225,13 @@ async function applyUpdate(queueIds: string[], update: QueueUpdate): Promise<num
 
 // Mirror a delivery update onto the linked Command Centre Messages row. Only
 // queue rows that carry an outboundMessageId (the CLIENT_CHASE mirror) are
-// touched; everything else is a no-op. Timestamps only (deliveredAt / openedAt
-// / failedAt) so the Messages lifecycle timeline fills in — status is left as
-// the send wrote it. Best-effort and read-nothing: no client-facing effect.
+// touched; everything else is a no-op. Status now moves WITH the truth
+// (2026-10-13, WhatsApp-rebuild P3 indicator repair): a bounced/blocked send
+// demotes to bounced/failed so "last contacted" readers (which filter on the
+// sent/delivered/opened set, lib/services/comms.ts getLastContactedByContact)
+// stop counting a dead send as a real contact — previously a bounced chase
+// still showed "Contacted today". Delivered/opened advance the status too,
+// guarded so a late webhook never regresses a further-along state.
 async function mirrorToOutboundMessage(queueIds: string[], update: QueueUpdate): Promise<void> {
   const rows = await prisma.outboundEmailQueue.findMany({
     where: { id: { in: queueIds }, outboundMessageId: { not: null } },
@@ -242,6 +246,10 @@ async function mirrorToOutboundMessage(queueIds: string[], update: QueueUpdate):
         where: { id: { in: msgIds }, deliveredAt: null },
         data: { deliveredAt: update.deliveredAt },
       });
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, status: "sent" },
+        data: { status: "delivered" },
+      });
       return;
     case "opened":
       // First open only, mirroring the queue-side first-open rule.
@@ -249,17 +257,29 @@ async function mirrorToOutboundMessage(queueIds: string[], update: QueueUpdate):
         where: { id: { in: msgIds }, openedAt: null },
         data: { openedAt: update.openedAt },
       });
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds }, status: { in: ["sent", "delivered"] } },
+        data: { status: "opened" },
+      });
       return;
     case "bounced":
       await prisma.outboundMessage.updateMany({
         where: { id: { in: msgIds }, failedAt: null },
         data: { failedAt: update.bouncedAt, failureReason: update.bouncedReason },
       });
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds } },
+        data: { status: "bounced" },
+      });
       return;
     case "blocked":
       await prisma.outboundMessage.updateMany({
         where: { id: { in: msgIds }, failedAt: null },
         data: { failedAt: update.blockedAt, failureReason: update.blockedReason },
+      });
+      await prisma.outboundMessage.updateMany({
+        where: { id: { in: msgIds } },
+        data: { status: "failed" },
       });
       return;
     case "deferred":

@@ -2392,10 +2392,17 @@ model OutboundMessage {
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
+  // WhatsApp Cloud thread this message belongs to (Phase 3). The thread owns
+  // the conversation→sale mapping, so reassigning a conversation repoints
+  // these rows in one sweep. Null on every non-WhatsApp-Cloud row.
+  threadId String?
+
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
   chaseTask   ChaseTask?           @relation(fields: [chaseTaskId], references: [id])
+  waThread    WhatsAppThread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
 
+  @@index([threadId])
   @@index([transactionId, createdAt])
   @@index([chaseTaskId])
   @@index([agencyId, createdAt])
@@ -2431,6 +2438,7 @@ enum OutboundChannel {
   linkedin
   twitter
   in_app
+  whatsapp
   other
 }
 
@@ -3622,6 +3630,8 @@ model WhatsAppThread {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  messages OutboundMessage[]
 
   @@unique([businessNumberId, waId])
   @@index([transactionId])
