@@ -215,6 +215,13 @@ export const config = {
     // so they now hit the middleware auth gate. Unauthenticated visitors
     // get redirected to /login; logged-in users still reach them via the
     // existing agentAllowed prefix list inside the middleware function.
+    // Boardwalk Forms (white-label form builder) — boardwalk/* has its own
+    // session system (lib/forms/auth.ts, forms_session cookie), f/* is the
+    // public respondent-facing form runner (no auth by design, like /quote),
+    // and api/forms/* handlers each enforce the Boardwalk session themselves
+    // (public submission endpoints are rate-limited + validated server-side).
+    // All three must bypass the NextAuth gate or visitors get bounced to the
+    // TSP /login. Added 2026-10-12 with the Boardwalk Forms platform.
     // Public legal pages — must bypass the auth-routing redirect so logged-in
     // users can read policies without being thrown back to /agent/hub. terms
     // and privacy were already excluded; cookie-policy, legal (covers both
@@ -231,6 +238,6 @@ export const config = {
     // api/dev follows the same convention: data endpoints for /dev prototypes
     // (e.g. /dev/sold-for), each prod-blocked inside the handler with the same
     // NODE_ENV check, so excluding them here exposes nothing in production.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|boardwalk|f/|api/forms|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

@@ -5949,3 +5949,144 @@ model PostcodeRoute {
 
   @@unique([originPostcode, destPostcode])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Boardwalk Forms — white-label form-builder platform (Typeform alternative)
+// built for customer agencies. Fully separate from TSP sales-progression data:
+// its users live in FormTenantUser (NOT User), its session is a dedicated
+// HMAC-signed cookie (lib/forms/auth.ts), and nothing here references Agency,
+// PropertyTransaction, or any TSP model. Boardwalk is the first tenant row;
+// the architecture is tenant-generic so other agencies can be added later.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model FormTenant {
+  id   String @id @default(cuid())
+  slug String @unique // URL namespace + login scope, e.g. "boardwalk"
+  name String
+
+  // Workspace-level brand defaults (each form also carries its own theme)
+  brandColor String?
+  logoUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users FormTenantUser[]
+  forms TenantForm[]
+}
+
+model FormTenantUser {
+  id       String     @id @default(cuid())
+  tenantId String
+  tenant   FormTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email        String // lowercased
+  name         String
+  passwordHash String // bcrypt cost 12 — never plaintext
+  role         String @default("owner") // owner | member
+
+  // Set true when provisioned with a temporary password; the app forces a
+  // change on first login before anything else is reachable.
+  mustChangePassword Boolean @default(false)
+
+  // Bumped on password change to invalidate all existing session cookies.
+  sessionVersion Int @default(1)
+
+  // Self-service password reset (emailed link). Only the SHA-256 hash of the
+  // token is stored, so a DB read can never recover a live reset link.
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([email])
+}
+
+model TenantForm {
+  id       String     @id @default(cuid())
+  tenantId String
+  tenant   FormTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  title  String
+  status String @default("draft") // draft | published | closed | archived
+
+  // Short unguessable slug for the public URL /f/[publicId]
+  publicId String @unique
+
+  // The full editable document (questions, logic, theme, settings, screens) —
+  // FormDefinition in lib/forms/types.ts. `published` is the frozen copy the
+  // public runner serves; editing `draft` never leaks to respondents.
+  draft     Json
+  published Json?
+
+  publishedAt DateTime?
+  closedAt    DateTime?
+  archivedAt  DateTime?
+
+  responseCount Int      @default(0)
+  lastEditedAt  DateTime @default(now())
+  createdById   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses TenantFormResponse[]
+  uploads   TenantFormUpload[]
+  stats     TenantFormStat[]
+
+  @@index([tenantId, status, lastEditedAt])
+}
+
+model TenantFormResponse {
+  id     String     @id @default(cuid())
+  formId String
+  form   TenantForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  // { [questionId]: answer } — shapes documented in lib/forms/types.ts
+  answers Json
+  // { durationSeconds, endingId, hidden } — no IP/user-agent stored by design
+  meta    Json?
+
+  submittedAt DateTime @default(now())
+
+  uploads TenantFormUpload[]
+
+  @@index([formId, submittedAt])
+}
+
+model TenantFormUpload {
+  id         String              @id @default(cuid())
+  formId     String
+  form       TenantForm          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  // Linked once the owning response is submitted; uploads that never get a
+  // response (abandoned forms) are orphan rows eligible for cleanup.
+  responseId String?
+  response   TenantFormResponse? @relation(fields: [responseId], references: [id], onDelete: SetNull)
+
+  questionId  String
+  storagePath String // path inside the form-uploads Supabase bucket (private)
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+
+  createdAt DateTime @default(now())
+
+  @@index([formId])
+  @@index([responseId])
+}
+
+model TenantFormStat {
+  id     String     @id @default(cuid())
+  formId String
+  form   TenantForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  date        DateTime @db.Date
+  views       Int      @default(0)
+  starts      Int      @default(0)
+  completions Int      @default(0)
+
+  @@unique([formId, date])
+}

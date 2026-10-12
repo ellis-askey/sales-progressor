@@ -154,3 +154,37 @@ export function rateLimitJson(result: RateLimitResult): {
     retryAfter,
   };
 }
+
+// ── Boardwalk Forms limiters ──────────────────────────────────────────────────
+
+/**
+ * Boardwalk Forms login: 10 per 15 minutes — keyed by IP. Mirrors checkAuthLimit
+ * but with its own prefix so TSP login pressure and Boardwalk login pressure
+ * never share a bucket. No-op unless Upstash is configured.
+ */
+export async function checkFormsAuthLimit(ip: string): Promise<RateLimitResult> {
+  if (!isEnabled()) return PASS;
+  const rl = new Ratelimit({
+    redis: getRedis(),
+    limiter: Ratelimit.slidingWindow(10, "15 m"),
+    prefix: "rl:formsauth",
+  });
+  const { success, reset, remaining } = await rl.limit(ip);
+  return { success, reset, remaining };
+}
+
+/**
+ * Public form submission: 20 per 10 minutes — keyed by IP + publicId, so one
+ * busy form can't be flooded from a single address but a shared office IP can
+ * still submit several different forms. No-op unless Upstash is configured.
+ */
+export async function checkFormsSubmitLimit(ip: string, publicId: string): Promise<RateLimitResult> {
+  if (!isEnabled()) return PASS;
+  const rl = new Ratelimit({
+    redis: getRedis(),
+    limiter: Ratelimit.slidingWindow(20, "10 m"),
+    prefix: "rl:formsubmit",
+  });
+  const { success, reset, remaining } = await rl.limit(`${ip}:${publicId}`);
+  return { success, reset, remaining };
+}

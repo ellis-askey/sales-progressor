@@ -401,3 +401,10 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-09-30.
 - **Deletion criteria:** delete this script + this entry once the progression-businesses isolation testing is settled and the seeded fixture data is no longer needed on staging.
 - **Justification:** disposable multi-entity test data that backs an e2e spec; belongs in a seed script (Law 20 keeps fabricated names in seeds), not a feature or a unit test.
+
+### provision-form-tenant.ts
+- **Purpose:** provision (or reset credentials for) a Boardwalk Forms tenant + owner account (`FormTenant` / `FormTenantUser`) with a one-time temporary password, printed once and stored only as a bcrypt hash; the account is flagged `mustChangePassword` so the user chooses their own password on first sign-in at /boardwalk. Refuses the prod project id unless `PROVISION_ON_PROD=yes`.
+- **Lifetime:** ongoing (permanent — the provisioning path for every new form-platform tenant until self-serve onboarding exists).
+- **Author/date:** Claude, 2026-10-12.
+- **Deletion criteria:** permanent while the Boardwalk Forms platform exists without self-serve tenant onboarding; fold into an admin action if/when the platform gets a Command Centre onboarding surface.
+- **Justification:** credentials bootstrap requires a human-run, secret-printing step that must not be a web endpoint; there is no admin surface for form tenants yet, and a feature would be premature for a single tenant.

@@ -322,3 +322,55 @@ export async function getWhatsAppMediaSignedUrlMap(
     return new Map();
   }
 }
+
+// ── Boardwalk Forms uploads ───────────────────────────────────────────────────
+// Private bucket for respondent file uploads (and signature images) from the
+// white-label form platform. Files are only ever served to the authenticated
+// tenant via short-lived signed URLs. The bucket is created programmatically
+// on first use (service role can manage buckets), so no dashboard step needed.
+export const FORM_UPLOADS_BUCKET = "form-uploads";
+
+let formUploadsBucketReady = false;
+
+async function ensureFormUploadsBucket(): Promise<void> {
+  if (formUploadsBucketReady) return;
+  const client = getClient();
+  const { data } = await client.storage.getBucket(FORM_UPLOADS_BUCKET);
+  if (!data) {
+    const { error } = await client.storage.createBucket(FORM_UPLOADS_BUCKET, { public: false });
+    // A parallel request may have created it first — only surface other errors.
+    if (error && !/already exists/i.test(error.message)) {
+      throw new Error(`Failed to create form-uploads bucket: ${error.message}`);
+    }
+  }
+  formUploadsBucketReady = true;
+}
+
+export async function uploadFormFile(
+  path: string,
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  await ensureFormUploadsBucket();
+  const client = getClient();
+  const { error } = await client.storage
+    .from(FORM_UPLOADS_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: false });
+  if (error) throw new Error(`Form upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getFormFileSignedUrl(path: string, expiresInSeconds = 3600): Promise<string> {
+  const client = getClient();
+  const { data, error } = await client.storage
+    .from(FORM_UPLOADS_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error || !data) throw new Error(`Failed to sign form file URL: ${error?.message}`);
+  return data.signedUrl;
+}
+
+export async function deleteFormFiles(paths: string[]): Promise<void> {
+  if (!paths.length) return;
+  const client = getClient();
+  await client.storage.from(FORM_UPLOADS_BUCKET).remove(paths);
+}
