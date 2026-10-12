@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, type ReactNode } from "react";
+import { useState, useTransition, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
@@ -1051,6 +1051,19 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, chased: true, autopilot: true });
+  // Deferred-draw for collapsed groups (perf follow-up 2026-10-12): a
+  // collapsed group's cards aren't visible, so building them on arrival
+  // just slows the page's first draw (most of a busy agency's rows sit in
+  // the collapsed Coming up / Chased / On autopilot groups). A group's
+  // cards mount the first time it opens and stay mounted after, so
+  // re-collapse/re-expand never re-pays the cost. The ref accumulates in
+  // an effect (never during render).
+  const everOpenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const [key, isCollapsed] of Object.entries(collapsed)) {
+      if (!isCollapsed) everOpenRef.current.add(key);
+    }
+  }, [collapsed]);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   // Optimistic bell-tab count (file Reminders tab). null off the file surface.
@@ -1418,7 +1431,11 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         const renderGroup = (grp: (typeof groups)[number]) => {
           if (grp.logs.length === 0) return null;
           const isCollapsed = collapsed[grp.key];
-          const fileGroups = groupByFile(grp.logs);
+          // A never-opened collapsed group keeps its header + count but
+          // skips building its invisible cards (deferred-draw, see
+          // everOpenRef above).
+          const drawCards = !isCollapsed || everOpenRef.current.has(grp.key);
+          const fileGroups = drawCards ? groupByFile(grp.logs) : [];
           return (
             <div key={grp.key} className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
               <div
