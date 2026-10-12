@@ -22,9 +22,11 @@ import { classifyReminder } from "@/lib/reminders/classify";
 import { PageReveal } from "@/components/agent/PageReveal";
 
 // Bespoke composer per Skeleton.tsx's contract — encodes empty-state
-// ghost layout. Inner rows wrap the canonical Skeleton primitive
-// (mirrors PanelSkeletons.tsx from Wave A4 + hub loading.tsx from
-// Surface 2 D1).
+// ghost layout. Inner rows wrap the canonical Skeleton primitive with the
+// shimmer OFF: the ghost is settled decorative content, not a loading
+// state, so it must not animate (perf audit F8 — a permanent shimmer
+// reads as "still loading"). Mirrors PanelSkeletons.tsx from Wave A4 +
+// hub loading.tsx from Surface 2 D1.
 function Bar({ width, height, mt = 0, mb = 0, radius = 6 }: {
   width: string | number;
   height: number;
@@ -35,6 +37,7 @@ function Bar({ width, height, mt = 0, mb = 0, radius = 6 }: {
   return (
     <Skeleton
       variant="block"
+      animated={false}
       width={width}
       height={height}
       style={{ borderRadius: radius, marginTop: mt, marginBottom: mb, display: "block" }}
