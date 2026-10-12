@@ -42,6 +42,37 @@ export async function getCloudLifecycleAction(wamid: string): Promise<{ status: 
   return rows.map((r) => ({ status: r.status, at: r.at.toISOString() }));
 }
 
+// Assign (or correct) a Cloud conversation → sale mapping. The thread owns the
+// mapping, so this is also how a wrong auto-match gets fixed.
+export async function assignCloudThreadAction(
+  threadId: string,
+  transactionId: string,
+  side: "BUYER" | "SELLER" | null,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdmin();
+  try {
+    const { assignCloudThread } = await import("@/lib/integrations/whatsapp-cloud/threads");
+    await assignCloudThread(threadId, transactionId, side);
+    revalidatePath("/command/whatsapp");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't assign that conversation." };
+  }
+}
+
+// Dismiss a conversation that isn't sales traffic. Reversible by assigning later.
+export async function ignoreCloudThreadAction(threadId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireSuperAdmin();
+  try {
+    const { ignoreCloudThread } = await import("@/lib/integrations/whatsapp-cloud/threads");
+    await ignoreCloudThread(threadId);
+    revalidatePath("/command/whatsapp");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't dismiss that conversation." };
+  }
+}
+
 // Property search for manual assignment when there's no auto-suggested match.
 export async function searchWhatsAppTargetsAction(
   q: string,

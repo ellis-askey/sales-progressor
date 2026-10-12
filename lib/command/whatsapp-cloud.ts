@@ -19,6 +19,64 @@ export type CloudPhase1Status = {
   unprocessed: number; // rows awaiting the Phase 2 thread router
 };
 
+// ── Phase 2: thread queues ───────────────────────────────────────────────────
+
+export type CloudThreadRow = {
+  id: string;
+  kind: string;
+  waId: string;
+  displayName: string | null;
+  lastPreview: string | null;
+  lastInboundAt: string | null;
+  assignmentState: string;
+  transactionId: string | null;
+  transactionAddress: string | null;
+  side: string | null;
+  candidates: { id: string; address: string }[];
+};
+
+export type CloudThreads = {
+  needsAssigning: CloudThreadRow[];
+  assigned: CloudThreadRow[];
+};
+
+export async function getCloudThreads(): Promise<CloudThreads> {
+  const threads = await prisma.whatsAppThread.findMany({
+    where: { assignmentState: { in: ["needs_assigning", "auto", "manual"] } },
+    orderBy: { updatedAt: "desc" },
+    take: 60,
+    include: { transaction: { select: { propertyAddress: true } } },
+  });
+  // Candidate addresses in one lookup.
+  const candidateIds = [...new Set(threads.flatMap((t) => t.candidateTransactionIds))];
+  const candidateTx = candidateIds.length
+    ? await prisma.propertyTransaction.findMany({
+        where: { id: { in: candidateIds } },
+        select: { id: true, propertyAddress: true },
+      })
+    : [];
+  const addrById = new Map(candidateTx.map((t) => [t.id, t.propertyAddress]));
+
+  const toRow = (t: (typeof threads)[number]): CloudThreadRow => ({
+    id: t.id,
+    kind: t.kind,
+    waId: t.waId,
+    displayName: t.displayName,
+    lastPreview: t.lastPreview,
+    lastInboundAt: t.lastInboundAt?.toISOString() ?? null,
+    assignmentState: t.assignmentState,
+    transactionId: t.transactionId,
+    transactionAddress: t.transaction?.propertyAddress ?? null,
+    side: t.side ?? null,
+    candidates: t.candidateTransactionIds.map((id) => ({ id, address: addrById.get(id) ?? id })),
+  });
+
+  return {
+    needsAssigning: threads.filter((t) => t.assignmentState === "needs_assigning").map(toRow),
+    assigned: threads.filter((t) => t.assignmentState !== "needs_assigning").map(toRow),
+  };
+}
+
 export async function getCloudPhase1Status(): Promise<CloudPhase1Status> {
   if (!isCloudConfigured()) {
     return {

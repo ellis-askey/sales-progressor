@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cloudEnv } from "@/lib/integrations/whatsapp-cloud/config";
 import { verifyMetaSignature } from "@/lib/integrations/whatsapp-cloud/signature";
 import { storeWebhookEvents } from "@/lib/integrations/whatsapp-cloud/events";
+import { routeUnprocessedEvents } from "@/lib/integrations/whatsapp-cloud/threads";
 
 export async function GET(req: NextRequest) {
   const env = cloudEnv();
@@ -45,6 +46,15 @@ export async function POST(req: NextRequest) {
     // transient DB blip loses nothing and double-delivers nothing.
     console.error("[whatsapp-cloud] webhook store failed", e);
     return new NextResponse("Store failed", { status: 500 });
+  }
+
+  // Route stored messages into threads (Phase 2). Best-effort on the hot path:
+  // a routing failure never fails the webhook (events stay unprocessed and the
+  // next delivery's pass picks them up).
+  try {
+    await routeUnprocessedEvents();
+  } catch (e) {
+    console.error("[whatsapp-cloud] thread routing failed", e);
   }
   return NextResponse.json({ ok: true });
 }

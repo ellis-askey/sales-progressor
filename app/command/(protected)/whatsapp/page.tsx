@@ -1,5 +1,6 @@
 import { getWhatsAppConnectionStatus, getUnmatchedChats, getAssignedChats, getGoneQuietChats, type WhatsAppConnectionStatus, type GoneQuietChat } from "@/lib/command/whatsapp";
-import { getCloudPhase1Status } from "@/lib/command/whatsapp-cloud";
+import { getCloudPhase1Status, getCloudThreads } from "@/lib/command/whatsapp-cloud";
+import { WhatsAppCloudThreads } from "@/components/command/WhatsAppCloudThreads";
 import { WhatsAppAssign } from "@/components/command/WhatsAppAssign";
 import { WhatsAppAssignedList } from "@/components/command/WhatsAppAssignedList";
 import { WhatsAppRepairButton } from "@/components/command/WhatsAppRepairButton";
@@ -18,12 +19,13 @@ function fmtWhen(iso: string | null | undefined) {
 }
 
 export default async function WhatsAppCommandPage() {
-  const [status, chats, assigned, quiet, cloud] = await Promise.all([
+  const [status, chats, assigned, quiet, cloud, cloudThreads] = await Promise.all([
     getWhatsAppConnectionStatus(),
     getUnmatchedChats(),
     getAssignedChats().catch(() => []),
     getGoneQuietChats().catch(() => []),
     getCloudPhase1Status().catch(() => null),
+    getCloudThreads().catch(() => null),
   ]);
 
   return (
@@ -37,6 +39,9 @@ export default async function WhatsAppCommandPage() {
       </div>
 
       {cloud && <WhatsAppCloudCard status={cloud} />}
+      {cloud?.configured && cloudThreads && (
+        <WhatsAppCloudThreads needsAssigning={cloudThreads.needsAssigning} assigned={cloudThreads.assigned} />
+      )}
 
       <ConnectionCard status={status} />
 

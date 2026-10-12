@@ -1005,6 +1005,7 @@ model PropertyTransaction {
 
   quoteRequests         QuoteRequest[]
   whatsAppGroupMappings WhatsAppGroupMapping[]
+  whatsAppThreads       WhatsAppThread[]
   hubCardDismissals     HubCardDismissal[]
   milestoneProposals    MilestoneProposal[]
   agentRuns             AgentRun[]
@@ -3580,6 +3581,51 @@ model WhatsAppBusinessNumber {
   lastError      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  threads WhatsAppThread[]
+}
+
+// One WhatsApp conversation on a Cloud number (Phase 2, REBUILD_PLAN §C2): a
+// 1:1 chat with one person, or (Phase 6) a TSP-created group. The thread owns
+// the transaction mapping — messages inherit it, so reassignment is one field,
+// and anything uncertain queues for a human instead of being guessed
+// (accuracy > coverage). Mirrors the proven Baileys chat-mapping pattern.
+model WhatsAppThread {
+  id               String                 @id @default(cuid())
+  businessNumberId String
+  businessNumber   WhatsAppBusinessNumber @relation(fields: [businessNumberId], references: [id], onDelete: Cascade)
+  kind             String // direct | group
+  waId             String // the person's wa_id (direct) or the group id (group)
+  displayName      String? // WhatsApp profile name (direct) / subject (group)
+
+  // The mapping. assignmentState: auto (matched by the ladder) | manual
+  // (human-assigned) | needs_assigning (queued) | ignored (dismissed, e.g.
+  // a wrong number). candidateTransactionIds holds the options when a phone
+  // matches contacts on several live sales.
+  transactionId           String?
+  transaction             PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  side                    WhatsAppSide?
+  contactIds              String[]
+  assignmentState         String               @default("needs_assigning")
+  candidateTransactionIds String[]
+
+  // Conversation state. lastInboundAt drives the 24-hour reply-window maths
+  // (Phase 4/5); lastPreview is the inbox list line.
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+  lastPreview    String?
+  unreadCount    Int       @default(0)
+
+  // Group fields (Phase 6).
+  groupSubject    String?
+  groupInviteLink String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessNumberId, waId])
+  @@index([transactionId])
+  @@index([assignmentState])
 }
 
 // Raw, idempotent store of every Cloud API webhook event (messages + statuses).
@@ -3595,12 +3641,14 @@ model WhatsAppCloudEvent {
   waFrom        String? // sender wa_id (inbound messages)
   status        String? // sent | delivered | read | failed (status events)
   payload       Json // the full webhook `value` object as received
+  threadId      String? // set by the Phase 2 thread router once routed
   processedAt   DateTime? // consumed by the Phase 2 thread router; null until then
   receivedAt    DateTime  @default(now())
 
   @@index([phoneNumberId, receivedAt])
   @@index([wamid])
   @@index([processedAt])
+  @@index([threadId])
 }
 
 // A saved, scenario-scoped override of a milestone email's copy. The code
