@@ -3554,6 +3554,55 @@ enum WhatsAppSide {
   SELLER
 }
 
+// ── WhatsApp Cloud API (official) — Phase 1 of docs/active/whatsapp-rebuild ──
+// The official Meta integration that replaces the Baileys bridge over time.
+// Tenant-aware from day one (REBUILD_PLAN §C2): TSP's own number now, customer
+// progression businesses/agencies later. The Baileys models above stay
+// untouched until Phase 7 decommission.
+
+// One row per connected Cloud API business number. The access token is stored
+// AES-256-GCM encrypted (lib/security/token-crypto, same pattern as
+// OutlookConnection); phoneNumberId is the webhook routing key.
+model WhatsAppBusinessNumber {
+  id             String    @id @default(cuid())
+  ownerType      String    @default("tsp") // tsp | agency | progression_business
+  ownerId        String? // null for tsp; Agency / ProgressionBusiness id later
+  wabaId         String
+  phoneNumberId  String    @unique // Meta business phone number id
+  displayPhone   String? // human-readable E.164
+  displayName    String?
+  accessTokenEnc String // encrypted; never store or log plaintext
+  tokenExpiresAt DateTime? // null = never-expiring system-user token
+  status         String    @default("active") // active | disabled | error
+  qualityRating  String?
+  messagingTier  String?
+  lastEventAt    DateTime? // last webhook event received — the health signal
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Raw, idempotent store of every Cloud API webhook event (messages + statuses).
+// dedupKey makes replayed/duplicate webhook deliveries no-ops at the DB level
+// (REBUILD_PLAN §C3: enqueue-and-ack fast; Phase 2's thread router consumes
+// rows and stamps processedAt — until then rows simply accumulate unprocessed).
+model WhatsAppCloudEvent {
+  id            String    @id @default(cuid())
+  dedupKey      String    @unique // msg:<wamid> | status:<wamid>:<status>
+  kind          String // message | status | other
+  phoneNumberId String // receiving business number — tenant routing key
+  wamid         String? // the message id the event concerns
+  waFrom        String? // sender wa_id (inbound messages)
+  status        String? // sent | delivered | read | failed (status events)
+  payload       Json // the full webhook `value` object as received
+  processedAt   DateTime? // consumed by the Phase 2 thread router; null until then
+  receivedAt    DateTime  @default(now())
+
+  @@index([phoneNumberId, receivedAt])
+  @@index([wamid])
+  @@index([processedAt])
+}
+
 // A saved, scenario-scoped override of a milestone email's copy. The code
 // default in lib/portal-copy.ts is the baseline; a row here replaces it for a
 // given (step code, recipient side) and scenario. `tenure` and `purchaseType`

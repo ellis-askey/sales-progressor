@@ -1,7 +1,9 @@
 import { getWhatsAppConnectionStatus, getUnmatchedChats, getAssignedChats, getGoneQuietChats, type WhatsAppConnectionStatus, type GoneQuietChat } from "@/lib/command/whatsapp";
+import { getCloudPhase1Status } from "@/lib/command/whatsapp-cloud";
 import { WhatsAppAssign } from "@/components/command/WhatsAppAssign";
 import { WhatsAppAssignedList } from "@/components/command/WhatsAppAssignedList";
 import { WhatsAppRepairButton } from "@/components/command/WhatsAppRepairButton";
+import { WhatsAppCloudCard } from "@/components/command/WhatsAppCloudCard";
 
 // Command Centre → WhatsApp. Bridge connection status + the queue of
 // conversations waiting to be assigned to a property.
@@ -16,11 +18,12 @@ function fmtWhen(iso: string | null | undefined) {
 }
 
 export default async function WhatsAppCommandPage() {
-  const [status, chats, assigned, quiet] = await Promise.all([
+  const [status, chats, assigned, quiet, cloud] = await Promise.all([
     getWhatsAppConnectionStatus(),
     getUnmatchedChats(),
     getAssignedChats().catch(() => []),
     getGoneQuietChats().catch(() => []),
+    getCloudPhase1Status().catch(() => null),
   ]);
 
   return (
@@ -32,6 +35,8 @@ export default async function WhatsAppCommandPage() {
           moves every held message onto the file and links all future messages automatically.
         </p>
       </div>
+
+      {cloud && <WhatsAppCloudCard status={cloud} />}
 
       <ConnectionCard status={status} />
 

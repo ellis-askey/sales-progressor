@@ -13,6 +13,35 @@ async function requireSuperAdmin() {
   if (!session?.user || !hasSuperAdminPowers(session)) redirect("/dashboard");
 }
 
+// ── Cloud API Phase 1 (official integration) ────────────────────────────────
+
+// Send a free-form test message from the TSP Cloud number — the Phase 1
+// end-to-end proof (REBUILD_PLAN §G P1 exit criterion). Founder-only; the
+// recipient is whatever number the founder types (their own phone in practice).
+export async function sendCloudTestAction(to: string): Promise<{ ok: boolean; wamid?: string; error?: string }> {
+  await requireSuperAdmin();
+  const { ensureTspNumber } = await import("@/lib/integrations/whatsapp-cloud/accounts");
+  const { sendCloudText } = await import("@/lib/integrations/whatsapp-cloud/client");
+  const row = await ensureTspNumber();
+  if (!row) return { ok: false, error: "Cloud API env vars aren't set yet." };
+  const res = await sendCloudText({
+    phoneNumberId: row.phoneNumberId,
+    to,
+    body: "Test message from The Sales Progressor. If you can read this, sending works.",
+  });
+  return res.ok ? { ok: true, wamid: res.wamid } : { ok: false, error: res.error };
+}
+
+// Poll a test message's real lifecycle, assembled from status webhooks —
+// proves statuses flow (sent → delivered → read), never assumed.
+export async function getCloudLifecycleAction(wamid: string): Promise<{ status: string; at: string }[]> {
+  await requireSuperAdmin();
+  if (!wamid) return [];
+  const { getMessageLifecycle } = await import("@/lib/integrations/whatsapp-cloud/events");
+  const rows = await getMessageLifecycle(wamid);
+  return rows.map((r) => ({ status: r.status, at: r.at.toISOString() }));
+}
+
 // Property search for manual assignment when there's no auto-suggested match.
 export async function searchWhatsAppTargetsAction(
   q: string,

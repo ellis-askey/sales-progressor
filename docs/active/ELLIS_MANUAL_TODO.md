@@ -8,6 +8,28 @@ Last updated: 2026-10-12
 
 ---
 
+## WhatsApp Cloud API — Phase 1 external setup (2026-10-12)
+
+The code side of Phase 1 (docs/active/whatsapp-rebuild/REBUILD_PLAN.md §G P1) is built: official webhook endpoint, send client, encrypted number registry, idempotent event store, and a founder-only test card on Command Centre → WhatsApp. It is DARK until you do the Meta-side setup. The Baileys bridge is completely untouched and keeps running.
+
+**Database first:** run `npm run db:push` once before testing on local/staging (adds `WhatsAppBusinessNumber` + `WhatsAppCloudEvent` — additive). Production applies migration `20261012210000_whatsapp_cloud_phase1` automatically on the next prod deploy.
+
+**Meta setup, in order (roughly 1–2 hours of clicking, then waiting):**
+1. **Business portfolio + verification** — business.facebook.com → Settings → Business verification. Submit TSP's company details (Companies House record, proof of address). Verification is not needed to start messaging, but start it NOW: it gates the 2,000-message tier, the 20-number cap, Tech Provider later, and the OBA badge for groups. Also enable two-step verification on the portfolio.
+2. **New phone number** — buy a dedicated mobile number (or voice-capable landline with no IVR). Do NOT use +447508862929 for anything here.
+3. **Meta app** — developers.facebook.com → Create App → type Business → add the WhatsApp product, attached to the TSP portfolio.
+4. **Register the number** — App Dashboard → WhatsApp → API Setup → add the new number, verify by SMS/voice, set display name "The Sales Progressor". Note the **Phone number ID** and **WABA ID** shown there.
+5. **Permanent token** — Business Settings → System users → create an admin system user → Generate token for the app with `whatsapp_business_messaging`, `whatsapp_business_management`, `business_management`, expiry **never**. Copy it once.
+6. **App secret** — App Dashboard → App settings → Basic → App secret.
+7. **Env vars** — set in Vercel (prod + staging, different verify tokens fine) and `.env.local`:
+   `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN` (any string you make up — `openssl rand -hex 16`).
+8. **Webhook** — App Dashboard → WhatsApp → Configuration → Callback URL: `https://portal.thesalesprogressor.co.uk/api/webhooks/whatsapp`, Verify token: the value from step 7 → Verify and save (the endpoint answers the handshake once the env vars are deployed — so deploy step 7 first). Then under Webhook fields, **subscribe to `messages`**.
+9. **Payment method** — WhatsApp Manager → Billing: add a card (per-message billing; without it, delivery stops after tiny free tiers).
+10. **Prove it** — Command Centre → WhatsApp → "Official Cloud API" card: type your own mobile, Send test message, and watch sent → delivered → read light up from Meta's real webhooks. Then WhatsApp-reply to that message from your phone and the card's "Events in 24h" message count should tick up. That's Phase 1's exit test passed.
+11. **Diarise for later (not blocking):** after the number is 30 days old + portfolio verified + display name approved → submit the free **Official Business Account** request in WhatsApp Manager (this is the groups gate for Phase 6). And submit the first utility template drafts when Phase 5 approaches.
+
+---
+
 ## Fix Vercel's stuck staging URL — dashboard check (perf audit F3, 2026-10-12)
 
 The staging link (`salesprogressor-git-staging-….vercel.app`) does not follow new builds: staging deployments go Ready, correctly tagged with the staging branch, but Vercel never repoints the URL (confirmed by controlled test 2026-10-12 — a Ready staging build sat 20+ minutes while the URL kept serving the manually-set one). This is why staging silently served weeks-old code for most of September/October. The cause is in dashboard-only settings the CLI can't read.
