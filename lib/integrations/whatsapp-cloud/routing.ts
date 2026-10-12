@@ -56,6 +56,19 @@ export type Assignment =
   | { state: "auto"; transactionId: string; side: "BUYER" | "SELLER" | null; contactIds: string[]; candidates: [] }
   | { state: "needs_assigning"; transactionId: null; side: null; contactIds: string[]; candidates: string[] };
 
+// ── Reply-window maths (Phase 4) ────────────────────────────────────────────
+// Meta's 24-hour customer-service window: free-form messages may only be sent
+// within 24h of the person's LAST inbound message; it re-opens on every reply.
+// Outside it, only approved templates (Phase 5) can start a conversation.
+
+export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function windowOpenUntil(lastInboundAt: Date | null | undefined, now: Date = new Date()): Date | null {
+  if (!lastInboundAt) return null;
+  const until = new Date(lastInboundAt.getTime() + SERVICE_WINDOW_MS);
+  return until.getTime() > now.getTime() ? until : null;
+}
+
 // ── Ledger status mapping (Phase 3) ─────────────────────────────────────────
 // WhatsApp lifecycle → the OutboundMessage status enum + its timestamp column.
 // `read` maps to `opened` (the ledger's email-era name for the same truth).

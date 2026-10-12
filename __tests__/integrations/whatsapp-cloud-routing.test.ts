@@ -2,7 +2,7 @@
 // auto-attached when its sender matches exactly ONE live sale; several sales →
 // candidates queue; unknown → queue. Plus thread-key parsing and phone cores.
 
-import { threadKeyFromMessage, previewFromMessage, last9, chooseAssignment, ledgerUpdateForWaStatus, waRankOfLedgerStatus } from "@/lib/integrations/whatsapp-cloud/routing";
+import { threadKeyFromMessage, previewFromMessage, last9, chooseAssignment, ledgerUpdateForWaStatus, waRankOfLedgerStatus, windowOpenUntil, SERVICE_WINDOW_MS } from "@/lib/integrations/whatsapp-cloud/routing";
 import { statusAdvances } from "@/lib/integrations/whatsapp-cloud/signature";
 
 describe("threadKeyFromMessage", () => {
@@ -78,6 +78,21 @@ describe("chooseAssignment — the accuracy rule", () => {
   it("unknown sender → queued with no candidates", () => {
     const d = chooseAssignment([]);
     expect(d).toMatchObject({ state: "needs_assigning", transactionId: null, candidates: [] });
+  });
+});
+
+describe("reply-window maths (Phase 4)", () => {
+  const now = new Date("2026-10-13T12:00:00Z");
+
+  it("open within 24h of the last inbound, with the correct expiry", () => {
+    const lastInbound = new Date("2026-10-13T10:00:00Z");
+    const until = windowOpenUntil(lastInbound, now);
+    expect(until?.toISOString()).toBe(new Date(lastInbound.getTime() + SERVICE_WINDOW_MS).toISOString());
+  });
+
+  it("closed after 24h, and closed when they've never messaged", () => {
+    expect(windowOpenUntil(new Date("2026-10-12T11:59:00Z"), now)).toBeNull();
+    expect(windowOpenUntil(null, now)).toBeNull();
   });
 });
 
