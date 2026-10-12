@@ -45,6 +45,18 @@ export function QuickAddModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Escape must close the composer wherever focus is — not only inside the
+  // input (capture phase so pickers can still stop it first).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") todo.closeQuickAdd();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const parsed = useMemo(() => parseQuickAdd(text || " ", todayInLondon()), [text]);
 
   const matchedProject = useMemo(() => {
@@ -112,11 +124,11 @@ export function QuickAddModal() {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: 4,
         background: "var(--bw-paper-sunken)",
         borderRadius: 999,
-        padding: "4px 10px",
-        fontSize: 12,
+        padding: "3px 9px",
+        fontSize: 11.5,
         fontWeight: 600,
         color: color ?? "var(--bw-ink)",
       }}
@@ -135,33 +147,44 @@ export function QuickAddModal() {
     <div className="bw-scope">
       <div className="bw-backdrop" onClick={todo.closeQuickAdd} />
       <div className="bw-modal" role="dialog" aria-modal="true" aria-label="Add task" style={{ alignItems: "flex-start", paddingTop: "14vh" }}>
-        <div className="bw-modal-panel" style={{ maxWidth: 620 }}>
-          <div style={{ padding: "18px 20px 16px" }}>
-            <input
-              ref={inputRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void submit(!e.metaKey && !e.ctrlKey);
-                }
-                if (e.key === "Escape") todo.closeQuickAdd();
-              }}
-              placeholder='Try "Call vendor tomorrow at 10am p2 #Launch @admin +nick"'
-              style={{
-                width: "100%",
-                border: "none",
-                outline: "none",
-                fontSize: 17,
-                fontFamily: "var(--bw-font-sans)",
-                color: "var(--bw-ink)",
-                background: "transparent",
-              }}
-            />
+        <div className="bw-modal-panel" style={{ maxWidth: 580 }}>
+          <div style={{ padding: "14px 16px 12px" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                ref={inputRef}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submit(!e.metaKey && !e.ctrlKey);
+                  }
+                  if (e.key === "Escape") todo.closeQuickAdd();
+                }}
+                placeholder='Call vendor tomorrow at 10am p2 #Launch +nick'
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  fontSize: 15.5,
+                  fontFamily: "var(--bw-font-sans)",
+                  color: "var(--bw-ink)",
+                  background: "transparent",
+                  minWidth: 0,
+                }}
+              />
+              <button
+                className="bw-btn bw-btn-primary bw-btn-sm"
+                disabled={!parsed.title.trim() || busy}
+                onClick={() => void submit(false)}
+                style={{ flexShrink: 0 }}
+              >
+                Add task
+              </button>
+            </div>
 
             {/* parse preview chips */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, minHeight: 26 }}>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 9, minHeight: 24 }}>
               {effective.dueDate && chip(<CalendarDays size={12} />, formatDueLabel(effective.dueDate, effective.dueTime), () => setManual((m) => ({ ...m, dueDate: null, dueTime: null })))}
               {effective.recurrence && chip(<Repeat size={12} />, effective.recurrence.label, () => setManual((m) => ({ ...m, recurrence: null })))}
               {effective.priority < 4 && chip(<Flag size={12} />, `P${effective.priority}`, () => setManual((m) => ({ ...m, priority: 4 })), PRIORITY_COLORS[effective.priority])}
@@ -176,7 +199,7 @@ export function QuickAddModal() {
           </div>
 
           {/* picker bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "10px 16px", borderTop: "1px solid var(--bw-line)", background: "var(--bw-paper)", position: "relative", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 12px", borderTop: "1px solid var(--bw-line)", background: "var(--bw-paper)", position: "relative", flexWrap: "wrap" }}>
             <div style={{ position: "relative" }}>
               <button className="bw-btn bw-btn-secondary bw-btn-sm" onClick={() => setPicker(picker === "due" ? null : "due")}>
                 <CalendarDays size={13} /> {effective.dueDate ? formatDueLabel(effective.dueDate) : "Date"}
@@ -224,12 +247,7 @@ export function QuickAddModal() {
               )}
             </div>
 
-            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-              <span className="bw-hint" style={{ fontSize: 11 }}>Enter adds another · Ctrl+Enter adds &amp; closes</span>
-              <button className="bw-btn bw-btn-primary bw-btn-sm" disabled={!parsed.title.trim() || busy} onClick={() => void submit(false)}>
-                Add task
-              </button>
-            </div>
+            <span className="bw-hint" style={{ marginLeft: "auto", fontSize: 10.5 }}>Enter adds another · Esc closes</span>
           </div>
         </div>
       </div>

@@ -27,6 +27,7 @@ import type {
   TodoCounts,
 } from "@/lib/todo/types";
 import { useBwToast } from "../ui";
+import { getSmartFilter } from "./smartFilters";
 
 export type ViewKey = string; // "inbox" | "today" | "upcoming:FROM:TO" | "completed" | "project:ID" | "label:ID" | "filter:ID" | "search:Q"
 
@@ -159,6 +160,9 @@ export function TodoProvider({ me, children }: { me: string; children: ReactNode
         params.set("view", "filter");
         const f = bootRef.current?.filters.find((x) => x.id === a);
         params.set("filter", JSON.stringify(f?.query ?? { combinator: "and", conditions: [] }));
+      } else if (kind === "smart") {
+        params.set("view", "filter");
+        params.set("filter", JSON.stringify(getSmartFilter(a)?.query ?? { combinator: "and", conditions: [] }));
       }
       const res = await formsApi<{ tasks: TaskDto[] }>(`/api/todo/tasks?${params}`);
       setViews((v) => ({ ...v, [key]: res.tasks }));

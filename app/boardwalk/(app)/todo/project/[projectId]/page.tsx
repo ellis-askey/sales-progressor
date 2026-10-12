@@ -19,6 +19,7 @@ import { BwButton, BwMenu, useBwToast } from "@/components/boardwalk/ui";
 import { formsApi } from "@/lib/forms/client";
 import type { TaskDto } from "@/lib/todo/types";
 import { daysInMonth, isoWeekday, todayInLondon, toParts, addDays } from "@/lib/todo/recurrence";
+import { dueTone, formatDueLabel } from "@/components/boardwalk/todo/Pickers";
 
 type ProjectView = "list" | "board" | "calendar";
 
@@ -229,39 +230,57 @@ function ListView({ projectId, viewKey, tasks }: { projectId: string; viewKey: s
 function BoardCard({ task }: { task: TaskDto }) {
   const todo = useTodo();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
+  const pColor = task.priority === 1 ? "var(--bw-red)" : task.priority === 2 ? "var(--bw-amber)" : task.priority === 3 ? "#3b6ea5" : "var(--bw-line-strong)";
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
       onClick={() => todo.openTask(task.id)}
-      className="bw-card"
       style={{
-        padding: "10px 12px",
+        background: "var(--bw-paper-raised)",
+        borderRadius: 11,
+        border: "1px solid var(--bw-line)",
+        boxShadow: "var(--bw-shadow-sm)",
+        padding: "9px 11px",
         cursor: "grab",
         transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
         opacity: isDragging ? 0.65 : 1,
         zIndex: isDragging ? 60 : undefined,
         position: "relative",
-        borderLeft: task.priority < 4 ? `3px solid ${task.priority === 1 ? "var(--bw-red)" : task.priority === 2 ? "var(--bw-amber)" : "#3b6ea5"}` : undefined,
+        transition: "box-shadow 140ms ease",
       }}
     >
-      <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.4 }}>{task.title}</p>
-      <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
-        {task.dueDate && (
-          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--bw-ink-soft)" }}>
-            {new Date(`${task.dueDate}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}
-          </span>
-        )}
-        {task.subtaskCount > 0 && (
-          <span style={{ fontSize: 11, color: "var(--bw-ink-faint)" }}>{task.subtaskDone}/{task.subtaskCount}</span>
-        )}
-        {task.assigneeId && (
-          <span style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 99, background: "var(--bw-blush)", color: "var(--bw-blush-ink)", fontSize: 8, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            {memberInitials(task.assigneeId)}
-          </span>
-        )}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <button
+          aria-label="Complete task"
+          onClick={(e) => {
+            e.stopPropagation();
+            void todo.completeTask(task.id, !task.completedAt);
+          }}
+          style={{ width: 15, height: 15, borderRadius: 999, flexShrink: 0, marginTop: 2, border: `1.5px solid ${pColor}`, background: task.completedAt ? pColor : "transparent", cursor: "pointer" }}
+        />
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 550, lineHeight: 1.4, flex: 1, minWidth: 0, textDecoration: task.completedAt ? "line-through" : "none", color: task.completedAt ? "var(--bw-ink-faint)" : "var(--bw-ink)" }}>
+          {task.title}
+        </p>
       </div>
+      {(task.dueDate || task.subtaskCount > 0 || task.assigneeId) && (
+        <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center", paddingLeft: 23 }}>
+          {task.dueDate && (
+            <span style={{ fontSize: 10.5, fontWeight: 650, color: dueTone(task.dueDate) }}>
+              {formatDueLabel(task.dueDate, task.dueTime)}
+            </span>
+          )}
+          {task.subtaskCount > 0 && (
+            <span style={{ fontSize: 10.5, color: "var(--bw-ink-faint)" }}>{task.subtaskDone}/{task.subtaskCount}</span>
+          )}
+          {task.assigneeId && (
+            <span style={{ marginLeft: "auto", width: 16, height: 16, borderRadius: 99, background: "var(--bw-blush)", color: "var(--bw-blush-ink)", fontSize: 7.5, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {memberInitials(task.assigneeId)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -273,17 +292,19 @@ function memberInitials(id: string) {
   return (m?.name ?? "?").split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function BoardColumn({ id, title, tasks, projectId, viewKey }: { id: string; title: string; tasks: TaskDto[]; projectId: string; viewKey: string }) {
+function BoardColumn({ id, title, tasks, projectId, viewKey, tint }: { id: string; title: string; tasks: TaskDto[]; projectId: string; viewKey: string; tint: number }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
+      className="bw-board-col"
+      data-tint={String(tint % 4)}
       style={{
-        width: 280,
+        width: 272,
         flexShrink: 0,
-        background: isOver ? "var(--bw-blush)" : "var(--bw-paper-sunken)",
+        background: isOver ? "var(--bw-blush)" : undefined,
         borderRadius: 14,
-        padding: 10,
+        padding: 9,
         display: "flex",
         flexDirection: "column",
         gap: 8,
@@ -323,9 +344,9 @@ function BoardView({ projectId, viewKey, tasks }: { projectId: string; viewKey: 
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <div className="bw-scroll" style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 14, alignItems: "flex-start", minHeight: 420 }}>
-        <BoardColumn id="none" title="No section" tasks={tasks.filter((t) => !t.sectionId)} projectId={projectId} viewKey={viewKey} />
-        {project.sections.map((s) => (
-          <BoardColumn key={s.id} id={s.id} title={s.name} tasks={tasks.filter((t) => t.sectionId === s.id)} projectId={projectId} viewKey={viewKey} />
+        <BoardColumn id="none" title="No section" tasks={tasks.filter((t) => !t.sectionId)} projectId={projectId} viewKey={viewKey} tint={0} />
+        {project.sections.map((s, i) => (
+          <BoardColumn key={s.id} id={s.id} title={s.name} tasks={tasks.filter((t) => t.sectionId === s.id)} projectId={projectId} viewKey={viewKey} tint={i + 1} />
         ))}
       </div>
     </DndContext>

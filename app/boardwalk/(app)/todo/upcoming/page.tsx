@@ -90,16 +90,18 @@ function ListMode({ viewKey, from, byDate, loading }: { viewKey: string; from: s
         const weekend = isoWeekday(date) > 5;
         if (!list.length && weekend) return null;
         return (
-          <section key={date} style={{ marginBottom: 6 }}>
-            <p className="bw-kicker" style={{ fontSize: 10.5, margin: "16px 0 2px", color: date === today ? "var(--bw-sage-ink)" : undefined }}>
-              {formatDueLabel(date)} ·{" "}
-              {new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" })}
-              {list.length > 0 && <span style={{ marginLeft: 8, color: "var(--bw-ink-faint)" }}>{list.length}</span>}
+          <section key={date} className="bw-day-section" style={{ marginBottom: 2 }}>
+            <p className="bw-kicker" style={{ fontSize: 10, margin: "12px 0 1px", color: date === today ? "var(--bw-sage-ink)" : undefined, display: "flex", alignItems: "baseline", gap: 6 }}>
+              {formatDueLabel(date)}
+              <span style={{ fontWeight: 600, color: "var(--bw-ink-faint)", textTransform: "none", letterSpacing: "0.02em" }}>
+                {new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" })}
+              </span>
+              {list.length > 0 && <span style={{ color: "var(--bw-ink-faint)" }}>{list.length}</span>}
             </p>
             {list.map((t) => (
-              <TaskRow key={t.id} task={t} viewKey={viewKey} showProject />
+              <TaskRow key={t.id} task={t} viewKey={viewKey} showProject showTimeRight />
             ))}
-            <InlineAdd viewKey={viewKey} defaults={{ dueDate: date }} placeholder="Add a task for this day" />
+            <InlineAdd viewKey={viewKey} defaults={{ dueDate: date }} placeholder="Add" />
           </section>
         );
       })}
@@ -108,6 +110,13 @@ function ListMode({ viewKey, from, byDate, loading }: { viewKey: string; from: s
 }
 
 // ─── Calendar mode with drag-to-reschedule ───────────────────────────────────
+
+let _projects: { id: string; color: string }[] = [];
+function projectColor(task: TaskDto): string {
+  const p = task.projectId ? _projects.find((x) => x.id === task.projectId) : null;
+  if (p) return p.color;
+  return task.priority === 1 ? "var(--bw-red)" : task.priority === 2 ? "var(--bw-amber)" : "var(--bw-sage)";
+}
 
 function DraggableChip({ task }: { task: TaskDto }) {
   const todo = useTodo();
@@ -124,7 +133,7 @@ function DraggableChip({ task }: { task: TaskDto }) {
         width: "100%",
         textAlign: "left",
         border: "none",
-        borderLeft: `3px solid ${task.priority === 1 ? "var(--bw-red)" : task.priority === 2 ? "var(--bw-amber)" : "var(--bw-sage)"}`,
+        borderLeft: `3px solid ${projectColor(task)}`,
         background: "var(--bw-paper-sunken)",
         borderRadius: 6,
         padding: "3px 7px",
@@ -206,6 +215,7 @@ function DayCell({ date, inMonth, tasks }: { date: string; inMonth: boolean; tas
 
 function CalendarMode({ viewKey, monthAnchor, byDate }: { viewKey: string; monthAnchor: string; byDate: Map<string, TaskDto[]> }) {
   const todo = useTodo();
+  _projects = todo.projects;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const month = monthAnchor.slice(0, 7);
   const first = `${month}-01`;

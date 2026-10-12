@@ -6,7 +6,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, CalendarDays, Inbox as InboxIcon, Search, LayoutGrid } from "lucide-react";
+import { Plus, CalendarDays, Inbox as InboxIcon, Search, LayoutGrid, PanelLeft } from "lucide-react";
 import { useTodo } from "./TodoProvider";
 import { TodoSidebar } from "./TodoSidebar";
 import { QuickAddModal } from "./QuickAddModal";
@@ -22,6 +22,8 @@ export function TodoChrome({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  const sidebarCollapsed = todo.prefs.sidebarCollapsed === true;
+  const setSidebarCollapsed = (v: boolean) => todo.savePrefs({ sidebarCollapsed: v });
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 860px)");
@@ -59,7 +61,11 @@ export function TodoChrome({ children }: { children: ReactNode }) {
         document.addEventListener("keydown", second);
         setTimeout(() => document.removeEventListener("keydown", second), 1200);
       } else if (e.key === "Escape") {
-        todo.clearSelection();
+        // Belt and braces: the detail panel has its own Escape handler, but
+        // this always-attached one guarantees Escape never leaves a stuck
+        // drawer (the panel's listener re-subscribes on renders).
+        if (todo.openTaskId) todo.openTask(null);
+        else todo.clearSelection();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -95,7 +101,22 @@ export function TodoChrome({ children }: { children: ReactNode }) {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 62px)", overflow: "hidden" }}>
-      {!narrow && <TodoSidebar onSearch={() => setSearchOpen(true)} />}
+      {!narrow && !sidebarCollapsed && (
+        <TodoSidebar onSearch={() => setSearchOpen(true)} onCollapse={() => setSidebarCollapsed(true)} />
+      )}
+      {!narrow && sidebarCollapsed && (
+        <div style={{ width: 44, flexShrink: 0, borderRight: "1px solid var(--bw-line)", background: "var(--bw-paper-raised)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingTop: 12 }}>
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Expand sidebar" title="Expand sidebar" style={{ width: 30, height: 30, padding: 0 }} onClick={() => setSidebarCollapsed(false)}>
+            <PanelLeft size={14} />
+          </button>
+          <button className="bw-btn bw-btn-primary bw-btn-sm" aria-label="Add task" title="Add task (Q)" style={{ width: 30, height: 30, padding: 0, borderRadius: 999 }} onClick={() => todo.openQuickAdd()}>
+            <Plus size={14} />
+          </button>
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Search" title="Search ( / )" style={{ width: 30, height: 30, padding: 0 }} onClick={() => setSearchOpen(true)}>
+            <Search size={13.5} />
+          </button>
+        </div>
+      )}
 
       <main
         className="bw-scroll"

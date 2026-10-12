@@ -1,15 +1,15 @@
 "use client";
 
-// Desktop sidebar: quick add, search, the four standing views with live
-// counts, favourites, filters & labels, then My projects / Shared projects
-// (collapsible, with per-section state remembered in prefs).
+// Desktop sidebar — second-pass: Todoist-density rows (28px), slim add-task
+// control, My tasks smart view, collapsible sections, collapse-to-rail
+// toggle, hover add-project.
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Plus, Search, Inbox as InboxIcon, CalendarDays, CalendarRange, CircleCheck,
-  ChevronDown, Star, SlidersHorizontal, Bell, Hash,
+  ChevronDown, Star, SlidersHorizontal, Bell, Hash, UserRound, PanelLeftClose,
 } from "lucide-react";
 import { useTodo } from "./TodoProvider";
 import { ProjectModal } from "./ProjectModal";
@@ -22,7 +22,6 @@ function Row({
   count,
   active,
   color,
-  indent,
 }: {
   href: string;
   icon: React.ReactNode;
@@ -30,31 +29,13 @@ function Row({
   count?: number;
   active: boolean;
   color?: string;
-  indent?: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 9,
-        padding: "6px 10px",
-        paddingLeft: indent ? 26 : 10,
-        borderRadius: 8,
-        textDecoration: "none",
-        color: active ? "var(--bw-ink-strong)" : "var(--bw-ink)",
-        background: active ? "var(--bw-paper-sunken)" : "transparent",
-        boxShadow: active ? "inset 2.5px 0 0 var(--bw-brand)" : "none",
-        fontSize: 13.5,
-        fontWeight: active ? 650 : 500,
-        transition: "background 120ms ease",
-      }}
-    >
+    <Link href={href} className="bw-side-row" data-active={active}>
       <span style={{ display: "flex", color: color ?? (active ? "var(--bw-brand)" : "var(--bw-ink-soft)") }}>{icon}</span>
       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
       {count !== undefined && count > 0 && (
-        <span style={{ fontSize: 11.5, fontWeight: 650, color: "var(--bw-ink-faint)" }}>{count}</span>
+        <span style={{ fontSize: 11, fontWeight: 650, color: "var(--bw-ink-faint)", fontVariantNumeric: "tabular-nums" }}>{count}</span>
       )}
     </Link>
   );
@@ -62,21 +43,21 @@ function Row({
 
 function SectionHeader({ label, open, onToggle, action }: { label: string; open: boolean; onToggle: () => void; action?: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px 2px", marginTop: 14 }}>
+    <div className="bw-side-section" style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px 1px", marginTop: 12 }}>
       <button
         onClick={onToggle}
         aria-expanded={open}
         style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: "none", cursor: "pointer", padding: 0, flex: 1, fontFamily: "var(--bw-font-sans)" }}
       >
-        <span className="bw-kicker" style={{ fontSize: 10 }}>{label}</span>
-        <ChevronDown size={11} style={{ color: "var(--bw-ink-faint)", transform: open ? "none" : "rotate(-90deg)", transition: "transform 160ms ease" }} />
+        <span className="bw-kicker" style={{ fontSize: 9.5 }}>{label}</span>
+        <ChevronDown size={10} style={{ color: "var(--bw-ink-faint)", transform: open ? "none" : "rotate(-90deg)", transition: "transform 160ms ease" }} />
       </button>
       {action}
     </div>
   );
 }
 
-export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
+export function TodoSidebar({ onSearch, onCollapse }: { onSearch: () => void; onCollapse: () => void }) {
   const todo = useTodo();
   const pathname = usePathname() ?? "";
   const router = useRouter();
@@ -92,16 +73,15 @@ export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
   const favourites = todo.projects.filter((p) => !p.isTemplate && p.isFavorite);
   const favFilters = todo.filters.filter((f) => f.isFavorite);
 
-  const projectRow = (p: (typeof todo.projects)[number], indent = false) => (
+  const projectRow = (p: (typeof todo.projects)[number]) => (
     <Row
       key={p.id}
       href={`/boardwalk/todo/project/${p.id}`}
-      icon={<Hash size={14} strokeWidth={2.4} />}
+      icon={<Hash size={13.5} strokeWidth={2.4} />}
       color={p.color}
       label={p.name}
       count={todo.counts.byProject[p.id]}
       active={pathname.includes(`/project/${p.id}`)}
-      indent={indent}
     />
   );
 
@@ -109,49 +89,57 @@ export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
     <aside
       className="bw-scroll"
       style={{
-        width: 264,
-        minWidth: 220,
+        width: 248,
+        minWidth: 212,
         flexShrink: 0,
         borderRight: "1px solid var(--bw-line)",
         background: "var(--bw-paper-raised)",
         overflowY: "auto",
-        padding: "14px 10px 40px",
+        padding: "12px 9px 36px",
         display: "flex",
         flexDirection: "column",
-        gap: 2,
+        gap: 1,
       }}
     >
-      {/* Add + search + notifications */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        <button className="bw-btn bw-btn-primary bw-btn-sm" style={{ flex: 1, justifyContent: "flex-start", gap: 7 }} onClick={() => todo.openQuickAdd()}>
-          <Plus size={14} /> Add task
-          <span style={{ marginLeft: "auto", opacity: 0.6, fontSize: 10.5 }}>Q</span>
+      {/* Top controls */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 9, alignItems: "center" }}>
+        <button
+          className="bw-btn bw-btn-primary bw-btn-sm"
+          style={{ flex: 1, justifyContent: "flex-start", gap: 7, height: 31 }}
+          onClick={() => todo.openQuickAdd()}
+        >
+          <Plus size={13.5} /> Add task
+          <span style={{ marginLeft: "auto", opacity: 0.55, fontSize: 10 }}>Q</span>
         </button>
-        <button className="bw-btn bw-btn-secondary bw-btn-sm" aria-label="Search" style={{ width: 34, padding: 0 }} onClick={onSearch}>
-          <Search size={14} />
+        <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Search" title="Search ( / )" style={{ width: 30, height: 30, padding: 0 }} onClick={onSearch}>
+          <Search size={13.5} />
         </button>
         <div style={{ position: "relative" }}>
-          <button className="bw-btn bw-btn-secondary bw-btn-sm" aria-label="Notifications" style={{ width: 34, padding: 0, position: "relative" }} onClick={() => setNotifOpen((o) => !o)}>
-            <Bell size={14} />
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Notifications" style={{ width: 30, height: 30, padding: 0, position: "relative" }} onClick={() => setNotifOpen((o) => !o)}>
+            <Bell size={13.5} />
             {todo.counts.unreadNotifications > 0 && (
-              <span style={{ position: "absolute", top: 4, right: 5, width: 7, height: 7, borderRadius: 99, background: "var(--bw-red)" }} />
+              <span style={{ position: "absolute", top: 4, right: 4, width: 6.5, height: 6.5, borderRadius: 99, background: "var(--bw-red)" }} />
             )}
           </button>
           {notifOpen && <NotificationsPopover onClose={() => setNotifOpen(false)} />}
         </div>
+        <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Collapse sidebar" title="Collapse sidebar" style={{ width: 30, height: 30, padding: 0 }} onClick={onCollapse}>
+          <PanelLeftClose size={13.5} />
+        </button>
       </div>
 
-      <Row href="/boardwalk/todo/inbox" icon={<InboxIcon size={15} />} label="Inbox" count={todo.counts.inbox} active={pathname.endsWith("/inbox")} />
+      <Row href="/boardwalk/todo/inbox" icon={<InboxIcon size={14}  />} label="Inbox" count={todo.counts.inbox} active={pathname.endsWith("/inbox")} />
       <Row
         href="/boardwalk/todo/today"
-        icon={<CalendarDays size={15} />}
+        icon={<CalendarDays size={14} />}
         label="Today"
         count={todo.counts.today + todo.counts.overdue}
         active={pathname.endsWith("/today")}
       />
-      <Row href="/boardwalk/todo/upcoming" icon={<CalendarRange size={15} />} label="Upcoming" count={todo.counts.upcoming} active={pathname.endsWith("/upcoming")} />
-      <Row href="/boardwalk/todo/filters" icon={<SlidersHorizontal size={15} />} label="Filters & labels" active={pathname.endsWith("/filters")} />
-      <Row href="/boardwalk/todo/completed" icon={<CircleCheck size={15} />} label="Completed" active={pathname.endsWith("/completed")} />
+      <Row href="/boardwalk/todo/upcoming" icon={<CalendarRange size={14} />} label="Upcoming" count={todo.counts.upcoming} active={pathname.endsWith("/upcoming")} />
+      <Row href="/boardwalk/todo/smart/my-tasks" icon={<UserRound size={14} />} label="My tasks" active={pathname.endsWith("/smart/my-tasks")} />
+      <Row href="/boardwalk/todo/filters" icon={<SlidersHorizontal size={14} />} label="Filters & labels" active={pathname.endsWith("/filters")} />
+      <Row href="/boardwalk/todo/completed" icon={<CircleCheck size={14} />} label="Completed" active={pathname.endsWith("/completed")} />
 
       {/* Favourites */}
       {(favourites.length > 0 || favFilters.length > 0) && (
@@ -161,7 +149,7 @@ export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
             <>
               {favourites.map((p) => projectRow(p))}
               {favFilters.map((f) => (
-                <Row key={f.id} href={`/boardwalk/todo/filter/${f.id}`} icon={<Star size={13} />} label={f.name} active={pathname.includes(`/filter/${f.id}`)} />
+                <Row key={f.id} href={`/boardwalk/todo/filter/${f.id}`} icon={<Star size={12.5} />} label={f.name} active={pathname.includes(`/filter/${f.id}`)} />
               ))}
             </>
           )}
@@ -174,8 +162,8 @@ export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
         open={!collapsed.mine}
         onToggle={() => setCollapsed("mine", !!collapsed.mine)}
         action={
-          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Add project" style={{ width: 22, height: 22, padding: 0 }} onClick={() => setProjectModal(true)}>
-            <Plus size={12} />
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Add project" style={{ width: 20, height: 20, padding: 0 }} onClick={() => setProjectModal(true)}>
+            <Plus size={11} />
           </button>
         }
       />
@@ -184,7 +172,7 @@ export function TodoSidebar({ onSearch }: { onSearch: () => void }) {
           {myProjects.length === 0 && (
             <button
               onClick={() => setProjectModal(true)}
-              style={{ margin: "2px 10px", padding: "10px 12px", border: "1.5px dashed var(--bw-line-strong)", borderRadius: 9, background: "transparent", color: "var(--bw-ink-soft)", fontSize: 12.5, cursor: "pointer", fontFamily: "var(--bw-font-sans)", textAlign: "left" }}
+              style={{ margin: "2px 9px", padding: "8px 10px", border: "1.5px dashed var(--bw-line-strong)", borderRadius: 8, background: "transparent", color: "var(--bw-ink-soft)", fontSize: 12, cursor: "pointer", fontFamily: "var(--bw-font-sans)", textAlign: "left" }}
             >
               Create your first project
             </button>

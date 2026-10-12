@@ -1,10 +1,9 @@
 "use client";
 
-// TaskRow + TaskList — the everyday surface of Boardwalk To Do. Rows complete
-// optimistically with a priority-tinted check, open the detail panel on
-// click, and carry quick actions (reschedule, priority, more) on hover.
-// Lists support grouping, drag-and-drop reorder (dnd-kit) and an inline
-// add-task row that inherits the view's context (project, section, date).
+// TaskRow + TaskList — second-pass density. Compact 32px-ish rows, title-first
+// hierarchy, metadata as quiet chips, scheduled time right-aligned, slide-out
+// completion, hover-revealed actions, slim inline add. Grouping and dnd-kit
+// reorder preserved.
 
 import { useMemo, useRef, useState } from "react";
 import {
@@ -24,6 +23,7 @@ import {
 import type { TaskDto } from "@/lib/todo/types";
 import { todayInLondon } from "@/lib/todo/recurrence";
 import { parseQuickAdd } from "@/lib/todo/nlp";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { useTodo, type ViewKey } from "./TodoProvider";
 import { BwMenu } from "../ui";
 import { AssigneePicker, DuePicker, PriorityPicker, ProjectPicker, PRIORITY_COLORS, dueTone, formatDueLabel } from "./Pickers";
@@ -36,12 +36,14 @@ export function TaskRow({
   showProject = false,
   draggable = false,
   depth = 0,
+  showTimeRight = false,
 }: {
   task: TaskDto;
   viewKey: ViewKey;
   showProject?: boolean;
   draggable?: boolean;
   depth?: number;
+  showTimeRight?: boolean;
 }) {
   const todo = useTodo();
   const [duePicker, setDuePicker] = useState(false);
@@ -56,6 +58,9 @@ export function TaskRow({
 
   const done = !!task.completedAt;
   const pColor = PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS[4];
+  const hasMeta =
+    task.dueDate || task.labelIds.length > 0 || task.subtaskCount > 0 || task.commentCount > 0 ||
+    (showProject && project) || task.assigneeId || task.recurrence;
 
   function complete() {
     if (done) {
@@ -66,7 +71,7 @@ export function TaskRow({
     setTimeout(() => {
       void todo.completeTask(task.id, true);
       setChecking(false);
-    }, 180);
+    }, 170);
   }
 
   return (
@@ -80,7 +85,7 @@ export function TaskRow({
       }}
     >
       <div
-        className="bw-task-row"
+        className={`bw-task-row-base${checking && !done ? " bw-row-leaving" : ""}`}
         onClick={(e) => {
           if (e.ctrlKey || e.metaKey) {
             todo.toggleSelect(task.id);
@@ -89,16 +94,8 @@ export function TaskRow({
           todo.openTask(task.id);
         }}
         style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 9,
-          padding: "9px 10px 9px 4px",
-          marginLeft: depth * 26,
-          borderBottom: "1px solid var(--bw-line)",
-          cursor: "pointer",
-          background: selected ? "var(--bw-blush)" : "transparent",
-          borderRadius: selected ? 8 : 0,
-          transition: "background 130ms ease",
+          marginLeft: depth * 24,
+          background: selected ? "var(--bw-blush)" : undefined,
         }}
       >
         {/* drag handle */}
@@ -106,18 +103,18 @@ export function TaskRow({
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
+          className="bw-row-actions"
           style={{
-            width: 14,
+            width: 12,
             alignSelf: "center",
             color: "var(--bw-ink-faint)",
             cursor: draggable ? "grab" : "default",
-            opacity: draggable ? undefined : 0,
+            visibility: draggable ? undefined : "hidden",
             display: "flex",
             touchAction: "none",
           }}
-          className="bw-row-grip"
         >
-          <GripVertical size={13} />
+          <GripVertical size={12} />
         </span>
 
         {/* complete checkbox */}
@@ -128,12 +125,12 @@ export function TaskRow({
             complete();
           }}
           style={{
-            width: 19,
-            height: 19,
+            width: 18,
+            height: 18,
             borderRadius: 999,
             flexShrink: 0,
-            marginTop: 1,
-            border: `1.8px solid ${pColor}`,
+            marginTop: 2,
+            border: `1.6px solid ${pColor}`,
             background: done || checking ? pColor : task.priority < 4 ? `color-mix(in srgb, ${pColor} 10%, transparent)` : "transparent",
             color: "#fff",
             display: "inline-flex",
@@ -141,81 +138,96 @@ export function TaskRow({
             justifyContent: "center",
             cursor: "pointer",
             transition: "background 140ms ease, transform 140ms ease",
-            transform: checking ? "scale(1.15)" : "none",
+            transform: checking ? "scale(1.18)" : "none",
           }}
         >
-          {(done || checking) && <Check size={11} strokeWidth={3.2} />}
+          {(done || checking) && <Check size={10} strokeWidth={3.4} />}
         </button>
 
         {/* body */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 14,
-              lineHeight: 1.4,
-              color: done ? "var(--bw-ink-faint)" : "var(--bw-ink)",
-              textDecoration: done ? "line-through" : "none",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {task.title}
-          </p>
-          {(task.dueDate || task.labelIds.length > 0 || task.subtaskCount > 0 || task.commentCount > 0 || (showProject && project) || task.assigneeId || task.recurrence) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13.5,
+                fontWeight: 550,
+                lineHeight: 1.45,
+                color: done ? "var(--bw-ink-faint)" : "var(--bw-ink)",
+                textDecoration: done ? "line-through" : "none",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              {task.title}
+            </p>
+            {showTimeRight && task.dueTime && (
+              <span style={{ fontSize: 11.5, fontWeight: 650, color: "var(--bw-ink-soft)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                {task.dueTime}
+              </span>
+            )}
+          </div>
+          {hasMeta && (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 2, flexWrap: "wrap" }}>
               {task.dueDate && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setDuePicker(true);
                   }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", padding: 0, cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: dueTone(task.dueDate), fontFamily: "var(--bw-font-sans)" }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 3.5, border: "none", background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: dueTone(task.dueDate), fontFamily: "var(--bw-font-sans)" }}
                 >
-                  <CalendarDays size={11} />
-                  {formatDueLabel(task.dueDate, task.dueTime)}
-                  {task.recurrence && <Repeat size={10} />}
+                  <CalendarDays size={10.5} />
+                  {formatDueLabel(task.dueDate, showTimeRight ? null : task.dueTime)}
+                  {task.recurrence && <Repeat size={9.5} />}
                 </button>
               )}
               {!task.dueDate && task.recurrence && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--bw-ink-soft)" }}>
-                  <Repeat size={10} /> {task.recurrence.label}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3.5, fontSize: 11, color: "var(--bw-ink-soft)" }}>
+                  <Repeat size={9.5} /> {task.recurrence.label}
                 </span>
               )}
               {task.labelIds.map((id) => {
                 const label = todo.labels.find((l) => l.id === id);
                 if (!label) return null;
                 return (
-                  <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--bw-ink-soft)" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 99, background: label.color }} />
+                  <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 3.5, fontSize: 10.5, fontWeight: 550, color: "var(--bw-ink-soft)" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 99, background: label.color }} />
                     {label.name}
                   </span>
                 );
               })}
               {task.subtaskCount > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--bw-ink-faint)" }}>
-                  <CircleCheck size={11} />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3.5, fontSize: 10.5, color: "var(--bw-ink-faint)" }}>
+                  <CircleCheck size={10.5} />
                   {task.subtaskDone}/{task.subtaskCount}
                 </span>
               )}
               {task.commentCount > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--bw-ink-faint)" }}>
-                  <MessageSquare size={11} />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3.5, fontSize: 10.5, color: "var(--bw-ink-faint)" }}>
+                  <MessageSquare size={10.5} />
                   {task.commentCount}
+                </span>
+              )}
+              {task.completedAt && task.completedById && (
+                <span style={{ fontSize: 10.5, color: "var(--bw-ink-faint)" }}>
+                  done by {extractFirstName(todo.memberName(task.completedById)) || "someone"}
                 </span>
               )}
               {task.assigneeId && (
                 <span
                   title={todo.memberName(task.assigneeId)}
-                  style={{ width: 17, height: 17, borderRadius: 99, background: "var(--bw-blush)", color: "var(--bw-blush-ink)", fontSize: 8, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  style={{ width: 15, height: 15, borderRadius: 99, background: "var(--bw-blush)", color: "var(--bw-blush-ink)", fontSize: 7, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                 >
                   {todo.memberName(task.assigneeId).split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                 </span>
               )}
               {showProject && project && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--bw-ink-faint)", marginLeft: "auto" }}>
-                  <Hash size={10} style={{ color: project.color }} />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 550, color: "var(--bw-ink-faint)", marginLeft: "auto", background: "var(--bw-paper-sunken)", borderRadius: 999, padding: "1.5px 8px" }}>
+                  <Hash size={9} style={{ color: project.color }} />
                   {project.name}
                 </span>
               )}
@@ -224,16 +236,16 @@ export function TaskRow({
         </div>
 
         {/* hover actions */}
-        <div className="bw-row-actions" onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 1, alignSelf: "center", position: "relative" }}>
-          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Schedule" style={{ width: 26, padding: 0 }} onClick={() => setDuePicker(true)}>
-            <CalendarDays size={13} />
+        <div className="bw-row-actions" onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 0, alignSelf: "center", position: "relative" }}>
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Schedule" style={{ width: 25, height: 25, padding: 0 }} onClick={() => setDuePicker(true)}>
+            <CalendarDays size={12.5} />
           </button>
-          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Priority" style={{ width: 26, padding: 0 }} onClick={() => setPrioPicker(true)}>
-            <Flag size={13} style={{ color: task.priority < 4 ? pColor : undefined }} />
+          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Priority" style={{ width: 25, height: 25, padding: 0 }} onClick={() => setPrioPicker(true)}>
+            <Flag size={12.5} style={{ color: task.priority < 4 ? pColor : undefined }} />
           </button>
           <BwMenu
             trigger={
-              <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="More" style={{ width: 26, padding: 0 }}>
+              <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="More" style={{ width: 25, height: 25, padding: 0 }}>
                 ⋯
               </button>
             }
@@ -263,25 +275,6 @@ export function TaskRow({
           )}
         </div>
       </div>
-      <style jsx>{`
-        .bw-task-row .bw-row-actions {
-          opacity: 0;
-          transition: opacity 120ms ease;
-        }
-        .bw-task-row:hover .bw-row-actions,
-        .bw-task-row:focus-within .bw-row-actions {
-          opacity: 1;
-        }
-        .bw-task-row:hover {
-          background: ${selected ? "var(--bw-blush)" : "var(--bw-paper-sunken)"};
-          border-radius: 8px;
-        }
-        @media (hover: none) {
-          .bw-task-row .bw-row-actions {
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -291,7 +284,7 @@ export function TaskRow({
 export function InlineAdd({
   viewKey,
   defaults,
-  placeholder = "Add a task…",
+  placeholder = "Add task",
 }: {
   viewKey: ViewKey;
   defaults?: Record<string, unknown>;
@@ -330,20 +323,21 @@ export function InlineAdd({
     return (
       <button
         onClick={() => setActive(true)}
-        style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 10px 10px 18px", border: "none", background: "transparent", cursor: "pointer", color: "var(--bw-ink-faint)", fontSize: 13.5, fontFamily: "var(--bw-font-sans)", width: "100%", textAlign: "left" }}
+        className="bw-inline-add"
+        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px 7px 14px", border: "none", background: "transparent", cursor: "pointer", color: "var(--bw-ink-faint)", fontSize: 12.5, fontWeight: 550, fontFamily: "var(--bw-font-sans)", width: "100%", textAlign: "left", borderRadius: 8 }}
       >
-        <Plus size={15} style={{ color: "var(--bw-brand)" }} />
+        <Plus size={13} style={{ color: "var(--bw-brand)" }} />
         {placeholder}
       </button>
     );
   }
 
   return (
-    <div style={{ padding: "8px 10px 8px 18px", display: "flex", gap: 8, alignItems: "center" }}>
+    <div style={{ padding: "6px 8px 6px 14px", display: "flex", gap: 7, alignItems: "center" }}>
       <input
         ref={inputRef}
         className="bw-input bw-input-sm"
-        placeholder='e.g. "Chase photographer friday 10am p2 #Launch"'
+        placeholder='Try "Chase photographer friday 10am p2"'
         value={text}
         autoFocus
         onChange={(e) => setText(e.target.value)}
@@ -376,6 +370,7 @@ export function TaskList({
   reorderable = false,
   inlineAddDefaults,
   emptyState,
+  showTimeRight = false,
 }: {
   viewKey: ViewKey;
   tasks: TaskDto[];
@@ -384,6 +379,7 @@ export function TaskList({
   reorderable?: boolean;
   inlineAddDefaults?: Record<string, unknown>;
   emptyState?: React.ReactNode;
+  showTimeRight?: boolean;
 }) {
   const todo = useTodo();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -407,7 +403,6 @@ export function TaskList({
         tasks: list,
       }));
     }
-    // date
     const map = new Map<string, TaskDto[]>();
     for (const t of tasks) {
       const k = t.dueDate ?? "none";
@@ -443,13 +438,13 @@ export function TaskList({
   const body = groups.map((g) => (
     <div key={g.key}>
       {g.label && (
-        <p className="bw-kicker" style={{ fontSize: 10.5, margin: "18px 0 4px", paddingLeft: 18 }}>
+        <p className="bw-kicker" style={{ fontSize: 10, margin: "14px 0 2px", paddingLeft: 14, display: "flex", alignItems: "baseline", gap: 7 }}>
           {g.label}
-          <span style={{ marginLeft: 8, color: "var(--bw-ink-faint)", fontWeight: 600 }}>{g.tasks.length}</span>
+          <span style={{ color: "var(--bw-ink-faint)", fontWeight: 600 }}>{g.tasks.length}</span>
         </p>
       )}
       {g.tasks.map((t) => (
-        <TaskRow key={t.id} task={t} viewKey={viewKey} showProject={showProject} draggable={reorderable && groupBy === "none"} />
+        <TaskRow key={t.id} task={t} viewKey={viewKey} showProject={showProject} draggable={reorderable && groupBy === "none"} showTimeRight={showTimeRight} />
       ))}
     </div>
   ));

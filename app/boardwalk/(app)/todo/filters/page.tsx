@@ -1,19 +1,33 @@
 "use client";
 
-// Filters & labels. Left: saved filters with a visual builder (no query
-// language — dropdown conditions with all/any matching). Right: label
-// management. Favourited filters pin to the sidebar.
+// Filters & labels — second-pass: a real organisational workspace. Left:
+// built-in smart views plus saved filters (favourite / edit / remove, visual
+// builder). Right: compact label management. Every row links to a live view.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SlidersHorizontal, Star, Tag, Trash2, Pencil, Plus } from "lucide-react";
+import {
+  SlidersHorizontal, Star, Tag, Trash2, Pencil, Plus, ChevronRight,
+  CalendarDays, AlertTriangle, Flag, UserRound, CalendarRange, Inbox, Sparkles,
+} from "lucide-react";
 import { useTodo } from "@/components/boardwalk/todo/TodoProvider";
 import { ViewHeader, ViewShell } from "@/components/boardwalk/todo/ViewHeader";
+import { SMART_FILTERS } from "@/components/boardwalk/todo/smartFilters";
 import { BwButton, BwField, BwModal, useBwToast } from "@/components/boardwalk/ui";
 import { formsApi } from "@/lib/forms/client";
 import type { FilterCondition, FilterDto, FilterQuery } from "@/lib/todo/types";
 
 const LABEL_COLORS = ["#c3c5c1", "#f4dfde", "#8f5a56", "#996c1f", "#3b6ea5", "#4d5a4d", "#404648"];
+
+const SMART_ICONS: Record<string, React.ReactNode> = {
+  "my-tasks": <UserRound size={13} />,
+  "due-today": <CalendarDays size={13} />,
+  overdue: <AlertTriangle size={13} style={{ color: "var(--bw-red)" }} />,
+  "high-priority": <Flag size={13} style={{ color: "var(--bw-red)" }} />,
+  "next-7-days": <CalendarRange size={13} />,
+  "no-date": <Inbox size={13} />,
+  "recently-added": <Sparkles size={13} />,
+};
 
 const DUE_OPTIONS = [
   ["today", "Due today"],
@@ -60,87 +74,125 @@ export default function FiltersPage() {
   }
 
   return (
-    <ViewShell>
-      <ViewHeader kicker="Organise" title="Filters & labels" meta="Saved views and the label system, shared across every task." />
+    <ViewShell wide>
+      <ViewHeader
+        title="Filters & labels"
+        meta="Saved views and the label system, shared across every task"
+        actions={
+          <BwButton size="sm" variant="primary" onClick={() => setEditing("new")}>
+            <Plus size={12} /> New filter
+          </BwButton>
+        }
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 18, alignItems: "start" }}>
-        {/* ── Filters ── */}
-        <section className="bw-card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 7 }}>
-              <SlidersHorizontal size={14} /> Saved filters
-            </h2>
-            <BwButton size="sm" variant="primary" onClick={() => setEditing("new")}>
-              <Plus size={12} /> New filter
-            </BwButton>
-          </div>
-          {todo.filters.length === 0 && (
-            <p className="bw-hint" style={{ margin: 0 }}>
-              A filter is a saved view: &quot;Priority 1 assigned to me&quot;, &quot;Overdue in Launch&quot;. Build one with dropdowns, favourite it, and it pins to your sidebar.
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))", gap: 16, alignItems: "start" }}>
+        {/* ── Filters column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <section className="bw-card" style={{ padding: "14px 16px" }}>
+            <p className="bw-kicker" style={{ fontSize: 9.5, margin: "0 0 6px" }}>Smart views</p>
+            {SMART_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => router.push(`/boardwalk/todo/smart/${f.key}`)}
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", border: "none", background: "transparent", padding: "7px 6px", borderRadius: 8, cursor: "pointer", fontFamily: "var(--bw-font-sans)", textAlign: "left", transition: "background 120ms ease" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bw-paper-sunken)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <span style={{ display: "flex", color: "var(--bw-ink-soft)" }}>{SMART_ICONS[f.key]}</span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--bw-ink)" }}>{f.name}</span>
+                  <span className="bw-hint" style={{ fontSize: 11 }}>{f.hint}</span>
+                </span>
+                <ChevronRight size={13} style={{ color: "var(--bw-ink-faint)" }} />
+              </button>
+            ))}
+          </section>
+
+          <section className="bw-card" style={{ padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <p className="bw-kicker" style={{ fontSize: 9.5, margin: 0 }}>Your filters</p>
+            </div>
+            {todo.filters.length === 0 && (
+              <p className="bw-hint" style={{ margin: "2px 0 4px" }}>
+                Build your own view with dropdown conditions. Favourite it and it pins to the sidebar.
+              </p>
+            )}
+            {todo.filters.map((f) => (
+              <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0", borderBottom: "1px solid var(--bw-line)" }}>
+                <button
+                  onClick={() => router.push(`/boardwalk/todo/filter/${f.id}`)}
+                  style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", fontFamily: "var(--bw-font-sans)", padding: 0, minWidth: 0 }}
+                >
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--bw-ink)" }}>{f.name}</span>
+                  <span className="bw-hint" style={{ fontSize: 11, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {describeQuery(f.query, todo)}
+                  </span>
+                </button>
+                <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Favourite" style={{ width: 25, height: 25, padding: 0 }} onClick={() => void toggleFavouriteFilter(f)}>
+                  <Star size={12.5} fill={f.isFavorite ? "var(--bw-amber)" : "none"} style={{ color: f.isFavorite ? "var(--bw-amber)" : undefined }} />
+                </button>
+                <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Edit" style={{ width: 25, height: 25, padding: 0 }} onClick={() => setEditing(f)}>
+                  <Pencil size={11.5} />
+                </button>
+                <button className="bw-btn bw-btn-danger bw-btn-sm" aria-label="Remove" style={{ width: 25, height: 25, padding: 0 }} onClick={() => void removeFilter(f.id)}>
+                  <Trash2 size={11.5} />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setEditing("new")}
+              style={{ display: "flex", alignItems: "center", gap: 7, border: "none", background: "transparent", padding: "8px 0 2px", cursor: "pointer", color: "var(--bw-ink-faint)", fontSize: 12.5, fontWeight: 550, fontFamily: "var(--bw-font-sans)" }}
+            >
+              <Plus size={12} style={{ color: "var(--bw-brand)" }} /> New filter
+            </button>
+          </section>
+        </div>
+
+        {/* ── Labels column ── */}
+        <section className="bw-card" style={{ padding: "14px 16px" }}>
+          <p className="bw-kicker" style={{ fontSize: 9.5, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
+            <Tag size={11} /> Labels
+          </p>
+          {todo.labels.length === 0 && (
+            <p className="bw-hint" style={{ margin: "0 0 10px" }}>
+              Tag tasks across projects: @Valuations, @Urgent, @WaitingOn. Apply from any task or with @name in quick-add.
             </p>
           )}
-          {todo.filters.map((f) => (
-            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 0", borderBottom: "1px solid var(--bw-line)" }}>
+          {todo.labels.map((l) => (
+            <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--bw-line)" }}>
               <button
-                onClick={() => router.push(`/boardwalk/todo/filter/${f.id}`)}
-                style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "var(--bw-ink)", fontFamily: "var(--bw-font-sans)", padding: 0 }}
+                onClick={() => router.push(`/boardwalk/todo/label/${l.id}`)}
+                style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--bw-ink)", fontFamily: "var(--bw-font-sans)", padding: 0, minWidth: 0 }}
               >
-                {f.name}
-                <span className="bw-hint" style={{ display: "block", fontWeight: 500 }}>{describeQuery(f.query, todo)}</span>
+                <span style={{ width: 9, height: 9, borderRadius: 99, background: l.color, flexShrink: 0 }} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
               </button>
-              <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Favourite" style={{ width: 26, padding: 0 }} onClick={() => void toggleFavouriteFilter(f)}>
-                <Star size={13} fill={f.isFavorite ? "var(--bw-amber)" : "none"} style={{ color: f.isFavorite ? "var(--bw-amber)" : undefined }} />
-              </button>
-              <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Edit" style={{ width: 26, padding: 0 }} onClick={() => setEditing(f)}>
-                <Pencil size={12} />
-              </button>
-              <button className="bw-btn bw-btn-danger bw-btn-sm" aria-label="Remove" style={{ width: 26, padding: 0 }} onClick={() => void removeFilter(f.id)}>
-                <Trash2 size={12} />
+              <div style={{ display: "flex", gap: 3 }}>
+                {LABEL_COLORS.map((c) => (
+                  <button key={c} aria-label={`Set colour ${c}`} onClick={() => void recolourLabel(l.id, c)} style={{ width: 12, height: 12, borderRadius: 99, background: c, border: l.color === c ? "1.5px solid var(--bw-ink)" : "1.5px solid var(--bw-line)", cursor: "pointer", padding: 0 }} />
+                ))}
+              </div>
+              <button className="bw-btn bw-btn-danger bw-btn-sm" aria-label="Remove label" style={{ width: 25, height: 25, padding: 0 }} onClick={() => void removeLabel(l.id)}>
+                <Trash2 size={11.5} />
               </button>
             </div>
           ))}
-        </section>
-
-        {/* ── Labels ── */}
-        <section className="bw-card" style={{ padding: 20 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 7 }}>
-            <Tag size={14} /> Labels
-          </h2>
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 6, marginTop: 10, alignItems: "center" }}>
             <input
               className="bw-input bw-input-sm"
-              placeholder="New label name"
+              placeholder="New label"
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void addLabel()}
+              style={{ flex: 1 }}
             />
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 3 }}>
               {LABEL_COLORS.slice(0, 4).map((c) => (
-                <button key={c} aria-label={`Colour ${c}`} onClick={() => setLabelColor(c)} style={{ width: 16, height: 16, borderRadius: 99, background: c, border: labelColor === c ? "2px solid var(--bw-ink)" : "2px solid transparent", cursor: "pointer" }} />
+                <button key={c} aria-label={`Colour ${c}`} onClick={() => setLabelColor(c)} style={{ width: 15, height: 15, borderRadius: 99, background: c, border: labelColor === c ? "2px solid var(--bw-ink)" : "2px solid transparent", cursor: "pointer", padding: 0 }} />
               ))}
             </div>
             <BwButton size="sm" onClick={() => void addLabel()}>Add</BwButton>
           </div>
-          {todo.labels.length === 0 && <p className="bw-hint" style={{ margin: 0 }}>Tag tasks across projects: @Valuations, @Urgent, @WaitingOn. Add labels from any task or in quick-add with @name.</p>}
-          {todo.labels.map((l) => (
-            <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid var(--bw-line)" }}>
-              <button
-                onClick={() => router.push(`/boardwalk/todo/label/${l.id}`)}
-                style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "var(--bw-ink)", fontFamily: "var(--bw-font-sans)", padding: 0 }}
-              >
-                <span style={{ width: 10, height: 10, borderRadius: 99, background: l.color }} />
-                {l.name}
-              </button>
-              <div style={{ display: "flex", gap: 3 }}>
-                {LABEL_COLORS.map((c) => (
-                  <button key={c} aria-label={`Set colour ${c}`} onClick={() => void recolourLabel(l.id, c)} style={{ width: 13, height: 13, borderRadius: 99, background: c, border: l.color === c ? "1.5px solid var(--bw-ink)" : "1.5px solid var(--bw-line)", cursor: "pointer" }} />
-                ))}
-              </div>
-              <button className="bw-btn bw-btn-danger bw-btn-sm" aria-label="Remove label" style={{ width: 26, padding: 0 }} onClick={() => void removeLabel(l.id)}>
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
         </section>
       </div>
 
@@ -162,7 +214,7 @@ function describeQuery(q: FilterQuery, todo: ReturnType<typeof useTodo>): string
       default: return "";
     }
   });
-  return parts.join(q.combinator === "or" ? " · or · " : " · and · ");
+  return parts.join(q.combinator === "or" ? " or " : " and ");
 }
 
 function FilterBuilderModal({ existing, onClose }: { existing: FilterDto | null; onClose: () => void }) {

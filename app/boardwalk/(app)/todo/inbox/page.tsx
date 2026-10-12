@@ -1,13 +1,14 @@
 "use client";
 
-// Inbox — frictionless capture. Reorderable flat list with an always-ready
-// inline add; organise into projects later via the row's Move action.
+// Inbox — frictionless capture. Compact reorderable list, always-ready
+// inline add, organise later via each row's Move action.
 
 import { useEffect } from "react";
 import { Inbox as InboxIcon } from "lucide-react";
 import { useTodo } from "@/components/boardwalk/todo/TodoProvider";
 import { TaskList } from "@/components/boardwalk/todo/TaskList";
 import { EmptyNote, ViewHeader, ViewShell } from "@/components/boardwalk/todo/ViewHeader";
+import { BwButton } from "@/components/boardwalk/ui";
 
 export default function InboxPage() {
   const todo = useTodo();
@@ -22,9 +23,13 @@ export default function InboxPage() {
   return (
     <ViewShell>
       <ViewHeader
-        kicker="Capture"
         title="Inbox"
-        meta={tasks === undefined ? "Loading…" : `${tasks.length} task${tasks.length === 1 ? "" : "s"} to organise`}
+        meta={tasks === undefined ? "Loading…" : tasks.length ? `${tasks.length} to organise · capture now, file later` : "Capture tasks quickly. Organise them later."}
+        actions={
+          <BwButton size="sm" variant="primary" onClick={() => todo.openQuickAdd()}>
+            + Add task
+          </BwButton>
+        }
       />
       <TaskList
         viewKey={viewKey}
@@ -33,12 +38,12 @@ export default function InboxPage() {
         inlineAddDefaults={{}}
         emptyState={
           tasks === undefined ? (
-            <p className="bw-hint" style={{ padding: 30, textAlign: "center" }}>Loading…</p>
+            <p className="bw-hint" style={{ padding: "22px 14px" }}>Loading…</p>
           ) : (
             <EmptyNote
-              icon={<InboxIcon size={22} />}
+              icon={<InboxIcon size={17} />}
               title="Inbox zero."
-              hint='Capture anything with Q — "Call vendor tomorrow 10am" becomes a scheduled task.'
+              hint='Press Q anywhere — "Call vendor tomorrow 10am" becomes a scheduled task.'
             />
           )
         }
