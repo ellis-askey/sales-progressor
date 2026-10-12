@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 const SNOOZE_DAYS = 14;
-const CARD_KINDS = new Set(["gone_quiet", "mortgage_expiry"]);
+const CARD_KINDS = new Set(["gone_quiet", "mortgage_expiry", "files_at_risk"]);
 
 export async function dismissHubCardAction(input: {
   transactionId: string;

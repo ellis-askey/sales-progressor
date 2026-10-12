@@ -25,7 +25,7 @@ import {
   getHubWeeklyForecast, getHubServiceSplit, getHubClientBreakdown, getHubRecentActivityFeed, getHubDiary,
   getHubUnassignedFiles, getHubRelistsToAcknowledge, getHubChainSetupPending,
   getHubPipelineStages, getUpcomingMortgageExpiries, getGoneQuietFiles, getBookingsToConfirm, getStalledEnquiries,
-  getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale,
+  getHubSubtitleSignals, hubHasFiles, getClaimedFirstSale, getFilesAtRisk,
 } from "@/lib/services/hub";
 import type { HubSubtitleSignals } from "@/lib/services/hub";
 import { DiaryCard } from "@/components/hub/DiaryCard";
@@ -787,6 +787,42 @@ function buildMortgageRows(
   });
 }
 
+// "Files at risk" rows (agent-advantage item 1, founder-approved 2026-10-12).
+// Two kinds only — client-engagement signals stay off this card by design.
+function buildFilesAtRiskRows(
+  items: Awaited<ReturnType<typeof getFilesAtRisk>>,
+  photoMap: Map<string, string>,
+): HubRowData[] {
+  return items.map((i) => {
+    const common = {
+      transactionId: i.transactionId,
+      href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
+      photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+      address: i.propertyAddress,
+    };
+    if (i.kind === "ready_frozen") {
+      return {
+        ...common,
+        pillLabel: "Ready but frozen",
+        pillTone: "danger" as HubRowTone,
+        subtext: `Ready to exchange since ${fmtShortDate(i.readySince)}. Nothing has moved in ${i.daysStalled} days.`,
+        meta: null,
+        metaTone: "muted" as const,
+        dismissSignature: "ready_frozen",
+      };
+    }
+    return {
+      ...common,
+      pillLabel: "Worth a call",
+      pillTone: "warning" as HubRowTone,
+      subtext: `Email isn't reaching the ${i.solicitorSide}'s solicitor. A phone call is the next move.`,
+      meta: `${i.unopenedChases} chase ${i.unopenedChases === 1 ? "email" : "emails"} unopened · last sent ${fmtShortDate(i.lastSentAt)}`,
+      metaTone: "warning" as const,
+      dismissSignature: "chase_not_landing",
+    };
+  });
+}
+
 function buildBookingRows(
   items: Awaited<ReturnType<typeof getBookingsToConfirm>>,
   photoMap: Map<string, string>,
@@ -833,10 +869,13 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
   // and internal (outsourced) both see their own, scoped inside the service.
   const bookings = await getBookingsToConfirm(vis);
   const bookingTxIds = bookings.map((b) => b.transactionId);
-  const [mortgage, needsFiling, reviewsResult] = await Promise.all([
+  const [mortgage, needsFiling, reviewsResult, filesAtRisk] = await Promise.all([
     getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]),
     getPendingInboundEmails(),
     listReviews(getAccessScope(ctx.session)).catch(() => ({ items: [] as Awaited<ReturnType<typeof listReviews>>["items"] })),
+    // Files at risk dedupes against attention only — like bookings, a frozen
+    // file with a provisional survey booking is two distinct actions.
+    getFilesAtRisk(vis, attentionTxIds),
   ]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
   // Gone quiet shows for self-managed agencies and internal staff alike
@@ -856,6 +895,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
   const reviewsDue = reviewsResult.items.filter((i) => i.reviewDate && toUKDateStr(i.reviewDate) <= todayStr);
 
   const presentCount =
+    (filesAtRisk.length > 0 ? 1 : 0) +
     (bookings.length > 0 ? 1 : 0) +
     (mortgage.length > 0 ? 1 : 0) +
     (needsFiling.length > 0 ? 1 : 0) +
@@ -866,6 +906,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
   const startCollapsed = presentCount > 1;
 
   const photoMap = await getSignedUrlMap([
+    ...filesAtRisk.map((i) => i.photoStoragePath),
     ...bookings.map((i) => i.photoStoragePath),
     ...mortgage.map((i) => i.photoStoragePath),
     ...reviewsDue.map((i) => i.photoStoragePath),
@@ -879,6 +920,23 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
 
   return (
     <>
+      {/* Files at risk leads the triage group — a frozen near-exchange sale or
+          an unreachable solicitor outranks everything below it on the "costs
+          you money or credibility today" scale. Subtitle copy LOCKED by the
+          founder, 2026-10-12. */}
+      {filesAtRisk.length > 0 && (
+        <SectionReveal order={1}>
+          <HubListCard
+            cardKind="files_at_risk"
+            iconName="warning"
+            headerTone="danger"
+            title="Files at risk"
+            subtitle="Our overnight checks have flagged sales that may have stalled or need a follow-up."
+            rows={buildFilesAtRiskRows(filesAtRisk, photoMap)}
+            defaultCollapsed={startCollapsed}
+          />
+        </SectionReveal>
+      )}
       {bookings.length > 0 && (
         <SectionReveal order={1}>
           <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} defaultCollapsed={startCollapsed} />

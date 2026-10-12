@@ -14,7 +14,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Clock, Bank, CaretDown, X } from "@phosphor-icons/react";
+import { Clock, Bank, Warning, CaretDown, X } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
@@ -47,7 +47,7 @@ const TONE: Record<HubRowTone, { accent: string; bg: string; iconBg: string; col
   muted: { accent: "rgba(100,116,139,0.55)", bg: "rgba(100,116,139,0.04)", iconBg: "rgba(100,116,139,0.12)", color: "#64748B" },
 };
 
-const ICONS = { clock: Clock, bank: Bank } as const;
+const ICONS = { clock: Clock, bank: Bank, warning: Warning } as const;
 
 // First line + town/postcode (last two comma parts). Inline per the grandfathered
 // per-component pattern shared across the hub cards.
@@ -77,7 +77,7 @@ export function HubListCard({
   rows: initialRows,
   defaultCollapsed = false,
 }: {
-  cardKind: "gone_quiet" | "mortgage_expiry";
+  cardKind: "gone_quiet" | "mortgage_expiry" | "files_at_risk";
   iconName: keyof typeof ICONS;
   headerTone: HubRowTone;
   title: string;

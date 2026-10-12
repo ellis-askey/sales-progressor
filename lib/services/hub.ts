@@ -1529,6 +1529,169 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility, excludeT
   return items;
 }
 
+// ── Files at risk (founder-approved 2026-10-12, agent-advantage item 1) ──────
+// Agent-facing read of two overnight situations that previously reached only
+// the founder signal engine (lib/services/signals/detectors/revenue-at-risk +
+// chase-not-landing), rescoped to the viewer and reworded without the billing
+// angle. Deliberately EXCLUDES client-engagement signals (founder gating:
+// never show an agency "your clients aren't using it" — that stays on the
+// softened Worth-a-nudge card) and solicitor-silent (already covered by the
+// Needs-you solicitor hand-over in reminder-autopilot).
+//   ready_frozen      — exchange-ready gate (VM18/PM25) complete for 14+ days,
+//                       not exchanged, and no step confirmed since.
+//   chase_not_landing — solicitor chase emails sent 7+ days ago, never opened,
+//                       never responded to, not ticked replied-by-email.
+export type FilesAtRiskItem = {
+  transactionId: string;
+  propertyAddress: string;
+  photoStoragePath: string | null;
+} & (
+  | { kind: "ready_frozen"; readySince: Date; daysStalled: number }
+  | { kind: "chase_not_landing"; solicitorSide: "seller" | "buyer"; unopenedChases: number; lastSentAt: Date }
+);
+
+const FILES_AT_RISK_STALLED_DAYS = 14; // mirrors the revenue-at-risk detector
+const FILES_AT_RISK_CHASE_GRACE_DAYS = 7; // mirrors the chase-not-landing detector
+
+export async function getFilesAtRisk(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<FilesAtRiskItem[]> {
+  const now = new Date();
+  const stalledCutoff = new Date(now.getTime() - FILES_AT_RISK_STALLED_DAYS * 86_400_000);
+  const chaseCutoff = new Date(now.getTime() - FILES_AT_RISK_CHASE_GRACE_DAYS * 86_400_000);
+  const txNested = buildTxNested(vis);
+  const base: Prisma.PropertyTransactionWhereInput = {
+    ...txNested,
+    status: "active",
+    exchangedAt: null,
+    isDemo: false,
+    isMigrated: false,
+    // Don't repeat a file that's already in "Needs your attention".
+    ...(excludeTxIds.length ? { id: { notIn: excludeTxIds } } : {}),
+  };
+  // Same Law-7 shape as getUpcomingMortgageExpiries: agencyId only constrains
+  // agency viewers; internal staff are scoped by txNested (null agencyId).
+  const txFilter: Prisma.PropertyTransactionWhereInput = vis.internalMode
+    ? base
+    : { ...base, agencyId: vis.agencyId };
+
+  // Ready but frozen — relist-safe via the active-round OR (Phase-3 pattern):
+  // without it a relisted file matches the PREVIOUS buyer's old PM25.
+  const activeRoundIds = await loadActiveRoundIds(txFilter);
+  const frozen = await prisma.milestoneCompletion.findMany({
+    where: {
+      state: "complete",
+      milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
+      completedAt: { lt: stalledCutoff },
+      OR: roundScopedOR(activeRoundIds),
+      transaction: {
+        ...txFilter,
+        // "Nothing has moved": no exchange recorded (belt + braces on top of
+        // exchangedAt null) and no step confirmed since the cutoff. May
+        // over-suppress on reconciled archived rounds — hides, never leaks.
+        milestoneCompletions: {
+          none: {
+            state: "complete",
+            OR: [
+              { milestoneDefinition: { code: { in: ["VM19", "PM26"] } } },
+              { completedAt: { gte: stalledCutoff } },
+            ],
+          },
+        },
+        hubCardDismissals: {
+          none: { cardKind: "files_at_risk", signature: "ready_frozen", dismissedUntil: { gt: now } },
+        },
+      },
+    },
+    orderBy: { completedAt: "asc" },
+    distinct: ["transactionId"],
+    take: 20,
+    select: {
+      transactionId: true,
+      completedAt: true,
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
+    },
+  });
+
+  const items: FilesAtRiskItem[] = frozen.map((m) => ({
+    transactionId: m.transactionId,
+    propertyAddress: m.transaction.propertyAddress,
+    photoStoragePath: m.transaction.photoStoragePath,
+    kind: "ready_frozen" as const,
+    readySince: m.completedAt as Date,
+    daysStalled: Math.floor((now.getTime() - (m.completedAt as Date).getTime()) / 86_400_000),
+  }));
+  const frozenIds = new Set(items.map((i) => i.transactionId));
+
+  // Worth a call — solicitor chase emails that went nowhere. Stricter than the
+  // founder detector (adds openedAt null) so the card's "email isn't reaching
+  // them" line is supported: no link open, no action, no email reply. The
+  // client-nudge recipient ("buyer") is deliberately excluded — client
+  // engagement stays off this card (founder gating).
+  const chaseGroups = await prisma.chaseSend.groupBy({
+    by: ["transactionId", "recipient"],
+    where: {
+      recipient: { in: ["seller_solicitor", "buyer_solicitor"] },
+      sentAt: { lt: chaseCutoff },
+      openedAt: null,
+      respondedAt: null,
+      repliedByEmailAt: null,
+      transaction: {
+        ...txFilter,
+        hubCardDismissals: {
+          none: { cardKind: "files_at_risk", signature: "chase_not_landing", dismissedUntil: { gt: now } },
+        },
+      },
+    },
+    _count: { _all: true },
+    _max: { sentAt: true },
+  });
+
+  if (chaseGroups.length > 0) {
+    // Honesty guard: a recipient who opened / answered ANY recent chase is
+    // reachable — a leftover unanswered send shouldn't put them on the card.
+    const chaseTxIds = [...new Set(chaseGroups.map((g) => g.transactionId))];
+    const engaged = await prisma.chaseSend.findMany({
+      where: {
+        transactionId: { in: chaseTxIds },
+        recipient: { in: ["seller_solicitor", "buyer_solicitor"] },
+        sentAt: { gte: new Date(now.getTime() - 2 * FILES_AT_RISK_CHASE_GRACE_DAYS * 86_400_000) },
+        OR: [{ openedAt: { not: null } }, { respondedAt: { not: null } }, { repliedByEmailAt: { not: null } }],
+      },
+      select: { transactionId: true, recipient: true },
+    });
+    const engagedKeys = new Set(engaged.map((e) => `${e.transactionId}:${e.recipient}`));
+    const live = chaseGroups
+      .filter((g) => !engagedKeys.has(`${g.transactionId}:${g.recipient}`) && !frozenIds.has(g.transactionId))
+      .sort((a, b) => b._count._all - a._count._all);
+
+    const seen = new Set<string>();
+    const picked = live.filter((g) => (seen.has(g.transactionId) ? false : (seen.add(g.transactionId), true)));
+    if (picked.length > 0) {
+      const txs = await prisma.propertyTransaction.findMany({
+        where: { id: { in: picked.map((g) => g.transactionId) } },
+        select: { id: true, propertyAddress: true, photoStoragePath: true },
+      });
+      const txById = new Map(txs.map((t) => [t.id, t]));
+      for (const g of picked.slice(0, 20)) {
+        const tx = txById.get(g.transactionId);
+        if (!tx || !g._max.sentAt) continue;
+        items.push({
+          transactionId: g.transactionId,
+          propertyAddress: tx.propertyAddress,
+          photoStoragePath: tx.photoStoragePath,
+          kind: "chase_not_landing" as const,
+          solicitorSide: g.recipient === "seller_solicitor" ? "seller" : "buyer",
+          unopenedChases: g._count._all,
+          lastSentAt: g._max.sentAt,
+        });
+      }
+    }
+  }
+
+  // Frozen files first (longest-stalled already first), then unreachable
+  // solicitors by how many sends went nowhere.
+  return items;
+}
+
 export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHoldItem[]> {
   const now = new Date();
   const txNested = buildTxNested(vis);
