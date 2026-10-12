@@ -34,17 +34,17 @@ export function BoardwalkShell({
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <header
           style={{
-            height: 58,
+            height: 62,
             borderBottom: "1px solid var(--bw-line)",
-            background: "rgba(250, 248, 244, 0.9)",
+            background: "rgba(243, 240, 238, 0.92)",
             backdropFilter: "blur(8px)",
             position: "sticky",
             top: 0,
             zIndex: 40,
             display: "flex",
             alignItems: "center",
-            padding: "0 20px",
-            gap: 20,
+            padding: "0 24px",
+            gap: 22,
           }}
         >
           <Link href="/boardwalk/typeform" style={{ textDecoration: "none" }}>
@@ -74,9 +74,9 @@ export function BoardwalkShell({
                   width: 34,
                   height: 34,
                   borderRadius: 999,
-                  border: "1px solid var(--bw-line-strong)",
-                  background: "var(--bw-green-tint)",
-                  color: "var(--bw-green-deep)",
+                  border: "none",
+                  background: "var(--bw-blush)",
+                  color: "var(--bw-blush-ink)",
                   fontSize: 12.5,
                   fontWeight: 700,
                   cursor: "pointer",

@@ -6,11 +6,14 @@
 import type { FormDefinition, Question } from "./types";
 import { blankDefinition } from "./defaults";
 
+export type TemplateCategory = "Selling" | "Buying" | "Feedback" | "General";
+
 export interface FormTemplate {
   id: string;
   name: string;
   description: string;
   questionCount: number;
+  category: TemplateCategory;
   build: () => FormDefinition;
 }
 
@@ -448,6 +451,7 @@ function contactForm(): FormDefinition {
 export const FORM_TEMPLATES: FormTemplate[] = [
   {
     id: "valuation-enquiry",
+    category: "Selling",
     name: "Property valuation enquiry",
     description: "Capture valuation leads with contact details, property info and consent, branching for sellers vs the merely curious.",
     questionCount: 10,
@@ -455,6 +459,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "buyer-registration",
+    category: "Buying",
     name: "Buyer registration",
     description: "Register applicants with position, funding, budget and must-haves. Asks about their sale only when they have one.",
     questionCount: 11,
@@ -462,6 +467,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "viewing-feedback",
+    category: "Feedback",
     name: "Viewing feedback",
     description: "Post-viewing feedback that routes hot buyers straight to an offer conversation and asks the honest 'what put you off' otherwise.",
     questionCount: 8,
@@ -469,6 +475,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "vendor-onboarding",
+    category: "Selling",
     name: "Vendor onboarding",
     description: "Everything you need from a new seller: ownership, tenure, solicitor, mortgage, viewing preferences and ID upload.",
     questionCount: 13,
@@ -476,6 +483,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "marketing-questionnaire",
+    category: "Selling",
     name: "Property marketing questionnaire",
     description: "Pulls listing-copy gold from the owner: what they love, what's been improved, and when the photographer can come.",
     questionCount: 9,
@@ -483,6 +491,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "offer-submission",
+    category: "Buying",
     name: "Offer submission",
     description: "A structured, verifiable offer: amount, position, funding, AIP upload and a personal note to the owner.",
     questionCount: 13,
@@ -490,6 +499,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "satisfaction-survey",
+    category: "Feedback",
     name: "Customer satisfaction survey",
     description: "NPS-style survey that quietly routes unhappy clients to a 'what went wrong' path and a senior call-back.",
     questionCount: 8,
@@ -497,6 +507,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
   {
     id: "contact",
+    category: "General",
     name: "General contact form",
     description: "A clean, branded way in, with topic routing and an optional call-back number.",
     questionCount: 6,

@@ -55,34 +55,61 @@ export function DesignPanel({
         padding: "16px 16px 60px",
       }}
     >
-      <h2 className="bw-display" style={{ fontSize: 17, margin: "0 0 4px" }}>Design</h2>
+      <h2 className="bw-display" style={{ fontSize: 19, margin: "0 0 4px" }}>Design</h2>
       <p className="bw-hint" style={{ margin: "0 0 16px" }}>Changes apply to this form and show in the preview instantly.</p>
 
-      <p className="bw-label">Presets</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <p className="bw-label" style={{ margin: 0 }}>Presets</p>
+        {t.preset !== "boardwalk" && (
+          <button
+            className="bw-btn bw-btn-ghost bw-btn-sm"
+            style={{ height: 24, fontSize: 11 }}
+            onClick={() => setTheme({ ...THEME_PRESETS.boardwalk })}
+          >
+            Reset to brand
+          </button>
+        )}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         {Object.values(THEME_PRESETS).map((preset) => {
           const active = t.preset === preset.preset;
+          const isBrand = preset.preset === "boardwalk";
           return (
             <button
               key={preset.preset}
               onClick={() => setTheme({ ...preset })}
+              aria-pressed={active}
               style={{
                 borderRadius: 12,
-                border: `2px solid ${active ? "var(--bw-green)" : "var(--bw-line)"}`,
+                border: `2px solid ${active ? "var(--bw-brand)" : "var(--bw-line)"}`,
                 background: preset.backgroundColor,
                 color: preset.textColor,
-                padding: "14px 10px 10px",
+                padding: "13px 10px 10px",
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "border-color 140ms ease, transform 140ms ease",
-                fontFamily: preset.font === "serif" ? "Georgia, serif" : "var(--bw-font-sans)",
+                transition: "border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease",
+                fontFamily:
+                  preset.font === "serif"
+                    ? "Georgia, serif"
+                    : preset.font === "display"
+                      ? "var(--bw-font-display), Georgia, serif"
+                      : "var(--bw-font-sans)",
+                position: "relative",
+                boxShadow: active ? "var(--bw-shadow)" : "none",
               }}
             >
-              <span style={{ display: "block", fontSize: 13, fontWeight: 650, marginBottom: 7 }}>Aa</span>
-              <span style={{ display: "inline-block", background: preset.primaryColor, color: preset.buttonTextColor, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: preset.buttonRadius }}>
+              <span style={{ display: "block", fontSize: 15, fontWeight: preset.font === "sans" ? 650 : 450, marginBottom: 7 }}>Aa</span>
+              <span style={{ display: "inline-block", background: preset.primaryColor, color: preset.buttonTextColor, fontSize: 9.5, fontWeight: 700, padding: "3px 10px", borderRadius: preset.buttonRadius, fontFamily: "var(--bw-font-sans)", letterSpacing: "0.04em" }}>
                 Button
               </span>
-              <span style={{ display: "block", fontSize: 10.5, marginTop: 8, opacity: 0.65, textTransform: "capitalize" }}>{preset.preset}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, marginTop: 8, opacity: 0.75, textTransform: "capitalize", fontFamily: "var(--bw-font-sans)" }}>
+                {preset.preset}
+                {isBrand && (
+                  <span style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: preset.primaryColor, color: preset.buttonTextColor, borderRadius: 999, padding: "1.5px 7px" }}>
+                    Brand
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}

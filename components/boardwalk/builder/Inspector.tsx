@@ -4,6 +4,7 @@
 // wording, required, type-specific config, and the logic editor; the welcome
 // and ending screens get their own fields.
 
+import { useState } from "react";
 import type { FormDefinition, Question, QuestionType } from "@/lib/forms/types";
 import type { LogicIssue } from "@/lib/forms/logic";
 import { QUESTION_TYPE_LABELS, newQuestion } from "@/lib/forms/defaults";
@@ -11,6 +12,45 @@ import { newEntityId } from "@/lib/forms/ids";
 import { BwField, BwSwitch } from "../ui";
 import type { Selection } from "./BuilderApp";
 import { LogicEditor } from "./LogicEditor";
+
+/** Collapsed-by-default section for less-used settings. */
+function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ borderTop: "1px solid var(--bw-line)", marginTop: 20 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "14px 0 10px",
+          fontFamily: "var(--bw-font-sans)",
+        }}
+      >
+        <span className="bw-label" style={{ margin: 0 }}>{title}</span>
+        <span
+          aria-hidden
+          style={{
+            fontSize: 11,
+            color: "var(--bw-ink-faint)",
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 180ms ease",
+          }}
+        >
+          ▾
+        </span>
+      </button>
+      {open && <div className="bw-fade-up">{children}</div>}
+    </div>
+  );
+}
 
 const CHOICE_TYPES = ["single_choice", "multiple_choice", "dropdown", "picture_choice", "ranking"];
 
@@ -240,13 +280,14 @@ function QuestionSettings({
       {/* ── Type-specific config ── */}
       <TypeConfig q={q} set={set} />
 
-      <SectionHeading>Extras</SectionHeading>
-      <BwField label="Section label (optional)" hint="A small kicker above the question. Groups related questions.">
-        <input className="bw-input bw-input-sm" value={q.section ?? ""} onChange={(e) => set({ section: e.target.value || undefined })} />
-      </BwField>
-      <BwField label="Image URL (optional)">
-        <input className="bw-input bw-input-sm" placeholder="https://…" value={q.imageUrl ?? ""} onChange={(e) => set({ imageUrl: e.target.value || undefined })} />
-      </BwField>
+      <Collapsible title="Image & section">
+        <BwField label="Section label (optional)" hint="A small kicker above the question. Groups related questions.">
+          <input className="bw-input bw-input-sm" value={q.section ?? ""} onChange={(e) => set({ section: e.target.value || undefined })} />
+        </BwField>
+        <BwField label="Image URL (optional)">
+          <input className="bw-input bw-input-sm" placeholder="https://…" value={q.imageUrl ?? ""} onChange={(e) => set({ imageUrl: e.target.value || undefined })} />
+        </BwField>
+      </Collapsible>
 
       {/* ── Logic ── */}
       <SectionHeading>Logic</SectionHeading>

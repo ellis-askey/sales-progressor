@@ -1,7 +1,8 @@
 "use client";
 
 // Left pane of the builder: welcome screen, the sortable question list
-// (dnd-kit), endings, and the add-question type picker.
+// (dnd-kit), endings, and the add-question type picker. Lucide icons per
+// field type, numbered chips, grip handles.
 
 import { useState } from "react";
 import {
@@ -20,34 +21,40 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Type, AlignLeft, Mail, Phone, Link2, Hash, MapPin, CircleDot, CheckSquare,
+  ChevronDown, Image as ImageIcon, Calendar, Clock, SlidersHorizontal, Star,
+  ArrowUpDown, Paperclip, MessageSquare, ShieldCheck, PenLine, ToggleLeft,
+  GripVertical, Flag, Hand, AlertTriangle,
+} from "lucide-react";
 import type { FormDefinition, QuestionType } from "@/lib/forms/types";
 import type { LogicIssue } from "@/lib/forms/logic";
 import { QUESTION_TYPE_LABELS } from "@/lib/forms/defaults";
 import { BwMenu } from "../ui";
 import type { Selection } from "./BuilderApp";
 
-const TYPE_ICONS: Record<QuestionType, string> = {
-  short_text: "✏️",
-  long_text: "📝",
-  email: "✉️",
-  phone: "📞",
-  url: "🔗",
-  number: "#",
-  address: "📍",
-  single_choice: "◉",
-  multiple_choice: "☑",
-  dropdown: "▾",
-  yes_no: "⚖",
-  picture_choice: "🖼",
-  date: "📅",
-  time: "🕐",
-  opinion_scale: "📊",
-  star_rating: "★",
-  ranking: "↕",
-  file_upload: "📎",
-  statement: "💬",
-  consent: "✓",
-  signature: "✍️",
+export const TYPE_ICONS: Record<QuestionType, React.ComponentType<{ size?: number | string; strokeWidth?: number | string }>> = {
+  short_text: Type,
+  long_text: AlignLeft,
+  email: Mail,
+  phone: Phone,
+  url: Link2,
+  number: Hash,
+  address: MapPin,
+  single_choice: CircleDot,
+  multiple_choice: CheckSquare,
+  dropdown: ChevronDown,
+  yes_no: ToggleLeft,
+  picture_choice: ImageIcon,
+  date: Calendar,
+  time: Clock,
+  opinion_scale: SlidersHorizontal,
+  star_rating: Star,
+  ranking: ArrowUpDown,
+  file_upload: Paperclip,
+  statement: MessageSquare,
+  consent: ShieldCheck,
+  signature: PenLine,
 };
 
 const TYPE_GROUPS: { label: string; types: QuestionType[] }[] = [
@@ -62,7 +69,7 @@ function SortableRow({
   index,
   selected,
   hasIssue,
-  icon,
+  type,
   title,
   onSelect,
   onDuplicate,
@@ -72,36 +79,38 @@ function SortableRow({
   index: number;
   selected: boolean;
   hasIssue: boolean;
-  icon: string;
+  type: QuestionType;
   title: string;
   onSelect: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const Icon = TYPE_ICONS[type] ?? Type;
   return (
     <div
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.6 : 1,
+        opacity: isDragging ? 0.55 : 1,
         zIndex: isDragging ? 5 : undefined,
         position: "relative",
       }}
     >
       <div
         onClick={onSelect}
+        className="bw-rail-row"
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          padding: "8px 8px 8px 6px",
+          gap: 7,
+          padding: "7px 6px 7px 2px",
           borderRadius: 10,
           cursor: "pointer",
-          background: selected ? "var(--bw-green-tint)" : "transparent",
-          border: `1px solid ${selected ? "var(--bw-green)" : "transparent"}`,
-          transition: "background 130ms ease, border-color 130ms ease",
+          background: selected ? "var(--bw-paper-sunken)" : "transparent",
+          boxShadow: selected ? "inset 2.5px 0 0 var(--bw-brand)" : "none",
+          transition: "background 130ms ease",
         }}
       >
         <button
@@ -113,33 +122,34 @@ function SortableRow({
             border: "none",
             background: "transparent",
             color: "var(--bw-ink-faint)",
-            fontSize: 13,
-            padding: "2px 2px",
+            padding: "4px 1px",
             touchAction: "none",
+            display: "flex",
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          ⠿
+          <GripVertical size={13} />
         </button>
         <span
           style={{
-            width: 30,
-            height: 24,
-            borderRadius: 6,
-            background: selected ? "var(--bw-green)" : "var(--bw-paper-sunken)",
+            width: 42,
+            height: 26,
+            borderRadius: 7,
+            background: selected ? "var(--bw-brand)" : "var(--bw-paper-sunken)",
             color: selected ? "#fff" : "var(--bw-ink-soft)",
-            fontSize: 11,
-            fontWeight: 700,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 3,
+            gap: 4,
             flexShrink: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            border: selected ? "none" : "1px solid var(--bw-line)",
           }}
         >
+          <Icon size={11} strokeWidth={2.2} />
           {index + 1}
         </span>
-        <span style={{ fontSize: 12, flexShrink: 0 }}>{icon}</span>
         <span
           style={{
             fontSize: 13,
@@ -154,8 +164,8 @@ function SortableRow({
           {title || "Untitled question"}
         </span>
         {hasIssue && (
-          <span title="This question has a logic problem" style={{ color: "var(--bw-amber)", fontSize: 12 }}>
-            ⚠
+          <span title="This question has a logic problem" style={{ color: "var(--bw-amber)", display: "flex" }}>
+            <AlertTriangle size={13} />
           </span>
         )}
         <BwMenu
@@ -212,30 +222,30 @@ export function QuestionRail({
     <aside
       className="bw-scroll"
       style={{
-        width: 290,
-        minWidth: 240,
+        width: 288,
+        minWidth: 244,
         flex: "0 0 auto",
         borderRight: "1px solid var(--bw-line)",
         background: "var(--bw-paper-raised)",
         overflowY: "auto",
-        padding: "14px 10px 40px",
+        padding: "16px 12px 48px",
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 3,
       }}
     >
       {/* Welcome */}
-      <RailHeading label="Welcome" />
+      <span className="bw-label" style={{ margin: "0 4px 5px" }}>Welcome</span>
       <RailStaticRow
         selected={selection.kind === "welcome"}
         onClick={() => onSelect({ kind: "welcome" })}
-        icon="👋"
+        icon={<Hand size={13} strokeWidth={2.2} />}
         title={def.welcome.enabled ? def.welcome.title || "Welcome screen" : "Welcome screen (off)"}
         dim={!def.welcome.enabled}
       />
 
       {/* Questions */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 4px 4px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "16px 4px 5px" }}>
         <span className="bw-label" style={{ margin: 0 }}>Questions</span>
         <button className="bw-btn bw-btn-primary bw-btn-sm" onClick={() => setPickerOpen((o) => !o)}>
           + Add
@@ -243,27 +253,30 @@ export function QuestionRail({
       </div>
 
       {pickerOpen && (
-        <div className="bw-card bw-fade-up" style={{ padding: 10, marginBottom: 6 }}>
+        <div className="bw-card bw-fade-up" style={{ padding: 11, marginBottom: 8, borderRadius: 12 }}>
           {TYPE_GROUPS.map((group) => (
-            <div key={group.label} style={{ marginBottom: 8 }}>
-              <p style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bw-ink-faint)", margin: "0 0 4px 4px" }}>
+            <div key={group.label} style={{ marginBottom: 9 }}>
+              <p className="bw-kicker" style={{ fontSize: 9.5, margin: "0 0 4px 4px" }}>
                 {group.label}
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
-                {group.types.map((t) => (
-                  <button
-                    key={t}
-                    className="bw-menu-item"
-                    style={{ padding: "6px 8px", fontSize: 12.5 }}
-                    onClick={() => {
-                      onAdd(t);
-                      setPickerOpen(false);
-                    }}
-                  >
-                    <span style={{ fontSize: 11 }}>{TYPE_ICONS[t]}</span>
-                    {QUESTION_TYPE_LABELS[t]}
-                  </button>
-                ))}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                {group.types.map((t) => {
+                  const Icon = TYPE_ICONS[t];
+                  return (
+                    <button
+                      key={t}
+                      className="bw-menu-item"
+                      style={{ padding: "6px 7px", fontSize: 12.5, gap: 7 }}
+                      onClick={() => {
+                        onAdd(t);
+                        setPickerOpen(false);
+                      }}
+                    >
+                      <Icon size={12} strokeWidth={2} />
+                      {QUESTION_TYPE_LABELS[t]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -277,7 +290,7 @@ export function QuestionRail({
             border: "1.5px dashed var(--bw-line-strong)",
             borderRadius: 10,
             background: "transparent",
-            padding: "18px 12px",
+            padding: "20px 12px",
             fontSize: 13,
             color: "var(--bw-ink-soft)",
             cursor: "pointer",
@@ -297,7 +310,7 @@ export function QuestionRail({
               index={i}
               selected={selection.kind === "question" && selection.id === q.id}
               hasIssue={issueQuestionIds.has(q.id)}
-              icon={TYPE_ICONS[q.type] ?? "•"}
+              type={q.type}
               title={q.title}
               onSelect={() => onSelect({ kind: "question", id: q.id })}
               onDuplicate={() => onDuplicate(q.id)}
@@ -308,26 +321,18 @@ export function QuestionRail({
       </DndContext>
 
       {/* Endings */}
-      <RailHeading label="Endings" style={{ marginTop: 14 }} />
+      <span className="bw-label" style={{ margin: "16px 4px 5px" }}>Endings</span>
       {def.endings.map((e) => (
         <RailStaticRow
           key={e.id}
           selected={selection.kind === "ending" && selection.id === e.id}
           onClick={() => onSelect({ kind: "ending", id: e.id })}
-          icon="🏁"
+          icon={<Flag size={13} strokeWidth={2.2} />}
           title={e.title || "Ending"}
           badge={e.isDefault ? "default" : undefined}
         />
       ))}
     </aside>
-  );
-}
-
-function RailHeading({ label, style }: { label: string; style?: React.CSSProperties }) {
-  return (
-    <span className="bw-label" style={{ margin: "0 4px 4px", ...style }}>
-      {label}
-    </span>
   );
 }
 
@@ -341,7 +346,7 @@ function RailStaticRow({
 }: {
   selected: boolean;
   onClick: () => void;
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   dim?: boolean;
   badge?: string;
@@ -356,17 +361,18 @@ function RailStaticRow({
         padding: "9px 10px",
         borderRadius: 10,
         cursor: "pointer",
-        background: selected ? "var(--bw-green-tint)" : "transparent",
-        border: `1px solid ${selected ? "var(--bw-green)" : "transparent"}`,
+        background: selected ? "var(--bw-paper-sunken)" : "transparent",
+        boxShadow: selected ? "inset 2.5px 0 0 var(--bw-brand)" : "none",
         opacity: dim ? 0.55 : 1,
-        transition: "background 130ms ease, border-color 130ms ease",
+        transition: "background 130ms ease",
+        color: selected ? "var(--bw-ink-strong)" : "var(--bw-ink)",
       }}
     >
-      <span style={{ fontSize: 13 }}>{icon}</span>
+      <span style={{ display: "flex", color: selected ? "var(--bw-brand)" : "var(--bw-ink-soft)" }}>{icon}</span>
       <span style={{ fontSize: 13, fontWeight: 550, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {title}
       </span>
-      {badge && <span className="bw-chip bw-chip-grey" style={{ height: 18, fontSize: 10 }}>{badge}</span>}
+      {badge && <span className="bw-chip bw-chip-grey" style={{ height: 18, fontSize: 9 }}>{badge}</span>}
     </div>
   );
 }

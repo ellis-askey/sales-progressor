@@ -32,9 +32,9 @@ export interface RunnerForm {
 }
 
 const FONT_STACKS: Record<FormTheme["font"], string> = {
-  sans: "var(--font-bw-sans), system-ui, sans-serif",
+  sans: "brandon-grotesque, var(--font-bw-sans), 'Helvetica Neue', system-ui, sans-serif",
   serif: "Georgia, 'Times New Roman', serif",
-  display: "var(--font-bw-display), Georgia, serif",
+  display: "blacker-pro-display, var(--font-bw-display), Georgia, serif",
   mono: "ui-monospace, 'Cascadia Code', Menlo, monospace",
 };
 
@@ -285,6 +285,9 @@ export function FormRunner({ form, mode }: { form: RunnerForm; mode: "live" | "p
     "--fr-button-text": t.buttonTextColor,
     "--fr-line": `color-mix(in srgb, ${t.textColor} 22%, transparent)`,
     "--fr-surface": `color-mix(in srgb, ${t.backgroundColor} 88%, ${t.textColor} 2%)`,
+    // Serif display faces read better at a lighter weight than UI sans
+    "--fr-heading-weight": t.font === "sans" ? 650 : 480,
+    "--fr-ui-font": FONT_STACKS.sans,
   } as React.CSSProperties;
 
   const background =
@@ -299,11 +302,12 @@ export function FormRunner({ form, mode }: { form: RunnerForm; mode: "live" | "p
     color: "var(--fr-button-text)",
     border: "none",
     borderRadius: t.buttonRadius,
-    padding: "13px 28px",
-    fontSize: 16,
+    padding: "13px 30px",
+    fontSize: 15.5,
     fontWeight: 650,
+    letterSpacing: "0.03em",
     cursor: "pointer",
-    fontFamily: "inherit",
+    fontFamily: "var(--fr-ui-font)",
     transition: "transform 120ms ease, filter 150ms ease",
   };
 
@@ -396,7 +400,7 @@ export function FormRunner({ form, mode }: { form: RunnerForm; mode: "live" | "p
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.welcome.imageUrl} alt="" style={{ maxWidth: 220, maxHeight: 140, objectFit: "contain", margin: "0 auto 26px", display: "block", borderRadius: 12 }} />
             )}
-            <h1 style={{ fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.15, margin: "0 0 14px", fontWeight: 650 }}>
+            <h1 style={{ fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.15, margin: "0 0 14px", fontWeight: "var(--fr-heading-weight)" as never }}>
               {form.welcome.title || form.title}
             </h1>
             {form.welcome.description && (
@@ -461,7 +465,7 @@ export function FormRunner({ form, mode }: { form: RunnerForm; mode: "live" | "p
         {/* ── Classic layout ── */}
         {screen === "flow" && !oneAtATime && (
           <div className="fr-anim" style={{ animation: "fr-in-fwd 380ms ease both" }}>
-            <h1 style={{ fontSize: "clamp(24px, 3.6vw, 34px)", margin: "0 0 6px", fontWeight: 650 }}>{form.title}</h1>
+            <h1 style={{ fontSize: "clamp(24px, 3.6vw, 34px)", margin: "0 0 6px", fontWeight: "var(--fr-heading-weight)" as never }}>{form.title}</h1>
             {form.welcome.description && (
               <p style={{ opacity: 0.7, margin: "0 0 34px", lineHeight: 1.55 }}>{form.welcome.description}</p>
             )}
@@ -548,7 +552,7 @@ export function FormRunner({ form, mode }: { form: RunnerForm; mode: "live" | "p
             >
               ✓
             </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", margin: "0 0 12px", fontWeight: 650 }}>{ending.title}</h1>
+            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", margin: "0 0 12px", fontWeight: "var(--fr-heading-weight)" as never }}>{ending.title}</h1>
             {ending.description && (
               <p style={{ fontSize: 16, opacity: 0.75, lineHeight: 1.55, maxWidth: 480, margin: "0 auto 26px" }}>{ending.description}</p>
             )}
@@ -659,13 +663,13 @@ function QuestionScreen({
   return (
     <div>
       {question.section && (
-        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--fr-primary)", margin: "0 0 10px" }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--fr-primary)", margin: "0 0 12px", fontFamily: "var(--fr-ui-font)" }}>
           {question.section}
         </p>
       )}
       <div style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: question.description ? 6 : 20 }}>
-        <span style={{ fontSize: 14, color: "var(--fr-primary)", fontWeight: 650, flexShrink: 0 }}>{number} →</span>
-        <h2 style={{ fontSize: compact ? "clamp(17px, 2vw, 20px)" : "clamp(20px, 3vw, 28px)", lineHeight: 1.3, margin: 0, fontWeight: 600 }}>
+        <span style={{ fontSize: 13.5, color: "var(--fr-primary)", fontWeight: 650, flexShrink: 0, fontFamily: "var(--fr-ui-font)" }}>{number} →</span>
+        <h2 style={{ fontSize: compact ? "clamp(17px, 2vw, 20px)" : "clamp(20px, 3vw, 28px)", lineHeight: 1.3, margin: 0, fontWeight: "var(--fr-heading-weight)" as never }}>
           {question.title || "…"}
           {question.required && <span style={{ color: "var(--fr-primary)", marginLeft: 4 }}>*</span>}
         </h2>

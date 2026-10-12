@@ -1,16 +1,18 @@
 // Public form runner layout — loads the Boardwalk font variables the runner's
-// theme stacks reference. No chrome: each form paints its own full-screen
-// theme. Deliberately exposes nothing about the dashboard.
+// theme stacks reference (DM Serif Display / Jost stand-ins for Boardwalk's
+// Adobe faces; see app/boardwalk/layout.tsx). No chrome: each form paints its
+// own full-screen theme. Deliberately exposes nothing about the dashboard.
 
 import type { Metadata } from "next";
-import { Fraunces, Figtree } from "next/font/google";
+import { DM_Serif_Display, Jost } from "next/font/google";
 
-const display = Fraunces({
+const display = DM_Serif_Display({
   variable: "--font-bw-display",
   subsets: ["latin"],
+  weight: "400",
 });
 
-const sans = Figtree({
+const sans = Jost({
   variable: "--font-bw-sans",
   subsets: ["latin"],
 });

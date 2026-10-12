@@ -61,13 +61,14 @@ export function ShareTab({
   const isClosed = status === "closed";
 
   return (
-    <div className="bw-scroll" style={{ flex: 1, overflowY: "auto", padding: "26px 20px 80px" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
-        {/* ── Publish state ── */}
-        <section className="bw-card" style={{ padding: 22 }}>
+    <div className="bw-scroll" style={{ flex: 1, overflowY: "auto", padding: "26px 22px 80px" }}>
+      <div style={{ maxWidth: 1020, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: 18, alignItems: "start" }}>
+        {/* ── Publish state (full width) ── */}
+        <section className="bw-card" style={{ padding: 24, gridColumn: "1 / -1" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <h2 className="bw-display" style={{ fontSize: 18, margin: "0 0 4px" }}>
+              <p className="bw-kicker" style={{ margin: "0 0 6px" }}>Status</p>
+              <h2 className="bw-display" style={{ fontSize: 21, margin: "0 0 4px" }}>
                 {isLive ? "Your form is live" : isClosed ? "Closed to new responses" : "Not published yet"}
               </h2>
               <p className="bw-hint" style={{ margin: 0 }}>
@@ -99,9 +100,9 @@ export function ShareTab({
           </div>
         </section>
 
-        {/* ── Link / QR / embed ── */}
+        {/* ── Link / QR / embed (full width when present) ── */}
         {(isLive || isClosed) && (
-          <section className="bw-card" style={{ padding: 22 }}>
+          <section className="bw-card" style={{ padding: 24, gridColumn: "1 / -1" }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>Share</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
               <input className="bw-input" readOnly value={publicUrl} style={{ flex: "1 1 260px", fontFamily: "monospace", fontSize: 13 }} onFocus={(e) => e.target.select()} />
@@ -143,7 +144,7 @@ export function ShareTab({
         )}
 
         {/* ── Access rules ── */}
-        <section className="bw-card" style={{ padding: 22 }}>
+        <section className="bw-card" style={{ padding: 24 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px" }}>Access</h3>
           <p className="bw-hint" style={{ margin: "0 0 16px" }}>Optional limits. Leave blank for an always-open form.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
@@ -177,7 +178,7 @@ export function ShareTab({
         </section>
 
         {/* ── Notifications ── */}
-        <section className="bw-card" style={{ padding: 22 }}>
+        <section className="bw-card" style={{ padding: 24 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px" }}>Notifications</h3>
           <p className="bw-hint" style={{ margin: "0 0 16px" }}>Who hears about new responses, and what the respondent receives.</p>
 
@@ -255,7 +256,7 @@ export function ShareTab({
         </section>
 
         {/* ── Hidden fields ── */}
-        <section className="bw-card" style={{ padding: 22 }}>
+        <section className="bw-card" style={{ padding: 24, gridColumn: "1 / -1" }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 2px" }}>Hidden fields</h3>
           <p className="bw-hint" style={{ margin: "0 0 12px" }}>
             Capture tracking values from the link into each response. For example, with <code style={{ fontSize: 11 }}>?source=rightmove</code> on the URL, add a hidden field called <code style={{ fontSize: 11 }}>source</code>.

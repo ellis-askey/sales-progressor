@@ -146,12 +146,12 @@ export async function sendFormsPasswordReset(opts: {
     text: `Hi ${opts.name},\n\nUse this link to choose a new password (valid for 1 hour):\n${url}\n\nIf you didn't ask for this, you can ignore this email.`,
     html: shell({
       tenantName: `${opts.tenantName} Forms`,
-      accent: "#1a5f4a",
+      accent: "#404648",
       heading: "Reset your password",
       bodyHtml: `
 <p style="margin:0 0 16px;">Hi ${escapeHtml(opts.name)},</p>
 <p style="margin:0 0 16px;">Use the button below to choose a new password. The link is valid for 1 hour.</p>
-<p style="margin:0 0 16px;"><a href="${url}" style="display:inline-block;background:#1a5f4a;color:#ffffff;text-decoration:none;font-size:14px;padding:11px 22px;border-radius:10px;">Choose a new password</a></p>
+<p style="margin:0 0 16px;"><a href="${url}" style="display:inline-block;background:#404648;color:#ffffff;text-decoration:none;font-size:14px;padding:11px 22px;border-radius:10px;">Choose a new password</a></p>
 <p style="margin:0;color:#8a8680;font-size:12px;">If you didn't ask for this, you can ignore this email. Nothing changes until the link is used.</p>`,
       footer: `Sent by ${opts.tenantName} Forms.`,
     }),

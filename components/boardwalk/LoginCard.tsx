@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+// Boardwalk Forms sign-in — premium split-screen. Left: genuine Boardwalk
+// property photography (their homepage hero, public/boardwalk/login-hero.jpg)
+// with the real wordmark and an editorial strapline. Right: the sign-in form
+// on stone. On narrow screens the photography becomes a compact top band.
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formsApi } from "@/lib/forms/client";
 import { BwButton, BwField } from "./ui";
-import { BoardwalkWordmark } from "./BoardwalkWordmark";
+import { BoardwalkLogo } from "./BoardwalkLogo";
 
 const TENANT = "boardwalk";
 
@@ -15,6 +20,15 @@ export function LoginCard() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   async function submitLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -51,31 +65,74 @@ export function LoginCard() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background:
-          "radial-gradient(1200px 600px at 70% -10%, rgba(26,95,74,0.08), transparent 60%), var(--bw-paper)",
-      }}
-    >
-      <div className="bw-fade-up" style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <BoardwalkWordmark size={30} />
-          <p style={{ color: "var(--bw-ink-soft)", fontSize: 14, margin: "10px 0 0" }}>
-            Forms, built around your agency.
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: narrow ? "column" : "row" }}>
+      {/* ── Photography panel ── */}
+      <section
+        aria-hidden
+        style={{
+          position: "relative",
+          flex: narrow ? "0 0 220px" : "1 1 52%",
+          minHeight: narrow ? 220 : "100vh",
+          background:
+            "linear-gradient(to top, rgba(43,48,50,0.62) 0%, rgba(43,48,50,0.16) 45%, rgba(43,48,50,0.30) 100%), center/cover no-repeat url(/boardwalk/interior-1.jpg)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: narrow ? "22px 24px" : "40px 48px",
+          overflow: "hidden",
+        }}
+      >
+        <BoardwalkLogo height={narrow ? 20 : 26} style={{ color: "#ffffff" }} />
+        <div>
+          <p
+            className="bw-display"
+            style={{
+              color: "#ffffff",
+              fontSize: narrow ? 22 : "clamp(28px, 3.2vw, 42px)",
+              lineHeight: 1.18,
+              margin: 0,
+              maxWidth: 480,
+              textShadow: "0 1px 18px rgba(43,48,50,0.35)",
+            }}
+          >
+            Beautiful forms, built around your business.
           </p>
+          {!narrow && (
+            <p
+              style={{
+                color: "rgba(255,255,255,0.82)",
+                fontSize: 14,
+                letterSpacing: "0.05em",
+                margin: "14px 0 0",
+              }}
+            >
+              Valuations, viewings, offers and feedback, all on your own brand.
+            </p>
+          )}
         </div>
+      </section>
 
-        <div className="bw-card" style={{ padding: 28 }}>
+      {/* ── Form panel ── */}
+      <section
+        style={{
+          flex: narrow ? "1 1 auto" : "1 1 48%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: narrow ? "36px 24px 48px" : "48px",
+          background: "var(--bw-paper)",
+        }}
+      >
+        <div className="bw-fade-up" style={{ width: "100%", maxWidth: 380 }}>
           {mode === "login" && (
             <form onSubmit={submitLogin}>
-              <h1 className="bw-display" style={{ fontSize: 20, margin: "0 0 18px" }}>
-                Sign in
+              <p className="bw-kicker" style={{ margin: "0 0 10px" }}>Boardwalk Forms</p>
+              <h1 className="bw-display" style={{ fontSize: 30, margin: "0 0 6px" }}>
+                Welcome back
               </h1>
+              <p style={{ fontSize: 14, color: "var(--bw-ink-soft)", margin: "0 0 28px" }}>
+                Sign in to your forms workspace.
+              </p>
               <BwField label="Email">
                 <input
                   className="bw-input"
@@ -98,7 +155,7 @@ export function LoginCard() {
                 />
               </BwField>
               {error && (
-                <p style={{ color: "var(--bw-red)", fontSize: 13, margin: "0 0 12px" }}>{error}</p>
+                <p role="alert" style={{ color: "var(--bw-red)", fontSize: 13, margin: "0 0 14px" }}>{error}</p>
               )}
               <BwButton type="submit" variant="primary" size="lg" loading={busy} style={{ width: "100%" }}>
                 Sign in
@@ -107,7 +164,7 @@ export function LoginCard() {
                 type="button"
                 onClick={() => { setMode("forgot"); setError(null); }}
                 className="bw-btn bw-btn-ghost bw-btn-sm"
-                style={{ width: "100%", marginTop: 10 }}
+                style={{ width: "100%", marginTop: 12 }}
               >
                 Forgotten your password?
               </button>
@@ -116,10 +173,11 @@ export function LoginCard() {
 
           {mode === "forgot" && (
             <form onSubmit={submitForgot}>
-              <h1 className="bw-display" style={{ fontSize: 20, margin: "0 0 6px" }}>
+              <p className="bw-kicker" style={{ margin: "0 0 10px" }}>Boardwalk Forms</p>
+              <h1 className="bw-display" style={{ fontSize: 28, margin: "0 0 6px" }}>
                 Reset your password
               </h1>
-              <p style={{ fontSize: 13.5, color: "var(--bw-ink-soft)", margin: "0 0 18px" }}>
+              <p style={{ fontSize: 14, color: "var(--bw-ink-soft)", margin: "0 0 24px", lineHeight: 1.55 }}>
                 Enter your email and we&apos;ll send you a reset link.
               </p>
               <BwField label="Email">
@@ -133,7 +191,7 @@ export function LoginCard() {
                 />
               </BwField>
               {error && (
-                <p style={{ color: "var(--bw-red)", fontSize: 13, margin: "0 0 12px" }}>{error}</p>
+                <p role="alert" style={{ color: "var(--bw-red)", fontSize: 13, margin: "0 0 14px" }}>{error}</p>
               )}
               <BwButton type="submit" variant="primary" size="lg" loading={busy} style={{ width: "100%" }}>
                 Send reset link
@@ -142,7 +200,7 @@ export function LoginCard() {
                 type="button"
                 onClick={() => { setMode("login"); setError(null); }}
                 className="bw-btn bw-btn-ghost bw-btn-sm"
-                style={{ width: "100%", marginTop: 10 }}
+                style={{ width: "100%", marginTop: 12 }}
               >
                 Back to sign in
               </button>
@@ -150,22 +208,22 @@ export function LoginCard() {
           )}
 
           {mode === "forgot_sent" && (
-            <div style={{ textAlign: "center", padding: "8px 0" }}>
-              <div style={{ fontSize: 34, marginBottom: 10 }}>📬</div>
-              <h1 className="bw-display" style={{ fontSize: 19, margin: "0 0 8px" }}>
+            <div>
+              <p className="bw-kicker" style={{ margin: "0 0 10px" }}>Boardwalk Forms</p>
+              <h1 className="bw-display" style={{ fontSize: 28, margin: "0 0 8px" }}>
                 Check your inbox
               </h1>
-              <p style={{ fontSize: 13.5, color: "var(--bw-ink-soft)", margin: "0 0 18px" }}>
+              <p style={{ fontSize: 14, color: "var(--bw-ink-soft)", margin: "0 0 24px", lineHeight: 1.6 }}>
                 If an account exists for {email || "that address"}, a reset link is on its way. It&apos;s
                 valid for an hour.
               </p>
-              <BwButton onClick={() => setMode("login")} style={{ width: "100%" }}>
+              <BwButton onClick={() => setMode("login")} size="lg" style={{ width: "100%" }}>
                 Back to sign in
               </BwButton>
             </div>
           )}
         </div>
-      </div>
+      </section>
     </main>
   );
 }

@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getConsent, hasDecided, setConsent } from "@/lib/analytics/consent";
+
+// White-label surfaces where TSP's consent banner must never appear: the
+// Boardwalk Forms workspace and its public respondent forms run no analytics
+// and must not read as Sales Progressor. Added 2026-10-12 with the Boardwalk
+// Forms brand pass.
+const WHITE_LABEL_PREFIXES = ["/boardwalk", "/f/"];
 
 // ── ICO compliance: all three top-level CTAs must be visually identical ───────
 const BTN: React.CSSProperties = {
@@ -59,12 +66,15 @@ function Toggle({
 }
 
 export function CookieConsentBanner() {
+  const pathname = usePathname();
   const [visible, setVisible]     = useState(false);
   const [mounted, setMounted]     = useState(false);
   const [held, setHeld]           = useState(false);
   const [leaving, setLeaving]     = useState(false);
   const [showManage, setShowManage] = useState(false);
   const [analyticsOn, setAnalyticsOn] = useState(false);
+
+  const onWhiteLabelSurface = WHITE_LABEL_PREFIXES.some((p) => pathname?.startsWith(p));
 
   useEffect(() => {
     if (hasDecided()) return;
@@ -99,6 +109,7 @@ export function CookieConsentBanner() {
     setShowManage(true);
   }
 
+  if (onWhiteLabelSurface) return null;
   if (!visible || held) return null;
 
   return (

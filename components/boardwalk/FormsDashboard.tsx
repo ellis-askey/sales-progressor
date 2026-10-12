@@ -1,27 +1,21 @@
 "use client";
 
-// Boardwalk forms dashboard — list, search, sort, create (blank or template),
-// rename/duplicate/archive/restore/delete, with a designed first-run empty
-// state that sells what the platform can do.
+// Boardwalk forms dashboard. Each card carries a true miniature of the form's
+// welcome screen (its real theme + copy). Creation routes to the full-page
+// template gallery at /boardwalk/typeform/new.
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FormListItem } from "@/lib/forms/types";
 import { formsApi } from "@/lib/forms/client";
 import { BwButton, BwField, BwMenu, BwModal, useBwToast } from "./ui";
-
-interface TemplateCard {
-  id: string;
-  name: string;
-  description: string;
-  questionCount: number;
-}
+import { FormMiniPreview } from "./FormMiniPreview";
 
 type Filter = "all" | "draft" | "published" | "archived";
 type Sort = "edited" | "created" | "responses" | "title";
 
 const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "All forms" },
+  { id: "all", label: "All" },
   { id: "draft", label: "Drafts" },
   { id: "published", label: "Published" },
   { id: "archived", label: "Archived" },
@@ -50,16 +44,14 @@ function StatusChip({ form }: { form: FormListItem }) {
   }
   if (form.status === "closed") return <span className="bw-chip bw-chip-amber">Closed</span>;
   if (form.status === "archived") return <span className="bw-chip bw-chip-grey">Archived</span>;
-  return <span className="bw-chip bw-chip-grey">Draft</span>;
+  return <span className="bw-chip bw-chip-blush">Draft</span>;
 }
 
 export function FormsDashboard({
   initialForms,
-  templates,
   firstName,
 }: {
   initialForms: FormListItem[];
-  templates: TemplateCard[];
   firstName: string;
 }) {
   const router = useRouter();
@@ -68,7 +60,6 @@ export function FormsDashboard({
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("edited");
   const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<FormListItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<FormListItem | null>(null);
@@ -93,20 +84,6 @@ export function FormsDashboard({
       return b.lastEditedAt.localeCompare(a.lastEditedAt);
     });
   }, [forms, filter, search, sort]);
-
-  async function createForm(templateId?: string) {
-    setBusy(true);
-    try {
-      const res = await formsApi<{ id: string }>("/api/forms", {
-        method: "POST",
-        body: JSON.stringify({ templateId }),
-      });
-      router.push(`/boardwalk/typeform/${res.id}`);
-    } catch (err) {
-      toast((err as Error).message, "error");
-      setBusy(false);
-    }
-  }
 
   async function refresh() {
     const res = await formsApi<{ forms: FormListItem[] }>("/api/forms");
@@ -165,36 +142,41 @@ export function FormsDashboard({
     }
   }
 
-  const isEmpty = forms.filter((f) => f.status !== "archived").length === 0 && filter !== "archived";
+  const activeForms = forms.filter((f) => f.status !== "archived");
+  const isEmpty = activeForms.length === 0 && filter !== "archived";
+  const liveCount = forms.filter((f) => f.status === "published").length;
+  const totalResponses = forms.reduce((n, f) => n + f.responseCount, 0);
 
   return (
-    <div style={{ maxWidth: 1060, width: "100%", margin: "0 auto", padding: "30px 20px 80px" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 22 }}>
+    <div style={{ maxWidth: 1180, width: "100%", margin: "0 auto", padding: "38px 24px 90px" }}>
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 26 }}>
         <div>
-          <h1 className="bw-display" style={{ fontSize: 28, margin: 0 }}>
+          <p className="bw-kicker" style={{ margin: "0 0 8px" }}>
+            {isEmpty ? "Your form studio" : "Forms"}
+          </p>
+          <h1 className="bw-display" style={{ fontSize: 34, margin: 0, lineHeight: 1.1 }}>
             {isEmpty ? `Welcome, ${firstName}.` : "Your forms"}
           </h1>
           {!isEmpty && (
-            <p style={{ color: "var(--bw-ink-soft)", fontSize: 13.5, margin: "4px 0 0" }}>
-              {forms.filter((f) => f.status === "published").length} live ·{" "}
-              {forms.reduce((n, f) => n + f.responseCount, 0)} responses collected
+            <p style={{ color: "var(--bw-ink-soft)", fontSize: 13.5, margin: "8px 0 0", letterSpacing: "0.02em" }}>
+              {liveCount} live · {totalResponses} response{totalResponses === 1 ? "" : "s"} collected
             </p>
           )}
         </div>
         {!isEmpty && (
-          <BwButton variant="primary" onClick={() => setCreateOpen(true)}>
+          <BwButton variant="primary" onClick={() => router.push("/boardwalk/typeform/new")}>
             + New form
           </BwButton>
         )}
       </div>
 
       {isEmpty ? (
-        <EmptyState templates={templates} onBlank={() => createForm()} onTemplate={(id) => createForm(id)} busy={busy} />
+        <EmptyState onCreate={() => router.push("/boardwalk/typeform/new")} />
       ) : (
         <>
-          {/* Toolbar */}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
+          {/* ── Toolbar ── */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 22 }}>
             <div className="bw-seg">
               {FILTERS.map((f) => (
                 <button key={f.id} data-active={filter === f.id} onClick={() => setFilter(f.id)}>
@@ -207,9 +189,9 @@ export function FormsDashboard({
               placeholder="Search forms…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ maxWidth: 220, marginLeft: "auto" }}
+              style={{ maxWidth: 230, marginLeft: "auto" }}
             />
-            <select className="bw-select bw-input-sm" style={{ width: 160 }} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <select className="bw-select bw-input-sm" style={{ width: 150 }} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="edited">Last edited</option>
               <option value="created">Newest first</option>
               <option value="responses">Most responses</option>
@@ -217,59 +199,69 @@ export function FormsDashboard({
             </select>
           </div>
 
-          {/* Grid */}
+          {/* ── Grid ── */}
           {visible.length === 0 ? (
-            <div className="bw-card" style={{ padding: 40, textAlign: "center", color: "var(--bw-ink-soft)", fontSize: 14 }}>
+            <div className="bw-card" style={{ padding: 48, textAlign: "center", color: "var(--bw-ink-soft)", fontSize: 14 }}>
               {filter === "archived" ? "Nothing archived." : "No forms match that search."}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 20 }}>
               {visible.map((form) => (
                 <div
                   key={form.id}
                   className="bw-card bw-card-hover bw-fade-up"
-                  style={{ padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", gap: 12 }}
+                  style={{ cursor: "pointer", overflow: "hidden", display: "flex", flexDirection: "column" }}
                   onClick={() => router.push(`/boardwalk/typeform/${form.id}`)}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <StatusChip form={form} />
-                    <BwMenu
-                      trigger={
-                        <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Form actions" style={{ width: 28, padding: 0 }}>
-                          ⋯
-                        </button>
-                      }
-                    >
-                      <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}`); }}>Edit</button>
-                      <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); window.open(`/f/${form.publicId}?preview=1`, "_blank"); }}>Preview</button>
-                      <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}/responses`); }}>Responses</button>
-                      <div className="bw-menu-sep" />
-                      <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); setRenameTarget(form); setRenameValue(form.title); }}>Rename</button>
-                      <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); void act(form, "duplicate", ""); }}>Duplicate</button>
-                      <div className="bw-menu-sep" />
-                      {form.status === "archived" ? (
-                        <>
-                          <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); void act(form, "restore", "Restored to drafts."); }}>Restore</button>
-                          <button className="bw-menu-item bw-menu-danger" onClick={(e) => { e.stopPropagation(); setDeleteTarget(form); }}>Remove for good</button>
-                        </>
-                      ) : (
-                        <button className="bw-menu-item bw-menu-danger" onClick={(e) => { e.stopPropagation(); void act(form, "archive", "Archived."); }}>Archive</button>
-                      )}
-                    </BwMenu>
+                  {/* True miniature of the form's welcome screen */}
+                  <div style={{ borderBottom: "1px solid var(--bw-line)", position: "relative" }}>
+                    <FormMiniPreview preview={form.preview} height={148} />
+                    <div style={{ position: "absolute", top: 10, left: 10 }}>
+                      <StatusChip form={form} />
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 650, margin: "0 0 3px", lineHeight: 1.3 }}>{form.title}</h3>
-                    <p className="bw-hint" style={{ margin: 0 }}>
-                      {form.questionCount} question{form.questionCount === 1 ? "" : "s"} · edited {timeAgo(form.lastEditedAt)}
-                    </p>
-                  </div>
+                  <div style={{ padding: "14px 16px 15px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <h3 style={{ fontSize: 15.5, fontWeight: 650, margin: "0 0 3px", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {form.title}
+                        </h3>
+                        <p className="bw-hint" style={{ margin: 0 }}>
+                          {form.questionCount} question{form.questionCount === 1 ? "" : "s"} · edited {timeAgo(form.lastEditedAt)}
+                        </p>
+                      </div>
+                      <BwMenu
+                        trigger={
+                          <button className="bw-btn bw-btn-ghost bw-btn-sm" aria-label="Form actions" style={{ width: 28, padding: 0, flexShrink: 0 }}>
+                            ⋯
+                          </button>
+                        }
+                      >
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}`); }}>Edit</button>
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); window.open(`/f/${form.publicId}?preview=1`, "_blank"); }}>Preview</button>
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); router.push(`/boardwalk/typeform/${form.id}/responses`); }}>Responses</button>
+                        <div className="bw-menu-sep" />
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); setRenameTarget(form); setRenameValue(form.title); }}>Rename</button>
+                        <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); void act(form, "duplicate", ""); }}>Duplicate</button>
+                        <div className="bw-menu-sep" />
+                        {form.status === "archived" ? (
+                          <>
+                            <button className="bw-menu-item" onClick={(e) => { e.stopPropagation(); void act(form, "restore", "Restored to drafts."); }}>Restore</button>
+                            <button className="bw-menu-item bw-menu-danger" onClick={(e) => { e.stopPropagation(); setDeleteTarget(form); }}>Remove for good</button>
+                          </>
+                        ) : (
+                          <button className="bw-menu-item bw-menu-danger" onClick={(e) => { e.stopPropagation(); void act(form, "archive", "Archived."); }}>Archive</button>
+                        )}
+                      </BwMenu>
+                    </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 8, borderTop: "1px solid var(--bw-line)" }}>
-                    <span style={{ fontSize: 13, fontWeight: 650, color: form.responseCount ? "var(--bw-green-deep)" : "var(--bw-ink-faint)" }}>
-                      {form.responseCount} response{form.responseCount === 1 ? "" : "s"}
-                    </span>
-                    <span className="bw-hint">Open →</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bw-line)" }}>
+                      <span style={{ fontSize: 13, fontWeight: 650, color: form.responseCount ? "var(--bw-ink-strong)" : "var(--bw-ink-faint)" }}>
+                        {form.responseCount} response{form.responseCount === 1 ? "" : "s"}
+                      </span>
+                      <span className="bw-hint" style={{ letterSpacing: "0.04em" }}>Open →</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -278,39 +270,7 @@ export function FormsDashboard({
         </>
       )}
 
-      {/* Create modal */}
-      <BwModal open={createOpen} onClose={() => setCreateOpen(false)} title="Create a form" width={720}>
-        <button
-          className="bw-card bw-card-hover"
-          style={{ width: "100%", padding: 18, textAlign: "left", cursor: "pointer", marginBottom: 18, display: "flex", gap: 14, alignItems: "center", border: "1px dashed var(--bw-line-strong)" }}
-          onClick={() => createForm()}
-          disabled={busy}
-        >
-          <span style={{ fontSize: 22 }}>✦</span>
-          <span>
-            <span style={{ display: "block", fontSize: 14.5, fontWeight: 650 }}>Start from scratch</span>
-            <span className="bw-hint">A blank form. Add your own questions and logic.</span>
-          </span>
-        </button>
-        <p className="bw-label" style={{ marginBottom: 10 }}>Or start from a template</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 12 }}>
-          {templates.map((t) => (
-            <button
-              key={t.id}
-              className="bw-card bw-card-hover"
-              style={{ padding: 16, textAlign: "left", cursor: "pointer" }}
-              onClick={() => createForm(t.id)}
-              disabled={busy}
-            >
-              <span style={{ display: "block", fontSize: 14, fontWeight: 650, marginBottom: 4 }}>{t.name}</span>
-              <span className="bw-hint" style={{ display: "block", marginBottom: 8, lineHeight: 1.45 }}>{t.description}</span>
-              <span className="bw-chip bw-chip-grey">{t.questionCount} questions</span>
-            </button>
-          ))}
-        </div>
-      </BwModal>
-
-      {/* Rename modal */}
+      {/* ── Rename modal ── */}
       <BwModal
         open={renameTarget !== null}
         onClose={() => setRenameTarget(null)}
@@ -327,7 +287,7 @@ export function FormsDashboard({
         </BwField>
       </BwModal>
 
-      {/* Delete modal */}
+      {/* ── Delete modal ── */}
       <BwModal
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
@@ -352,67 +312,42 @@ export function FormsDashboard({
 
 // ─── First-run empty state ────────────────────────────────────────────────────
 
-function EmptyState({
-  templates,
-  onBlank,
-  onTemplate,
-  busy,
-}: {
-  templates: TemplateCard[];
-  onBlank: () => void;
-  onTemplate: (id: string) => void;
-  busy: boolean;
-}) {
-  const featured = templates.slice(0, 4);
-  const rest = templates.slice(4);
+function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="bw-fade-up">
       <div
         className="bw-card"
         style={{
-          padding: "40px 36px",
-          marginBottom: 24,
-          background:
-            "radial-gradient(900px 400px at 85% -20%, rgba(26,95,74,0.1), transparent 60%), var(--bw-paper-raised)",
+          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
         }}
       >
-        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--bw-green)", margin: "0 0 10px" }}>
-          Your form studio
-        </p>
-        <h2 className="bw-display" style={{ fontSize: 30, lineHeight: 1.15, margin: "0 0 10px", maxWidth: 560 }}>
-          Build beautiful forms your clients will actually enjoy filling in.
-        </h2>
-        <p style={{ fontSize: 15, color: "var(--bw-ink-soft)", margin: "0 0 24px", maxWidth: 520, lineHeight: 1.55 }}>
-          Valuation enquiries, buyer registration, viewing feedback, offers. One question at a
-          time, on your branding, with smart routing based on each answer. Publish with a link or
-          QR code and watch responses land here.
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <BwButton variant="primary" size="lg" onClick={onBlank} loading={busy}>
-            Create your first form
-          </BwButton>
+        <div style={{ padding: "clamp(28px, 4vw, 52px)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <p className="bw-kicker" style={{ margin: "0 0 12px" }}>Boardwalk Forms</p>
+          <h2 className="bw-display" style={{ fontSize: "clamp(26px, 3vw, 36px)", lineHeight: 1.15, margin: "0 0 14px" }}>
+            Forms your clients will actually enjoy filling in.
+          </h2>
+          <p style={{ fontSize: 15, color: "var(--bw-ink-soft)", margin: "0 0 28px", lineHeight: 1.6, maxWidth: 440 }}>
+            Valuation enquiries, buyer registration, viewing feedback, offers. One question at a
+            time, on your branding, with smart routing based on each answer. Publish with a link or
+            QR code and watch responses land here.
+          </p>
+          <div>
+            <BwButton variant="primary" size="lg" onClick={onCreate}>
+              Create your first form
+            </BwButton>
+          </div>
         </div>
+        <div
+          aria-hidden
+          style={{
+            minHeight: 280,
+            background:
+              "linear-gradient(to right, rgba(64,70,72,0.16), rgba(64,70,72,0) 40%), center/cover no-repeat url(/boardwalk/interior-2.jpg)",
+          }}
+        />
       </div>
-
-      <p className="bw-label" style={{ marginBottom: 12 }}>Or start from a template built for agencies</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-        {featured.map((t) => (
-          <button key={t.id} className="bw-card bw-card-hover" style={{ padding: 18, textAlign: "left", cursor: "pointer" }} onClick={() => onTemplate(t.id)} disabled={busy}>
-            <span style={{ display: "block", fontSize: 15, fontWeight: 650, marginBottom: 5 }}>{t.name}</span>
-            <span className="bw-hint" style={{ display: "block", lineHeight: 1.5, marginBottom: 10 }}>{t.description}</span>
-            <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--bw-green)" }}>Use this template →</span>
-          </button>
-        ))}
-      </div>
-      {rest.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-          {rest.map((t) => (
-            <button key={t.id} className="bw-btn bw-btn-secondary bw-btn-sm" onClick={() => onTemplate(t.id)} disabled={busy}>
-              {t.name}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -179,34 +179,28 @@ export function ResponsesClient({
       ) : (
         <div className="bw-card" style={{ overflow: "hidden" }}>
           <div className="bw-scroll" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 640 }}>
+            <table className="bw-table" style={{ minWidth: 640 }}>
               <thead>
-                <tr style={{ background: "var(--bw-paper-sunken)" }}>
-                  <th style={thStyle}>Submitted</th>
+                <tr>
+                  <th>Submitted</th>
                   {columns.map((q) => (
-                    <th key={q.id} style={thStyle}>{q.title || "Untitled"}</th>
+                    <th key={q.id}>{q.title || "Untitled"}</th>
                   ))}
-                  <th style={{ ...thStyle, width: 40 }} />
+                  <th style={{ width: 40 }} />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => void openDetail(r.id)}
-                    style={{ borderTop: "1px solid var(--bw-line)", cursor: "pointer" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bw-paper-sunken)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "var(--bw-ink-soft)" }}>{formatDate(r.submittedAt)}</td>
+                  <tr key={r.id} onClick={() => void openDetail(r.id)} style={{ cursor: "pointer" }}>
+                    <td style={{ whiteSpace: "nowrap", color: "var(--bw-ink-soft)" }}>{formatDate(r.submittedAt)}</td>
                     {columns.map((q) => (
-                      <td key={q.id} style={tdStyle}>
+                      <td key={q.id}>
                         <span style={{ display: "block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {formatAnswerForDisplay(q, r.answers[q.id]) || <span style={{ color: "var(--bw-ink-faint)" }}>–</span>}
                         </span>
                       </td>
                     ))}
-                    <td style={{ ...tdStyle, textAlign: "right", color: "var(--bw-ink-faint)" }}>→</td>
+                    <td style={{ textAlign: "right", color: "var(--bw-ink-faint)" }}>→</td>
                   </tr>
                 ))}
               </tbody>
@@ -281,25 +275,12 @@ export function ResponsesClient({
   );
 }
 
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "10px 14px",
-  fontSize: 11.5,
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: "var(--bw-ink-faint)",
-  whiteSpace: "nowrap",
-};
-
-const tdStyle: React.CSSProperties = { padding: "11px 14px", verticalAlign: "top" };
-
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="bw-card" style={{ padding: "14px 16px" }}>
-      <p style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--bw-ink-faint)", margin: "0 0 4px" }}>{label}</p>
-      <p className="bw-display" style={{ fontSize: 24, margin: 0 }}>{value}</p>
-      {hint && <p className="bw-hint" style={{ margin: "2px 0 0" }}>{hint}</p>}
+    <div className="bw-card" style={{ padding: "16px 18px" }}>
+      <p className="bw-kicker" style={{ fontSize: 10, margin: "0 0 6px" }}>{label}</p>
+      <p className="bw-display" style={{ fontSize: 28, margin: 0, lineHeight: 1 }}>{value}</p>
+      {hint && <p className="bw-hint" style={{ margin: "4px 0 0" }}>{hint}</p>}
     </div>
   );
 }

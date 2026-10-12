@@ -233,6 +233,7 @@ function toListItem(f: {
   const draft = f.draft as unknown as FormDefinition;
   const hasUnpublishedChanges =
     f.published !== null && JSON.stringify(f.draft) !== JSON.stringify(f.published);
+  const theme = draft?.theme ?? defaultTheme();
   return {
     id: f.id,
     title: f.title,
@@ -244,6 +245,16 @@ function toListItem(f: {
     createdAt: f.createdAt.toISOString(),
     publishedAt: f.publishedAt?.toISOString() ?? null,
     hasUnpublishedChanges,
+    preview: {
+      primaryColor: theme.primaryColor,
+      backgroundColor: theme.backgroundColor,
+      textColor: theme.textColor,
+      buttonTextColor: theme.buttonTextColor,
+      font: theme.font,
+      buttonRadius: theme.buttonRadius,
+      welcomeTitle: draft?.welcome?.title || f.title,
+      buttonText: draft?.welcome?.buttonText || "Start",
+    },
   };
 }
 

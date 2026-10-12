@@ -246,6 +246,18 @@ export interface ResponseMeta {
 
 export type FormStatus = "draft" | "published" | "closed" | "archived";
 
+/** Enough of a form's real theme + welcome to draw a true miniature preview. */
+export interface FormPreviewSummary {
+  primaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  buttonTextColor: string;
+  font: ThemeFont;
+  buttonRadius: number;
+  welcomeTitle: string;
+  buttonText: string;
+}
+
 export interface FormListItem {
   id: string;
   title: string;
@@ -258,6 +270,7 @@ export interface FormListItem {
   publishedAt: string | null;
   /** Whether the draft has diverged from the published copy. */
   hasUnpublishedChanges: boolean;
+  preview: FormPreviewSummary;
 }
 
 export interface SessionUser {

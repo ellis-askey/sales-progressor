@@ -9,26 +9,49 @@ import { newEntityId } from "./ids";
 // complete FormTheme; picking one in the Design tab replaces the colour/font
 // fields but keeps the form's logo/layout choices.
 
+// "boardwalk" is the genuine brand preset, taken from boardwalkpropertyco.com:
+// charcoal #404648 on stone #f3f0ee with serif display headings and the
+// pill-shaped buttons their site uses. It is the default for every new form.
 export const THEME_PRESETS: Record<string, Omit<FormTheme, "logoUrl" | "layout" | "progressStyle">> = {
   boardwalk: {
     preset: "boardwalk",
-    primaryColor: "#1a5f4a",
-    backgroundColor: "#faf8f4",
-    textColor: "#1c2420",
+    primaryColor: "#404648",
+    backgroundColor: "#f3f0ee",
+    textColor: "#404648",
+    buttonTextColor: "#ffffff",
+    font: "display",
+    backgroundStyle: "solid",
+    buttonRadius: 24,
+  },
+  blush: {
+    preset: "blush",
+    primaryColor: "#404648",
+    backgroundColor: "#f4dfde",
+    textColor: "#404648",
+    buttonTextColor: "#ffffff",
+    font: "display",
+    backgroundStyle: "solid",
+    buttonRadius: 24,
+  },
+  sage: {
+    preset: "sage",
+    primaryColor: "#4d5a4d",
+    backgroundColor: "#e9ebe7",
+    textColor: "#3a423c",
     buttonTextColor: "#ffffff",
     font: "sans",
     backgroundStyle: "solid",
-    buttonRadius: 10,
+    buttonRadius: 24,
   },
   midnight: {
     preset: "midnight",
-    primaryColor: "#8ab4f8",
-    backgroundColor: "#101418",
-    textColor: "#eef2f6",
-    buttonTextColor: "#101418",
-    font: "sans",
+    primaryColor: "#f4dfde",
+    backgroundColor: "#1b1e1f",
+    textColor: "#f3f0ee",
+    buttonTextColor: "#2b3032",
+    font: "display",
     backgroundStyle: "solid",
-    buttonRadius: 10,
+    buttonRadius: 24,
   },
   linen: {
     preset: "linen",
@@ -39,26 +62,6 @@ export const THEME_PRESETS: Record<string, Omit<FormTheme, "logoUrl" | "layout" 
     font: "serif",
     backgroundStyle: "solid",
     buttonRadius: 4,
-  },
-  slate: {
-    preset: "slate",
-    primaryColor: "#3b6ea5",
-    backgroundColor: "#f4f6f8",
-    textColor: "#1f2933",
-    buttonTextColor: "#ffffff",
-    font: "sans",
-    backgroundStyle: "solid",
-    buttonRadius: 8,
-  },
-  orchard: {
-    preset: "orchard",
-    primaryColor: "#5a7d2a",
-    backgroundColor: "#f7faf2",
-    textColor: "#232b1a",
-    buttonTextColor: "#ffffff",
-    font: "display",
-    backgroundStyle: "solid",
-    buttonRadius: 24,
   },
   noir: {
     preset: "noir",
