@@ -29,6 +29,13 @@ export type NavRailItem = {
   label: string;
   Icon: Icon;
   badge?: number;
+  // Heavy destinations opt out of the on-mount full prefetch and load
+  // their data on hover instead (same pattern as the Recently-viewed
+  // links). Perf audit follow-up 2026-10-12: a dozen simultaneous full
+  // prefetches on every landing formed a request stampede — the heaviest
+  // renders (files list, analytics, chains, auto emails) took 15-21s
+  // under that contention and queued early sidebar clicks behind them.
+  hoverPrefetch?: boolean;
 };
 
 // Trailing slot of a rail item: badge (when a count exists) or hover
@@ -107,11 +114,14 @@ export function AgentNavRail({
           <Link
             key={item.href}
             href={item.href}
-            // Instant-clicks slice (2026-09-18): the rail has ~a dozen fixed
-            // destinations, so prefetch the FULL route + data whenever the
-            // rail is on screen — a rail click then lands already loaded.
-            // Mutations still purge this via their revalidatePath calls.
-            prefetch={true}
+            // Instant-clicks slice (2026-09-18): light rail destinations
+            // prefetch the FULL route + data whenever the rail is on screen,
+            // so a click lands already loaded. Heavy destinations
+            // (hoverPrefetch) keep the instant skeleton shell but defer
+            // their data to hover intent — otherwise the on-mount stampede
+            // of a dozen full renders queues early clicks behind it.
+            // Mutations still purge both via their revalidatePath calls.
+            {...(item.hoverPrefetch ? { unstable_dynamicOnHover: true } : { prefetch: true })}
             ref={(node) => { itemRefs.current[i] = node; }}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}

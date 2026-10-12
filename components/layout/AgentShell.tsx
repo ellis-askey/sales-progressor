@@ -78,12 +78,15 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck, badge: completionsCount > 0 ? completionsCount : undefined },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
-    ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope }] : []),
-    { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    // hoverPrefetch on the four measured-heaviest renders (perf audit
+    // follow-up 2026-10-12): they load data on hover instead of joining
+    // the on-mount prefetch stampede that queued early sidebar clicks.
+    ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope, hoverPrefetch: true }] : []),
+    { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen, hoverPrefetch: true },
     // Chains: internal staff + self-managing agencies (+ the named allowlist).
     // Same canSeeChains gate as the server route guard.
-    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined }] : []),
-    { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
+    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined, hoverPrefetch: true }] : []),
+    { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar, hoverPrefetch: true },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];
   return {
