@@ -12,9 +12,11 @@
   --claim-coral-dark:      #E85A35;
   --claim-amber:           #FFB347;
   --claim-grad:            linear-gradient(135deg, #FF6B4A 0%, #FF8A65 48%, #FFB347 100%);
-  --claim-text-1:          #1a1d29;
-  --claim-text-2:          #4a5162;
-  --claim-text-3:          #8b91a3;
+  /* Warm neutrals, matched to the main login/register palette (audit 2026-10-13)
+     — the previous cool slate greys jarred against the warm coral page. */
+  --claim-text-1:          #20242E;
+  --claim-text-2:          #3F3F46;
+  --claim-text-3:          #8A8A94;
   --claim-border:          rgba(26, 29, 41, 0.08);
   --claim-surface:         #ffffff;
   --claim-r-hero:          20px;
@@ -440,7 +442,9 @@
   14%  { opacity: 1; }
   100% { left: 130%; opacity: 0; }
 }
-.claim-btn:hover {
+.claim-btn:hover:not(:disabled) {
+  /* Hover lift to match the main login's primary button. */
+  transform: translateY(-1px);
   box-shadow:
     0 9px 26px rgba(255,107,74,.46),
     0 1px 2px rgba(150,44,18,.22),
@@ -577,47 +581,81 @@
   animation-delay: 80ms;
 }
 .claim-field { margin-bottom: 16px; }
+/* Matches the main login/register field labels exactly (sentence case). */
 .claim-field-label {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--claim-text-2);
+  color: #3F3F46;
   margin-bottom: 6px;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
 }
+/* Aligned to the main login/register inputs (claim-flow audit, 2026-10-13):
+ * soft grey fill, hairline border, coral-tinted hover, white fill on focus. */
 .claim-field-input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 11px 14px;
   font-size: 16px;
   color: var(--claim-text-1);
-  background: #FAFAFA;
-  border: 1px solid rgba(26,29,41,.12);
-  border-radius: var(--claim-r-sm);
+  background: #F4F4F6;
+  border: 0.5px solid rgba(45, 24, 16, 0.12);
+  border-radius: 10px;
   outline: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
   box-sizing: border-box;
   font-family: inherit;
 }
+.claim-field-input::placeholder { color: rgba(32, 36, 46, 0.38); }
+.claim-field-input:hover:not(:focus):not([readonly]) {
+  border-color: rgba(255, 138, 101, 0.45);
+}
 .claim-field-input:focus {
+  background: #ffffff;
   border-color: var(--claim-coral);
 }
 .claim-field-row {
   position: relative;
 }
+/* The password eye (matches the main login's icon toggle). */
 .claim-field-toggle {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
-  color: var(--claim-text-3);
+  display: flex;
+  color: rgba(61, 31, 14, 0.40);
   cursor: pointer;
   background: none;
   border: none;
-  padding: 4px;
+  padding: 0;
   font-family: inherit;
 }
+.claim-field-toggle:hover { color: rgba(61, 31, 14, 0.62); }
 .claim-field-gap { margin-bottom: 20px; }
+/* Warm error tint — matches the main login's error treatment (not clinical red). */
+.claim-error {
+  font-size: 12.5px;
+  color: #8B2500;
+  background: rgba(255, 210, 190, 0.55);
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+.claim-error a { color: #8B2500; font-weight: 700; text-decoration: underline; }
+/* Right-aligned coral forgot-password link, as on the main login. */
+.claim-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 0;
+}
+.claim-forgot-row a {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--claim-coral);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+.claim-forgot-row a:hover { color: var(--claim-coral-dark); }
 
 /* ─── Signup card (2026-10-13 mock) ──────────────────────────────────────────
  * The form's flex gap owns the rhythm, so the per-field margins are zeroed here
@@ -625,14 +663,8 @@
  * uppercase + tracked, per the mock. */
 .claim-form-tight .claim-field,
 .claim-form-tight .claim-field-gap { margin-bottom: 0; }
-.claim-form-tight .claim-field-label {
-  text-transform: uppercase;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  color: var(--claim-text-3);
-  margin-bottom: 5px;
-}
+/* (Labels inherit the shared .claim-field-label — the uppercase variant from the
+ * first mock pass was reverted in the main-auth alignment audit, 2026-10-13.) */
 .claim-form-divider {
   height: 1px;
   background: rgba(26, 29, 41, 0.08);
@@ -1987,11 +2019,11 @@
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
-  color: #8b91a3;
+  color: #8A8A94;
   padding: 4px 2px;
   transition: color 0.15s ease;
 }
-.rec-prompt-dismiss:hover { color: #4a5162; }
+.rec-prompt-dismiss:hover { color: #3F3F46; }
 @keyframes rec-strip-in {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -2006,9 +2038,9 @@
 .rec-scope {
   --claim-coral: #FF6B4A;
   --claim-coral-dark: #E85A35;
-  --claim-text-1: #1a1d29;
-  --claim-text-2: #4a5162;
-  --claim-text-3: #8b91a3;
+  --claim-text-1: #20242E;
+  --claim-text-2: #3F3F46;
+  --claim-text-3: #8A8A94;
   --claim-border: rgba(26, 29, 41, 0.08);
   --claim-surface: #ffffff;
   --claim-bg: #fdf9f5;

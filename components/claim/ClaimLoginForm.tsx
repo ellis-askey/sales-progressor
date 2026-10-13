@@ -10,6 +10,7 @@ import {
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
+import { ClaimPasswordToggle } from "@/components/claim/ClaimPasswordToggle";
 
 type Props = {
   token: string;
@@ -127,7 +128,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
           type="email"
           value={stubEmail}
           readOnly
-          style={{ background: "#F4F4F4", color: "#8b91a3", cursor: "not-allowed" }}
+          style={{ color: "var(--claim-text-3)", cursor: "not-allowed" }}
           title="Email address is set by the invite"
         />
       </div>
@@ -147,20 +148,10 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
             style={{ paddingRight: 42 }}
             autoFocus
           />
-          <button
-            type="button"
-            className="claim-field-toggle"
-            onClick={() => setShowPassword((v) => !v)}
-            tabIndex={-1}
-          >
-            {showPassword ? "Hide" : "Show"}
-          </button>
+          <ClaimPasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
         </div>
-        <p className="claim-form-forgot">
-          Forgot your password?{" "}
-          <a href="/forgot-password" style={{ color: "#8b91a3", fontWeight: 600, textDecoration: "none" }}>
-            Reset it
-          </a>
+        <p className="claim-forgot-row">
+          <a href="/forgot-password">Forgot password?</a>
         </p>
       </div>
 
@@ -228,20 +219,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
         </div>
       )}
 
-      {error && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#dc2626",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: 8,
-            padding: "10px 14px",
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div className="claim-error">{error}</div>}
 
       {onPurchaserStep && (
         <button

@@ -7,6 +7,7 @@ import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 import { ClaimChainLadder, type LadderRow } from "@/components/claim/ClaimChainLadder";
+import { ClaimPasswordToggle } from "@/components/claim/ClaimPasswordToggle";
 
 // Canonical name tidy: title-case each word but keep all-caps acronyms (BWK, CJ).
 const capitalizeWords = titleCaseKeepAcronyms;
@@ -152,7 +153,7 @@ export function ClaimSignupForm({
             <div className="claim-field">
               <label className="claim-field-label">Email</label>
               <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--claim-text-3)" }}>
                 We&apos;ve filled this in from the invite. Change it if needed.
               </p>
             </div>
@@ -162,9 +163,7 @@ export function ClaimSignupForm({
               <label className="claim-field-label">Password</label>
               <div className="claim-field-row">
                 <input className="claim-field-input" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="At least 8 characters" style={{ paddingRight: 42 }} />
-                <button type="button" className="claim-field-toggle" onClick={() => setShowPassword((v) => !v)} tabIndex={-1}>
-                  {showPassword ? "Hide" : "Show"}
-                </button>
+                <ClaimPasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
               </div>
             </div>
 
@@ -177,14 +176,12 @@ export function ClaimSignupForm({
             <div className="claim-form-divider" aria-hidden />
 
             {error && (
-              <div style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px" }}>
+              <div className="claim-error">
                 {error}
                 {error.includes("already exists") && (
                   <>
                     {" "}
-                    <a href={`/claim/login?token=${token}`} style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "none" }}>
-                      Log in instead →
-                    </a>
+                    <a href={`/claim/login?token=${token}`}>Log in instead →</a>
                   </>
                 )}
               </div>
