@@ -377,7 +377,7 @@ function Section({
                     {m.name}
                     {isAutoSet && <span className="claim-reconcile-row-badge">Auto-filled</span>}
                     {!isUnlocked && (
-                      <span className="claim-reconcile-row-locked"> · tick previous steps first</span>
+                      <span className="claim-reconcile-row-locked">Tick previous steps first</span>
                     )}
                   </span>
                 </button>

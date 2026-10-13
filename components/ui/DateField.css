@@ -15,6 +15,13 @@
 .datefield[data-empty="true"] > input[type="date"]::-webkit-datetime-edit {
   color: transparent;
 }
+/* The whole field opens the picker (DateField.tsx onClick) — advertise it, and
+   give the calendar icon a touch more air from the text (2026-10-13). */
+.datefield > input[type="date"] { cursor: pointer; }
+.datefield > input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: 8px;
+  cursor: pointer;
+}
 /* The overlay carries the input's own class/style for padding + font (so the
    text aligns), but every box-decoration is forced off and it never intercepts
    clicks — the input underneath stays fully interactive. */

@@ -12,8 +12,12 @@
 //
 // Works for controlled (value) AND uncontrolled (defaultValue) inputs: the empty
 // state is tracked internally so the overlay disappears the moment a date is
-// picked either way. Forwards ref to the underlying input. Click / focus
-// behaviour is unchanged (no showPicker hijack).
+// picked either way. Forwards ref to the underlying input.
+//
+// Clicking ANYWHERE on the field opens the calendar (Ellis 2026-10-13) — the
+// native input only opens it from the little indicator icon, which read as
+// broken ("I click Choose a date and nothing happens"). showPicker() is called
+// on click, guarded for browsers without it and for non-gesture errors.
 //
 // Browser note: the mask-hide uses the WebKit/Blink ::-webkit-datetime-edit
 // pseudo-element, so Chrome / Edge / Safari get the friendly text. Firefox falls
@@ -54,6 +58,19 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
       onChange?.(e);
     };
 
+    // Open the calendar wherever the field is clicked, not just on the icon.
+    const handleClick: React.MouseEventHandler<HTMLInputElement> = (e) => {
+      rest.onClick?.(e);
+      if (e.defaultPrevented) return;
+      const input = e.currentTarget;
+      if (input.disabled || input.readOnly) return;
+      try {
+        input.showPicker?.();
+      } catch {
+        /* unsupported browser or non-gesture call — native behaviour stands */
+      }
+    };
+
     return (
       <span
         className={wrapperClassName ? `datefield ${wrapperClassName}` : "datefield"}
@@ -69,6 +86,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
           className={className}
           style={style}
           {...rest}
+          onClick={handleClick}
         />
         {empty && (
           <span

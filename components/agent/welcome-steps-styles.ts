@@ -49,7 +49,9 @@ export const WELCOME_STEPS_CSS = `
 
 .pw-eyebrow { font-size:11.5px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--coral); }
 .pw-title { margin:11px 0 0; font-size:25px; line-height:1.12; font-weight:800; letter-spacing:-0.5px; color:var(--heading); }
-.pw-lede { margin:11px 0 0; font-size:14.5px; line-height:1.55; color:var(--body); text-wrap:balance; }
+/* No text-wrap:balance here — it equalises line lengths, which read as the
+   subtext refusing to fill the card width (founder note, 2026-10-13). */
+.pw-lede { margin:11px 0 0; font-size:14.5px; line-height:1.55; color:var(--body); }
 
 .pw-points { list-style:none; margin:22px 0 0; padding:0; display:flex; flex-direction:column; gap:3px; }
 .pw-points li { display:flex; gap:13px; align-items:flex-start; padding:11px 0; }
