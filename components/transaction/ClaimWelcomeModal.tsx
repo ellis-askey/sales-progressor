@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { CheckCircle, UsersThree } from "@phosphor-icons/react";
+import { CheckCircle, UsersThree, House } from "@phosphor-icons/react";
 
 export type ChainMember = {
   address: string;
@@ -61,6 +61,26 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
 
   return (
     <Modal open={visible} onClose={() => closeModal("later")} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated" closeTone="onDark">
+      {/* Member strip scrollbar (2026-10-13): breathing room under the cards and
+          a slim glassy bar — translucent neutral, near-invisible track — rather
+          than the stock grey or a tinted primary. */}
+      <style>{`
+        .cwm-strip {
+          display: flex; gap: 8px; overflow-x: auto;
+          padding: 2px 2px 10px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(15,23,42,0.18) transparent;
+        }
+        .cwm-strip::-webkit-scrollbar { height: 6px; }
+        .cwm-strip::-webkit-scrollbar-track { background: rgba(15,23,42,0.04); border-radius: 999px; }
+        .cwm-strip::-webkit-scrollbar-thumb {
+          background: rgba(15,23,42,0.16);
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.55);
+          background-clip: padding-box;
+        }
+        .cwm-strip::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.28); background-clip: padding-box; }
+      `}</style>
       <Modal.Header style={SHEET_BAND_STYLE}>
         {/* No kicker (2026-10-13) — title + the connection line as its subtext. */}
         <SheetBandHeader
@@ -79,7 +99,7 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
             <p style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}>
               <UsersThree size={15} /> {connectedCount} sale{connectedCount === 1 ? "" : "s"} connected
             </p>
-            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+            <div className="cwm-strip">
               {members.map((m, i) => {
                 const isYou = m.status === "you";
                 const statusText = isYou ? "You are here" : m.status === "pending" ? "Invite pending" : m.progress != null ? `${m.progress}% complete` : "Joined";
@@ -87,12 +107,12 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
                 return (
                   <div key={i} style={{
                     flex: "1 0 132px", minWidth: 132, borderRadius: 10, padding: "10px 12px",
-                    background: isYou ? "rgba(var(--agent-primary-rgb), 0.06)" : "var(--agent-surface)",
-                    border: isYou ? "1.5px solid var(--agent-primary)" : "0.5px solid var(--agent-border-subtle)",
+                    background: isYou ? "rgba(var(--agent-primary-rgb, 255,107,74), 0.06)" : "var(--agent-surface)",
+                    border: isYou ? "1.5px solid var(--agent-primary, #FF6B4A)" : "0.5px solid var(--agent-border-subtle)",
                     // Depth (2026-10-13): the flat tiles read as dead space — a lit
                     // top edge + soft drop shadow sits them above the strip.
                     boxShadow: isYou
-                      ? "inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(var(--agent-primary-rgb), 0.18), 0 5px 14px -5px rgba(var(--agent-primary-rgb), 0.38)"
+                      ? "inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(var(--agent-primary-rgb, 255,107,74), 0.18), 0 5px 14px -5px rgba(var(--agent-primary-rgb, 255,107,74), 0.38)"
                       : "inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(15,23,42,0.06), 0 5px 14px -6px rgba(15,23,42,0.16)",
                   }}>
                     <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.address}</p>
@@ -106,15 +126,20 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
 
         {/* Two-up — privacy-first wording (2026-10-13): the old copy read like a
             live broadcast of everything on the file, which the chain never does.
-            Only each sale's overall progress is shared. */}
+            Only each sale's overall progress is shared. Bare coral icons, no
+            faded backers. */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
           <div style={{ flex: "1 1 240px" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Your side stays yours.</p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Your clients, notes and file details are private to you. The chain only ever sees one thing: how far along your sale is.</p>
+            <p style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+              <House size={18} weight="bold" color="var(--agent-primary, #FF6B4A)" /> Your side stays yours.
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Your clients, notes and file details stay private. The rest of the chain only sees how far your sale has progressed.</p>
           </div>
           <div style={{ flex: "1 1 240px" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>See the whole chain.</p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Every connected sale shows its overall progress, so you can see what&apos;s moving without ringing round for updates.</p>
+            <p style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+              <UsersThree size={18} weight="bold" color="var(--agent-primary, #FF6B4A)" /> See the whole chain.
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>See how every connected sale is progressing, what&apos;s moving and what&apos;s still outstanding, without having to chase for updates.</p>
           </div>
         </div>
 
