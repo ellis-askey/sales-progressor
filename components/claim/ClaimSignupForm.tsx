@@ -217,8 +217,13 @@ export function ClaimSignupForm({
       <div className="claim-signup-side">
         <div className={`claim-panel${accountReady ? " claim-panel--ready" : ""}`}>
           <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
-          <p className="claim-panel-address">{stubAddress}</p>
-          <div className="claim-panel-rule" />
+          {/* The big address + rule fold away with the other rows (2026-10-13) —
+              folded, the eyebrow leads straight into their sale card, which
+              already carries the address. */}
+          <div className={`claim-panel-head-fold${accountReady && !chainExpanded ? " is-folded" : ""}`}>
+            <p className="claim-panel-address">{stubAddress}</p>
+            <div className="claim-panel-rule" />
+          </div>
 
           <ClaimChainLadder
             ladder={ladder}
