@@ -4957,6 +4957,11 @@ model EnquiryTracker {
   // partial replies are in. Cleared on a full handover (replies sent / court
   // flip) and on close. Durable, so a later chase doesn't erase the signal.
   partialRepliesAt DateTime?
+  // "Waiting on the management pack": an open-ended hold (no date) for when the
+  // ball sits with a solicitor who can't act until the pack arrives. Pauses the
+  // chase clock + drops the loop out of the needs-you count; auto-cleared when
+  // the pack is logged received (VM9/PM12). Leasehold + managed-freehold. (Stage 3)
+  awaitingPackAt   DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

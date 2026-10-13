@@ -2,7 +2,7 @@ import { computeAutoNrCodes, FREEHOLD_NR_CODES } from "../../milestone-auto-nr";
 
 // The managed-freehold rule: a freehold that still has a management pack keeps
 // the pack steps (VM8/VM9/PM12) live, instead of auto-NR-ing them.
-describe("computeAutoNrCodes — management pack", () => {
+describe("computeAutoNrCodes: management pack", () => {
   test("ordinary freehold auto-NRs the pack steps", () => {
     const codes = computeAutoNrCodes("mortgage", "freehold");
     for (const c of FREEHOLD_NR_CODES) expect(codes.has(c)).toBe(true);

@@ -285,7 +285,7 @@ export async function getChaseTimeline(
     }),
     prisma.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, outstandingNote: true },
+      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true, outstandingNote: true },
     }),
     // Active-round milestone completions — the source of truth for whether a
     // solicitor step is still outstanding (SolicitorChaseState.status is stale:

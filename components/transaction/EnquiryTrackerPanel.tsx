@@ -36,7 +36,7 @@ export type EnquiryTrackerPanelData = {
   chaseCount: number;
   // Live rest/needs-you model, shared with the triage page (parity).
   restingUntil: Date | null;
-  restingReason: "promise" | "chased" | null;
+  restingReason: "promise" | "chased" | "pack" | null;
   needsAttention: boolean;
   stalled: boolean;
   openedAt: Date;
@@ -125,6 +125,8 @@ export function EnquiryTrackerPanel({
     ? "Nothing left to chase."
     : data.paused
       ? "Paused whilst this sale is on hold"
+      : data.restingReason === "pack"
+        ? "On hold, waiting on the management pack"
       : data.restingReason === "chased"
         ? `Chased · back ${fmtDate(data.restingUntil)}`
         : data.restingReason === "promise"
@@ -137,6 +139,7 @@ export function EnquiryTrackerPanel({
   const chip: { label: string; color: string } =
     closed ? { label: "Done", color: "var(--agent-success)" }
     : data.paused ? { label: "Paused", color: "var(--agent-text-muted)" }
+    : data.restingReason === "pack" ? { label: "On hold", color: "var(--agent-warning)" }
     : data.restingReason === "chased" ? { label: "Chased", color: "var(--agent-info)" }
     : data.restingReason === "promise" ? { label: "Paused", color: "var(--agent-text-muted)" }
     : data.stalled ? { label: "Stalled", color: "var(--agent-danger)" }

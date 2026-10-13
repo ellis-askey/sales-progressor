@@ -309,6 +309,10 @@ export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
 // See docs/active/enquiries-stage-rework-SPEC.md.
 const ENQUIRY_OPEN_CODES = new Set(["PM14", "VM10"]);  // raised / received
 const ENQUIRY_CLOSE_CODES = new Set(["PM20", "VM21"]); // satisfied (+ seller reflection)
+// The buyer's solicitor receiving the pack (PM12) is what unblocks a "waiting on
+// the pack" hold — they can finally raise further or confirm satisfied. VM9 (the
+// seller's side receiving it) is a precursor, too early to wake the loop.
+const PACK_RECEIVED_CODES = new Set(["PM12"]);
 
 export async function syncEnquiryTracker(
   transactionId: string,
@@ -350,6 +354,17 @@ export async function syncEnquiryTracker(
     await client.enquiryTracker.updateMany({
       where: { transactionId, closedAt: null },
       data: { closedAt: new Date() },
+    });
+  } else if (PACK_RECEIVED_CODES.has(completedCode)) {
+    // Auto-wake (Stage 3): the pack is in, so lift any "waiting on the management
+    // pack" hold — the loop resumes and the ball flips back to a live decision
+    // (raise further, or confirm satisfied). The pack arriving is a real event,
+    // so we reset the silence clock too: a loop held for weeks wakes fresh rather
+    // than instantly red-overdue. The awaitingPackAt guard means this only touches
+    // a genuinely-held loop — a no-op otherwise.
+    await client.enquiryTracker.updateMany({
+      where: { transactionId, closedAt: null, awaitingPackAt: { not: null } },
+      data: { awaitingPackAt: null, lastMovementAt: new Date(), lastChasedAt: null, escalatedAt: null },
     });
   }
 }

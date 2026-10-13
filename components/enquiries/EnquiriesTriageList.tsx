@@ -16,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import {
   logEnquiryMovementAction, logEnquiryChaseAction, setEnquiryExpectedDateAction, getEnquiryHistoryAction,
-  markEnquiriesSatisfiedAction, markEnquiryChasedAction,
+  markEnquiriesSatisfiedAction, markEnquiryChasedAction, setEnquiryPackHoldAction,
   type EnquiryCallOutcome, type EnquiryCallParty,
 } from "@/app/actions/enquiries";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -53,7 +53,11 @@ function statusPill(r: OpenEnquiryRow): Pill {
   //   chase again   — you chased, the 2-day quiet's up, your move → amber.
   //   chased/resting — quiet after your chase → calm blue "back <date>".
   //   promised date  — the solicitor committed a date → amber date.
+  //   waiting on pack — held until the management pack lands → calm amber.
   //   otherwise      — court-driven waiting/reviewing.
+  if (r.awaitingPack) {
+    return { label: "Waiting on pack", tone: "amber" };
+  }
   if (r.stalled) {
     return { label: r.currentlyWith === "seller_solicitor" ? "Replies overdue" : "Review overdue", tone: "danger" };
   }
@@ -166,9 +170,12 @@ export function EnquiriesTriageList({
   // buckets so they read as a breakdown of the total.
   const tiles = useMemo(() => {
     const midnight = new Date().setHours(0, 0, 0, 0);
-    let needChecking = 0, awaiting = 0, expected = 0, withSellers = 0, withBuyers = 0;
+    let needChecking = 0, awaiting = 0, expected = 0, onHold = 0, withSellers = 0, withBuyers = 0;
     for (const r of rows) {
       if (r.currentlyWith === "seller_solicitor") withSellers++; else withBuyers++;
+      // On hold: held "waiting on the management pack" — out of every live bucket
+      // (and out of the needs-you count) until the pack lands.
+      if (r.awaitingPack) { onHold++; continue; }
       // Expected: a reply date has been given (today or later) — it's parked, not
       // waiting blind. (Moves these out of "awaiting" so the split reads true.)
       if (r.expectedDate && new Date(r.expectedDate).getTime() >= midnight) { expected++; continue; }
@@ -179,7 +186,7 @@ export function EnquiriesTriageList({
       if (dueNow || r.status === "stalled") { needChecking++; continue; }
       awaiting++;
     }
-    return { total: rows.length, needChecking, awaiting, expected, withSellers, withBuyers };
+    return { total: rows.length, needChecking, awaiting, expected, onHold, withSellers, withBuyers };
   }, [rows]);
 
   const shown = useMemo(() => {
@@ -275,6 +282,9 @@ export function EnquiriesTriageList({
           <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
           <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
           <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
+          {tiles.onHold > 0 && (
+            <Tile icon={<ClockCountdown size={22} weight="regular" />} tone="neutral" value={tiles.onHold} label="On hold" sub="Waiting on a pack" />
+          )}
         </div>
       </GlassCard>
 
@@ -375,6 +385,7 @@ export function EnquiriesTriageList({
                   onSatisfy={() => run(r.transactionId, () => markEnquiriesSatisfiedAction({ transactionId: r.transactionId }), "Enquiries satisfied")}
                   onSendChase={() => { setChaseRow(r); setChaseOpen(true); }}
                   onMarkChased={() => run(r.transactionId, () => markEnquiryChasedAction({ transactionId: r.transactionId }), "Chased, quiet for 2 working days")}
+                  onPackHold={(held) => run(r.transactionId, () => setEnquiryPackHoldAction({ transactionId: r.transactionId, held }), held ? "On hold, waiting on the pack" : "Pack received, loop resumed")}
                 />
               </div>
 
@@ -497,7 +508,7 @@ function fmtBd(iso: string): string {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 function RowActions({
-  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy, onSendChase, onMarkChased,
+  row, busy, isSeller, expanded, onToggleExpand, onMenuOpenChange, move, onSatisfy, onSendChase, onMarkChased, onPackHold,
 }: {
   row: OpenEnquiryRow;
   busy: boolean;
@@ -509,6 +520,7 @@ function RowActions({
   onSatisfy: () => void;
   onSendChase: () => void;
   onMarkChased: () => void;
+  onPackHold: (held: boolean) => void;
 }) {
   const other = otherCourt(row.currentlyWith);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -634,6 +646,25 @@ function RowActions({
               <span className="enq-mi-txt">{mi.label}<small>{mi.desc}</small></span>
             </button>
           ))}
+          {/* Waiting-on-pack hold (Stage 3): offered on leasehold / managed-freehold
+              files; becomes "Pack received" to lift the hold once set. */}
+          {row.awaitingPack ? (
+            <>
+              <div className="enq-mi-div" />
+              <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(() => onPackHold(false))}>
+                <span className="enq-mi-ico"><CheckCircle size={16} /></span>
+                <span className="enq-mi-txt">Pack received<small>Lift the hold, the loop resumes</small></span>
+              </button>
+            </>
+          ) : row.canHoldForPack ? (
+            <>
+              <div className="enq-mi-div" />
+              <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(() => onPackHold(true))}>
+                <span className="enq-mi-ico"><ClockCountdown size={16} /></span>
+                <span className="enq-mi-txt">Waiting on management pack<small>Hold the chase until the pack lands</small></span>
+              </button>
+            </>
+          ) : null}
           <div className="enq-mi-div" />
           <button type="button" role="menuitem" className="enq-mi" onClick={openBackdate}>
             <span className="enq-mi-ico"><CalendarBlank size={16} /></span>
