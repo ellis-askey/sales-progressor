@@ -92,6 +92,7 @@ function IconChevron() {
 export function ClaimChainLadder({
   ladder,
   ghostCount,
+  ghostTopCount = 0,
   shareMode = false,
   showPill = true,
   chevrons = false,
@@ -99,6 +100,9 @@ export function ClaimChainLadder({
 }: {
   ladder: LadderRow[];
   ghostCount: number;
+  /** Links truncated ABOVE the visible window (the window is anchored so the
+   *  claimer's own sale is always visible — 2026-10-13). */
+  ghostTopCount?: number;
   shareMode?: boolean;
   /** Landing shows a status pill per row; the signup panel turns them off. */
   showPill?: boolean;
@@ -112,6 +116,14 @@ export function ClaimChainLadder({
 }) {
   return (
     <div className={`claim-b-ladder${othersCollapsed ? " claim-b-ladder--collapsed" : ""}`}>
+      {ghostTopCount > 0 && (
+        <div className="claim-b-row claim-b-row--ghost claim-b-row--other">
+          <span className="claim-b-gutter">
+            <span className="claim-b-badge claim-b-badge--ghost">··</span>
+          </span>
+          <div className="claim-b-rowcard claim-b-rowcard--ghost">and {ghostTopCount} more</div>
+        </div>
+      )}
       {ladder.map((row) => {
         // Share view softens the empty-address placeholder and the pending label
         // (there was no email invite on a hand-shared link).

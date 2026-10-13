@@ -21,6 +21,7 @@ type Props = {
   stubAddress: string;
   ladder: LadderRow[];
   ghostCount: number;
+  ghostTopCount?: number;
   originatorName: string;
   originatorAgency: string | null;
   invitedDate: string | null;
@@ -37,6 +38,7 @@ export function ClaimSignupForm({
   stubAddress,
   ladder,
   ghostCount,
+  ghostTopCount = 0,
   originatorName,
   originatorAgency,
   invitedDate,
@@ -57,7 +59,7 @@ export function ClaimSignupForm({
   const [chainExpanded, setChainExpanded] = useState(false);
 
   const emailOk = EMAIL_RE.test(email.trim());
-  const otherCount = ladder.filter((r) => r.status !== "you").length + ghostCount;
+  const otherCount = ladder.filter((r) => r.status !== "you").length + ghostCount + ghostTopCount;
   // Sale details reveal once the account is fully filled in.
   const accountReady =
     firstName.trim().length > 0 &&
@@ -221,6 +223,7 @@ export function ClaimSignupForm({
           <ClaimChainLadder
             ladder={ladder}
             ghostCount={ghostCount}
+            ghostTopCount={ghostTopCount}
             showPill={false}
             chevrons
             othersCollapsed={accountReady && !chainExpanded}

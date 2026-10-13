@@ -124,9 +124,19 @@ export default async function ClaimSignupPage({
 
   // Build the same white chain ladder the /claim landing shows (photos + numbered
   // badges), so the signup panel matches it. Pills + contacts are off on signup.
+  // The 4-row window must ALWAYS contain the invited slot — on a long chain the
+  // old first-4 slice could drop the claimer's own sale into the ghost row,
+  // which the fold-to-your-sale behaviour then surfaced as a missing row
+  // (found 2026-10-13). Ghosts cover whichever side gets truncated.
   const MAX_VISIBLE = 4;
-  const visibleLinks = chainLinks.length <= MAX_VISIBLE ? chainLinks : chainLinks.slice(0, MAX_VISIBLE);
-  const ghostCount = chainLinks.length > MAX_VISIBLE ? chainLinks.length - MAX_VISIBLE : 0;
+  const youIndex = Math.max(0, chainLinks.findIndex((cl) => cl.id === link.id));
+  const windowStart =
+    chainLinks.length <= MAX_VISIBLE
+      ? 0
+      : Math.min(Math.max(0, youIndex - (MAX_VISIBLE - 1)), chainLinks.length - MAX_VISIBLE);
+  const visibleLinks = chainLinks.slice(windowStart, windowStart + MAX_VISIBLE);
+  const ghostTopCount = windowStart;
+  const ghostCount = Math.max(0, chainLinks.length - (windowStart + MAX_VISIBLE));
   const shaped = visibleLinks.map((cl) => {
     const isYours = cl.id === link.id;
     const isClaimed = cl.transactionId !== null;
@@ -163,6 +173,7 @@ export default async function ClaimSignupPage({
         stubAddress={link.stubPropertyAddress ?? "Your sale"}
         ladder={ladder}
         ghostCount={ghostCount}
+        ghostTopCount={ghostTopCount}
         originatorName={originatorName}
         originatorAgency={originatorAgency}
         invitedDate={invitedDate}
