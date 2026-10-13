@@ -196,6 +196,10 @@ export function SelfManagedWelcomeModal({
           aria-modal="true"
           aria-label="Welcome"
         >
+          {/* Peach street-sketch backdrop on the final step — fades in after the
+              card's resize settles (founder note, 2026-10-13). */}
+          {step === 2 && <div className="pw-ready-bg" aria-hidden />}
+
           <button onClick={close} aria-label="Close" className="pw-close">
             <X size={14} weight="bold" />
           </button>

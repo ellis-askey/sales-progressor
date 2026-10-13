@@ -35,6 +35,24 @@ export const WELCOME_STEPS_CSS = `
 .pw-card.pw-closing { animation: welcome-zoom-out 420ms cubic-bezier(0.4,0,1,1) both; }
 .pw-overlay { display:flex; align-items:center; justify-content:center; padding:0; }
 
+/* Final-step backdrop (2026-10-13): the peach townhouse street sketch, fading
+   in once the card's 300ms resize has settled. A white veil keeps the heading
+   and lede readable; content (.pw-col, z-index 1) sits above. */
+.pw-ready-bg {
+  position:absolute; inset:0; z-index:0; border-radius:inherit; pointer-events:none;
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.86) 46%, rgba(255,255,255,0.30) 100%),
+    url('/welcome-ready-bg.png');
+  background-size: cover;
+  background-position: center bottom;
+  opacity:0;
+  animation: pw-ready-bg-in 520ms ease 330ms forwards;
+}
+@keyframes pw-ready-bg-in { to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pw-ready-bg { animation:none; opacity:1; }
+}
+
 .pw-close { position:absolute; top:14px; right:14px; z-index:4; width:26px; height:26px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center; background:transparent; border:0; cursor:pointer;
   color:var(--muted); transition:background 140ms ease,color 140ms ease,transform 140ms ease; }
