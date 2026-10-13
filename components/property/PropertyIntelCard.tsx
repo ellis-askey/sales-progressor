@@ -2,7 +2,7 @@
 
 // Property information ("property passport") — the single home for external
 // facts about the physical property on the Overview tab. A calm hero (EPC +
-// address + last sold) over Overview / Energy / History / Planning tabs, so it
+// address) over Overview / Energy / History / Planning tabs, so it
 // stays compact while everything is one tap away. Data from /api/property-intel
 // → getPropertyEnrichment; every tab degrades independently and never blocks
 // the page. Keeps all prior EPC + sold-price functionality.
@@ -158,15 +158,8 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                 {[propType, data.postcode].filter(Boolean).join(" · ") || "What we know about this property"}
               </p>
             </div>
-            {last && (
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <span style={{ ...LBL, display: "block" }}>Last sold</span>
-                <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.01em", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                  {last.amount > 0 ? poundsFmt(last.amount) : "Withheld"}
-                </span>
-                <span style={{ fontSize: 12, color: "var(--agent-text-muted)", marginLeft: 5 }}>{yearOf(last.date)}</span>
-              </div>
-            )}
+            {/* Last-sold price/year removed from the hero (critique #247) — the
+                full sale history lives on the History tab, so this duplicated. */}
           </div>
 
           {/* ── Tabs ─────────────────────────────────────────────────────── */}

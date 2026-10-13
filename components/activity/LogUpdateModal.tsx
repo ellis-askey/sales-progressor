@@ -15,7 +15,7 @@ import { VoiceNotePanel } from "./VoiceNotePanel";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { logCommAction } from "@/app/actions/comms";
 import { ContactAvatar } from "@/components/ui/Avatar";
-import { extractFirstName } from "@/lib/contacts/displayName";
+import { extractFirstName, nameWithoutTitle } from "@/lib/contacts/displayName";
 import type { CommType, CommMethod } from "@prisma/client";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
@@ -213,7 +213,9 @@ export function LogUpdateModal(props: Props) {
   const clientPill = (c: Contact) => (
     <button key={c.id} className="lum-pill" aria-pressed={selected.includes(c.id)} onClick={() => toggleSel(c.id)}>
       <span className="lum-av"><ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} /><span className="lum-chk" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 9, 3.2) }} /></span>
-      {extractFirstName(c.name)}
+      {/* Full name on the participant pills (critique #253) — "Sarah Bennett",
+          or "Mrs Harvey" when only a title + surname is on file. */}
+      {nameWithoutTitle(c.name)}
     </button>
   );
   const solPill = (s: Solicitor, tint: "vendor" | "purchaser") => (
@@ -229,7 +231,11 @@ export function LogUpdateModal(props: Props) {
     buyer: audPeople.some((id) => buyerClients.some((c) => c.id === id)),
   };
   const partSides = sidesOfSelected();
-  const crossSide = (audienceSides.seller && !partSides.seller) || (audienceSides.buyer && !partSides.buyer);
+  // Cross-side heads-up only once the comm actually HAS a side — with no
+  // participants picked yet, the default audience (buyer) would otherwise claim
+  // "this was logged with the seller" before anyone was chosen (critique #252).
+  const hasSidedParticipants = partSides.seller || partSides.buyer;
+  const crossSide = hasSidedParticipants && ((audienceSides.seller && !partSides.seller) || (audienceSides.buyer && !partSides.buyer));
   const bothSel = audienceSides.seller && audienceSides.buyer;
 
   useEffect(() => {
@@ -265,7 +271,8 @@ export function LogUpdateModal(props: Props) {
     return (
       <button key={c.id} type="button" className={"lum-prow lum-" + side + (on ? " on" : "")} aria-pressed={on} onClick={() => setAudPeople((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))}>
         <span className="lum-avai"><ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={24} /></span>
-        <span className="lum-prname">{c.name}</span>
+        {/* First name only here (critique #253) — matches the side cards above. */}
+        <span className="lum-prname">{extractFirstName(c.name)}</span>
         <span className="lum-prside">{side === "seller" ? "Seller" : "Buyer"}</span>
         <span className="lum-sctick" dangerouslySetInnerHTML={{ __html: svg('<path d="M20 6 9 17l-5-5"/>', 10, 3.4) }} />
       </button>
