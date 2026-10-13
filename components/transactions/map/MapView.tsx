@@ -246,7 +246,7 @@ export function MapView({
             <span className="map-legend2"><span className="d agreed" />Agreed<span className="d completed" />Completed</span>
           </div>
         )}
-        <Seg label="Status" value={statusFilter} onChange={setStatusFilter} opts={[["both", "Both"], ["agreed", "Agreed"], ["completed", "Completed"]]} />
+        <Seg label="Status" value={statusFilter} onChange={setStatusFilter} opts={[["both", "Both"], ["agreed", "Agreed"], ["completed", "Completed"]]} wide />
         <Seg label="Period" value={months} onChange={setMonths} opts={[[12, "12m"], [24, "24m"], [null, "All"]]} />
         <span className="map-count">{totalSales} sales · {patches.length} patches</span>
       </div>
@@ -344,11 +344,11 @@ export function MapView({
 }
 
 // Small segmented control used across the toolbar.
-function Seg<T extends string | number | null>({ label, value, onChange, opts }: {
-  label: string; value: T; onChange: (v: T) => void; opts: [T, string][];
+function Seg<T extends string | number | null>({ label, value, onChange, opts, wide }: {
+  label: string; value: T; onChange: (v: T) => void; opts: [T, string][]; wide?: boolean;
 }) {
   return (
-    <div className="map-seg">
+    <div className={`map-seg${wide ? " map-seg--wide" : ""}`}>
       <span className="map-seg-l">{label}</span>
       <div className="map-seg-g">
         {opts.map(([v, lbl]) => (
