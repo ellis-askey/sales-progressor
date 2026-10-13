@@ -53,6 +53,7 @@ function InlineEditor({ itemKey, values }: { itemKey: string; values: FileSetupV
           purchaseType={values.purchaseType}
           tenure={values.tenure}
           isShareOfFreehold={values.isShareOfFreehold}
+          hasManagementPack={values.hasManagementPack}
           exchanged={values.exchanged}
         />
       </div>

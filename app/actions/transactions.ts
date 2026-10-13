@@ -2196,6 +2196,34 @@ export async function saveIsShareOfFreeholdAction(transactionId: string, isShare
   revalidateTx(transactionId);
 }
 
+// Managed-freehold flag (the "this freehold has a management pack" toggle on the
+// file). Mirrors saveIsShareOfFreeholdAction: scoped, no-op on no change, logged.
+// Stage 1 just records the flag; the milestone + enquiries effects layer on in
+// later stages so this stays the single write-point for the flag.
+export async function saveHasManagementPackAction(transactionId: string, hasManagementPack: boolean): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, hasManagementPack: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.hasManagementPack === hasManagementPack) return;
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { hasManagementPack },
+  });
+
+  await logActivity(
+    transactionId,
+    `${session.user.name} ${hasManagementPack ? "marked this freehold as a managed development (management pack)" : "removed the management-pack flag"}`,
+    session.user.id
+  );
+
+  revalidateTx(transactionId);
+}
+
 // ─── Draft actions ────────────────────────────────────────────────────────────
 
 const DRAFT_STATUS = "draft" as TransactionStatus;

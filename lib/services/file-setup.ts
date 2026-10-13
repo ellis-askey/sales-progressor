@@ -35,6 +35,7 @@ export type FileSetupValues = {
   purchaseType: PurchaseType | null;
   tenure: Tenure | null;
   isShareOfFreehold: boolean;
+  hasManagementPack: boolean;
   exchanged: boolean;
   predictedDate: Date | null;
   overrideDate: Date | null;
@@ -79,6 +80,7 @@ export async function getFileSetup(transactionId: string): Promise<FileSetupSumm
       purchaseType: true,
       purchasePrice: true,
       isShareOfFreehold: true,
+      hasManagementPack: true,
       exchangedAt: true,
       expectedExchangeDate: true,
       predictedExchangeDate: true,
@@ -248,6 +250,7 @@ export async function getFileSetup(transactionId: string): Promise<FileSetupSumm
     purchaseType: tx.purchaseType,
     tenure: tx.tenure,
     isShareOfFreehold: tx.isShareOfFreehold,
+    hasManagementPack: tx.hasManagementPack,
     exchanged: tx.exchangedAt !== null,
     predictedDate: tx.predictedExchangeDate,
     overrideDate: tx.overridePredictedDate,

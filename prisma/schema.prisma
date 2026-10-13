@@ -652,6 +652,12 @@ model PropertyTransaction {
   tenure                          Tenure?
   purchaseType                    PurchaseType?
   isShareOfFreehold               Boolean           @default(false)
+  // Managed-freehold flag: a freehold that still has a management pack (estate
+  // rentcharge / management company for communal areas). Off for the ~19 in 20
+  // ordinary freeholds; when on, the management-pack steps (VM8/VM9/PM12) stop
+  // auto-NR-ing and the enquiries tracker gains the "waiting on pack" hold.
+  // Only meaningful on freehold; always false/ignored on leasehold.
+  hasManagementPack               Boolean           @default(false)
   // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
   // (captured on the survey-booked step). Title-cased on save. Null when they
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
