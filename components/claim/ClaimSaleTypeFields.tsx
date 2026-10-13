@@ -33,9 +33,12 @@ function IconPerson() {
   );
 }
 function IconPound() {
+  // A cleaner pound sterling: rounded stem sweeping into a flat base, single
+  // crossbar — reads as £ at 22px (the old squiggle didn't).
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M8 20h9M9 20c1.6-1.2 1.8-3 1.4-5M7.5 12.5H14M9.4 15c-.6-2-1.2-4 .1-6 1-1.6 3.2-2 5-1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15.6 7.6a3.6 3.6 0 0 0-6.9 1.4c0 2.1.8 3.6.8 5.5 0 2-.6 3.3-1.9 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.6 19h9.2M7 13h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -116,7 +119,7 @@ export function ClaimSaleTypeFields({
       <div className="claim-choice-group">
         <div className="claim-choice-q"><IconUsers /> <span>How is the property being purchased?</span></div>
         <div className="claim-choice claim-choice-3">
-          <Card on={purchaseType === "mortgage"} onClick={() => onPurchaseType("mortgage")} icon={<IconPerson />} label="Mortgage" />
+          <Card on={purchaseType === "mortgage"} onClick={() => onPurchaseType("mortgage")} icon={<IconPerson />} label="Mortgaged purchase" />
           <Card on={purchaseType === "cash_buyer"} onClick={() => onPurchaseType("cash_buyer")} icon={<IconPound />} label="Cash purchase" />
           <Card on={purchaseType === "cash_from_proceeds"} onClick={() => onPurchaseType("cash_from_proceeds")} icon={<IconArrow />} label="Cash from proceeds" />
         </div>

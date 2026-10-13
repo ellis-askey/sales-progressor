@@ -199,7 +199,7 @@ export function ClaimSignupForm({
           </form>
 
           <p className="claim-link-row" style={{ marginTop: 16 }}>
-            Already have an account? <a href={`/claim/login?token=${token}`}>Log in instead</a>
+            Already have an account? <a className="claim-login-link" href={`/claim/login?token=${token}`}>Log in instead</a>
           </p>
         </div>
       </div>
