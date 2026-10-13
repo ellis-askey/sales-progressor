@@ -133,7 +133,7 @@ export function ClaimSignupForm({
           <div className="claim-benefits">
             <span className="claim-benefit"><Gift size={16} weight="regular" /> Free to use</span>
             <span className="claim-benefit"><CreditCard size={16} weight="regular" /> No card required</span>
-            <span className="claim-benefit"><Clock size={16} weight="regular" /> Takes less than a minute</span>
+            <span className="claim-benefit"><Clock size={16} weight="regular" /> Less than 60 seconds</span>
           </div>
 
           <form onSubmit={handleSubmit} className="claim-form-tight" style={{ display: "flex", flexDirection: "column", gap: 14 }}>

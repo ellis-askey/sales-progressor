@@ -594,7 +594,7 @@
  * soft grey fill, hairline border, coral-tinted hover, white fill on focus. */
 .claim-field-input {
   width: 100%;
-  padding: 11px 14px;
+  padding: 9px 14px;
   font-size: 16px;
   color: var(--claim-text-1);
   background: #F4F4F6;
@@ -672,11 +672,16 @@
 }
 .claim-benefits {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
+  /* One row, always — the labels are written short enough to hold it. */
+  flex-wrap: nowrap;
+  gap: 14px;
   padding-bottom: 16px;
   margin-bottom: 18px;
   border-bottom: 1px solid rgba(26, 29, 41, 0.08);
+}
+@media (max-width: 400px) {
+  .claim-benefits { gap: 10px; }
+  .claim-benefit { font-size: 11px; }
 }
 .claim-benefit {
   display: inline-flex;
@@ -746,9 +751,10 @@
 /* ─── Signup two-column layout ───────────────────────────────────────────── */
 .claim-signup-grid {
   display: grid;
-  grid-template-columns: 55fr 42fr;
+  /* Left card slightly wider (2026-10-13) so the benefit strip holds one row. */
+  grid-template-columns: 60fr 42fr;
   gap: 24px;
-  max-width: 860px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 48px 24px 64px;
   align-items: start;
