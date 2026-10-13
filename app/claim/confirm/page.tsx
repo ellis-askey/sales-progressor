@@ -222,7 +222,7 @@ export default async function ClaimConfirmPage({
   return (
     <Shell>
       <div className="claim-confirm-page">
-        <a href={`/claim?token=${token}`} className="claim-confirm-back">← Back to chain</a>
+        <a href={`/claim?token=${token}`} className="claim-confirm-back"><span className="claim-confirm-back-arrow">←</span> Back to chain</a>
 
         <div className="claim-confirm-head">
           <h1 className="claim-confirm-title">

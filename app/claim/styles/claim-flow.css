@@ -820,8 +820,9 @@
   margin: 0;
 }
 .claim-sale-card-address {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
   color: var(--claim-text-1);
   margin: 0;
   line-height: 1.3;
@@ -947,6 +948,15 @@
   font-size: 13.5px; font-weight: 600; color: var(--claim-text-2); text-decoration: none;
 }
 .claim-confirm-back:hover { color: var(--claim-coral-dark); }
+/* The arrow nudges left while hovered, easing back on hover-off. */
+.claim-confirm-back-arrow {
+  display: inline-block;
+  transition: transform 180ms ease;
+}
+.claim-confirm-back:hover .claim-confirm-back-arrow { transform: translateX(-3px); }
+@media (prefers-reduced-motion: reduce) {
+  .claim-confirm-back-arrow { transition: none; }
+}
 .claim-confirm-head { text-align: center; margin-bottom: 20px; }
 .claim-confirm-title {
   margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.025em;
@@ -976,15 +986,16 @@
 .claim-confirm-prop-addr { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--claim-text-1); }
 .claim-confirm-prop-sub { font-size: 14px; color: var(--claim-text-2); margin-top: 2px; }
 .claim-confirm-prop-badges { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+/* Number circle and YOUR SALE pill share one 26px height so they sit level. */
 .claim-confirm-badge-num {
-  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12.5px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
+  font-size: 11.5px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
   background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
   box-shadow: 0 3px 10px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 5px rgba(150, 44, 18, 0.28);
 }
 .claim-confirm-badge-you {
-  display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px;
+  display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 999px;
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #fff;
   background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
   box-shadow: 0 2px 8px rgba(255, 107, 74, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -1453,11 +1464,13 @@
 /* ─── Sale-type selectors — elevated cards (ClaimSaleTypeFields) ────────────── */
 .claim-choice-groups { display: flex; flex-direction: column; gap: 18px; }
 .claim-choice-group { display: flex; flex-direction: column; gap: 10px; }
+/* Question rows sit BELOW the address in the hierarchy (2026-10-13): quieter
+ * weight + secondary colour, so eyebrow < question < choice label < address. */
 .claim-choice-q {
-  display: flex; align-items: center; gap: 9px;
-  font-size: 15px; font-weight: 700; color: var(--claim-text-1);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--claim-text-2);
 }
-.claim-choice-q svg { width: 18px; height: 18px; color: var(--claim-text-2); flex: none; }
+.claim-choice-q svg { width: 16px; height: 16px; color: var(--claim-text-3); flex: none; }
 .claim-choice { display: grid; gap: 10px; }
 .claim-choice-2 { grid-template-columns: 1fr 1fr; }
 /* Purchase type (2026-10-13): mortgaged + cash side by side, cash-from-proceeds
@@ -1472,7 +1485,7 @@
 }
 .claim-choice-card:hover { border-color: rgba(255, 107, 74, 0.5); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26, 29, 41, 0.08); }
 .claim-choice-card > svg { width: 22px; height: 22px; color: var(--claim-text-2); transition: color .18s; }
-.claim-choice-label { font-size: 14px; font-weight: 700; color: var(--claim-text-1); }
+.claim-choice-label { font-size: 13.5px; font-weight: 600; color: var(--claim-text-1); }
 .claim-choice-card.on {
   background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
   border-color: transparent;
@@ -1764,16 +1777,16 @@
   background: #fbfafa;
   border-style: dashed;
 }
-/* Chevron rows (signup mock, 2026-10-13): trailing chevron, hover lift, and the
- * chevron nudges right while hovered, easing back on hover-off. */
-.claim-b-rowcard--chev {
+/* Hover lift on every real ladder row — landing AND signup (2026-10-13); the
+ * chevron nudge below stays signup-only (--chev). */
+.claim-b-rowcard:not(.claim-b-rowcard--ghost) {
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
-.claim-b-rowcard--chev:hover {
+.claim-b-rowcard:not(.claim-b-rowcard--ghost):hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(26, 29, 41, 0.10);
 }
-.claim-b-rowcard--you.claim-b-rowcard--chev:hover {
+.claim-b-rowcard--you:not(.claim-b-rowcard--ghost):hover {
   box-shadow: 0 6px 18px rgba(255, 107, 74, 0.22);
 }
 .claim-b-chev {
@@ -1819,7 +1832,9 @@
 .claim-b-thumb-house {
   width: 26px;
   height: 26px;
-  color: rgba(232, 90, 53, 0.75);
+  color: rgba(232, 90, 53, 0.78);
+  /* Light glow instead of the old faded-circle backdrop. */
+  filter: drop-shadow(0 2px 6px rgba(232, 90, 53, 0.35));
 }
 .claim-b-rowmain {
   flex: 1;

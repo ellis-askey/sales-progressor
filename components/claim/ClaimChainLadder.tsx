@@ -129,7 +129,11 @@ export function ClaimChainLadder({
                 {row.photoUrl ? (
                   <img src={row.photoUrl} alt="" className="claim-b-thumb-img" />
                 ) : (
-                  <span className="property-photo-fallback" aria-hidden style={{ display: "block", width: "100%", height: "100%" }} />
+                  // House glyph on the warm tile with a soft glow — replaces the
+                  // webp fallback whose faded circle looked unconsidered here.
+                  <svg className="claim-b-thumb-house" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 11.5 12 5l8 6.5M6 10v9h12v-9M10 19v-5h4v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 )}
               </span>
               <span className="claim-b-rowmain">
