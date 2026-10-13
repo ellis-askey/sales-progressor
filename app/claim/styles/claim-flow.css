@@ -2427,9 +2427,12 @@
   border-radius: 999px;
   padding: 2px 7px;
 }
-/* The locked hint sits on its own line UNDER the step name (2026-10-13). */
+/* The locked hint sits on its own line UNDER the step name (2026-10-13).
+ * The name is a wrapping flex row, so flex-basis:100% is what actually forces
+ * the break — display:block alone is ignored for flex items. */
 .claim-reconcile-row--wide .claim-reconcile-row-locked {
-  display: block;
+  flex-basis: 100%;
+  width: 100%;
   margin: 2px 0 0;
   font-size: 11px;
   color: #9aa1ae;
