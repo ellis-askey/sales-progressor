@@ -9,6 +9,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { getSavedChainAgents, type SavedChainAgent } from "@/app/actions/chain-agents";
 
 function joinAddress(street: string, city: string, postcode: string): string {
   return [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
@@ -114,6 +115,82 @@ function SectionHeader({
         <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--agent-text-muted)" }}>
           {description}
         </p>
+      </div>
+    </div>
+  );
+}
+
+const GHOST_INPUT_CLASS =
+  "w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all";
+
+// Text field with inline ghost completion (critique #248): as you type, the
+// rest of a previously-used value extends what you've typed at placeholder
+// weight. Tab (or the tap chip) accepts it. The overlay repeats the typed text
+// invisibly so the completion starts exactly where the caret is — same font,
+// same padding, pointer-events off.
+function GhostField({
+  label,
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  maxLength,
+  required,
+  completion,
+  onAccept,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+  maxLength?: number;
+  required?: boolean;
+  completion: string | null; // the REMAINDER beyond what's typed, null = no ghost
+  onAccept: () => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-semibold text-slate-900/65">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          onKeyDown={(e) => {
+            if (!completion) return;
+            const atEnd = e.currentTarget.selectionStart === value.length && e.currentTarget.selectionEnd === value.length;
+            if (e.key === "Tab" || (e.key === "ArrowRight" && atEnd)) {
+              e.preventDefault();
+              onAccept();
+            }
+          }}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          className={GHOST_INPUT_CLASS}
+          autoComplete="off"
+        />
+        {completion && (
+          <>
+            <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm overflow-hidden">
+              <span className="invisible whitespace-pre">{value}</span>
+              <span className="whitespace-pre text-slate-900/30">{completion}</span>
+            </div>
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => { e.preventDefault(); onAccept(); }}
+              aria-label={`Use ${value}${completion}`}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-slate-900/45 border border-slate-900/15 bg-white/60 hover:text-slate-900/70 hover:border-slate-900/30 transition-colors"
+            >
+              Tab
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -246,6 +323,63 @@ export function AddNodeDrawer({
   );
 
   const stubPropertyAddress = joinAddress(streetAddress, city, postcode);
+
+  // Saved chain-agent pool (critique #248): agents previously entered on your
+  // chains, newest entry per agent. Powers the ghost completion on the agency +
+  // agent name fields; picking an agent autofills their email and number.
+  const [agentPool, setAgentPool] = useState<SavedChainAgent[]>([]);
+  useEffect(() => {
+    getSavedChainAgents().then(setAgentPool).catch(() => {});
+  }, []);
+
+  // The remainder of the best pool match beyond what's been typed, or null.
+  // Matches are prefix-only and case-insensitive; the pool is newest-first, so
+  // the first hit is the agent's latest details ("last entry wins").
+  function ghostRemainder(full: string | null, typed: string): string | null {
+    if (!full) return null;
+    const t = typed.trimStart();
+    if (t.length < 2) return null;
+    if (!full.toLowerCase().startsWith(t.toLowerCase())) return null;
+    if (full.length <= t.length) return null;
+    return full.slice(t.length);
+  }
+
+  const agencyMatch = form.stubAgencyName.trim().length >= 2
+    ? agentPool.find((a) => ghostRemainder(a.agencyName, form.stubAgencyName) !== null) ?? null
+    : null;
+  const agencyGhost = agencyMatch ? ghostRemainder(agencyMatch.agencyName, form.stubAgencyName) : null;
+
+  // Agent matches prefer the typed agency's own people, then anyone.
+  const agentCandidates = (() => {
+    const named = agentPool.filter((a) => a.agentName);
+    const ag = form.stubAgencyName.trim().toLowerCase();
+    if (!ag) return named;
+    const same = named.filter((a) => a.agencyName.toLowerCase() === ag);
+    const rest = named.filter((a) => a.agencyName.toLowerCase() !== ag);
+    return [...same, ...rest];
+  })();
+  const agentMatch = form.stubAgentName.trim().length >= 2
+    ? agentCandidates.find((a) => ghostRemainder(a.agentName, form.stubAgentName) !== null) ?? null
+    : null;
+  const agentGhost = agentMatch ? ghostRemainder(agentMatch.agentName, form.stubAgentName) : null;
+
+  function acceptAgency() {
+    if (!agencyMatch) return;
+    setForm((f) => ({ ...f, stubAgencyName: agencyMatch.agencyName }));
+  }
+  function acceptAgent() {
+    if (!agentMatch) return;
+    setForm((f) => ({
+      ...f,
+      stubAgentName: agentMatch.agentName ?? f.stubAgentName,
+      // Autofill their latest details — still editable, and an edit becomes the
+      // new saved version next time (the pool reads the newest entry).
+      stubAgentEmail: agentMatch.agentEmail ?? f.stubAgentEmail,
+      stubAgentPhone: agentMatch.agentPhone ?? f.stubAgentPhone,
+      stubAgencyName: f.stubAgencyName.trim() ? f.stubAgencyName : agentMatch.agencyName,
+    }));
+    setEmailError("");
+  }
 
   const [emailError, setEmailError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -600,7 +734,7 @@ export function AddNodeDrawer({
                   title="Agency"
                   description="The estate agent handling this sale."
                 />
-                <Field
+                <GhostField
                   label="Agency name"
                   required
                   value={form.stubAgencyName}
@@ -608,6 +742,8 @@ export function AddNodeDrawer({
                   onBlur={applyTitleCase("stubAgencyName")}
                   placeholder="e.g. Bristol Estates"
                   maxLength={100}
+                  completion={agencyGhost}
+                  onAccept={acceptAgency}
                 />
               </section>
 
@@ -620,13 +756,15 @@ export function AddNodeDrawer({
                   description="Add a contact at the agency, and we'll send them an invite."
                 />
                 <div className="space-y-3">
-                  <Field
+                  <GhostField
                     label="Agent name"
                     value={form.stubAgentName}
                     onChange={update("stubAgentName")}
                     onBlur={applyTitleCase("stubAgentName")}
                     placeholder="e.g. Sarah Jones"
                     maxLength={100}
+                    completion={agentGhost}
+                    onAccept={acceptAgent}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
