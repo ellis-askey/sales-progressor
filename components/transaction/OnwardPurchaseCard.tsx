@@ -577,7 +577,7 @@ export function OnwardPurchaseCard({
       if (nudgeSent[c.id]) return <span style={{ fontSize: 12, color: MUTED }}>Link sent to {first}</span>;
       return (
         <Button variant="secondary" size="sm" loading={nudgeSendingId === c.id} onClick={() => openNudge(c.id, "setup")}>
-          <MailGlyph /> Ask {first} to set it up
+          <MailGlyph /> <span className="opc-full">Ask {first} to set it up</span><span className="opc-short">Ask {first}</span>
         </Button>
       );
     }
@@ -587,7 +587,7 @@ export function OnwardPurchaseCard({
         panelWidth={264}
         trigger={(open) => (
           <span style={secondaryBtnStyle}>
-            <MailGlyph /> Ask a {nudgeNoun} to set it up <Chevron open={open} />
+            <MailGlyph /> <span className="opc-full">Ask a {nudgeNoun} to set it up</span><span className="opc-short">Ask {nudgeNoun}</span> <Chevron open={open} />
           </span>
         )}
       >
@@ -758,6 +758,8 @@ export function OnwardPurchaseCard({
   if (!view.exists) {
     const cta = (
       <>
+        {/* Mobile short labels so the two buttons sit side-by-side (critique #246). */}
+        <style>{`.opc-short{display:none}@media(max-width:640px){.opc-full{display:none}.opc-short{display:inline}}`}</style>
         <div style={{ display: "flex", gap: 9, flexWrap: "wrap", alignItems: "center" }}>
           <Button
             variant={signalActive ? "primary" : "secondary"}
@@ -765,7 +767,7 @@ export function OnwardPurchaseCard({
             loading={pending}
             onClick={() => run(() => actions.open(transactionId))}
           >
-            {txt.setupCta}
+            <span className="opc-full">{txt.setupCta}</span><span className="opc-short">Set up</span>
           </Button>
           {renderNudgeSetup()}
         </div>
@@ -777,7 +779,7 @@ export function OnwardPurchaseCard({
     // the long prompt and show just the CTA (a short hint only when passive).
     if (embedded) {
       return (
-        <div style={{ padding: "0 4px" }}>
+        <div style={{ padding: "6px 4px 0" }}>
           {!signalActive && (
             <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>Not confirmed yet. Set up tracking if they are.</p>
           )}

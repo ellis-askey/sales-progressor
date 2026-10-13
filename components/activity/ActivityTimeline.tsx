@@ -352,6 +352,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [search, setSearch]         = useState("");
   const [showPortalVisits, setShowPortalVisits] = useState(false);
   const [entriesKey, setEntriesKey] = useState(0);
+  // Narrow-screen flag: shortens the search placeholder so it fits the mobile
+  // search bar rather than truncating mid-word (critique #243).
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   // Scope dropdown (the view filter, now a menu inside the search bar).
   const [scopeOpen, setScopeOpen] = useState(false);
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -956,7 +966,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
           type="text"
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search this file's activity…"
+          placeholder={isNarrow ? "Search" : "Search this file's activity…"}
           className="act-search-input"
           aria-label="Search activity"
         />

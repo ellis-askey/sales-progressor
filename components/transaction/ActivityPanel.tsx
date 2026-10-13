@@ -1,12 +1,10 @@
 // Async server component for the Activity tab on the file detail page.
 // Fetches the activity timeline + MOS document signed URL (chained,
-// since the URL needs the doc record) and renders the existing
-// ActivityTab plus the optional ComposeEmail strip.
+// since the URL needs the doc record) and renders the ActivityTab.
 
 import { getActivityTimelineCached } from "@/lib/services/cached-fetchers";
 import { prisma } from "@/lib/prisma";
 import { ActivityTab } from "@/components/activity/ActivityTab";
-import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 
 type ContactProp = {
   id: string;
@@ -25,7 +23,6 @@ type SolicitorContact = {
 type Props = {
   transactionId: string;
   agencyId: string;
-  isInternal: boolean;
   isInternalStaff: boolean;
   isProgressor: boolean;
   isAdminRole: boolean;
@@ -35,7 +32,6 @@ type Props = {
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
-  spSenderIdentity: { name: string; email: string } | undefined;
   contacts: ContactProp[];
   vendorSolicitor: SolicitorContact | null;
   purchaserSolicitor: SolicitorContact | null;
@@ -44,7 +40,6 @@ type Props = {
 export async function ActivityPanel({
   transactionId,
   agencyId,
-  isInternal,
   isInternalStaff,
   isProgressor,
   isAdminRole,
@@ -52,7 +47,6 @@ export async function ActivityPanel({
   currentUserId,
   currentUserName,
   currentUserRole,
-  spSenderIdentity,
   contacts,
   vendorSolicitor,
   purchaserSolicitor,
@@ -99,9 +93,6 @@ export async function ActivityPanel({
         currentUserImage={me?.image ?? null}
         currentUserRole={currentUserRole}
       />
-      {(!isInternal || spSenderIdentity !== undefined) && (
-        <ComposeEmail transactionId={transactionId} senderIdentity={spSenderIdentity} />
-      )}
       {/* isInternalStaff fed for future use; currently parallel to ActivityTab's
         * own surface guards. Kept in the props shape to mirror the page's
         * historical role-flag set. */}
