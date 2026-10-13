@@ -69,6 +69,11 @@ export function ReconcileLaterBanner({
 }) {
   const prefilled = !!seed && Object.keys(seed).length > 0;
   const [dismissed, setDismissed] = useState(false);
+  // Exit animation (2026-10-13): after a reconcile is applied or Not now, the
+  // strip eases out (fade + height collapse) so the page tightens smoothly
+  // instead of the strip vanishing on the next data refresh.
+  const [leaving, setLeaving] = useState(false);
+  const [gone, setGone] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [state, setState] = useState<ReconciliationState>(seed ?? {});
@@ -95,13 +100,20 @@ export function ReconcileLaterBanner({
     return () => window.removeEventListener("sp:open-reconcile", onOpen);
   }, []);
 
+  // Ease the strip out, then unmount it. Shared by apply + Not now.
+  function animateOut() {
+    setLeaving(true);
+    window.setTimeout(() => setGone(true), 460);
+  }
+
   function handleDismiss() {
     try {
       window.localStorage.setItem(`reconcileDismissed:${transactionId}`, "1");
     } catch {
       // ignore
     }
-    setDismissed(true);
+    animateOut();
+    window.setTimeout(() => setDismissed(true), 460);
   }
 
   async function handleSubmit() {
@@ -151,6 +163,9 @@ export function ReconcileLaterBanner({
       if (elapsed < minMs) await new Promise((r) => setTimeout(r, minMs - elapsed));
       clearInterval(ticker);
       setModalOpen(false);
+      // Reconciles applied — ease the prompt strip out rather than letting the
+      // revalidation snap it away (2026-10-13).
+      animateOut();
       // Critique #237: ClaimFirstRunFlow listens for this to chain the chase
       // set-up welcome after the reconcile finishes.
       window.dispatchEvent(new CustomEvent("sp:reconcile-closed"));
@@ -164,14 +179,14 @@ export function ReconcileLaterBanner({
     }
   }
 
-  const showPrompt = !hasProgress && !dismissed && !!tenure && !!purchaseType;
+  const showPrompt = !hasProgress && !dismissed && !gone && !!tenure && !!purchaseType;
 
   if (!showPrompt && !modalOpen) return null;
 
   return (
     <>
       {showPrompt && (
-        <div className="rec-prompt">
+        <div className={`rec-prompt${leaving ? " rec-prompt--leaving" : ""}`}>
           <span className="rec-prompt-icon" aria-hidden="true">
             <Clock size={30} weight="regular" />
           </span>
