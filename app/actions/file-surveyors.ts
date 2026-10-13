@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
 import type { Prisma } from "@prisma/client";
 
-export type SavedSurveyor = { id: string; name: string; email: string };
+export type SavedSurveyor = { id: string; name: string; email: string; phone: string | null };
 
 export async function getSavedSurveyors(): Promise<SavedSurveyor[]> {
   const session = await requireSession();
@@ -34,7 +34,7 @@ export async function getSavedSurveyors(): Promise<SavedSurveyor[]> {
   if (isTspInternal) {
     return prisma.providerFirm.findMany({
       where: { kind: "surveyor", active: true },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, phone: true },
       orderBy: { name: "asc" },
     });
   }
@@ -75,7 +75,7 @@ export async function getSavedSurveyors(): Promise<SavedSurveyor[]> {
         ...(emails.length ? [{ email: { in: emails, mode: "insensitive" as const } }] : []),
       ],
     },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, phone: true },
     orderBy: { name: "asc" },
   });
 }

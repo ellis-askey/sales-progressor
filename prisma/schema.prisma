@@ -671,6 +671,9 @@ model PropertyTransaction {
   // email the surveyor the access details with the buyer CC'd. Null when none
   // recorded. The firm name sits on bookedSurveyorName (or the booked quote).
   bookedSurveyorEmail             String?
+  // Point-of-contact phone for the booked surveyor (critique 2026-10-13),
+  // captured on the same PM9 confirm as the email. Null when none recorded.
+  bookedSurveyorPhone             String?
   // Free-text valuer / lender's-surveyor firm captured inline on the lender-
   // valuation step (PM6) when the buyer arranged it outside our network. Mirrors
   // bookedSurveyorName for the survey step. Null when none is recorded.
