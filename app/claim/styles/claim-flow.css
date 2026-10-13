@@ -69,6 +69,7 @@
    (this selector's `position: relative` is more specific and would defeat it). */
 .claim-page > .claim-container,
 .claim-page > .claim-container--narrow,
+.claim-page > .claim-login-wrap,
 .claim-page > .claim-signup-grid,
 .claim-page > .claim-error-wrap,
 .claim-page > .claim-decline-wrap,
@@ -204,6 +205,25 @@
   max-width: 440px;
   margin: 0 auto;
   padding: 48px 20px 64px;
+}
+
+/* Log-in-to-claim (2026-10-13): context strip over a two-card grid — the
+ * account beside the sale set-up on desktop, stacked on mobile/tablet. */
+.claim-login-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+.claim-login-grid {
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  gap: 24px;
+  align-items: start;
+  margin-top: 16px;
+}
+@media (max-width: 860px) {
+  .claim-login-wrap { max-width: 520px; }
+  .claim-login-grid { grid-template-columns: 1fr; }
 }
 
 /* ─── Hero card ──────────────────────────────────────────────────────────── */
@@ -985,7 +1005,8 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 107, 74, 0.16);
 }
 .claim-confirm-prop-photo img { width: 100%; height: 100%; object-fit: cover; }
-.claim-confirm-prop-photo .claim-b-thumb-house { width: 30px; height: 30px; }
+/* Bigger house in the confirm tile — 30px looked lost in a 92x74 tile. */
+.claim-confirm-prop-photo .claim-b-thumb-house { width: 46px; height: 46px; }
 .claim-confirm-prop-main { min-width: 0; }
 .claim-confirm-prop-addr { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--claim-text-1); }
 .claim-confirm-prop-sub { font-size: 14px; color: var(--claim-text-2); margin-top: 2px; }
@@ -1227,6 +1248,12 @@
   gap: 14px;
   overflow: hidden;
   max-height: 600px;
+}
+/* In the login grid the sale details lead their own card — no divider needed. */
+.claim-login-grid .claim-sale-details {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
   transition:
     max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.24s ease,

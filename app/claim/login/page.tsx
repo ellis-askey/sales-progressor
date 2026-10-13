@@ -104,7 +104,10 @@ export default async function ClaimLoginPage({
 
   return (
     <Shell>
-      <div className="claim-container--narrow">
+      {/* Two cards on desktop — log in beside the sale set-up — stacked on
+          mobile/tablet (2026-10-13). The form renders both cards; headings and
+          the new-agent link moved inside it so one form wraps every field. */}
+      <div className="claim-login-wrap">
         <div className="claim-context-strip">
           <a href={`/claim?token=${token}`} className="claim-context-back">
             ← Back
@@ -117,23 +120,11 @@ export default async function ClaimLoginPage({
           </div>
         </div>
 
-        <div className="claim-form-card">
-          <h1 className="claim-sub-h1">Log in to claim</h1>
-          <p className="claim-sub-p">
-            There&apos;s already an account for <strong>{stubEmail}</strong>. Log in to link your sale.
-          </p>
-
-          <ClaimLoginForm
-            token={token}
-            stubEmail={stubEmail}
-            milestoneDefinitions={milestoneDefinitions}
-          />
-
-          <p className="claim-link-row" style={{ marginTop: 16 }}>
-            New agent?{" "}
-            <a href={`/claim/signup?token=${token}`}>Create an account instead</a>
-          </p>
-        </div>
+        <ClaimLoginForm
+          token={token}
+          stubEmail={stubEmail}
+          milestoneDefinitions={milestoneDefinitions}
+        />
       </div>
     </Shell>
   );
