@@ -7,11 +7,13 @@ import type { PurchaseType } from "@prisma/client";
 import { getMilestonesCached, getGraceDaysCached, getClientChaseStatesCached } from "@/lib/services/cached-fetchers";
 import { prisma } from "@/lib/prisma";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
+import { StepsEmailHint } from "@/components/transaction/StepsEmailHint";
 import type { PartyNameContext } from "@/lib/milestones/step-name";
 
 type Props = {
   transactionId: string;
   agencyId: string;
+  userId: string;
   purchaseType: PurchaseType | null;
   // Buyer name(s) for the "re-open mortgage steps" modal's subtitle.
   buyerNames?: string[];
@@ -19,7 +21,7 @@ type Props = {
   partyNames?: PartyNameContext;
 };
 
-export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerNames, partyNames }: Props) {
+export async function StepsPanel({ transactionId, agencyId, userId, purchaseType, buyerNames, partyNames }: Props) {
   const [milestoneData, graceDaysMap, clientChaseByCode, activeRound] = await Promise.all([
     getMilestonesCached(transactionId, agencyId).catch(() => null),
     getGraceDaysCached().catch(() => new Map<string, number>()),
@@ -42,13 +44,8 @@ export async function StepsPanel({ transactionId, agencyId, purchaseType, buyerN
   return (
     <>
       {/* Confirm-time cue: agents should know confirming a step emails the
-          client, and where to control it. */}
-      <p
-        className="mb-3 rounded-lg px-3 py-2 text-[12.5px]"
-        style={{ background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-subtle)", color: "var(--agent-text-muted)" }}
-      >
-        Confirming a step sends an update to the buyer and seller. You can turn these updates off for individual files in Email settings.
-      </p>
+          client, and where to control it. Dismissible per user, once. */}
+      <StepsEmailHint userId={userId} />
       <MilestonePanel
         transactionId={transactionId}
         vendor={milestoneData.vendor}

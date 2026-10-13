@@ -28,6 +28,7 @@ import { usePropertyPhoto, AddPhotoCircle } from "./HeroPhotoUpload";
 import { Trash } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 type Props = {
   address: string;
@@ -357,9 +358,6 @@ export function PropertyHero({
     // ─────────────────────────────────────────────────────────────────
     const elapsedText = createdAt ? formatElapsed(new Date(createdAt)) : null;
     const exchangeStat = overridePredictedDate ?? exchangeDate;
-    const initials = assignedUserName
-      ? assignedUserName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-      : null;
 
     // Service-type pill — same behaviour as before the redesign: static
     // label for most users; admins get the hover-swap control that opens
@@ -706,36 +704,10 @@ export function PropertyHero({
                 the hero just renders whatever it's given. */}
             {assignedUserName ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                <span aria-hidden style={{
-                  position: "relative",
-                  width: 32,
-                  height: 32,
-                  borderRadius: 999,
-                  background: "rgba(var(--agent-coral-rgb), 0.14)",
-                  color: "var(--agent-coral-deep)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  overflow: "hidden",
-                }}>
-                  {/* Initials sit behind the photo. If the image URL 404s (e.g.
-                      the demo agent's avatar not uploaded to this environment),
-                      onError hides the <img> and the initials show through —
-                      never a broken-image glyph. */}
-                  <span style={{ position: "absolute", inset: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                    {initials}
-                  </span>
-                  {assignedUserImage && (
-                    <img
-                      src={assignedUserImage}
-                      alt=""
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
-                      style={{ position: "relative", width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                  )}
+                {/* Polished branded avatar (coral person when no photo), matching
+                    the header user avatar — not bespoke initials. */}
+                <span style={{ flexShrink: 0 }}>
+                  <UserAvatar user={{ name: assignedUserName, image: assignedUserImage }} size={32} />
                 </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>

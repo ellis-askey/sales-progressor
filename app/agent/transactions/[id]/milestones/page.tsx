@@ -22,6 +22,7 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
       <StepsPanel
         transactionId={transaction.id}
         agencyId={session.user.agencyId}
+        userId={session.user.id}
         purchaseType={transaction.purchaseType ?? null}
         buyerNames={transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)}
         partyNames={partyNames}
