@@ -10,7 +10,7 @@
 // WhatsApp: email-only for now; add a channel toggle once the official WhatsApp
 // send-path is live.
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -57,6 +57,29 @@ function schedulePresets(): { label: string; when: Date }[] {
   const tom = new Date(now); tom.setDate(tom.getDate() + 1); tom.setHours(8, 0, 0, 0);
   const mon = new Date(now); mon.setDate(mon.getDate() + ((8 - mon.getDay()) % 7 || 7)); mon.setHours(8, 0, 0, 0);
   return [{ label: "Later today", when: later }, { label: "Tomorrow morning", when: tom }, { label: "Monday morning", when: mon }];
+}
+
+// Auto-managed greeting line (critique #239), driven by the To recipients:
+//   • none           → blank (no presumptuous "Hi there")
+//   • one named       → "Hi {first},"
+//   • two named       → "Hi {first} & {first},"
+//   • three+ or mixed → time-of-day "Good morning/afternoon/evening,"
+function timeOfDayGreeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
+function autoGreetingFor(to: Token[]): string {
+  if (to.length === 0) return "";
+  const names = to.filter((t) => t.rec).map((t) => extractFirstName(t.rec!.name));
+  if (to.length === 1 && names.length === 1) return `Hi ${names[0]},`;
+  if (to.length === 2 && names.length === 2) return `Hi ${names[0]} & ${names[1]},`;
+  return `${timeOfDayGreeting()},`;
+}
+// Does the greeting line still look auto-generated (safe to overwrite) rather
+// than hand-edited? Matches the blank line + every shape autoGreetingFor emits.
+function isAutoGreeting(line: string): boolean {
+  const s = line.trim();
+  return s === "" || /^Hi .+,$/.test(s) || /^Good (morning|afternoon|evening),$/.test(s);
 }
 
 function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }) {
@@ -107,11 +130,22 @@ export function ComposeEmailModal({
   const [subject, setSubject] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const pendingBodyRef = useRef<string | null>(null);
+  // True while the greeting line should auto-follow the To recipients. Turned
+  // off for the prefilled flow (surveyor email), which seeds its own greeting.
+  const autoGreetRef = useRef(true);
   const [charCount, setCharCount] = useState(0);
   const [attachments, setAttachments] = useState<(ComposeAttachmentInput & { size: number })[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [isSending, startSend] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Closing state drives the exit animation (slide-down drawer on mobile, fade
+  // on desktop) — we stay mounted until it finishes, then tell the parent to
+  // unmount (critique #240).
+  const [closing, setClosing] = useState(false);
+  function requestClose() { if (closing) return; setOpenField(null); setClosing(true); }
+  function onShellAnimEnd(e: ReactAnimationEvent) {
+    if (closing && e.target === e.currentTarget) { setClosing(false); onClose(); }
+  }
 
   // refine (phase 3)
   const [refining, setRefining] = useState(false);
@@ -134,6 +168,7 @@ export function ComposeEmailModal({
   // reset on open/close
   useEffect(() => {
     if (!open) return;
+    setClosing(false);
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
@@ -163,14 +198,16 @@ export function ComposeEmailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx]);
 
-  // Fill the greeting from the first To recipient (or "there") whenever To
-  // changes — only ever touching the greeting line, never the typed message.
+  // Keep the greeting line in step with the To recipients whenever they change —
+  // only ever touching that one line (and only while it still looks auto), never
+  // the typed message. Count/name rules live in autoGreetingFor (critique #239).
   useEffect(() => {
-    if (!ctx || !editorRef.current) return;
-    const first = tokens.to[0];
-    const nm = first?.rec ? extractFirstName(first.rec.name) : "there";
+    if (!ctx || !editorRef.current || !autoGreetRef.current) return;
     const p = editorRef.current.querySelector("p");
-    if (p && /^Hi .+,$/.test((p.textContent ?? "").trim())) p.textContent = `Hi ${nm},`;
+    if (!p || !isAutoGreeting(p.textContent ?? "")) return;
+    const g = autoGreetingFor(tokens.to);
+    if (g === "") p.innerHTML = "<br>";
+    else p.textContent = g;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens.to]);
 
@@ -210,6 +247,7 @@ export function ComposeEmailModal({
       // and body, instead of the blank defaults. Signature is appended unless
       // the supplied body already carries one.
       if (pf) {
+        autoGreetRef.current = false; // prefilled body carries its own greeting
         const toTokens: Token[] = pf.to.map((email) => ({ email, name: email, rec: null }));
         const ccTokens: Token[] = (pf.cc ?? []).map((r) => {
           const match = c.recipients.find((x) => x.email.toLowerCase() === r.email.toLowerCase());
@@ -224,7 +262,9 @@ export function ComposeEmailModal({
         setCtx(c);
         return;
       }
-      pendingBodyRef.current = `<p>Hi there,</p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
+      // Greeting starts blank and fills in from the To recipients (critique #239).
+      autoGreetRef.current = true;
+      pendingBodyRef.current = `<p><br></p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
       setTokens({ to: [], cc: [], bcc: [] });
       setSubject(`Update on your sale of ${c.sale.line1}`);
       setCtx(c);
@@ -232,6 +272,7 @@ export function ComposeEmailModal({
   }
 
   function clearSale() {
+    autoGreetRef.current = true;
     setCtx(null); setTokens({ to: [], cc: [], bcc: [] }); setSubject(""); setShowCc(false); setShowBcc(false);
     setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false); setShowRefined(false); preRefineRef.current = null;
     if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
@@ -324,7 +365,7 @@ export function ComposeEmailModal({
         attachments: attachments.map(({ filename, contentBase64, type }) => ({ filename, contentBase64, type })),
         scheduledFor: when ? when.toISOString() : null,
       });
-      if (res.ok) { toast.success(when ? `Scheduled for ${fmtWhen(when)}` : "Email sent"); onClose(); }
+      if (res.ok) { toast.success(when ? `Scheduled for ${fmtWhen(when)}` : "Email sent"); requestClose(); }
       else setError(res.error);
     });
   }
@@ -392,15 +433,15 @@ export function ComposeEmailModal({
   );
 
   return createPortal(
-    <div className="cem-backdrop" data-theme={theme} onClick={() => setOpenField(null)}>
+    <div className="cem-backdrop" data-theme={theme} data-closing={closing ? "1" : undefined} onClick={() => setOpenField(null)}>
       <style>{CEM_CSS}</style>
-      <div className="cem-modal" role="dialog" aria-label="New email" onClick={(e) => e.stopPropagation()}>
+      <div className="cem-modal" role="dialog" aria-label="New email" data-closing={closing ? "1" : undefined} onAnimationEnd={onShellAnimEnd} onClick={(e) => e.stopPropagation()}>
         <div className="cem-hdr">
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1>New email</h1>
             <p>Sent from your own address · logged to the file</p>
           </div>
-          <button className="cem-xbtn" aria-label="Close" onClick={onClose}>✕</button>
+          <button className="cem-xbtn" aria-label="Close" onClick={requestClose}>✕</button>
         </div>
 
         <div className="cem-body">
@@ -581,9 +622,16 @@ function RecRow({ rec, onPick }: { rec: ComposeRecipient; onPick: () => void }) 
 }
 
 const CEM_CSS = `
-.cem-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(45,24,16,0.34);backdrop-filter:blur(3px)}
+.cem-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(45,24,16,0.34);backdrop-filter:blur(3px);animation:cemFadein .2s ease both}
+.cem-backdrop[data-closing="1"]{animation:cemFadeout .24s ease both}
 .cem-modal{width:min(640px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;background:var(--agent-surface-elevated,#fff);border:1px solid rgba(255,255,255,0.5);border-top:2px solid var(--agent-coral-deep,#FF6B4A);border-radius:16px;box-shadow:0 24px 70px rgba(45,24,16,0.28);animation:cemModalin .34s cubic-bezier(.34,1.56,.64,1) both}
+.cem-modal[data-closing="1"]{animation:cemModalout .24s ease both}
 @keyframes cemModalin{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes cemModalout{from{opacity:1;transform:none}to{opacity:0;transform:translateY(12px) scale(.985)}}
+@keyframes cemFadein{from{opacity:0}to{opacity:1}}
+@keyframes cemFadeout{from{opacity:1}to{opacity:0}}
+@keyframes cemSheetin{from{transform:translateY(100%)}to{transform:none}}
+@keyframes cemSheetout{from{transform:none}to{transform:translateY(100%)}}
 @keyframes cemPop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:none}}
 @keyframes cemMenuin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .cem-hdr{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 22px;color:#fff;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%)}
@@ -676,4 +724,13 @@ const CEM_CSS = `
 .cem-sched-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--agent-border-subtle);border-radius:10px;margin-bottom:7px}
 .cem-cancel-sched{flex-shrink:0;border:1px solid var(--agent-border-default);background:#fff;color:var(--agent-text-secondary);border-radius:8px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .14s}
 .cem-cancel-sched:hover{border-color:var(--agent-danger);color:var(--agent-danger)}
+/* Mobile: dock as a bottom drawer that slides up/down, and drop Cc/Bcc below the
+   recipient input rather than squeezing them beside it (critiques #239, #240). */
+@media (max-width:560px){
+  .cem-recrow{flex-wrap:wrap}
+  .cem-ccbcc{order:3;width:100%;padding:5px 0 0 44px}
+  .cem-backdrop{align-items:flex-end;padding:0}
+  .cem-modal{width:100%;max-width:100%;max-height:92vh;border-radius:18px 18px 0 0;animation:cemSheetin .3s cubic-bezier(.22,1,.36,1) both}
+  .cem-modal[data-closing="1"]{animation:cemSheetout .26s ease both}
+}
 `;
