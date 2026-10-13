@@ -232,7 +232,7 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
   );
 }
 
-type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; title: string };
+type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; newHasManagementPack?: boolean; title: string };
 
 export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, hasManagementPack, exchanged }: {
   transactionId: string;
@@ -247,26 +247,13 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
 
   // ── Managed-freehold flag ──
   // A discreet, freehold-only toggle under the Tenure cell: the ~1-in-20 freehold
-  // that sits on a managed estate and still has a management pack. Optimistic,
-  // reversible, saved via saveHasManagementPackAction.
+  // that sits on a managed estate and still has a management pack. Turning it on
+  // revives the management-pack steps (VM8/VM9/PM12); turning it off retires them.
+  // The toggle handler is defined below (toggleMgmtPack) once the sale-details
+  // cascade state it reuses is in scope.
   const [mgmtPackOn, setMgmtPackOn] = useState(hasManagementPack);
   const [mgmtSaving, setMgmtSaving] = useState(false);
   useEffect(() => setMgmtPackOn(hasManagementPack), [hasManagementPack]);
-  async function toggleMgmtPack() {
-    if (mgmtSaving) return;
-    const next = !mgmtPackOn;
-    setMgmtPackOn(next);
-    setMgmtSaving(true);
-    try {
-      await saveHasManagementPackAction(transactionId, next);
-      toast.success(next ? "Marked as a managed development" : "Management-pack flag removed");
-    } catch (err) {
-      setMgmtPackOn(!next);
-      toast.error(err instanceof Error ? err.message : "Couldn't save the change");
-    } finally {
-      setMgmtSaving(false);
-    }
-  }
 
   // ── Price inline edit ──
   const [editingPrice, setEditingPrice] = useState(false);
@@ -413,11 +400,13 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setConfirming(true);
     setModalError(null);
     try {
-      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure });
+      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure, newHasManagementPack: pending.newHasManagementPack });
       if (pending.newIsShareOfFreehold !== isShareOfFreehold) {
         await saveIsShareOfFreeholdAction(transactionId, pending.newIsShareOfFreehold);
       }
-      const label = pending.newTenure !== tenure ? "Tenure" : "Purchase type";
+      const flagOnlyChange = pending.newHasManagementPack !== undefined && pending.newTenure === tenure && pending.newPurchaseType === purchaseType;
+      if (pending.newHasManagementPack !== undefined) setMgmtPackOn(pending.newHasManagementPack);
+      const label = flagOnlyChange ? "Management pack" : pending.newTenure !== tenure ? "Tenure" : "Purchase type";
       closeModal();
       toast.success(`${label} updated`);
       // Phase 4: no client refresh - action revalidates the file page.
@@ -433,6 +422,53 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setDelta(null);
     setModalError(null);
     setDeltaLoading(false);
+  }
+
+  // Flip the managed-development flag. Routes through the same NR-cascade as a
+  // tenure change (confirmSaleDetailsAction) so the pack steps are added/retired
+  // for real. Turning it off when a pack step is already complete is destructive,
+  // so that case goes through the preview-and-confirm modal; everything else
+  // applies straight away. Recovery files (no purchaseType) just store the flag.
+  async function toggleMgmtPack() {
+    if (mgmtSaving || confirming || pending) return;
+    const next = !mgmtPackOn;
+
+    if (purchaseType == null || tenure == null) {
+      setMgmtSaving(true);
+      setMgmtPackOn(next);
+      try {
+        await saveHasManagementPackAction(transactionId, next);
+        toast.success(next ? "Marked as a managed development" : "Management-pack flag removed");
+      } catch (err) {
+        setMgmtPackOn(!next);
+        toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+      } finally {
+        setMgmtSaving(false);
+      }
+      return;
+    }
+
+    setMgmtSaving(true);
+    try {
+      const d = await getSaleDetailsDelta({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
+      if (d.noChange) return;
+      // Destructive only when turning OFF would reverse an already-complete pack
+      // step — preview that. Adding steps (or removing not-yet-done ones) is safe.
+      if (d.becomingNr.some((i) => i.wasComplete)) {
+        setPending({ newPurchaseType: purchaseType, newTenure: tenure, newIsShareOfFreehold: isShareOfFreehold, newHasManagementPack: next, title: "Remove the management pack?" });
+        setDelta(d);
+        setModalError(null);
+        setDeltaLoading(false);
+        return;
+      }
+      await confirmSaleDetailsAction({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
+      setMgmtPackOn(next);
+      toast.success(next ? "Pack steps are now live on this file" : "Management-pack flag removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+    } finally {
+      setMgmtSaving(false);
+    }
   }
 
   return (

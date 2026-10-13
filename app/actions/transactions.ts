@@ -2648,22 +2648,26 @@ export async function getSaleDetailsDelta(input: {
   transactionId: string;
   newPurchaseType: PurchaseType;
   newTenure: Tenure;
+  // When the managed-freehold flag is the thing changing (tenure/type unchanged),
+  // the caller passes the new value here. Omit to preview a tenure/type change.
+  newHasManagementPack?: boolean;
 }): Promise<SaleDetailsDelta> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, purchaseType: true, tenure: true },
+    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
-  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure) {
+  const newFlag = input.newHasManagementPack ?? tx.hasManagementPack;
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack) {
     return { noChange: true, becomingNr: [], becomingRequired: [], currentPercent: 0, projectedPercent: 0, currentRemaining: 0, projectedRemaining: 0 };
   }
 
-  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
-  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure);
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag);
 
   const allDefs = await prisma.milestoneDefinition.findMany({
     select: { id: true, code: true, name: true, side: true, weight: true },
@@ -2739,20 +2743,24 @@ export async function confirmSaleDetailsAction(input: {
   transactionId: string;
   newPurchaseType: PurchaseType;
   newTenure: Tenure;
+  // Managed-freehold flag change (tenure/type may be unchanged). Omit to leave
+  // the flag as-is while changing tenure/type.
+  newHasManagementPack?: boolean;
 }): Promise<void> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, purchaseType: true, tenure: true },
+    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
-  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure) return;
+  const newFlag = input.newHasManagementPack ?? tx.hasManagementPack;
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack) return;
 
-  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
-  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure);
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag);
 
   const allDefs = await prisma.milestoneDefinition.findMany({
     select: { id: true, code: true, name: true, side: true, blocksExchange: true },
@@ -2815,7 +2823,7 @@ export async function confirmSaleDetailsAction(input: {
     // 1. Update sale details
     await ptx.propertyTransaction.update({
       where: { id: input.transactionId },
-      data: { purchaseType: input.newPurchaseType, tenure: input.newTenure },
+      data: { purchaseType: input.newPurchaseType, tenure: input.newTenure, hasManagementPack: newFlag },
     });
 
     // Phase 1 commit 4e — round scope reused across every find-after-write
@@ -2865,12 +2873,18 @@ export async function confirmSaleDetailsAction(input: {
     // 3a. Comms records for reversed milestones
     const TYPE_LABEL_COMMS: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from proceeds" };
     const TENURE_LABEL_COMMS: Record<string, string> = { leasehold: "Leasehold", freehold: "Freehold" };
+    const packFlagChanged = newFlag !== tx.hasManagementPack;
     for (const code of reversedCodes) {
       const def = defByCode.get(code);
       if (!def) continue;
+      // A pack code reversed because the managed-development flag was turned off
+      // (tenure/type unchanged) gets a flag-specific note, not a bogus
+      // "tenure changed from freehold to freehold".
       const changeDesc = PURCHASE_TYPE_NR_CODES.has(code)
         ? `purchase type changed from ${TYPE_LABEL_COMMS[tx.purchaseType ?? ""] ?? tx.purchaseType} to ${TYPE_LABEL_COMMS[input.newPurchaseType]}`
-        : `tenure changed from ${TENURE_LABEL_COMMS[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL_COMMS[input.newTenure]}`;
+        : (packFlagChanged && input.newTenure === tx.tenure)
+          ? "this freehold is no longer marked as a managed development"
+          : `tenure changed from ${TENURE_LABEL_COMMS[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL_COMMS[input.newTenure]}`;
       await ptx.outboundMessage.create({
         data: {
           transactionId: input.transactionId,
@@ -2994,6 +3008,9 @@ export async function confirmSaleDetailsAction(input: {
   }
   if (input.newTenure !== tx.tenure) {
     changes.push(`tenure from ${TENURE_LABEL[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL[input.newTenure]}`);
+  }
+  if (newFlag !== tx.hasManagementPack) {
+    changes.push(newFlag ? "marked this freehold as a managed development" : "removed the managed-development flag");
   }
   await logActivity(input.transactionId, `${session.user.name} updated ${changes.join(" and ")}`, session.user.id);
 
@@ -3251,6 +3268,7 @@ export async function relistTransactionImpl(
       purchasePrice: true,
       tenure: true,
       purchaseType: true,
+      hasManagementPack: true,
       serviceType: true,
       agencyId: true,
       agentUserId: true,
@@ -3478,7 +3496,7 @@ export async function relistTransactionImpl(
     // auto-NR set on this round's PMs matches the actual buyer; fallback to
     // tx.purchaseType for backwards-compat with older callers.
     const effectivePurchaseType = input.newPurchaseType ?? tx.purchaseType;
-    const autoNrCodes = computeAutoNrCodes(effectivePurchaseType, tx.tenure);
+    const autoNrCodes = computeAutoNrCodes(effectivePurchaseType, tx.tenure, tx.hasManagementPack);
     const initialAvailable = new Set<string>();
     for (const def of allDefs.filter((d) => d.side === "purchaser")) {
       if (autoNrCodes.has(def.code)) continue;
