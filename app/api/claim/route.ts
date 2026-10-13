@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       stubAgentEmail: true,
       stubPropertyAddress: true,
       stubPhotoStoragePath: true,
+      createdBy: { select: { role: true, progressionBusinessId: true } },
       chain: {
         select: {
           createdByUserId: true,
@@ -122,6 +123,21 @@ export async function POST(req: NextRequest) {
       { status: 403 },
     );
   }
+
+  // TSP-vetted stub photos carry through to the claimed file (founder call,
+  // 2026-10-13): when the slot was added by TSP internal staff the image is
+  // trusted, so the new agent's file starts with it instead of an empty tile.
+  // Agency / progression-business stubs keep the wipe — we can't vouch for
+  // their image. Internal = admin/superadmin, or a sales_progressor with no
+  // progression business (TSP's own team; external business members carry a
+  // businessId).
+  const creator = link.createdBy;
+  const creatorIsTspInternal =
+    !!creator &&
+    (creator.role === "admin" ||
+      creator.role === "superadmin" ||
+      (creator.role === "sales_progressor" && !creator.progressionBusinessId));
+  const carryStubPhoto = creatorIsTspInternal && !!link.stubPhotoStoragePath;
 
   // Race-safety: check for withdrawn chain between page load and submit
   const chainBroken = link.chain.links.some(
@@ -172,6 +188,9 @@ export async function POST(req: NextRequest) {
           // than routing through createTransaction() — so a normaliser at
           // this boundary catches any residual pre-fix stubs still in the DB.
           propertyAddress: normaliseAddressString(link.stubPropertyAddress ?? ""),
+          // TSP-vetted stub photo carries onto the new file (same object, same
+          // private bucket, signed reads already handle it).
+          ...(carryStubPhoto ? { photoStoragePath: link.stubPhotoStoragePath } : {}),
           agencyId,
           agentUserId: session.user.id,
           progressedBy: "agent",
@@ -282,8 +301,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Remove the now-orphaned stub photo object (best-effort).
-    if (link.stubPhotoStoragePath) {
+    // Remove the now-orphaned stub photo object (best-effort) — unless it was
+    // carried onto the new file, where the object now lives on.
+    if (link.stubPhotoStoragePath && !carryStubPhoto) {
       deleteFromStorage(link.stubPhotoStoragePath).catch(() => {});
     }
 
@@ -333,7 +353,7 @@ export async function POST(req: NextRequest) {
 
   const existingTxn = await prisma.propertyTransaction.findFirst({
     where: { id: existingTransactionId, agencyId },
-    select: { id: true, chainLinkId: true },
+    select: { id: true, chainLinkId: true, photoStoragePath: true },
   });
 
   if (!existingTxn) {
@@ -364,12 +384,20 @@ export async function POST(req: NextRequest) {
 
     await tx.propertyTransaction.update({
       where: { id: existingTransactionId },
-      data: { chainLinkId: link.id },
+      data: {
+        chainLinkId: link.id,
+        // TSP-vetted stub photo fills the gap when the agent's own file has no
+        // photo yet; an existing photo is never overwritten.
+        ...(carryStubPhoto && !existingTxn.photoStoragePath
+          ? { photoStoragePath: link.stubPhotoStoragePath }
+          : {}),
+      },
     });
   });
 
-  // Remove the now-orphaned stub photo object (best-effort).
-  if (link.stubPhotoStoragePath) {
+  // Remove the now-orphaned stub photo object (best-effort) — unless carried
+  // onto the linked file.
+  if (link.stubPhotoStoragePath && !(carryStubPhoto && !existingTxn.photoStoragePath)) {
     deleteFromStorage(link.stubPhotoStoragePath).catch(() => {});
   }
 
