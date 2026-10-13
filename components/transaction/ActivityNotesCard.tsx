@@ -5,11 +5,11 @@
 // focuses the view; note rows are deletable inline; "View all" goes to the full
 // Activity tab.
 //
-// Critique #6 (2026-09-29): the composer is now the SAME <CommsEntry> used on
-// the Activity tab — draft for everyone, log a call (who to), note, and the
-// "More" set — rendered with the identical optimistic wiring ActivityTab uses,
-// so the two surfaces are pixel-identical and share one code path. The old
-// note-only textarea is gone; CommsEntry's Note channel covers it.
+// Critique #238 (2026-10-13): the composer here is now the SAME single
+// "Log an update" button + modal (<LogUpdateModal>) used on the Activity tab,
+// replacing the old always-open CommsEntry strip (draft-for-everyone, note,
+// "More" buttons). One trigger, one shared code path, same optimistic wiring.
+// (Supersedes critique #6, which had made this the inline CommsEntry.)
 
 import { useState, useEffect } from "react";
 import { useTabContext } from "./TabContext";
@@ -20,7 +20,7 @@ import type { Icon } from "@phosphor-icons/react";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { CommsEntry } from "@/components/activity/CommsEntry";
+import { LogUpdateModal } from "@/components/activity/LogUpdateModal";
 import { deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
@@ -212,11 +212,11 @@ export function ActivityNotesCard({
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all <LinkArrow /></button>
       </div>
 
-      {/* Composer — the exact Activity-tab component (critique #6) */}
+      {/* Composer — the exact Activity-tab "Log an update" button + modal (critique #238) */}
       <div style={{ padding: "0 16px 12px" }}>
-        <CommsEntry
+        <LogUpdateModal
           transactionId={transactionId}
-          contacts={contacts}
+          contacts={contacts ?? []}
           solicitors={solicitors}
           canPasteChat={canPasteChat}
           emailConnected={emailConnected}
