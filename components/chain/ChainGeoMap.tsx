@@ -432,7 +432,7 @@ export function ChainGeoMap({
     if (!container) return;
     const map = new maplibregl.Map({
       container, style: STYLE[theme], center: [-1.5, 52.4], zoom: 6,
-      attributionControl: hideAttribution ? false : { compact: true },
+      attributionControl: false, // on-map attribution hidden everywhere (critique #245)
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), hideAttribution ? "bottom-right" : "top-right");

@@ -5282,7 +5282,10 @@ body[data-demo-file] [data-onboarding-checklist] {
   .map-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; align-items: start; }
   .map-seg { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
   .map-seg-g { display: flex; width: 100%; }
-  .map-seg-b { flex: 1 1 0; text-align: center; min-width: 0; padding: 6px 4px; }
+  .map-seg-b { flex: 1 1 0; text-align: center; min-width: 0; padding: 6px 4px; white-space: nowrap; }
+  /* A segment with a long label (e.g. Status → "Completed") spans the full row so
+     its buttons aren't squeezed into half-width and overflow (critique #244). */
+  .map-seg--wide { grid-column: 1 / -1; }
   .map-count { grid-column: 1 / -1; margin-left: 0; }
 }
 
