@@ -151,6 +151,9 @@ export function ReconcileLaterBanner({
       if (elapsed < minMs) await new Promise((r) => setTimeout(r, minMs - elapsed));
       clearInterval(ticker);
       setModalOpen(false);
+      // Critique #237: ClaimFirstRunFlow listens for this to chain the chase
+      // set-up welcome after the reconcile finishes.
+      window.dispatchEvent(new CustomEvent("sp:reconcile-closed"));
       // Phase 4 (2026-09-18, PERF-03): no client refresh - the action
       // revalidates the file page.
     } catch (err) {
@@ -205,7 +208,10 @@ export function ReconcileLaterBanner({
             error={error}
             wizardStep={wizardStep}
             onStepChange={setWizardStep}
-            onClose={() => setModalOpen(false)}
+            onClose={() => {
+              setModalOpen(false);
+              window.dispatchEvent(new CustomEvent("sp:reconcile-closed"));
+            }}
             onSubmit={handleSubmit}
             submitLabel={narration}
             prefilled={prefilled}

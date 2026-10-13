@@ -18,6 +18,10 @@ type Props = {
   originatorAgency?: string;
   members?: ChainMember[];
   connectedCount?: number;
+  // Critique #237: lets ClaimFirstRunFlow chain the chase set-up welcome after
+  // this closes. "setup" = they went into the reconcile flow, "later" = any
+  // other dismissal. Only fires when the modal actually showed (?newUser=1).
+  onClosed?: (via: "setup" | "later") => void;
 };
 
 function shortAddress(a: string): string {
@@ -29,7 +33,7 @@ function shortAddress(a: string): string {
 // to what the chain actually shares: each joined sale's progress %, and that
 // updating your file is visible to the others. The private "stuck on X" detail
 // is NOT surfaced here. See docs/active/chain-invite-conversion.
-export function ClaimWelcomeModal({ address, originatorAgency, members = [], connectedCount = 0 }: Props) {
+export function ClaimWelcomeModal({ address, originatorAgency, members = [], connectedCount = 0, onClosed }: Props) {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -50,8 +54,13 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
 
   const short = shortAddress(address);
 
+  function closeModal(via: "setup" | "later") {
+    setVisible(false);
+    onClosed?.(via);
+  }
+
   return (
-    <Modal open={visible} onClose={() => setVisible(false)} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated" closeTone="onDark">
+    <Modal open={visible} onClose={() => closeModal("later")} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated" closeTone="onDark">
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader kicker="Chain" title="Welcome to the chain." />
       </Modal.Header>
@@ -117,14 +126,14 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
         <button
           onClick={() => {
             if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sp:open-reconcile"));
-            setVisible(false);
+            closeModal("setup");
           }}
           className="agent-btn agent-btn-color-primary"
           style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 2 }}
         >
           Set up {short}
         </button>
-        <button onClick={() => setVisible(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--agent-text-muted)", textDecoration: "underline", margin: "-8px auto 0", padding: 6 }}>
+        <button onClick={() => closeModal("later")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--agent-text-muted)", textDecoration: "underline", margin: "-8px auto 0", padding: 6 }}>
           I&apos;ll do this later
         </button>
       </div>
