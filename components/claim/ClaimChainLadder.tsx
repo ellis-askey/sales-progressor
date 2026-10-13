@@ -1,4 +1,5 @@
 import { ClaimCountUp } from "@/components/claim/ClaimCountUp";
+import { ClaimHouseGlyph } from "@/components/claim/ClaimHouseGlyph";
 
 // The white chain ladder (photo thumbnails, numbered circle badges, status
 // pills). Shared by the /claim landing card (ClaimInviteCard) and the signup
@@ -134,11 +135,7 @@ export function ClaimChainLadder({
                 {row.photoUrl ? (
                   <img src={row.photoUrl} alt="" className="claim-b-thumb-img" />
                 ) : (
-                  // House glyph on the warm tile with a soft glow — replaces the
-                  // webp fallback whose faded circle looked unconsidered here.
-                  <svg className="claim-b-thumb-house" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M4 11.5 12 5l8 6.5M6 10v9h12v-9M10 19v-5h4v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <ClaimHouseGlyph className="claim-b-thumb-house" />
                 )}
               </span>
               <span className="claim-b-rowmain">

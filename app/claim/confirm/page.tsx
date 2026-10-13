@@ -7,6 +7,7 @@ import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
 import { getOnwardInheritanceForLink, getRelatedSaleInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
+import { ClaimHouseGlyph } from "@/components/claim/ClaimHouseGlyph";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordClaimStarted } from "@/lib/chain/funnel";
@@ -24,19 +25,9 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Same house fallback the share card uses, for the property tile when there's no photo.
+// Shared claim-flow house glyph (gradient keek house) for the no-photo tile.
 function HousePlaceholder() {
-  return (
-    <svg className="claim-b-thumb-house" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 11.5 12 5l8 6.5M6 10v9h12v-9M10 19v-5h4v5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <ClaimHouseGlyph className="claim-b-thumb-house" />;
 }
 
 function ClaimError({ title, body }: { title: string; body: string }) {
