@@ -25,7 +25,6 @@ import { buildCheckInMessage, type DueStep } from "@/lib/chase/step-questions";
 import { markStepsChasedAction } from "@/app/actions/tasks";
 import { formatPrice, formatFee, calculateOurFee, feeExVat, feeVatPortion } from "@/lib/services/fees";
 import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
-import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
@@ -356,7 +355,10 @@ export function AgentFileSidebar({
             pill above), Progress bar dropped (redundant with hero ring
             + stats strip). Card is now pill + rows + link. */}
         <div style={{ marginTop: 4 }}>
-          <SidebarRow label="Time on file" value={fileTime && fileTime.totalSeconds > 0 ? fmtTime(fileTime.totalSeconds) : formatElapsedDays(progress.daysElapsed)} />
+          {/* Always the real time spent on the file (session tracking), floored to
+              "Under a minute" so it never reads 0. The sale's calendar age lives
+              elsewhere (hero + health details) — this row is effort, not age. */}
+          <SidebarRow label="Time on file" value={fmtTime(fileTime?.totalSeconds ?? 0)} />
           {(isInternal || isProgressorManaged) && fileTime && fileTime.totalSeconds > 0 && (
             <>
               <SidebarRow label="Agent" labelStyle={{ paddingLeft: 12 }} value={fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "–"} />
