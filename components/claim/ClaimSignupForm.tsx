@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { Gift, CreditCard, Clock, ArrowRight } from "@phosphor-icons/react";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
@@ -121,13 +122,20 @@ export function ClaimSignupForm({
 
   return (
     <div className="claim-signup-grid">
-      {/* ── Left — create your account, then the sale details reveal ── */}
+      {/* ── Left — create your account ── */}
       <div className="claim-signup-account">
         <div className="claim-form-card">
-          <h1 className="claim-sub-h1">Create your account</h1>
-          <p className="claim-sub-p">Free to use · No card needed · Cancel anytime.</p>
+          <h1 className="claim-sub-h1">You&apos;ve been invited to join the chain.</h1>
+          <p className="claim-sub-p" style={{ marginBottom: 16 }}>Create your free account to connect your sale and stay updated as the chain progresses.</p>
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Benefit strip (signup mock, 2026-10-13) — orange icons, hairline below. */}
+          <div className="claim-benefits">
+            <span className="claim-benefit"><Gift size={16} weight="regular" /> Free to use</span>
+            <span className="claim-benefit"><CreditCard size={16} weight="regular" /> No card required</span>
+            <span className="claim-benefit"><Clock size={16} weight="regular" /> Takes less than a minute</span>
+          </div>
+
+          <form onSubmit={handleSubmit} className="claim-form-tight" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Name row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="claim-field">
@@ -166,24 +174,7 @@ export function ClaimSignupForm({
               <input className="claim-field-input" type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} onBlur={() => setFirmName((v) => capitalizeWords(v))} required autoComplete="organization" placeholder="Your estate agency" />
             </div>
 
-            {/* Sale details — revealed once the account is filled in; the button below
-                slides down as it opens. About the sale being claimed, not the account. */}
-            <div className={`claim-sale-reveal${accountReady ? " open" : ""}`} aria-hidden={!accountReady}>
-              <div className="claim-sale-reveal-inner">
-                <div>
-                  <p className="claim-sale-card-eyebrow">About your sale</p>
-                  <p className="claim-sale-card-address">{stubAddress}</p>
-                </div>
-                <ClaimSaleTypeFields
-                  tenure={tenure}
-                  purchaseType={purchaseType}
-                  isShareOfFreehold={isShareOfFreehold}
-                  onTenure={setTenure}
-                  onPurchaseType={setPurchaseType}
-                  onShareOfFreehold={setIsShareOfFreehold}
-                />
-              </div>
-            </div>
+            <div className="claim-form-divider" aria-hidden />
 
             {error && (
               <div style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px" }}>
@@ -199,8 +190,10 @@ export function ClaimSignupForm({
               </div>
             )}
 
-            <button type="submit" disabled={!canSubmit || loading} className="claim-btn" style={{ marginTop: 4 }}>
-              {loading ? "Creating your account…" : "Create account & claim"}
+            <button type="submit" disabled={!canSubmit || loading} className="claim-btn">
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {loading ? "Creating your account…" : <>Create account &amp; join chain <ArrowRight size={17} weight="bold" /></>}
+              </span>
             </button>
 
             <p className="claim-form-terms">
@@ -214,19 +207,40 @@ export function ClaimSignupForm({
         </div>
       </div>
 
-      {/* ── Right — the chain you're joining ── */}
-      <div className="claim-panel">
-        <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
-        <p className="claim-panel-address">{stubAddress}</p>
-        <div className="claim-panel-rule" />
+      {/* ── Right — the chain you're joining, then the sale details card
+             (revealed once the account fields are complete, same timing as the
+             old inline reveal — just re-homed per the 2026-10-13 mock). ── */}
+      <div className="claim-signup-side">
+        <div className="claim-panel">
+          <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
+          <p className="claim-panel-address">{stubAddress}</p>
+          <div className="claim-panel-rule" />
 
-        <ClaimChainLadder ladder={ladder} ghostCount={ghostCount} showPill={false} />
+          <ClaimChainLadder ladder={ladder} ghostCount={ghostCount} showPill={false} chevrons />
 
-        <p className="claim-panel-invite">
-          Invited by {originatorName}
-          {originatorAgency ? ` · ${originatorAgency}` : ""}
-          {invitedDate ? ` · ${invitedDate}` : ""}
-        </p>
+          <p className="claim-panel-invite">
+            Invited by {originatorName}
+            {originatorAgency ? ` · ${originatorAgency}` : ""}
+            {invitedDate ? ` · ${invitedDate}` : ""}
+          </p>
+        </div>
+
+        <div className={`claim-sale-reveal${accountReady ? " open" : ""}`} aria-hidden={!accountReady}>
+          <div className="claim-sale-card">
+            <div>
+              <p className="claim-sale-card-eyebrow">About your sale</p>
+              <p className="claim-sale-card-address">{stubAddress}</p>
+            </div>
+            <ClaimSaleTypeFields
+              tenure={tenure}
+              purchaseType={purchaseType}
+              isShareOfFreehold={isShareOfFreehold}
+              onTenure={setTenure}
+              onPurchaseType={setPurchaseType}
+              onShareOfFreehold={setIsShareOfFreehold}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

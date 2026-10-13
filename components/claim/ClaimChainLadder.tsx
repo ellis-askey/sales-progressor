@@ -80,17 +80,29 @@ const PILL: Record<LadderStatus, { label: string; icon: React.ReactNode }> = {
   pending: { label: "Invite pending", icon: <IconClock /> },
 };
 
+function IconChevron() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="m7.5 4.5 5.5 5.5-5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ClaimChainLadder({
   ladder,
   ghostCount,
   shareMode = false,
   showPill = true,
+  chevrons = false,
 }: {
   ladder: LadderRow[];
   ghostCount: number;
   shareMode?: boolean;
   /** Landing shows a status pill per row; the signup panel turns them off. */
   showPill?: boolean;
+  /** Signup mock (2026-10-13): a trailing chevron per row, with a hover lift on
+   *  the card and the chevron nudging right while hovered. */
+  chevrons?: boolean;
 }) {
   return (
     <div className="claim-b-ladder">
@@ -112,7 +124,7 @@ export function ClaimChainLadder({
                 {String(row.displayNum).padStart(2, "0")}
               </span>
             </span>
-            <div className={`claim-b-rowcard${row.status === "you" ? " claim-b-rowcard--you" : ""}`}>
+            <div className={`claim-b-rowcard${row.status === "you" ? " claim-b-rowcard--you" : ""}${chevrons ? " claim-b-rowcard--chev" : ""}`}>
               <span className="claim-b-thumb">
                 {row.photoUrl ? (
                   <img src={row.photoUrl} alt="" className="claim-b-thumb-img" />
@@ -158,6 +170,11 @@ export function ClaimChainLadder({
                       </span>
                     </span>
                   )}
+                </span>
+              )}
+              {chevrons && (
+                <span className="claim-b-chev" aria-hidden="true">
+                  <IconChevron />
                 </span>
               )}
             </div>

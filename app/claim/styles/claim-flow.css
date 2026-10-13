@@ -618,6 +618,44 @@
   font-family: inherit;
 }
 .claim-field-gap { margin-bottom: 20px; }
+
+/* ─── Signup card (2026-10-13 mock) ──────────────────────────────────────────
+ * The form's flex gap owns the rhythm, so the per-field margins are zeroed here
+ * (they were stacking with the gap and doubling the spacing). Labels go
+ * uppercase + tracked, per the mock. */
+.claim-form-tight .claim-field,
+.claim-form-tight .claim-field-gap { margin-bottom: 0; }
+.claim-form-tight .claim-field-label {
+  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--claim-text-3);
+  margin-bottom: 5px;
+}
+.claim-form-divider {
+  height: 1px;
+  background: rgba(26, 29, 41, 0.08);
+  margin: 2px 0;
+}
+.claim-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(26, 29, 41, 0.08);
+}
+.claim-benefit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--claim-text-2);
+  white-space: nowrap;
+}
+.claim-benefit svg { color: var(--claim-coral); flex-shrink: 0; }
 .claim-form-terms {
   font-size: 11px;
   color: var(--claim-text-3);
@@ -737,7 +775,9 @@
   transition: max-height 0.42s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.32s ease;
 }
 .claim-sale-reveal.open {
-  max-height: 440px;
+  /* Generous clip: in the narrower right column (2026-10-13 re-home) the
+     purchase-type tiles can wrap and the card runs taller than it did inline. */
+  max-height: 720px;
   opacity: 1;
   /* Let the selected sale-type card's coral glow spill past the reveal clip. */
   overflow: visible;
@@ -1646,6 +1686,35 @@
   font-weight: 500;
   background: #fbfafa;
   border-style: dashed;
+}
+/* Chevron rows (signup mock, 2026-10-13): trailing chevron, hover lift, and the
+ * chevron nudges right while hovered, easing back on hover-off. */
+.claim-b-rowcard--chev {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.claim-b-rowcard--chev:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(26, 29, 41, 0.10);
+}
+.claim-b-rowcard--you.claim-b-rowcard--chev:hover {
+  box-shadow: 0 6px 18px rgba(255, 107, 74, 0.22);
+}
+.claim-b-chev {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--claim-text-3);
+  transition: transform 200ms ease, color 200ms ease;
+}
+.claim-b-chev svg { width: 100%; height: 100%; display: block; }
+.claim-b-rowcard--chev:hover .claim-b-chev {
+  transform: translateX(3px);
+  color: var(--claim-coral);
+}
+@media (prefers-reduced-motion: reduce) {
+  .claim-b-rowcard--chev, .claim-b-chev { transition: none; }
+  .claim-b-rowcard--chev:hover { transform: none; }
+  .claim-b-rowcard--chev:hover .claim-b-chev { transform: none; }
 }
 .claim-b-thumb {
   width: 52px;
