@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { CheckCircle, Eye, UsersThree, Gift } from "@phosphor-icons/react";
+import { CheckCircle, UsersThree } from "@phosphor-icons/react";
 
 export type ChainMember = {
   address: string;
@@ -62,19 +62,16 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
   return (
     <Modal open={visible} onClose={() => closeModal("later")} ariaLabel="Welcome to the chain" size="xl" zLayer="escalated" closeTone="onDark">
       <Modal.Header style={SHEET_BAND_STYLE}>
-        <SheetBandHeader kicker="Chain" title="Welcome to the chain." />
+        {/* No kicker (2026-10-13) — title + the connection line as its subtext. */}
+        <SheetBandHeader
+          title="Welcome to the chain."
+          subtitle={`${short} is now connected to ${originatorAgency ? `${originatorAgency}'s` : "the"} live chain.`}
+        />
       </Modal.Header>
-      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", gap: 18, padding: "30px 30px 24px" }}>
-        {/* Header */}
-        <div>
-          <p style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-success)" }}>
-            <CheckCircle size={18} weight="fill" /> You&apos;re connected
-          </p>
-          {/* Title now lives in the coral band header; keep the confirmation line. */}
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-            <strong style={{ color: "var(--agent-text-primary)" }}>{short}</strong> is now connected to {originatorAgency ? `${originatorAgency}'s` : "the"} live chain.
-          </p>
-        </div>
+      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", gap: 18, padding: "26px 30px 24px" }}>
+        <p style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-success)" }}>
+          <CheckCircle size={18} weight="fill" /> You&apos;re connected
+        </p>
 
         {/* Chain strip */}
         {members.length > 0 && (
@@ -92,6 +89,11 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
                     flex: "1 0 132px", minWidth: 132, borderRadius: 10, padding: "10px 12px",
                     background: isYou ? "rgba(var(--agent-primary-rgb), 0.06)" : "var(--agent-surface)",
                     border: isYou ? "1.5px solid var(--agent-primary)" : "0.5px solid var(--agent-border-subtle)",
+                    // Depth (2026-10-13): the flat tiles read as dead space — a lit
+                    // top edge + soft drop shadow sits them above the strip.
+                    boxShadow: isYou
+                      ? "inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(var(--agent-primary-rgb), 0.18), 0 5px 14px -5px rgba(var(--agent-primary-rgb), 0.38)"
+                      : "inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(15,23,42,0.06), 0 5px 14px -6px rgba(15,23,42,0.16)",
                   }}>
                     <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.address}</p>
                     <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: statusColor }}>{statusText}</p>
@@ -114,13 +116,6 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
           </div>
         </div>
 
-        {/* Feature cells */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 16 }}>
-          <Feature Icon={Eye} title="Live chain" body="See how far every connected sale has reached." />
-          <Feature Icon={UsersThree} title="Shared progress" body="Update your file once. Everyone sees it." />
-          <Feature Icon={Gift} title="No cost" body="Your place in this chain is free." />
-        </div>
-
         {/* CTA — hands off to the milestone-setup modal (ReconcileLaterBanner
             listens for this event) so it opens directly instead of just closing. */}
         <button
@@ -141,12 +136,3 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
   );
 }
 
-function Feature({ Icon, title, body }: { Icon: typeof Eye; title: string; body: string }) {
-  return (
-    <div style={{ flex: "1 1 150px" }}>
-      <Icon size={18} weight="bold" color="var(--agent-primary)" />
-      <p style={{ margin: "6px 0 2px", fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</p>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{body}</p>
-    </div>
-  );
-}
