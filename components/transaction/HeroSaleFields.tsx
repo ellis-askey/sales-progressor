@@ -23,7 +23,7 @@ import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phos
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction, recoverSaleSetupAction } from "@/app/actions/transactions";
+import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction, saveHasManagementPackAction, recoverSaleSetupAction } from "@/app/actions/transactions";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 import { SaleDetailChangeModal } from "./SaleDetailChangeModal";
 
@@ -79,6 +79,21 @@ const VALUE_STYLE: CSSProperties = {
   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
 };
 const LABEL_STYLE: CSSProperties = { display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 };
+// Discreet managed-development affordances under the Tenure cell. The "off"
+// add-link is muted text; the "on" chip is a faint coral-tinted tag.
+const MGMT_ADD: CSSProperties = {
+  marginTop: 3, display: "inline-flex", alignItems: "center", gap: 3,
+  background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit",
+  fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)", opacity: 0.85,
+};
+const MGMT_CHIP: CSSProperties = {
+  marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5, width: "fit-content",
+  fontFamily: "inherit", fontSize: 10, fontWeight: 600, letterSpacing: "0.02em",
+  color: "var(--agent-text-secondary)",
+  background: "color-mix(in srgb, var(--agent-coral) 9%, transparent)",
+  border: "1px solid color-mix(in srgb, var(--agent-coral) 22%, transparent)",
+  borderRadius: 6, padding: "2px 6px",
+};
 
 function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: ReactNode }) {
   return (
@@ -217,17 +232,28 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
   );
 }
 
-type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; title: string };
+type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; newHasManagementPack?: boolean; title: string };
 
-export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, exchanged }: {
+export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, hasManagementPack, exchanged }: {
   transactionId: string;
   purchasePrice: number | null;
   purchaseType: PurchaseType | null;
   tenure: Tenure | null;
   isShareOfFreehold: boolean;
+  hasManagementPack: boolean;
   exchanged: boolean;
 }) {
   const { toast } = useAgentToast();
+
+  // ── Managed-freehold flag ──
+  // A discreet, freehold-only toggle under the Tenure cell: the ~1-in-20 freehold
+  // that sits on a managed estate and still has a management pack. Turning it on
+  // revives the management-pack steps (VM8/VM9/PM12); turning it off retires them.
+  // The toggle handler is defined below (toggleMgmtPack) once the sale-details
+  // cascade state it reuses is in scope.
+  const [mgmtPackOn, setMgmtPackOn] = useState(hasManagementPack);
+  const [mgmtSaving, setMgmtSaving] = useState(false);
+  useEffect(() => setMgmtPackOn(hasManagementPack), [hasManagementPack]);
 
   // ── Price inline edit ──
   const [editingPrice, setEditingPrice] = useState(false);
@@ -374,11 +400,13 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setConfirming(true);
     setModalError(null);
     try {
-      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure });
+      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure, newHasManagementPack: pending.newHasManagementPack });
       if (pending.newIsShareOfFreehold !== isShareOfFreehold) {
         await saveIsShareOfFreeholdAction(transactionId, pending.newIsShareOfFreehold);
       }
-      const label = pending.newTenure !== tenure ? "Tenure" : "Purchase type";
+      const flagOnlyChange = pending.newHasManagementPack !== undefined && pending.newTenure === tenure && pending.newPurchaseType === purchaseType;
+      if (pending.newHasManagementPack !== undefined) setMgmtPackOn(pending.newHasManagementPack);
+      const label = flagOnlyChange ? "Management pack" : pending.newTenure !== tenure ? "Tenure" : "Purchase type";
       closeModal();
       toast.success(`${label} updated`);
       // Phase 4: no client refresh - action revalidates the file page.
@@ -394,6 +422,53 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setDelta(null);
     setModalError(null);
     setDeltaLoading(false);
+  }
+
+  // Flip the managed-development flag. Routes through the same NR-cascade as a
+  // tenure change (confirmSaleDetailsAction) so the pack steps are added/retired
+  // for real. Turning it off when a pack step is already complete is destructive,
+  // so that case goes through the preview-and-confirm modal; everything else
+  // applies straight away. Recovery files (no purchaseType) just store the flag.
+  async function toggleMgmtPack() {
+    if (mgmtSaving || confirming || pending) return;
+    const next = !mgmtPackOn;
+
+    if (purchaseType == null || tenure == null) {
+      setMgmtSaving(true);
+      setMgmtPackOn(next);
+      try {
+        await saveHasManagementPackAction(transactionId, next);
+        toast.success(next ? "Marked as a managed development" : "Management-pack flag removed");
+      } catch (err) {
+        setMgmtPackOn(!next);
+        toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+      } finally {
+        setMgmtSaving(false);
+      }
+      return;
+    }
+
+    setMgmtSaving(true);
+    try {
+      const d = await getSaleDetailsDelta({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
+      if (d.noChange) return;
+      // Destructive only when turning OFF would reverse an already-complete pack
+      // step — preview that. Adding steps (or removing not-yet-done ones) is safe.
+      if (d.becomingNr.some((i) => i.wasComplete)) {
+        setPending({ newPurchaseType: purchaseType, newTenure: tenure, newIsShareOfFreehold: isShareOfFreehold, newHasManagementPack: next, title: "Remove the management pack?" });
+        setDelta(d);
+        setModalError(null);
+        setDeltaLoading(false);
+        return;
+      }
+      await confirmSaleDetailsAction({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
+      setMgmtPackOn(next);
+      toast.success(next ? "Pack steps are now live on this file" : "Management-pack flag removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save the change");
+    } finally {
+      setMgmtSaving(false);
+    }
   }
 
   return (
@@ -439,6 +514,31 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
             );
           })()}
         </div>
+        {/* Managed-development flag — discreet, freehold-only (Stage 1). Off shows a
+            faint add-link; on shows a small removable chip. Leasehold never sees it. */}
+        {tenure === "freehold" && (mgmtPackOn ? (
+          <span style={MGMT_CHIP}>
+            Management pack
+            {!typeTenureLocked && (
+              <button
+                type="button"
+                onClick={toggleMgmtPack}
+                disabled={mgmtSaving}
+                aria-label="Remove the management-pack flag"
+                title="Remove"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.6, padding: 0, margin: 0, lineHeight: 1, fontSize: 12 }}
+              >×</button>
+            )}
+          </span>
+        ) : (!typeTenureLocked && (
+          <button
+            type="button"
+            onClick={toggleMgmtPack}
+            disabled={mgmtSaving}
+            title="Flag this freehold as a managed development (it has a management pack)"
+            style={MGMT_ADD}
+          >+ Managed development</button>
+        )))}
       </CellFrame>
 
       {openField === "type" && anchorRect && (

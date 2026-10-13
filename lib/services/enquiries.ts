@@ -47,7 +47,12 @@ export type OpenEnquiryRow = {
   // expected date / manual park; "chased" = the short leash after you chased.
   // Null = it needs you now. (critique #1/#2/#3)
   restingUntil: Date | null;
-  restingReason: "promise" | "chased" | null;
+  restingReason: "promise" | "chased" | "pack" | null;
+  // True while held "waiting on the management pack" (open-ended, clock paused).
+  awaitingPack: boolean;
+  // Whether this file could be waiting on a pack at all (leasehold or a managed
+  // freehold) — gates the one-tap "waiting on management pack" offer.
+  canHoldForPack: boolean;
   needsAttention: boolean; // your move now (drives the nav count + list ordering)
   stalled: boolean; // the alarming kind — gone dark, nobody chasing (red vs amber)
   nextChaseAt: Date | null; // when the auto-chase is next due
@@ -109,7 +114,7 @@ export async function countOpenEnquiries(scope: AccessScope): Promise<number> {
 export async function countEscalatedEnquiries(scope: AccessScope, now: Date = new Date()): Promise<number> {
   const rows = await prisma.enquiryTracker.findMany({
     where: { closedAt: null, transaction: enquiryTxWhere(scope) },
-    select: { openedAt: true, lastMovementAt: true, lastChasedAt: true, escalatedAt: true, snoozedUntil: true, closedAt: true },
+    select: { openedAt: true, lastMovementAt: true, lastChasedAt: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true },
   });
   return rows.filter((t) => enquiryNeedsAttention(t, now)).length;
 }
@@ -128,6 +133,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       closedAt: true,
       chaseCount: true,
       partialRepliesAt: true,
+      awaitingPackAt: true,
       transaction: {
         select: {
           id: true,
@@ -135,6 +141,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
           photoStoragePath: true,
           purchasePrice: true,
           tenure: true,
+          hasManagementPack: true,
           activeBuyerRoundId: true,
           contacts: { select: { id: true, name: true, roleType: true, email: true, buyerRoundId: true } },
           vendorSolicitorFirm: { select: { name: true } },
@@ -164,15 +171,21 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const quietSince = t.lastMovementAt ?? t.openedAt;
     // New model (critique #1-3/#6): resting = the LATER of a promised date/park and
     // the short chase leash; needs-you + stalled are the live "your move" tests.
+    // "Waiting on the management pack": an open-ended hold that pauses the clock
+    // and reads as its own calm state, above the promise/chased rests. (Stage 3)
+    const heldForPack = t.awaitingPackAt != null;
     const restingUntil = enquiryRestingUntil(t, now);
     const promiseFuture = !!(t.snoozedUntil && t.snoozedUntil > now);
-    const restingReason: OpenEnquiryRow["restingReason"] = restingUntil ? (promiseFuture ? "promise" : "chased") : null;
-    const needsAttention = enquiryNeedsAttention(t, now);
-    const stalled = enquiryStalled(t, now);
-    const status: EnquiryTrackerStatus = restingUntil ? "snoozed" : stalled ? "stalled" : "chasing";
-    // No "next chase" while resting or once genuinely escalated. First chase after
-    // 6 working days, then every 5.
-    const nextChaseAt = restingUntil || t.escalatedAt
+    const restingReason: OpenEnquiryRow["restingReason"] = heldForPack
+      ? "pack"
+      : restingUntil ? (promiseFuture ? "promise" : "chased") : null;
+    const needsAttention = enquiryNeedsAttention(t, now); // already false while held
+    const stalled = enquiryStalled(t, now); // already false while held
+    const resting = heldForPack || !!restingUntil;
+    const status: EnquiryTrackerStatus = resting ? "snoozed" : stalled ? "stalled" : "chasing";
+    // No "next chase" while resting (held or promised) or once genuinely escalated.
+    // First chase after 6 working days, then every 5.
+    const nextChaseAt = resting || t.escalatedAt
       ? null
       : t.lastChasedAt
         ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
@@ -189,7 +202,9 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
     const chaseDueAt = addWorkingDays(quietSince, FIRST_CHASE_DAYS);
     const escalateAt = addWorkingDays(quietSince, ESCALATE_WORKING_DAYS);
     const chaseBar: OpenEnquiryRow["chaseBar"] =
-      restingUntil
+      heldForPack
+        ? { stage: "hold", progress: 1 } // held: a full, static "on hold" bar
+        : restingUntil
         ? { stage: "hold", progress: barFrac(restingReason === "chased" && t.lastChasedAt ? t.lastChasedAt : quietSince, restingUntil) }
         : stalled
           ? { stage: "escalated", progress: 1 }
@@ -232,8 +247,11 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       chaseCount: t.chaseCount,
       outstandingNote: t.outstandingNote,
       expectedDate: t.snoozedUntil ?? null,
-      restingUntil,
+      // Held reads as resting even without a promise/chase date, so keep this truthy.
+      restingUntil: heldForPack ? (restingUntil ?? t.awaitingPackAt) : restingUntil,
       restingReason,
+      awaitingPack: heldForPack,
+      canHoldForPack: tx.hasManagementPack === true || tx.tenure === "leasehold",
       needsAttention,
       stalled,
       nextChaseAt,

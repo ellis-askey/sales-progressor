@@ -37,6 +37,57 @@ export function previewFromMessage(msg: WebhookMessage): string {
   return msg.type ? `[${msg.type}]` : "[message]";
 }
 
+// ── Media (Phase 4b) ────────────────────────────────────────────────────────
+// A media message carries an object keyed by its type with a Meta media id;
+// the file itself must be fetched within Meta's 30-day retention and stored in
+// our own bucket. `kind` drives rendering: image inline, audio as a player,
+// document/video as a download link.
+
+export type MediaRef = {
+  kind: "image" | "document" | "audio" | "video" | "sticker";
+  mediaId: string;
+  mimeType: string | null;
+  filename: string | null;
+  caption: string | null;
+  voice: boolean;
+};
+
+type MediaObject = { id?: string; mime_type?: string; caption?: string; filename?: string; voice?: boolean };
+type MediaMessage = WebhookMessage & {
+  image?: MediaObject;
+  document?: MediaObject;
+  audio?: MediaObject;
+  video?: MediaObject;
+  sticker?: MediaObject;
+};
+
+export function mediaRefFromMessage(msg: MediaMessage): MediaRef | null {
+  const kinds = ["image", "document", "audio", "video", "sticker"] as const;
+  for (const kind of kinds) {
+    const obj = msg[kind];
+    if (obj?.id) {
+      return {
+        kind,
+        mediaId: obj.id,
+        mimeType: obj.mime_type ?? null,
+        filename: obj.filename ?? null,
+        caption: obj.caption ?? null,
+        voice: !!obj.voice,
+      };
+    }
+  }
+  return null;
+}
+
+// What a media message shows as its text line when there's no caption.
+export function mediaPlaceholder(ref: MediaRef): string {
+  if (ref.kind === "image") return "[photo]";
+  if (ref.kind === "audio") return ref.voice ? "[voice note]" : "[audio]";
+  if (ref.kind === "video") return "[video]";
+  if (ref.kind === "sticker") return "[sticker]";
+  return ref.filename ? `[file] ${ref.filename}` : "[document]";
+}
+
 // Phone identity: WhatsApp wa_ids are international digits ("4475088…");
 // stored contact phones are UK-formatted. The last 9 digits are the stable
 // common core (same rule the Baileys ingest used).
@@ -55,6 +106,44 @@ export type ContactMatch = {
 export type Assignment =
   | { state: "auto"; transactionId: string; side: "BUYER" | "SELLER" | null; contactIds: string[]; candidates: [] }
   | { state: "needs_assigning"; transactionId: null; side: null; contactIds: string[]; candidates: string[] };
+
+// ── Reply-window maths (Phase 4) ────────────────────────────────────────────
+// Meta's 24-hour customer-service window: free-form messages may only be sent
+// within 24h of the person's LAST inbound message; it re-opens on every reply.
+// Outside it, only approved templates (Phase 5) can start a conversation.
+
+export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function windowOpenUntil(lastInboundAt: Date | null | undefined, now: Date = new Date()): Date | null {
+  if (!lastInboundAt) return null;
+  const until = new Date(lastInboundAt.getTime() + SERVICE_WINDOW_MS);
+  return until.getTime() > now.getTime() ? until : null;
+}
+
+// ── Ledger status mapping (Phase 3) ─────────────────────────────────────────
+// WhatsApp lifecycle → the OutboundMessage status enum + its timestamp column.
+// `read` maps to `opened` (the ledger's email-era name for the same truth).
+
+export type LedgerStatusUpdate = {
+  status: "sent" | "delivered" | "opened" | "failed";
+  stampField: "sentAt" | "deliveredAt" | "openedAt" | "failedAt";
+};
+
+export function ledgerUpdateForWaStatus(waStatus: string): LedgerStatusUpdate | null {
+  switch (waStatus) {
+    case "sent": return { status: "sent", stampField: "sentAt" };
+    case "delivered": return { status: "delivered", stampField: "deliveredAt" };
+    case "read": return { status: "opened", stampField: "openedAt" };
+    case "failed": return { status: "failed", stampField: "failedAt" };
+    default: return null; // `played` etc. — no ledger column; event store keeps it
+  }
+}
+
+// Translate a ledger status back to WhatsApp-rank space so advance-only
+// ordering works on the row (opened ≙ read).
+export function waRankOfLedgerStatus(ledgerStatus: string): string {
+  return ledgerStatus === "opened" ? "read" : ledgerStatus;
+}
 
 // The ladder's decision step. `matches` = every live-sale contact whose phone
 // shares the sender's last-9 core.

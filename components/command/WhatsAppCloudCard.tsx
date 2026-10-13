@@ -93,6 +93,11 @@ export function WhatsAppCloudCard({ status }: { status: CloudPhase1Status }) {
         </p>
       ) : (
         <>
+          {status.lastError && (
+            <p className="mt-3 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-[12px] text-red-300">
+              {status.lastError.replace(/^\[watchdog\] /, "")}
+            </p>
+          )}
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px]">
             <div><span className="text-neutral-500 block">Number id</span><span className="text-neutral-300">{status.phoneNumberId}</span></div>
             <div><span className="text-neutral-500 block">Last webhook event</span><span className="text-neutral-300">{fmtWhen(status.lastEventAt)}</span></div>

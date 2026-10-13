@@ -71,7 +71,7 @@ export function SurveyBookingModal({
 }: {
   options: SurveyBookingOption[];
   saving: boolean;
-  onConfirm: (surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean, surveyLevel: "level_2" | "level_3" | null, surveyorEmail: string | null) => void;
+  onConfirm: (surveyDate: string, choice: SurveyBookingChoice, keyCollectionRequired: boolean, surveyLevel: "level_2" | "level_3" | null, surveyorPhone: string | null, surveyorEmail: string | null) => void;
   onCancel: () => void;
 }) {
   const { theme, isNight } = usePortalTheme();
@@ -79,9 +79,10 @@ export function SurveyBookingModal({
   const [selection, setSelection] = useState<Selection | null>(null);
   const [otherFirmName, setOtherFirmName] = useState("");
   const [keyCollection, setKeyCollection] = useState(false);
-  // Survey level + surveyor email (critiques #211/#212).
+  // Survey level + surveyor phone/email (critiques #211/#212 + 2026-10-13).
   const [surveyLevel, setSurveyLevel] = useState<"level_2" | "level_3" | "">("");
   const [surveyorEmail, setSurveyorEmail] = useState("");
+  const [surveyorPhone, setSurveyorPhone] = useState("");
 
   const canConfirm = !!surveyDate && selection !== null && !saving;
 
@@ -115,7 +116,7 @@ export function SurveyBookingModal({
                   <button
                     key={val}
                     type="button"
-                    className="sb-opt"
+                    className="sb-opt sb-level"
                     data-on={surveyLevel === val ? "true" : undefined}
                     style={{ flex: 1, justifyContent: "center" }}
                     onClick={() => setSurveyLevel((prev) => (prev === val ? "" : val))}
@@ -147,7 +148,7 @@ export function SurveyBookingModal({
                     type="text"
                     value={otherFirmName}
                     onChange={(e) => setOtherFirmName(e.target.value)}
-                    placeholder="Surveyor's name (optional)"
+                    placeholder="Surveyor's name"
                     className="sb-text-input"
                   />
                 )}
@@ -167,17 +168,33 @@ export function SurveyBookingModal({
               )}
             </div>
 
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
-                Surveyor email <span style={{ color: "var(--agent-text-muted)", fontWeight: 400 }}>(optional)</span>
-              </label>
-              <input
-                type="email"
-                value={surveyorEmail}
-                onChange={(e) => setSurveyorEmail(e.target.value)}
-                placeholder="e.g. bookings@ricssurveyors.co.uk"
-                className="sb-text-input"
-              />
+            {/* Phone left of email on one row; stacked full-width on small
+                screens (critique 2026-10-13). */}
+            <div className="sb-duo">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
+                  Surveyor phone
+                </label>
+                <input
+                  type="tel"
+                  value={surveyorPhone}
+                  onChange={(e) => setSurveyorPhone(e.target.value)}
+                  placeholder="e.g. 01442 123456"
+                  className="sb-text-input"
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
+                  Surveyor email
+                </label>
+                <input
+                  type="email"
+                  value={surveyorEmail}
+                  onChange={(e) => setSurveyorEmail(e.target.value)}
+                  placeholder="e.g. bookings@ricssurveyors.co.uk"
+                  className="sb-text-input"
+                />
+              </div>
             </div>
 
             <label
@@ -202,7 +219,7 @@ export function SurveyBookingModal({
               const choice: SurveyBookingChoice = selection.kind === "someone_else"
                 ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
                 : selection;
-              onConfirm(surveyDate, choice, keyCollection, surveyLevel || null, surveyorEmail.trim() || null);
+              onConfirm(surveyDate, choice, keyCollection, surveyLevel || null, surveyorPhone.trim() || null, surveyorEmail.trim() || null);
             }}
             disabled={!canConfirm}
             className="agent-btn agent-btn-primary agent-btn-md"
@@ -236,6 +253,16 @@ export function SurveyBookingModal({
         }
         .sb-opt:hover { border-color: var(--agent-coral); }
         .sb-opt[data-on="true"], .sb-opt[data-on="true"]:hover { border-color: var(--agent-coral-deep); }
+        /* Level 2/3 picker: selected option fills with the solid coral gradient
+           (same treatment as the Log an update option chips). */
+        .sb-opt.sb-level { transition: border-color 150ms ease, background 150ms ease, color 150ms ease, box-shadow 150ms ease; }
+        .sb-opt.sb-level[data-on="true"], .sb-opt.sb-level[data-on="true"]:hover {
+          border-color: transparent; color: #fff;
+          background: linear-gradient(180deg, #FF6F4E 0%, #F04E2C 100%);
+          box-shadow: 0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        .sb-duo { display: flex; gap: 12px; }
+        @media (max-width: 560px) { .sb-duo { flex-direction: column; } }
         .sb-text-input {
           width: 100%; padding: 10px 12px; border-radius: 10px;
           border: 1px solid var(--agent-border-default);

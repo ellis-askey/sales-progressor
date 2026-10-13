@@ -29,6 +29,7 @@ import {
   setEnquiryOutstandingNote,
   setEnquirySnooze,
   setEnquirySnoozeUntil,
+  setEnquiryPackHold,
   type EnquiryCourt,
   type EnquiryMovementMode,
   type EnquiryMovementKind,
@@ -211,6 +212,32 @@ export async function setEnquiryExpectedDateAction(input: {
   } else {
     await setEnquirySnooze(input.transactionId, null);
   }
+  revalidatePath(`/transactions/${input.transactionId}`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
+  return { ok: true };
+}
+
+// Put the loop on hold "waiting on the management pack" (held = true), or lift it
+// (held = false). Open-ended, so the chase clock pauses while it's set. Logs a
+// movement so the reason shows in the history and the clock reads honestly. The
+// hold also lifts automatically when the pack is logged received (VM9/PM12).
+export async function setEnquiryPackHoldAction(input: {
+  transactionId: string;
+  held: boolean;
+}): Promise<{ ok: boolean }> {
+  const userId = await assertInScope(input.transactionId);
+  await setEnquiryPackHold(input.transactionId, input.held);
+  // A "touch" movement: records the reason without flipping the court, and
+  // (when lifting) resets the silence clock so the woken loop isn't instantly
+  // overdue. On hold we don't reset the clock — the wait is genuinely paused.
+  await logEnquiryMovement({
+    transactionId: input.transactionId,
+    note: input.held ? "On hold: waiting on the management pack" : "Management pack received, resuming",
+    createdByUserId: userId,
+    mode: input.held ? "relabel" : "touch",
+    kind: "update",
+  });
   revalidatePath(`/transactions/${input.transactionId}`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");

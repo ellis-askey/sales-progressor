@@ -93,6 +93,9 @@ type Props = {
   exchanged?: boolean;
   // Share of freehold — surfaced as a third option in the hero's tenure picker.
   isShareOfFreehold?: boolean;
+  // Managed-freehold flag — drives the discreet management-pack toggle/chip
+  // under the Tenure cell (freehold only).
+  hasManagementPack?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -260,7 +263,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -654,6 +657,7 @@ export function PropertyHero({
                 purchaseType={purchaseType ?? null}
                 tenure={tenure ?? null}
                 isShareOfFreehold={isShareOfFreehold}
+                hasManagementPack={hasManagementPack}
                 exchanged={exchanged}
               />
             ) : (

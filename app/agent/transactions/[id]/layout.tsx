@@ -444,6 +444,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             exchanged={transaction.exchangedAt !== null}
             exchangedDate={transaction.exchangedAt ?? null}
             isShareOfFreehold={transaction.isShareOfFreehold}
+            hasManagementPack={transaction.hasManagementPack}
           />
         </div>
 

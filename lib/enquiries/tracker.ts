@@ -22,6 +22,9 @@ export type EnquiryChaseClock = {
   escalatedAt: Date | null;
   snoozedUntil: Date | null;
   closedAt: Date | null;
+  // Set while the loop is held "waiting on the management pack" — an open-ended
+  // rest with no chase date (Stage 3). Pauses chasing + drops it out of needs-you.
+  awaitingPackAt: Date | null;
 };
 
 // The date the NEXT reply-loop chase will send, or null when nothing more sends
@@ -31,7 +34,8 @@ export type EnquiryChaseClock = {
 // date can never disagree with when the cron actually fires.
 export function enquiryNextChaseAt(t: EnquiryChaseClock, now: Date = new Date()): Date | null {
   const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
-  if (t.closedAt || snoozed || t.escalatedAt) return null;
+  // Held waiting on the pack → no chase lands until the pack arrives.
+  if (t.closedAt || snoozed || t.escalatedAt || t.awaitingPackAt) return null;
   const anchor = t.lastMovementAt ?? t.openedAt;
   return t.lastChasedAt
     ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
@@ -73,6 +77,9 @@ export function enquiryRestingUntil(t: EnquiryChaseClock, now: Date = new Date()
 // threshold (genuinely stalled). Distinguish the two with enquiryStalled below.
 export function enquiryNeedsAttention(t: EnquiryChaseClock, now: Date = new Date()): boolean {
   if (t.closedAt) return false;
+  // Held waiting on the pack: nothing you can do until it arrives, so it's not
+  // "your move" — it drops out of the needs-you count (nav badge + hub card).
+  if (t.awaitingPackAt) return false;
   if (enquiryRestingUntil(t, now)) return false;
   if (t.lastChasedAt) return true;
   const anchor = t.lastMovementAt ?? t.openedAt;
@@ -117,9 +124,11 @@ export type EnquiryTrackerView = {
   // restingUntil = the LATER of a promised date/park and the chase leash, or null
   // when it needs you now; restingReason says which so the panel can word it.
   restingUntil: Date | null;
-  restingReason: "promise" | "chased" | null;
+  restingReason: "promise" | "chased" | "pack" | null;
   needsAttention: boolean; // your move now (not resting)
   stalled: boolean; // gone dark, nobody chasing (red vs the amber "chase again")
+  // Non-null while the loop is held "waiting on the management pack" (Stage 3).
+  awaitingPackAt: Date | null;
   // True when the sale is on hold — the panel shows a paused note instead of a
   // live "next chase" line (F4).
   paused: boolean;
@@ -152,14 +161,17 @@ export async function getEnquiryTrackerView(
   // Live model (critique #2/#6): resting = a promised date/park or the chase leash;
   // stalled = gone dark past the threshold with nobody chasing. Keeps the file
   // panel consistent with the triage page + nav count.
+  const heldForPack = t.awaitingPackAt != null && !t.closedAt;
   const restingUntil = enquiryRestingUntil(t, now);
   const promiseFuture = !!(t.snoozedUntil && t.snoozedUntil > now);
-  const restingReason: "promise" | "chased" | null = restingUntil ? (promiseFuture ? "promise" : "chased") : null;
+  const restingReason: "promise" | "chased" | "pack" | null = heldForPack
+    ? "pack"
+    : restingUntil ? (promiseFuture ? "promise" : "chased") : null;
   const needsAttention = enquiryNeedsAttention(t, now);
   const stalled = enquiryStalled(t, now);
   const status: EnquiryTrackerStatus = t.closedAt
     ? "closed"
-    : restingUntil
+    : heldForPack || restingUntil
       ? "snoozed"
       : stalled
         ? "stalled"
@@ -183,6 +195,7 @@ export async function getEnquiryTrackerView(
     restingReason,
     needsAttention,
     stalled,
+    awaitingPackAt: t.awaitingPackAt,
     paused,
     nextChaseAt,
     partialRepliesAt: t.partialRepliesAt,
@@ -365,4 +378,16 @@ export async function setEnquirySnoozeUntil(transactionId: string, date: Date | 
   const until = date && date.getTime() > Date.now() ? date : null;
   if (!until) return;
   await prisma.enquiryTracker.updateMany({ where: { transactionId, closedAt: null }, data: { snoozedUntil: until } });
+}
+
+// Put an open loop on hold "waiting on the management pack" (held = true), or lift
+// the hold (held = false). Open-ended — no date — so the chase clock pauses while
+// it's set and the loop drops out of the needs-you count. Only touches an open
+// loop. Clearing also happens automatically when the pack is logged received
+// (VM9/PM12) via the milestone-confirm auto-wake. (Stage 3)
+export async function setEnquiryPackHold(transactionId: string, held: boolean): Promise<void> {
+  await prisma.enquiryTracker.updateMany({
+    where: { transactionId, closedAt: null },
+    data: { awaitingPackAt: held ? new Date() : null },
+  });
 }

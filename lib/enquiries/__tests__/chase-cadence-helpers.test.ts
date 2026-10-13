@@ -21,6 +21,7 @@ function clock(overrides: Partial<EnquiryChaseClock> = {}): EnquiryChaseClock {
     escalatedAt: null,
     snoozedUntil: null,
     closedAt: null,
+    awaitingPackAt: null,
     ...overrides,
   };
 }

@@ -230,10 +230,11 @@ export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   // The valuer / lender's surveyor firm captured inline on the lender valuation
   // step. Only set on PM6.
   bookedValuerName?: string | null;
-  // Survey level + surveyor point-of-contact email (critiques #211/#212). Only
-  // set on PM9.
+  // Survey level + surveyor point-of-contact email + phone (critiques
+  // #211/#212 + 2026-10-13). Only set on PM9.
   surveyLevel?: "level_2" | "level_3" | null;
   bookedSurveyorEmail?: string | null;
+  bookedSurveyorPhone?: string | null;
   // Name of the agent/progressor who confirmed the step (completedById -> User),
   // so the completed-row disclosure can render "Confirmed by {name}". Null for
   // client/solicitor confirms (those carry their own attribution) or historical
@@ -309,6 +310,10 @@ export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
 // See docs/active/enquiries-stage-rework-SPEC.md.
 const ENQUIRY_OPEN_CODES = new Set(["PM14", "VM10"]);  // raised / received
 const ENQUIRY_CLOSE_CODES = new Set(["PM20", "VM21"]); // satisfied (+ seller reflection)
+// The buyer's solicitor receiving the pack (PM12) is what unblocks a "waiting on
+// the pack" hold — they can finally raise further or confirm satisfied. VM9 (the
+// seller's side receiving it) is a precursor, too early to wake the loop.
+const PACK_RECEIVED_CODES = new Set(["PM12"]);
 
 export async function syncEnquiryTracker(
   transactionId: string,
@@ -350,6 +355,17 @@ export async function syncEnquiryTracker(
     await client.enquiryTracker.updateMany({
       where: { transactionId, closedAt: null },
       data: { closedAt: new Date() },
+    });
+  } else if (PACK_RECEIVED_CODES.has(completedCode)) {
+    // Auto-wake (Stage 3): the pack is in, so lift any "waiting on the management
+    // pack" hold — the loop resumes and the ball flips back to a live decision
+    // (raise further, or confirm satisfied). The pack arriving is a real event,
+    // so we reset the silence clock too: a loop held for weeks wakes fresh rather
+    // than instantly red-overdue. The awaitingPackAt guard means this only touches
+    // a genuinely-held loop — a no-op otherwise.
+    await client.enquiryTracker.updateMany({
+      where: { transactionId, closedAt: null, awaitingPackAt: { not: null } },
+      data: { awaitingPackAt: null, lastMovementAt: new Date(), lastChasedAt: null, escalatedAt: null },
     });
   }
 }
@@ -878,6 +894,7 @@ export async function getMilestonesForTransaction(
         bookedValuerName: true,
         surveyLevel: true,
         bookedSurveyorEmail: true,
+        bookedSurveyorPhone: true,
         completionDate: true,
         contacts: { select: { id: true, name: true, roleType: true, isPrincipal: true, image: true, buyerRoundId: true } },
       },
@@ -995,6 +1012,7 @@ export async function getMilestonesForTransaction(
         bookedValuerName: def.code === "PM6" ? transaction.bookedValuerName ?? null : null,
         surveyLevel: def.code === "PM9" ? transaction.surveyLevel ?? null : null,
         bookedSurveyorEmail: def.code === "PM9" ? transaction.bookedSurveyorEmail ?? null : null,
+        bookedSurveyorPhone: def.code === "PM9" ? transaction.bookedSurveyorPhone ?? null : null,
       };
     });
   };

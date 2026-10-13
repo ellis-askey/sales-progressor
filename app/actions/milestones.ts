@@ -82,10 +82,11 @@ export async function confirmMilestoneAction(input: {
   // Saved to bookedValuerName. Ignored for other steps.
   valuerName?: string | null;
   // PM9 only (critiques #211/#212): the survey level the buyer booked and the
-  // surveyor's point-of-contact email, captured on confirm. Saved to
-  // surveyLevel / bookedSurveyorEmail. Ignored for other steps.
+  // surveyor's point-of-contact email + phone, captured on confirm. Saved to
+  // surveyLevel / bookedSurveyorEmail / bookedSurveyorPhone. Ignored for other steps.
   surveyLevel?: "level_2" | "level_3" | null;
   surveyorEmail?: string | null;
+  surveyorPhone?: string | null;
   // VM16/PM22 only (critique #3): the contract was signed in person with the solicitor.
   // Auto-completes the "returned" step and sends the in-person client emails instead of
   // the normal "ready to sign" + "signed and returned" ones.
@@ -172,13 +173,14 @@ export async function confirmMilestoneAction(input: {
     // and the surveyor email can pre-fill. bookedSurveyorName is the "booked
     // outside our network" slot; surveyLevel + bookedSurveyorEmail are new
     // (critiques #211/#212).
-    if (def?.code === "PM9" && (input.surveyorName || input.surveyLevel || input.surveyorEmail !== undefined)) {
+    if (def?.code === "PM9" && (input.surveyorName || input.surveyLevel || input.surveyorEmail !== undefined || input.surveyorPhone !== undefined)) {
       await ptx.propertyTransaction.update({
         where: { id: input.transactionId },
         data: {
           ...(input.surveyorName ? { bookedSurveyorName: input.surveyorName } : {}),
           ...(input.surveyLevel ? { surveyLevel: input.surveyLevel } : {}),
           ...(input.surveyorEmail !== undefined ? { bookedSurveyorEmail: input.surveyorEmail?.trim() || null } : {}),
+          ...(input.surveyorPhone !== undefined ? { bookedSurveyorPhone: input.surveyorPhone?.trim() || null } : {}),
         },
       });
 
@@ -189,15 +191,20 @@ export async function confirmMilestoneAction(input: {
       // `listed: false` so it never surfaces on the buyer quote picker. Deduped
       // by email so repeat confirms don't pile up rows.
       const sEmail = input.surveyorEmail?.trim().toLowerCase();
+      const sPhone = input.surveyorPhone?.trim() || null;
       if (input.surveyorName?.trim() && sEmail) {
         const existing = await ptx.providerFirm.findFirst({
           where: { kind: "surveyor", email: sEmail },
-          select: { id: true },
+          select: { id: true, phone: true },
         });
         if (!existing) {
           await ptx.providerFirm.create({
-            data: { kind: "surveyor", name: input.surveyorName.trim(), email: sEmail, listed: false, active: true },
+            data: { kind: "surveyor", name: input.surveyorName.trim(), email: sEmail, phone: sPhone, listed: false, active: true },
           });
+        } else if (sPhone && !existing.phone) {
+          // A later booking supplied a number the saved firm was missing —
+          // quietly fill the gap so the next pick carries it.
+          await ptx.providerFirm.update({ where: { id: existing.id }, data: { phone: sPhone } });
         }
       }
     }

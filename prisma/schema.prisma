@@ -652,6 +652,12 @@ model PropertyTransaction {
   tenure                          Tenure?
   purchaseType                    PurchaseType?
   isShareOfFreehold               Boolean           @default(false)
+  // Managed-freehold flag: a freehold that still has a management pack (estate
+  // rentcharge / management company for communal areas). Off for the ~19 in 20
+  // ordinary freeholds; when on, the management-pack steps (VM8/VM9/PM12) stop
+  // auto-NR-ing and the enquiries tracker gains the "waiting on pack" hold.
+  // Only meaningful on freehold; always false/ignored on leasehold.
+  hasManagementPack               Boolean           @default(false)
   // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
   // (captured on the survey-booked step). Title-cased on save. Null when they
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
@@ -665,6 +671,9 @@ model PropertyTransaction {
   // email the surveyor the access details with the buyer CC'd. Null when none
   // recorded. The firm name sits on bookedSurveyorName (or the booked quote).
   bookedSurveyorEmail             String?
+  // Point-of-contact phone for the booked surveyor (critique 2026-10-13),
+  // captured on the same PM9 confirm as the email. Null when none recorded.
+  bookedSurveyorPhone             String?
   // Free-text valuer / lender's-surveyor firm captured inline on the lender-
   // valuation step (PM6) when the buyer arranged it outside our network. Mirrors
   // bookedSurveyorName for the survey step. Null when none is recorded.
@@ -2392,10 +2401,17 @@ model OutboundMessage {
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
+  // WhatsApp Cloud thread this message belongs to (Phase 3). The thread owns
+  // the conversation→sale mapping, so reassigning a conversation repoints
+  // these rows in one sweep. Null on every non-WhatsApp-Cloud row.
+  threadId String?
+
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
   chaseTask   ChaseTask?           @relation(fields: [chaseTaskId], references: [id])
+  waThread    WhatsAppThread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
 
+  @@index([threadId])
   @@index([transactionId, createdAt])
   @@index([chaseTaskId])
   @@index([agencyId, createdAt])
@@ -2431,6 +2447,7 @@ enum OutboundChannel {
   linkedin
   twitter
   in_app
+  whatsapp
   other
 }
 
@@ -3622,6 +3639,8 @@ model WhatsAppThread {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  messages OutboundMessage[]
 
   @@unique([businessNumberId, waId])
   @@index([transactionId])
@@ -4941,6 +4960,11 @@ model EnquiryTracker {
   // partial replies are in. Cleared on a full handover (replies sent / court
   // flip) and on close. Durable, so a later chase doesn't erase the signal.
   partialRepliesAt DateTime?
+  // "Waiting on the management pack": an open-ended hold (no date) for when the
+  // ball sits with a solicitor who can't act until the pack arrives. Pauses the
+  // chase clock + drops the loop out of the needs-you count; auto-cleared when
+  // the pack is logged received (VM9/PM12). Leasehold + managed-freehold. (Stage 3)
+  awaitingPackAt   DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

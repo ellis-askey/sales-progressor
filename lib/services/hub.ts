@@ -1344,6 +1344,7 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       escalatedAt: true,
       snoozedUntil: true,
       closedAt: true,
+      awaitingPackAt: true,
       chaseCount: true,
       transaction: {
         select: {

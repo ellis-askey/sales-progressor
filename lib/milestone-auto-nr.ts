@@ -9,7 +9,9 @@
 // ReconcileMilestonePicker.tsx) all import from here.
 //
 // Rules currently encoded:
-//   tenure = freehold                     -> VM8, VM9, PM12  (no management pack)
+//   tenure = freehold (no management pack) -> VM8, VM9, PM12  (no management pack)
+//     ...but a managed freehold (hasManagementPack = true) KEEPS those steps:
+//     an estate rentcharge / management company still issues a pack.
 //   purchaseType = cash_buyer             -> PM5, PM6, PM11  (no mortgage)
 //   purchaseType = cash_from_proceeds     -> PM5, PM6, PM11  (no mortgage)
 //                                         + PM24             (deposit comes from
@@ -29,9 +31,13 @@ export const PURCHASE_TYPE_NR_CODES = new Set(["PM5", "PM6", "PM11", "PM24"]);
 export function computeAutoNrCodes(
   purchaseType: PurchaseType | null | undefined,
   tenure: Tenure | null | undefined,
+  // Managed freehold: a freehold that still has a management pack. When true, the
+  // freehold pack-step NR is skipped so VM8/VM9/PM12 stay live. Defaults false so
+  // every existing caller keeps today's behaviour (ordinary freehold = no pack).
+  hasManagementPack: boolean = false,
 ): Set<string> {
   const codes = new Set<string>();
-  if (tenure === "freehold") {
+  if (tenure === "freehold" && !hasManagementPack) {
     for (const c of FREEHOLD_NR_CODES) codes.add(c);
   }
   if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {
