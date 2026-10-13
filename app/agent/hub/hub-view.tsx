@@ -793,34 +793,18 @@ function buildFilesAtRiskRows(
   items: Awaited<ReturnType<typeof getFilesAtRisk>>,
   photoMap: Map<string, string>,
 ): HubRowData[] {
-  return items.map((i) => {
-    const common = {
-      transactionId: i.transactionId,
-      href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
-      photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
-      address: i.propertyAddress,
-    };
-    if (i.kind === "ready_frozen") {
-      return {
-        ...common,
-        pillLabel: "Ready but frozen",
-        pillTone: "danger" as HubRowTone,
-        subtext: `Ready to exchange since ${fmtShortDate(i.readySince)}. Nothing has moved in ${i.daysStalled} days.`,
-        meta: null,
-        metaTone: "muted" as const,
-        dismissSignature: "ready_frozen",
-      };
-    }
-    return {
-      ...common,
-      pillLabel: "Worth a call",
-      pillTone: "warning" as HubRowTone,
-      subtext: `Email isn't reaching the ${i.solicitorSide}'s solicitor. A phone call is the next move.`,
-      meta: `${i.unopenedChases} chase ${i.unopenedChases === 1 ? "email" : "emails"} unopened · last sent ${fmtShortDate(i.lastSentAt)}`,
-      metaTone: "warning" as const,
-      dismissSignature: "chase_not_landing",
-    };
-  });
+  return items.map((i) => ({
+    transactionId: i.transactionId,
+    href: withFrom(`/agent/transactions/${i.transactionId}`, "/agent/hub"),
+    photoUrl: i.photoStoragePath ? photoMap.get(i.photoStoragePath) ?? null : null,
+    address: i.propertyAddress,
+    pillLabel: "Ready but frozen",
+    pillTone: "danger" as HubRowTone,
+    subtext: `Ready to exchange since ${fmtShortDate(i.readySince)}. Nothing has moved in ${i.daysStalled} days.`,
+    meta: null,
+    metaTone: "muted" as const,
+    dismissSignature: "ready_frozen",
+  }));
 }
 
 function buildBookingRows(
@@ -1586,11 +1570,16 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           {feed.map((a, i) => {
-            const { Icon, bg, color } = pickActivityGlyph(a.kind, a.description);
+            const { Icon, color } = pickActivityGlyph(a.kind, a.description);
+            // Deep-link to the surface the event actually lives on, not just the
+            // file (critique #242): comms → Activity tab, milestones → Milestones.
+            const target = a.kind === "comm"
+              ? `/agent/transactions/${a.transactionId}/activity`
+              : `/agent/transactions/${a.transactionId}/milestones`;
             return (
               <Link
                 key={`${a.transactionId}-${i}`}
-                href={withFrom(`/agent/transactions/${a.transactionId}`, "/agent/hub")}
+                href={withFrom(target, "/agent/hub")}
                 className="agent-hover-row"
                 style={{
                   display: "flex", alignItems: "center", gap: 11,
@@ -1598,13 +1587,12 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
                   borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                 }}
               >
+                {/* Icon only — no faded backer (critique #242). */}
                 <div style={{
-                  width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-                  background: bg, color,
+                  width: 22, flexShrink: 0, color,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  border: "0.5px solid rgba(15,23,42,0.06)",
                 }}>
-                  <Icon size={15} weight="fill" />
+                  <Icon size={19} weight="fill" />
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
