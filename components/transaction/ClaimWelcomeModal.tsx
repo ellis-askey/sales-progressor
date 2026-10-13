@@ -104,15 +104,17 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
           </div>
         )}
 
-        {/* Two-up */}
+        {/* Two-up — privacy-first wording (2026-10-13): the old copy read like a
+            live broadcast of everything on the file, which the chain never does.
+            Only each sale's overall progress is shared. */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
           <div style={{ flex: "1 1 240px" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Your side is yours.</p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Add your buyer and seller and keep your milestones up to date. The other agents see how far along you are.</p>
+            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Your side stays yours.</p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Your clients, notes and file details are private to you. The chain only ever sees one thing: how far along your sale is.</p>
           </div>
           <div style={{ flex: "1 1 240px" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>You&apos;ll see theirs too.</p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>One shared view means everyone stays in the loop and the chain keeps moving.</p>
+            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>See the whole chain.</p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>Every connected sale shows its overall progress, so you can see what&apos;s moving without ringing round for updates.</p>
           </div>
         </div>
 
@@ -123,12 +125,26 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
             if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sp:open-reconcile"));
             closeModal("setup");
           }}
-          className="agent-btn agent-btn-color-primary"
-          style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 2 }}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 2,
+            color: "#fff", border: "none", borderRadius: 12, cursor: "pointer",
+            // The solid gradient primary used across the recent claim/log-update work.
+            background: "linear-gradient(180deg, #FF6F4E 0%, #F04E2C 100%)",
+            boxShadow: "0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.3)",
+            transition: "filter 140ms ease, transform 140ms ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.05)")}
+          onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
         >
           Set up {short}
         </button>
-        <button onClick={() => closeModal("later")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--agent-text-muted)", textDecoration: "underline", margin: "-8px auto 0", padding: 6 }}>
+        <button
+          onClick={() => closeModal("later")}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)", margin: "-8px auto 0", padding: 6, transition: "color 140ms ease" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+        >
           I&apos;ll do this later
         </button>
       </div>
