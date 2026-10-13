@@ -1538,25 +1538,25 @@ export async function getUpcomingMortgageExpiries(vis: AgentVisibility, excludeT
 // softened Worth-a-nudge card) and solicitor-silent (already covered by the
 // Needs-you solicitor hand-over in reminder-autopilot).
 //   ready_frozen      — exchange-ready gate (VM18/PM25) complete for 14+ days,
-//                       not exchanged, and no step confirmed since.
-//   chase_not_landing — solicitor chase emails sent 7+ days ago, never opened,
-//                       never responded to, not ticked replied-by-email.
+//                       not exchanged, and no step confirmed since. Suppressed
+//                       while the file sits in a chain whose other tracked sales
+//                       aren't themselves 8/8 ready (critique #241) — being
+//                       frozen behind an unready chain is expected, not at-risk.
+// (The old solicitor "emails not sending" / "Worth a call" reason was removed in
+//  critique #241 — it produced noise, not signal.)
 export type FilesAtRiskItem = {
   transactionId: string;
   propertyAddress: string;
   photoStoragePath: string | null;
 } & (
   | { kind: "ready_frozen"; readySince: Date; daysStalled: number }
-  | { kind: "chase_not_landing"; solicitorSide: "seller" | "buyer"; unopenedChases: number; lastSentAt: Date }
 );
 
 const FILES_AT_RISK_STALLED_DAYS = 14; // mirrors the revenue-at-risk detector
-const FILES_AT_RISK_CHASE_GRACE_DAYS = 7; // mirrors the chase-not-landing detector
 
 export async function getFilesAtRisk(vis: AgentVisibility, excludeTxIds: string[] = []): Promise<FilesAtRiskItem[]> {
   const now = new Date();
   const stalledCutoff = new Date(now.getTime() - FILES_AT_RISK_STALLED_DAYS * 86_400_000);
-  const chaseCutoff = new Date(now.getTime() - FILES_AT_RISK_CHASE_GRACE_DAYS * 86_400_000);
   const txNested = buildTxNested(vis);
   const base: Prisma.PropertyTransactionWhereInput = {
     ...txNested,
@@ -1607,88 +1607,58 @@ export async function getFilesAtRisk(vis: AgentVisibility, excludeTxIds: string[
     select: {
       transactionId: true,
       completedAt: true,
-      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
-    },
-  });
-
-  const items: FilesAtRiskItem[] = frozen.map((m) => ({
-    transactionId: m.transactionId,
-    propertyAddress: m.transaction.propertyAddress,
-    photoStoragePath: m.transaction.photoStoragePath,
-    kind: "ready_frozen" as const,
-    readySince: m.completedAt as Date,
-    daysStalled: Math.floor((now.getTime() - (m.completedAt as Date).getTime()) / 86_400_000),
-  }));
-  const frozenIds = new Set(items.map((i) => i.transactionId));
-
-  // Worth a call — solicitor chase emails that went nowhere. Stricter than the
-  // founder detector (adds openedAt null) so the card's "email isn't reaching
-  // them" line is supported: no link open, no action, no email reply. The
-  // client-nudge recipient ("buyer") is deliberately excluded — client
-  // engagement stays off this card (founder gating).
-  const chaseGroups = await prisma.chaseSend.groupBy({
-    by: ["transactionId", "recipient"],
-    where: {
-      recipient: { in: ["seller_solicitor", "buyer_solicitor"] },
-      sentAt: { lt: chaseCutoff },
-      openedAt: null,
-      respondedAt: null,
-      repliedByEmailAt: null,
       transaction: {
-        ...txFilter,
-        hubCardDismissals: {
-          none: { cardKind: "files_at_risk", signature: "chase_not_landing", dismissedUntil: { gt: now } },
+        select: {
+          propertyAddress: true,
+          photoStoragePath: true,
+          chainLink: { select: { chainId: true } },
         },
       },
     },
-    _count: { _all: true },
-    _max: { sentAt: true },
   });
 
-  if (chaseGroups.length > 0) {
-    // Honesty guard: a recipient who opened / answered ANY recent chase is
-    // reachable — a leftover unanswered send shouldn't put them on the card.
-    const chaseTxIds = [...new Set(chaseGroups.map((g) => g.transactionId))];
-    const engaged = await prisma.chaseSend.findMany({
-      where: {
-        transactionId: { in: chaseTxIds },
-        recipient: { in: ["seller_solicitor", "buyer_solicitor"] },
-        sentAt: { gte: new Date(now.getTime() - 2 * FILES_AT_RISK_CHASE_GRACE_DAYS * 86_400_000) },
-        OR: [{ openedAt: { not: null } }, { respondedAt: { not: null } }, { repliedByEmailAt: { not: null } }],
-      },
-      select: { transactionId: true, recipient: true },
+  // Chain-ready suppression (critique #241): a ready-but-frozen file is EXPECTED
+  // to sit frozen while the rest of its chain catches up, so only surface it once
+  // every OTHER sale the progressor tracks in the same chain is itself 8/8 ready
+  // (ChainLink.exchangeReadyConfirmedAt — the "ready to exchange" check-in state).
+  // Files not in a chain, or whose tracked chain-siblings are all ready, stay.
+  const chainIds = [...new Set(
+    frozen.map((m) => m.transaction.chainLink?.chainId).filter((c): c is string => !!c),
+  )];
+  const suppressedByChain = new Set<string>();
+  if (chainIds.length) {
+    const nodes = await prisma.chainLink.findMany({
+      where: { chainId: { in: chainIds }, transaction: { is: buildTxWhere(vis) } },
+      select: { chainId: true, transactionId: true, exchangeReadyConfirmedAt: true },
     });
-    const engagedKeys = new Set(engaged.map((e) => `${e.transactionId}:${e.recipient}`));
-    const live = chaseGroups
-      .filter((g) => !engagedKeys.has(`${g.transactionId}:${g.recipient}`) && !frozenIds.has(g.transactionId))
-      .sort((a, b) => b._count._all - a._count._all);
-
-    const seen = new Set<string>();
-    const picked = live.filter((g) => (seen.has(g.transactionId) ? false : (seen.add(g.transactionId), true)));
-    if (picked.length > 0) {
-      const txs = await prisma.propertyTransaction.findMany({
-        where: { id: { in: picked.map((g) => g.transactionId) } },
-        select: { id: true, propertyAddress: true, photoStoragePath: true },
-      });
-      const txById = new Map(txs.map((t) => [t.id, t]));
-      for (const g of picked.slice(0, 20)) {
-        const tx = txById.get(g.transactionId);
-        if (!tx || !g._max.sentAt) continue;
-        items.push({
-          transactionId: g.transactionId,
-          propertyAddress: tx.propertyAddress,
-          photoStoragePath: tx.photoStoragePath,
-          kind: "chase_not_landing" as const,
-          solicitorSide: g.recipient === "seller_solicitor" ? "seller" : "buyer",
-          unopenedChases: g._count._all,
-          lastSentAt: g._max.sentAt,
-        });
-      }
+    const byChain = new Map<string, { txId: string | null; ready: boolean }[]>();
+    for (const n of nodes) {
+      const arr = byChain.get(n.chainId) ?? [];
+      arr.push({ txId: n.transactionId, ready: n.exchangeReadyConfirmedAt != null });
+      byChain.set(n.chainId, arr);
+    }
+    for (const m of frozen) {
+      const cid = m.transaction.chainLink?.chainId;
+      if (!cid) continue;
+      const othersReady = (byChain.get(cid) ?? [])
+        .filter((n) => n.txId !== m.transactionId)
+        .every((n) => n.ready);
+      if (!othersReady) suppressedByChain.add(m.transactionId);
     }
   }
 
-  // Frozen files first (longest-stalled already first), then unreachable
-  // solicitors by how many sends went nowhere.
+  const items: FilesAtRiskItem[] = frozen
+    .filter((m) => !suppressedByChain.has(m.transactionId))
+    .map((m) => ({
+      transactionId: m.transactionId,
+      propertyAddress: m.transaction.propertyAddress,
+      photoStoragePath: m.transaction.photoStoragePath,
+      kind: "ready_frozen" as const,
+      readySince: m.completedAt as Date,
+      daysStalled: Math.floor((now.getTime() - (m.completedAt as Date).getTime()) / 86_400_000),
+    }));
+
+  // Longest-stalled first (the query already orders by completedAt asc).
   return items;
 }
 
