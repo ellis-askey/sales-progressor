@@ -789,7 +789,10 @@
 }
 @media (max-width: 768px) {
   .claim-signup-grid { grid-template-columns: 1fr; }
-  .claim-panel { display: none; }
+  /* The chain panel stays hidden on mobile UNTIL it holds the required sale
+   * details (account fields complete) — then it appears below the account card
+   * already folded to the claimer's own sale. */
+  .claim-panel:not(.claim-panel--ready) { display: none; }
 }
 .claim-signup-side {
   display: flex;
@@ -1777,6 +1780,47 @@
   background: #fbfafa;
   border-style: dashed;
 }
+/* Fold-to-your-sale (2026-10-13): once the signup account fields are complete,
+ * every row that is NOT the claimer's sale eases closed, leaving just theirs.
+ * The caller's toggle re-opens them. Connectors hide while folded so no dotted
+ * stub dangles off the remaining row. */
+.claim-b-row--other {
+  max-height: 160px;
+  transition: max-height 340ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, margin-top 340ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.claim-b-ladder--collapsed .claim-b-row--other {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.claim-b-ladder--collapsed .claim-b-gutter::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .claim-b-row--other { transition: none; }
+}
+/* The re-open toggle under the folded chain. */
+.claim-chain-toggle {
+  display: block;
+  margin: 10px 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--claim-coral);
+  transition: color 140ms ease;
+}
+.claim-chain-toggle:hover { color: var(--claim-coral-dark); }
+/* Sale details inside the chain panel (replaces the separate card). */
+.claim-panel-sale-fields {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--claim-border);
+}
+
 /* Hover lift on every real ladder row — landing AND signup (2026-10-13); the
  * chevron nudge below stays signup-only (--chev). */
 .claim-b-rowcard:not(.claim-b-rowcard--ghost) {

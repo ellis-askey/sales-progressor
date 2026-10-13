@@ -94,6 +94,7 @@ export function ClaimChainLadder({
   shareMode = false,
   showPill = true,
   chevrons = false,
+  othersCollapsed = false,
 }: {
   ladder: LadderRow[];
   ghostCount: number;
@@ -103,9 +104,13 @@ export function ClaimChainLadder({
   /** Signup mock (2026-10-13): a trailing chevron per row, with a hover lift on
    *  the card and the chevron nudging right while hovered. */
   chevrons?: boolean;
+  /** Signup (2026-10-13): once the account fields are complete the chain folds
+   *  down to just the claimer's own sale — every other row (and the ghost)
+   *  animates closed, connectors included. Toggled back open by the caller. */
+  othersCollapsed?: boolean;
 }) {
   return (
-    <div className="claim-b-ladder">
+    <div className={`claim-b-ladder${othersCollapsed ? " claim-b-ladder--collapsed" : ""}`}>
       {ladder.map((row) => {
         // Share view softens the empty-address placeholder and the pending label
         // (there was no email invite on a hand-shared link).
@@ -118,7 +123,7 @@ export function ClaimChainLadder({
           shareMode && row.status !== "you" && !!(row.contactName || row.contactEmail || row.contactPhone);
         const showProgress = shareMode && row.progressPercent != null;
         return (
-          <div className="claim-b-row" key={row.id}>
+          <div className={`claim-b-row${row.status !== "you" ? " claim-b-row--other" : ""}`} key={row.id}>
             <span className="claim-b-gutter">
               <span className={`claim-b-badge${row.status === "you" ? " claim-b-badge--you" : ""}`}>
                 {String(row.displayNum).padStart(2, "0")}
@@ -186,7 +191,7 @@ export function ClaimChainLadder({
         );
       })}
       {ghostCount > 0 && (
-        <div className="claim-b-row claim-b-row--ghost">
+        <div className="claim-b-row claim-b-row--ghost claim-b-row--other">
           <span className="claim-b-gutter">
             <span className="claim-b-badge claim-b-badge--ghost">··</span>
           </span>

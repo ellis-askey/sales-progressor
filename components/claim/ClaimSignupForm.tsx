@@ -52,8 +52,12 @@ export function ClaimSignupForm({
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
   const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | "cash_from_proceeds" | null>(null);
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
+  // Once the account is complete the chain folds to just their sale (2026-10-13)
+  // — this re-opens it. Resets to folded each time the fields become complete.
+  const [chainExpanded, setChainExpanded] = useState(false);
 
   const emailOk = EMAIL_RE.test(email.trim());
+  const otherCount = ladder.filter((r) => r.status !== "you").length + ghostCount;
   // Sale details reveal once the account is fully filled in.
   const accountReady =
     firstName.trim().length > 0 &&
@@ -204,38 +208,49 @@ export function ClaimSignupForm({
         </div>
       </div>
 
-      {/* ── Right — the chain you're joining, then the sale details card
-             (revealed once the account fields are complete, same timing as the
-             old inline reveal — just re-homed per the 2026-10-13 mock). ── */}
+      {/* ── Right — the chain you're joining. Once the account fields are
+             complete the other sales fold away (click to re-open) and the sale
+             details slot into THIS card, so the claimed address isn't repeated
+             across a second card (2026-10-13). ── */}
       <div className="claim-signup-side">
-        <div className="claim-panel">
+        <div className={`claim-panel${accountReady ? " claim-panel--ready" : ""}`}>
           <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
           <p className="claim-panel-address">{stubAddress}</p>
           <div className="claim-panel-rule" />
 
-          <ClaimChainLadder ladder={ladder} ghostCount={ghostCount} showPill={false} chevrons />
+          <ClaimChainLadder
+            ladder={ladder}
+            ghostCount={ghostCount}
+            showPill={false}
+            chevrons
+            othersCollapsed={accountReady && !chainExpanded}
+          />
+
+          {accountReady && otherCount > 0 && (
+            <button type="button" className="claim-chain-toggle" onClick={() => setChainExpanded((v) => !v)}>
+              {chainExpanded
+                ? "Hide the other sales"
+                : `Show the ${otherCount === 1 ? "other sale" : `${otherCount} other sales`} in this chain`}
+            </button>
+          )}
 
           <p className="claim-panel-invite">
             Invited by {originatorName}
             {originatorAgency ? ` · ${originatorAgency}` : ""}
             {invitedDate ? ` · ${invitedDate}` : ""}
           </p>
-        </div>
 
-        <div className={`claim-sale-reveal${accountReady ? " open" : ""}`} aria-hidden={!accountReady}>
-          <div className="claim-sale-card">
-            <div>
-              <p className="claim-sale-card-eyebrow">About your sale</p>
-              <p className="claim-sale-card-address">{stubAddress}</p>
+          <div className={`claim-sale-reveal${accountReady ? " open" : ""}`} aria-hidden={!accountReady}>
+            <div className="claim-panel-sale-fields">
+              <ClaimSaleTypeFields
+                tenure={tenure}
+                purchaseType={purchaseType}
+                isShareOfFreehold={isShareOfFreehold}
+                onTenure={setTenure}
+                onPurchaseType={setPurchaseType}
+                onShareOfFreehold={setIsShareOfFreehold}
+              />
             </div>
-            <ClaimSaleTypeFields
-              tenure={tenure}
-              purchaseType={purchaseType}
-              isShareOfFreehold={isShareOfFreehold}
-              onTenure={setTenure}
-              onPurchaseType={setPurchaseType}
-              onShareOfFreehold={setIsShareOfFreehold}
-            />
           </div>
         </div>
       </div>
