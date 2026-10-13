@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
@@ -40,6 +40,33 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
   const { theme } = usePortalTheme();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Edge fades on the member strip (2026-10-13): fade whichever side has more
+  // content scrolled out of view, so cards never cut off bluntly. Same
+  // mask-image pattern as the portal menu's tab row.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [stripFade, setStripFade] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+  const measureStrip = useCallback(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    setStripFade({
+      left: el.scrollLeft > 2,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }, []);
+  useEffect(() => {
+    if (!visible) return;
+    measureStrip();
+    window.addEventListener("resize", measureStrip);
+    return () => window.removeEventListener("resize", measureStrip);
+  }, [visible, measureStrip]);
+  const stripMask =
+    stripFade.left && stripFade.right
+      ? "linear-gradient(to right, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%)"
+      : stripFade.left
+        ? "linear-gradient(to right, transparent 0, #000 26px, #000 100%)"
+        : stripFade.right
+          ? "linear-gradient(to right, #000 0, #000 calc(100% - 26px), transparent 100%)"
+          : undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -99,7 +126,12 @@ export function ClaimWelcomeModal({ address, originatorAgency, members = [], con
             <p style={{ display: "inline-flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}>
               <UsersThree size={15} /> {connectedCount} sale{connectedCount === 1 ? "" : "s"} connected
             </p>
-            <div className="cwm-strip">
+            <div
+              ref={stripRef}
+              className="cwm-strip"
+              onScroll={measureStrip}
+              style={{ WebkitMaskImage: stripMask, maskImage: stripMask }}
+            >
               {members.map((m, i) => {
                 const isYou = m.status === "you";
                 const statusText = isYou ? "You are here" : m.status === "pending" ? "Invite pending" : m.progress != null ? `${m.progress}% complete` : "Joined";
