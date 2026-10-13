@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { getFormsSession } from "./auth";
+import { recordAccess, surfaceForPath } from "./access-log";
 import type { SessionUser } from "./types";
 
 // Tiny route-handler wrapper for the authenticated Boardwalk Forms API.
@@ -16,9 +17,15 @@ export function withFormsAuth(handler: Handler) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
     const params = ctx?.params ? await ctx.params : {};
+    // Hourly-throttled usage log (internal only). Runs alongside the handler;
+    // awaited so a serverless freeze can't drop the write, never throws.
+    const logged = recordAccess(session, surfaceForPath(new URL(req.url).pathname));
     try {
-      return await handler(req, session, params);
+      const res = await handler(req, session, params);
+      await logged;
+      return res;
     } catch (err) {
+      await logged;
       const status = (err as { status?: number }).status ?? 500;
       const message = status === 500 ? "Something went wrong. Try again." : (err as Error).message;
       if (status === 500) console.error("[forms-api]", err);

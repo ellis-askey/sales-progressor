@@ -6092,8 +6092,9 @@ model FormTenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users FormTenantUser[]
-  forms TenantForm[]
+  users        FormTenantUser[]
+  forms        TenantForm[]
+  accessEvents FormAccessEvent[]
 }
 
 model FormTenantUser {
@@ -6119,11 +6120,32 @@ model FormTenantUser {
   resetTokenExpiresAt DateTime?
 
   lastLoginAt DateTime?
+  // Most recent authenticated activity (hourly granularity — refreshed when a
+  // FormAccessEvent row is written, not on every request).
+  lastSeenAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@unique([tenantId, email])
   @@index([email])
+}
+
+// Internal-only usage log for the Boardwalk suite: one row per user, per
+// surface ("forms" | "todo"), per hour of authenticated activity. Written by
+// lib/forms/access-log.ts from the withFormsAuth API gate. Nothing user-facing
+// reads this — it exists so "has X been in, and when?" is answerable from the
+// DB. userId is a plain string (same convention as the todo models).
+model FormAccessEvent {
+  id       String     @id @default(cuid())
+  tenantId String
+  tenant   FormTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  surface  String // "forms" | "todo"
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model TenantForm {
