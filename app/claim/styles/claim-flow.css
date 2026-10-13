@@ -207,6 +207,39 @@
   padding: 48px 20px 64px;
 }
 
+/* Claim-login parity (2026-10-13): the main login's SSO buttons + divider and
+ * the authenticator-code back link, in the claim palette. */
+.claim-oauth-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.claim-oauth-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 9px 12px; border-radius: 10px;
+  background: #ffffff; border: 1px solid rgba(23, 23, 30, 0.10);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  color: #20242E; font-size: 14px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all 150ms ease;
+}
+.claim-oauth-btn:hover:not(:disabled) {
+  border-color: rgba(23, 23, 30, 0.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07), 0 4px 10px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+.claim-oauth-btn:active:not(:disabled) { transform: scale(0.98); }
+.claim-oauth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.claim-oauth-divider {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.claim-oauth-divider::before,
+.claim-oauth-divider::after {
+  content: ""; flex: 1; height: 1px; background: rgba(32, 36, 46, 0.10);
+}
+.claim-oauth-divider span { font-size: 11px; color: var(--claim-text-3); white-space: nowrap; }
+.claim-totp-back {
+  margin-top: 10px; padding: 0; background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--claim-text-3);
+  transition: color 140ms ease;
+}
+.claim-totp-back:hover { color: var(--claim-text-1); }
+
 /* Log-in-to-claim (2026-10-13): context strip over a two-card grid — the
  * account beside the sale set-up on desktop, stacked on mobile/tablet. */
 .claim-login-wrap {

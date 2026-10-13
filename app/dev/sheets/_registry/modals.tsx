@@ -41,6 +41,8 @@ import { StatusControl } from "@/components/transaction/StatusControl";
 import { ExchangeDayControl } from "@/components/transaction/ExchangeDayControl";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
+import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
+import "@/app/claim/styles/claim-flow.css";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
@@ -74,6 +76,7 @@ import type { SurveyBookingOption } from "@/lib/services/survey-booking";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 import type { DiaryItem } from "@/lib/services/hub";
 import type { ChainMember } from "@/components/transaction/ClaimWelcomeModal";
+import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 import type { PendingQueueItem } from "@/app/actions/confirm-review-queue";
 
 // ── Local fixtures ───────────────────────────────────────────────────────────
@@ -152,6 +155,15 @@ const DIARY_COMPLETION: DiaryItem = {
   photoStoragePath: null,
   status: "ready",
 };
+
+// Minimal milestone set for the claim-login fixture's reconcile picker.
+const CLAIM_LOGIN_DEFS: MilestoneDefinitionLite[] = [
+  { id: "dev-vm1", code: "VM1", name: "Seller has instructed their solicitor", side: "vendor", orderIndex: 1, blocksExchange: true },
+  { id: "dev-vm2", code: "VM2", name: "Seller has received the memorandum of sale", side: "vendor", orderIndex: 2, blocksExchange: true },
+  { id: "dev-vm3", code: "VM3", name: "Seller has received the welcome pack from their solicitor", side: "vendor", orderIndex: 3, blocksExchange: true },
+  { id: "dev-pm1", code: "PM1", name: "Buyer has instructed their solicitor", side: "purchaser", orderIndex: 1, blocksExchange: true },
+  { id: "dev-pm3", code: "PM3", name: "Buyer has completed ID and AML checks", side: "purchaser", orderIndex: 3, blocksExchange: true },
+];
 
 const CHAIN_MEMBERS: ChainMember[] = [
   { address: "12 Mill Lane, Leeds", status: "joined", progress: 84 },
@@ -568,6 +580,33 @@ export const MODAL_ENTRIES: SheetEntry[] = [
   },
 
   // ─────────────────────────────── Chains ────────────────────────────────────
+  {
+    id: "card-claim-login",
+    name: "Log in to claim (chain)",
+    type: "modal",
+    area: "Chains",
+    usedIn: "/claim/login · existing-account claim path",
+    file: "components/claim/ClaimLoginForm.tsx",
+    componentName: "ClaimLoginForm",
+    note: "The two-card claim login with the parity additions (2026-10-13): Google/Microsoft buttons + or-divider, and the authenticator-code step for 2FA accounts. Buttons are live sign-in triggers — don't click them here.",
+    preview: "inline",
+    states: [
+      { id: "password", label: "Log in", hint: "SSO buttons + email/password" },
+      { id: "totp", label: "Authenticator code", hint: "the 2FA second step" },
+      { id: "share", label: "Share link", hint: "no invite email — field editable" },
+    ],
+    render: ({ stateId }) => (
+      <div className="rec-scope" style={{ width: "min(960px, 94vw)" }}>
+        <ClaimLoginForm
+          key={stateId}
+          token="dev-sheets-fixture"
+          stubEmail={stateId === "share" ? "" : "jamie@orchardandco.co.uk"}
+          milestoneDefinitions={CLAIM_LOGIN_DEFS}
+          initialStage={stateId === "totp" ? "totp" : "password"}
+        />
+      </div>
+    ),
+  },
   {
     id: "modal-claim-welcome",
     name: "Claim welcome (chain)",
