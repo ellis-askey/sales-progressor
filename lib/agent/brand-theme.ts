@@ -187,10 +187,14 @@ export function brandThemeCss(hexInput: string | null | undefined): string {
     `:root[data-theme="dark"] [data-theme="custom"] {`,
     toCssBody(dark),
     `}`,
-    `.nv2-night {`,
+    // .nv2-night: the new-v2 form wrapper + night-mode portalled drawers.
+    // .lum-ov: the "Log an update" modal's portal root (rendered in
+    // document.body, so outside the shell — its coral tokens would otherwise
+    // fall back to the hardcoded orange defaults).
+    `.nv2-night, .lum-ov {`,
     coralBody(light),
     `}`,
-    `:root[data-theme="dark"] .nv2-night {`,
+    `:root[data-theme="dark"] .nv2-night, :root[data-theme="dark"] .lum-ov {`,
     coralBody(dark),
     `}`,
   ].join("\n");
