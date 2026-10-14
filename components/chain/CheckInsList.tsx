@@ -307,11 +307,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         <section key={group.chainId} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", padding: "0 2px" }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 750, color: "var(--agent-text-primary)" }}>
-              {group.chainName ?? "Chain"}
+              {group.chainName ?? "Chain"}{group.ourAddress ? ":" : ""}
             </h3>
             {group.ourAddress && (
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                your sale: {group.ourAddress}
+                Your sale is {group.ourAddress}
               </span>
             )}
           </div>
