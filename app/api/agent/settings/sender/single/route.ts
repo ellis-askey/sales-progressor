@@ -1,7 +1,7 @@
 // Owner-scoped: single-sender ("I have an email address for my business")
 // verification for the progression business's OWN default sender. Mirrors the
 // client single-sender route, keyed on the owner's progressionBusinessId. One
-// POST, action in the body: create / check / resend.
+// POST, action in the body: create / check / confirm-link / resend.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
@@ -11,6 +11,7 @@ import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import {
   startBusinessSingleSender,
   checkBusinessSingleSender,
+  confirmBusinessSingleSenderLink,
   resendBusinessSingleSender,
 } from "@/lib/services/verified-emails";
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const owner = await resolveBusinessOwner(session);
   if (!owner) return NextResponse.json({ error: "Only a business owner can do this." }, { status: 403 });
 
-  const { action, email } = await req.json();
+  const { action, email, link } = await req.json();
 
   if (action === "create") {
     if (!email || typeof email !== "string") return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -32,6 +33,13 @@ export async function POST(req: NextRequest) {
 
   if (action === "check") {
     return NextResponse.json(await checkBusinessSingleSender(owner.businessId));
+  }
+
+  if (action === "confirm-link") {
+    if (!link || typeof link !== "string") return NextResponse.json({ error: "Link is required" }, { status: 400 });
+    const res = await confirmBusinessSingleSenderLink(owner.businessId, link);
+    if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
+    return NextResponse.json({ verified: true });
   }
 
   if (action === "resend") {

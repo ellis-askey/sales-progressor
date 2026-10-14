@@ -215,6 +215,87 @@ export async function resendSingleSenderVerification(id: number): Promise<void> 
   });
 }
 
+// The "Verify Single Sender" button in SendGrid's verification email dead-ends on a
+// SendGrid login screen for anyone without credentials on OUR account. So instead of
+// asking the mailbox owner to click it, we ask them to paste the button's link into
+// the app, extract the one-time token from it server-side, and complete verification
+// ourselves via the API (which authenticates with the API key, no human login).
+
+// Only ever fetch SendGrid-owned hosts while resolving a pasted link. The link is
+// user-supplied input, so without this allowlist the server could be pointed at
+// arbitrary internal URLs (SSRF).
+const SENDGRID_LINK_HOST = /(^|\.)sendgrid\.(net|com)$/i;
+
+function verifyTokenFromUrl(u: URL): string | null {
+  const direct = u.searchParams.get("token");
+  if (direct) return direct;
+  // Someone who clicked the button and copied the address bar lands on the login
+  // wall, whose URL carries the verify path in redirect_to. Honour that paste too.
+  const redirect = u.searchParams.get("redirect_to");
+  if (redirect) {
+    try {
+      const inner = new URL(redirect, `${u.protocol}//${u.host}`);
+      return inner.searchParams.get("token");
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve a pasted verification link to its one-time token. The email's button is a
+ * click-tracking URL (u<id>.ct.sendgrid.net) that 302s to the real verify URL, so we
+ * walk redirects manually, never leaving SendGrid hosts, until a token appears in a
+ * URL. Null when the link isn't recognisably SendGrid's or no token is found.
+ */
+export async function extractVerifyTokenFromLink(link: string): Promise<string | null> {
+  let url: URL;
+  try {
+    url = new URL(link.trim());
+  } catch {
+    return null;
+  }
+  for (let hop = 0; hop < 6; hop++) {
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (!SENDGRID_LINK_HOST.test(url.hostname)) return null;
+    const token = verifyTokenFromUrl(url);
+    if (token) return token;
+    let res: Response;
+    try {
+      res = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    } catch {
+      return null;
+    }
+    void res.body?.cancel().catch(() => {});
+    const loc = res.headers.get("location");
+    if (!loc) return null;
+    try {
+      url = new URL(loc, url);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Complete single-sender verification with a token extracted from the emailed link.
+ * API-key authenticated — no human SendGrid login involved. False when the token is
+ * invalid or expired (the caller should suggest resending the email).
+ */
+export async function verifySingleSenderToken(token: string): Promise<boolean> {
+  try {
+    await client.request({
+      method: "GET",
+      url: `/v3/verified_senders/verify/${encodeURIComponent(token)}`,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** True when the given address is a verified single sender in SendGrid. */
 export async function isSingleSenderVerified(email: string): Promise<boolean> {
   const info = await findSingleSenderByEmail(email);

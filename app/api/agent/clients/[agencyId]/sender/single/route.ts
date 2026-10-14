@@ -1,9 +1,11 @@
 // Owner-scoped: single-sender ("they gave you a mailbox") verification for a
 // progression business's CLIENT agency. No DNS — SendGrid emails a link to the
 // address and we adopt it once confirmed. One POST, action in the body:
-//   create → start verification (SendGrid sends the link), store as pending sender
-//   check  → poll SendGrid; adopt (mark verified) if it's confirmed
-//   resend → re-send the verification email
+//   create       → start verification (SendGrid sends the link), store as pending sender
+//   check        → poll SendGrid; adopt (mark verified) if it's confirmed
+//   confirm-link → complete verification from the pasted email link (token via API,
+//                  no SendGrid login needed by the mailbox owner)
+//   resend       → re-send the verification email
 // Authorized via assertOwnerOfClient, exactly like the domain routes alongside.
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,6 +16,7 @@ import { assertOwnerOfClient } from "@/lib/services/progression-clients";
 import {
   startAgencySingleSender,
   checkAgencySingleSender,
+  confirmAgencySingleSenderLink,
   resendAgencySingleSender,
 } from "@/lib/services/verified-emails";
 
@@ -24,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
   const owner = await assertOwnerOfClient(session, agencyId);
   if (!owner) return NextResponse.json({ error: "That isn't one of your clients." }, { status: 403 });
 
-  const { action, email } = await req.json();
+  const { action, email, link } = await req.json();
 
   if (action === "create") {
     if (!email || typeof email !== "string") return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -36,6 +39,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
 
   if (action === "check") {
     return NextResponse.json(await checkAgencySingleSender(agencyId));
+  }
+
+  if (action === "confirm-link") {
+    if (!link || typeof link !== "string") return NextResponse.json({ error: "Link is required" }, { status: 400 });
+    const res = await confirmAgencySingleSenderLink(agencyId, link);
+    if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
+    return NextResponse.json({ verified: true });
   }
 
   if (action === "resend") {

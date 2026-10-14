@@ -7,6 +7,8 @@ import {
   findSingleSenderByEmail,
   resendSingleSenderVerification,
   isSingleSenderVerified,
+  extractVerifyTokenFromLink,
+  verifySingleSenderToken,
 } from "@/lib/services/sendgrid";
 
 const PERSONAL_DOMAINS = new Set([
@@ -182,6 +184,38 @@ export async function resendAgencySingleSender(agencyId: string): Promise<{ ok: 
   return { ok: true };
 }
 
+// Confirm-from-pasted-link: SendGrid's verification email button dead-ends on a
+// SendGrid login screen for the mailbox owner, so the card asks them to paste the
+// button's link instead. We extract the token, verify via the API, then run the
+// normal check to adopt the sender. Shared core, per-scope wrappers below.
+async function confirmSingleSenderLink(
+  pendingEmail: string | null,
+  link: string,
+  recheck: () => Promise<{ verified: boolean }>,
+): Promise<{ verified: true } | { error: string }> {
+  if (!pendingEmail) return { error: "There's no address waiting to be confirmed. Start the setup again." };
+  const token = await extractVerifyTokenFromLink(link);
+  if (!token) {
+    return { error: "That doesn't look like the link from the verification email. Copy the link behind the Verify button itself and paste the whole thing." };
+  }
+  const accepted = await verifySingleSenderToken(token);
+  // Recheck regardless of the token call's outcome: the sender may already be
+  // verified (token spent on an earlier attempt), which still counts as success.
+  const { verified } = await recheck();
+  if (verified) return { verified: true };
+  return {
+    error: accepted
+      ? `That link confirmed a different address, not ${pendingEmail}. Make sure you copied it from the email sent to that inbox.`
+      : "That link didn't work. It may have expired. Resend the email and paste the link from the new one.",
+  };
+}
+
+/** Confirm a CLIENT agency's pending single sender from the pasted verification link. */
+export async function confirmAgencySingleSenderLink(agencyId: string, link: string): Promise<{ verified: true } | { error: string }> {
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { quoteSenderEmail: true } });
+  return confirmSingleSenderLink(agency?.quoteSenderEmail ?? null, link, () => checkAgencySingleSender(agencyId));
+}
+
 /** Start single-sender verification for a PROGRESSION BUSINESS's own default sender. */
 export async function startBusinessSingleSender(businessId: string, email: string, fromName: string): Promise<{ ok: true } | { error: string }> {
   const clean = email.trim().toLowerCase();
@@ -209,6 +243,12 @@ export async function checkBusinessSingleSender(businessId: string): Promise<{ v
     await prisma.progressionBusiness.update({ where: { id: businessId }, data: { senderVerified: true, senderVerifiedAt: new Date() } });
   }
   return { verified };
+}
+
+/** Confirm a PROGRESSION BUSINESS's pending single sender from the pasted verification link. */
+export async function confirmBusinessSingleSenderLink(businessId: string, link: string): Promise<{ verified: true } | { error: string }> {
+  const business = await prisma.progressionBusiness.findUnique({ where: { id: businessId }, select: { senderEmail: true } });
+  return confirmSingleSenderLink(business?.senderEmail ?? null, link, () => checkBusinessSingleSender(businessId));
 }
 
 /** Re-send the verification email for a PROGRESSION BUSINESS's pending single sender. */

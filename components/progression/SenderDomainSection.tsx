@@ -19,7 +19,7 @@
 // gradient choice-card for the method selector.
 
 import { useState, useEffect, useCallback } from "react";
-import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft } from "@phosphor-icons/react";
+import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft, LinkSimple } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DomainAuthFlow } from "@/components/verified-emails/DomainAuthFlow";
 
@@ -63,7 +63,8 @@ export function SenderDomainSection({
   const [chosen, setChosen] = useState<"single" | "domain" | null>(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [checkedOnce, setCheckedOnce] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [pendingEmail, setPendingEmail] = useState("");
 
   const previewName = status?.agencyName || subjectName || (scope === "client" ? "The agency" : "Your business");
@@ -94,9 +95,23 @@ export function SenderDomainSection({
   useEffect(() => {
     (async () => {
       const s = await refresh();
-      setView(s ? restingView(s) : "overview");
+      const v = s ? restingView(s) : "overview";
+      setView(v);
+      // A pending mailbox may have verified out-of-band (a forwarded email we
+      // clicked for them, or the nightly recheck) — one silent catch-up so the
+      // card doesn't ask for a link it no longer needs.
+      if (v === "single-sent") {
+        try {
+          const res = await fetch(`${base}/single`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "check" }),
+          });
+          const data = await res.json();
+          if (res.ok && data.verified) { await refresh(); setView("verified"); }
+        } catch { /* stay on the verify step */ }
+      }
     })();
-  }, [refresh, restingView]);
+  }, [base, refresh, restingView]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   async function createSingle() {
@@ -112,21 +127,25 @@ export function SenderDomainSection({
       if (!res.ok) { toast.error(data.error ?? "We couldn't start that. Try again."); return; }
       setPendingEmail(addr);
       await refresh();
-      setCheckedOnce(false);
+      setLink("");
+      setLinkError(null);
       setView("single-sent");
     } finally { setBusy(false); }
   }
 
-  async function checkSingle() {
+  async function confirmLink() {
+    const pasted = link.trim();
+    if (!pasted) return;
     setBusy(true);
+    setLinkError(null);
     try {
       const res = await fetch(`${base}/single`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "check" }),
+        body: JSON.stringify({ action: "confirm-link", link: pasted }),
       });
       const data = await res.json();
       if (res.ok && data.verified) { await refresh(); setView("verified"); }
-      else setCheckedOnce(true);
+      else setLinkError(data.error ?? "That link didn't work. Copy it from the email and try again.");
     } finally { setBusy(false); }
   }
 
@@ -319,27 +338,48 @@ export function SenderDomainSection({
           <>
             <Steps active={3} />
             <h3 className="sds-h3">Check your inbox</h3>
-            <p className="sds-body">We&rsquo;ve sent a verification email to <b>{pendingAddr}</b>. Open the email and click the link to confirm you have access.</p>
-            <div className="sds-wait">
-              <EnvelopeSimple size={26} weight="bold" className="sds-env" />
-              <span className="sds-wt"><b>Waiting for verification…</b><span>We&rsquo;ll update this page as soon as the address is confirmed.</span></span>
-              <span className={`sds-spin ${busy ? "" : "idle"}`} />
+            <p className="sds-body">
+              We&rsquo;ve sent a verification email to <b>{pendingAddr}</b>. It comes from
+              Twilio SendGrid, the service that delivers email for us. Don&rsquo;t click
+              the button inside it. Copy the button&rsquo;s link instead and paste it
+              below, and we&rsquo;ll confirm the address for you.
+            </p>
+
+            <div className="sds-how">
+              <div className="sds-how-h">
+                <LinkSimple size={16} weight="bold" />
+                <span>How to copy the link</span>
+              </div>
+              <ol className="sds-how-list">
+                <li><span className="sds-how-n">1</span><span>Open the email called <b>Please Verify Your Single Sender</b>.</span></li>
+                <li><span className="sds-how-n">2</span><span>Right-click the blue <b>Verify Single Sender</b> button. On a phone, press and hold it.</span></li>
+                <li><span className="sds-how-n">3</span><span>Choose <b>Copy link</b>, then come back and paste it here.</span></li>
+              </ol>
             </div>
-            {checkedOnce && (
-              <p className="sds-help" style={{ color: "var(--agent-coral-deep, #E2452A)" }}>
-                Not confirmed yet. Click the link in the email, then check again. It can take a moment to register.
+
+            <label className="sds-field" htmlFor="sds-vlink">Verification link</label>
+            <input id="sds-vlink" className={`sds-input ${linkError ? "err" : ""}`} type="url" autoComplete="off"
+              value={link} onChange={(e) => { setLink(e.target.value); setLinkError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && link.trim()) confirmLink(); }}
+              placeholder="Paste the copied link here" />
+            {linkError ? (
+              <p className="sds-help" style={{ color: "var(--agent-coral-deep, #E2452A)" }}>{linkError}</p>
+            ) : (
+              <p className="sds-help">
+                The button&rsquo;s own page asks for a login you won&rsquo;t have. Pasting the link here lets us confirm the address without one.
               </p>
             )}
+
             <div className="sds-row">
-              <button type="button" className="sds-btn" onClick={checkSingle} disabled={busy}>
-                {busy ? "Checking…" : "Check verification"}
+              <button type="button" className="sds-btn" onClick={confirmLink} disabled={busy || !link.trim()}>
+                {busy ? "Confirming…" : "Confirm address"}
               </button>
               <button type="button" className="sds-link" onClick={resendSingle} disabled={busy}>Resend email</button>
-              <button type="button" className="sds-link" onClick={() => { setEmail(pendingAddr); setView("single-input"); }}>Use a different address</button>
+              <button type="button" className="sds-link" onClick={() => { setEmail(pendingAddr); setLink(""); setLinkError(null); setView("single-input"); }}>Use a different address</button>
             </div>
             <div className="sds-note">
               <span className="sds-note-ic">📩</span>
-              <span>Not received it? Check your junk folder or send another email. The link will work for 24 hours.</span>
+              <span>Not received it? Check the junk folder, or resend the email. If you get stuck, forward the whole email to <b>support@thesalesprogressor.co.uk</b> and we&rsquo;ll confirm it for you.</span>
             </div>
           </>
         );
@@ -393,7 +433,9 @@ export function SenderDomainSection({
             <div className="sds-ok">
               <span className="sds-ok-ck">✓</span>
               <span><b>You&rsquo;re all set</b><span className="sds-ok-sub">{isClient
-                ? `Emails for ${subjectName || "this agency"} will now send from their own email address.`
+                ? (status?.method === "single"
+                    ? `Emails for ${subjectName || "this agency"} will now send from the address they've given you.`
+                    : `Emails for ${subjectName || "this agency"} will now send from their own email address.`)
                 : "Emails for your clients will now send from your business's email address."}</span></span>
             </div>
             <Mail addr={verifiedAddr} pill="Verified" pillKind="good" />
@@ -504,6 +546,7 @@ export function SenderDomainSection({
 
         .sds-note { display: flex; gap: 9px; background: var(--agent-surface, rgba(255,255,255,0.55)); border: 1px solid var(--agent-border-subtle); border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; margin-top: 16px; }
         .sds-note-ic { flex: none; font-size: 14px; line-height: 1.3; }
+        .sds-note b { color: var(--agent-text-primary); font-weight: 650; }
 
         /* Method selector — claim-flow choice card: elevated white, gradient-fill on select. */
         .sds-opt { position: relative; display: block; width: 100%; text-align: left; appearance: none; cursor: pointer; color: inherit; background: var(--agent-surface, #fff); border: 1.5px solid var(--agent-border-subtle); border-radius: 15px; padding: 16px 44px 16px 16px;
@@ -539,17 +582,19 @@ export function SenderDomainSection({
         .sds-input { width: 100%; padding: 11px 13px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--agent-text-primary); background: var(--agent-surface, #fff); border: 1.5px solid var(--agent-border-strong, rgba(0,0,0,0.16)); border-radius: 10px; outline: none; transition: border-color .15s; }
         .sds-input::placeholder { color: var(--agent-text-muted); }
         .sds-input:focus { border-color: var(--agent-coral, #FF6B4A); }
+        .sds-input.err { border-color: var(--agent-coral-deep, #E2452A); }
         .sds-help { font-size: 12.5px; color: var(--agent-text-muted); margin: 9px 0 0; line-height: 1.5; }
 
-        .sds-wait { display: flex; align-items: center; gap: 13px; background: var(--agent-surface, rgba(255,255,255,0.6)); border: 1px solid var(--agent-border-subtle); border-radius: 13px; padding: 15px; }
-        .sds-env { flex: none; color: var(--agent-coral-deep, #E2452A); }
-        .sds-wt { font-size: 13.5px; color: var(--agent-text-primary); }
-        .sds-wt b { font-weight: 700; display: block; }
-        .sds-wt span { color: var(--agent-text-muted); display: block; margin-top: 2px; font-size: 12.5px; }
-        .sds-spin { margin-left: auto; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(255,107,74,0.2); border-top-color: var(--agent-coral, #FF6B4A); animation: sds-sp .8s linear infinite; flex: none; }
-        .sds-spin.idle { animation-play-state: paused; opacity: .5; }
-        @keyframes sds-sp { to { transform: rotate(360deg); } }
-        @media (prefers-reduced-motion: reduce) { .sds-spin { animation: none; } }
+        /* How-to-copy-the-link card (the paste-the-link verify step) */
+        .sds-how { background: var(--agent-surface, rgba(255,255,255,0.6)); border: 1px solid var(--agent-border-subtle); border-radius: 13px; padding: 14px 15px; margin-bottom: 18px; }
+        .sds-how-h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 750; color: var(--agent-text-primary); margin-bottom: 11px; }
+        .sds-how-h svg { color: var(--agent-coral-deep, #E2452A); flex: none; }
+        .sds-how-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+        .sds-how-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; }
+        .sds-how-list b { color: var(--agent-text-primary); font-weight: 650; }
+        .sds-how-n { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; margin-top: 1px;
+          background: linear-gradient(180deg, #f4f5f7, #e2e5e9); color: var(--agent-text-secondary);
+          box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1.5px 3px rgba(0,0,0,0.07), 0 1px 3px -1px rgba(15,23,42,0.18); }
 
         .sds-ok { display: flex; align-items: center; gap: 11px; background: rgba(47,125,83,0.10); border: 1px solid rgba(47,125,83,0.22); border-radius: 13px; padding: 13px 15px; margin-bottom: 16px; }
         .sds-ok-ck { flex: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(180deg, #43b57e, #2F7D53); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 6px -1px rgba(47,125,83,0.4); }
