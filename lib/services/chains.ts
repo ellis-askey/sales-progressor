@@ -2125,7 +2125,10 @@ export type CheckInRow = {
   steps: string[];
   chainId: string;
   chainName: string | null;
-  ourAddress: string | null;     // our own file's address in this chain (group header context)
+  // ALL of our own files' addresses in this chain (group header context) — an
+  // agency can have more than one sale in the same chain. First entry belongs
+  // to the file that also provides ourTransactionId / the team side key.
+  ourAddresses: string[];
 };
 
 // Check-ins: every claimed sale in the viewer's chains owned by ANOTHER agency,
@@ -2142,8 +2145,16 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
   // team-side key: the notes we see are the ones logged by our team (us + whoever
   // progresses the file), keyed on this agency. On an outsourced file, the agency
   // and its progressor share — they resolve to the same key. (#chain-checkins)
-  const ourTxByChain = new Map<string, { txId: string; agencyId: string; address: string }>();
-  for (const t of ourTxns) if (t.chainLink?.chainId && !ourTxByChain.has(t.chainLink.chainId)) ourTxByChain.set(t.chainLink.chainId, { txId: t.id, agencyId: t.agencyId, address: t.propertyAddress });
+  // An agency can have several sales in the same chain — keep every one. The
+  // first entry anchors ourTransactionId and the side key; the full address
+  // list feeds the group header ("Your sales: …").
+  const ourTxByChain = new Map<string, Array<{ txId: string; agencyId: string; address: string }>>();
+  for (const t of ourTxns) {
+    if (!t.chainLink?.chainId) continue;
+    const list = ourTxByChain.get(t.chainLink.chainId) ?? [];
+    list.push({ txId: t.id, agencyId: t.agencyId, address: t.propertyAddress });
+    ourTxByChain.set(t.chainLink.chainId, list);
+  }
   const chainIds = [...ourTxByChain.keys()];
   if (chainIds.length === 0) return [];
 
@@ -2187,7 +2198,8 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
   const rows: CheckInRow[] = [];
   const photoPaths: string[] = [];
   for (const chain of chains) {
-    const our = ourTxByChain.get(chain.id) ?? null;
+    const ours = ourTxByChain.get(chain.id) ?? [];
+    const our = ours[0] ?? null;
     const ourTxId = our?.txId ?? null;
     const sideKey = our ? agencySideKey(our.agencyId) : null;
     for (const l of chain.links) {
@@ -2218,7 +2230,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         steps: sideKey ? l.stepMarks.filter((m) => m.sideKey === sideKey).map((m) => m.stepKey) : [],
         chainId: chain.id,
         chainName: chain.name,
-        ourAddress: our?.address ?? null,
+        ourAddresses: ours.map((o) => o.address),
       });
     }
   }

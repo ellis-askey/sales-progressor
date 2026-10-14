@@ -51,7 +51,19 @@ function sortRows(rows: CheckInRow[]): CheckInRow[] {
   });
 }
 
-type CheckInGroup = { chainId: string; chainName: string | null; ourAddress: string | null; rows: CheckInRow[] };
+type CheckInGroup = { chainId: string; chainName: string | null; ourAddresses: string[]; rows: CheckInRow[] };
+
+// Group-header line for our own side of the chain. One sale shows its full
+// address; two or more show first lines only (full addresses would run long),
+// capped at two with a +N for the rest.
+function ourSalesLabel(addresses: string[]): string | null {
+  if (addresses.length === 0) return null;
+  if (addresses.length === 1) return `Your sale is ${addresses[0]}`;
+  const firstLines = addresses.map((a) => a.split(",")[0].trim());
+  const shown = firstLines.slice(0, 2).join(" and ");
+  const extra = firstLines.length - 2;
+  return `Your sales: ${shown}${extra > 0 ? ` +${extra}` : ""}`;
+}
 
 // Bucket the (already globally quietest-first) rows by chain. Because the input
 // is globally sorted, the first time we meet a chain is that chain's quietest
@@ -61,7 +73,7 @@ function groupRows(rows: CheckInRow[]): CheckInGroup[] {
   const map = new Map<string, CheckInGroup>();
   for (const r of rows) {
     let g = map.get(r.chainId);
-    if (!g) { g = { chainId: r.chainId, chainName: r.chainName, ourAddress: r.ourAddress, rows: [] }; map.set(r.chainId, g); }
+    if (!g) { g = { chainId: r.chainId, chainName: r.chainName, ourAddresses: r.ourAddresses, rows: [] }; map.set(r.chainId, g); }
     g.rows.push(r);
   }
   return [...map.values()];
@@ -303,15 +315,17 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       <p style={{ margin: "0 0 2px", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
         Every other property in your chains, grouped by chain and quietest first. Check in on the ones at the top, log what you hear, and the row drops to the bottom of its chain so the cycle keeps turning. Your notes stay private to your side.
       </p>
-      {groups.map((group) => (
+      {groups.map((group) => {
+        const salesLabel = ourSalesLabel(group.ourAddresses);
+        return (
         <section key={group.chainId} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", padding: "0 2px" }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 750, color: "var(--agent-text-primary)" }}>
-              {group.chainName ?? "Chain"}{group.ourAddress ? ":" : ""}
+              {group.chainName ?? "Chain"}{salesLabel ? ":" : ""}
             </h3>
-            {group.ourAddress && (
+            {salesLabel && (
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                Your sale is {group.ourAddress}
+                {salesLabel}
               </span>
             )}
           </div>
@@ -537,7 +551,8 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         );
           })}
         </section>
-      ))}
+        );
+      })}
     </div>
 
     {openChainTxId && (
