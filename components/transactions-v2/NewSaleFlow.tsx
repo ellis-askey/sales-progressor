@@ -1588,22 +1588,23 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       fontSize: 11,
                       fontWeight: 600,
                       border: active
-                        ? "1.5px solid var(--agent-coral-deep)"
+                        ? "1.5px solid transparent"
                         : tabHovered
                         ? "1.5px solid var(--agent-coral)"
                         : isSolid ? "1.5px solid var(--nv2-border-solid)" : "1.5px solid var(--agent-border-default)",
                       background: active
-                        ? "rgba(var(--agent-coral-base-rgb), 0.07)"
-                        : tabHovered
-                        ? "var(--agent-coral-bg-tint)"
-                        : isSolid ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
+                        ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))"
+                        : "transparent",
                       color: active
-                        ? "var(--agent-coral-deep)"
+                        ? "var(--agent-text-on-coral)"
                         : tabHovered
-                        ? "var(--agent-coral)"
+                        ? "var(--agent-coral-deep)"
                         : "var(--nv2-text-secondary)",
+                      boxShadow: active
+                        ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)"
+                        : "none",
                       cursor: "pointer",
-                      transition: "border-color 150ms, background 150ms, color 150ms",
+                      transition: "border-color 150ms, background 160ms, color 150ms, box-shadow 220ms",
                     }}
                   >
                     {mode === "earnings" ? "File worth" : "Sold prices"}

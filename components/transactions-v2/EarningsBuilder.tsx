@@ -29,16 +29,28 @@ function Seg({ options, value, onChange, size = "md" }: {
   size?: "md" | "sm";
 }) {
   const sm = size === "sm";
+  const n = options.length;
+  const idx = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div style={{ display: "flex", gap: 2, padding: 2, borderRadius: sm ? 6 : 8, background: "rgba(var(--agent-coral-base-rgb), 0.05)", border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)", flexShrink: 0 }}>
+    <div style={{ position: "relative", display: "inline-flex", padding: 2, borderRadius: sm ? 6 : 8, background: "rgba(var(--agent-coral-base-rgb), 0.05)", border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)", flexShrink: 0 }}>
+      {/* Sliding highlight — springs across to the active slot instead of the
+          fill snapping between buttons. Equal-width slots (buttons flex:1) keep
+          the translate honest. */}
+      <span aria-hidden style={{
+        position: "absolute", top: 2, bottom: 2, left: 2, width: `calc((100% - 4px) / ${n})`,
+        transform: `translateX(${idx * 100}%)`, borderRadius: sm ? 4 : 6,
+        background: "var(--nv2-surface-raised)", boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
+        transition: "transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+      }} />
       {options.map((opt) => {
         const active = opt.value === value;
         return (
           <button key={opt.value} type="button" onClick={() => onChange(opt.value)} style={{
+            position: "relative", zIndex: 1, flex: 1,
             padding: sm ? "3px 8px" : "4px 10px", fontSize: sm ? 10 : 11, fontWeight: 600, borderRadius: sm ? 4 : 6, border: "none",
-            background: active ? "var(--nv2-surface-raised)" : "transparent",
+            background: "transparent",
             color: active ? "var(--agent-coral-deep)" : "var(--nv2-text-muted)",
-            cursor: "pointer", boxShadow: active ? "0 1px 3px rgba(0,0,0,0.10)" : "none", whiteSpace: "nowrap",
+            cursor: "pointer", whiteSpace: "nowrap", transition: "color 180ms",
           }}>{opt.label}</button>
         );
       })}
@@ -126,7 +138,7 @@ export function EarningsBuilder({
           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Your commission</span>
           <Seg options={[{ label: "Fixed £", value: "amount" }, { label: "Percent %", value: "percent" }]} value={fields.agentFeeType} onChange={(v) => onUpdate({ agentFeeType: v as "amount" | "percent" })} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(var(--agent-coral-base-rgb), 0.04)", border: "1px solid rgba(var(--agent-coral-base-rgb), 0.15)", borderRadius: 12, padding: "8px 12px" }}>
+        <div className="nsf-commission-box" style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 12, padding: "8px 12px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {fields.agentFeeType === "amount" ? (
               <PriceInput value={fields.agentFeeAmount} onChange={(v) => onUpdate({ agentFeeAmount: v })} placeholder="0" className="price-hero-input" />

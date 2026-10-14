@@ -3806,6 +3806,24 @@
   min-width: 0;
 }
 
+/* Commission fee box (File worth card). Resting is the faint brand-tint frame;
+ * on hover, and while focused, the border goes a clear blue — darker and
+ * stronger on focus, with a soft ring — so the field you're typing a figure
+ * into reads as live. */
+.nsf-commission-box {
+  background: rgba(var(--agent-coral-base-rgb), 0.04);
+  border: 1px solid rgba(var(--agent-coral-base-rgb), 0.15);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.nsf-commission-box:hover {
+  border-color: var(--agent-info);
+}
+.nsf-commission-box:focus-within {
+  border-color: var(--agent-info);
+  background: var(--nv2-surface-raised);
+  box-shadow: 0 0 0 3px rgba(var(--agent-info-rgb), 0.16);
+}
+
 /* Phase 1 responsive programme (audit finding D2/D3): the right column used to
  * be display:none below 1024 — fee entry, referral fee, notes, earnings and
  * sold-price research simply didn't exist on tablet/mobile. It now STACKS

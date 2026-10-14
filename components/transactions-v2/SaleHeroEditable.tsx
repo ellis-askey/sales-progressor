@@ -17,7 +17,6 @@ import dynamic from "next/dynamic";
 import { PencilSimple, CheckCircle, Trash, Camera } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
-import { Pill } from "@/components/ui/Pill";
 import { AddPhotoCircle } from "@/components/transaction/HeroPhotoUpload";
 
 // Postcode → mini location map, the same visual the property-file hero shows
@@ -51,7 +50,10 @@ const PURCHASE_TYPES: { value: "mortgage" | "cash_buyer" | "cash_from_proceeds";
   { value: "cash_from_proceeds", label: "Cash from proceeds" },
 ];
 
-// A selectable pill chip with a clear hover + selected state.
+// A selectable pill chip. Unselected is a clean outline (no fill) that turns
+// the brand colour on hover; selected fills with the brand gradient + gloss —
+// the option-select treatment used on the claim-flow choice cards. Everything
+// derives from --agent-coral*, so it follows the agency's chosen colour.
 function Choice({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   const [hover, setHover] = useState(false);
   return (
@@ -60,21 +62,17 @@ function Choice({ selected, onClick, children }: { selected: boolean; onClick: (
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex" }}
+      style={{
+        fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap",
+        padding: "6px 15px", borderRadius: 999, cursor: "pointer",
+        border: selected ? "1.5px solid transparent" : `1.5px solid ${hover ? "var(--agent-coral)" : "var(--agent-border-default)"}`,
+        background: selected ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "transparent",
+        color: selected ? "var(--agent-text-on-coral)" : hover ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)",
+        boxShadow: selected ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+        transition: "background 160ms, border-color 150ms, color 150ms, box-shadow 220ms",
+      }}
     >
-      <Pill
-        glass={selected}
-        tone={selected ? "brand" : "muted"}
-        outline={!selected}
-        size="md"
-        style={{
-          cursor: "pointer",
-          transition: "background-color 120ms, border-color 120ms, color 120ms",
-          ...(!selected && hover ? { backgroundColor: "rgba(var(--agent-coral-rgb), 0.08)", borderColor: "rgba(var(--agent-coral-rgb), 0.35)", color: "var(--agent-coral-deep)" } : {}),
-        }}
-      >
-        {children}
-      </Pill>
+      {children}
     </button>
   );
 }
@@ -174,7 +172,13 @@ export function SaleHeroEditable({
         {/* Postcode map backdrop — fades in when a valid postcode lands and there's
             no photo yet; the photo (if added) sits on top and the map unmounts. */}
         {showMap && (
-          <div key={mapPostcode} style={{ position: "absolute", inset: 0, animation: `agent-overlay-fade-in 420ms ${EASE} both` }}>
+          <div key={mapPostcode} style={{
+            position: "absolute", inset: 0, animation: `agent-overlay-fade-in 420ms ${EASE} both`,
+            // Same right-edge fade the photo uses, so the map melts into the card
+            // rather than ending on a blunt vertical cut.
+            maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
+          }}>
             <PropertyLocationMap postcode={mapPostcode!} />
           </div>
         )}

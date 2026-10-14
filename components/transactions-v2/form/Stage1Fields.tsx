@@ -192,7 +192,7 @@ export function Stage1Fields({
               type="checkbox"
               checked={isShareOfFreehold}
               onChange={(e) => onIsShareOfFreeholdChange(e.target.checked)}
-              style={{ width: 14, height: 14, accentColor: "var(--nv2-coral)", cursor: "pointer", flexShrink: 0 }}
+              style={{ width: 14, height: 14, accentColor: "var(--agent-coral-deep)", cursor: "pointer", flexShrink: 0 }}
             />
             <span style={{ fontSize: 13, color: "var(--nv2-text-primary)" }}>Share of freehold</span>
           </label>

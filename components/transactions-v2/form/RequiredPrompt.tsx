@@ -44,7 +44,7 @@ export function RequiredPrompt({ streetAddress, tenure, purchaseType }: {
   };
 
   return (
-    <div style={{ position: "relative", minHeight: 30 }} aria-live="polite">
+    <div style={{ position: "relative", minHeight: 20 }} aria-live="polite">
       <p style={{ ...base, opacity: complete ? 0 : 1 }}>{prompt}</p>
       <p style={{ ...base, opacity: complete ? 1 : 0 }}>
         Add what you have now. You can fill in the rest later.
