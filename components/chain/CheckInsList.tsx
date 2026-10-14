@@ -271,6 +271,16 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       .ciq-chev { flex: 0 0 auto; color: var(--agent-text-muted); display: grid; place-items: center; }
       .ciq-chev svg { transition: transform 200ms ease; display: block; }
       .ciq-chev.open svg { transform: rotate(180deg); }
+      @media (max-width: 640px) {
+        /* Hide the bold "Chain:" heading — just "Your sale is …" stays. */
+        .ciq-chainname { display: none; }
+        /* Drop the "Tap what you hear" hint and send the "Confirm progress · N of
+           8" label over to the right, beside the chevron, so the row isn't
+           cramped on a phone. */
+        .ciq-hint { display: none; }
+        .ciq-barlabel, .ciq-ready { order: 2; }
+        .ciq-chev { order: 3; }
+      }
       .ciq-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms cubic-bezier(0.22,1,0.36,1); }
       .ciq-body > div { overflow: hidden; min-height: 0; }
       .ciq-body.open { grid-template-rows: 1fr; }
@@ -313,14 +323,14 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     `}</style>
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <p style={{ margin: "0 0 2px", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-        Every other property in your chains, grouped by chain and quietest first. Check in on the ones at the top, log what you hear, and the row drops to the bottom of its chain so the cycle keeps turning. Your notes stay private to your side.
+        Other properties in your chains, grouped by chain with the least recently updated first. Check in, log an update and the property moves to the bottom of its chain. Your notes stay private.
       </p>
       {groups.map((group) => {
         const salesLabel = ourSalesLabel(group.ourAddresses);
         return (
         <section key={group.chainId} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", padding: "0 2px" }}>
-            <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 750, color: "var(--agent-text-primary)" }}>
+            <h3 className="ciq-chainname" style={{ margin: 0, fontSize: 13.5, fontWeight: 750, color: "var(--agent-text-primary)" }}>
               {group.chainName ?? "Chain"}{salesLabel ? ":" : ""}
             </h3>
             {salesLabel && (
