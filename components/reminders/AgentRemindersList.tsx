@@ -398,7 +398,6 @@ function SplitFileCard({
   handleCompleteAll,
   hideChase,
   currentUserId,
-  showRowExplain,
 }: {
   txId: string;
   address: string;
@@ -417,9 +416,6 @@ function SplitFileCard({
   handleCompleteAll: (tasks: { taskId: string; code: string | null }[]) => void;
   hideChase?: boolean;
   currentUserId?: string | null;
-  // "Needs you" only: keep the per-step explanation box on multi-reminder files
-  // too (elsewhere the multi layout collapses to a single compact meta line).
-  showRowExplain?: boolean;
 }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -709,37 +705,29 @@ function SplitFileCard({
                 </span>
                 <span className="rem-step-mobile">{name}</span>
               </p>
-              {isSingle ? (
-                <>
-                  {who && (
-                    <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                      Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
-                    </p>
-                  )}
-                  {(copy?.line ?? info?.outstanding) && (
-                    <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                      {copy?.line ?? info?.outstanding}
-                    </p>
-                  )}
-                  {!solHanded && <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {statusLine}</p>}
-                  {lastChasedLine && (
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-disabled)" }}>{lastChasedLine}</p>
-                  )}
-                </>
-              ) : (
-                // Multiple reminders on one file: a compact meta line. In "Needs
-                // you" we also keep the per-step explanation box so every actionable
-                // row still says what's outstanding (elsewhere it stays collapsed).
-                <>
-                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                    {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span>{solHanded ? "" : ` · ${effectiveChaseCount === 0 ? "Not chased yet" : `Chased ${effectiveChaseCount}×`}`}
-                  </p>
-                  {showRowExplain && (copy?.line ?? info?.outstanding) && (
-                    <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                      {copy?.line ?? info?.outstanding}
-                    </p>
-                  )}
-                </>
+              {/* Same full treatment on every row, single- or multi-reminder file
+                  (founder, 2026-10-14): Chasing line, explanation box, chase-count
+                  status and last-chased attribution. On a multi-reminder file the
+                  side pill still can't live in the header (it differs per row), so
+                  it sits inline on the meta line below. */}
+              {!isSingle && (
+                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span>
+                </p>
+              )}
+              {who && (
+                <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
+                </p>
+              )}
+              {(copy?.line ?? info?.outstanding) && (
+                <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                  {copy?.line ?? info?.outstanding}
+                </p>
+              )}
+              {!solHanded && <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ {statusLine}</p>}
+              {lastChasedLine && (
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-disabled)" }}>{lastChasedLine}</p>
               )}
               {solFirm && !linkFirmInTitle && (
                 <Link
@@ -1483,7 +1471,6 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                         autopilot={autopilot}
                         logs={fileLogs}
                         groupKey={worstUrgency(fileLogs)}
-                        showRowExplain={grp.key === "needs-you"}
                         loading={loading}
                         exitingIds={exitingIds}
                         handleComplete={handleComplete}
