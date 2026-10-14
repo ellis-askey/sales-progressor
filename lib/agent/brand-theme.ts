@@ -159,6 +159,22 @@ function toCssBody(vars: Record<string, string>): string {
 // the shell root, dark values under the dark toggle. Scoped to
 // [data-theme="custom"] so it overrides the neutral base block, and the dark
 // rule outweighs it under <html data-theme="dark">.
+// The .nv2-night wrapper (new-v2 form + night-mode portalled drawers/modals)
+// hardcodes the coral family to the default orange in globals.css, as a fallback
+// for portalled surfaces that render in document.body and so can't inherit the
+// shell's tokens. That static value sits ON the wrapper, which beats the brand
+// colour it would otherwise inherit — pinning the whole new-sale form to orange
+// regardless of the agency's chosen colour. Re-emit just the coral family onto
+// .nv2-night so it tracks the brand, without touching its --nv2-* greys.
+const CORAL_KEYS = [
+  "--agent-coral", "--agent-coral-deep", "--agent-coral-darker", "--agent-coral-light",
+  "--agent-coral-pale", "--agent-coral-bg-tint", "--agent-coral-bg-tint-hover",
+  "--agent-coral-rgb", "--agent-coral-base-rgb", "--agent-text-on-coral",
+];
+function coralBody(vars: Record<string, string>): string {
+  return CORAL_KEYS.filter((k) => k in vars).map((k) => `  ${k}: ${vars[k]};`).join("\n");
+}
+
 export function brandThemeCss(hexInput: string | null | undefined): string {
   const hex = normaliseHex(hexInput ?? "") ?? DEFAULT_BRAND_HEX;
   const light = deriveBrandVars(hex, false);
@@ -170,6 +186,12 @@ export function brandThemeCss(hexInput: string | null | undefined): string {
     `:root[data-theme="dark"] .agent-shell-root[data-theme="custom"],`,
     `:root[data-theme="dark"] [data-theme="custom"] {`,
     toCssBody(dark),
+    `}`,
+    `.nv2-night {`,
+    coralBody(light),
+    `}`,
+    `:root[data-theme="dark"] .nv2-night {`,
+    coralBody(dark),
     `}`,
   ].join("\n");
 }
