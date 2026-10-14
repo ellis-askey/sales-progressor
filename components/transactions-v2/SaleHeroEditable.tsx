@@ -13,11 +13,18 @@
 // the storage path is carried onto the new file on submit.
 
 import { useRef, useState } from "react";
-import { PencilSimple, CheckCircle, Trash } from "@phosphor-icons/react";
+import dynamic from "next/dynamic";
+import { PencilSimple, CheckCircle, Trash, Camera } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
 import { AddPhotoCircle } from "@/components/transaction/HeroPhotoUpload";
+
+// Postcode → mini location map, the same visual the property-file hero shows
+// before a photo is added. Client-only; a single instance so maplibre can't clash.
+const PropertyLocationMap = dynamic(() => import("@/components/transaction/PropertyLocationMap"), { ssr: false });
+// A trailing/standalone UK postcode — only then can we place the map.
+const POSTCODE_RE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 import { AddressFields } from "@/components/transactions-v2/form/AddressFields";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
@@ -108,6 +115,12 @@ export function SaleHeroEditable({
   const [line1, ...restAddr] = addressLine.split(",");
   const line2 = restAddr.join(",").trim();
 
+  // Once there's a valid postcode (MOS parsed or typed in), the neutral photo
+  // zone becomes the postcode map with an overlaid "Add photo" pill — exactly the
+  // property-file hero's no-photo treatment. Before that, the branded circle.
+  const mapPostcode = POSTCODE_RE.test((fields.postcode ?? "").trim()) ? fields.postcode!.trim() : null;
+  const showMap = !hasPhoto && !!mapPostcode;
+
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -154,21 +167,29 @@ export function SaleHeroEditable({
           image revealed left-to-right behind a right-edge mask, circle fades out. */}
       <div style={{
         position: "relative", flexGrow: 0, flexShrink: 1,
-        flexBasis: hasPhoto ? 380 : 168, minWidth: hasPhoto ? 240 : 168,
+        flexBasis: (hasPhoto || showMap) ? 380 : 168, minWidth: (hasPhoto || showMap) ? 240 : 168,
         alignSelf: "stretch", overflow: "hidden",
         transition: `flex-basis 560ms ${EASE}, min-width 560ms ${EASE}`,
       }}>
+        {/* Postcode map backdrop — fades in when a valid postcode lands and there's
+            no photo yet; the photo (if added) sits on top and the map unmounts. */}
+        {showMap && (
+          <div key={mapPostcode} style={{ position: "absolute", inset: 0, animation: `agent-overlay-fade-in 420ms ${EASE} both` }}>
+            <PropertyLocationMap postcode={mapPostcode!} />
+          </div>
+        )}
         {displayUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={displayUrl} alt="" style={{
             position: "absolute", left: 0, top: 0, height: "100%", width: 380, maxWidth: "none",
-            objectFit: "cover", opacity: hasPhoto ? 1 : 0,
+            objectFit: "cover", opacity: hasPhoto ? 1 : 0, zIndex: 1,
             maskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 100%)",
             transition: `opacity 560ms ${EASE}`, pointerEvents: "none",
           }} />
         )}
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: hasPhoto ? 0 : 1, pointerEvents: hasPhoto ? "none" : "auto", transition: "opacity 300ms ease" }}>
+        {/* Branded circle — only before there's a photo OR a placeable postcode. */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: (hasPhoto || showMap) ? 0 : 1, pointerEvents: (hasPhoto || showMap) ? "none" : "auto", transition: "opacity 300ms ease" }}>
           <AddPhotoCircle onClick={() => { if (!busy) inputRef.current?.click(); }} busy={busy} size={120} />
         </div>
         {/* "Memo read" status — top-left, same dark glass as the file's Back button. */}
@@ -177,6 +198,19 @@ export function SaleHeroEditable({
             <CheckCircle size={13} weight="fill" />
             Memo read
           </span>
+        )}
+        {/* Add-photo pill over the map — the same control the property-file hero
+            shows on its no-photo map. */}
+        {showMap && (
+          <button
+            type="button"
+            onClick={() => { if (!busy) inputRef.current?.click(); }}
+            disabled={busy}
+            style={{ ...DARK_PILL, bottom: 14, left: 14, cursor: busy ? "wait" : "pointer" }}
+          >
+            <Camera size={13} weight="regular" />
+            {busy ? "Uploading…" : "Add photo"}
+          </button>
         )}
         {/* Remove-photo — bottom-left, same dark glass, fades with the photo. */}
         <button
