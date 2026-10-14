@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BadgeCheck, Building2, ChevronRight } from "lucide-react";
-import { getBusinessesOverview, type BusinessOverviewRow } from "@/lib/command/businesses";
+import { getBusinessesOverview, getBusinessesFriction, getBusinessesPulse, type BusinessOverviewRow } from "@/lib/command/businesses";
 import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
 import { formatGBP, formatMonthLabel } from "@/lib/command/revenue";
 
@@ -11,11 +11,17 @@ const COLS = "grid-cols-[minmax(150px,1.8fr)_0.7fr_0.7fr_1fr_0.7fr_0.8fr_1.1fr_a
 
 export default async function BusinessesPage() {
   const rows = await getBusinessesOverview();
+  const [frictionById, pulse] = await Promise.all([
+    getBusinessesFriction(rows.map((r) => r.id)),
+    getBusinessesPulse(),
+  ]);
   const monthLabel = formatMonthLabel(new Date());
 
   const totalMrr = rows.reduce((n, r) => n + r.mrrPence, 0);
   const totalMonth = rows.reduce((n, r) => n + r.monthTotalPence, 0);
   const needsAttention = rows.filter((r) => r.status === "payment_failed" || r.status === "blocked").length;
+  const totalFriction = [...frictionById.values()].reduce((n, s) => n + s.length, 0);
+  const activeYesterday = pulse.rows.filter((r) => r.actions > 0);
 
   return (
     <div className="space-y-8">
@@ -29,10 +35,16 @@ export default async function BusinessesPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Kpi label="Businesses" value={String(rows.length)} />
         <Kpi label="Recurring MRR" value={formatGBP(totalMrr)} sub="base + seats, per month" tone="primary" />
         <Kpi label="Billed this month" value={formatGBP(totalMonth)} sub="MRR + £5 per sale" />
+        <Kpi
+          label="Friction flags"
+          value={String(totalFriction)}
+          sub="stuck patterns spotted"
+          tone={totalFriction > 0 ? "warn" : "muted"}
+        />
         <Kpi
           label="Needs attention"
           value={String(needsAttention)}
@@ -40,6 +52,26 @@ export default async function BusinessesPage() {
           tone={needsAttention > 0 ? "warn" : "muted"}
         />
       </div>
+
+      {/* Yesterday — the daily pulse, so quiet days are visible too */}
+      <section className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-5 py-4">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-3">Yesterday</h2>
+        {activeYesterday.length === 0 ? (
+          <p className="text-sm text-neutral-600">No business activity yesterday.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {activeYesterday.map((p) => (
+              <li key={p.id} className="text-sm text-neutral-400">
+                <Link href={`/command/businesses/${p.id}`} className="text-neutral-200 hover:text-white transition-colors">{p.name}</Link>
+                {" · "}{p.actions === 1 ? "1 action" : `${p.actions} actions`}
+                {p.salesCreated > 0 && ` · ${p.salesCreated} ${p.salesCreated === 1 ? "sale started" : "sales started"}`}
+                {p.milestonesConfirmed > 0 && ` · ${p.milestonesConfirmed} ${p.milestonesConfirmed === 1 ? "milestone" : "milestones"}`}
+                {p.chasesSent > 0 && ` · ${p.chasesSent} ${p.chasesSent === 1 ? "chase" : "chases"}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* List */}
       {rows.length === 0 ? (
@@ -70,7 +102,7 @@ export default async function BusinessesPage() {
               >
                 {/* Desktop row */}
                 <div className={`hidden md:grid ${COLS} items-center gap-3 px-4 py-3`}>
-                  <BusinessName row={r} />
+                  <BusinessName row={r} frictionCount={frictionById.get(r.id)?.length ?? 0} />
                   <span className="text-right text-sm tabular-nums text-neutral-300">{r.clientCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-300">{r.memberCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-100 font-medium">{formatGBP(r.mrrPence)}</span>
@@ -83,7 +115,7 @@ export default async function BusinessesPage() {
                 {/* Mobile card */}
                 <div className="md:hidden p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <BusinessName row={r} />
+                    <BusinessName row={r} frictionCount={frictionById.get(r.id)?.length ?? 0} />
                     <BusinessStatusPill status={r.status} />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
@@ -104,12 +136,17 @@ export default async function BusinessesPage() {
   );
 }
 
-function BusinessName({ row }: { row: BusinessOverviewRow }) {
+function BusinessName({ row, frictionCount }: { row: BusinessOverviewRow; frictionCount: number }) {
   return (
     <span className="flex items-center gap-1.5 min-w-0">
       <span className="text-sm font-medium text-neutral-100 truncate">{row.name}</span>
       {row.senderVerified && (
         <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" strokeWidth={2} aria-label="Verified sender" />
+      )}
+      {frictionCount > 0 && (
+        <span className="flex-shrink-0 text-[9.5px] font-semibold uppercase tracking-wide text-amber-300 bg-amber-950/50 border border-amber-900/60 rounded-full px-1.5 py-0.5 whitespace-nowrap">
+          {frictionCount} {frictionCount === 1 ? "flag" : "flags"}
+        </span>
       )}
       {row.quiet && (
         <span className="flex-shrink-0 text-[9.5px] font-semibold uppercase tracking-wide text-amber-300 bg-amber-950/50 border border-amber-900/60 rounded-full px-1.5 py-0.5 whitespace-nowrap">

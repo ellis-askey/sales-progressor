@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
-import { getBusinessDetail, getBusinessWatch, type BusinessDetail, type SetupCheck } from "@/lib/command/businesses";
+import { getBusinessDetail, getBusinessWatch, getBusinessFriction, type BusinessDetail, type SetupCheck } from "@/lib/command/businesses";
 import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
 import { eventLabel } from "@/lib/command/event-labels";
 import { formatGBP, formatShortDate } from "@/lib/command/revenue";
@@ -19,7 +19,7 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   const b = await getBusinessDetail(id);
   if (!b) notFound();
-  const watch = await getBusinessWatch(b);
+  const [watch, friction] = await Promise.all([getBusinessWatch(b), getBusinessFriction(id)]);
   const setupDone = watch.setup.filter((c) => c.state === "done").length;
 
   const payment = paymentLine(b);
@@ -69,6 +69,34 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
             <SetupCheckRow key={c.key} check={c} />
           ))}
         </div>
+      </SectionCard>
+
+      {/* Friction — started-but-stalled patterns, spotted before they raise them */}
+      <SectionCard
+        title="Friction"
+        right={
+          friction.length > 0 ? (
+            <span className="text-xs text-amber-300">{friction.length} {friction.length === 1 ? "signal" : "signals"}</span>
+          ) : (
+            <span className="text-xs text-neutral-600">clear</span>
+          )
+        }
+      >
+        {friction.length === 0 ? (
+          <Empty>Nothing flagged right now. Signals appear when something looks stuck: repeated sign-ins with no actions, sales missing contacts, clients with no sales, drafted-but-unsent chases, files not progressing.</Empty>
+        ) : (
+          <ul className="space-y-2.5">
+            {friction.map((s) => (
+              <li key={s.key} className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                <div className="min-w-0">
+                  <p className="text-sm text-amber-200">{s.label}</p>
+                  <p className="text-[11px] text-neutral-500">{s.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </SectionCard>
 
       {/* Money this month */}

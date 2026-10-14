@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 import { computeTodayLive } from "@/lib/command/today-live";
-import { getBusinessesRevenue } from "@/lib/command/businesses";
+import { getBusinessesRevenue, getBusinessesFriction, getBusinessesPulse } from "@/lib/command/businesses";
 import { formatGBP } from "@/lib/command/revenue";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
 import WhatChanged from "@/components/command/shared/WhatChanged";
@@ -215,14 +215,18 @@ export default async function OverviewPage({
   // only shows on the unscoped view. "Sales today" uses the same London-day key
   // as the rest of the page.
   const wholeView = mode === "combined" && agencyIds.length === 0;
-  const [biz, businessSalesToday] = wholeView
+  const [biz, businessSalesToday, bizPulse] = wholeView
     ? await Promise.all([
         getBusinessesRevenue(),
         commandDb.propertyTransaction.count({
           where: { progressionBusinessId: { not: null }, isDemo: false, businessPerSaleChargedAt: { gte: todayKey } },
         }),
+        getBusinessesPulse(),
       ])
-    : [null, 0];
+    : [null, 0, null];
+  const bizFrictionTotal = wholeView && biz && biz.count > 0
+    ? [...(await getBusinessesFriction(biz.rows.map((r) => r.id))).values()].reduce((n, s) => n + s.length, 0)
+    : 0;
 
   // Second pass: which (agencyId, address) pairs from the draft set are already
   // represented by a non-draft transaction? Those are duplicates of already-
@@ -398,6 +402,8 @@ export default async function OverviewPage({
               <BizStat value={String(biz.count)} label="active" />
               <BizStat value={formatGBP(biz.mrrPence)} label="recurring MRR" color="text-emerald-400" />
               <BizStat value={String(businessSalesToday)} label="sales today" />
+              <BizStat value={String(bizPulse?.totalActions ?? 0)} label="actions yesterday" />
+              <BizStat value={String(bizFrictionTotal)} label="friction flags" color={bizFrictionTotal > 0 ? "text-amber-400" : undefined} />
               <BizStat value={String(biz.quietCount)} label="quiet this month" color={biz.quietCount > 0 ? "text-amber-400" : undefined} />
               <BizStat value={String(biz.needsAttention.length)} label="payment issues" color={biz.needsAttention.length > 0 ? "text-red-400" : undefined} />
             </div>

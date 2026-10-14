@@ -19,6 +19,7 @@ import {
 } from "@/lib/progression/business-dunning";
 import { getBusinessPlanSchedule } from "@/lib/progression/business-stripe";
 import { parseFeeModel, feeModelSummary } from "@/lib/progression/client-fees";
+import { londonDateStr } from "@/lib/services/metrics-rollup";
 
 // A business's at-a-glance health. "no_card" = exists but hasn't set up billing
 // yet (no subscription); "live" = subscribed and paying; the other two are the
@@ -371,6 +372,175 @@ export async function getBusinessWatch(detail: BusinessDetail, now: Date = new D
   ];
 
   return { feed, vitals, setup };
+}
+
+// ── Friction signals ─────────────────────────────────────────────────────────
+// Started-but-stalled patterns, derived (never error-based): the founder sees
+// where a business is snagging before they raise it. Each signal is a plain
+// sentence; absence of signals is a real state ("nothing flagged"), not silence.
+
+export type FrictionSignal = { key: string; label: string; detail: string };
+
+const firstLine = (addr: string) => addr.split(",")[0].trim();
+
+/** Friction for one business. Self-contained (fetches its own members/files)
+ *  so the list page can loop it without loading full details. */
+export async function getBusinessFriction(businessId: string, now: Date = new Date()): Promise<FrictionSignal[]> {
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  const dayAgo = new Date(now.getTime() - 86400000);
+
+  const members = await commandDb.user.findMany({
+    where: { progressionBusinessId: businessId },
+    select: { id: true },
+  });
+  const memberIds = members.map((m) => m.id);
+
+  const [weekEventCounts, noContactFiles, agedClients, salesByAgency, stalledFiles] = await Promise.all([
+    memberIds.length
+      ? commandDb.event.groupBy({
+          by: ["type"],
+          where: { userId: { in: memberIds }, occurredAt: { gte: weekAgo } },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+    commandDb.propertyTransaction.findMany({
+      where: {
+        progressionBusinessId: businessId,
+        isDemo: false,
+        status: "active",
+        createdAt: { lt: dayAgo },
+        contacts: { none: {} },
+      },
+      select: { propertyAddress: true },
+      take: 4,
+    }),
+    commandDb.progressionBusinessClient.findMany({
+      where: { progressionBusinessId: businessId, removedAt: null, createdAt: { lt: weekAgo } },
+      select: { agencyId: true, agency: { select: { name: true } } },
+    }),
+    commandDb.propertyTransaction.groupBy({
+      by: ["agencyId"],
+      where: { progressionBusinessId: businessId, isDemo: false },
+      _count: { _all: true },
+    }),
+    commandDb.propertyTransaction.findMany({
+      where: {
+        progressionBusinessId: businessId,
+        isDemo: false,
+        status: "active",
+        createdAt: { lt: weekAgo },
+        milestoneCompletions: { none: { state: "complete" } },
+      },
+      select: { propertyAddress: true },
+      take: 4,
+    }),
+  ]);
+
+  const countOf = (type: string) => weekEventCounts.find((r) => r.type === type)?._count._all ?? 0;
+  const logins = countOf("user_logged_in");
+  const nonLoginActions = weekEventCounts
+    .filter((r) => r.type !== "user_logged_in" && r.type !== "user_logged_out")
+    .reduce((n, r) => n + r._count._all, 0);
+  const drafts = countOf("chase_message_generated");
+  const sends = countOf("chase_sent");
+
+  const salesCountByAgency = new Map(salesByAgency.map((r) => [r.agencyId, r._count._all]));
+  const clientsNoSales = agedClients.filter((c) => (salesCountByAgency.get(c.agencyId) ?? 0) === 0);
+
+  const signals: FrictionSignal[] = [];
+  if (logins >= 3 && nonLoginActions === 0) {
+    signals.push({
+      key: "logins_no_actions",
+      label: "Signing in but completing nothing",
+      detail: `${logins} sign-ins in the last 7 days with no actions taken`,
+    });
+  }
+  if (noContactFiles.length > 0) {
+    signals.push({
+      key: "sales_no_contacts",
+      label: "Sales with no contacts on them",
+      detail: noContactFiles.map((f) => firstLine(f.propertyAddress)).join(", "),
+    });
+  }
+  if (clientsNoSales.length > 0) {
+    signals.push({
+      key: "client_no_sales",
+      label: "Client linked over a week, no sales yet",
+      detail: clientsNoSales.map((c) => c.agency?.name ?? "Unknown agency").join(", "),
+    });
+  }
+  if (drafts >= 2 && sends === 0) {
+    signals.push({
+      key: "drafts_no_sends",
+      label: "Drafting chases but not sending them",
+      detail: `${drafts} drafts in the last 7 days, none sent`,
+    });
+  }
+  if (stalledFiles.length > 0) {
+    signals.push({
+      key: "stalled_files",
+      label: "Files over a week old with no milestone confirmed",
+      detail: stalledFiles.map((f) => firstLine(f.propertyAddress)).join(", "),
+    });
+  }
+  return signals;
+}
+
+/** Friction for a set of businesses in one call (looped; fine at this scale). */
+export async function getBusinessesFriction(businessIds: string[], now: Date = new Date()): Promise<Map<string, FrictionSignal[]>> {
+  const entries = await Promise.all(
+    businessIds.map(async (id) => [id, await getBusinessFriction(id, now)] as const),
+  );
+  return new Map(entries);
+}
+
+// ── Daily pulse ──────────────────────────────────────────────────────────────
+// What each business did YESTERDAY (London day), so the founder gets a push-style
+// read on the Businesses list / Overview without going looking.
+
+export type BusinessPulseRow = {
+  id: string;
+  name: string;
+  actions: number;             // yesterday's events excluding logins/logouts
+  salesCreated: number;
+  milestonesConfirmed: number;
+  chasesSent: number;
+};
+
+export async function getBusinessesPulse(now: Date = new Date()): Promise<{ rows: BusinessPulseRow[]; totalActions: number }> {
+  const todayKey = new Date(`${londonDateStr(now)}T00:00:00.000Z`);
+  const yesterdayKey = new Date(todayKey.getTime() - 86400000);
+
+  const businesses = await commandDb.progressionBusiness.findMany({
+    where: { isTsp: false },
+    select: { id: true, name: true, members: { select: { id: true } } },
+  });
+  const businessByMember = new Map<string, string>();
+  for (const b of businesses) for (const m of b.members) businessByMember.set(m.id, b.id);
+  const allMemberIds = [...businessByMember.keys()];
+
+  const events = allMemberIds.length
+    ? await commandDb.event.findMany({
+        where: { userId: { in: allMemberIds }, occurredAt: { gte: yesterdayKey, lt: todayKey } },
+        select: { userId: true, type: true },
+      })
+    : [];
+
+  const rows = new Map<string, BusinessPulseRow>(
+    businesses.map((b) => [b.id, { id: b.id, name: b.name, actions: 0, salesCreated: 0, milestonesConfirmed: 0, chasesSent: 0 }]),
+  );
+  for (const e of events) {
+    const bizId = e.userId ? businessByMember.get(e.userId) : undefined;
+    const row = bizId ? rows.get(bizId) : undefined;
+    if (!row) continue;
+    if (e.type !== "user_logged_in" && e.type !== "user_logged_out") row.actions += 1;
+    if (e.type === "transaction_created") row.salesCreated += 1;
+    if (e.type === "milestone_confirmed") row.milestonesConfirmed += 1;
+    if (e.type === "chase_sent") row.chasesSent += 1;
+  }
+
+  const list = [...rows.values()].sort((a, b) => b.actions - a.actions || a.name.localeCompare(b.name));
+  return { rows: list, totalActions: list.reduce((n, r) => n + r.actions, 0) };
 }
 
 /** Full picture of one business. Returns null for an unknown id or the TSP row
