@@ -19,7 +19,7 @@ import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@p
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
-import { updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
+import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
@@ -98,13 +98,59 @@ const RV_STYLES = `
 export function ReviewsSection({
   initialItems,
   initialDone,
+  attachableFiles = [],
 }: {
   initialItems: ReviewItem[];
   initialDone: ReviewItem[];
+  attachableFiles?: { id: string; propertyAddress: string }[];
 }) {
   const { toast } = useAgentToast();
   const [items, setItems] = useState(initialItems);
   const [done, setDone] = useState(initialDone);
+  // Add-a-review mini-form (a review is a to-do flagged isReview + a date).
+  const [addOpen, setAddOpen] = useState(false);
+  const [aTitle, setATitle] = useState("");
+  const [aTxId, setATxId] = useState("");
+  const [aDate, setADate] = useState("");
+  const [aSaving, setASaving] = useState(false);
+
+  function resetAdd() { setAddOpen(false); setATitle(""); setATxId(""); setADate(""); }
+
+  async function handleAddReview() {
+    const title = aTitle.trim();
+    if (!title || aSaving) return;
+    setASaving(true);
+    try {
+      const created = await createManualTaskAction({
+        title,
+        transactionId: aTxId || undefined,
+        dueDate: aDate || undefined,
+        isReview: true,
+      });
+      const file = attachableFiles.find((f) => f.id === aTxId) ?? null;
+      const item: ReviewItem = {
+        kind: "manual",
+        key: `task-${created.id}`,
+        id: created.id,
+        transactionId: created.transactionId ?? (aTxId || null),
+        address: created.transaction?.propertyAddress ?? file?.propertyAddress ?? null,
+        photoStoragePath: created.transaction?.photoStoragePath ?? null,
+        title: created.title,
+        notes: created.notes ?? null,
+        reviewDate: created.dueDate ? new Date(created.dueDate) : (aDate ? new Date(aDate) : null),
+        status: "open",
+      };
+      setItems((prev) => [item, ...prev].sort(
+        (a, b) => (a.reviewDate?.getTime() ?? Infinity) - (b.reviewDate?.getTime() ?? Infinity),
+      ));
+      resetAdd();
+      toast.success("Review added");
+    } catch {
+      toast.error("Couldn't add the review. Try again.");
+    } finally {
+      setASaving(false);
+    }
+  }
   const [showDone, setShowDone] = useState(false);
   // Due now = open by default (most urgent, most-overdue-first). Upcoming =
   // closed by default. Both collapse/expand with the standard accordion slide.
@@ -295,12 +341,58 @@ export function ReviewsSection({
         count={openCount}
       />
 
-      {openCount === 0 && done.length === 0 ? (
-        <div className="agent-glass-strong agent-empty-card" style={{ padding: "24px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>Nothing to review right now.</p>
+      {/* Add-a-review form — a review is a to-do ticked as a review + a date. */}
+      {addOpen && (
+        <div className="agent-glass" style={{ borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+          <input
+            value={aTitle}
+            onChange={(e) => setATitle(e.target.value)}
+            placeholder="What to come back to (e.g. chase the management pack)"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddReview(); if (e.key === "Escape") resetAdd(); }}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", fontFamily: "inherit", fontSize: 13.5, color: "var(--agent-text-primary)", outline: "none" }}
+          />
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <select
+              value={aTxId}
+              onChange={(e) => setATxId(e.target.value)}
+              style={{ flex: "1 1 180px", minWidth: 0, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", fontFamily: "inherit", fontSize: 13, color: "var(--agent-text-primary)" }}
+            >
+              <option value="">No specific file</option>
+              {attachableFiles.map((f) => <option key={f.id} value={f.id}>{f.propertyAddress}</option>)}
+            </select>
+            <DateField value={aDate} min={todayStrFn()} onChange={(e) => setADate(e.target.value)} className="rv-date" wrapperStyle={{ display: "block", flex: "0 0 auto" }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" onClick={resetAdd} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
+            <button type="button" onClick={handleAddReview} disabled={!aTitle.trim() || aSaving} className="agent-btn agent-btn-sm agent-btn-primary">Add review</button>
+          </div>
         </div>
+      )}
+
+      {openCount === 0 && done.length === 0 ? (
+        !addOpen ? (
+          // Rich empty state, mirroring the empty-chain hero (critique #261).
+          <div className="agent-glass-strong agent-empty-card" style={{ padding: "40px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+            <span style={{ display: "inline-flex", width: 52, height: 52, borderRadius: 999, alignItems: "center", justifyContent: "center", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", marginBottom: 16 }}>
+              <CalendarPlus size={26} weight="regular" />
+            </span>
+            <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 680, letterSpacing: "-0.01em", color: "var(--agent-text-primary)" }}>No reviews yet</h3>
+            <p style={{ margin: "0 auto 18px", fontSize: 13.5, color: "var(--agent-text-muted)", maxWidth: 360, lineHeight: 1.55 }}>
+              Set a date to come back to a file: a quiet one to keep an eye on, a promised update, anything worth a second look. It surfaces here the day it&rsquo;s due.
+            </p>
+            <button type="button" onClick={() => setAddOpen(true)} className="agent-btn agent-btn-color-primary" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 11, fontSize: 14, fontWeight: 600 }}>
+              <CalendarPlus size={16} weight="bold" /> Add a review
+            </button>
+          </div>
+        ) : null
       ) : (
         <div className="space-y-3">
+          {!addOpen && (
+            <button type="button" onClick={() => setAddOpen(true)} className="agent-link" style={{ fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <CalendarPlus size={13} weight="bold" /> Add a review
+            </button>
+          )}
           {/* Due now — open by default, most-overdue first */}
           {dueItems.length > 0 && (
             <ReviewDrawer title="Due now" count={dueItems.length} open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">

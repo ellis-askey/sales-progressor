@@ -825,6 +825,44 @@
     .comp-row-date p { font-size: 12px !important; }
   }
 
+  /* To-Do segmented tabs (critique #261) — a sliding highlight that springs with
+     a brief "overstretch", and a panel that fades in on each change. */
+  .todotabs-bar {
+    position: relative; display: inline-flex; width: 100%; max-width: 440px; padding: 3px;
+    background: rgba(var(--agent-shadow-rgb), 0.05); border-radius: 999px;
+  }
+  .todotabs-pill {
+    position: absolute; top: 3px; bottom: 3px; left: 3px;
+    width: calc((100% - 6px) / var(--tt-count, 3));
+    transform: translateX(calc(var(--tt-idx, 0) * 100%));
+    transform-origin: center;
+    background: var(--agent-surface-elevated);
+    border-radius: 999px; box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.14);
+    transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 0;
+  }
+  .todotabs-pill.travelling { transform: translateX(calc(var(--tt-idx, 0) * 100%)) scaleX(1.07); }
+  .todotabs-tab {
+    position: relative; z-index: 1; flex: 1; text-align: center;
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 600; color: var(--agent-text-muted);
+    padding: 8px 6px; border-radius: 999px; transition: color 0.18s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  }
+  .todotabs-tab.on { color: var(--agent-text-primary); }
+  .todotabs-tab:hover:not(.on) { color: var(--agent-text-secondary); }
+  .todotabs-count {
+    font-size: 10.5px; font-weight: 700; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(var(--agent-coral-rgb), 0.14); color: var(--agent-coral-deep);
+  }
+  .todotabs-panel { animation: todotabsFade 0.26s ease both; margin-top: 18px; }
+  @keyframes todotabsFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .todotabs-pill, .todotabs-pill.travelling { transition: none; transform: translateX(calc(var(--tt-idx, 0) * 100%)); }
+    .todotabs-panel { animation: none; }
+  }
+
   /* To-Do file-group identity — hovering the photo/address lights the first line
      coral (the whole identity links to the file, like enquiries). */
   .todo-id:hover .todo-addr { color: var(--agent-coral-deep); }

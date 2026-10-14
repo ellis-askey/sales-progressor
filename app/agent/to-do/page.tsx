@@ -5,17 +5,13 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getWeeklyTouch } from "@/lib/services/hub";
 import { listAttachableFiles } from "@/lib/services/work-queue";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
-import { WeeklyTouchCard, type WeeklyTouchFileView } from "@/components/todos/WeeklyTouchCard";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StatPill } from "@/components/layout/StatPill";
-import type { PillColor } from "@/components/layout/StatPill";
 import { toUKDateStr } from "@/lib/utils";
 import { PageReveal } from "@/components/agent/PageReveal";
 
@@ -61,27 +57,12 @@ export default async function AgentTodoPage() {
     }
   }
 
-  // "No comms" (right column) — files we've gone quiet on, split per side.
-  // Needs AgentVisibility (buildTxWhere), resolved the same way the hub and
-  // work queue do. Photos signed once, keyed by transaction.
+  // AgentVisibility (buildTxWhere) — resolved the same way the hub + work queue
+  // do; feeds the attachable-files picker. (The weekly "touch every file" card
+  // that used to sit here has moved to Focus — critique #261.)
   const vis = isInternal
     ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  // Weekly "touch every file" (right column) — both sides of every active file,
-  // quiet ones first. The old No-comms behaviour lives on inside it (quiet sides
-  // are flagged + sorted up). Photos signed once, keyed by transaction.
-  const weekly = await getWeeklyTouch(vis);
-  const weeklyPhotos = await getSignedUrlMap(
-    weekly.files.map((f) => f.photoStoragePath).filter((p): p is string => !!p),
-  );
-  const weeklyFiles: WeeklyTouchFileView[] = weekly.files.map((f) => ({
-    transactionId: f.transactionId,
-    addressLine: f.addressLine,
-    townPostcode: f.townPostcode,
-    sides: f.sides,
-    anyQuiet: f.anyQuiet,
-    photoUrl: f.photoStoragePath ? weeklyPhotos.get(f.photoStoragePath) ?? null : null,
-  }));
 
   // Files this user can attach a new to-do to (id + address) — for the picker.
   const attachableFiles = await listAttachableFiles(vis);
@@ -95,45 +76,20 @@ export default async function AgentTodoPage() {
     ? await getInvitingProgressorName(session.user.agencyId)
     : null;
 
-  const todayStr = toUKDateStr(new Date());
-
-  const ownOpen      = tasks.filter((t) => !t.isAgentRequest && t.status === "open");
-  const progOpen     = tasks.filter((t) =>  t.isAgentRequest && t.status === "open");
-  const overdueOpen  = tasks.filter((t) => t.status === "open" && t.dueDate && toUKDateStr(t.dueDate) < todayStr);
-  const overdueCount = overdueOpen.length;
-  const hasRedOverdue = overdueOpen.some((t) => {
-    const dueStr = toUKDateStr(t.dueDate!);
-    return Math.round((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000) >= 4;
-  });
-
   const subtitle = isProgressor
     ? "Your management notes, plus requests from agents."
     : hasOutsourced
       ? "Your notes, plus anything you've flagged to your progressor."
       : "Your notes and reminders.";
 
-  const progLabel = isProgressor ? "from agents" : "with progressor";
-
-  const statSegs = [
-    reviewsDueCount > 0 && { key: "reviews", label: `${reviewsDueCount} to review`,                                href: "#section-reviews",    pillColor: "warning" as PillColor },
-    ownOpen.length > 0  && { key: "mine",    label: `${ownOpen.length} to-do${ownOpen.length === 1 ? "" : "s"}`, href: "#section-mine",       pillColor: "muted"   as PillColor },
-    progOpen.length > 0 && { key: "prog",    label: `${progOpen.length} ${progLabel}`,                            href: "#section-progressor", pillColor: "warning" as PillColor },
-    overdueCount > 0    && { key: "overdue", label: `${overdueCount} overdue`,                                     href: "#section-mine",       pillColor: "danger"  as PillColor },
-  ].filter(Boolean) as { key: string; label: string; href: string; pillColor: PillColor }[];
-
-  // hasRedOverdue is unused in the stat pill render but kept for future colour-coding parity
-  void hasRedOverdue;
-
   return (
     <>
-      <PageHeader title="To-Do" subtitle={subtitle}>
-        {statSegs.map(seg => (
-          <StatPill key={seg.key} href={seg.href} label={seg.label} color={seg.pillColor} />
-        ))}
-      </PageHeader>
+      {/* The quick-nav stat pills are gone — the tabs below carry the counts now
+          (critique #261). */}
+      <PageHeader title="To-Do" subtitle={subtitle} />
 
       <PageReveal>
-      {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) && weekly.totalSides === 0 ? (
+      {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) ? (
         // Brand-new agency user OR progression-business owner: the onboarding
         // empty state. An owner has no TSP progressor to send to, so the
         // "send to your progressor" card is off for them.
@@ -141,18 +97,17 @@ export default async function AgentTodoPage() {
           <TodoEmptyState canUseProgressor={isBusinessOwner ? false : hasOutsourced} progressorName={progressorName} />
         </div>
       ) : (
-        <div className="px-4 md:px-8 py-2 md:py-4 todo-cols">
-          <div className="todo-col-main space-y-8">
-            {hasReviews && (
-              <ReviewsSection initialItems={reviews.items} initialDone={reviews.done} />
-            )}
-            <AgentTodoList initialTasks={tasks} role={role} hasOutsourced={hasOutsourced} photoByTx={taskPhotoByTx} attachableFiles={attachableFiles} progressorName={progressorName} />
-          </div>
-          {weekly.totalSides > 0 && (
-            <div className="todo-col-side">
-              <WeeklyTouchCard files={weeklyFiles} totalSides={weekly.totalSides} doneSides={weekly.doneSides} />
-            </div>
-          )}
+        <div className="px-4 md:px-8 py-2 md:py-4">
+          <AgentTodoList
+            initialTasks={tasks}
+            role={role}
+            hasOutsourced={hasOutsourced}
+            photoByTx={taskPhotoByTx}
+            attachableFiles={attachableFiles}
+            progressorName={progressorName}
+            reviewsSlot={<ReviewsSection initialItems={reviews.items} initialDone={reviews.done} attachableFiles={attachableFiles} />}
+            reviewsCount={reviewsDueCount}
+          />
         </div>
       )}
       </PageReveal>

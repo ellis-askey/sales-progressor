@@ -7,8 +7,8 @@ import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { createManualTaskAction, updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
+import { TodoTabs, type TodoTab } from "@/components/agent/TodoTabs";
 import { Card } from "@/components/ui/Card";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -19,39 +19,6 @@ function splitTodoAddress(address: string): { line: string; location: string } {
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
   if (parts.length <= 2) return { line: parts[0] ?? address, location: parts.slice(1).join(" · ") };
   return { line: parts.slice(0, -2).join(", "), location: parts.slice(-2).join(" · ") };
-}
-
-// Bespoke composer per Skeleton.tsx's contract — encodes the to-do
-// ghost layout. Wraps the canonical Skeleton primitive with the shimmer
-// OFF: this ghost is settled decorative content, not a loading state, so
-// it must not animate (perf audit F8 — a permanent shimmer reads as
-// "still loading" to users and measurement alike).
-// Mirrors hub loading.tsx (Surface 2 D1) + work-queue (Surface 3 E1).
-function Bar({ width, height, mt = 0, mb = 0, radius = 4, flex, maxWidth }: {
-  width: string | number;
-  height: number;
-  mt?: number;
-  mb?: number;
-  radius?: number | string;
-  flex?: number;
-  maxWidth?: number | string;
-}) {
-  return (
-    <Skeleton
-      variant="block"
-      animated={false}
-      width={width}
-      height={height}
-      style={{
-        borderRadius: radius,
-        marginTop: mt,
-        marginBottom: mb,
-        display: "block",
-        ...(flex !== undefined && { flex }),
-        ...(maxWidth !== undefined && { maxWidth }),
-      }}
-    />
-  );
 }
 
 function fmtDate(d: Date | string) {
@@ -121,7 +88,7 @@ const PhotoContext = createContext<Map<string, string | null> | null>(null);
 // team"). Consumed deep in TaskRow for the "… is on it" reassurance line.
 const ProgressorNameContext = createContext<string | null>(null);
 
-export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photoByTx, attachableFiles, progressorName = null }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean; photoByTx?: Map<string, string | null>; attachableFiles?: { id: string; propertyAddress: string }[]; progressorName?: string | null }) {
+export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photoByTx, attachableFiles, progressorName = null, reviewsSlot = null, reviewsCount = 0 }: { initialTasks: Task[]; role?: string; hasOutsourced?: boolean; photoByTx?: Map<string, string | null>; attachableFiles?: { id: string; propertyAddress: string }[]; progressorName?: string | null; reviewsSlot?: ReactNode; reviewsCount?: number }) {
   const isProgressor = role === "sales_progressor";
   // Only offer the "assign to your progressor" flow (and its wording) when the
   // agency actually has a file with our team. Self-managed-only agencies just
@@ -132,6 +99,9 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   const [showOwnDone, setShowOwnDone] = useState(false);
   const [showProgDone, setShowProgDone] = useState(false);
   const [showInternalDone, setShowInternalDone] = useState(false);
+  // Which tab is showing (critique #261). Progressors land on Internal, agencies
+  // on their own To-Do.
+  const [activeTab, setActiveTab] = useState<string>(isInternal ? "internal" : "mine");
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
     try {
@@ -202,106 +172,69 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   const internalOverdue   = internalOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
   const internalUpcoming  = internalOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
 
-  if (tasks.length === 0) {
-    return (
-      <div className="space-y-8">
-        {isInternal ? (
-          <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
-        ) : (
-          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
-        )}
-        <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
-          <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-            {isInternal
-              ? "Add an internal to-do above. Visible to your whole internal team."
-              : canUseProgressor
-                ? "Add a task or send your progressor a request."
-                : "Add a task to get started."}
-          </p>
-        </div>
-
-        {/* Ghost to-do section preview — abstract skeleton bars only, no fake content */}
-        <div style={{ opacity: 0.35, pointerEvents: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 12 }}>
-            <Bar width={60} height={13} />
-            <Bar width={20} height={18} radius={99} />
-          </div>
-          <Card padding="none">
-            <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-              <Bar width={150} height={13} />
-            </div>
-            {[100, 140].map((w, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                borderBottom: i === 0 ? "0.5px solid var(--agent-border-subtle)" : "none",
-              }}>
-                <Skeleton variant="circle" width={18} animated={false} style={{ flexShrink: 0, display: "block" }} />
-                <Bar width="auto" height={13} flex={1} maxWidth={w} />
-                <Bar width={36} height={11} />
-              </div>
-            ))}
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Tab set is role-aware (critique #261). Progressors: Internal · From agents ·
+  // Reviews. Agencies: To-Do · Reviews · (Outbound, only if they use a progressor).
+  const tabs: TodoTab[] = isInternal
+    ? [
+        { key: "internal", label: "Internal", count: internalOpen.length },
+        { key: "prog", label: "From agents", count: progOpen.length },
+        { key: "reviews", label: "Reviews", count: reviewsCount },
+      ]
+    : [
+        { key: "mine", label: "To-Do", count: ownOpen.length },
+        { key: "reviews", label: "Reviews", count: reviewsCount },
+        ...(canUseProgressor ? [{ key: "prog", label: "Outbound", count: progOpen.length }] : []),
+      ];
+  const safeActive = tabs.some((t) => t.key === activeTab) ? activeTab : (tabs[0]?.key ?? "mine");
 
   return (
     <PhotoContext.Provider value={photoByTx ?? null}>
     <ProgressorNameContext.Provider value={progressorName}>
     <DueDateContext.Provider value={handleDueDate}>
-    <div className="space-y-8">
-      {/* Agency users get the regular Add form; internal staff see an
-          internal-self-assigned Add form (no ownership toggle — the kind
-          is fixed). Both call /api/manual-tasks but with different flags. */}
-      {isInternal ? (
-        <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
-      ) : (
-        <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
+    <TodoTabs tabs={tabs} active={safeActive} onChange={setActiveTab}>
+      {/* ── To-Do (agency): add form + my notes ── */}
+      {safeActive === "mine" && (
+        <div className="space-y-8">
+          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
+          <Section
+            id="section-mine"
+            title="My to-dos"
+            subtitle="Your notes and reminders."
+            overdueGroups={groupByTransaction(ownOverdue)}
+            openGroups={groupByTransaction(ownUpcoming)}
+            doneGroups={groupByTransaction(ownDone)}
+            doneCount={ownDone.length}
+            showDone={showOwnDone}
+            onToggleShowDone={() => setShowOwnDone((v) => !v)}
+            onToggle={handleToggle}
+            isProgressorView={false}
+          />
+        </div>
       )}
 
-      {/* ── My to-dos / My notes (agency users only) ── */}
-      {!isInternal && (
-        <Section
-          id="section-mine"
-          title="My to-dos"
-          subtitle="Your notes and reminders."
-          overdueGroups={groupByTransaction(ownOverdue)}
-          openGroups={groupByTransaction(ownUpcoming)}
-          doneGroups={groupByTransaction(ownDone)}
-          doneCount={ownDone.length}
-          showDone={showOwnDone}
-          onToggleShowDone={() => setShowOwnDone((v) => !v)}
-          onToggle={handleToggle}
-          isProgressorView={false}
-        />
+      {/* ── Internal (progressor): add form + internal notes ── */}
+      {safeActive === "internal" && (
+        <div className="space-y-8">
+          <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
+          <Section
+            id="section-internal"
+            title="Internal to-dos"
+            subtitle="Your team's notes and follow-ups."
+            overdueGroups={groupByTransaction(internalOverdue)}
+            openGroups={groupByTransaction(internalUpcoming)}
+            doneGroups={groupByTransaction(internalDone)}
+            doneCount={internalDone.length}
+            showDone={showInternalDone}
+            onToggleShowDone={() => setShowInternalDone((v) => !v)}
+            onToggle={handleToggle}
+            isProgressorView={isProgressor}
+            emptyText="No internal to-dos yet. Add one above to get started."
+          />
+        </div>
       )}
 
-      {/* ── Internal to-dos (internal staff only) ── */}
-      {isInternal && (
-        <Section
-          id="section-internal"
-          title="Internal to-dos"
-          subtitle="Your team's notes and follow-ups."
-          overdueGroups={groupByTransaction(internalOverdue)}
-          openGroups={groupByTransaction(internalUpcoming)}
-          doneGroups={groupByTransaction(internalDone)}
-          doneCount={internalDone.length}
-          showDone={showInternalDone}
-          onToggleShowDone={() => setShowInternalDone((v) => !v)}
-          onToggle={handleToggle}
-          isProgressorView={isProgressor}
-          emptyText="No internal to-dos yet. Add one above to get started."
-        />
-      )}
-
-      {/* ── With your progressor / From agents ── */}
-      {(progTasks.length > 0 || canUseProgressor || isProgressor) && (
+      {/* ── From agents (progressor) / Outbound (agency) ── */}
+      {safeActive === "prog" && (
         <Section
           id="section-progressor"
           title={isProgressor ? "From agents" : "With your progressor"}
@@ -316,10 +249,13 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
           onToggle={handleToggle}
           progressor
           isProgressorView={isProgressor}
-          emptyText={isProgressor ? "No pending requests from agents." : undefined}
+          emptyText={isProgressor ? "No pending requests from agents." : "Nothing sent to your progressor yet."}
         />
       )}
-    </div>
+
+      {/* ── Reviews (both) — the section with its own empty state + add one ── */}
+      {safeActive === "reviews" && reviewsSlot}
+    </TodoTabs>
     </DueDateContext.Provider>
     </ProgressorNameContext.Provider>
     </PhotoContext.Provider>
