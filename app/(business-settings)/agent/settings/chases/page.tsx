@@ -7,11 +7,14 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { getProgressorAutomation } from "@/lib/services/progressor-chase-prefs";
+import { getEditableChaseRules } from "@/lib/services/chase-cadence";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { BusinessAutomationForm } from "@/components/progression/BusinessAutomationForm";
+import { AutomationSettingsForm } from "@/components/automation/AutomationSettingsForm";
 
 export default async function BusinessChasesPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -19,17 +22,35 @@ export default async function BusinessChasesPage() {
   const owner = await resolveBusinessOwner(session);
   if (!owner) notFound();
 
-  const automation = await getProgressorAutomation(owner.businessId);
+  // Toggles (which chases run) + the per-milestone grace/repeat cadence, which
+  // used to live on the hidden /agent/settings/automation page and now sits
+  // underneath the toggles here. Owner-scoped to this business's outsourced files.
+  const [automation, overrides] = await Promise.all([
+    getProgressorAutomation(owner.businessId),
+    prisma.businessChaseRuleOverride.findMany({
+      where: { progressionBusinessId: owner.businessId },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+    }),
+  ]);
+  const editableRules = await getEditableChaseRules(overrides);
 
   return (
     <>
       <AccountPageHeader
         title="Automation"
-        subtitle="Which chases we run for you, and how chain invites are sent."
+        subtitle="Which chases we run for you, how often, and how chain invites are sent."
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <BusinessAutomationForm initial={automation} />
+        {/* The client-chase on/off master lives in the toggles above, so the
+            cadence editor hides its own master toggle (showMasterToggle={false}). */}
+        <AutomationSettingsForm
+          initialChaseEmailsEnabled={automation.client}
+          initialRules={editableRules}
+          scope="business"
+          showMasterToggle={false}
+        />
       </div>
     </>
   );

@@ -32,6 +32,10 @@ type Props = {
   // "agency" (self-managed files) or "business" (a progression business's own
   // outsourced files, #228). Decides which save action + the master-toggle copy.
   scope?: "agency" | "business";
+  // When false, hide the master on/off toggle and leave that flag untouched on
+  // save. Used when this editor is embedded under a page that already owns the
+  // client-chase toggle (the business Automation tab) so they don't duplicate.
+  showMasterToggle?: boolean;
 };
 
 const MIN_GRACE = 1;
@@ -52,7 +56,7 @@ function scale(base: number, mult: number, floor: number): number {
   return Math.max(floor, Math.round(base * mult));
 }
 
-export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules, scope = "agency" }: Props) {
+export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules, scope = "agency", showMasterToggle = true }: Props) {
   const filesLabel = scope === "business" ? "your outsourced files" : "this agency's files";
   const [chaseEmailsEnabled, setChaseEmailsEnabled] = useState(initialChaseEmailsEnabled);
   const [rules, setRules] = useState<RuleRow[]>(initialRules);
@@ -92,7 +96,8 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
     startTransition(async () => {
       const save = scope === "business" ? updateBusinessChasePolicy : updateAgencyChasePolicy;
       const result = await save({
-        chaseEmailsEnabled,
+        // Leave the master flag untouched when its toggle isn't shown here.
+        chaseEmailsEnabled: showMasterToggle ? chaseEmailsEnabled : undefined,
         rules: rules.map((r) => ({
           milestoneCode: r.milestoneCode,
           graceDays: r.graceDays,
@@ -120,7 +125,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
 
   return (
     <div className="space-y-6">
-      {/* Master toggle */}
+      {/* Master toggle — hidden when embedded under a page that already owns the
+          client-chase on/off control (e.g. the business Automation tab). */}
+      {showMasterToggle && (
       <section className="glass-card rounded-[12px] p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -150,6 +157,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
           </button>
         </div>
       </section>
+      )}
 
       {/* Timing profile (presets) */}
       <section>

@@ -566,7 +566,10 @@ export type ChasePolicyRuleInput = {
 };
 
 export type UpdateAgencyChasePolicyInput = {
-  chaseEmailsEnabled: boolean;
+  // Optional: when omitted (undefined), the master on/off flag is left untouched.
+  // Used when the cadence editor is embedded under a page that already owns the
+  // client-chase toggle (the business Automation tab), so the two don't fight.
+  chaseEmailsEnabled?: boolean;
   rules: ChasePolicyRuleInput[];
 };
 
@@ -605,10 +608,12 @@ export async function updateAgencyChasePolicy(
 
   // Single transaction so the master toggle + override edits land together.
   await prisma.$transaction(async (txc) => {
-    await txc.agency.update({
-      where: { id: agencyId },
-      data: { chaseEmailsEnabled: input.chaseEmailsEnabled },
-    });
+    if (input.chaseEmailsEnabled !== undefined) {
+      await txc.agency.update({
+        where: { id: agencyId },
+        data: { chaseEmailsEnabled: input.chaseEmailsEnabled },
+      });
+    }
     for (const r of input.rules) {
       const def = defaultByCode.get(r.milestoneCode);
       const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
@@ -661,10 +666,12 @@ export async function updateBusinessChasePolicy(
   const defaultByCode = new Map(defaults.map((d) => [d.targetMilestoneCode!, d]));
 
   await prisma.$transaction(async (txc) => {
-    await txc.progressionBusiness.update({
-      where: { id: businessId },
-      data: { chaseClientsEnabled: input.chaseEmailsEnabled },
-    });
+    if (input.chaseEmailsEnabled !== undefined) {
+      await txc.progressionBusiness.update({
+        where: { id: businessId },
+        data: { chaseClientsEnabled: input.chaseEmailsEnabled },
+      });
+    }
     for (const r of input.rules) {
       const def = defaultByCode.get(r.milestoneCode);
       const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
@@ -683,6 +690,7 @@ export async function updateBusinessChasePolicy(
   });
 
   revalidatePath("/agent/settings/automation");
+  revalidatePath("/agent/settings/chases");
   return { ok: true };
 }
 
