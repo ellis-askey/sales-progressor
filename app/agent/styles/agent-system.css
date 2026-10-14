@@ -3821,7 +3821,6 @@
 .nsf-commission-box:focus-within {
   border-color: var(--agent-info);
   background: var(--nv2-surface-raised);
-  box-shadow: 0 0 0 3px rgba(var(--agent-info-rgb), 0.16);
 }
 
 /* Phase 1 responsive programme (audit finding D2/D3): the right column used to
