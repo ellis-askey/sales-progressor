@@ -1124,15 +1124,19 @@ export function ChainView({
         </div>
       )}
 
-      {/* Timeline | Map | Activity view switch */}
-      <div
-        className={`chain-viewswitch${inline ? " chain-viewswitch--inline" : ""}`}
-        style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
-      >
-        <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
-        <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
-        <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
-      </div>
+      {/* Timeline | Map | Activity view switch — only once a populated chain
+          exists (no point offering views of nothing), and it fades in smoothly
+          the moment the chain first appears (critique #254). */}
+      {!loading && chain && links.length > 0 && (
+        <div
+          className={`chain-viewswitch chain-viewswitch--enter${inline ? " chain-viewswitch--inline" : ""}`}
+          style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
+        >
+          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
+          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
+          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
+        </div>
+      )}
 
       {/* Map mode: the compact ordered chain list. The full dashboard body below
           is kept mounted but hidden, so switching back to Timeline is instant. */}
@@ -1245,7 +1249,7 @@ export function ChainView({
 
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
-            <div className="chain-dbody chain-dbody--stack">
+            <div className="chain-dbody chain-dbody--stack chain-dbody--enter">
               {view === "activity" ? (
               <div className="chain-stack chain-stack--gap">
                 <ChainSummaryCard chain={chain} />

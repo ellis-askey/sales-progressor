@@ -1393,6 +1393,13 @@ select {
   flex-shrink: 0; position: relative; display: inline-flex; gap: 0; margin: 12px 24px 0; padding: 3px;
   background: rgba(var(--agent-shadow-rgb), 0.05); border-radius: 999px; align-self: flex-start;
 }
+/* Fade + slight rise when the switcher (and the chain body) first appear, so a
+   newly-built chain eases in rather than popping (critique #254). */
+.chain-viewswitch--enter, .chain-dbody--enter { animation: chainEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes chainEnter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .chain-viewswitch--enter, .chain-dbody--enter { animation: none; }
+}
 /* Sliding active pill — slides to the selected tab (index in --vs-idx). */
 .chain-viewswitch::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3);
