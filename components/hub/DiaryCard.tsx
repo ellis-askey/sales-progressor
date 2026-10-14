@@ -47,6 +47,12 @@ const DIARY_STYLES = `
     border-color: var(--agent-coral-darker);
     color: var(--agent-coral-darker);
   }
+  /* Mobile: the count pill steals the header's width and squeezes the
+     subtitle — drop it and let the subtext run the full card width. */
+  @media (max-width: 767px) {
+    .diary-count-pill { display: none; }
+    .diary-sub { text-wrap: initial; }
+  }
 `;
 
 export function DiaryCard({ items }: { items: Item[] }) {
@@ -86,9 +92,9 @@ export function DiaryCard({ items }: { items: Item[] }) {
       <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ minWidth: 0 }}>
           <p className="agent-card-title-emphasis">Today&apos;s diary</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textWrap: "balance" }}>Exchanges and completions scheduled for today</p>
+          <p className="diary-sub" style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textWrap: "balance" }}>Exchanges and completions scheduled for today</p>
         </div>
-        <span style={{
+        <span className="diary-count-pill" style={{
           fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", flexShrink: 0, whiteSpace: "nowrap",
           color: deep, padding: "3px 11px", borderRadius: 999,
           background: `linear-gradient(160deg, rgba(${rgb}, 0.20), rgba(${rgb}, 0.07))`,

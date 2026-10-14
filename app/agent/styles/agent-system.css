@@ -2970,8 +2970,10 @@
   }
 
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
-  .coming-up-link { text-underline-offset: 2px; }
-  .coming-up-link:hover { text-decoration: underline; color: var(--agent-text-primary); }
+  /* !important: the links carry an inline colour (muted when the count is 0),
+     which otherwise beats the class hover — the old rule never showed. */
+  .coming-up-link { transition: color 140ms ease; }
+  .coming-up-link:hover { color: var(--agent-text-primary) !important; }
 
   /* ── Pipeline Health: Stalled row hover ─────────────────────────────────── */
   .stalled-row-link { display: flex; }
