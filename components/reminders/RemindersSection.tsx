@@ -173,15 +173,15 @@ function PriorityList({
     setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
     handleChased(taskId, logId);
   }
-  // Contacts to preselect when chasing — filtered to the row's own side,
-  // falling back to all if that side has none (same rule the columns used).
+  // Contacts to preselect when chasing — filtered to the row's own side. No
+  // cross-side fallback: an empty side opens the drawer's add-a-contact state
+  // rather than silently aiming the chase at the other side's client.
   function contactsForSide(isBuyer: boolean): ChaseContact[] {
     const filtered = contacts.filter((c) =>
       isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
     );
-    const base = filtered.length > 0 ? filtered : contacts;
     // Inject this side's real solicitor (FK-sourced) as a selectable recipient.
-    return withSolicitorRecipients(base, {
+    return withSolicitorRecipients(filtered, {
       vendorSolicitor, purchaserSolicitor, side: isBuyer ? "purchaser" : "vendor",
     });
   }

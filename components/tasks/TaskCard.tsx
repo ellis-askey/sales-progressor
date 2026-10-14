@@ -169,6 +169,13 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
             chaseCount={task.chaseCount}
             contacts={task.transaction.contacts}
             preferRole={chaseParty(task.reminderLog.reminderRule.targetMilestoneCode) ?? "client"}
+            side={(() => {
+              // VM*/PM* names the side; a legacy rule with no code leaves the
+              // drawer unscoped rather than guessing.
+              const code = task.reminderLog.reminderRule.targetMilestoneCode;
+              if (!code) return undefined;
+              return code.startsWith("PM") ? "purchaser" : "vendor";
+            })()}
             onSent={onChased}
           />
 

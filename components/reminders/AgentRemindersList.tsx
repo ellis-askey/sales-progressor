@@ -461,7 +461,9 @@ function SplitFileCard({
     const filtered = contacts.filter((c) =>
       isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
     );
-    return withSolicitorRecipients(filtered.length > 0 ? filtered : contacts, {
+    // No cross-side fallback: an empty side opens the drawer's add-a-contact
+    // state rather than silently aiming the chase at the other side's client.
+    return withSolicitorRecipients(filtered, {
       vendorSolicitor, purchaserSolicitor, side: isBuyer ? "purchaser" : "vendor",
     });
   }

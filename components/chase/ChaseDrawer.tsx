@@ -227,8 +227,24 @@ export function ChaseDrawer({
   // scoped to the chase's side by the caller, with that side's solicitor injected
   // (see lib/services/chase-recipients.ts). The "To" selector drives the whole
   // send: who it goes to, which channels are available, and the CC.
-  const recipientCandidates = contacts.filter((c) => c.email || c.phone);
-  const initialRecipient = defaultRecipient(contacts, preferRole);
+  //
+  // Hard side gate on top of the caller's scoping: a side-scoped chase
+  // (defaultAddRole set) must never offer the OTHER side's client as a recipient.
+  // A buyer-side step aimed at the vendor reads as nonsense to the recipient
+  // ("have you heard whether the buyer received...?"), so with no same-side
+  // client on file the drawer opens on the add-a-contact empty state instead of
+  // silently crossing sides. Solicitor rows pass through: callers inject only
+  // the chase side's solicitor, and legacy Contact-row solicitors carry no side.
+  const chaseSide = defaultAddRole ?? null;
+  const sideGatedContacts = chaseSide
+    ? contacts.filter((c) =>
+        c.roleType === "solicitor" ||
+        (chaseSide === "purchaser"
+          ? c.roleType === "purchaser" || c.roleType === "broker"
+          : c.roleType === "vendor"))
+    : contacts;
+  const recipientCandidates = sideGatedContacts.filter((c) => c.email || c.phone);
+  const initialRecipient = defaultRecipient(sideGatedContacts, preferRole);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(initialRecipient?.id ?? null);
   const selectedRecipient =
     recipientCandidates.find((c) => c.id === selectedRecipientId) ?? initialRecipient;
@@ -239,7 +255,7 @@ export function ChaseDrawer({
   // (FK-sourced) — the old contacts.find(roleType==="solicitor") was dead on real
   // files because solicitors aren't Contact rows.
   const ccSolicitorContact =
-    contacts.find((c) => c.roleType === "solicitor" && c.email && c.id !== selectedRecipient?.id) ?? null;
+    sideGatedContacts.find((c) => c.roleType === "solicitor" && c.email && c.id !== selectedRecipient?.id) ?? null;
 
   const { theme, isNight } = usePortalTheme();
 
@@ -368,7 +384,7 @@ export function ChaseDrawer({
   // this side's solicitor. Either way it's a toggle the agent turns on when
   // needed. The solicitor's own assistant (secondaryEmail) is always CC'd on
   // solicitor sends, independent of the toggle (platform convention).
-  const clientCcContacts = contacts.filter(
+  const clientCcContacts = sideGatedContacts.filter(
     (c) => ["vendor", "purchaser", "broker"].includes(c.roleType) && c.email && c.id !== selectedRecipient?.id,
   );
   // CC candidates rendered as one toggle EACH (per-person), all default off:

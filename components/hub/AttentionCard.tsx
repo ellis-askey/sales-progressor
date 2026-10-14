@@ -176,13 +176,14 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
 
   // Side-scoped recipients, mirroring the work queue's contactsForSide: PM*
   // reminders chase the buyer's side, VM* the seller's, with the file's real
-  // solicitor injected for that side. Falls back to every contact when the
-  // side filter leaves nobody (thin early files).
+  // solicitor injected for that side. No cross-side fallback: when the side has
+  // nobody on file the drawer opens on its add-a-contact empty state (a
+  // buyer-side chase aimed at the vendor generates a nonsense message).
   const isBuyer = !!item.targetMilestoneCode?.startsWith("PM");
   const sideContacts = item.contacts.filter((c) =>
     isBuyer ? ["purchaser", "broker", "solicitor"].includes(c.roleType) : ["vendor", "solicitor"].includes(c.roleType),
   );
-  const recipients = withSolicitorRecipients(sideContacts.length > 0 ? sideContacts : item.contacts, {
+  const recipients = withSolicitorRecipients(sideContacts, {
     vendorSolicitor: item.vendorSolicitor,
     purchaserSolicitor: item.purchaserSolicitor,
     side: isBuyer ? "purchaser" : "vendor",

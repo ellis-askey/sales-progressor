@@ -299,6 +299,30 @@ export async function POST(req: NextRequest) {
   // guesses the time. Injected verbatim into the prompt.
   const greeting = timeGreeting();
 
+  // Hard stop on the out-of-scope combination the derivation marks `unexpected`
+  // (e.g. a buyer-side step aimed at the seller). The old behaviour wrote a
+  // "safe" vague check-in around it, which read as nonsense to the recipient
+  // (asking the vendor whether the buyer got the memorandum). The drawer's side
+  // gate should prevent this ever arriving; when it does, refuse with a message
+  // the drawer can show, rather than drafting around it. Multi-milestone sends
+  // are only refused when EVERY ask is out of scope, so a mixed chase-all keeps
+  // its current behaviour.
+  if (asks.length > 0 && asks.every((a) => a.chaseable && a.unexpected)) {
+    const holder = primaryAsk.actionHolderRole;
+    const error =
+      holder === "agent"
+        ? "This step sits with us rather than an outside party, so there isn't anyone to chase about it."
+        : holder
+          ? `This step is for ${partyLabel(holder)}, not the ${recipientRoleLabel}. Add ${partyLabel(holder)} to the file, or choose their solicitor, and chase them instead.`
+          : "This step can't be chased from here.";
+    console.warn("[generate-chase] refused out-of-scope recipient", {
+      txId: tx.id,
+      recipientRole: recipientParty,
+      milestones: asks.map((a) => a.code),
+    });
+    return NextResponse.json({ error }, { status: 400 });
+  }
+
   // Diagnosability: log the derivation behind every generation so any future
   // wrong-chase is immediately traceable to the derived ask, not the model.
   console.log("[generate-chase] derivation", {

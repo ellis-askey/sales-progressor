@@ -21,6 +21,9 @@ interface ChaseButtonProps {
   // Which party owns the step (from the action-holder map) — pre-selects the
   // solicitor for solicitor steps. Defaults to client-first when unset.
   preferRole?: "client" | "solicitor";
+  // The chase's side — drives the drawer's recipient side gate and its
+  // add-a-contact default. Unset leaves the drawer unscoped (legacy behaviour).
+  side?: "vendor" | "purchaser";
   onSent?: () => void;
 }
 
@@ -32,6 +35,7 @@ export function ChaseButton({
   chaseCount,
   contacts,
   preferRole,
+  side,
   onSent,
 }: ChaseButtonProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -54,6 +58,7 @@ export function ChaseButton({
           chaseCount={chaseCount}
           contacts={contacts}
           preferRole={preferRole}
+          defaultAddRole={side}
           onClose={() => setDrawerOpen(false)}
           onSent={() => { onSent?.(); setDrawerOpen(false); }}
         />
