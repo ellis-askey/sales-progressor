@@ -157,8 +157,11 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 function formatElapsed(from: Date): string {
-  const now = new Date();
-  const days = Math.max(0, Math.floor((now.getTime() - from.getTime()) / 86400000));
+  // Calendar days, not 24-hour blocks: a file added yesterday evening reads
+  // "1 day elapsed" this morning, never "Landed today" across midnight.
+  const startOfToday = new Date().setHours(0, 0, 0, 0);
+  const startOfFrom = new Date(from).setHours(0, 0, 0, 0);
+  const days = Math.max(0, Math.round((startOfToday - startOfFrom) / 86400000));
   const weeks = Math.floor(days / 7);
   const remDays = days - weeks * 7;
   if (weeks === 0) {
