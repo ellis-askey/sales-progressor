@@ -306,6 +306,9 @@ function SnoozedFileCard({
     new Date(a.snoozedUntil ?? a.nextDueDate).getTime() - new Date(b.snoozedUntil ?? b.nextDueDate).getTime());
   const tx = logs[0]?.transaction;
 
+  // The "Wake all" action stays useful for a multi-reminder file; the single
+  // "Snoozed" badge is dropped — everything on this tab is snoozed already
+  // (critique #257).
   const headerActions = sorted.length >= 2 ? (
     <button
       type="button"
@@ -316,10 +319,7 @@ function SnoozedFileCard({
     >
       ↻ Wake all ({sorted.length})
     </button>
-  ) : (
-    // No side pill on snooze (Ellis, 2026-09-19) — just the snoozed marker.
-    <span className="rem-snooze-pill">Snoozed</span>
-  );
+  ) : null;
 
   return (
     <FileCardShell txId={txId} address={address} photoUrl={photoUrl} actions={headerActions}>
@@ -338,13 +338,12 @@ function SnoozedFileCard({
           <div
             key={log.id}
             className={exitingIds.has(log.id) ? "agent-row-exit" : undefined}
-            style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "flex-start", gap: 8 }}
+            style={{ padding: "10px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: "column", gap: 8 }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Title gets the full width; the side already reads from the title,
+                so no separate Buyer/Seller label (critique #258). */}
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
-              <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>Wakes {wakeLabel}</span>
-              </p>
               {solFirm && (
                 <Link
                   href={`/agent/partners/solicitor/${solFirm.id}`}
@@ -355,16 +354,25 @@ function SnoozedFileCard({
                 </Link>
               )}
             </div>
-            {taskId && <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(taskId, choice)} />}
-            <Button
-              onClick={() => onWakeup(log.id)}
-              disabled={exitingIds.has(log.id)}
-              title="Wake this reminder now. It returns to your active list"
-              size="sm"
-              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-            >
-              ↻ Wake now
-            </Button>
+            {/* Bottom row: "Wakes {date}" on the left, the snooze + wake-now
+                controls opposite it on the right — no cramping on mobile. */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                <span style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>Wakes {wakeLabel}</span>
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                {taskId && <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(taskId, choice)} />}
+                <Button
+                  onClick={() => onWakeup(log.id)}
+                  disabled={exitingIds.has(log.id)}
+                  title="Wake this reminder now. It returns to your active list"
+                  size="sm"
+                  style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                >
+                  ↻ Wake now
+                </Button>
+              </div>
+            </div>
           </div>
         );
       })}
@@ -703,7 +711,7 @@ function SplitFileCard({
                 <>
                   {who && (
                     <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                      Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>{who.role ? ` · the ${who.role}` : ""}
+                      Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
                     </p>
                   )}
                   {(copy?.line ?? info?.outstanding) && (
