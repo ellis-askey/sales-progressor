@@ -1,16 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck } from "lucide-react";
-import { getBusinessDetail, type BusinessDetail } from "@/lib/command/businesses";
+import { ArrowLeft, BadgeCheck, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
+import { getBusinessDetail, getBusinessWatch, type BusinessDetail, type SetupCheck } from "@/lib/command/businesses";
 import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
+import { eventLabel } from "@/lib/command/event-labels";
 import { formatGBP, formatShortDate } from "@/lib/command/revenue";
 
 export const dynamic = "force-dynamic";
+
+function fmtTs(d: Date): string {
+  return new Date(d).toLocaleString("en-GB", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
 
 export default async function BusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const b = await getBusinessDetail(id);
   if (!b) notFound();
+  const watch = await getBusinessWatch(b);
+  const setupDone = watch.setup.filter((c) => c.state === "done").length;
 
   const payment = paymentLine(b);
   const cancellation =
@@ -51,6 +61,15 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
         <Fact label="Sends as" value={senderText} sub={b.senderVerified ? "verified" : b.senderEmail || b.senderDomain ? "not verified yet" : undefined} />
         <Fact label="Clients · Team" value={`${b.clients.filter((c) => !c.archived).length} · ${b.members.filter((m) => !m.deactivated).length}`} />
       </div>
+
+      {/* Getting set up — live scorecard, green/grey progress not red errors */}
+      <SectionCard title="Getting set up" right={<span className="text-xs text-neutral-500">{setupDone} of {watch.setup.length}</span>}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+          {watch.setup.map((c) => (
+            <SetupCheckRow key={c.key} check={c} />
+          ))}
+        </div>
+      </SectionCard>
 
       {/* Money this month */}
       <SectionCard title="Money this month" right={<span className="text-xs text-neutral-500">{formatShortDate(b.summary.monthStart)} onward</span>}>
@@ -112,6 +131,72 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
             </ul>
           )}
         </SectionCard>
+      </div>
+
+      {/* Activity — what the team is actually doing, from the event rail */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <SectionCard title="Activity" right={<span className="text-xs text-neutral-500">latest {watch.feed.length}</span>}>
+            {watch.feed.length === 0 ? (
+              <Empty>Nothing yet. Events appear here as the team logs in and works files.</Empty>
+            ) : (
+              <ul className="space-y-2">
+                {watch.feed.map((e) => (
+                  <li key={e.id} className="flex items-baseline gap-3 text-sm">
+                    <span className="text-[11px] tabular-nums text-neutral-600 flex-shrink-0 w-24">{fmtTs(e.occurredAt)}</span>
+                    <span className="min-w-0 truncate">
+                      <span className="text-neutral-300">{e.memberName}</span>
+                      <span className="text-neutral-500"> · {eventLabel(e.type)}</span>
+                      {e.address && <span className="text-neutral-600"> · {e.address}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
+
+        <SectionCard title="Team vitals">
+          {watch.vitals.length === 0 ? (
+            <Empty>No members.</Empty>
+          ) : (
+            <ul className="space-y-3">
+              {watch.vitals.map((m) => (
+                <li key={m.id}>
+                  <p className={`text-sm ${m.deactivated ? "text-neutral-600 line-through" : "text-neutral-200"}`}>
+                    {m.name}
+                    {m.isOwner && <span className="ml-1.5 text-[10px] text-blue-300">Owner</span>}
+                  </p>
+                  <p className="text-[11px] text-neutral-500">
+                    {m.lastActiveAt ? `Last seen ${fmtTs(m.lastActiveAt)}` : "Never seen"}
+                    {" · "}
+                    {m.actionsThisWeek === 1 ? "1 action this week" : `${m.actionsThisWeek} actions this week`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+function SetupCheckRow({ check }: { check: SetupCheck }) {
+  const icon =
+    check.state === "done" ? (
+      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" strokeWidth={2} />
+    ) : check.state === "attention" ? (
+      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" strokeWidth={2} />
+    ) : (
+      <Circle className="w-4 h-4 text-neutral-700 flex-shrink-0 mt-0.5" strokeWidth={2} />
+    );
+  return (
+    <div className="flex items-start gap-2.5">
+      {icon}
+      <div className="min-w-0">
+        <p className={`text-sm ${check.state === "done" ? "text-neutral-200" : check.state === "attention" ? "text-amber-200" : "text-neutral-400"}`}>{check.label}</p>
+        <p className="text-[11px] text-neutral-500 truncate">{check.detail}</p>
       </div>
     </div>
   );

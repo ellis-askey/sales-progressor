@@ -165,7 +165,7 @@ export async function getBusinessesStatement(now: Date = new Date()): Promise<{ 
   return { lines, totalPence: lines.reduce((n, l) => n + l.pence, 0) };
 }
 
-export type BusinessClientRow = { agencyId: string; agencyName: string; feeSummary: string; archived: boolean };
+export type BusinessClientRow = { agencyId: string; agencyName: string; feeSummary: string; feeSet: boolean; archived: boolean };
 export type BusinessMemberRow = { id: string; name: string; isOwner: boolean; deactivated: boolean };
 
 export type BusinessDetail = {
@@ -188,6 +188,190 @@ export type BusinessDetail = {
   members: BusinessMemberRow[];
   lifetimeSaleCount: number;
 };
+
+// ── Business watch: activity feed + member vitals + setup scorecard ─────────
+// "Keep tabs without them knowing" layer (founder ask, 2026-10-14): everything
+// is derived from the existing Event rail + billing state. No new tracking
+// code, nothing visible to the business.
+
+export type BusinessActivityItem = {
+  id: string;
+  occurredAt: Date;
+  type: string;          // raw EventType slug — page renders via eventLabel()
+  memberName: string;
+  address: string | null; // resolved when the event is on one of their files
+};
+
+export type BusinessMemberVitals = {
+  id: string;
+  name: string;
+  isOwner: boolean;
+  deactivated: boolean;
+  lastActiveAt: Date | null;   // latest event of any kind
+  actionsThisWeek: number;     // last-7-days events excluding logins/logouts
+};
+
+export type SetupCheck = {
+  key: string;
+  label: string;
+  state: "done" | "attention" | "todo";
+  detail: string;
+};
+
+export type BusinessWatch = {
+  feed: BusinessActivityItem[];
+  vitals: BusinessMemberVitals[];
+  setup: SetupCheck[];
+};
+
+/** Activity + vitals + setup for one business, derived from the detail already
+ *  loaded. Events are matched on the members' userIds (business members have
+ *  agencyId null, so the user dimension is the reliable key). */
+export async function getBusinessWatch(detail: BusinessDetail, now: Date = new Date()): Promise<BusinessWatch> {
+  const memberIds = detail.members.map((m) => m.id);
+  const nameById = new Map(detail.members.map((m) => [m.id, m.name]));
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+
+  const [feedEvents, lastActive, weekCounts, firstMilestone, firstChase] = memberIds.length
+    ? await Promise.all([
+        commandDb.event.findMany({
+          where: { userId: { in: memberIds } },
+          orderBy: { occurredAt: "desc" },
+          take: 60,
+          select: { id: true, occurredAt: true, type: true, userId: true, entityType: true, entityId: true },
+        }),
+        commandDb.event.groupBy({
+          by: ["userId"],
+          where: { userId: { in: memberIds } },
+          _max: { occurredAt: true },
+        }),
+        commandDb.event.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: memberIds },
+            occurredAt: { gte: weekAgo },
+            type: { notIn: ["user_logged_in", "user_logged_out"] },
+          },
+          _count: { _all: true },
+        }),
+        commandDb.event.findFirst({
+          where: { userId: { in: memberIds }, type: "milestone_confirmed" },
+          select: { id: true },
+        }),
+        commandDb.event.findFirst({
+          where: { userId: { in: memberIds }, type: "chase_sent" },
+          select: { id: true },
+        }),
+      ])
+    : [[], [], [], null, null];
+
+  // Resolve addresses for the file-scoped events in one read.
+  const txIds = [...new Set(
+    feedEvents
+      .filter((e) => e.entityType === "PropertyTransaction" && e.entityId)
+      .map((e) => e.entityId as string),
+  )];
+  const txs = txIds.length
+    ? await commandDb.propertyTransaction.findMany({
+        where: { id: { in: txIds } },
+        select: { id: true, propertyAddress: true },
+      })
+    : [];
+  const addressById = new Map(txs.map((t) => [t.id, t.propertyAddress]));
+
+  const feed: BusinessActivityItem[] = feedEvents.map((e) => ({
+    id: e.id,
+    occurredAt: e.occurredAt,
+    type: e.type,
+    memberName: (e.userId && nameById.get(e.userId)) || "Team member",
+    address: e.entityType === "PropertyTransaction" && e.entityId ? addressById.get(e.entityId) ?? null : null,
+  }));
+
+  const lastById = new Map(lastActive.map((r) => [r.userId, r._max.occurredAt]));
+  const weekById = new Map(weekCounts.map((r) => [r.userId, r._count._all]));
+  const vitals: BusinessMemberVitals[] = detail.members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    isOwner: m.isOwner,
+    deactivated: m.deactivated,
+    lastActiveAt: lastById.get(m.id) ?? null,
+    actionsThisWeek: weekById.get(m.id) ?? 0,
+  }));
+
+  const activeClients = detail.clients.filter((c) => !c.archived);
+  const missingFees = activeClients.filter((c) => !c.feeSet);
+  const activeMembers = detail.members.filter((m) => !m.deactivated);
+  const senderSet = !!(detail.senderEmail || detail.senderDomain);
+
+  const setup: SetupCheck[] = [
+    {
+      key: "card",
+      label: "Payment card",
+      state: detail.hasCard ? "done" : "todo",
+      detail: detail.hasCard ? "On file" : "Not added yet",
+    },
+    {
+      key: "subscription",
+      label: "Subscription",
+      state: detail.subscribed ? "done" : "todo",
+      detail: detail.subscribed ? "Active" : "Not started",
+    },
+    {
+      key: "sender",
+      label: "Email identity",
+      state: senderSet ? (detail.senderVerified ? "done" : "attention") : "todo",
+      detail: senderSet
+        ? detail.senderVerified
+          ? "Sends as their own address"
+          : "Added, not verified yet"
+        : "Sending as the platform default",
+    },
+    {
+      key: "client",
+      label: "Client agency linked",
+      state: activeClients.length > 0 ? "done" : "todo",
+      detail: activeClients.length > 0
+        ? `${activeClients.length} linked`
+        : "No clients yet",
+    },
+    {
+      key: "fees",
+      label: "Client fees set",
+      state: activeClients.length === 0 ? "todo" : missingFees.length > 0 ? "attention" : "done",
+      detail: activeClients.length === 0
+        ? "Waiting on their first client"
+        : missingFees.length > 0
+        ? `${missingFees.length} of ${activeClients.length} missing a fee model`
+        : "Every client has a fee model",
+    },
+    {
+      key: "team",
+      label: "Team invited",
+      state: activeMembers.length > 1 ? "done" : "todo",
+      detail: activeMembers.length > 1 ? `${activeMembers.length} members` : "Solo so far",
+    },
+    {
+      key: "firstSale",
+      label: "First sale created",
+      state: detail.lifetimeSaleCount > 0 ? "done" : "todo",
+      detail: detail.lifetimeSaleCount > 0 ? `${detail.lifetimeSaleCount} lifetime` : "No sales yet",
+    },
+    {
+      key: "firstMilestone",
+      label: "First milestone confirmed",
+      state: firstMilestone ? "done" : "todo",
+      detail: firstMilestone ? "Progressing files" : "None confirmed yet",
+    },
+    {
+      key: "firstChase",
+      label: "First chase sent",
+      state: firstChase ? "done" : "todo",
+      detail: firstChase ? "Chasing is in use" : "None sent yet",
+    },
+  ];
+
+  return { feed, vitals, setup };
+}
 
 /** Full picture of one business. Returns null for an unknown id or the TSP row
  *  (which is never a customer). */
@@ -237,6 +421,7 @@ export async function getBusinessDetail(id: string, now: Date = new Date()): Pro
       agencyId: c.agencyId,
       agencyName: c.agency?.name ?? "Unknown agency",
       feeSummary: feeModelSummary(parseFeeModel(c.feeModel)),
+      feeSet: parseFeeModel(c.feeModel) !== null,
       archived: c.removedAt !== null,
     })),
     members: b.members.map((m) => ({
