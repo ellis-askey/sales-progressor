@@ -9,7 +9,9 @@ function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
 
 function fmtDate(d: string | null) {
   if (!d) return "No date set";
-  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+  // Short month ("18 Jan 2026") — the long form ("18 January 2026") was too wide
+  // and crushed the address on mobile (critique #260).
+  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 export function timeSinceExchange(iso: string | null): string | null {
@@ -120,14 +122,14 @@ function fmtMoney(pence?: number | null): string | null {
 function JNode({ label, date, strong }: { label: string; date: string; strong?: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: strong ? 600 : 500, color: "var(--agent-text-primary)" }}>{date}</span>
+      <span className="comp-jnode-label" style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>{label}</span>
+      <span className="comp-jnode-date" style={{ fontSize: 12, fontWeight: strong ? 600 : 500, color: "var(--agent-text-primary)" }}>{date}</span>
     </div>
   );
 }
 function JSeg({ gap, fill }: { gap: string | null; fill?: boolean }) {
   return (
-    <div style={{ flex: 1, minWidth: 24, position: "relative", height: 26, display: "flex", alignItems: "center", margin: "0 10px" }}>
+    <div className="comp-jseg" style={{ flex: 1, minWidth: 24, position: "relative", height: 26, display: "flex", alignItems: "center", margin: "0 10px" }}>
       {gap && <span style={{ position: "absolute", top: 0, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{gap}</span>}
       <div style={{ height: 2, width: "100%", borderRadius: 2, marginTop: 9, background: fill ? "var(--agent-success)" : "var(--agent-border-subtle)" }} />
     </div>
@@ -201,7 +203,7 @@ function RowExtras({ file }: { file: CompletionFileRow }) {
       )}
 
       {/* Journey — instructed -> exchanged -> completing */}
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div className="comp-journey" style={{ display: "flex", alignItems: "center" }}>
         <JNode label="Instructed" date={fmtShort(file.instructedAtIso)} />
         <JSeg gap={g1 != null ? `${g1} days` : null} fill />
         <JNode label="Exchanged" date={fmtShort(file.exchangedAtIso)} strong />
@@ -265,7 +267,7 @@ export function CompletionFileRowView({
 
   // Right-hand date + countdown block.
   const DateBlock = () => (
-    <div className="text-right" style={{ flexShrink: 0 }}>
+    <div className="text-right comp-row-date" style={{ flexShrink: 0 }}>
       <p className={`text-sm font-semibold mb-0.5 ${file.completionDateIso ? s.label : "text-slate-900/40"}`}>
         {fmtDate(file.completionDateIso)}
       </p>
@@ -288,6 +290,7 @@ export function CompletionFileRowView({
         aria-expanded={isOpen}
         onClick={onToggle}
         onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onToggle?.(); } }}
+        className="comp-row-top"
         style={{ display: "flex", gap: 14, alignItems: "flex-start", cursor: onToggle ? "pointer" : "default" }}
       >
         <PropertyThumb photoUrl={file.photoUrl} size={48} />
@@ -304,7 +307,7 @@ export function CompletionFileRowView({
       {/* Collapsible detail — money, context, journey, readiness, actions. */}
       <div className={`agent-acc${isOpen ? " open" : ""}`}>
         <div className="agent-acc-in">
-          <div style={{ paddingLeft: 62, paddingTop: 8 }}>
+          <div className="comp-row-body" style={{ paddingTop: 8 }}>
             {/* Money — sale muted, fee emphasised */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10, marginBottom: 2 }}>
               {file.purchasePrice != null && <span className="text-sm" style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>{fmt(file.purchasePrice / 100)}</span>}

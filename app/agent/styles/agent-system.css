@@ -797,8 +797,33 @@
   .stat-circle--success { --sc-rgb: var(--agent-success-rgb);    --sc-icon: var(--agent-success); }
   .stat-circle--neutral { --sc-rgb: 100, 116, 139;              --sc-icon: var(--agent-text-secondary); }
 
+  /* Completions "Finish line" stat grid — 4-up on desktop, 2x2 on tablet/phone,
+     with dividers that follow the layout rather than a single row of left
+     borders (critique #259). */
+  .completions-momentum-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .completions-momentum-grid > div { border-left: 1px solid var(--agent-border-subtle); }
+  .completions-momentum-grid > div:first-child { border-left: none; }
+  @media (max-width: 760px) {
+    .completions-momentum-grid { grid-template-columns: repeat(2, 1fr); }
+    .completions-momentum-grid > div { border-left: none; border-top: 1px solid var(--agent-border-subtle); }
+    .completions-momentum-grid > div:nth-child(-n + 2) { border-top: none; }
+    .completions-momentum-grid > div:nth-child(2n) { border-left: 1px solid var(--agent-border-subtle); }
+  }
+
   /* Completions card body links (Add fee / Open file) — underline on hover. */
   .comp-addfee:hover, .comp-open:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* Completions file-row cards — mobile pass (critique #260). */
+  .comp-row-body { padding-left: 62px; }
+  @media (max-width: 560px) {
+    /* Drop the 62px indent (it aligned the body under the thumbnail but ate the
+       narrow mobile column). */
+    .comp-row-body { padding-left: 0; }
+    /* Tighten the Instructed → Exchanged → Completing strip so it stops bunching. */
+    .comp-jseg { margin: 0 5px !important; min-width: 8px !important; }
+    /* Smaller completion date so it no longer crushes the address. */
+    .comp-row-date p { font-size: 12px !important; }
+  }
 
   /* To-Do file-group identity — hovering the photo/address lights the first line
      coral (the whole identity links to the file, like enquiries). */
@@ -4796,7 +4821,13 @@ body[data-demo-file] [data-onboarding-checklist] {
   }
   .attn-actions { grid-area: actions; align-self: center; }
   /* Collapsed: only photo + address (+ chevron) show; the rest hides. The left
-     accent bar still signals urgency at a glance. */
+     accent bar still signals urgency at a glance. Collapse the grid to that one
+     row and drop the row-gaps so no empty tracks leave dead space under the
+     photo/address (critique #256). */
+  .attn-row.attn-collapsed {
+    grid-template-areas: "thumb addr chev";
+    row-gap: 0;
+  }
   .attn-row.attn-collapsed .attn-pill-m,
   .attn-row.attn-collapsed .attn-status,
   .attn-row.attn-collapsed .attn-actions { display: none; }

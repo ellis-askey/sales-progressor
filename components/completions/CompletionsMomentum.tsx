@@ -5,7 +5,7 @@
 // the page's in-flight totals.
 
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Trophy, Timer, CheckCircle, Airplane, Lock } from "@phosphor-icons/react/dist/ssr";
+import { Trophy, Timer, CheckCircle, Airplane } from "@phosphor-icons/react/dist/ssr";
 
 type Tone = "coral" | "info" | "warning" | "success" | "neutral";
 
@@ -89,14 +89,16 @@ export function CompletionsMomentum({
       defaultVariant="v05"
       style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }} className="completions-momentum-grid">
-        {cells.map((c, i) => (
+      {/* Columns + dividers are responsive via CSS (4-up desktop → 2x2 on
+          tablet/phone), so the inline grid no longer hard-codes 4 columns or
+          per-cell left borders (critique #259). */}
+      <div className="completions-momentum-grid">
+        {cells.map((c) => (
           <div
             key={c.label}
             style={{
               display: "flex", alignItems: "center", gap: 12,
               padding: "14px 16px",
-              borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
             }}
           >
             <span aria-hidden className={`stat-circle stat-circle--${c.tone}`}>{c.icon}</span>
@@ -126,17 +128,6 @@ export function CompletionsMomentum({
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>
               <b style={{ color: "var(--agent-text-secondary)", fontWeight: 650 }}>{feeLabel}</b> · {feeNote}
             </span>
-          </span>
-          <span
-            title="You only ever see your own fees."
-            style={{
-              marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
-              fontSize: 10.5, fontWeight: 650, color: "var(--agent-text-muted)",
-              background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)",
-              borderRadius: 999, padding: "4px 10px",
-            }}
-          >
-            <Lock size={11} weight="regular" /> Your view only
           </span>
         </div>
       )}
