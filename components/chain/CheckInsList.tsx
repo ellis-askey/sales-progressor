@@ -62,7 +62,7 @@ function ourSalesLabel(addresses: string[]): string | null {
   const firstLines = addresses.map((a) => a.split(",")[0].trim());
   const shown = firstLines.slice(0, 2).join(" and ");
   const extra = firstLines.length - 2;
-  return `Your sales: ${shown}${extra > 0 ? ` +${extra}` : ""}`;
+  return `Your sales are ${shown}${extra > 0 ? ` +${extra}` : ""}`;
 }
 
 // Bucket the (already globally quietest-first) rows by chain. Because the input
