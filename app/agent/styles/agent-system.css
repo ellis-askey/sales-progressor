@@ -4881,16 +4881,33 @@ body[data-demo-file] [data-onboarding-checklist] {
    the town/postcode carries its own muted colour so it stays muted on hover. */
 .hub-addr-full { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-addr-line, .hub-addr-loc, .hub-r-meta-m { display: none; }
+/* Subtext 2-line clamp lives in CSS (not inline) so the breakpoints can control
+   it — an inline display would win and leak the line onto mobile (#255 follow-up). */
+.hub-r-meta-d { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Compact top-right dismiss, phones only. */
+.hub-r-x { position: absolute; top: 8px; right: 10px; display: none; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; color: var(--agent-text-muted); padding: 4px; line-height: 1; border-radius: 6px; transition: color .14s, background .14s; }
+.hub-r-x:hover { color: var(--agent-text-secondary); background: rgba(var(--agent-shadow-rgb), 0.06); }
+.hub-r-x:disabled { opacity: .5; cursor: default; }
+
+/* Tablet: drop the Dismiss button onto its own row so the address gets the full
+   width (then truncates if needed) instead of being squeezed beside it. */
+@media (max-width: 768px) {
+  .hub-r-tail { width: 100%; margin-left: 0 !important; }
+  .hub-r-tail > .hub-r-actions { margin-left: auto; }
+}
+
 @media (max-width: 450px) {
-  .hub-addr-full, .hub-r-meta-d { display: none; }
+  .hub-addr-full { display: none; }
   .hub-addr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hub-addr-loc { display: block; font-size: 11px; font-weight: 400; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
-  .hub-r-tail { width: 100%; margin-left: 0 !important; }
-  .hub-r-meta-m { display: flex; flex-direction: column; line-height: 1.35; flex: 1; min-width: 0; }
-  .hub-r-meta-m > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hub-r-tail > .hub-r-actions { margin-left: auto; }
-  /* Secondary context line (e.g. HubListCard's "Near exchange" chip): the pill +
-     relocated primary line already carry the urgency on a phone, so hide it. */
+  /* One subtext only (the clamped line under the address). Hide the whole bottom
+     row — the duplicated subtext AND the Dismiss button — and dismiss via the
+     top-right ✕ instead. */
+  .hub-r-tail { display: none; }
+  .hub-r-x { display: inline-flex; }
+  .hub-r-body { padding-right: 22px; }
+  /* Secondary context line: the pill + relocated primary line carry it on a
+     phone, so hide it. */
   .hub-r-hide-m { display: none; }
 }
 

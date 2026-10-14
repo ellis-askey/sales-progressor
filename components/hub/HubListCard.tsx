@@ -156,12 +156,12 @@ export function HubListCard({
                   className="agent-hover-row"
                   // De-washed 2026-09-17: no tinted resting background — the
                   // accent bar + pill carry the tone, and the lift hover lands.
-                  style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                  style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
                 >
                   <Link href={row.href} unstable_dynamicOnHover className="hub-thumb-link" aria-label={`Open ${row.address}`}>
                     <PropertyThumb photoUrl={row.photoUrl} />
                   </Link>
-                  <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+                  <div className="hub-r-body" style={{ minWidth: 0, flex: "1 1 220px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                       <Link href={row.href} unstable_dynamicOnHover className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}>
                         <span className="hub-addr-full">{row.address}</span>
@@ -176,7 +176,7 @@ export function HubListCard({
                         </Pill>
                       )}
                     </div>
-                    <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
                       {row.subtext}
                     </p>
                     {row.meta && (
@@ -201,6 +201,18 @@ export function HubListCard({
                       Dismiss
                     </button>
                   </div>
+                  {/* Phone-only dismiss: a neat ✕ top-right, since the bottom row
+                      (with the full Dismiss button) is hidden there. */}
+                  <button
+                    type="button"
+                    onClick={() => dismiss(row)}
+                    disabled={busyId === row.transactionId}
+                    className="hub-r-x"
+                    aria-label={`Dismiss ${row.address}`}
+                    title="Hide this for 2 weeks. It comes back if it still applies."
+                  >
+                    <X size={14} weight="bold" />
+                  </button>
                 </div>
               );
             })}
