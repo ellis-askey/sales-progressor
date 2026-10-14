@@ -12,22 +12,14 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/services/activity";
-import { findContactConflict } from "@/lib/contacts/dedupe";
+import { findContactConflict, type ContactConflict } from "@/lib/contacts/dedupe";
 import type { ContactRole } from "@prisma/client";
 
-// Structured error thrown when a contact write would create or update a
-// row with a phone or email that already belongs to another contact on
-// the same transaction. Surfaced inline by the file-detail Add/Edit
-// forms and by the new-sale flow. Caller catches by message string.
-function makeDuplicateContactError(
-  kind: "phone" | "email",
-  withName: string,
-): Error {
-  return Object.assign(new Error("DUPLICATE_CONTACT_FIELD"), {
-    kind,
-    withName,
-  });
-}
+// A duplicate phone/email on the same transaction is an EXPECTED failure, so
+// it's RETURNED, never thrown: production Next.js redacts thrown server-action
+// error messages (and strips custom props), which left callers showing the raw
+// "An error occurred in the Server Components render" boilerplate. Returned
+// values serialise intact, so the forms can name the conflicting contact.
 
 export async function createContactAction(input: {
   propertyTransactionId: string;
@@ -43,7 +35,10 @@ export async function createContactAction(input: {
   // company (critique 2026-10-05).
   isBusiness?: boolean;
   companyName?: string | null;
-}) {
+}): Promise<
+  | { ok: true; contact: Awaited<ReturnType<typeof createContact>> }
+  | { ok: false; duplicate: ContactConflict }
+> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
@@ -57,7 +52,7 @@ export async function createContactAction(input: {
     select: { name: true, phone: true, email: true },
   });
   const conflict = findContactConflict(input, others);
-  if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
+  if (conflict) return { ok: false, duplicate: conflict };
 
   // Pass 3 B1: stamp purchaser contacts to the active round at insert.
   // Vendor / solicitor / broker stay NULL (file-level). Mirrors the
@@ -80,7 +75,7 @@ export async function createContactAction(input: {
     session.user.id
   );
   revalidateTx(input.propertyTransactionId);
-  return contact;
+  return { ok: true, contact };
 }
 
 export async function updateContactAction(input: {
@@ -93,7 +88,7 @@ export async function updateContactAction(input: {
   portalEligible?: boolean;
   isBusiness?: boolean;
   companyName?: string | null;
-}) {
+}): Promise<{ ok: true } | { ok: false; duplicate: ContactConflict }> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const txWhere = scopeOwnershipWhere(scope, input.transactionId);
@@ -114,7 +109,7 @@ export async function updateContactAction(input: {
     select: { name: true, phone: true, email: true },
   });
   const conflict = findContactConflict({ name: input.name, phone: input.phone, email: input.email }, others);
-  if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
+  if (conflict) return { ok: false, duplicate: conflict };
 
   // Helper/portal edits (Note B). A principal is always portal-eligible; a
   // helper's access follows the tickbox. Only touched when provided.
@@ -139,6 +134,7 @@ export async function updateContactAction(input: {
     session.user.id
   );
   revalidateTx(input.transactionId);
+  return { ok: true };
 }
 
 export async function deleteContactAction(contactId: string, transactionId: string) {

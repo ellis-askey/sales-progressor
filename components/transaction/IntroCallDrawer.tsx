@@ -270,6 +270,20 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
     fn().catch(() => setErr("Couldn't save that. Check your connection and try again."));
   };
 
+  // updateContactAction RETURNS a duplicate conflict rather than throwing
+  // (thrown messages are redacted in production) — surface it by name.
+  const runContactUpdate = (fn: () => ReturnType<typeof updateContactAction>) => {
+    setErr(null);
+    fn()
+      .then((res) => {
+        if (!res.ok) {
+          const field = res.duplicate.kind === "phone" ? "phone number" : "email";
+          setErr(`That ${field} is already used by ${res.duplicate.withName} on this file.`);
+        }
+      })
+      .catch(() => setErr("Couldn't save that. Check your connection and try again."));
+  };
+
   const tx = data.transactionId;
   const saveMove = (side: "vendor" | "purchaser", patch: Partial<MoveInfo>) => run(() => saveMoveInfoAgentAction(tx, side, patch));
   const saveCosts = (patch: CostsPatch) => run(() => saveClientCostsAgentAction(tx, patch));
@@ -481,9 +495,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                           <div style={readonlyFieldStyle}>{data.purchaser?.name ?? "—"}</div>
                         </label>
                         <TextField label="Phone" icon={<Phone size={14} />} initial={data.purchaser?.phone ?? ""} type="tel" format={formatUKPhone}
-                          onSave={(v) => { if (data.purchaser) run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email })); }} />
+                          onSave={(v) => { if (data.purchaser) runContactUpdate(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: v || null, email: data.purchaser!.email })); }} />
                         <TextField label="Email" icon={<EnvelopeSimple size={14} />} initial={data.purchaser?.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
-                          onSave={(v) => { if (data.purchaser) run(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: data.purchaser!.phone, email: v || null })); }} />
+                          onSave={(v) => { if (data.purchaser) runContactUpdate(() => updateContactAction({ id: data.purchaser!.id, transactionId: tx, name: data.purchaser!.name, phone: data.purchaser!.phone, email: v || null })); }} />
                       </Cols>
                     </QSection>
 
@@ -553,9 +567,9 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                           <div style={readonlyFieldStyle}>{data.vendor?.name ?? "—"}</div>
                         </label>
                         <TextField label="Phone" icon={<Phone size={14} />} initial={data.vendor?.phone ?? ""} type="tel" format={formatUKPhone}
-                          onSave={(v) => { if (data.vendor) run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email })); }} />
+                          onSave={(v) => { if (data.vendor) runContactUpdate(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: v || null, email: data.vendor!.email })); }} />
                         <TextField label="Email" icon={<EnvelopeSimple size={14} />} initial={data.vendor?.email ?? ""} type="email" format={v => v.trim().toLowerCase()}
-                          onSave={(v) => { if (data.vendor) run(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null })); }} />
+                          onSave={(v) => { if (data.vendor) runContactUpdate(() => updateContactAction({ id: data.vendor!.id, transactionId: tx, name: data.vendor!.name, phone: data.vendor!.phone, email: v || null })); }} />
                       </Cols>
                     </QSection>
 

@@ -232,6 +232,17 @@ export function MigrateSaleForm({
           migrationAgentUserId: agentUserId || undefined,
         });
 
+        // forceCreate bypasses the address guard, but a pairwise contact
+        // conflict still comes back as a returned failure.
+        if ("duplicate" in result) {
+          setError(
+            result.duplicate === "contact"
+              ? `Two contacts share the same ${result.kind === "phone" ? "phone number" : "email"} (${result.withName}). Update one and resubmit.`
+              : "A file already exists for this address.",
+          );
+          return;
+        }
+
         let applied = 0;
         if (milestoneCompletions.length > 0) {
           const { applied: n } = await migrateCompleteMilestonesAction({

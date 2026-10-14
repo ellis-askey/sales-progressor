@@ -1098,29 +1098,29 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           : undefined,
       });
 
+      // Expected failures come back as RETURNED results (thrown server-action
+      // messages are redacted in production, which broke both of these paths).
+      if ("duplicate" in result) {
+        setIsSubmitting(false);
+        if (result.duplicate === "address") {
+          setDuplicateInfo({ id: result.duplicateId, assignedTo: result.assignedTo });
+        } else {
+          // Server caught a pairwise contact conflict the client-side live
+          // check should have caught earlier — surface it as a toast so the
+          // user knows why submit didn't progress, even if the inline pill
+          // also re-renders.
+          const field = result.kind === "phone" ? "phone number" : "email";
+          toast.error(`Two contacts share the same ${field} (${result.withName}). Update one before submitting.`);
+        }
+        return;
+      }
+
       const qs = result.mosAutoConfirmed ? "?mosConfirmed=1" : "?newFile=1";
       const chainParam = result.chainFailed ? "&chainSetupFailed=1" : "";
       router.push(`/agent/transactions/${result.id}${qs}${chainParam}`);
-    } catch (err) {
+    } catch {
       setIsSubmitting(false);
-      const error = err as Error & {
-        duplicateId?: string;
-        assignedTo?: string | null;
-        kind?: "phone" | "email";
-        withName?: string;
-      };
-      if (error.message === "DUPLICATE_ADDRESS") {
-        setDuplicateInfo({ id: error.duplicateId ?? "", assignedTo: error.assignedTo ?? null });
-      } else if (error.message === "DUPLICATE_CONTACT_FIELD") {
-        // Server caught a pairwise contact conflict the client-side live
-        // check should have caught earlier — surface it as a toast so the
-        // user knows why submit didn't progress, even if the inline pill
-        // also re-renders.
-        const field = error.kind === "phone" ? "phone number" : "email";
-        toast.error(`Two contacts share the same ${field}${error.withName ? ` (${error.withName})` : ""}. Update one before submitting.`);
-      } else {
-        toast.error("The file didn't save. Try again or contact support.");
-      }
+      toast.error("The file didn't save. Try again or contact support.");
     }
   }
 

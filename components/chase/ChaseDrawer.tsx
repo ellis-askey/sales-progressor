@@ -423,13 +423,19 @@ export function ChaseDrawer({
     }
     setAddSaving(true);
     try {
-      const created = await createContactAction({
+      const res = await createContactAction({
         propertyTransactionId: transactionId,
         name: addName.trim(),
         email: addEmail.trim() || null,
         phone: addPhone.trim() || null,
         roleType: PARTY_TO_ROLE[addParty],
       });
+      if (!res.ok) {
+        const field = res.duplicate.kind === "phone" ? "phone number" : "email";
+        setAddError(`That ${field} is already used by ${res.duplicate.withName} on this file.`);
+        return;
+      }
+      const created = res.contact;
       const c: Contact = {
         id: created.id, name: created.name, roleType: created.roleType,
         email: created.email, phone: created.phone,
@@ -438,12 +444,8 @@ export function ChaseDrawer({
       setSelectedRecipientId(c.id);
       resetAddForm();
       toast.success("Contact added");
-    } catch (err) {
-      setAddError(
-        err instanceof Error && err.message === "DUPLICATE_CONTACT_FIELD"
-          ? "That email or phone is already on another contact for this file."
-          : "Couldn't add the contact. Try again.",
-      );
+    } catch {
+      setAddError("Couldn't add the contact. Try again.");
     } finally {
       setAddSaving(false);
     }

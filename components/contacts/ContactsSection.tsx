@@ -644,17 +644,13 @@ export function ContactsSection({
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function describeContactError(err: unknown): string {
-    if (err instanceof Error) {
-      if (err.message === "DUPLICATE_CONTACT_FIELD") {
-        const e = err as Error & { kind?: "phone" | "email"; withName?: string };
-        const field = e.kind === "phone" ? "phone number" : "email";
-        return `This ${field} is already used by ${e.withName ?? "another contact"} on this file.`;
-      }
-      return err.message;
-    }
-    return "Something went wrong";
+  // Friendly line for a duplicate returned by the server (never thrown —
+  // thrown messages are redacted in production builds).
+  function duplicateMessage(d: { kind: "phone" | "email"; withName: string }): string {
+    const field = d.kind === "phone" ? "phone number" : "email";
+    return `This ${field} is already used by ${d.withName} on this file.`;
   }
+  const GENERIC_SAVE_ERROR = "The contact didn't save. Try again.";
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -690,12 +686,19 @@ export function ContactsSection({
     setContacts((list) => [...list, optimistic]);
     startTransition(async () => {
       try {
-        await createContactAction(snap);
-        setForm(EMPTY_FORM);
-      } catch (err: unknown) {
-        setContacts(prevContacts); // pull the optimistic row back out on failure
+        const res = await createContactAction(snap);
+        if (!res.ok) {
+          setContacts(prevContacts); // pull the optimistic row back out on failure
+          setForm(formSnap);
+          setError(duplicateMessage(res.duplicate));
+          setShowForm(true);
+        } else {
+          setForm(EMPTY_FORM);
+        }
+      } catch {
+        setContacts(prevContacts);
         setForm(formSnap);
-        setError(describeContactError(err));
+        setError(GENERIC_SAVE_ERROR);
         setShowForm(true);
       } finally {
         setLoading(false);
@@ -760,7 +763,12 @@ export function ContactsSection({
     );
     startTransition(async () => {
       try {
-        await updateContactAction(snap);
+        const res = await updateContactAction(snap);
+        if (!res.ok) {
+          setContacts(prevContacts); // revert the optimistic edit on failure
+          setEditError(duplicateMessage(res.duplicate));
+          return;
+        }
         if (snap.phone || snap.email) {
           window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactDetails: true } }));
         }
@@ -769,9 +777,9 @@ export function ContactsSection({
           setEditingId(null);
           setExitingId(null);
         }, 150);
-      } catch (err: unknown) {
-        setContacts(prevContacts); // revert the optimistic edit on failure
-        setEditError(describeContactError(err));
+      } catch {
+        setContacts(prevContacts);
+        setEditError(GENERIC_SAVE_ERROR);
       } finally {
         setEditSaving(false);
       }

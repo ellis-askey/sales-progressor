@@ -24,11 +24,11 @@ export async function inviteNewClientToPortalAction(input: {
 
   const roleType: ContactRole = input.role === "seller" ? "vendor" : "purchaser";
 
-  let contact: Awaited<ReturnType<typeof createContactAction>>;
+  let result: Awaited<ReturnType<typeof createContactAction>>;
   try {
     // createContactAction handles scope/ownership, dedupe, active-round stamping
     // and the activity-log entry. Principal => portalEligible + portalToken.
-    contact = await createContactAction({
+    result = await createContactAction({
       propertyTransactionId: input.transactionId,
       name,
       phone: null,
@@ -37,17 +37,16 @@ export async function inviteNewClientToPortalAction(input: {
       isPrincipal: true,
       portalEligible: true,
     });
-  } catch (err) {
-    const message = (err as Error).message;
-    if (message === "DUPLICATE_CONTACT_FIELD") {
-      const withName = (err as { withName?: string }).withName;
-      return {
-        ok: false,
-        error: `That email is already on this file${withName ? ` (${withName})` : ""}. Resend their link from the client list instead.`,
-      };
-    }
+  } catch {
     return { ok: false, error: "Couldn't add the client. Try again." };
   }
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: `That email is already on this file (${result.duplicate.withName}). Resend their link from the client list instead.`,
+    };
+  }
+  const contact = result.contact;
 
   if (!contact.portalToken) {
     return { ok: false, error: "Client added, but their portal link couldn't be generated. Try resending it." };

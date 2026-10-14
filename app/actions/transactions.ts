@@ -362,13 +362,29 @@ export async function createTransactionAction(input: {
       (t) => t.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim() === normAddress
     );
     if (duplicate && !input.forceCreate) {
-      throw Object.assign(
-        new Error("DUPLICATE_ADDRESS"),
-        {
-          duplicateId: duplicate.id,
-          assignedTo: duplicate.agentUser?.name ?? null,
-        }
-      );
+      // Expected failure — RETURNED, not thrown. Production redacts thrown
+      // server-action messages (and drops custom props), so the old throw
+      // surfaced raw boilerplate to the user instead of the duplicate modal.
+      return {
+        duplicate: "address" as const,
+        duplicateId: duplicate.id,
+        assignedTo: duplicate.agentUser?.name ?? null,
+      };
+    }
+  }
+
+  // Contact pairwise-conflict guard — same returned-failure pattern. Checked
+  // BEFORE the transaction is created: this previously ran after the insert,
+  // so a conflicting batch left an orphaned file behind the error.
+  if (input.contacts.length > 0) {
+    const conflict = findFirstPairwiseConflict(input.contacts);
+    if (conflict) {
+      return {
+        duplicate: "contact" as const,
+        kind: conflict.kind,
+        offenderIndex: conflict.offenderIndex,
+        withName: conflict.withName,
+      };
     }
   }
 
@@ -418,17 +434,8 @@ export async function createTransactionAction(input: {
   });
 
   if (input.contacts.length > 0) {
-    // Reject the batch if two contacts on the same file share a phone or
-    // email. Same structured-error pattern as DUPLICATE_ADDRESS above —
-    // NewSaleFlow catches by message string and surfaces inline.
-    const conflict = findFirstPairwiseConflict(input.contacts);
-    if (conflict) {
-      throw Object.assign(new Error("DUPLICATE_CONTACT_FIELD"), {
-        kind: conflict.kind,
-        offenderIndex: conflict.offenderIndex,
-        withName: conflict.withName,
-      });
-    }
+    // Pairwise phone/email conflicts were already rejected before the
+    // transaction was created (returned-failure guard above).
     await prisma.contact.createMany({
       data: input.contacts.map((c) => ({
         propertyTransactionId: tx.id,
