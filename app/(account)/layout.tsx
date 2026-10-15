@@ -17,11 +17,12 @@ import { resolveAgentSession } from "@/lib/agent-session";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { prisma } from "@/lib/prisma";
 import { AccountShell } from "@/components/account/chrome/AccountShell";
+import { brandThemeCss } from "@/lib/agent/brand-theme";
 import "@/app/agent/styles/themes.css";
 import "@/app/agent/styles/agent-system.css";
 
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
-  const { role, theme, session } = await resolveAgentSession();
+  const { role, brandColor, session } = await resolveAgentSession();
 
   // Negotiators need this so the nav can hide/show the Team tab.
   let agencyHasDirector = true;
@@ -38,14 +39,20 @@ export default async function AccountLayout({ children }: { children: React.Reac
   const displayName = userRecord?.name ?? session.user.name ?? "You";
 
   return (
-    <AccountShell
-      role={role}
-      agencyHasDirector={agencyHasDirector}
-      displayName={displayName}
-      image={userRecord?.image ?? null}
-      theme={theme}
-    >
-      {children}
-    </AccountShell>
+    <>
+      {/* The agency's brand colour, derived into the --agent-* palette so the
+          settings area matches the app. The brand-colour picker appends its own
+          <style> at the end of <body> to recolour this live before saving. */}
+      <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
+      <AccountShell
+        role={role}
+        agencyHasDirector={agencyHasDirector}
+        displayName={displayName}
+        image={userRecord?.image ?? null}
+        theme="custom"
+      >
+        {children}
+      </AccountShell>
+    </>
   );
 }

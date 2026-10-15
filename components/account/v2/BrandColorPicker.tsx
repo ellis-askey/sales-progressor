@@ -6,10 +6,10 @@
 // lib/agent/brand-theme.ts). Buttons, links, focus and the ambient glow take
 // the colour; glass cards and the red/amber/green stay fixed.
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateBrandColor } from "@/app/actions/agent-preferences";
-import { normaliseHex, DEFAULT_BRAND_HEX } from "@/lib/agent/brand-theme";
+import { normaliseHex, DEFAULT_BRAND_HEX, brandThemeCss } from "@/lib/agent/brand-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 const SUGGESTED = ["#FF6B4A", "#2563EB", "#0891B2", "#16A34A", "#7C3AED", "#DB2777", "#D97706", "#0F3845"];
@@ -32,6 +32,21 @@ export function BrandColorPicker({ initialColor }: { initialColor: string }) {
 
   const dirty = color.toLowerCase() !== saved.toLowerCase();
   const previewText = isLight(color) ? "#1a1512" : "#ffffff";
+
+  // Live preview: recolour the whole settings area the instant a colour is
+  // picked, no save needed. We append a <style> at the end of <body> (so it wins
+  // over the layout's server-injected brand CSS by source order) and update it as
+  // the colour changes. Removed on leave, so unsaved previews don't persist.
+  useEffect(() => {
+    const el = document.createElement("style");
+    el.id = "sp-live-brand";
+    document.body.appendChild(el);
+    return () => { el.remove(); };
+  }, []);
+  useEffect(() => {
+    const el = document.getElementById("sp-live-brand");
+    if (el) el.textContent = brandThemeCss(color);
+  }, [color]);
 
   function apply(hex: string) {
     const n = normaliseHex(hex);

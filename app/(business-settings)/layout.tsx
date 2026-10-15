@@ -19,13 +19,14 @@ import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { prisma } from "@/lib/prisma";
 import { AccountShell } from "@/components/account/chrome/AccountShell";
+import { brandThemeCss } from "@/lib/agent/brand-theme";
 import "@/app/agent/styles/themes.css";
 import "@/app/agent/styles/agent-system.css";
 
 export default async function BusinessSettingsLayout({ children }: { children: React.ReactNode }) {
   if (!progressionBusinessesEnabled()) notFound();
 
-  const { role, theme, session } = await resolveAgentSession();
+  const { role, brandColor, session } = await resolveAgentSession();
   // Admit team members too (not just the owner). Owner-only pages (Business,
   // Emails, Team, Billing) still 404 for a member via their own resolveBusinessOwner
   // guard, and the nav hides those tabs (isOwner below).
@@ -39,17 +40,22 @@ export default async function BusinessSettingsLayout({ children }: { children: R
   const displayName = userRecord?.name ?? session.user.name ?? "You";
 
   return (
-    <AccountShell
-      role={role}
-      agencyHasDirector={true}
-      displayName={displayName}
-      image={userRecord?.image ?? null}
-      theme={theme}
-      variant="business"
-      roleLabel={member.isOwner ? "Business owner" : "Team member"}
-      isOwner={member.isOwner}
-    >
-      {children}
-    </AccountShell>
+    <>
+      {/* Brand colour → --agent-* palette, so the business settings match the app
+          and recolour live when the owner changes it (see BrandColorPicker). */}
+      <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
+      <AccountShell
+        role={role}
+        agencyHasDirector={true}
+        displayName={displayName}
+        image={userRecord?.image ?? null}
+        theme="custom"
+        variant="business"
+        roleLabel={member.isOwner ? "Business owner" : "Team member"}
+        isOwner={member.isOwner}
+      >
+        {children}
+      </AccountShell>
+    </>
   );
 }
