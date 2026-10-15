@@ -271,7 +271,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
               const ownSide = s.code.startsWith(side === "purchaser" ? "PM" : "VM");
               const sideTag = dup
                 ? ownSide
-                  ? "Your side"
+                  ? "Current side"
                   : side === "purchaser" ? "The seller's side" : "The buyer's side"
                 : null;
               return (
