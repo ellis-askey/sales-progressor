@@ -8,9 +8,11 @@
 // primary button wears the reminders/enquiries polished gradient (.enq-btn-
 // primary2). Panel gradient/glow + lift honour reduced-motion.
 
-import { UserPlus } from "@phosphor-icons/react";
+import { useState } from "react";
+import { UserPlus, PaperPlaneTilt } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
+import { useConnectAgencyForm } from "./useConnectAgencyForm";
 
 // Decorative only (aria-hidden): fictional agencies with illustrative logos —
 // a taste of the populated roster, never real data.
@@ -21,7 +23,9 @@ const ROSTER: { name: string; agency: string; sales: number; img: string }[] = [
 ];
 
 export function ClientsEmptyState() {
+  const [mode, setMode] = useState<"new" | "connect">("new");
   const f = useAddClientForm();
+  const c = useConnectAgencyForm();
 
   return (
     <div className="cwg">
@@ -35,38 +39,73 @@ export function ClientsEmptyState() {
         <div className="cwg-cols">
           {/* Form */}
           <div className="cwg-form agent-glass">
-            <div className="cwg-field">
-              <label className="cwg-label" htmlFor="cwg-name">Contact name</label>
-              <input id="cwg-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
-            </div>
-            <div className="cwg-row">
-              <div className="cwg-field">
-                <label className="cwg-label" htmlFor="cwg-email">Email address</label>
-                <input id="cwg-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
-              </div>
-              <div className="cwg-field">
-                <label className="cwg-label" htmlFor="cwg-agency">Agency name</label>
-                <input id="cwg-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
-              </div>
+            {/* Two routes: a brand-new agency, or one already on Sales Progressor
+                (the second is how you connect to an agency another progressor
+                has already brought onto the platform). */}
+            <div className="cwg-seg" role="tablist" aria-label="How to add this client">
+              <button type="button" role="tab" aria-selected={mode === "new"} className={"cwg-segbtn" + (mode === "new" ? " on" : "")} onClick={() => setMode("new")}>A new agency</button>
+              <button type="button" role="tab" aria-selected={mode === "connect"} className={"cwg-segbtn" + (mode === "connect" ? " on" : "")} onClick={() => setMode("connect")}>Already on Sales Progressor</button>
             </div>
 
-            <div className="cwg-field">
-              <label className="cwg-label" htmlFor="cwg-fee">Your fee per sale <span className="cwg-opt">optional</span></label>
-              <div className="cwg-money">
-                <span className="cwg-money-sym">£</span>
-                <input id="cwg-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
-              </div>
-              <p className="cwg-feehint">A flat amount per sale. You can set this (or tiered / % pricing) on their page later. A fee is needed before adding a sale.</p>
-            </div>
+            {mode === "new" ? (
+              <>
+                <div className="cwg-field">
+                  <label className="cwg-label" htmlFor="cwg-name">Contact name</label>
+                  <input id="cwg-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
+                </div>
+                <div className="cwg-row">
+                  <div className="cwg-field">
+                    <label className="cwg-label" htmlFor="cwg-email">Email address</label>
+                    <input id="cwg-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
+                  </div>
+                  <div className="cwg-field">
+                    <label className="cwg-label" htmlFor="cwg-agency">Agency name</label>
+                    <input id="cwg-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
+                  </div>
+                </div>
 
-            {f.emailInvalid && <p className="cwg-err">Enter a valid email address.</p>}
-            {f.error && <p className="cwg-err">{f.error}</p>}
-            <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
+                <div className="cwg-field">
+                  <label className="cwg-label" htmlFor="cwg-fee">Your fee per sale <span className="cwg-opt">optional</span></label>
+                  <div className="cwg-money">
+                    <span className="cwg-money-sym">£</span>
+                    <input id="cwg-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+                  </div>
+                  <p className="cwg-feehint">A flat amount per sale. You can set this (or tiered / % pricing) on their page later. A fee is needed before adding a sale.</p>
+                </div>
 
-            <Button variant="primary" size="md" className="cwg-btn" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
-              <UserPlus size={16} weight="bold" />
-              Add client
-            </Button>
+                {f.emailInvalid && <p className="cwg-err">Enter a valid email address.</p>}
+                {f.error && <p className="cwg-err">{f.error}</p>}
+                <p className="cwg-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
+
+                <Button variant="primary" size="md" className="cwg-btn" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
+                  <UserPlus size={16} weight="bold" />
+                  Add client
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="cwg-field">
+                  <label className="cwg-label" htmlFor="cwg-cemail">Their agency&rsquo;s email</label>
+                  <input id="cwg-cemail" className="agent-input" type="email" value={c.email} onChange={(e) => c.setEmail(e.target.value)} onBlur={c.blurEmail} placeholder="hello@theiragency.co.uk" maxLength={255} />
+                </div>
+
+                <div className="cwg-field">
+                  <label className="cwg-label" htmlFor="cwg-cfee">Your fee per sale <span className="cwg-opt">optional</span></label>
+                  <div className="cwg-money">
+                    <span className="cwg-money-sym">£</span>
+                    <input id="cwg-cfee" className="agent-input" inputMode="numeric" value={c.feePounds} onChange={(e) => c.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+                  </div>
+                </div>
+
+                {c.error && <p className="cwg-err">{c.error}</p>}
+                <p className="cwg-help">We&rsquo;ll send their director a request. Nothing is shared until they accept, and they&rsquo;ll only see the sales you assign to them.</p>
+
+                <Button variant="primary" size="md" className="cwg-btn" onClick={c.submit} disabled={!c.canSubmit} loading={c.sending}>
+                  <PaperPlaneTilt size={16} weight="bold" />
+                  Send connection request
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Decorative roster — each card lifts as the cursor passes over it.
@@ -137,6 +176,15 @@ export function ClientsEmptyState() {
 
         /* Form card */
         .cwg-form { border-radius: 18px; padding: 22px; }
+
+        /* Route toggle: new agency vs connect an existing one */
+        .cwg-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 18px;
+          border-radius: 12px; background: var(--agent-surface-sunken, rgba(0,0,0,0.04)); border: 0.5px solid var(--agent-border-subtle); }
+        .cwg-segbtn { appearance: none; border: none; background: transparent; cursor: pointer; border-radius: 9px; padding: 9px 10px;
+          font-size: 12.5px; font-weight: 640; color: var(--agent-text-muted); transition: background .15s, color .15s, box-shadow .15s; }
+        .cwg-segbtn:hover:not(.on) { color: var(--agent-text-secondary); }
+        .cwg-segbtn.on { background: var(--agent-surface, #fff); color: var(--agent-text-primary);
+          box-shadow: 0 1px 2px rgba(20,14,10,0.06), 0 0 0 0.5px var(--agent-border-subtle); }
         .cwg-field { margin-bottom: 12px; }
         .cwg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .cwg-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }

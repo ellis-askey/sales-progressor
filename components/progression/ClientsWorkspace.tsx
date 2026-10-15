@@ -19,9 +19,10 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
-import { updateBusinessShortNameAction, reinstateClientAgencyAction, requestConnectAgencyAction } from "@/app/actions/progression-clients";
+import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { AgencyMeshMark } from "./AgencyMeshMark";
 import { useAddClientForm } from "./useAddClientForm";
+import { useConnectAgencyForm } from "./useConnectAgencyForm";
 
 // Compact money for the totals bar (matches CompletionsMomentum): £1.2M / £45k / £0.
 function fmtCompact(pence: number): string {
@@ -311,23 +312,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
 function AddClientModal({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<"new" | "connect">("new");
   const f = useAddClientForm(onClose); // new-agency route (unchanged)
-
-  // Connect-an-existing-agency route (multi-progressor consent handshake).
-  const router = useRouter();
-  const { toast } = useAgentToast();
-  const [cEmail, setCEmail] = useState("");
-  const [cFee, setCFee] = useState("");
-  const [cErr, setCErr] = useState<string | null>(null);
-  const [cSending, startConnect] = useTransition();
-  const cEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cEmail.trim());
-  function sendConnect() {
-    setCErr(null);
-    startConnect(async () => {
-      const res = await requestConnectAgencyAction({ email: cEmail.trim(), feePence: cFee ? parseInt(cFee, 10) * 100 : null });
-      if (res.ok) { toast.success("Connection request sent"); router.refresh(); onClose(); }
-      else setCErr(res.error);
-    });
-  }
+  const c = useConnectAgencyForm(onClose); // connect-an-existing-agency route (consent handshake)
 
   return (
     <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark">
@@ -382,16 +367,16 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
           <>
             <div className="cwm-field">
               <label className="cwm-label" htmlFor="cwm-cemail">Their agency&rsquo;s email</label>
-              <input id="cwm-cemail" className="agent-input" type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="hello@theiragency.co.uk" maxLength={255} />
+              <input id="cwm-cemail" className="agent-input" type="email" value={c.email} onChange={(e) => c.setEmail(e.target.value)} onBlur={c.blurEmail} placeholder="hello@theiragency.co.uk" maxLength={255} />
             </div>
             <div className="cwm-field">
               <label className="cwm-label" htmlFor="cwm-cfee">Your fee per sale <span className="cwm-opt">optional</span></label>
               <div className="cwm-money">
                 <span className="cwm-money-sym">£</span>
-                <input id="cwm-cfee" className="agent-input" inputMode="numeric" value={cFee} onChange={(e) => setCFee(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+                <input id="cwm-cfee" className="agent-input" inputMode="numeric" value={c.feePounds} onChange={(e) => c.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
               </div>
             </div>
-            {cErr && <p className="cwm-err">{cErr}</p>}
+            {c.error && <p className="cwm-err">{c.error}</p>}
             <p className="cwm-help">We&rsquo;ll send their director a request. Nothing is shared until they accept, and they&rsquo;ll only see the sales you assign to them.</p>
           </>
         )}
@@ -405,7 +390,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
             Add client
           </Button>
         ) : (
-          <Button variant="primary" size="md" className="cwm-primary" onClick={sendConnect} disabled={!cEmailValid || cSending} loading={cSending}>
+          <Button variant="primary" size="md" className="cwm-primary" onClick={c.submit} disabled={!c.canSubmit} loading={c.sending}>
             <PaperPlaneTilt size={16} weight="bold" />
             Send connection request
           </Button>
