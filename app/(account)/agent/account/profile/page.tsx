@@ -21,26 +21,21 @@
 // The legacy /agent/settings page continues to render the same four
 // sections (plus team/automation/etc.) until Stage 4 retire.
 
-import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getBrandColor } from "@/lib/agent/themes";
 import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
-import { LinkArrow } from "@/components/ui/LinkArrow";
 import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
-import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
-import { EmailStudio } from "@/components/account/v2/EmailStudio";
-import { emailStudioEnabled } from "@/lib/email/studio-flag";
-import { getAgencyLogoUrl, getSignatureImageUrl } from "@/lib/supabase-storage";
+import { getSignatureImageUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { detectSignatureSource } from "@/lib/email/signature-source";
-import { Palette, Image as ImageIcon, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
+import { Palette, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage({
   searchParams,
@@ -82,26 +77,6 @@ export default async function AccountProfilePage({
     source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
   };
 
-  // Agency logo is a director-level, agency-wide brand setting (client emails).
-  const isDirector = session.user.role === "director";
-  let branding: BrandingInitial | null = null;
-  let agencyName: string | null = null;
-  if (isDirector && session.user.agencyId) {
-    const agency = await prisma.agency.findUnique({
-      where: { id: session.user.agencyId },
-      select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true },
-    });
-    agencyName = agency?.name ?? null;
-    branding = {
-      logoUrl: getAgencyLogoUrl(agency?.logoPath),
-      tileColor: agency?.logoTileColor ?? null,
-      scale: (agency?.logoScale as BrandingInitial["scale"]) ?? null,
-      align: (agency?.logoAlign as BrandingInitial["align"]) ?? null,
-      theme: (agency?.emailTheme as BrandingInitial["theme"]) ?? null,
-      appAccent: currentBrand ?? null,
-    };
-  }
-
   const colourCard = (
     <AccountCard
       icon={<Palette size={18} weight="bold" />}
@@ -132,29 +107,6 @@ export default async function AccountProfilePage({
     </AccountCard>
   );
 
-  const emailCard = isDirector && branding ? (
-    <AccountCard
-      icon={<ImageIcon size={18} weight="bold" />}
-      title="Email branding"
-      subtitle="Your logo appears at the top of emails your clients receive."
-    >
-      {emailStudioEnabled(session.user.email) ? (
-        <EmailStudio initial={branding} identityName={agencyName ?? "Your agency"} />
-      ) : (
-        <EmailBrandingStudio initial={branding} />
-      )}
-      <p style={{ margin: "16px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "#6b7280" }}>
-        Want to change your email wording?{" "}
-        <Link
-          href="/agent/account/emails"
-          style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
-        >
-          Email settings <LinkArrow />
-        </Link>
-      </p>
-    </AccountCard>
-  ) : null;
-
   return (
     <>
       <AccountPageHeader
@@ -179,47 +131,12 @@ export default async function AccountProfilePage({
 
         <EmailSignatureCard initial={signatureInitial} />
 
-        {emailCard ? (
-          // Desktop: colour + sending side by side on top, email branding full
-          // width below (its preview needs the room), account full width last.
-          // Mobile (1 col): colour, sending, email, account.
-          <div className="profile-grid">
-            <div style={{ gridArea: "colour" }}>{colourCard}</div>
-            <div style={{ gridArea: "email" }}>{emailCard}</div>
-            <div style={{ gridArea: "sending" }}>{sendingCard}</div>
-            <div style={{ gridArea: "account" }}>{accountCard}</div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {colourCard}
-            {sendingCard}
-            {accountCard}
-          </div>
-        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {colourCard}
+          {sendingCard}
+          {accountCard}
+        </div>
       </div>
-
-      <style>{`
-        .profile-grid {
-          display: grid;
-          gap: 24px;
-          align-items: start;
-          grid-template-columns: 1fr 1fr;
-          grid-template-areas:
-            "colour  sending"
-            "email   email"
-            "account account";
-        }
-        @media (max-width: 1024px) {
-          .profile-grid {
-            grid-template-columns: 1fr;
-            grid-template-areas:
-              "colour"
-              "sending"
-              "email"
-              "account";
-          }
-        }
-      `}</style>
     </>
   );
 }

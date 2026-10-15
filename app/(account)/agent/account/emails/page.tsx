@@ -11,12 +11,18 @@
 
 import { notFound } from "next/navigation";
 import { resolveAgentSession } from "@/lib/agent-session";
+import { prisma } from "@/lib/prisma";
 import { buildStepList } from "@/lib/milestone-emails/steps";
+import { getBrandColor } from "@/lib/agent/themes";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { emailStudioEnabled } from "@/lib/email/studio-flag";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
 import { AutomatedEmailsList } from "@/components/account/emails/AutomatedEmailsList";
+import { EmailStudio } from "@/components/account/v2/EmailStudio";
+import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
-import { ShareNetwork, EnvelopeSimple, Info } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +34,26 @@ export default async function AccountEmailsPage() {
   const steps = buildStepList()
     .filter((s) => s.sides.includes("vendor") || s.sides.includes("purchaser"))
     .map((s) => ({ ...s, sides: s.sides.filter((x) => x === "vendor" || x === "purchaser") }));
+
+  // Agency email branding (moved here from Profile so the whole email life -
+  // wording + look - lives on one tab). Director-level, agency-wide.
+  const [userRecord, agency] = await Promise.all([
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { agentPreferences: true } }),
+    prisma.agency.findUnique({
+      where: { id: session.user.agencyId },
+      select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, emailTheme: true },
+    }),
+  ]);
+  const currentBrand = getBrandColor(userRecord?.agentPreferences);
+  const branding: BrandingInitial = {
+    logoUrl: getAgencyLogoUrl(agency?.logoPath),
+    tileColor: agency?.logoTileColor ?? null,
+    scale: (agency?.logoScale as BrandingInitial["scale"]) ?? null,
+    align: (agency?.logoAlign as BrandingInitial["align"]) ?? null,
+    theme: (agency?.emailTheme as BrandingInitial["theme"]) ?? null,
+    appAccent: currentBrand ?? null,
+  };
+  const agencyName = agency?.name ?? null;
 
   return (
     <>
@@ -50,6 +76,18 @@ export default async function AccountEmailsPage() {
           subtitle="Longer emails sent at key moments in the sale."
         >
           <AutomatedEmailsList />
+        </AccountCard>
+
+        <AccountCard
+          icon={<ImageIcon size={18} weight="bold" />}
+          title="Email branding"
+          subtitle="Your logo and colours at the top of the emails your clients receive."
+        >
+          {emailStudioEnabled(session.user.email) ? (
+            <EmailStudio initial={branding} identityName={agencyName ?? "Your agency"} />
+          ) : (
+            <EmailBrandingStudio initial={branding} />
+          )}
         </AccountCard>
 
         <AccountCard style={{ background: "rgba(37,99,235,0.04)" }}>
