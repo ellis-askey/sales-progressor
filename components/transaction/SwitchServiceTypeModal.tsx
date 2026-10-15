@@ -1,9 +1,11 @@
 "use client";
 
 // Confirmation modal for switching a property file's service type
-// (self_managed ↔ outsourced). Rendered by PropertyHero for admin viewers
-// only. The auth gate lives both at the call site (button only renders for
-// admin) and inside switchServiceTypeAction (hasAdminPowers check).
+// (self_managed ↔ outsourced). Rendered by PropertyHero for admin viewers, for
+// a director handing their own file over (self -> outsourced), and for a
+// director taking an externally-progressed file back (outsourced -> self). The
+// auth gate lives both at the call site (which flags decide the button renders)
+// and inside switchServiceTypeAction (role + external-only re-checks).
 
 import { useEffect, useState, useTransition } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";

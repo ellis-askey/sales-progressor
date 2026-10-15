@@ -1650,12 +1650,17 @@ export async function switchServiceTypeAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSession();
   const isAdmin = hasAdminPowers(session);
-  // Directors may hand their OWN files over to our team (self-progress ->
-  // outsourced) but never the reverse — pulling an outsourced file back to
-  // self-progress is internal-only. Negotiators and everyone else are blocked.
+  // Directors may hand their OWN files over to a progressor (self-progress ->
+  // outsourced), and may take an EXTERNALLY-progressed file back to self-progress
+  // (outsourced -> self_managed) so the agency can dissolve its own relationship
+  // with an external company from its own side. Taking a TSP-managed file back
+  // stays internal-only (that is TSP's own paid service); the external-only check
+  // for handback runs after the file loads, below. Negotiators are blocked.
   const isAgentHandover =
     !isAdmin && session.user.role === "director" && target === "outsourced";
-  if (!isAdmin && !isAgentHandover) {
+  const isAgentHandback =
+    !isAdmin && session.user.role === "director" && target === "self_managed";
+  if (!isAdmin && !isAgentHandover && !isAgentHandback) {
     return { ok: false, error: "Forbidden" };
   }
 
@@ -1668,6 +1673,8 @@ export async function switchServiceTypeAction(
       status: true,
       tenure: true,
       purchaseType: true,
+      progressionBusinessId: true,
+      progressionBusiness: { select: { isTsp: true } },
       vendorSolicitorFirmId: true,
       vendorSolicitorContactId: true,
       purchaserSolicitorFirmId: true,
@@ -1683,6 +1690,16 @@ export async function switchServiceTypeAction(
   }
   if (tx.serviceType === target) {
     return { ok: true };
+  }
+
+  // A director handback is only for EXTERNALLY-progressed files. A TSP-managed
+  // file (progressionBusinessId null, or the TSP row) can be pulled back only by
+  // internal staff, since that is TSP's own paid service. Admin is unaffected.
+  if (isAgentHandback) {
+    const externallyProgressed = !!tx.progressionBusinessId && !tx.progressionBusiness?.isTsp;
+    if (!externallyProgressed) {
+      return { ok: false, error: "This file is managed by our team, so only we can move it back to self-progress. Get in touch and we'll help." };
+    }
   }
 
   // Outsourced handover gate (Resilience audit II.4; solicitor rules added by
@@ -1782,7 +1799,12 @@ export async function switchServiceTypeAction(
         // assignment (or null, which routes them to "Needs SP assigning").
         // Switching TO outsourced (re)starts the SP waiting clock from now.
         ...(target === "self_managed"
-          ? { assignedUserId: null, assignedAt: null }
+          // Taking a file back: drop the SP assignment AND clear the external
+          // progression-business tag + outsourced stamp, so the company that was
+          // progressing it loses access (business access keys on
+          // progressionBusinessId). businessPerSaleChargedAt is left as-is — the
+          // company still earned its per-sale charge for the work it did.
+          ? { assignedUserId: null, assignedAt: null, progressionBusinessId: null, outsourcedAt: null }
           // Routing to a progression business = a billable sale for them: tag it and
           // stamp the £5 (businessPerSaleChargedAt), same as a newly-created sale. The
           // daily cron collects it onto their next invoice.
