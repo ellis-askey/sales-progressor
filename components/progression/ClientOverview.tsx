@@ -10,13 +10,10 @@
 // needs a per-client rate-card model and lands in its own build.
 
 import Link from "next/link";
-import { useState } from "react";
 import { CaretRight, Check, Circle } from "@phosphor-icons/react";
-import { useAgentToast } from "@/components/agent/AgentToaster";
 import { fmtCurrencyPence } from "@/lib/utils";
-import { setClientAgencyFlagAction } from "@/app/actions/progression-clients";
 import { FeeEngine } from "./FeeEngine";
-import type { ClientAgencyDetail, ClientAgencyFlags } from "@/lib/services/progression-clients";
+import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
 type Tab = "Overview" | "Branding" | "Sales" | "People" | "Access";
 
@@ -38,32 +35,6 @@ export function ClientOverview({
   onTab: (t: Tab) => void;
   onResend: () => void;
 }) {
-  const { toast } = useAgentToast();
-  const [flags, setFlags] = useState<ClientAgencyFlags>(detail.flags);
-  const [saving, setSaving] = useState<string | null>(null);
-
-  async function toggle(key: keyof ClientAgencyFlags, label: string) {
-    if (saving) return;
-    const next = !flags[key];
-    setFlags((f) => ({ ...f, [key]: next }));
-    setSaving(key);
-    const res = await setClientAgencyFlagAction(detail.agencyId, key, next);
-    setSaving(null);
-    if (!res.ok) {
-      setFlags((f) => ({ ...f, [key]: !next }));
-      toast.error(res.error);
-    } else {
-      toast.success(next ? `${label} on` : `${label} off`);
-    }
-  }
-
-  const sw = (key: keyof ClientAgencyFlags, label: string) => (
-    <div className="ov-toggle">
-      <span className="k">{label}</span>
-      <button type="button" className={`ov-sw ${flags[key] ? "on" : "off"}`} onClick={() => toggle(key, label)} aria-pressed={flags[key]} aria-label={label}><i /></button>
-    </div>
-  );
-
   const checkGo = (label: string): { text: string; href?: string; go?: () => void } | null => {
     if (label === "Brand colour" || label === "Logo added") return { text: "Branding", go: () => onTab("Branding") };
     if (label === "Agent joined") return { text: "Resend", go: onResend };
@@ -108,24 +79,6 @@ export function ClientOverview({
             </>)}
       </div>
 
-      {/* Service & defaults */}
-      <div className="ov-card" style={{ animationDelay: "120ms" }}>
-        <p className="ov-eyebrow">Service &amp; chasing</p>
-        <p className="ov-sub">Choose what we automatically chase on their files.</p>
-        {sw("solicitorChase", "Chase solicitors")}
-        {sw("enquiryChase", "Chase enquiries")}
-        {sw("weeklyUpdate", "Weekly client update")}
-      </div>
-
-      {/* Portal defaults */}
-      <div className="ov-card" style={{ animationDelay: "160ms" }}>
-        <p className="ov-eyebrow">Portal defaults</p>
-        <p className="ov-sub">Choose what their buyers and sellers can see.</p>
-        {sw("portalKeyDates", "Key dates card")}
-        {sw("portalCosts", "Costs estimate")}
-        {sw("portalProgress", "Progress percentage")}
-      </div>
-
       {/* Finish setup */}
       <div className="ov-card" style={{ animationDelay: "200ms" }}>
         <p className="ov-eyebrow">Finish setup · {detail.completePct}%</p>
@@ -147,9 +100,10 @@ export function ClientOverview({
       </div>
 
       <style>{`
-        .ov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .ov .span2 { grid-column: span 2; }
-        @media (max-width: 920px) { .ov { grid-template-columns: repeat(2, 1fr); } .ov .span2 { grid-column: 1 / -1; } }
+        /* Performance spans the full width; Recent sales + Finish setup sit
+           50/50 beneath it, stacking to one column on narrow screens. */
+        .ov { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .ov .span2 { grid-column: 1 / -1; }
         @media (max-width: 600px) { .ov { grid-template-columns: 1fr; } }
 
         .ov-card {
@@ -159,7 +113,6 @@ export function ClientOverview({
         }
         @keyframes ov-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
         .ov-eyebrow { margin: 0 0 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--agent-text-muted); }
-        .ov-sub { margin: -8px 0 12px; font-size: 11px; color: var(--agent-text-muted); }
         .ov-empty { margin: 0; font-size: 13px; color: var(--agent-text-muted); }
 
         .ov-stat3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
@@ -184,15 +137,6 @@ export function ClientOverview({
         .ov-link { appearance: none; background: none; border: none; cursor: pointer; font-size: 12px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; margin-top: 10px; padding: 0; }
         .ov-link:hover { text-decoration: underline; }
 
-        .ov-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--agent-border-subtle); }
-        .ov-toggle:first-of-type { border-top: 0; }
-        .ov-toggle .k { font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); }
-        .ov-sw { width: 36px; height: 21px; border-radius: 999px; position: relative; cursor: pointer; border: none; flex-shrink: 0; transition: background .18s ease; padding: 0; }
-        .ov-sw.on { background: var(--agent-coral-deep, #E2452A); }
-        .ov-sw.off { background: var(--agent-border-strong, rgba(0,0,0,0.18)); }
-        :root[data-theme="dark"] .ov-sw.off { background: rgba(255,255,255,0.2); }
-        .ov-sw i { position: absolute; top: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: left .18s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
-        .ov-sw.on i { left: 17px; } .ov-sw.off i { left: 2px; }
 
         .ov-meter { height: 8px; border-radius: 999px; background: rgba(var(--agent-coral-rgb),0.18); overflow: hidden; margin-bottom: 12px; }
         .ov-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep)); border-radius: 999px; transition: width .9s cubic-bezier(.22,1,.36,1); }
