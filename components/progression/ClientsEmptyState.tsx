@@ -59,7 +59,7 @@ export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: 
   }, [mode, animating]);
 
   return (
-    <div className="cwg">
+    <div className={"cwg" + (pendingRequests.length > 0 ? " has-pending" : "")}>
       <div className="cwg-blob cwg-blob-1" aria-hidden />
       <div className="cwg-blob cwg-blob-2" aria-hidden />
 
@@ -294,6 +294,10 @@ export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: 
 
         @media (max-width: 820px) {
           .cwg-cols { grid-template-columns: 1fr; gap: 24px; }
+          /* Once the layout stacks and there's a real pending request to show, the
+             decorative mock roster would sit right on top of the live "Requests
+             sent" row and read as clutter. Hide it in that case. */
+          .cwg.has-pending .cwg-roster { display: none; }
         }
         @media (max-width: 480px) {
           .cwg-row { grid-template-columns: 1fr; }
