@@ -122,27 +122,33 @@ function durationLabel(days: number, suffix: string): ReactNode {
 function computeUrgency(
   log: AgentReminderLog,
   task: { chaseCount: number; priority: string },
-): { bucket: UrgencyBucket; label: ReactNode; title?: string; hasBeenChased: boolean } {
+): { bucket: UrgencyBucket; label: ReactNode; title?: string; hasBeenChased: boolean; isNextDate: boolean } {
   const todayStr = toUKDateStr(new Date());
   const dueStr = toUKDateStr(log.nextDueDate);
   const isOverdue = dueStr < todayStr;
   const isDueToday = dueStr === todayStr;
   const daysOverdue = isOverdue ? Math.floor((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000) : 0;
   const hasBeenChased = (task.chaseCount ?? 0) >= 1;
-  const bucket: UrgencyBucket = task.priority === "escalated" ? "escalated"
+  const escalated = task.priority === "escalated";
+  const bucket: UrgencyBucket = escalated ? "escalated"
     : isOverdue ? "overdue"
     : isDueToday ? "due_today"
     : "upcoming";
-  const label: ReactNode = task.priority === "escalated" ? "Escalated"
+  // The plain "Next {date}" form carries nothing the row's own "Next chase due
+  // · {date}" line doesn't already show (same nextDueDate source) — the header
+  // pill is suppressed in that case (founder, 2026-10-15). Every other label
+  // (Nd overdue, Was due, Due today, Escalated) adds something, so it stays.
+  const isNextDate = !escalated && !isOverdue && (hasBeenChased || !isDueToday);
+  const label: ReactNode = escalated ? "Escalated"
     : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
     : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
     : isOverdue ? durationLabel(daysOverdue, "overdue")
     : isDueToday ? "Due today"
     : `Next ${formatDate(log.nextDueDate)}`;
-  const title = !hasBeenChased && isOverdue && task.priority !== "escalated"
+  const title = !hasBeenChased && isOverdue && !escalated
     ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} overdue`
     : undefined;
-  return { bucket, label, title, hasBeenChased };
+  return { bucket, label, title, hasBeenChased, isNextDate };
 }
 
 // Friendly label for a comm method on the chase-history line.
@@ -573,21 +579,28 @@ function SplitFileCard({
               />
             </span>
           )}
-          {isSingle && (
-            (() => {
-              const s = openTasks[0];
-              const sLog = s?.log ?? scheduledLogs[0];
-              if (!sLog) return null;
-              const sBuyer = isBuyerLog(sLog);
-              const u = s ? computeUrgency(s.log, s.task) : null;
-              return (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  <SidePill isBuyer={sBuyer} />
-                  {u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} title={u.title} />}
-                </div>
-              );
-            })()
-          )}
+          {(() => {
+            // Side pill: shown when every reminder on the file is the same side
+            // (one or many); hidden on a mixed-side file (founder, 2026-10-15).
+            // On mobile it renders the word only (no role icon) — mobileLabelOnly.
+            const sideLogs = openTasks.length > 0 ? openTasks.map((o) => o.log) : scheduledLogs;
+            const sides = new Set(sideLogs.map(isBuyerLog));
+            const showSide = sideLogs.length > 0 && sides.size === 1;
+            const sBuyer = sideLogs[0] ? isBuyerLog(sideLogs[0]) : false;
+            // Urgency pill: single-reminder files only, and only when it says
+            // more than the row's own "Next chase due · date" line (so the plain
+            // "Next {date}" form is dropped on coming-up / chased rows).
+            const s = isSingle ? openTasks[0] : null;
+            const u = s ? computeUrgency(s.log, s.task) : null;
+            const showUrgency = !!u && !u.isNextDate;
+            if (!showSide && !showUrgency) return null;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {showSide && <SidePill isBuyer={sBuyer} mobileLabelOnly />}
+                {showUrgency && u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} title={u.title} />}
+              </div>
+            );
+          })()}
         </div>
         {/* Collapse chevron — rotates down when the file is folded. */}
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, transition: "transform 220ms cubic-bezier(0.25,0,0,1)", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }}>

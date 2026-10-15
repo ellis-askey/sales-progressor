@@ -30,13 +30,16 @@ export function BlocksExchangePill() {
   return <StatusPill tone="danger" icon={<LockSimple size={11} weight="bold" />} label="Blocks Exchange" />;
 }
 
-// Seller / Buyer side pill.
-export function SidePill({ isBuyer }: { isBuyer: boolean }) {
+// Seller / Buyer side pill. `mobileLabelOnly` drops the role icon and keeps the
+// word on mobile (≤767px) — used on the Reminders page header where the pill is
+// the only side marker and space is tight (founder, 2026-10-15).
+export function SidePill({ isBuyer, mobileLabelOnly = false }: { isBuyer: boolean; mobileLabelOnly?: boolean }) {
   return (
     <StatusPill
       tone={isBuyer ? "info" : "warning"}
       icon={<RoleIcon role={isBuyer ? "purchaser" : "vendor"} size={11} />}
       label={isBuyer ? "Buyer" : "Seller"}
+      className={mobileLabelOnly ? "rem-side-pill-ml" : undefined}
     />
   );
 }

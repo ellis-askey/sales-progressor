@@ -15,6 +15,7 @@ export function StatusPill({
   size = "sm",
   glass = true,
   title,
+  className,
 }: {
   tone?: PillProps["tone"];
   icon: ReactNode;
@@ -22,10 +23,11 @@ export function StatusPill({
   size?: PillProps["size"];
   glass?: boolean;
   title?: string;
+  className?: string;
 }) {
   return (
-    <Pill tone={tone} size={size} glass={glass} title={title ?? (typeof label === "string" ? label : undefined)}>
-      <span style={{ display: "inline-flex", flexShrink: 0 }}>{icon}</span>
+    <Pill tone={tone} size={size} glass={glass} className={className} title={title ?? (typeof label === "string" ? label : undefined)}>
+      <span className="rem-pill-icon" style={{ display: "inline-flex", flexShrink: 0 }}>{icon}</span>
       <span className="rem-pill-label">{label}</span>
     </Pill>
   );

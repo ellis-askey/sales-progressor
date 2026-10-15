@@ -3532,6 +3532,11 @@
    * overflowing. Labels are fixed and short, so a viewport breakpoint is enough. */
   @media (max-width: 767px) {
     .rem-pill-label { display: none; }
+    /* Side pill on the Reminders header: show the word, drop the role icon —
+       it's the only side marker there now (founder, 2026-10-15). Overrides the
+       label-hide above for this pill only. */
+    .rem-side-pill-ml .rem-pill-label { display: inline; }
+    .rem-side-pill-ml .rem-pill-icon { display: none; }
   }
 
   /* ── Reminder card, mobile relayout (founder mock, 2026-09-23) ────────────
