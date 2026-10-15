@@ -161,8 +161,15 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     >
       <style>{`
         .sig-editor:empty:before{content:attr(data-placeholder);color:#9ca3af;}
-        .sig-mode-btn{transition:background 160ms,border-color 150ms,box-shadow 220ms,transform 160ms;}
+        .sig-mode-btn{transition:background 160ms,border-color 150ms,box-shadow 220ms,transform 160ms;outline:none;}
         .sig-mode-btn:not(.on):hover{border-color:var(--agent-coral,#FF8A65);transform:translateY(-1px);}
+        /* Coral keyboard focus instead of the browser's black outline. */
+        .sig-mode-btn:focus-visible{outline:2px solid var(--agent-coral,#FF6B4A);outline-offset:2px;}
+        /* Destructive buttons (Remove, Clear): the bin + button go red on hover.
+           !important beats the inline base style. */
+        .sig-danger-btn{transition:background 140ms,border-color 140ms,color 140ms,transform 90ms;}
+        .sig-danger-btn:hover:not(:disabled){background:#fef2f2 !important;border-color:#dc2626 !important;color:#dc2626 !important;}
+        .sig-danger-btn:active:not(:disabled){transform:scale(0.97);}
       `}</style>
 
       {/* Mode selector — standard option-select treatment: brand-fill + tick on
@@ -215,11 +222,11 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
                 if (f) uploadFile(f);
               }}
             />
-            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={secondaryBtn}>
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="account-btn-secondary" style={secondaryBtn}>
               <UploadSimple size={15} weight="bold" /> {imageUrl ? "Replace image" : "Upload image"}
             </button>
             {imageUrl && (
-              <button type="button" onClick={removeImage} disabled={busy} style={secondaryBtn}>
+              <button type="button" onClick={removeImage} disabled={busy} className="sig-danger-btn" style={secondaryBtn}>
                 <Trash size={15} weight="bold" /> Remove
               </button>
             )}
@@ -231,9 +238,10 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
               value={urlValue}
               onChange={(e) => setUrlValue(e.target.value)}
               placeholder="…or paste an https image URL"
-              style={{ flex: 1, fontSize: 13, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.14)" }}
+              className="account-input"
+              style={{ flex: 1, fontSize: 13, padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.14)", outline: "none" }}
             />
-            <button type="button" onClick={importUrl} disabled={busy || !urlValue.trim()} style={secondaryBtn}>
+            <button type="button" onClick={importUrl} disabled={busy || !urlValue.trim()} className="account-btn-secondary" style={secondaryBtn}>
               Import
             </button>
           </div>
@@ -363,7 +371,8 @@ function CustomSignatureEditor({
               <select
                 value={source}
                 onChange={(e) => changeSource(e.target.value as SignatureSource)}
-                style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", color: "#374151" }}
+                className="account-input"
+                style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", color: "#374151", outline: "none" }}
               >
                 {SOURCE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -371,14 +380,14 @@ function CustomSignatureEditor({
               </select>
             </label>
           )}
-          <button type="button" onClick={clearEditor} disabled={empty} style={{ ...secondaryBtn, padding: "5px 12px", opacity: empty ? 0.5 : 1 }}>
+          <button type="button" onClick={clearEditor} disabled={empty} className="sig-danger-btn" style={{ ...secondaryBtn, padding: "5px 12px", opacity: empty ? 0.5 : 1 }}>
             <Trash size={14} weight="bold" /> Clear
           </button>
         </div>
       </div>
       <div
         ref={ref}
-        className="sig-editor"
+        className="sig-editor account-input"
         contentEditable
         suppressContentEditableWarning
         role="textbox"
