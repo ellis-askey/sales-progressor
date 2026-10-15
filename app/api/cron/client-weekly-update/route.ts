@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendClientWeeklyUpdates } from "@/lib/services/client-weekly-update";
 import { runJob } from "@/lib/cron/run-job";
 
-// Runs Sunday 18:00 UTC via Vercel Cron (see vercel.json).
+// Runs Saturday 09:00 UTC via Vercel Cron (see vercel.json).
 // Protected by CRON_SECRET header.
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("authorization");

@@ -9,9 +9,8 @@
 // cron is a no-op even when scheduled — letting us register the schedule
 // safely on production without committing to live behaviour.
 //
-// Schedule: daily at 09:00 UTC (vercel.json). Vercel Hobby plan only
-// allows daily granularity; that's plenty for chase emails (intra-day
-// changes don't need same-day chase reflexes).
+// Schedule: 09:30 UTC, Monday to Saturday (vercel.json). Intra-day changes
+// don't need same-day chase reflexes.
 //
 // drainOutboundQueue (separate hourly cron) handles the actual send —
 // this cron only enqueues. That separation means the digest goes into
