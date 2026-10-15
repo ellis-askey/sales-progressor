@@ -55,7 +55,10 @@ function SectionPill({ isOutsourced, filled }: { isOutsourced: boolean; filled: 
         transition: "opacity 200ms ease, max-width 260ms ease, margin-left 260ms ease",
       }}
     >
-      <Pill glass tone="warning" size="sm" style={{ flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+      {/* No outer drop shadow here: the collapse wrapper's overflow:hidden would
+          clip the glass pill's 0 3px 10px shadow flat. On this opaque card the
+          top sheen alone reads clean. */}
+      <Pill glass tone="warning" size="sm" style={{ flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle", whiteSpace: "nowrap", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
         Needed
       </Pill>
     </span>
