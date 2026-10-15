@@ -79,8 +79,8 @@ export default async function AgencyChasingPage() {
         <SettingsNote
           tone="info"
           icon={<EnvelopeSimple size={18} weight="fill" />}
-          title="Want to change the wording or look of these emails?"
-          body="That's set on the Emails page. This page controls the chasing: which chases run and how often."
+          title="Want to change how these emails look or sound?"
+          body="Head to the Emails page to customise their wording and appearance. Here, you choose what gets chased and how often."
           action={<Link href="/agent/account/emails" style={{ color: "inherit", textDecoration: "none" }}>Go to Emails →</Link>}
         />
       </div>
