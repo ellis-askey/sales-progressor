@@ -22,7 +22,9 @@ import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
-import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon } from "@phosphor-icons/react/dist/ssr";
+import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
+import Link from "next/link";
+import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -61,47 +63,67 @@ export default async function AccountEmailsPage() {
         title="Your client emails"
         subtitle="Every email is ready to go. Customise any of them and we'll use your version instead."
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <AccountCard
-          icon={<ShareNetwork size={18} weight="bold" />}
-          title="Step-by-step updates"
-          subtitle="The email your client receives as each stage of their sale is completed."
-        >
-          <AgencyMilestoneEmailsEditor steps={steps} />
-        </AccountCard>
+      <EmailsTabs
+        words={
+          <>
+            <AccountCard
+              icon={<ShareNetwork size={18} weight="bold" />}
+              title="Step-by-step updates"
+              subtitle="The email your client receives as each stage of their sale is completed."
+            >
+              <AgencyMilestoneEmailsEditor steps={steps} />
+            </AccountCard>
 
-        <AccountCard
-          icon={<EnvelopeSimple size={18} weight="bold" />}
-          title="Automated emails"
-          subtitle="Longer emails sent at key moments in the sale."
-        >
-          <AutomatedEmailsList />
-        </AccountCard>
+            <AccountCard
+              icon={<EnvelopeSimple size={18} weight="bold" />}
+              title="Automated emails"
+              subtitle="Longer emails sent at key moments in the sale."
+            >
+              <AutomatedEmailsList />
+            </AccountCard>
 
-        <AccountCard
-          icon={<ImageIcon size={18} weight="bold" />}
-          title="Email branding"
-          subtitle="Your logo and colours at the top of the emails your clients receive."
-        >
-          {emailStudioEnabled(session.user.email) ? (
-            <EmailStudio initial={branding} identityName={agencyName ?? "Your agency"} />
-          ) : (
-            <EmailBrandingStudio initial={branding} />
-          )}
-        </AccountCard>
-
-        <AccountCard style={{ background: "rgba(37,99,235,0.04)" }}>
-          <div style={{ display: "flex", gap: 12 }}>
-            <Info size={20} weight="fill" style={{ color: "#2563eb", flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version is what clients see</p>
-              <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>
-                Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording.
-              </p>
-            </div>
-          </div>
-        </AccountCard>
-      </div>
+            <AccountCard style={{ background: "rgba(37,99,235,0.04)" }}>
+              <div style={{ display: "flex", gap: 12 }}>
+                <Info size={20} weight="fill" style={{ color: "#2563eb", flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version is what clients see</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>
+                    Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording.
+                  </p>
+                </div>
+              </div>
+            </AccountCard>
+          </>
+        }
+        look={
+          <AccountCard
+            icon={<ImageIcon size={18} weight="bold" />}
+            title="Email branding"
+            subtitle="Your logo and colours at the top of the emails your clients receive."
+          >
+            {emailStudioEnabled(session.user.email) ? (
+              <EmailStudio initial={branding} identityName={agencyName ?? "Your agency"} />
+            ) : (
+              <EmailBrandingStudio initial={branding} />
+            )}
+          </AccountCard>
+        }
+        sender={
+          <AccountCard
+            icon={<PaperPlaneTilt size={18} weight="bold" />}
+            title="Sending address"
+            subtitle="The address your clients' emails come from."
+          >
+            <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
+              Your sending address is personal to you (each person on your team can send from their own work email), so it lives on your{" "}
+              <Link href="/agent/account/profile" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
+                Profile
+              </Link>{" "}
+              under Sending addresses.
+            </p>
+          </AccountCard>
+        }
+      />
     </>
   );
 }
