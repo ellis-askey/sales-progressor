@@ -57,7 +57,7 @@ import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Plus, Clock, Warning, CaretRight, HouseSimple, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, Warning, CaretRight, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -1503,14 +1503,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
               border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.20)",
               borderRadius: 10,
             }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-                background: "rgba(var(--agent-coral-base-rgb),0.14)",
-                color: "var(--agent-coral-deep)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <HouseSimple size={14} weight="fill" />
-              </div>
+              {/* Icon + its faded square removed (critique 2026-10-15) — text only. */}
               <p style={{
                 margin: 0, fontSize: 12,
                 color: "var(--agent-text-secondary)", lineHeight: 1.5,

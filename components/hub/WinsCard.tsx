@@ -147,12 +147,27 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
   return slides;
 }
 
-const TIER_META: Record<Tier, { icon: React.ReactNode; subtitle: string }> = {
-  exchanges:   { icon: <Trophy size={24} weight="bold" />,  subtitle: "You're moving fast." },
-  completions: { icon: <Flag size={24} weight="bold" />,    subtitle: "Files across the line." },
-  progress:    { icon: <Sparkle size={24} weight="bold" />, subtitle: "Pipeline is moving." },
-  fresh:       { icon: <Rocket size={24} weight="bold" />,  subtitle: "Nothing to celebrate yet." },
+// Icon per tier (the overall mood). The caption, though, follows the CURRENT
+// story (below) rather than a fixed per-tier tagline — a hard-coded motivational
+// line always reads like a slogan (founder, 2026-10-15).
+const TIER_META: Record<Tier, { icon: React.ReactNode }> = {
+  exchanges:   { icon: <Trophy size={24} weight="bold" /> },
+  completions: { icon: <Flag size={24} weight="bold" /> },
+  progress:    { icon: <Sparkle size={24} weight="bold" /> },
+  fresh:       { icon: <Rocket size={24} weight="bold" /> },
 };
+
+// Caption under "Wins this month" — swaps with the rotating story so it always
+// describes what's on screen. Plain and factual, never a slogan.
+const SLIDE_SUBTITLE: Record<string, string> = {
+  exchanges:   "Contracts exchanged this month",
+  fastest:     "Fastest sale to exchange",
+  biggest:     "Biggest exchange this month",
+  momentum:    "Steps confirmed this week",
+  completions: "Sales completed this month",
+  newfiles:    "New instructions this month",
+};
+const FRESH_SUBTITLE = "Your month so far";
 
 const ROTATE_MS = 6000;
 
@@ -193,6 +208,11 @@ export function WinsCard({ wins }: { wins: HubWins }) {
   }, [slides.length]);
 
   const meta = TIER_META[tier];
+  // Caption follows the current story (falls back to the fresh line when there
+  // are no stories to rotate).
+  const activeSubtitle = slides.length > 0
+    ? (SLIDE_SUBTITLE[slides[idx]?.key ?? ""] ?? FRESH_SUBTITLE)
+    : FRESH_SUBTITLE;
 
   const header = (
     <div className="agent-card-hdr-internal" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -202,7 +222,7 @@ export function WinsCard({ wins }: { wins: HubWins }) {
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Wins this month</p>
-        <p className="agent-card-subtitle" style={{ margin: 0 }}>{meta.subtitle}</p>
+        <p className="agent-card-subtitle" style={{ margin: 0 }}>{activeSubtitle}</p>
       </div>
     </div>
   );
@@ -243,14 +263,16 @@ export function WinsCard({ wins }: { wins: HubWins }) {
               pointerEvents: i === idx ? "auto" : "none",
             }}
           >
-            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--agent-coral-deep)" }}>
+            {/* Kicker in sentence case (not all-caps) + capitalised label
+                (founder, 2026-10-15). */}
+            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em", color: "var(--agent-coral-deep)" }}>
               {s.kicker}
             </p>
             <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: s.bigColor ?? "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
               {s.big}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
-              {s.label}
+              {s.label.charAt(0).toUpperCase() + s.label.slice(1)}
             </p>
             {s.trend && (
               <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[s.trend.tone] }}>

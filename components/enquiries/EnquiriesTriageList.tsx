@@ -343,13 +343,21 @@ export function EnquiriesTriageList({
                     <div className="enq-thumb property-photo-fallback" aria-hidden />
                   )}
                   <div className="enq-idcol">
-                    <span className="enq-addr" data-sensitive="true">{line1.trim()}</span>
-                    {rest.length > 0 && <div className="enq-town" data-sensitive="true">{rest.join(",").trim()}</div>}
-                    <div className="enq-meta2">
-                      {r.tenure ? <span style={{ textTransform: "capitalize" }}>{r.tenure}</span> : null}
-                      {r.tenure && fmtPrice(r.price) ? " · " : ""}
-                      {fmtPrice(r.price) ?? ""}
+                    {/* Address + town stay a block on the left; tenure/price is a
+                        sibling so mobile can float it to the right of them,
+                        stacked and dot-free (critique 2026-10-15). Desktop keeps
+                        the inline "Freehold · £450,000" line beneath the address. */}
+                    <div className="enq-idmain">
+                      <span className="enq-addr" data-sensitive="true">{line1.trim()}</span>
+                      {rest.length > 0 && <div className="enq-town" data-sensitive="true">{rest.join(",").trim()}</div>}
                     </div>
+                    {(r.tenure || fmtPrice(r.price)) && (
+                      <div className="enq-meta2">
+                        {r.tenure && <span style={{ textTransform: "capitalize" }}>{r.tenure}</span>}
+                        {r.tenure && fmtPrice(r.price) && <span className="enq-metadot" aria-hidden>·</span>}
+                        {fmtPrice(r.price) && <span>{fmtPrice(r.price)}</span>}
+                      </div>
+                    )}
                   </div>
                 </Link>
 

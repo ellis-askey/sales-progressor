@@ -107,7 +107,9 @@ export function CompletionsMomentum({
                 {c.value}
               </span>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>{c.label}</span>
-              <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.2 }}>{c.sub}</span>
+              {/* A touch more air above the small subtext so it doesn't crowd the
+                  label (critique 2026-10-15). */}
+              <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.2, marginTop: 3 }}>{c.sub}</span>
             </span>
           </div>
         ))}
