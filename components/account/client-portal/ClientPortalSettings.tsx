@@ -62,8 +62,10 @@ const KD = {
 // Preview surfaces render the CLIENT portal (always light), so they show a
 // light "portal" backdrop regardless of the agent's theme.
 function PreviewShell({ children }: { children: React.ReactNode }) {
+  // Less vertical inset than horizontal: the real portal cards inside already
+  // carry their own top/bottom padding, so a full 14px here doubled it up.
   return (
-    <div style={{ marginTop: 13, borderRadius: 12, background: "#eef2f9", border: "1px solid var(--agent-border-subtle)", padding: 14 }}>
+    <div style={{ marginTop: 13, borderRadius: 12, background: "#eef2f9", border: "1px solid var(--agent-border-subtle)", padding: "8px 14px" }}>
       {children}
     </div>
   );
