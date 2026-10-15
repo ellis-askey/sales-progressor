@@ -191,11 +191,9 @@ export function ContactCard({
             ) : null}
           </div>
         </div>
-        {isOutsourced && (
-          <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--nv2-text-muted)" }}>
-            At least one required
-          </p>
-        )}
+        {/* No "At least one required" here: the per-contact reachability line
+            below ("Add a phone or email so we can reach them" / "We can reach
+            this {label}") is the single, actionable signal. */}
       </div>
 
       {/* Bottom hint */}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus } from "@phosphor-icons/react";
 import { ContactCard } from "./ContactsSection";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldHint } from "./FieldIndicator";
@@ -254,20 +253,9 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           progressedBy={progressedBy}
           filled={filled}
         />
-        {/* Fades + collapses once the section is valid, so the box tightens (#194). */}
-        <div
-          style={{
-            overflow: "hidden",
-            maxHeight: isOutsourced && !filled ? 40 : 0,
-            opacity: isOutsourced && !filled ? 1 : 0,
-            marginBottom: isOutsourced && !filled ? 10 : 0,
-            transition: "max-height 260ms ease, opacity 200ms ease, margin-bottom 260ms ease",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-warning)" }}>
-            Add at least one {singular} with a name and a way to contact them
-          </p>
-        </div>
+        {/* Section-level "add at least one…" removed: it duplicated the
+            per-contact reachability line on the card below. The NEEDED pill in
+            the header carries the section-incomplete signal. */}
         {error && (
           <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
         )}
@@ -294,21 +282,24 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
 
   return (
     <div onKeyDown={handleKeyDown}>
-      {/* Header — label only. Add lives on the tab strip below so the
-          count and the add affordance share one row. */}
-      <div style={{ marginBottom: 8 }}>
+      {/* Header — same shape as single-entry: label on the left, the "+ Add"
+          line top-right (kept here rather than moved into a tab-strip pill). */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
           <SectionPill isOutsourced={isOutsourced} filled={filled} />
         </p>
+        {canAdd && (
+          <button type="button" onClick={addEntry} className="agent-link" style={{ fontSize: 12, fontWeight: 600, padding: 0 }}>
+            + Add {singular}
+          </button>
+        )}
       </div>
 
-      {/* Tab strip — one pill per contact + an Add pill at the end. Pills
-          show the contact's name once entered; otherwise a "{Singular} N"
-          fallback. Active pill is filled coral; invalid pill shows an
-          amber dot. Replaces the previous dots-and-chevron navigation
-          row and removes the fake-depth card stack entirely. */}
+      {/* Tab strip — one pill per contact. Pills show the contact's name once
+          entered; otherwise a "{Singular} N" fallback. Active pill is filled
+          coral; invalid pill shows an amber dot. (Add now lives in the header.) */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
         {contacts.map((c, i) => {
           const isActive = i === activeIndex;
@@ -363,32 +354,6 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={canAdd ? addEntry : undefined}
-          disabled={!canAdd}
-          title={!canAdd ? `Maximum ${MAX_ENTRIES} ${label.toLowerCase()}` : undefined}
-          aria-label={`Add ${singular}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 3,
-            padding: "5px 11px 5px 9px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 600,
-            background: "transparent",
-            color: canAdd ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
-            border: canAdd
-              ? "1px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
-              : "1px dashed var(--nv2-border-medium)",
-            cursor: canAdd ? "pointer" : "not-allowed",
-            lineHeight: 1.2,
-          }}
-        >
-          <Plus size={11} weight="bold" />
-          Add
-        </button>
       </div>
 
       {error && (
