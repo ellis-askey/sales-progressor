@@ -128,6 +128,14 @@ export async function resolveBusinessMember(session: Session): Promise<BusinessM
 // ProgressionBusinessClient link is created (or an archived one reinstated).
 // Access stays per-file via progressionBusinessId — the link is management only.
 
+// Connection requests go stale after 30 days: they drop off both sides' lists
+// and can no longer be accepted (the agency asks the business for a fresh one).
+// Keeps the handshake from leaving indefinitely-actionable rows lying around.
+const CONNECT_REQUEST_TTL_DAYS = 30;
+function connectRequestCutoff(): Date {
+  return new Date(Date.now() - CONNECT_REQUEST_TTL_DAYS * 86400000);
+}
+
 export type ConnectableAgency = { agencyId: string; agencyName: string; directorName: string | null };
 
 /** Resolve an on-platform agency by one of its staff's email, to connect to it. */
@@ -140,19 +148,24 @@ export async function findConnectableAgencyByEmail(email: string): Promise<Conne
   return { agencyId: user.agency.id, agencyName: user.agency.name, directorName: user.name };
 }
 
-export type ConnectRequestResult = { ok: true; agencyName: string } | { ok: false; error: string };
+export type ConnectRequestResult = { ok: true; agencyName: string | null } | { ok: false; error: string };
 
 /** Owner sends a connection request to an existing agency (pending their accept). */
 export async function requestConnectAgency(input: { owner: BusinessOwner; email: string; feeModel: ClientFeeModel | null }): Promise<ConnectRequestResult> {
   const target = await findConnectableAgencyByEmail(input.email);
-  if (!target) return { ok: false, error: "No agency on Sales Progressor matches that email." };
+  // Uniform response when no agency matches: return the same success shape as a
+  // real send so an owner can't probe arbitrary emails to discover which belong
+  // to an on-platform agency (or learn its name). The caller surfaces a generic
+  // "if that email belongs to an agency, we've sent a request" either way.
+  if (!target) return { ok: true, agencyName: null };
   const existingLink = await prisma.progressionBusinessClient.findUnique({
     where: { progressionBusinessId_agencyId: { progressionBusinessId: input.owner.businessId, agencyId: target.agencyId } },
     select: { removedAt: true },
   });
   if (existingLink && !existingLink.removedAt) return { ok: false, error: `${target.agencyName} is already one of your clients.` };
   const pending = await prisma.progressionConnectionRequest.findFirst({
-    where: { progressionBusinessId: input.owner.businessId, agencyId: target.agencyId, status: "pending" },
+    // A stale (expired) pending request does not block a fresh send.
+    where: { progressionBusinessId: input.owner.businessId, agencyId: target.agencyId, status: "pending", createdAt: { gte: connectRequestCutoff() } },
     select: { id: true },
   });
   if (pending) return { ok: false, error: `You already have a pending request to ${target.agencyName}.` };
@@ -172,7 +185,7 @@ export type IncomingConnectionRequest = { id: string; businessId: string; busine
 /** Pending requests awaiting THIS agency director's response (for the hub card). */
 export async function listIncomingConnectionRequests(agencyId: string): Promise<IncomingConnectionRequest[]> {
   const reqs = await prisma.progressionConnectionRequest.findMany({
-    where: { agencyId, status: "pending" },
+    where: { agencyId, status: "pending", createdAt: { gte: connectRequestCutoff() } },
     orderBy: { createdAt: "asc" },
     select: { id: true, feeModel: true, createdAt: true, progressionBusiness: { select: { id: true, name: true } } },
   });
@@ -184,7 +197,7 @@ export type OutgoingConnectionRequest = { id: string; agencyId: string; agencyNa
 /** Pending requests a business has sent (shown as "request sent" in Clients). */
 export async function listOutgoingConnectionRequests(businessId: string): Promise<OutgoingConnectionRequest[]> {
   const reqs = await prisma.progressionConnectionRequest.findMany({
-    where: { progressionBusinessId: businessId, status: "pending" },
+    where: { progressionBusinessId: businessId, status: "pending", createdAt: { gte: connectRequestCutoff() } },
     orderBy: { createdAt: "asc" },
     select: { id: true, createdAt: true, agency: { select: { id: true, name: true } } },
   });
@@ -211,11 +224,12 @@ export type RespondResult = { ok: true; accepted: boolean; businessName: string 
 export async function respondToConnectionRequest(input: { requestId: string; accept: boolean; userId: string; userAgencyId: string | null }): Promise<RespondResult> {
   const req = await prisma.progressionConnectionRequest.findUnique({
     where: { id: input.requestId },
-    select: { id: true, status: true, agencyId: true, progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
+    select: { id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
   });
   if (!req) return { ok: false, error: "Request not found." };
   if (!input.userAgencyId || req.agencyId !== input.userAgencyId) return { ok: false, error: "This request isn't for your agency." };
   if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
+  if (req.createdAt < connectRequestCutoff()) return { ok: false, error: "This request has expired. Ask them to send a new one." };
 
   if (input.accept) {
     await prisma.$transaction(async (tx) => {
