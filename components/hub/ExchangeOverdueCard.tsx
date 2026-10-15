@@ -119,7 +119,9 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
                       {(() => { const m = passedParts(item); return m.date ? `${m.date} · ${m.past}` : m.past; })()}
                     </p>
                   </div>
-                  <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* Display/placement comes from .hub-r-tail (never inline — the
+                      breakpoints own it). */}
+                  <div className="hub-r-tail">
                     {/* Mobile meta: the displaced context line, stacked (no dot),
                         sitting to the left of the button. Hidden on desktop. */}
                     {(() => { const m = passedParts(item); return (

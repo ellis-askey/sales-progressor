@@ -952,9 +952,9 @@ function AttentionRow({
       </Link>
     );
 
-  // Rendered in two slots (inline-with-address on desktop, under-photo on
-  // mobile); only one is visible per breakpoint. A pill is a plain span, so
-  // rendering it twice is free.
+  // Desktop keeps the pill inline with the address. Mobile drops the pill for
+  // a very small header in the same tone colour, sat directly above the status
+  // line (critique 2026-10-15) — only one slot is visible per breakpoint.
   const pillNode = <TypePill label={pill.label} tone={tone} title={pill.title} />;
 
   return (
@@ -984,7 +984,7 @@ function AttentionRow({
       >
         <CaretDown size={15} weight="bold" style={{ transition: "transform 180ms ease", transform: expanded ? "rotate(180deg)" : "none" }} />
       </button>
-      <span className="attn-pill-m">{pillNode}</span>
+      <span className="attn-label-m" style={{ color: t.color }} title={pill.title}>{pill.label}</span>
       <p className="attn-status" title={secondaryTitle}>{secondary}</p>
       <div className="attn-actions">
         {isReminder && (

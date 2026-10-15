@@ -199,7 +199,7 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                     </div>
 
                     {/* Split action: Confirm + ▾ floating menu (shared) */}
-                    <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className="hub-r-tail">
                       <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
                         <span>{row.subtext}</span>
                       </span>

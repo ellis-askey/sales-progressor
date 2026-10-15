@@ -229,7 +229,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                       </p>
                     </div>
 
-                    <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className="hub-r-tail">
                     <span className="hub-r-meta-m" style={{ fontSize: 11, color: "var(--agent-text-secondary)" }}>
                       {splitOnDot(sub).map((p, k) => <span key={k}>{p}</span>)}
                     </span>

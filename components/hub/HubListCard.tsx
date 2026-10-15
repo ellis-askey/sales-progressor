@@ -59,13 +59,6 @@ function splitAddress(address: string): { line: string; location: string } {
   return { line, location };
 }
 
-// Split a "X · Y" context line into its halves for the mobile stack; a line
-// without the separator stays a single part.
-function splitOnDot(s: string): string[] {
-  const i = s.indexOf(" · ");
-  return i === -1 ? [s] : [s.slice(0, i), s.slice(i + 3)];
-}
-
 const INITIAL_VISIBLE = 6;
 
 export function HubListCard({
@@ -185,10 +178,8 @@ export function HubListCard({
                       </p>
                     )}
                   </div>
-                  <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
-                      {splitOnDot(row.subtext).map((part, k) => <span key={k}>{part}</span>)}
-                    </span>
+                  {/* --x: phones hide this whole tail and dismiss via the ✕. */}
+                  <div className="hub-r-tail hub-r-tail--x">
                     <button
                       type="button"
                       onClick={() => dismiss(row)}
@@ -201,7 +192,12 @@ export function HubListCard({
                       Dismiss
                     </button>
                   </div>
-                  {/* Phone-only dismiss: a neat ✕ top-right, since the bottom row
+                  {/* Phone-only subtext: full-width line BELOW the photo+address
+                      row, so the two-line address sits level with the photo. */}
+                  <p className="hub-r-meta-below" style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
+                    {row.subtext}
+                  </p>
+                  {/* Phone-only dismiss: a neat ✕ top-right, since the tail
                       (with the full Dismiss button) is hidden there. */}
                   <button
                     type="button"

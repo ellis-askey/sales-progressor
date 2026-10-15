@@ -106,10 +106,12 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
                       {withText}
                     </p>
                   </div>
-                  <div className="hub-r-tail" style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="hub-r-tail">
+                    {/* Phone: the context stacks (no dot) left of the Chase
+                        button — "With …" line, then "Quiet N days". */}
                     <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }} data-sensitive="true">
                       <span>{withPrefix}</span>
-                      <span>{quietPart}</span>
+                      <span>{`Quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`}</span>
                     </span>
                     <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                       <PaperPlaneTilt size={13} weight="bold" /> Chase
