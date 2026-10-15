@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { ContactCard } from "./ContactsSection";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
-import { FieldIndicator, FieldHint } from "./FieldIndicator";
+import { FieldHint } from "./FieldIndicator";
 import { Pill } from "@/components/ui/Pill";
 
 const MAX_ENTRIES = 4;
@@ -120,7 +120,6 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
         {label}
         {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
         <SectionPill isOutsourced={isOutsourced} filled={filled} />
-        <FieldIndicator source={memoSource} />
       </p>
       {canAdd && (
         <button
@@ -302,7 +301,6 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
           <SectionPill isOutsourced={isOutsourced} filled={filled} />
-          <FieldIndicator source={memoSource} />
         </p>
       </div>
 
