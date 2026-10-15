@@ -1842,8 +1842,10 @@ export async function switchServiceTypeAction(
           ? { assignedUserId: null, assignedAt: null, progressionBusinessId: null, outsourcedAt: null }
           // Routing to a progression business = a billable sale for them: tag it and
           // stamp the £5 (businessPerSaleChargedAt), same as a newly-created sale. The
-          // daily cron collects it onto their next invoice.
-          : { outsourcedAt: new Date(), ...(handoverBusinessId ? { progressionBusinessId: handoverBusinessId, businessPerSaleChargedAt: new Date() } : {}) }),
+          // daily cron collects it onto their next invoice. Reset businessPerSaleInvoicedAt
+          // so that if this sale was previously invoiced by a DIFFERENT company (handed
+          // back then re-handed over), the new company's cron re-picks and charges it.
+          : { outsourcedAt: new Date(), ...(handoverBusinessId ? { progressionBusinessId: handoverBusinessId, businessPerSaleChargedAt: new Date(), businessPerSaleInvoicedAt: null } : {}) }),
       },
     });
 

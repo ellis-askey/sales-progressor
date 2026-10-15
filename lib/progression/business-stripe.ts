@@ -357,9 +357,12 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
   const stripe = getStripeClient();
   let pushed = 0;
   for (const s of sales) {
-    // Idempotency key per sale: if a run is interrupted after creating the item but
-    // before marking it invoiced, the retry returns the same item instead of
-    // creating (and charging) a second £5.
+    // Idempotency key per (business, sale): a retry after a half-done run returns
+    // the same item instead of charging a second £5. Scoping it to the business
+    // (not just the sale) means that if a sale is handed back and later taken on by
+    // a DIFFERENT company, that company is charged its own £5 rather than being
+    // blocked by the first company's key (the re-handover resets
+    // businessPerSaleInvoicedAt so the sale is re-picked under the new business).
     await stripe.invoiceItems.create(
       {
         customer: business.stripeCustomerId,
@@ -368,7 +371,7 @@ export async function pushPendingPerSaleItems(businessId: string): Promise<numbe
         description: `Sale added: ${s.propertyAddress}`,
         metadata: { progressionBusinessId: businessId, transactionId: s.id },
       },
-      { idempotencyKey: `business-persale-${s.id}` },
+      { idempotencyKey: `business-persale-${businessId}-${s.id}` },
     );
     await prisma.propertyTransaction.update({ where: { id: s.id }, data: { businessPerSaleInvoicedAt: new Date() } });
     pushed++;
