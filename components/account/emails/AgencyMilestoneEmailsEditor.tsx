@@ -230,6 +230,10 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
   const warnings = draft ? voiceWarnings(draft) : [];
   const shown = editing && draft ? draft : resolved && resolved.exists ? resolved.preview : null;
   const isAgencyVersion = !!resolved && resolved.exists && resolved.source === "agency";
+  // Labels appearing more than once in the current list need a side tag to tell
+  // the two emails apart.
+  const labelCounts = new Map<string, number>();
+  visibleSteps.forEach((s) => labelCounts.set(s.label, (labelCounts.get(s.label) ?? 0) + 1));
 
   return (
     <div className="eme2">
@@ -260,6 +264,16 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
           <div className="eme2-steps" role="listbox" aria-label="Choose a step">
             {visibleSteps.map((s, i) => {
               const on = s.code === code;
+              // Some steps happen on both sides (the recipient is emailed when
+              // they do it AND when the other party does), so the same label
+              // appears twice. Tag those with whose side the email is about.
+              const dup = (labelCounts.get(s.label) ?? 0) > 1;
+              const ownSide = s.code.startsWith(side === "purchaser" ? "PM" : "VM");
+              const sideTag = dup
+                ? ownSide
+                  ? "Your side"
+                  : side === "purchaser" ? "The seller's side" : "The buyer's side"
+                : null;
               return (
                 <button
                   key={s.code}
@@ -271,7 +285,10 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
                   onClick={() => { if (!editing) setCode(s.code); }}
                 >
                   <span className="eme2-step-num">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="eme2-step-lbl">{s.label}</span>
+                  <span className="eme2-step-lbl">
+                    {s.label}
+                    {sideTag && <span className="eme2-step-side">{sideTag}</span>}
+                  </span>
                 </button>
               );
             })}
@@ -551,6 +568,8 @@ const EME2_STYLES = `
   .eme2-step.on .eme2-step-num { color: var(--agent-coral-deep, #E2452A); }
   .eme2-step-lbl { font-size: 12.5px; line-height: 1.35; }
   .eme2-step.on .eme2-step-lbl { font-weight: 650; }
+  .eme2-step-side { display: block; font-size: 10.5px; font-weight: 500; color: ${FAINT}; margin-top: 1px; }
+  .eme2-step.on .eme2-step-side { color: var(--agent-coral-deep, #E2452A); opacity: .8; }
 
   .eme2-canvas { padding: 20px; min-width: 0; }
   .eme2-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }

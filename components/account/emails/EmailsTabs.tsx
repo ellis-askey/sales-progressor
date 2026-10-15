@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TextAa, PaperPlaneTilt } from "@phosphor-icons/react";
+import { UserSound, PaperPlaneTilt } from "@phosphor-icons/react";
 
 type Tab = "style" | "words" | "sender";
 
@@ -42,7 +42,7 @@ export function EmailsTabs({ words, style, sender }: { words: React.ReactNode; s
   }
   const TABS: { id: Tab; label: string; render: (on: boolean) => React.ReactNode }[] = [
     { id: "style", label: "Style", render: () => <SplatIcon size={16} /> },
-    { id: "words", label: "Words", render: (on) => <TextAa size={16} weight={on ? "fill" : "regular"} /> },
+    { id: "words", label: "Voice", render: (on) => <UserSound size={16} weight={on ? "fill" : "regular"} /> },
     { id: "sender", label: "Sender", render: (on) => <PaperPlaneTilt size={16} weight={on ? "fill" : "regular"} /> },
   ];
   return (
