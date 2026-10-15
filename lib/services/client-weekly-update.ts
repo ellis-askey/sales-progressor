@@ -30,12 +30,17 @@ function interpWeekly(t: string, vars: { firstName: string; address: string; rol
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
 
-  // Agency-level opt-out: a director can switch the whole weekly update off.
+  // Agency-level opt-out governs the agency's OWN files (self-progressed / TSP).
+  // A file outsourced to an external (non-TSP) progression company is governed
+  // solely by THAT company's weekly pref (applied per file below), so an agency
+  // switching its own weekly updates off must NOT silence an external
+  // progressor's client updates. Resolved per file in the loop, mirroring
+  // client-chase-cron's agencyOff logic — not a whole-agency early return.
   const agencyPref = await prisma.agency.findUnique({
     where: { id: agencyId },
     select: { weeklyClientUpdatesEnabled: true },
   });
-  if (agencyPref && agencyPref.weeklyClientUpdatesEnabled === false) return 0;
+  const agencyWeeklyOff = agencyPref?.weeklyClientUpdatesEnabled === false;
 
   // Agency personalisation (subject / intro / AI tone steer / closing). Resolved
   // once for the whole agency; empty everywhere = unchanged default behaviour.
@@ -77,6 +82,11 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
   const base = process.env.NEXTAUTH_URL ?? "";
 
   for (const tx of transactions) {
+    // Self-progressed / TSP files obey the agency toggle; externally-progressed
+    // files obey only the external company's weekly pref (businessChaseAllows).
+    const bg = tx.progressionBusinessId ? businessGate.get(tx.progressionBusinessId) : null;
+    const externallyProgressed = !!bg && !bg.isTsp;
+    if (!externallyProgressed && agencyWeeklyOff) continue;
     if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "weekly")) continue;
     // Skip if there was recent outbound communication — they've already heard from us
     if (tx.communications.length > 0) continue;
