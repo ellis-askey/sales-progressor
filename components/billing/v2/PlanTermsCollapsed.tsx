@@ -70,11 +70,11 @@ export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollap
             Outsourced
           </div>
           {hasProgressors ? (
-            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 10 }}>
               {progressors.map((p, i) => (
-                <div key={i} style={{ color: "#111827" }}>
-                  <span style={{ fontWeight: 600 }}>{p.name}</span>
-                  <span style={{ color: "#6b7280" }}> — {p.rate}</span>
+                <div key={i}>
+                  <div style={{ fontWeight: 600, color: "#111827" }}>{p.name}</div>
+                  <div style={{ marginTop: 2, fontSize: 11.5, color: "#6b7280" }}>{p.rate}</div>
                 </div>
               ))}
             </div>
@@ -89,7 +89,7 @@ export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollap
 
       {hasProgressors && (
         <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.55, marginTop: -4 }}>
-          Files you send to {progressors.length > 1 ? "a progression company" : progressors[0].name} are billed by {progressors.length > 1 ? "that company" : "them"} directly under your agreement with them, not by TSP. The terms below cover your free self-progress and any sale you send to TSP&apos;s own team.
+          Sales sent to an independent progression company are billed directly by them under your agreement. The terms below apply to your free self-progressed sales and any sales managed by TSP&apos;s own team.
         </div>
       )}
 
