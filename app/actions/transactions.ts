@@ -10,6 +10,7 @@ import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage, buildChaseRuleSnapshot } from "@/lib/services/transactions";
+import { wouldMixOutsourcing, alertOutsourcingMix, type OutsourcingKind } from "@/lib/progression/outsourcing-mix";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getProgressorsForAgency } from "@/lib/services/progression-clients";
 import { parseFeeModel } from "@/lib/progression/client-fees";
@@ -333,6 +334,19 @@ export async function createTransactionAction(input: {
   const effectiveAgencyId = clientCreate?.agencyId ?? input.migrationAgencyId ?? session.user.agencyId;
   if (!effectiveAgencyId) {
     throw new Error("Cannot create transaction without an agency");
+  }
+
+  // One progression route per agency (founder rule 2026-10-15): a new outsourced
+  // sale must not mix TSP and an external company on the same agency. Migration
+  // imports are exempt (admin, historical). Self-progress never counts. Block +
+  // alert ellis@ — the edgest of edge cases.
+  if (resolvedProgressedBy === "progressor" && !hasMigrationOverride) {
+    const incomingKind: OutsourcingKind =
+      (clientCreate?.progressionBusinessId ?? invitingProgressorBusinessId) ? "external" : "tsp";
+    if (await wouldMixOutsourcing(effectiveAgencyId, incomingKind)) {
+      await alertOutsourcingMix(effectiveAgencyId, incomingKind, "new sale");
+      throw new Error("This agency already has sales being progressed another way. An agency uses one progression route at a time, so this sale can't be added here.");
+    }
   }
   let effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
 
@@ -1781,6 +1795,17 @@ export async function switchServiceTypeAction(
       if ((await getBusinessPaymentState(handoverBusinessId)).kind === "blocked") {
         return { ok: false, error: "This progressor has an overdue payment and can't take on new files until it's resolved." };
       }
+    }
+  }
+
+  // One progression route per agency (founder rule 2026-10-15): handing a file to
+  // a route that clashes with the agency's existing outsourced book is blocked +
+  // alerted. Only relevant on the way TO outsourced; a take-back to self never mixes.
+  if (target === "outsourced") {
+    const incomingKind: OutsourcingKind = handoverBusinessId ? "external" : "tsp";
+    if (await wouldMixOutsourcing(tx.agencyId, incomingKind)) {
+      await alertOutsourcingMix(tx.agencyId, incomingKind, "handover");
+      return { ok: false, error: "This agency already has sales being progressed another way. An agency uses one progression route at a time, so this file can't be handed over here." };
     }
   }
 
