@@ -9,12 +9,15 @@
 // cadence stays in the Command Centre (it's a platform default), so only the
 // solicitor on/off shows here, inside the grid.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { getAgentChasePrefs } from "@/lib/services/agent-chase-prefs";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { SettingsNote } from "@/components/ui/SettingsNote";
 import { AgencyChaseGrid } from "@/components/automation/AgencyChaseGrid";
 import { AutomationSettingsForm } from "@/components/automation/AutomationSettingsForm";
 
@@ -69,6 +72,19 @@ export default async function AgencyChasingPage() {
         subtitle="Choose which chases run on sales you progress yourself and how often. You can also adjust these for individual sales. Sales managed by a progression company follow their settings instead."
       />
       <AgencyChaseGrid initial={prefs} />
+
+      {/* Cross-link: this page is the chasing cadence; the wording + look of
+          these emails live on the Emails page. */}
+      <div style={{ margin: "4px 0 20px" }}>
+        <SettingsNote
+          tone="info"
+          icon={<EnvelopeSimple size={18} weight="fill" />}
+          title="Want to change the wording or look of these emails?"
+          body="That's set on the Emails page. This page controls the chasing: which chases run and how often."
+          action={<Link href="/agent/account/emails" style={{ color: "inherit", textDecoration: "none" }}>Go to Emails →</Link>}
+        />
+      </div>
+
       <AutomationSettingsForm
         initialChaseEmailsEnabled={agency.chaseEmailsEnabled}
         initialRules={editableRules}
