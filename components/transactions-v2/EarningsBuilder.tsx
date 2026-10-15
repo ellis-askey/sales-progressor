@@ -68,7 +68,7 @@ function Row({ label, value, tone }: { label: React.ReactNode; value: React.Reac
 
 export function EarningsBuilder({
   fields, onUpdate, feeTier, legacyOutsourcedFeePence, withinTrial, allMilestoneDefinitions,
-  progressorName = null, progressorFeeModel = null,
+  progressorName = null, progressorFeeModel = null, hasExternalProgressor = false,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
@@ -76,10 +76,14 @@ export function EarningsBuilder({
   legacyOutsourcedFeePence: number | null;
   withinTrial: boolean;
   allMilestoneDefinitions: MilestoneDefinitionSlim[];
-  // Invited-agent routing: when set, "Sent to us" is their progression business,
+  // Invited-agent routing: when set, the sale goes to their progression business,
   // priced off that business's per-client rate card instead of TSP's fee.
   progressorName?: string | null;
   progressorFeeModel?: ClientFeeModel | null;
+  // The agency works with an external progressor (one or more). Such a sale is
+  // never a TSP file, so the TSP "Sent to us / first sale free" economics never
+  // apply; before a progressor is picked (multi), the cost is held, not "Free".
+  hasExternalProgressor?: boolean;
 }) {
   const { surfaceClass, tag } = useCardSurface("new-sale-file-worth", "New sale · File worth", "agent-glass");
   const price = fields.purchasePricePence;
@@ -104,12 +108,21 @@ export function EarningsBuilder({
   // outsourced sale and for free-plan agencies).
   const outsourced = fields.progressedBy === "progressor";
   const toProgressor = outsourced && !!progressorName;
+  // Agency works with an external progressor but hasn't picked one yet (multi).
+  // The cost is a progressor fee we can't name/compute until they choose — never
+  // TSP's "first sale free".
+  const outsourcedUnpicked = outsourced && hasExternalProgressor && !progressorName;
   let progressionCost = 0;
   let costLabel = "Self-progress";
   if (toProgressor) {
     costLabel = `Sent to ${progressorName}`;
     progressionCost = calculateClientFee(progressorFeeModel ?? null, price ?? null) ?? 0;
+  } else if (outsourcedUnpicked) {
+    costLabel = "Outsourced";
+    progressionCost = 0; // unknown until a progressor is chosen
   } else if (outsourced) {
+    // TSP file (agency has no external progressor): TSP's outsourced fee, free on
+    // the first outsourced sale and for free-plan agencies.
     costLabel = "Sent to us";
     const chargeable = !withinTrial && feeTier !== "free";
     progressionCost = chargeable
@@ -121,7 +134,9 @@ export function EarningsBuilder({
   // "Fee not set" and hold the net until the fee is set, never a £0 that reads free.
   const feeNotSet = toProgressor && progressorFeeModel == null;
 
-  const net: number | null = feeNotSet || feeIncVatP == null ? null : feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost;
+  // Hold the net while an external progressor still has to be picked — we can't
+  // price the sale until we know whose rate card applies.
+  const net: number | null = feeNotSet || outsourcedUnpicked || feeIncVatP == null ? null : feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost;
 
 
   return (
@@ -157,10 +172,11 @@ export function EarningsBuilder({
         {onwardBrokRef > 0 && <Row label="Seller's broker referral" value={`+${fmt(onwardBrokRef)}`} tone="income" />}
         <Row
           label={costLabel}
-          value={feeNotSet ? "Fee not set" : progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
-          tone={feeNotSet ? "muted" : progressionCost > 0 ? "cost" : "muted"}
+          value={feeNotSet ? "Fee not set" : outsourcedUnpicked ? "Choose a progressor" : progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
+          tone={feeNotSet || outsourcedUnpicked ? "muted" : progressionCost > 0 ? "cost" : "muted"}
         />
-        {outsourced && !toProgressor && withinTrial && feeTier !== "free" && (
+        {/* "First sale free" is a TSP offer — never for an external-progressor sale. */}
+        {outsourced && !toProgressor && !hasExternalProgressor && withinTrial && feeTier !== "free" && (
           <p style={{ margin: "-2px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
             Your first sale is on us
           </p>
@@ -171,7 +187,7 @@ export function EarningsBuilder({
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, paddingTop: 12, borderTop: "0.5px solid var(--nv2-border-dark)" }}>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Net to your agency</span>
         {net == null ? (
-          <span style={{ fontSize: 13, color: "var(--nv2-text-ghost)" }}>{feeNotSet ? "Fee not set" : !price ? "Add a price" : "Add a commission"}</span>
+          <span style={{ fontSize: 13, color: "var(--nv2-text-ghost)" }}>{feeNotSet ? "Fee not set" : outsourcedUnpicked ? "Choose a progressor" : !price ? "Add a price" : "Add a commission"}</span>
         ) : (
           <span style={{ fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}>{fmt(net)}</span>
         )}
