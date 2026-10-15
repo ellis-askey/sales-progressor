@@ -102,6 +102,7 @@ export async function sendOutsourceIntroForTransaction(
         agency: { select: { name: true } },
         progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
         serviceType: true,
+        isMigrated: true,
         // The progressor the file is assigned to. We sign the intro from THEM so the
         // first email carries the same name the client sees on every later milestone
         // update (portal.ts uses tx.assignedUser.name). Null on an unassigned file.
@@ -131,6 +132,15 @@ export async function sendOutsourceIntroForTransaction(
     // === "outsourced" via createTransaction.
     if (tx.serviceType !== "outsourced") {
       console.log(`[outsourceIntro] tx ${transactionId} serviceType=${tx.serviceType} — skipping (self_managed)`);
+      return;
+    }
+
+    // A migrated (brought-in) sale is already part-way through — never send the
+    // "we're getting your sale moving / here's your portal" welcome, which would
+    // read as if the sale just started. Covers the relist path too (any caller
+    // that re-runs this for a migrated file).
+    if (tx.isMigrated) {
+      console.log(`[outsourceIntro] tx ${transactionId} isMigrated — skipping (brought-in sale, no sale-starting welcome)`);
       return;
     }
 

@@ -161,8 +161,11 @@ function resolveAnchorDate(args: {
   side: SolicitorSide;
   activeBuyerRoundId: string | null;
   txCreatedAt: Date;
+  // Brought-in (migrated) sale: ignore historical eventDates and anchor on when
+  // it entered our system, so solicitors aren't chased about pre-migration steps.
+  isMigrated?: boolean;
 }): Date | null {
-  const { stepCode, rule, allCompletions, side, activeBuyerRoundId, txCreatedAt } = args;
+  const { stepCode, rule, allCompletions, side, activeBuyerRoundId, txCreatedAt, isMigrated } = args;
 
   const explicitAnchor = rule.anchorMilestoneCode;
   const directPrereq = DIRECT_PREREQUISITES[stepCode]?.[0] ?? null;
@@ -180,6 +183,8 @@ function resolveAnchorDate(args: {
         && (c.buyerRoundId === null || c.buyerRoundId === activeBuyerRoundId),
     );
     if (!anchor) return null; // anchor not complete → don't chase yet
+    // Migrated sale: use import time (completedAt), never the historical eventDate.
+    if (isMigrated) return anchor.completedAt ?? txCreatedAt;
     if (rule.useAnchorEventDate && anchor.eventDate) {
       return anchor.eventDate;
     }
@@ -225,6 +230,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       activeBuyerRoundId: true,
       lastActivityAt: true,
       createdAt: true,
+      isMigrated: true, // brought-in sales anchor chases on import time, not historical event dates
       agency: { select: { solicitorChaseEnabled: true } }, // self/TSP files gated by this; external files follow the business pref
       progressionBusinessId: true, // business can switch solicitor chases off (business automation)
       // Exchange-day suppression (see docs/active/exchange-day-SPEC.md).
@@ -318,6 +324,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
           side,
           activeBuyerRoundId: tx.activeBuyerRoundId,
           txCreatedAt: tx.createdAt,
+          isMigrated: tx.isMigrated,
         });
         if (!anchor) continue; // anchor milestone not complete → not chase-eligible
 

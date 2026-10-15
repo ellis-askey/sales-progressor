@@ -91,7 +91,7 @@ function sideForMilestoneCode(code: string): ContactRole | null {
 // those rules until the anchor lands.
 type RuleAnchorInput = {
   rule: { anchorMilestoneId: string | null; useEventDate: boolean };
-  transaction: { createdAt: Date };
+  transaction: { createdAt: Date; isMigrated?: boolean };
   anchorCompletion: {
     state: string;
     completedAt: Date | null;
@@ -106,6 +106,14 @@ export function computeAnchorDate(input: RuleAnchorInput): Date | null {
     return transaction.createdAt;
   }
   if (!anchorCompletion || anchorCompletion.state !== "complete") return null;
+  // Brought-in (migrated) sale: always anchor on when it entered our system
+  // (import time = completedAt), NEVER a historical eventDate — otherwise every
+  // already-done step reads as overdue and the client gets chased about things
+  // that happened before the sale was ever with us. ("Count from when it's
+  // added.") Chain-claimed sales keep the eventDate anchor (recent real progress).
+  if (transaction.isMigrated) {
+    return anchorCompletion.completedAt ?? transaction.createdAt;
+  }
   if (anchorCompletion.reconciledAtClaim) {
     return anchorCompletion.eventDate ?? null;
   }
@@ -195,6 +203,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     select: {
       id: true,
       createdAt: true,
+      isMigrated: true,
       agencyId: true,
       // Exchange-day suppression: a file aiming to exchange today is dropped
       // from the whole chase pass, so no automated client chase goes out on
