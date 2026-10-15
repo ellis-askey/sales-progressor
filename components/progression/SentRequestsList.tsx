@@ -32,7 +32,11 @@ function SentRow({ req }: { req: OutgoingConnectionRequest }) {
       <span className="srq-logo"><AgencyMeshMark name={req.agencyName} size={44} /></span>
       <div className="srq-main">
         <div className="srq-name">{req.agencyName}</div>
-        <div className="srq-meta"><Clock size={12} weight="bold" />Request sent · waiting for them to accept</div>
+        <div className="srq-meta">
+          <span className="srq-line1"><Clock size={12} weight="bold" />Request sent</span>
+          <span className="srq-dot" aria-hidden>·</span>
+          <span className="srq-m2">Waiting for them to accept</span>
+        </div>
       </div>
       <button type="button" className="srq-cancel" onClick={cancel} disabled={pending}>
         {pending ? "Withdrawing…" : "Withdraw"}
@@ -59,6 +63,13 @@ export function SentRequestsList({ requests }: { requests: OutgoingConnectionReq
         .srq-main { flex: 1; min-width: 0; }
         .srq-name { font-size: 14px; font-weight: 700; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .srq-meta { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 12px; color: var(--agent-text-muted); }
+        .srq-line1 { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+        /* When the row is tight, stack the two parts cleanly: hide the dot and
+           drop "Waiting…" onto its own line under "Request sent". */
+        @media (max-width: 540px) {
+          .srq-meta { flex-direction: column; align-items: flex-start; gap: 1px; }
+          .srq-dot { display: none; }
+        }
         .srq-cancel { flex: none; appearance: none; border: 1px solid var(--agent-border-default); background: var(--agent-surface);
           border-radius: 9px; padding: 7px 13px; font-size: 12.5px; font-weight: 640; color: var(--agent-text-secondary); cursor: pointer;
           transition: border-color .15s, color .15s; }
