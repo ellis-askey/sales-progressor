@@ -302,20 +302,29 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
           This step doesn&apos;t send an email to the {SIDE_OPTIONS.find((o) => o.value === side)?.label.toLowerCase()}.
         </div>
       ) : editing && draft ? (
-        <Editor
-          draft={draft}
-          setDraft={setDraft}
-          tenure={tenure}
-          method={method}
-          tenureScope={tenureScope}
-          methodScope={methodScope}
-          setTenureScope={setTenureScope}
-          setMethodScope={setMethodScope}
-          warnings={warnings}
-          saving={saving}
-          onSave={save}
-          onCancel={() => setEditing(false)}
-        />
+        <div className="eme-split">
+          <Editor
+            draft={draft}
+            setDraft={setDraft}
+            tenure={tenure}
+            method={method}
+            tenureScope={tenureScope}
+            methodScope={methodScope}
+            setTenureScope={setTenureScope}
+            setMethodScope={setMethodScope}
+            warnings={warnings}
+            saving={saving}
+            onSave={save}
+            onCancel={() => setEditing(false)}
+          />
+          <div className="eme-live">
+            <p className="eme-live-cap">Live preview</p>
+            <EmailCard copy={draft} />
+            <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
+              Updates as you type. Example details fill in when the email sends.
+            </p>
+          </div>
+        </div>
       ) : (
         <Preview resolved={resolved} onEdit={startEdit} onReset={reset} resetting={resetting} />
       )}
@@ -417,6 +426,30 @@ function SourceBadge({ resolved }: { resolved: Extract<Resolved, { exists: true 
   );
 }
 
+// The rendered email mock. Fed by resolved.preview when viewing, and by the live
+// draft while editing, so the agent sees their wording update as they type.
+function EmailCard({ copy }: { copy: Copy }) {
+  return (
+    <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: "#fcfcfd" }}>
+      <div style={{ borderBottom: HAIRLINE, padding: "11px 16px" }}>
+        <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</p>
+        <p style={{ margin: "3px 0 0", fontSize: 14, color: TEXT }}>{copy.subject}</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px" }}>
+        <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>{copy.heroLabel}</p>
+        <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>{copy.opening}</p>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: TEXT }}>{copy.whatHappened}</p>
+        {copy.whatNext && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{copy.whatNext}</p>}
+        {copy.action && (
+          <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: "var(--agent-coral, #FF6B4A)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>
+            {copy.action}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Preview({
   resolved,
   onEdit,
@@ -472,38 +505,7 @@ function Preview({
       </div>
 
       {/* Email preview */}
-      <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: "#fcfcfd" }}>
-        <div style={{ borderBottom: HAIRLINE, padding: "11px 16px" }}>
-          <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>
-            Subject
-          </p>
-          <p style={{ margin: "3px 0 0", fontSize: 14, color: TEXT }}>{p.subject}</p>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px" }}>
-          <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>
-            {p.heroLabel}
-          </p>
-          <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>{p.opening}</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: TEXT }}>{p.whatHappened}</p>
-          {p.whatNext && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{p.whatNext}</p>}
-          {p.action && (
-            <span
-              style={{
-                display: "inline-block",
-                width: "fit-content",
-                borderRadius: 8,
-                background: "var(--agent-coral, #FF6B4A)",
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#fff",
-              }}
-            >
-              {p.action}
-            </span>
-          )}
-        </div>
-      </div>
+      <EmailCard copy={p} />
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
         Preview uses example details for things like the address, dates and surveyor.
       </p>
@@ -635,6 +637,10 @@ function Editor({
         .account-emails-ghostbtn:hover { background: rgba(0,0,0,0.035) !important; }
         .agent-spin { animation: account-emails-spin 0.7s linear infinite; }
         @keyframes account-emails-spin { to { transform: rotate(360deg); } }
+        .eme-split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; align-items: start; }
+        .eme-live { position: sticky; top: 16px; }
+        .eme-live-cap { margin: 0 0 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #9ca3af; }
+        @media (max-width: 860px) { .eme-split { grid-template-columns: 1fr; } .eme-live { position: static; } }
       `}</style>
     </div>
   );
