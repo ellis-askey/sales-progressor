@@ -199,35 +199,22 @@ export async function resolveAgencySenderForTransaction(
   // self-managed branch below keys the whole from/reply-to decision on this.
   const actingEmail = (acting?.preferredSenderEmail ?? acting?.email) ?? null;
 
-  // ── Outsourced: the client sees the agency (From = agency verified sender for
-  // branding), but WE run the file. Reply-to goes to the agency's own address
-  // ONLY when that address is a real inbox we can read — a verified SINGLE
-  // SENDER (someone confirmed a link sent to it, e.g. ellis@viavia.co.uk). A
-  // DOMAIN-authenticated sender (e.g. updates@theirdomain) is send-only and not
-  // ours, so replies there would vanish — those go to the assigned progressor.
-  // Distinguisher: a domain-auth sender has a *verified* VerifiedDomain for its
-  // domain; a single sender does not.
-  // NOTE: while one progressor handles everything this is ideal; when files are
-  // split across progressors, single-sender replies still land in the shared
-  // agency inbox rather than the assigned person's — revisit then.
+  // ── Outsourced: the client sees the agency (From = the agency's verified
+  // sender for branding when they have one), but WE run the file — so a client's
+  // reply ALWAYS routes to the progressor handling THIS file, never the agency's
+  // own address. On a multi-progressor agency that keeps each sale's replies with
+  // the right person (Jo's → Jo, Annalise's → Annalise); with a single progressor
+  // it's the same destination either way. `prog` falls back to the business
+  // sender / platform address when a file isn't assigned yet, so a reply never
+  // vanishes. (This supersedes the old single-sender→agency-inbox branch, which
+  // piled every progressor's replies into one shared inbox — the deferred gap.)
   if (tx.serviceType === "outsourced") {
-    // Progressor fallback address from the responsible progression business
-    // (null = TSP, so unchanged for our own files; an external business never
-    // falls back to a TSP personal address).
     const identity = clientFacingIdentity(tx.progressionBusiness);
     const prog = progressorSenderAddress(identity, tx.assignedUser?.email);
-    if (agencyAddr && agencyVerified) {
-      const senderDomain = agencyAddr.split("@")[1]?.toLowerCase();
-      const domainAuthed = senderDomain
-        ? !!(await prisma.verifiedDomain.findFirst({
-            where: { agencyId: tx.agencyId ?? undefined, domain: senderDomain, status: "verified" },
-            select: { id: true },
-          }))
-        : false;
-      const replyTo = domainAuthed ? prog : agencyAddr;
-      return { from: buildFrom(display, agencyAddr), replyTo, canReply: true, ...logo };
-    }
-    return { from: buildFrom(display, prog), replyTo: prog, canReply: true, ...logo };
+    // Keep the agency's verified sender on the From line for branding; the
+    // reply-to is the progressor regardless of single-sender vs domain-auth.
+    const from = agencyAddr && agencyVerified ? agencyAddr : prog;
+    return { from: buildFrom(display, from), replyTo: prog, canReply: true, ...logo };
   }
 
   // ── Self-managed: the agent runs their own file, so the sender is THEIR own
