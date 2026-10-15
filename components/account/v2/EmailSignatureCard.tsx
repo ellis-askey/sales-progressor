@@ -16,7 +16,7 @@ import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
-import { PenNib, UploadSimple, Link as LinkIcon, Trash } from "@phosphor-icons/react";
+import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle } from "@phosphor-icons/react";
 
 export interface SignatureInitial {
   mode: EmailSignatureMode;
@@ -159,9 +159,14 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
         ) : undefined
       }
     >
-      <style>{`.sig-editor:empty:before{content:attr(data-placeholder);color:#9ca3af;}`}</style>
+      <style>{`
+        .sig-editor:empty:before{content:attr(data-placeholder);color:#9ca3af;}
+        .sig-mode-btn{transition:background 160ms,border-color 150ms,box-shadow 220ms,transform 160ms;}
+        .sig-mode-btn:not(.on):hover{border-color:var(--agent-coral,#FF8A65);transform:translateY(-1px);}
+      `}</style>
 
-      {/* Mode selector */}
+      {/* Mode selector — standard option-select treatment: brand-fill + tick on
+          the chosen one, clean outline otherwise. Follows the agency colour. */}
       <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
         {MODES.map((m) => {
           const active = mode === m.value;
@@ -170,24 +175,20 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
               key={m.value}
               type="button"
               onClick={() => selectMode(m.value)}
+              className={`sig-mode-btn${active ? " on" : ""}`}
               style={{
-                textAlign: "left", cursor: "pointer", borderRadius: 10, padding: "12px 14px",
-                border: active ? "2px solid #FF6B4A" : "1px solid rgba(0,0,0,0.14)",
-                background: active ? "rgba(255,107,74,0.06)" : "#fff",
+                textAlign: "left", cursor: "pointer", borderRadius: 12, padding: "13px 15px",
+                border: active ? "1.5px solid transparent" : "1.5px solid var(--agent-border-default, rgba(0,0,0,0.14))",
+                background: active ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "#fff",
+                boxShadow: active ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
                 display: "flex", alignItems: "center", gap: 12,
               }}
             >
-              <span
-                aria-hidden
-                style={{
-                  width: 16, height: 16, borderRadius: 999, flexShrink: 0,
-                  border: active ? "5px solid #FF6B4A" : "2px solid rgba(0,0,0,0.3)",
-                }}
-              />
-              <span>
-                <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: "#111827" }}>{m.label}</span>
-                <span style={{ display: "block", fontSize: 13, color: "#6b7280" }}>{m.blurb}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: active ? "var(--agent-text-on-coral, #fff)" : "#111827" }}>{m.label}</span>
+                <span style={{ display: "block", fontSize: 13, color: active ? "rgba(255,255,255,0.88)" : "#6b7280" }}>{m.blurb}</span>
               </span>
+              {active && <CheckCircle size={20} weight="fill" color="var(--agent-text-on-coral, #fff)" style={{ flexShrink: 0 }} />}
             </button>
           );
         })}

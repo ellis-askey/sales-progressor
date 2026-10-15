@@ -321,13 +321,13 @@ export function ProfileFormPlain({
             />
           </div>
           <div className="pf-phone">
-            <label style={labelStyle}>Phone</label>
+            <label style={labelStyle}>Contact number</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               onBlur={() => setPhone((p) => normalizePhone(p))}
-              placeholder="+44 7700 000000"
+              placeholder="+44 20 7946 0000"
               className="account-input"
               style={fieldStyle}
             />
