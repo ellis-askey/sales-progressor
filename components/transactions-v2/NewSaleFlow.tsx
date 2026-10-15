@@ -1461,6 +1461,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     showPortalPrompt,
     vendorConflicts,
     purchaserConflicts,
+    // Outsourced banner wording: name the external progressor (picked/single) so
+    // it never wrongly says "Our team" for an agency that works with one.
+    progressorName: effectiveProgressorName,
+    hasExternalProgressor: progressors.length >= 1,
   } as const;
 
   return (

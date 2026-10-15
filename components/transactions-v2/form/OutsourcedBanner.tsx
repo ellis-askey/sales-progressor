@@ -10,8 +10,14 @@
 import { Headset } from "@phosphor-icons/react";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 
-export function OutsourcedBanner() {
+export function OutsourcedBanner({ progressorName = null, hasExternalProgressor = false }: { progressorName?: string | null; hasExternalProgressor?: boolean } = {}) {
   const { surfaceClass, tag, picked } = useCardSurface("new-sale-outsourced-banner", "New sale · Outsourced banner", "");
+  // "Our team" only fits when the sale goes to TSP. An agency that works with an
+  // external progressor is handing it to THEM, so name them (or a generic
+  // fallback before one is picked in the multi-progressor case).
+  const who = progressorName && progressorName.trim()
+    ? progressorName.trim()
+    : hasExternalProgressor ? "Your progressor" : "Our team";
   return (
     <div
       // Surface (light white / dark "coral wash") lives in .outsourced-banner CSS
@@ -39,7 +45,7 @@ export function OutsourcedBanner() {
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
         <p className="ob-title" style={{ margin: 0, fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
-          Our team is handling this sale.
+          {who} is handling this sale.
         </p>
         <p className="ob-sub" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
           Add at least one seller and one buyer, with a name and either a phone number or email address.

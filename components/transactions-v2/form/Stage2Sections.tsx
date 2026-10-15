@@ -59,6 +59,11 @@ type Props = {
   // conflicting tab pill.
   vendorConflicts?: Record<number, { kind: "phone" | "email"; withName: string }>;
   purchaserConflicts?: Record<number, { kind: "phone" | "email"; withName: string }>;
+  // Outsourced banner wording: who's handling the sale. A named external
+  // progressor is used verbatim ("{name} is handling this sale"); otherwise it
+  // falls back to "Your progressor" (external, not yet picked) or "Our team" (TSP).
+  progressorName?: string | null;
+  hasExternalProgressor?: boolean;
 };
 
 export function Stage2Sections({
@@ -71,6 +76,8 @@ export function Stage2Sections({
   showPortalPrompt,
   vendorConflicts,
   purchaserConflicts,
+  progressorName = null,
+  hasExternalProgressor = false,
 }: Props) {
   const recommendedFirmIds = recommendedFirms.map((f) => f.id);
   const contactsRef = useRef<HTMLDivElement>(null);
@@ -92,7 +99,7 @@ export function Stage2Sections({
       {/* Outsourced banner (progressor mode only) */}
       {isOutsourced && (
         <Section delayMs={ms(0)}>
-          <OutsourcedBanner />
+          <OutsourcedBanner progressorName={progressorName} hasExternalProgressor={hasExternalProgressor} />
         </Section>
       )}
 
