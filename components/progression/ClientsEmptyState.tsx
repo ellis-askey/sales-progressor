@@ -13,6 +13,8 @@ import { UserPlus, PaperPlaneTilt } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
 import { useConnectAgencyForm } from "./useConnectAgencyForm";
+import { SentRequestsList } from "./SentRequestsList";
+import type { OutgoingConnectionRequest } from "@/lib/services/progression-clients";
 
 // useLayoutEffect on the client, useEffect on the server — avoids React's SSR
 // warning while keeping the pre-paint height measurement that prevents a flash.
@@ -26,7 +28,7 @@ const ROSTER: { name: string; agency: string; sales: number; img: string }[] = [
   { name: "Daniel Carter", agency: "Maple & Co", sales: 9, img: "/clients-preview/maple.png" },
 ];
 
-export function ClientsEmptyState() {
+export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: OutgoingConnectionRequest[] }) {
   const [mode, setMode] = useState<"new" | "connect">("new");
   const f = useAddClientForm();
   const c = useConnectAgencyForm();
@@ -170,6 +172,13 @@ export function ClientsEmptyState() {
             </div>
           </aside>
         </div>
+
+        {/* Pending connection requests this owner has sent (awaiting accept). */}
+        {pendingRequests.length > 0 && (
+          <div className="cwg-sent">
+            <SentRequestsList requests={pendingRequests} />
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -213,6 +222,7 @@ export function ClientsEmptyState() {
         .cwg-sub { margin: 0; font-size: 14.5px; color: var(--agent-text-secondary); line-height: 1.5; max-width: 42ch; }
 
         .cwg-cols { display: grid; grid-template-columns: 1fr 0.9fr; gap: 28px; align-items: center; margin-top: 30px; }
+        .cwg-sent { margin-top: 26px; max-width: 520px; }
 
         /* Form card */
         .cwg-form { border-radius: 18px; padding: 22px; }

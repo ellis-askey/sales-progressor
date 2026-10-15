@@ -18,11 +18,12 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
-import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
+import type { ClientsOverview, ClientOverviewRow, OutgoingConnectionRequest } from "@/lib/services/progression-clients";
 import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { AgencyMeshMark } from "./AgencyMeshMark";
 import { useAddClientForm } from "./useAddClientForm";
 import { useConnectAgencyForm } from "./useConnectAgencyForm";
+import { SentRequestsList } from "./SentRequestsList";
 
 // Compact money for the totals bar (matches CompletionsMomentum): £1.2M / £45k / £0.
 function fmtCompact(pence: number): string {
@@ -68,7 +69,7 @@ function RemovedRow({ c }: { c: ClientOverviewRow }) {
   );
 }
 
-export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
+export function ClientsWorkspace({ data, pendingRequests = [] }: { data: ClientsOverview; pendingRequests?: OutgoingConnectionRequest[] }) {
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { business, totals, clients } = data;
@@ -199,6 +200,12 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
           ))}
         </div>
 
+        {pendingRequests.length > 0 && (
+          <div className="cw-sent">
+            <SentRequestsList requests={pendingRequests} />
+          </div>
+        )}
+
         {removedClients.length > 0 && (
           <div className="cw-removed">
             <p className="cw-label">Removed</p>
@@ -288,6 +295,7 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
         @media (max-width: 760px) { .cw-mstats { display: none; } }
 
         /* Removed (archived) clients — greyed, non-navigating, reinstate-only. */
+        .cw-sent { margin-top: 22px; }
         .cw-removed { margin-top: 22px; }
         .cw-removed .cw-label { margin-bottom: 12px; }
         .cw-row.removed { cursor: default; opacity: 0.62; }

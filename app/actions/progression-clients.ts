@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { syncBusinessSubscription } from "@/lib/progression/business-stripe";
-import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient, requestConnectAgency, respondToConnectionRequest } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient, requestConnectAgency, respondToConnectionRequest, withdrawConnectionRequest } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
 import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
@@ -136,6 +136,18 @@ export async function requestConnectAgencyAction(input: { email: string; feePenc
   const feePence = input.feePence ?? null;
   const feeModel: ClientFeeModel | null = feePence != null && Number.isFinite(feePence) && feePence > 0 ? { type: "flat", pence: feePence } : null;
   const res = await requestConnectAgency({ owner, email, feeModel });
+  if (!res.ok) return res;
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/** Owner withdraws a pending connection request they sent (before it's answered). */
+export async function withdrawConnectionRequestAction(input: { requestId: string }): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can do this." };
+  const res = await withdrawConnectionRequest({ requestId: input.requestId, businessId: owner.businessId });
   if (!res.ok) return res;
   revalidatePath("/agent/clients");
   return { ok: true };

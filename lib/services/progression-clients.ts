@@ -191,6 +191,20 @@ export async function listOutgoingConnectionRequests(businessId: string): Promis
   return reqs.map((r) => ({ id: r.id, agencyId: r.agency.id, agencyName: r.agency.name, createdAt: r.createdAt }));
 }
 
+export type WithdrawResult = { ok: true } | { ok: false; error: string };
+
+/** Owner withdraws a pending request they sent (before the agency responds). */
+export async function withdrawConnectionRequest(input: { requestId: string; businessId: string }): Promise<WithdrawResult> {
+  const req = await prisma.progressionConnectionRequest.findUnique({
+    where: { id: input.requestId },
+    select: { progressionBusinessId: true, status: true },
+  });
+  if (!req || req.progressionBusinessId !== input.businessId) return { ok: false, error: "Request not found." };
+  if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
+  await prisma.progressionConnectionRequest.delete({ where: { id: input.requestId } });
+  return { ok: true };
+}
+
 export type RespondResult = { ok: true; accepted: boolean; businessName: string } | { ok: false; error: string };
 
 /** Agency director accepts/declines. Accept creates (or reinstates) the client link. */
