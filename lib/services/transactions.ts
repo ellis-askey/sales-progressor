@@ -97,6 +97,10 @@ export async function listTransactions(
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true, image: true, clientType: true, legacyFee: true } },
       agentUser: { select: { id: true, name: true, role: true, image: true } },
+      // Which company progresses the file, so an agency using several external
+      // progressors can tell its sales apart on the list. Null / isTsp renders no
+      // external badge (TSP + self-managed files are unchanged).
+      progressionBusiness: { select: { shortName: true, name: true, isTsp: true } },
       // Phase-3: scope Contact list reads to the active round + file-level.
       // Pre-Phase-3 the cross-tx include returned every contact regardless
       // of which buyer round attached them — relisted files showed both

@@ -133,6 +133,11 @@ export type TransactionRow = {
   // Agency name shown for internal staff (admin / sales_progressor). Optional —
   // only present when listTransactions is called with a scope param.
   agency?: { id: string; name: string } | null;
+  // Which company progresses an outsourced file. A non-TSP business names itself
+  // on the row ("Handled by {business}") so an agency using several external
+  // progressors can tell its sales apart. Null / isTsp = unchanged (generic
+  // "Progressor" for TSP-managed, nothing for self-managed).
+  progressionBusiness?: { shortName: string | null; name: string; isTsp: boolean } | null;
   // The file's current pipeline stage, decorated by FilesWorkspace from the
   // stage map. Drives the journey bar; absent on non-active rows (no bar).
   boardStage?: DisplayStageKey;
@@ -410,12 +415,15 @@ function Person({ user, role }: { user: { name: string; image?: string | null };
  *    progressor handling it (or "Awaiting assignment" until one is set). */
 function HandledBy({ tx }: { tx: TransactionRow }) {
   if (tx.serviceType === "outsourced") {
+    // External company names itself; a TSP-managed file keeps the generic role.
+    const biz = tx.progressionBusiness && !tx.progressionBusiness.isTsp ? tx.progressionBusiness : null;
+    const bizName = biz ? (biz.shortName || biz.name) : null;
     return (
       <div className="handled">
         {tx.agentUser && <Person user={tx.agentUser} role="Agency" />}
         {tx.assignedUser
-          ? <Person user={tx.assignedUser} role="Progressor" />
-          : <span className="handled-awaiting">Awaiting assignment</span>}
+          ? <Person user={tx.assignedUser} role={bizName ?? "Progressor"} />
+          : <span className="handled-awaiting">{bizName ? `${bizName} · awaiting assignment` : "Awaiting assignment"}</span>}
       </div>
     );
   }
