@@ -968,10 +968,17 @@ export async function removeClientPersonAction(agencyId: string, userId: string)
 
   const user = await prisma.user.findFirst({
     where: { id: userId, agencyId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, password: true },
   });
   if (!user) return { ok: false, error: "That person isn't on this agency." };
   if (user.role === "director") return { ok: false, error: "You can't remove the main contact (the agency's director)." };
+  // A progression business can tidy up invites it sent, but once someone has
+  // activated their login they are the agency's own team member. Only the agency
+  // can remove an active person. Stops a connected business deactivating an
+  // independently owned agency's staff and killing their live sessions.
+  if (user.password) {
+    return { ok: false, error: "You can only remove people who haven't set up their login yet. The agency manages its own active team." };
+  }
 
   // Soft-remove: deactivatedAt refuses future sign-ins, the sessionVersion bump
   // kills any live session, and the row stays so their name remains attributed
@@ -1011,7 +1018,16 @@ export async function makeClientMainContactAction(agencyId: string, userId: stri
   if (!target) return { ok: false, error: "That person isn't on this agency." };
   if (target.role !== "negotiator") return { ok: false, error: "Only a colleague can be made the main contact." };
 
-  const currentDirector = await prisma.user.findFirst({ where: { agencyId, role: "director" }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  const currentDirector = await prisma.user.findFirst({ where: { agencyId, role: "director" }, orderBy: { createdAt: "asc" }, select: { id: true, password: true } });
+  // Once the agency's own owner has activated their login, the agency controls
+  // its own seats. A progression business can help run the sales but must not
+  // seize the director seat from an active owner. A pending (not-yet-activated)
+  // director can still be reassigned, so the provisioned-agency setup flow keeps
+  // working. Mirrors the activated-account self-protection already used by
+  // renameClientAgencyAction and editClientPersonAction's email branch.
+  if (currentDirector?.password) {
+    return { ok: false, error: "Once the agency's owner has set up their login, only they can change the main contact." };
+  }
   await prisma.$transaction([
     // Demote the old contact to colleague, keeping full visibility (a director
     // saw all the agency's sales; a bare negotiator is scoped by canViewAllFiles).
