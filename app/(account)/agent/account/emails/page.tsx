@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { getBrandColor } from "@/lib/agent/themes";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { resolveStudioTheme } from "@/lib/email/email-theme-studio";
 import { emailStudioEnabled } from "@/lib/email/studio-flag";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
 import { AutomatedEmailsList } from "@/components/account/emails/AutomatedEmailsList";
@@ -57,6 +58,11 @@ export default async function AccountEmailsPage() {
   };
   const agencyName = agency?.name ?? null;
 
+  // Resolve the agency's email theme into the few values the copy preview needs,
+  // so editing the wording shows it in the agency's real colours + font (#2).
+  const st = resolveStudioTheme(branding.theme);
+  const previewTheme = { headerBg: st.headerBg, headerText: st.headerText, accent: st.accent, cardBg: st.cardBg, bodyFont: st.bodyFont };
+
   return (
     <>
       <AccountPageHeader
@@ -71,7 +77,7 @@ export default async function AccountEmailsPage() {
               title="Step-by-step updates"
               subtitle="The email your client receives as each stage of their sale is completed."
             >
-              <AgencyMilestoneEmailsEditor steps={steps} />
+              <AgencyMilestoneEmailsEditor steps={steps} previewTheme={previewTheme} />
             </AccountCard>
 
             <AccountCard

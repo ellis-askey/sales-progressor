@@ -81,7 +81,7 @@ function voiceWarnings(draft: Copy): string[] {
 // `base` points at the resolve/save/reset routes. Defaults to the agency routes;
 // a progression business passes "/api/agent/settings/milestone-emails" so its own
 // edits are saved as the business layer.
-export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/milestone-emails" }: { steps: StepMeta[]; base?: string }) {
+export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/milestone-emails", previewTheme = null }: { steps: StepMeta[]; base?: string; previewTheme?: PreviewTheme | null }) {
   const [side, setSide] = useState<Side>("purchaser");
   const [tenure, setTenure] = useState<"freehold" | "leasehold">("freehold");
   const [method, setMethod] = useState<"mortgage" | "cash">("mortgage");
@@ -319,14 +319,14 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
           />
           <div className="eme-live">
             <p className="eme-live-cap">Live preview</p>
-            <EmailCard copy={draft} />
+            <EmailCard copy={draft} theme={previewTheme} />
             <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
               Updates as you type. Example details fill in when the email sends.
             </p>
           </div>
         </div>
       ) : (
-        <Preview resolved={resolved} onEdit={startEdit} onReset={reset} resetting={resetting} />
+        <Preview resolved={resolved} onEdit={startEdit} onReset={reset} resetting={resetting} theme={previewTheme} />
       )}
     </div>
   );
@@ -426,22 +426,40 @@ function SourceBadge({ resolved }: { resolved: Extract<Resolved, { exists: true 
   );
 }
 
+// A trimmed view of the resolved email theme, enough to render the preview in
+// the agency's real branding (words in their colours + font).
+export type PreviewTheme = {
+  headerBg: string;
+  headerText: string;
+  accent: string;
+  cardBg: string;
+  bodyFont: string;
+};
+
 // The rendered email mock. Fed by resolved.preview when viewing, and by the live
-// draft while editing, so the agent sees their wording update as they type.
-function EmailCard({ copy }: { copy: Copy }) {
+// draft while editing, so the agent sees their wording update as they type. When
+// a theme is supplied it renders in the agency's branding (coloured header band,
+// accent button, font) so words + branding are seen together.
+function EmailCard({ copy, theme }: { copy: Copy; theme?: PreviewTheme | null }) {
+  const accent = theme?.accent ?? "var(--agent-coral, #FF6B4A)";
   return (
-    <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: "#fcfcfd" }}>
-      <div style={{ borderBottom: HAIRLINE, padding: "11px 16px" }}>
+    <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: theme?.cardBg ?? "#fcfcfd", fontFamily: theme?.bodyFont }}>
+      <div style={{ borderBottom: HAIRLINE, padding: "11px 16px", background: "#fff" }}>
         <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</p>
         <p style={{ margin: "3px 0 0", fontSize: 14, color: TEXT }}>{copy.subject}</p>
       </div>
+      {theme ? (
+        <div style={{ background: theme.headerBg, padding: "16px" }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: theme.headerText }}>{copy.heroLabel}</p>
+        </div>
+      ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px" }}>
-        <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>{copy.heroLabel}</p>
+        {!theme && <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>{copy.heroLabel}</p>}
         <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>{copy.opening}</p>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: TEXT }}>{copy.whatHappened}</p>
         {copy.whatNext && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{copy.whatNext}</p>}
         {copy.action && (
-          <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: "var(--agent-coral, #FF6B4A)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>
+          <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: accent, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>
             {copy.action}
           </span>
         )}
@@ -455,11 +473,13 @@ function Preview({
   onEdit,
   onReset,
   resetting,
+  theme,
 }: {
   resolved: Extract<Resolved, { exists: true }>;
   onEdit: () => void;
   onReset: () => void;
   resetting: boolean;
+  theme?: PreviewTheme | null;
 }) {
   const p = resolved.preview;
   return (
@@ -505,7 +525,7 @@ function Preview({
       </div>
 
       {/* Email preview */}
-      <EmailCard copy={p} />
+      <EmailCard copy={p} theme={theme} />
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
         Preview uses example details for things like the address, dates and surveyor.
       </p>
