@@ -22,11 +22,11 @@ import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs
 type Key = keyof ProgressorChasePrefs;
 
 const CHASES: Array<{ key: Key; title: string; desc: string }> = [
-  { key: "client",    title: "Client chases",         desc: "Nudge buyers and sellers to confirm each step in their portal." },
-  { key: "solicitor", title: "Solicitor chases",      desc: "Ask solicitors to confirm the steps they're responsible for." },
-  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. (You'll still be alerted if enquiries stall with this switched off.)" },
-  { key: "weekly",    title: "Weekly client updates", desc: "Send clients a short weekly update when their sale is on track." },
-  { key: "chain",     title: "Chain updates",         desc: "Let connected agents know when something changes on a linked sale." },
+  { key: "client",    title: "Client chases",         desc: "Remind buyers and sellers to confirm outstanding steps through their portal." },
+  { key: "solicitor", title: "Solicitor chases",      desc: "Follow up with solicitors to confirm the steps they're responsible for." },
+  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. You'll still be alerted if enquiries stall, even with this switched off." },
+  { key: "weekly",    title: "Weekly client updates", desc: "Send buyers and sellers a short weekly update on their sale's progress." },
+  { key: "chain",     title: "Chain updates",         desc: "Keep connected agents informed when something changes on a linked sale." },
 ];
 
 export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) {
@@ -74,7 +74,7 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
     <AccountCard
       icon={<Gauge size={20} weight="bold" />}
       title="What we chase"
-      subtitle="Choose which chases we run on your sales. Switch off anything you'd prefer to handle yourself."
+      subtitle="Choose which chases we handle for you. Switch off anything you'd rather manage yourself."
       headerAction={saveButton("acg-save-desktop")}
     >
       <div className="acg-group">
@@ -89,7 +89,7 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
         ))}
       </div>
 
-      <p className="acg-note">When a chase is off, no emails send, but anything needing attention still appears as a task in your reminders.</p>
+      <p className="acg-note">When a chase is switched off, no automated emails are sent for that chase. Anything needing your attention will still appear in your reminders.</p>
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
         {saveButton("acg-save-mobile")}

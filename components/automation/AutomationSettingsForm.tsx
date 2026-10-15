@@ -203,21 +203,6 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         </p>
       </section>
 
-      {/* Auto-emails nudge */}
-      <a
-        href="/agent/automated-emails"
-        className="flex items-center gap-3 rounded-[12px] p-3.5 no-underline"
-        style={{ background: "rgba(61,122,184,0.07)", border: "0.5px solid rgba(61,122,184,0.22)" }}
-      >
-        <span className="flex-none grid place-items-center w-[30px] h-[30px] rounded-[9px]" style={{ background: "rgba(61,122,184,0.14)", color: "#3D7AB8" }} aria-hidden>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
-        </span>
-        <span className="flex-1 min-w-0 text-[12.5px] leading-snug text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
-          This page controls <b className="text-[var(--agent-text-primary,#1A1D29)]">how often</b> we chase. To choose <b className="text-[var(--agent-text-primary,#1A1D29)]">which</b> emails are sent, head to Auto emails.
-        </span>
-        <span className="flex-none text-[12.5px] font-semibold whitespace-nowrap" style={{ color: "#3D7AB8" }}>Go to Auto emails →</span>
-      </a>
-
       {/* Per-milestone timing */}
       <section>
         <div className="flex items-baseline justify-between gap-3 mb-1">
