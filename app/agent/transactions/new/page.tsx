@@ -6,6 +6,7 @@ import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
+import { getProgressorsForAgency } from "@/lib/progression/inviting";
 import { getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
 import { resolveBusinessSaleGate } from "@/lib/progression/business-sale-gate";
 
@@ -89,6 +90,10 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   // "Send to us" means "send to them" — resolve their name + per-client rate card
   // (for the earnings panel) and default the toggle to the progressor.
   const invitingProgressor = session.user.agencyId ? await getInvitingProgressor(session.user.agencyId) : null;
+  // Multi-progressor: the full list of progression businesses this agency is a
+  // client of. When 2+, the New Sale flow shows a per-sale "which progressor"
+  // picker (invitingProgressor above stays the primary for the single case).
+  const agencyProgressors = session.user.agencyId ? await getProgressorsForAgency(session.user.agencyId) : [];
   const defaultProgressedBy = isProgressorCreate
     ? "progressor" // a progression business IS the progressor; no self-progress option
     : invitingProgressor
@@ -305,6 +310,7 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           clientAgencyId={clientAgencyId}
           progressorName={invitingProgressor?.name ?? null}
           progressorFeeModel={invitingProgressor?.feeModel ?? null}
+          progressors={agencyProgressors}
           isProgressorCreate={isProgressorCreate}
           clientAgencies={progressorClientAgencies}
           businessMembers={progressorMembers}

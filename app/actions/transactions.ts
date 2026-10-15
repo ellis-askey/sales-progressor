@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getProgressorsForAgency } from "@/lib/services/progression-clients";
 import { parseFeeModel } from "@/lib/progression/client-fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
 import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib/services/referrals";
@@ -170,6 +170,11 @@ export async function createTransactionAction(input: {
   // file is owned by that agency, attributed to its director, tagged to the
   // actor's business, and assigned to the actor. Validated server-side.
   clientAgencyId?: string;
+  // Multi-progressor agency "Send to us": which of the agency's progressors was
+  // chosen for this sale. Only honoured on the agency-send path (isAgent +
+  // progressedBy=progressor); re-validated against the agency's non-removed
+  // links. Undefined/null for a single-progressor agency (server resolves it).
+  progressionBusinessId?: string | null;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -268,8 +273,24 @@ export async function createTransactionAction(input: {
   // from clientCreate (which is the owner acting FOR a client).
   let invitingProgressorBusinessId: string | null = null;
   if (isAgent && resolvedProgressedBy === "progressor" && !clientCreate && progressionBusinessesEnabled()) {
-    const inviting = await getInvitingProgressor(session.user.agencyId);
-    invitingProgressorBusinessId = inviting?.businessId ?? null;
+    // An agency can now work with several progressors; the agent picks one per
+    // sale. Resolve the full list (earliest-first; [0] is the legacy "primary").
+    const progressors = await getProgressorsForAgency(session.user.agencyId);
+    if (input.progressionBusinessId) {
+      // Explicit per-sale choice: must be one of the agency's non-removed links.
+      const chosen = progressors.find((p) => p.businessId === input.progressionBusinessId);
+      if (!chosen) {
+        throw new Error("That progressor isn't connected to your agency.");
+      }
+      invitingProgressorBusinessId = chosen.businessId;
+    } else if (progressors.length > 1) {
+      // Several progressors but none chosen — the UI requires a pick; this is the
+      // server backstop for a crafted/stale submit.
+      throw new Error("Choose which progressor handles this sale.");
+    } else {
+      // Single (or zero) progressor — unchanged behaviour (the primary, or null).
+      invitingProgressorBusinessId = progressors[0]?.businessId ?? null;
+    }
   }
 
   // Universal solicitor invariant (founder decision 2026-09-18): a firm may

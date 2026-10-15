@@ -12,6 +12,7 @@ import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { DemoHeroCard } from "@/components/transactions-v2/DemoHeroCard";
 import { SaleHeroEditable } from "@/components/transactions-v2/SaleHeroEditable";
+import { ProgressorPicker, type ProgressorOption } from "@/components/transactions-v2/ProgressorPicker";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
 import { ChainBuildMap } from "@/components/chain/ChainBuildMap";
 import { FormChainSection } from "@/components/transactions-v2/form/FormChainSection";
@@ -350,6 +351,11 @@ type Props = {
   // the card (handled server-side in createTransactionAction).
   progressorName?: string | null;
   progressorFeeModel?: import("@/lib/progression/client-fees").ClientFeeModel | null;
+  // Multi-progressor: every progression business this agency is a client of. When
+  // 2+, "Send to us" shows a per-sale picker; the chosen one's name + fee drive
+  // the hero/earnings, and its id is sent as progressionBusinessId. A 0/1-length
+  // list leaves behaviour exactly as before (server resolves the single primary).
+  progressors?: ProgressorOption[];
   // Progressor (owner or team member) creating a sale for one of their clients.
   // They pick which client agency the sale is for and who to assign it to, in the
   // flow. The file is always outsourced to their business (no self-progress toggle).
@@ -368,7 +374,7 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, progressors = [], isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -388,6 +394,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // dropdown. `effectiveClientAgencyId` is what the submit sends.
   const [selectedClientAgencyId, setSelectedClientAgencyId] = useState<string>(clientAgencyId ?? "");
   const effectiveClientAgencyId = clientAgencyId || selectedClientAgencyId;
+
+  // Multi-progressor per-sale pick. Only relevant when the agency works with 2+
+  // progressors AND the agent is sending to one ("Send to us"). No default — the
+  // agent must choose (mirrors the server, which requires an explicit pick for a
+  // 2+-progressor agency). For 0/1 progressors, progressorName/progressorFeeModel
+  // (the primary) are used and nothing is sent — server behaviour is unchanged.
+  const multiProgressor = progressors.length >= 2;
+  const [progressorBusinessId, setProgressorBusinessId] = useState<string>("");
+  const activeProgressor = multiProgressor ? progressors.find((p) => p.businessId === progressorBusinessId) ?? null : null;
+  const effectiveProgressorName = multiProgressor ? (activeProgressor?.name ?? null) : progressorName;
+  const effectiveProgressorFeeModel = multiProgressor ? (activeProgressor?.feeModel ?? null) : progressorFeeModel;
 
   // Billing gate: a progression business can't start a sale when it needs a card
   // (owner) or when billing needs attention (teammate / paused). The gate opens at
@@ -995,6 +1012,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     }
 
     if (isOutsourced) {
+      // Multi-progressor agency: a progressor must be chosen before sending.
+      if (multiProgressor && !progressorBusinessId) {
+        toast.error("Choose which progressor handles this sale.");
+        return;
+      }
       const hasValidVendor = formFields.vendors.some(
         (v) => v.name.trim() && (v.phone.trim() || v.email.trim()),
       );
@@ -1093,6 +1115,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         // Progression-business create-for-client. Server validates it's one of
         // the actor's clients; ignored (undefined) on the normal agency flow.
         clientAgencyId: effectiveClientAgencyId || undefined,
+        // Multi-progressor agency "Send to us": which progressor was chosen. Only
+        // sent when the agency works with 2+; the server re-validates it's one of
+        // their non-removed progressors. Undefined for 0/1 (server resolves the
+        // single primary exactly as before).
+        progressionBusinessId: (isOutsourced && multiProgressor) ? (progressorBusinessId || undefined) : undefined,
         chain: formFields.chainStubs.length > 0
           ? { stubs: formFields.chainStubs, sendInvites: true }
           : undefined,
@@ -1217,12 +1244,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // back to progressorFeeModel only when the client isn't in our own book.
   const selectedClientFeeSet = selectedClient?.feeSet ?? (progressorFeeModel != null);
   const progressorFeeMissing = isProgressorCreate && !!effectiveClientAgencyId && !selectedClientFeeSet;
+  // Multi-progressor agency sending to a progressor must pick which one first.
+  const progressorPickMissing = multiProgressor && isOutsourced && !progressorBusinessId;
   // When a card is still needed, the button stays enabled so it can open the
   // add-a-card modal (handleSubmit intercepts before any create), regardless of the
   // other readiness checks.
   const isSubmitDisabled = gated
     ? false
-    : isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing;
+    : isSubmitting || !tenurePurchaseReady || !outsourcedReady || !solicitorRulesReady || hasContactConflict || progressorAgencyMissing || progressorFeeMissing || progressorPickMissing;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1468,7 +1497,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
             canOutsource={!clientAgencyId && !isProgressorCreate}
-            progressorName={progressorName}
+            progressorName={effectiveProgressorName}
           />
         </div>
       )}
@@ -1481,6 +1510,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           {/* Self-progress guide line — sits on the right column's tab centre
               line. Nudges the next required field during stage 1, then fades to
               "Add what you have now" once the core details are set. */}
+          {(flowState === "manual" || flowState === "extracted") && isOutsourced && multiProgressor && (
+            <ProgressorPicker
+              progressors={progressors}
+              selectedId={progressorBusinessId}
+              onSelect={setProgressorBusinessId}
+            />
+          )}
+
           {(flowState === "manual" || flowState === "extracted") && !isOutsourced && (
             <div style={{ marginTop: 16 }}>
               <RequiredPrompt
@@ -1626,8 +1663,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 legacyOutsourcedFeePence={legacyOutsourcedFeePence}
                 withinTrial={withinTrial}
                 allMilestoneDefinitions={allMilestoneDefinitions}
-                progressorName={progressorName}
-                progressorFeeModel={progressorFeeModel}
+                progressorName={effectiveProgressorName}
+                progressorFeeModel={effectiveProgressorFeeModel}
               />
             ) : intel.state === "success" && intel.data ? (
               <PropertyDossier
