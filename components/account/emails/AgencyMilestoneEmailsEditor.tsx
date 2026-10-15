@@ -10,12 +10,14 @@
 // Redesign (founder, 2026-10-15): the scenario selectors live in a LEFT RAIL
 // (recipient / tenure / payment / step, stacked); the email is the canvas on
 // the right, rendered in the agency's real branding (the look set on the Style
-// tab). "Edit" makes the email editable IN PLACE — you change the wording on
-// the email itself, not in a separate form. Style is never edited here.
+// tab). "Edit" makes the email editable IN PLACE. The step list only shows the
+// steps that apply to the chosen scenario (a leasehold step never appears on a
+// freehold file; a mortgage step never on a cash buyer), so there are no
+// "mortgage only" tags or "not sent" states to wade past. An agency edit always
+// applies across every scenario (saved as "any"), so one edit covers the matrix.
 //
-// Same data contract as the Command Centre matrix
-// (components/command/milestone-emails/MilestoneEmailsMatrix.tsx). Sides are
-// limited to buyer + seller: client-facing copy only.
+// Same data contract as the Command Centre matrix. Sides are limited to buyer +
+// seller: client-facing copy only.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@phosphor-icons/react";
@@ -60,13 +62,6 @@ const TEXT = "#111827";
 const MUTED = "#6b7280";
 const FAINT = "#9ca3af";
 
-const scopeLabel = (t: string | null, m: string | null) => {
-  const parts: string[] = [];
-  parts.push(t && t !== "any" ? t : "all tenures");
-  parts.push(m && m !== "any" ? (m === "mortgage" ? "mortgage" : "cash") : "all methods");
-  return parts.join(" · ");
-};
-
 function voiceWarnings(draft: Copy): string[] {
   const w: string[] = [];
   const prose: [string, string | null][] = [
@@ -101,8 +96,14 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
   const [tenure, setTenure] = useState<"freehold" | "leasehold">("freehold");
   const [method, setMethod] = useState<"mortgage" | "cash">("mortgage");
 
-  const stepsForSide = steps.filter((s) => s.sides.includes(side));
-  const [code, setCode] = useState<string>(stepsForSide[0]?.code ?? "");
+  // Only the steps that apply to the chosen recipient + scenario.
+  const visibleSteps = steps.filter(
+    (s) =>
+      s.sides.includes(side) &&
+      !(s.mortgageOnly && method === "cash") &&
+      !(s.leaseholdOnly && tenure === "freehold"),
+  );
+  const [code, setCode] = useState<string>(visibleSteps[0]?.code ?? "");
 
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,20 +111,17 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Copy | null>(null);
-  const [tenureScope, setTenureScope] = useState<"this" | "any">("this");
-  const [methodScope, setMethodScope] = useState<"this" | "any">("this");
   const [saving, setSaving] = useState(false);
   const { toast } = useAgentToast();
   const [resetting, setResetting] = useState(false);
 
-  const step = steps.find((s) => s.code === code);
-
+  // Keep the selected step valid as the scenario (and therefore the list) changes.
   useEffect(() => {
-    if (!stepsForSide.some((s) => s.code === code)) {
-      setCode(stepsForSide[0]?.code ?? "");
+    if (!visibleSteps.some((s) => s.code === code)) {
+      setCode(visibleSteps[0]?.code ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [side]);
+  }, [side, tenure, method]);
 
   const load = useCallback(async () => {
     if (!code) {
@@ -153,8 +151,6 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
   function startEdit() {
     if (!resolved || !resolved.exists) return;
     setDraft({ ...resolved.raw });
-    setTenureScope("this");
-    setMethodScope("this");
     setEditing(true);
   }
 
@@ -166,16 +162,11 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
     if (!draft) return;
     setSaving(true);
     try {
+      // One edit covers the whole matrix: saved as "any" tenure + "any" method.
       const res = await fetch(`${base}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          side,
-          tenure: tenureScope === "this" ? tenure : "any",
-          purchaseType: methodScope === "this" ? method : "any",
-          ...draft,
-        }),
+        body: JSON.stringify({ code, side, tenure: "any", purchaseType: "any", ...draft }),
       });
       if (res.ok) {
         setEditing(false);
@@ -214,13 +205,6 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
     }
   }
 
-  const scenarioWarning =
-    step && step.mortgageOnly && method === "cash"
-      ? "This step only happens for a buyer with a mortgage, so a cash buyer never receives it."
-      : step && step.leaseholdOnly && tenure === "freehold"
-        ? "This step only happens on a leasehold sale, so it never sends on a freehold file."
-        : null;
-
   const warnings = draft ? voiceWarnings(draft) : [];
   const shown = editing && draft ? draft : resolved && resolved.exists ? resolved.preview : null;
   const isAgencyVersion = !!resolved && resolved.exists && resolved.source === "agency";
@@ -252,7 +236,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
         </RailField>
         <RailField label="Step" grow>
           <div className="eme2-steps" role="listbox" aria-label="Choose a step">
-            {stepsForSide.map((s, i) => {
+            {visibleSteps.map((s, i) => {
               const on = s.code === code;
               return (
                 <button
@@ -265,11 +249,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
                   onClick={() => { if (!editing) setCode(s.code); }}
                 >
                   <span className="eme2-step-num">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="eme2-step-lbl">
-                    {s.label}
-                    {s.mortgageOnly ? <span className="eme2-step-tag"> mortgage only</span> : null}
-                    {s.leaseholdOnly ? <span className="eme2-step-tag"> leasehold only</span> : null}
-                  </span>
+                  <span className="eme2-step-lbl">{s.label}</span>
                 </button>
               );
             })}
@@ -282,8 +262,8 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
         <div className="eme2-bar">
           {editing ? (
             <span className="eme2-badge custom">Editing your version</span>
-          ) : isAgencyVersion && resolved && resolved.exists ? (
-            <span className="eme2-badge custom">Your version · {scopeLabel(resolved.matchedTenure, resolved.matchedMethod)}</span>
+          ) : isAgencyVersion ? (
+            <span className="eme2-badge custom">Your version</span>
           ) : (
             <span className="eme2-badge">Sales Progressor default</span>
           )}
@@ -310,7 +290,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
                   type="button"
                   onClick={startEdit}
                   disabled={!resolved || !resolved.exists || loading}
-                  className="eme2-btn eme2-btn-primary"
+                  className="eme2-btn"
                 >
                   <Pencil size={14} /> Edit wording
                 </button>
@@ -318,13 +298,6 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
             )}
           </div>
         </div>
-
-        {scenarioWarning && (
-          <div className="eme2-warn">
-            <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-            {scenarioWarning}
-          </div>
-        )}
 
         {loading ? (
           <div className="eme2-loading"><CircleNotch size={16} className="eme2-spin" /> Loading…</div>
@@ -358,22 +331,7 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
                     ))}
                   </div>
                 )}
-                <div className="eme2-scope">
-                  <p className="eme2-scope-lbl">This change applies to</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                    <Segmented
-                      value={tenureScope}
-                      onChange={(v) => setTenureScope(v as "this" | "any")}
-                      options={[{ value: "this", label: `${tenure.charAt(0).toUpperCase()}${tenure.slice(1)} only` }, { value: "any", label: "All tenures" }]}
-                    />
-                    <Segmented
-                      value={methodScope}
-                      onChange={(v) => setMethodScope(v as "this" | "any")}
-                      options={[{ value: "this", label: `${method === "mortgage" ? "Mortgage" : "Cash"} only` }, { value: "any", label: "All payment types" }]}
-                    />
-                  </div>
-                </div>
-                <p className="eme2-caption">Edit the email above. Details like {"{address}"} fill in for each sale when it sends.</p>
+                <p className="eme2-caption">Edit the email above. Your version applies to every scenario. Details like {"{address}"} fill in for each sale when it sends.</p>
               </>
             ) : (
               <p className="eme2-caption">Preview uses example details for things like the address, dates and surveyor.</p>
@@ -395,6 +353,8 @@ function RailField({ label, children, grow }: { label: string; children: React.R
   );
 }
 
+// Segmented toggle: the active option is a solid coral-gradient pill with white
+// text, and the pill slides between options (founder, 2026-10-15).
 function Segmented({
   value,
   onChange,
@@ -406,8 +366,13 @@ function Segmented({
   options: { value: string; label: string }[];
   disabled?: boolean;
 }) {
+  const idx = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div className={`eme2-seg${disabled ? " disabled" : ""}`}>
+    <div
+      className={`eme2-seg${disabled ? " disabled" : ""}`}
+      style={{ ["--n" as string]: options.length, ["--i" as string]: idx } as React.CSSProperties}
+    >
+      <span className="eme2-seg-pill" aria-hidden />
       {options.map((o) => {
         const active = value === o.value;
         return (
@@ -466,8 +431,6 @@ function EditableRegion({
 }
 
 // The rendered email — view (plain text) or edit (contentEditable in place).
-// Renders in the agency's branding when a theme is supplied so words + look are
-// seen together.
 function EmailCard({
   copy,
   theme,
@@ -529,13 +492,15 @@ const EME2_STYLES = `
   .eme2-field.grow { flex: 1; min-height: 0; }
   .eme2-field-lbl { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: ${FAINT}; }
 
-  .eme2-seg { display: flex; border: ${HAIRLINE}; border-radius: 9px; background: #fff; padding: 3px; gap: 3px; }
+  /* Animated segmented toggle: sliding coral-gradient pill, white active text. */
+  .eme2-seg { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); border: ${HAIRLINE}; border-radius: 9px; background: #f3f1f0; padding: 3px; isolation: isolate; }
   .eme2-seg.disabled { opacity: .55; }
-  .eme2-seg button { flex: 1; appearance: none; border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: ${MUTED}; padding: 6px 8px; border-radius: 6px; transition: background 120ms, color 120ms, box-shadow 120ms; }
+  .eme2-seg-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); border-radius: 6px; background: linear-gradient(180deg, #FF7A5C, #E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 7px -1px rgba(226,69,42,.5); transform: translateX(calc(var(--i) * 100%)); transition: transform 260ms cubic-bezier(.34,1.25,.5,1); }
+  .eme2-seg button { position: relative; z-index: 1; appearance: none; border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: ${MUTED}; padding: 7px 8px; border-radius: 6px; transition: color 180ms ease; }
   .eme2-seg button:hover:not(.on):not(:disabled) { color: ${TEXT}; }
   .eme2-seg button:disabled { cursor: default; }
-  .eme2-seg button.on { color: var(--agent-coral-deep, #E2452A); background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.4); }
+  .eme2-seg button.on { color: #fff; }
+  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.45); }
 
   .eme2-steps { display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; margin: 0 -4px; padding: 2px 4px; }
   .eme2-step { appearance: none; border: none; background: none; cursor: pointer; font: inherit; text-align: left; display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px; border-radius: 8px; color: ${MUTED}; transition: background 140ms, color 140ms; }
@@ -547,24 +512,23 @@ const EME2_STYLES = `
   .eme2-step.on .eme2-step-num { color: var(--agent-coral-deep, #E2452A); }
   .eme2-step-lbl { font-size: 12.5px; line-height: 1.35; }
   .eme2-step.on .eme2-step-lbl { font-weight: 650; }
-  .eme2-step-tag { color: ${FAINT}; font-weight: 400; }
 
   .eme2-canvas { padding: 20px; min-width: 0; }
-  .eme2-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .eme2-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
   .eme2-badge { font-size: 11px; font-weight: 600; color: ${MUTED}; background: #f3f3f4; padding: 4px 10px; border-radius: 999px; }
   .eme2-badge.custom { color: var(--agent-coral-deep, #E2452A); background: rgba(255,107,74,.10); font-weight: 700; }
   .eme2-actions { display: flex; align-items: center; gap: 8px; }
-  .eme2-btn { appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 8px 13px; display: inline-flex; align-items: center; gap: 6px; border: ${HAIRLINE}; background: #fff; color: ${TEXT}; transition: background 140ms, border-color 140ms, color 140ms, transform 80ms; }
-  .eme2-btn:hover:not(:disabled) { background: rgba(0,0,0,.035); }
+  .eme2-btn { appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border: ${HAIRLINE}; background: #fff; color: #374151; transition: background 140ms, border-color 140ms, color 140ms, transform 80ms; }
+  .eme2-btn:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn:active:not(:disabled) { transform: scale(.975); }
   .eme2-btn:disabled { opacity: .5; cursor: default; }
   .eme2-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,.32); }
   .eme2-btn-ghost { border-color: transparent; background: none; color: ${MUTED}; }
   .eme2-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn-primary { border-color: transparent; color: #fff; background: linear-gradient(180deg,#FF7A5C,#E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 10px -4px rgba(255,107,74,.5); }
-  .eme2-btn-primary:hover:not(:disabled) { filter: brightness(1.04); background: linear-gradient(180deg,#FF7A5C,#E2452A); }
+  .eme2-btn-primary:hover:not(:disabled) { filter: brightness(1.04); background: linear-gradient(180deg,#FF7A5C,#E2452A); color: #fff; }
 
-  .eme2-warn { display: flex; align-items: flex-start; gap: 8px; border: 0.5px solid rgba(217,119,6,0.35); background: rgba(251,191,36,0.10); border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #92610a; margin-bottom: 14px; }
+  .eme2-warn { display: flex; align-items: flex-start; gap: 8px; border: 0.5px solid rgba(217,119,6,0.35); background: rgba(251,191,36,0.10); border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #92610a; margin-top: 14px; }
   .eme2-loading { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: ${MUTED}; padding: 20px 2px; }
   .eme2-state { border: ${HAIRLINE}; border-radius: 12px; background: #fff; padding: 20px; }
 
@@ -589,8 +553,6 @@ const EME2_STYLES = `
   .eme2-edit:focus { outline: 1.5px solid var(--agent-coral, #FF6B4A); outline-offset: 3px; }
   .eme2-cta .eme2-edit:empty:before { color: rgba(255,255,255,.7); }
 
-  .eme2-scope { border: ${HAIRLINE}; border-radius: 10px; background: #fafafa; padding: 14px; margin-top: 14px; }
-  .eme2-scope-lbl { margin: 0 0 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: ${FAINT}; }
   .eme2-caption { margin: 12px 2px 0; font-size: 11.5px; color: ${FAINT}; }
 
   .eme2-spin { animation: eme2-spin .7s linear infinite; }
@@ -601,5 +563,5 @@ const EME2_STYLES = `
     .eme2-rail { border-right: none; border-bottom: ${HAIRLINE}; }
     .eme2-steps { max-height: 220px; }
   }
-  @media (prefers-reduced-motion: reduce) { .eme2-email, .eme2-btn, .eme2-seg button, .eme2-step { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .eme2-email, .eme2-btn, .eme2-seg button, .eme2-seg-pill, .eme2-step { transition: none; } }
 `;

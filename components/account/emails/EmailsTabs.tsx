@@ -10,6 +10,7 @@
 // and see your wording in that look. "Style" was previously labelled "Look".
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { TextAa, PaperPlaneTilt } from "@phosphor-icons/react";
 
 type Tab = "style" | "words" | "sender";
@@ -27,8 +28,18 @@ function SplatIcon({ size = 16 }: { size?: number }) {
 }
 
 export function EmailsTabs({ words, style, sender }: { words: React.ReactNode; style: React.ReactNode; sender: React.ReactNode }) {
+  const router = useRouter();
   // Land on Style so the look is set before the wording is reviewed.
   const [tab, setTab] = useState<Tab>("style");
+
+  // The Words preview renders in the agency's saved email look, which is a
+  // server-computed prop fixed at page load. When a director leaves the Style
+  // tab (where they may have just saved a new look), refresh so the Words
+  // preview re-resolves to the look they set, rather than the stale one.
+  function go(next: Tab) {
+    if (tab === "style" && next !== "style") router.refresh();
+    setTab(next);
+  }
   const TABS: { id: Tab; label: string; render: (on: boolean) => React.ReactNode }[] = [
     { id: "style", label: "Style", render: () => <SplatIcon size={16} /> },
     { id: "words", label: "Words", render: (on) => <TextAa size={16} weight={on ? "fill" : "regular"} /> },
@@ -43,7 +54,7 @@ export function EmailsTabs({ words, style, sender }: { words: React.ReactNode; s
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => go(id)}
               style={{
                 position: "relative",
                 display: "inline-flex",
