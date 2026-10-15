@@ -151,7 +151,6 @@ export function TeamListViewPlain({
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {m.name}
-              {m.id === currentUserId && <span style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600 }}> · You</span>}
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {m.email}
