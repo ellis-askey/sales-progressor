@@ -318,7 +318,10 @@ export default async function Hub() {
         {/* In-app email composer — pick a sale, write, send from your own address
             (critique 2026-10-05). Available to everyone who manages files. */}
         <ComposeEmailButton variant="ghost" />
-        {!isInternalStaff && hasOutsourced && (
+        {/* General (not-attached-to-a-sale) note: only when there's ONE obvious
+            recipient. A 2+-progressor agency has no single destination, so the
+            button hides and those notes are sent from inside a specific sale. */}
+        {!isInternalStaff && hasOutsourced && noteCopy.count < 2 && (
           <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
       </PageHeader>

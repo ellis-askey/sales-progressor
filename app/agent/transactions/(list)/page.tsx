@@ -237,8 +237,10 @@ export default async function AllTransactionsPage({
           </Link>
         )}
         {/* AgentFlagButton — agent-only, and only when there's a team to receive
-            it (an active outsourced sale). */}
-        {!isInternalStaff && hasOutsourced && (
+            it (an active outsourced sale) AND one obvious recipient. A
+            2+-progressor agency has no single destination for a general note, so
+            it hides; those notes are sent from inside a specific sale instead. */}
+        {!isInternalStaff && hasOutsourced && noteCopy.count < 2 && (
           <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
       </PageHeader>
