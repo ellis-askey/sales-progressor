@@ -5,7 +5,6 @@
 import { requireSession } from "@/lib/session";
 import { listIncomingConnectionRequests } from "@/lib/services/progression-clients";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { feeModelSummary } from "@/lib/progression/client-fees";
 import { ConnectionRequestCard } from "./ConnectionRequestCard";
 
 export async function ConnectionRequestBanner() {
@@ -26,12 +25,14 @@ export async function ConnectionRequestBanner() {
             key={r.id}
             id={r.id}
             businessName={r.businessName}
-            feeLabel={r.feeModel ? feeModelSummary(r.feeModel) : null}
           />
         ))}
       </div>
       <style>{`
-        .crb-wrap { max-width: 1120px; margin: 0 auto 18px; padding: 0 clamp(16px, 4vw, 32px); }
+        /* Top margin clears the sticky nav; the page header below carries its own
+           24px top padding, so the banner adds no bottom margin (avoids the big
+           floating gap above the greeting). */
+        .crb-wrap { max-width: 1120px; margin: 16px auto 0; padding: 0 clamp(16px, 4vw, 32px); }
         .crb { border-radius: 16px; overflow: hidden;
           background: var(--agent-surface, rgba(255,255,255,0.82)); -webkit-backdrop-filter: blur(14px) saturate(115%); backdrop-filter: blur(14px) saturate(115%);
           border: 0.5px solid var(--agent-border-subtle, rgba(0,0,0,0.08)); box-shadow: 0 1px 2px rgba(20,14,10,0.04), 0 6px 22px rgba(20,14,10,0.06); }
