@@ -16,7 +16,6 @@ import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
-import { SectionHeader } from "@/components/agent/SectionHeader";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
@@ -316,8 +315,11 @@ export function ReviewsSection({
     setBusyId(null);
   }
 
+  // No early return when empty: Reviews is its own tab now, so an empty list
+  // must still render the "No reviews yet" hero with its Add-a-review button
+  // (previously returned null here, leaving the tab blank with no way to add
+  // one — reported 2026-10-15).
   const openCount = items.length;
-  if (openCount === 0 && done.length === 0) return null;
 
   const rowProps = {
     busyId,
@@ -333,13 +335,8 @@ export function ReviewsSection({
   return (
     <div id="section-reviews" className="space-y-3">
       <style>{RV_STYLES}</style>
-      {/* Section header — matches the top of the No-comms card */}
-      <SectionHeader
-        icon={<CalendarPlus size={22} weight="regular" />}
-        title="Reviews due"
-        subtitle="Files to come back to."
-        count={openCount}
-      />
+      {/* No section header: the "Reviews" tab already names this and carries the
+          count (redundant row removed 2026-10-15). */}
 
       {/* Add-a-review form — a review is a to-do ticked as a review + a date. */}
       {addOpen && (
