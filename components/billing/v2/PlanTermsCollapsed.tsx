@@ -19,10 +19,15 @@ export type PlanTermsCollapsedProps = {
     sections: TermsSection[];
     acknowledgedAt: Date | null;
   } | null;
+  // External progression companies this agency works with (one or more). When
+  // present, the "Outsourced" column shows THEIR rate(s) rather than TSP's own
+  // £250/300/350 — because the agency pays the company directly, not TSP.
+  progressors?: { name: string; rate: string }[];
 };
 
-export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
+export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollapsedProps) {
   const [open, setOpen] = useState(false);
+  const hasProgressors = progressors.length > 0;
 
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -64,10 +69,29 @@ export function PlanTermsCollapsed({ agreed }: PlanTermsCollapsedProps) {
           >
             Outsourced
           </div>
-          <div style={{ marginTop: 4, color: "#111827" }}>£250 / £300 / £350 by band</div>
-          <div style={{ marginTop: 2, fontSize: 11.5, color: "#6b7280" }}>First sale free</div>
+          {hasProgressors ? (
+            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+              {progressors.map((p, i) => (
+                <div key={i} style={{ color: "#111827" }}>
+                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ color: "#6b7280" }}> — {p.rate}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div style={{ marginTop: 4, color: "#111827" }}>£250 / £300 / £350 by band</div>
+              <div style={{ marginTop: 2, fontSize: 11.5, color: "#6b7280" }}>First sale free</div>
+            </>
+          )}
         </div>
       </div>
+
+      {hasProgressors && (
+        <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.55, marginTop: -4 }}>
+          Files you send to {progressors.length > 1 ? "a progression company" : progressors[0].name} are billed by {progressors.length > 1 ? "that company" : "them"} directly under your agreement with them, not by TSP. The terms below cover your free self-progress and any sale you send to TSP&apos;s own team.
+        </div>
+      )}
 
       {agreed && (
         <div

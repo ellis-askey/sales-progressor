@@ -32,6 +32,24 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { getDefaultCard } from "@/lib/stripe";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { getProgressorsForAgency } from "@/lib/progression/inviting";
+import type { ClientFeeModel } from "@/lib/progression/client-fees";
+
+// A progression company's rate card as a short one-line label for the billing
+// plan card. They bill the agency off-platform at their own rate, not TSP's.
+function describeFeeModel(m: ClientFeeModel | null): string {
+  if (!m) return "Rate not set";
+  if (m.type === "flat") return `£${Math.round(m.pence / 100)} per sale`;
+  if (m.type === "percent") {
+    const pct = m.bps / 100;
+    return `${Number.isInteger(pct) ? pct : pct.toFixed(2)}% of the sale`;
+  }
+  const fees = m.bands.map((b) => b.pence).filter((p) => p > 0);
+  if (!fees.length) return "Rate not set";
+  const min = Math.round(Math.min(...fees) / 100);
+  const max = Math.round(Math.max(...fees) / 100);
+  return min === max ? `£${min} per sale` : `£${min}–£${max} by band`;
+}
 
 function monthLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -75,6 +93,12 @@ export default async function AccountBillingPage() {
     },
   });
   if (!agency) notFound();
+
+  // External progression companies this agency works with. When present, the
+  // plan card shows their rate(s) instead of TSP's own outsourcing price, and
+  // (if they've never been billed by TSP) we drop the "add a card" nudge.
+  const progressorLinks = await getProgressorsForAgency(agencyId);
+  const progressors = progressorLinks.map((p) => ({ name: p.name, rate: describeFeeModel(p.feeModel) }));
 
   const [runningTotal, lifetime, terms, historyRows, trialFilesThisMonth] =
     await Promise.all([
@@ -174,6 +198,17 @@ export default async function AccountBillingPage() {
   const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
   const ackedTerms = ack !== null;
 
+  // No card is needed for an agency that only self-progresses (free) and sends
+  // its other files to external progression companies (billed by them, not TSP):
+  // they can never generate a TSP invoice to fail. Show a reassuring note rather
+  // than an "add a card" nudge, unless they've actually been billed by TSP or
+  // already hold a card.
+  const showNoCardNeeded =
+    ackedTerms &&
+    progressors.length > 0 &&
+    lifetime.billedLifetimePence === 0 &&
+    !agency.stripeCustomerId;
+
   let paymentPanelProps: React.ComponentProps<typeof PaymentMethodPlain>;
   if (!ackedTerms) {
     paymentPanelProps = { kind: "pending" };
@@ -221,11 +256,24 @@ export default async function AccountBillingPage() {
           {/* id used for /agent/billing/payment-method deep-link anchor. */}
           <div id="payment-method">
             <AccountCard>
-              <PaymentMethodPlain {...paymentPanelProps} />
+              {showNoCardNeeded ? (
+                <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>Payment method</h2>
+                  <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+                    No payment method needed. Your self-progress is free, and files you send to a progression company are billed by them directly, not by TSP.
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#9ca3af", lineHeight: 1.55 }}>
+                    You&apos;d only need a card if you sent a sale to TSP&apos;s own team to progress.
+                  </p>
+                </section>
+              ) : (
+                <PaymentMethodPlain {...paymentPanelProps} />
+              )}
             </AccountCard>
           </div>
           <AccountCard>
             <PlanTermsCollapsed
+              progressors={progressors}
               agreed={
                 terms
                   ? {
