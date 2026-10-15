@@ -800,12 +800,12 @@ const PORTAL_DEFAULT_FIELDS = new Set([
 ]);
 
 /**
- * Set one of the business-wide client-portal display defaults, and write it
- * THROUGH to every current (non-removed) client agency's matching flag — so the
- * buyer/seller portal (which reads the client agency's own Agency.showPortal*)
- * reflects it immediately. Per-field: flipping one default leaves any per-client
- * tweaks on the OTHER fields intact. New client agencies are seeded separately at
- * provision time (addClientAgency). Owner-only + flag-gated.
+ * Set one of the business-wide client-portal display defaults on the business's
+ * OWN row. The buyer/seller portal reads the responsible party's defaults at
+ * render time (lib/services/portal.ts), so the business's own value governs every
+ * file it progresses. No write-through into client Agency rows: that used to
+ * bleed one progressor's choice onto another progressor's (and the agency's own)
+ * sales. Owner-only + flag-gated.
  */
 export async function setBusinessPortalDefaultAction(field: string, value: boolean): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
@@ -816,21 +816,6 @@ export async function setBusinessPortalDefaultAction(field: string, value: boole
 
   const data = { [field]: value } as Prisma.ProgressionBusinessUpdateInput;
   await prisma.progressionBusiness.update({ where: { id: owner.businessId }, data });
-
-  // Write through to current clients (never the archived ones — reinstating a
-  // client later re-seeds from the then-current default via addClientAgency only
-  // for brand-new agencies, so archived links keep whatever they last had).
-  const links = await prisma.progressionBusinessClient.findMany({
-    where: { progressionBusinessId: owner.businessId, removedAt: null },
-    select: { agencyId: true },
-  });
-  const agencyIds = links.map((l) => l.agencyId);
-  if (agencyIds.length) {
-    await prisma.agency.updateMany({
-      where: { id: { in: agencyIds } },
-      data: { [field]: value } as Prisma.AgencyUpdateManyMutationInput,
-    });
-  }
 
   revalidatePath("/agent/settings/client-portal");
   revalidatePath("/agent/clients");

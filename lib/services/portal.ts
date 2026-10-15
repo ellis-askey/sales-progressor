@@ -335,6 +335,19 @@ async function getPortalDataInner(token: string) {
           showPortalWelcomeSheet: true,
         },
       },
+      // Portal display resolves off the RESPONSIBLE party (same rule as email
+      // wording, chase prefs and sender): a sale run by an external progression
+      // business shows that business's portal defaults; a self-progressed / TSP
+      // sale shows the agency's. Keyed by progressionBusinessId below.
+      progressionBusinessId: true,
+      progressionBusiness: {
+        select: {
+          showPortalKeyDates: true,
+          showPortalCosts: true,
+          showPortalProgressPercent: true,
+          showPortalWelcomeSheet: true,
+        },
+      },
     },
   });
   if (!tx) return null;
@@ -346,11 +359,15 @@ async function getPortalDataInner(token: string) {
   const keyDatesOverride = viewerSide === "vendor"
     ? tx.portalKeyDatesOverrideVendor
     : tx.portalKeyDatesOverridePurchaser;
+  // A sale run by an external progression business shows that business's portal
+  // defaults; a self-progressed / TSP sale shows the agency's. The per-side
+  // key-dates override (set per sale) still wins first.
+  const displayOwner = tx.progressionBusinessId ? tx.progressionBusiness : tx.agency;
   const portalDisplay = {
-    keyDates: keyDatesOverride ?? tx.agency?.showPortalKeyDates ?? true,
-    costs: tx.agency?.showPortalCosts ?? true,
-    progressPercent: tx.agency?.showPortalProgressPercent ?? true,
-    welcomeSheet: tx.agency?.showPortalWelcomeSheet ?? true,
+    keyDates: keyDatesOverride ?? displayOwner?.showPortalKeyDates ?? true,
+    costs: displayOwner?.showPortalCosts ?? true,
+    progressPercent: displayOwner?.showPortalProgressPercent ?? true,
+    welcomeSheet: displayOwner?.showPortalWelcomeSheet ?? true,
   };
 
   const postcode = extractPostcode(tx.propertyAddress);
