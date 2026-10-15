@@ -19,17 +19,20 @@ import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail
 
 type Tab = NavRailItem & { roles: UserRole[] };
 
-// Render order = display order.
+// Render order = display order. Grouped identity -> client comms (the email /
+// chasing / portal tabs you set up for clients) -> personal preferences. The
+// external-business Settings nav (BusinessSettingsNav) uses the same order so
+// the two areas mirror each other (settings consolidation, D6).
 const TABS: Tab[] = [
   { href: "/agent/account/billing", label: "Billing", Icon: CreditCard, roles: ["director"] },
   { href: "/agent/account/profile", label: "Profile", Icon: User, roles: ["director", "negotiator"] },
   { href: "/agent/account/team", label: "Team", Icon: Users, roles: ["director", "negotiator"] },
-  { href: "/agent/account/notifications", label: "Notifications", Icon: Bell, roles: ["director", "negotiator"] },
-  { href: "/agent/account/connections", label: "Connections", Icon: EnvelopeSimple, roles: ["director", "negotiator"] },
-  { href: "/agent/account/security", label: "Security", Icon: Lock, roles: ["director", "negotiator"] },
   { href: "/agent/account/emails", label: "Emails", Icon: EnvelopeOpen, roles: ["director"] },
   { href: "/agent/account/chasing", label: "Automated chasing", Icon: Repeat, roles: ["director"] },
   { href: "/agent/account/client-portal", label: "Client portal", Icon: Browser, roles: ["director"] },
+  { href: "/agent/account/notifications", label: "Notifications", Icon: Bell, roles: ["director", "negotiator"] },
+  { href: "/agent/account/connections", label: "Connections", Icon: EnvelopeSimple, roles: ["director", "negotiator"] },
+  { href: "/agent/account/security", label: "Security", Icon: Lock, roles: ["director", "negotiator"] },
 ];
 
 export function AccountLeftNav({

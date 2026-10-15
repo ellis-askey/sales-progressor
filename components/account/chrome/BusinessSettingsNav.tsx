@@ -15,17 +15,18 @@ import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, Pl
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
-// Render order = display order. Business-running settings first (the owner-only
-// tabs), personal settings after. Billing sits high with the account tabs rather
-// than in the basement — it's a frequently-checked page, and this matches the
-// agency nav convention (where Billing is the first tab).
+// Render order = display order. Mirrors the agency AccountLeftNav order (settings
+// consolidation, D6): the business-identity tab first, then account basics
+// (Billing / Profile / Team), then the client-comms tabs (Emails / Automated
+// chasing), then personal preferences. "Client portal" has no business row
+// (portal settings are per-client, managed in each client's workspace).
 const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/business", label: "Business", Icon: Buildings },
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },
+  { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/team", label: "Team", Icon: UsersThree },
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
   { href: "/agent/settings/chases", label: "Automated chasing", Icon: Gauge },
-  { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/settings/notifications", label: "Notifications", Icon: Bell },
   { href: "/agent/settings/connections", label: "Connections", Icon: PlugsConnected },
   { href: "/agent/settings/security", label: "Security", Icon: Lock },
