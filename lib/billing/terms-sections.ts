@@ -14,7 +14,7 @@ export type TermsSection = {
 /**
  * Human-facing label for a TermsVersion, shown to directors instead of the
  * internal versionTag (e.g. "2026-08-payments-v6"). Derived from the YYYY-MM
- * prefix of the tag so it reads "Billing Terms - August 2026". The internal
+ * prefix of the tag so it reads "Billing Terms · August 2026". The internal
  * tag is still what PricingAcknowledgement records; this is display-only.
  */
 export function termsDisplayName(versionTag: string): string {
@@ -26,7 +26,7 @@ export function termsDisplayName(versionTag: string): string {
   ];
   const name = months[parseInt(m[2], 10) - 1];
   if (!name) return versionTag;
-  return `Billing Terms - ${name} ${m[1]}`;
+  return `Billing Terms · ${name} ${m[1]}`;
 }
 
 /**
