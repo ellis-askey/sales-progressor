@@ -22,6 +22,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { EmailLookCard, type EmailLookContent } from "@/components/account/emails/EmailLook";
+import type { StudioTheme } from "@/lib/email/email-theme-studio";
 
 type StepMeta = {
   code: string;
@@ -88,10 +90,30 @@ export type PreviewTheme = {
   bodyFont: string;
 };
 
+// The agency's full email look — resolved server-side and passed in so the
+// preview renders through the SAME engine as the Style tab (byte-for-byte).
+export type EmailLook = { st: StudioTheme; logoUrl: string | null; tileColor: string; identityName: string };
+
+// Milestone copy -> the shared email-look content model. Editable wires each
+// slot back to the matching Copy field for edit-in-place.
+function milestoneContent(copy: Copy, editable: boolean, setField: (k: keyof Copy, v: string) => void): EmailLookContent {
+  const slot = (key: keyof Copy, text: string, placeholder?: string) => ({ text, placeholder, onEdit: editable ? (v: string) => setField(key, v) : undefined });
+  const body = [slot("opening", copy.opening), slot("whatHappened", copy.whatHappened)];
+  if (editable || copy.whatNext) body.push(slot("whatNext", copy.whatNext ?? "", "Add a follow-up paragraph, or leave blank"));
+  return {
+    eyebrow: "Milestone update",
+    headline: slot("heroLabel", copy.heroLabel, "Headline"),
+    lead: null,
+    greeting: null,
+    body,
+    cta: editable || copy.action ? slot("action", copy.action ?? "", "Button label") : { text: "View your portal" },
+  };
+}
+
 // `base` points at the resolve/save/reset routes. Defaults to the agency routes;
 // a progression business passes "/api/agent/settings/milestone-emails" so its own
 // edits are saved as the business layer.
-export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/milestone-emails", previewTheme = null }: { steps: StepMeta[]; base?: string; previewTheme?: PreviewTheme | null }) {
+export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/milestone-emails", previewTheme = null, look = null }: { steps: StepMeta[]; base?: string; previewTheme?: PreviewTheme | null; look?: EmailLook | null }) {
   const [side, setSide] = useState<Side>("purchaser");
   const [tenure, setTenure] = useState<"freehold" | "leasehold">("freehold");
   const [method, setMethod] = useState<"mortgage" | "cash">("mortgage");
@@ -317,7 +339,24 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
           </div>
         ) : shown ? (
           <>
-            <EmailCard key={editing ? `edit-${code}-${side}` : `view-${code}-${side}`} copy={shown} theme={previewTheme} editable={editing} onField={setField} />
+            {look ? (
+              <div key={editing ? `edit-${code}-${side}` : `view-${code}-${side}`}>
+                {/* Subject sits above the email (it isn't part of the rendered
+                    body), editable in place like everything else. */}
+                <div className="eme2-subjline">
+                  <span className="eme2-slbl">Subject</span>
+                  {editing
+                    ? <EditableRegion singleLine initial={shown.subject} onInput={(v) => setField("subject", v)} className="eme2-subjtxt" />
+                    : <span className="eme2-subjtxt">{shown.subject}</span>}
+                </div>
+                {/* The real email, rendered through the shared Style engine. */}
+                <div className={`eme2-stage${editing ? " editing" : ""}`} style={{ background: look.st.pageBg }}>
+                  <EmailLookCard st={look.st} content={milestoneContent(shown, editing, setField)} identityName={look.identityName} logo={look.logoUrl} tileColor={look.tileColor} />
+                </div>
+              </div>
+            ) : (
+              <EmailCard key={editing ? `edit-${code}-${side}` : `view-${code}-${side}`} copy={shown} theme={previewTheme} editable={editing} onField={setField} />
+            )}
 
             {editing ? (
               <>
@@ -552,6 +591,10 @@ const EME2_STYLES = `
   .eme2-email.editing .eme2-edit { outline: 1px dashed rgba(226,69,42,.4); outline-offset: 3px; }
   .eme2-edit:focus { outline: 1.5px solid var(--agent-coral, #FF6B4A); outline-offset: 3px; }
   .eme2-cta .eme2-edit:empty:before { color: rgba(255,255,255,.7); }
+
+  .eme2-subjline { border: ${HAIRLINE}; border-radius: 11px; background: #fff; padding: 11px 16px; margin-bottom: 12px; }
+  .eme2-stage { border: ${HAIRLINE}; border-radius: 12px; padding: 20px; display: flex; justify-content: center; transition: box-shadow .2s ease; }
+  .eme2-stage.editing { box-shadow: 0 0 0 2px var(--agent-coral, #FF6B4A); }
 
   .eme2-caption { margin: 12px 2px 0; font-size: 11.5px; color: ${FAINT}; }
 

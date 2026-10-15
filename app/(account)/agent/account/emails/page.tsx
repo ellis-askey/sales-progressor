@@ -71,10 +71,16 @@ export default async function AccountEmailsPage() {
         ? `Changes take effect from the next email on sales you progress yourself. Sales sent to ${progressors.name} use their wording instead. Your branding stays on every email.`
         : "Changes take effect from the next email on sales you progress yourself. Sales sent to a progression company use their wording instead. Your branding stays on every email.";
 
-  // Resolve the agency's email theme into the few values the copy preview needs,
-  // so editing the wording shows it in the agency's real colours + font (#2).
+  // Resolve the agency's full email look so the Words preview renders through the
+  // SAME engine as the Style tab — the milestone email shows byte-for-byte in the
+  // branding the director chose, not a simplified mock.
   const st = resolveStudioTheme(branding.theme);
-  const previewTheme = { headerBg: st.headerBg, headerText: st.headerText, accent: st.accent, cardBg: st.cardBg, bodyFont: st.bodyFont };
+  const emailLook = {
+    st: { ...st, logoMode: (branding.logoUrl ? "logo" : st.logoMode) as typeof st.logoMode },
+    logoUrl: branding.logoUrl,
+    tileColor: branding.tileColor ?? "#ffffff",
+    identityName: agencyName ?? "Your agency",
+  };
 
   return (
     <>
@@ -90,7 +96,7 @@ export default async function AccountEmailsPage() {
               title="Step-by-step updates"
               subtitle="The email your client receives as each stage of their sale is completed."
             >
-              <AgencyMilestoneEmailsEditor steps={steps} previewTheme={previewTheme} />
+              <AgencyMilestoneEmailsEditor steps={steps} look={emailLook} />
             </AccountCard>
 
             <AccountCard
