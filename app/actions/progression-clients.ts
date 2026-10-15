@@ -789,6 +789,54 @@ export async function setClientAgencyFlagAction(agencyId: string, key: string, v
   return { ok: true };
 }
 
+// The business-wide client-portal defaults (owner's Client-portal settings page).
+// Keyed by the same PortalDisplayField names the agency page uses, mapped to the
+// matching ProgressionBusiness + Agency columns (identical names on both models).
+const PORTAL_DEFAULT_FIELDS = new Set([
+  "showPortalKeyDates",
+  "showPortalCosts",
+  "showPortalProgressPercent",
+  "showPortalWelcomeSheet",
+]);
+
+/**
+ * Set one of the business-wide client-portal display defaults, and write it
+ * THROUGH to every current (non-removed) client agency's matching flag — so the
+ * buyer/seller portal (which reads the client agency's own Agency.showPortal*)
+ * reflects it immediately. Per-field: flipping one default leaves any per-client
+ * tweaks on the OTHER fields intact. New client agencies are seeded separately at
+ * provision time (addClientAgency). Owner-only + flag-gated.
+ */
+export async function setBusinessPortalDefaultAction(field: string, value: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  if (!PORTAL_DEFAULT_FIELDS.has(field)) return { ok: false, error: "Unknown setting." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only the business owner can change portal defaults." };
+
+  const data = { [field]: value } as Prisma.ProgressionBusinessUpdateInput;
+  await prisma.progressionBusiness.update({ where: { id: owner.businessId }, data });
+
+  // Write through to current clients (never the archived ones — reinstating a
+  // client later re-seeds from the then-current default via addClientAgency only
+  // for brand-new agencies, so archived links keep whatever they last had).
+  const links = await prisma.progressionBusinessClient.findMany({
+    where: { progressionBusinessId: owner.businessId, removedAt: null },
+    select: { agencyId: true },
+  });
+  const agencyIds = links.map((l) => l.agencyId);
+  if (agencyIds.length) {
+    await prisma.agency.updateMany({
+      where: { id: { in: agencyIds } },
+      data: { [field]: value } as Prisma.AgencyUpdateManyMutationInput,
+    });
+  }
+
+  revalidatePath("/agent/settings/client-portal");
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
 /** Save the progressor's rate card for a client (how they charge). Owner-scoped. */
 export async function setClientFeeModelAction(agencyId: string, model: unknown): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

@@ -23,6 +23,11 @@ export type ClientPortalDisplay = {
   showPortalWelcomeSheet: boolean;
 };
 
+// Where a flip is persisted. Defaults to the agency-wide action; the business
+// owner's variant of this page passes setBusinessPortalDefaultAction (which also
+// writes the change through to the business's client agencies).
+type SaveFn = (field: PortalDisplayField, next: boolean) => Promise<{ ok: true } | { ok: false; error: string }>;
+
 const ROWS: { field: PortalDisplayField; label: string; sub: string; note?: string; hidden: string }[] = [
   {
     field: "showPortalKeyDates",
@@ -255,7 +260,7 @@ function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
 }
 
 function ToggleRow({
-  field, label, sub, note, hidden, value, onChange, last, inline = false,
+  field, label, sub, note, hidden, value, onChange, save, last, inline = false,
 }: {
   field: PortalDisplayField;
   label: string;
@@ -264,6 +269,7 @@ function ToggleRow({
   hidden: string;
   value: boolean;
   onChange: (field: PortalDisplayField, next: boolean) => void;
+  save: SaveFn;
   last: boolean;
   // inline: wording + toggle on the left, the (narrow) preview on the right,
   // stacking on small screens. Used for the compact Progress figure.
@@ -277,7 +283,7 @@ function ToggleRow({
     setError(null);
     onChange(field, next);
     start(async () => {
-      const res = await setAgencyPortalDisplay(field, next);
+      const res = await save(field, next);
       if (!res.ok) {
         onChange(field, !next);
         setError(res.error);
@@ -337,7 +343,14 @@ function ToggleRow({
   );
 }
 
-export function ClientPortalSettings({ initial }: { initial: ClientPortalDisplay }) {
+export function ClientPortalSettings({
+  initial,
+  save = setAgencyPortalDisplay,
+}: {
+  initial: ClientPortalDisplay;
+  // Defaults to the agency-wide action. The business owner's page passes its own.
+  save?: SaveFn;
+}) {
   const [state, setState] = useState<ClientPortalDisplay>(initial);
   const onChange = (field: PortalDisplayField, next: boolean) =>
     setState((s) => ({ ...s, [field]: next }));
@@ -352,6 +365,7 @@ export function ClientPortalSettings({ initial }: { initial: ClientPortalDisplay
       hidden={r.hidden}
       value={state[r.field]}
       onChange={onChange}
+      save={save}
       last={last}
     />
   );

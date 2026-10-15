@@ -291,6 +291,20 @@ model ProgressionBusiness {
   // fee is still the rate card x the exchange-locked price).
   billAtCompletion           Boolean @default(false)
 
+  // Client-portal display defaults for the files this business progresses. These
+  // are the business-wide default a NEW client agency is seeded with at provision
+  // (addClientAgency), and saving on the owner's Client-portal settings page
+  // writes each field through to ALL current client agencies (setBusinessPortal-
+  // DefaultAction). The buyer/seller portal still reads the client agency's own
+  // Agency.showPortal* flags — these decide what those start as and bulk-set them,
+  // leaving per-client tweaks on other fields intact. Mirrors the 4 Agency flags.
+  // TSP's own row keeps the defaults and is never written through (TSP progresses
+  // via internal staff, not this settings area).
+  showPortalKeyDates        Boolean @default(true)
+  showPortalCosts           Boolean @default(true)
+  showPortalProgressPercent Boolean @default(true)
+  showPortalWelcomeSheet    Boolean @default(true)
+
   // Terms acceptance — the version of the Sales Progression Business Terms the
   // owner agreed to at sign-up, and when. Recorded so we always know which version
   // each business is on when the Terms are amended. Null on the TSP row and on any

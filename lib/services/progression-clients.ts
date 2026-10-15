@@ -335,6 +335,32 @@ export async function addClientAgency(input: AddClientAgencyInput): Promise<AddC
     throw e;
   }
 
+  // Seed the new client agency's portal display from the business default, so the
+  // buyer/seller portal starts out matching what the owner set on their Client-
+  // portal settings page. The agency row was just created with all-true schema
+  // defaults; copy the business's four flags over. A failure here mustn't strand
+  // the created agency, so it's isolated — the owner can still bulk-apply later by
+  // re-saving a default (setBusinessPortalDefaultAction writes through to clients).
+  try {
+    const portalDefault = await prisma.progressionBusiness.findUnique({
+      where: { id: input.owner.businessId },
+      select: { showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true, showPortalWelcomeSheet: true },
+    });
+    if (portalDefault) {
+      await prisma.agency.update({
+        where: { id: agencyId },
+        data: {
+          showPortalKeyDates: portalDefault.showPortalKeyDates,
+          showPortalCosts: portalDefault.showPortalCosts,
+          showPortalProgressPercent: portalDefault.showPortalProgressPercent,
+          showPortalWelcomeSheet: portalDefault.showPortalWelcomeSheet,
+        },
+      });
+    }
+  } catch (err) {
+    console.error(`[progression] portal-default seed failed for agency ${agencyId}`, err);
+  }
+
   // Best-effort onboarding email with a set-password link. A send failure is
   // logged, not fatal — the account exists and the agent can use Forgot password.
   try {

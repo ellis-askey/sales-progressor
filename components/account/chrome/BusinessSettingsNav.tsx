@@ -6,20 +6,19 @@
 // (the "business" variant of AccountShell). Same interaction model as the agency
 // AccountLeftNav — a single AgentNavRail with the sliding coral spotlight — but
 // its tabs point at /agent/settings/* (the owner-gated business area) instead of
-// /agent/account/*. Team links out to the business team screen we already built;
-// Client-portal is intentionally absent (portal settings are per-client, managed
-// in each client's workspace). Owner-only; mounted by AccountShell variant="business".
+// /agent/account/*. Team links out to the business team screen we already built.
+// Owner-only; mounted by AccountShell variant="business".
 
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge, DeviceMobile } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
 // Render order = display order. Mirrors the agency AccountLeftNav order (settings
 // consolidation, D6): the business-identity tab first, then account basics
 // (Billing / Profile / Team), then the client-comms tabs (Emails / Automated
-// chasing), then personal preferences. "Client portal" has no business row
-// (portal settings are per-client, managed in each client's workspace).
+// chasing / Client portal), then personal preferences. Client portal is the
+// business-wide portal default — owner-only, so it stays out of MEMBER_HREFS.
 const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/business", label: "Business", Icon: Buildings },
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },
@@ -27,6 +26,7 @@ const ITEMS: NavRailItem[] = [
   { href: "/agent/team", label: "Team", Icon: UsersThree },
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
   { href: "/agent/settings/chases", label: "Automated chasing", Icon: Gauge },
+  { href: "/agent/settings/client-portal", label: "Client portal", Icon: DeviceMobile },
   { href: "/agent/settings/notifications", label: "Notifications", Icon: Bell },
   { href: "/agent/settings/connections", label: "Connections", Icon: PlugsConnected },
   { href: "/agent/settings/security", label: "Security", Icon: Lock },
