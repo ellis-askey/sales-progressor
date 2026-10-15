@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled, progressionBillingCollectEnabled } from "@/lib/progression/flags";
 import { syncBusinessSubscription } from "@/lib/progression/business-stripe";
-import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient, requestConnectAgency, respondToConnectionRequest } from "@/lib/services/progression-clients";
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
 import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
@@ -116,6 +116,46 @@ export async function addClientAgencyAction(formData: FormData): Promise<AddClie
   const result = await addClientAgency({ owner, agentName, agentEmail, agencyName, feeModel });
   if (!result.ok) return result;
 
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/**
+ * Connect to an agency that ALREADY exists on Sales Progressor (multi-progressor).
+ * Owner-gated. Sends a request the agency's director must accept — nothing is
+ * shared until they do. Distinct from addClientAgencyAction, which provisions a
+ * brand-new agency.
+ */
+export async function requestConnectAgencyAction(input: { email: string; feePence?: number | null }): Promise<AddClientResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can connect clients." };
+  const email = (input.email ?? "").trim();
+  if (!email || email.length > 255 || !EMAIL_RE.test(email)) return { ok: false, error: "Please enter a valid email address." };
+  const feePence = input.feePence ?? null;
+  const feeModel: ClientFeeModel | null = feePence != null && Number.isFinite(feePence) && feePence > 0 ? { type: "flat", pence: feePence } : null;
+  const res = await requestConnectAgency({ owner, email, feeModel });
+  if (!res.ok) return res;
+  revalidatePath("/agent/clients");
+  return { ok: true };
+}
+
+/**
+ * Agency director responds to a connection request from a progression business.
+ * Accept creates (or reinstates) the client link; decline marks it declined.
+ */
+export async function respondToConnectionRequestAction(input: { requestId: string; accept: boolean }): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const res = await respondToConnectionRequest({
+    requestId: input.requestId,
+    accept: !!input.accept,
+    userId: session.user.id,
+    userAgencyId: session.user.agencyId ?? null,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath("/agent/hub");
   revalidatePath("/agent/clients");
   return { ok: true };
 }

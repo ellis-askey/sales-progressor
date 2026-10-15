@@ -193,6 +193,7 @@ model Agency {
   agencyEmailEdits           AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
   chaseRuleOverrides         AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
   progressionBusinessClients ProgressionBusinessClient[] // progression businesses that count this agency as a client (client management only — never grants transaction access)
+  progressionConnectionRequests ProgressionConnectionRequest[] // pending/historic requests from progressors to connect to this (existing) agency
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -303,6 +304,7 @@ model ProgressionBusiness {
   members                 User[]
   transactions            PropertyTransaction[]
   clients                 ProgressionBusinessClient[]
+  connectionRequests      ProgressionConnectionRequest[]
   verifiedDomains         VerifiedDomain[]
   milestoneEmailOverrides MilestoneEmailOverride[]
   chaseRuleOverrides      BusinessChaseRuleOverride[]
@@ -345,6 +347,31 @@ model ProgressionBusinessClient {
   // sale. The old one-business-per-agency @@unique([agencyId]) was dropped — see
   // getProgressorsForAgency + docs/active/progression-businesses/multi-progressor-mockup.html.
   @@index([agencyId])
+}
+
+// A progressor's request to connect to an agency that ALREADY exists on the
+// platform. Unlike addClientAgency (which provisions a brand-new agency + pending
+// director), this is a consent handshake: the progression business owner sends a
+// request, the agency's director accepts, and only THEN is a ProgressionBusinessClient
+// link created. Lets one branch work with several progressors. See
+// docs/active/progression-businesses/multi-progressor-mockup.html.
+model ProgressionConnectionRequest {
+  id                    String    @id @default(cuid())
+  progressionBusinessId String
+  agencyId              String
+  feeModel              Json? // rate card the progressor proposes for this agency (ClientFeeModel)
+  status                String    @default("pending") // pending | accepted | declined | cancelled
+  requestedByUserId     String // the business owner who sent it
+  respondedByUserId     String? // the agency director who accepted / declined
+  respondedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
+  agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, status])
+  @@index([progressionBusinessId, status])
 }
 
 // A member's role WITHIN their progression business (business administration),

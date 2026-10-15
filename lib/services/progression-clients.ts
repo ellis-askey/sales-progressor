@@ -121,6 +121,109 @@ export async function resolveBusinessMember(session: Session): Promise<BusinessM
   return { businessId: me.progressionBusinessId, userId: session.user.id, isOwner: me.progressionBusinessRole === "owner" };
 }
 
+// ─── Connect an EXISTING agency (multi-progressor consent handshake) ──────────
+// addClientAgency (below) provisions a BRAND-NEW agency + pending director. This
+// path instead lets an owner connect to an agency ALREADY on the platform, via a
+// request the agency's own director must accept. On accept a
+// ProgressionBusinessClient link is created (or an archived one reinstated).
+// Access stays per-file via progressionBusinessId — the link is management only.
+
+export type ConnectableAgency = { agencyId: string; agencyName: string; directorName: string | null };
+
+/** Resolve an on-platform agency by one of its staff's email, to connect to it. */
+export async function findConnectableAgencyByEmail(email: string): Promise<ConnectableAgency | null> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: { name: true, role: true, agency: { select: { id: true, name: true } } },
+  });
+  if (!user?.agency || (user.role !== "director" && user.role !== "negotiator")) return null;
+  return { agencyId: user.agency.id, agencyName: user.agency.name, directorName: user.name };
+}
+
+export type ConnectRequestResult = { ok: true; agencyName: string } | { ok: false; error: string };
+
+/** Owner sends a connection request to an existing agency (pending their accept). */
+export async function requestConnectAgency(input: { owner: BusinessOwner; email: string; feeModel: ClientFeeModel | null }): Promise<ConnectRequestResult> {
+  const target = await findConnectableAgencyByEmail(input.email);
+  if (!target) return { ok: false, error: "No agency on Sales Progressor matches that email." };
+  const existingLink = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: input.owner.businessId, agencyId: target.agencyId } },
+    select: { removedAt: true },
+  });
+  if (existingLink && !existingLink.removedAt) return { ok: false, error: `${target.agencyName} is already one of your clients.` };
+  const pending = await prisma.progressionConnectionRequest.findFirst({
+    where: { progressionBusinessId: input.owner.businessId, agencyId: target.agencyId, status: "pending" },
+    select: { id: true },
+  });
+  if (pending) return { ok: false, error: `You already have a pending request to ${target.agencyName}.` };
+  await prisma.progressionConnectionRequest.create({
+    data: {
+      progressionBusinessId: input.owner.businessId,
+      agencyId: target.agencyId,
+      requestedByUserId: input.owner.userId,
+      ...(input.feeModel ? { feeModel: input.feeModel as unknown as Prisma.InputJsonValue } : {}),
+    },
+  });
+  return { ok: true, agencyName: target.agencyName };
+}
+
+export type IncomingConnectionRequest = { id: string; businessId: string; businessName: string; feeModel: ClientFeeModel | null; createdAt: Date };
+
+/** Pending requests awaiting THIS agency director's response (for the hub card). */
+export async function listIncomingConnectionRequests(agencyId: string): Promise<IncomingConnectionRequest[]> {
+  const reqs = await prisma.progressionConnectionRequest.findMany({
+    where: { agencyId, status: "pending" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, feeModel: true, createdAt: true, progressionBusiness: { select: { id: true, name: true } } },
+  });
+  return reqs.map((r) => ({ id: r.id, businessId: r.progressionBusiness.id, businessName: r.progressionBusiness.name, feeModel: parseFeeModel(r.feeModel), createdAt: r.createdAt }));
+}
+
+export type OutgoingConnectionRequest = { id: string; agencyId: string; agencyName: string; createdAt: Date };
+
+/** Pending requests a business has sent (shown as "request sent" in Clients). */
+export async function listOutgoingConnectionRequests(businessId: string): Promise<OutgoingConnectionRequest[]> {
+  const reqs = await prisma.progressionConnectionRequest.findMany({
+    where: { progressionBusinessId: businessId, status: "pending" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, createdAt: true, agency: { select: { id: true, name: true } } },
+  });
+  return reqs.map((r) => ({ id: r.id, agencyId: r.agency.id, agencyName: r.agency.name, createdAt: r.createdAt }));
+}
+
+export type RespondResult = { ok: true; accepted: boolean; businessName: string } | { ok: false; error: string };
+
+/** Agency director accepts/declines. Accept creates (or reinstates) the client link. */
+export async function respondToConnectionRequest(input: { requestId: string; accept: boolean; userId: string; userAgencyId: string | null }): Promise<RespondResult> {
+  const req = await prisma.progressionConnectionRequest.findUnique({
+    where: { id: input.requestId },
+    select: { id: true, status: true, agencyId: true, progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
+  });
+  if (!req) return { ok: false, error: "Request not found." };
+  if (!input.userAgencyId || req.agencyId !== input.userAgencyId) return { ok: false, error: "This request isn't for your agency." };
+  if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
+
+  if (input.accept) {
+    await prisma.$transaction(async (tx) => {
+      await tx.progressionBusinessClient.upsert({
+        where: { progressionBusinessId_agencyId: { progressionBusinessId: req.progressionBusinessId, agencyId: req.agencyId } },
+        create: { progressionBusinessId: req.progressionBusinessId, agencyId: req.agencyId, ...(req.feeModel ? { feeModel: req.feeModel as Prisma.InputJsonValue } : {}) },
+        update: { removedAt: null, ...(req.feeModel ? { feeModel: req.feeModel as Prisma.InputJsonValue } : {}) },
+      });
+      await tx.progressionConnectionRequest.update({
+        where: { id: req.id },
+        data: { status: "accepted", respondedAt: new Date(), respondedByUserId: input.userId },
+      });
+    });
+  } else {
+    await prisma.progressionConnectionRequest.update({
+      where: { id: req.id },
+      data: { status: "declined", respondedAt: new Date(), respondedByUserId: input.userId },
+    });
+  }
+  return { ok: true, accepted: input.accept, businessName: req.progressionBusiness.name };
+}
+
 /**
  * Flag-gated boolean: is the viewer a progression-business owner? Used to pick
  * owner-facing empty-state copy (their files come from clients they add, not
