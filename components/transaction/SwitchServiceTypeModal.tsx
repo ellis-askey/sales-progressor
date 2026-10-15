@@ -2,10 +2,10 @@
 
 // Confirmation modal for switching a property file's service type
 // (self_managed ↔ outsourced). Rendered by PropertyHero for admin viewers, for
-// a director handing their own file over (self -> outsourced), and for a
-// director taking an externally-progressed file back (outsourced -> self). The
-// auth gate lives both at the call site (which flags decide the button renders)
-// and inside switchServiceTypeAction (role + external-only re-checks).
+// a director handing their own file over (self -> outsourced), and for the
+// progression business OWNER handing a file they run back to the agency
+// (outsourced -> self). The auth gate lives both at the call site (which flags
+// decide the button renders) and inside switchServiceTypeAction (role re-checks).
 
 import { useEffect, useState, useTransition } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -60,24 +60,24 @@ export function SwitchServiceTypeModal({ open, transactionId, current, progresso
   // progressor is picked, then names them.
   const toProgressor = toTSP && !!effectiveName;
   const title = !toTSP
-    ? "Switch to self-progress?"
+    ? "Hand this file back to the agency?"
     : toProgressor ? `Hand this file to ${effectiveName}?` : multiProgressor ? "Hand this file over?" : "Switch to TSP progression?";
   const subtitle = !toTSP
-    ? "You'll take the progression back over."
+    ? "The agency will progress this sale themselves from here."
     : toProgressor
       ? `${effectiveName} will take over the progression of this sale.`
       : multiProgressor
         ? "Choose which of your progressors takes over this sale."
         : "We'll take over the progression of this sale.";
   const body = !toTSP
-    ? "The progression company will stop managing this sale, and you'll take back over. Everything recorded so far stays in place, ready for you to pick up where they left off."
+    ? "You'll stop managing this sale and it returns to the agency to progress themselves. Everything recorded so far stays in place for them to pick up where you left off."
     : toProgressor
       ? `${effectiveName} will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.`
       : multiProgressor
         ? ""
         : "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.";
   const confirmLabel = !toTSP
-    ? "Switch to self-progress"
+    ? "Hand back to agency"
     : toProgressor ? `Hand to ${effectiveName}` : multiProgressor ? "Hand over" : "Switch to TSP progression";
   const confirmDisabled = isPending || (multiProgressor && !pickedId);
 

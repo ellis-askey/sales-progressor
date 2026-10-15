@@ -232,12 +232,13 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       : [];
   const handoverProgressorName = handoverProgressors.length === 1 ? handoverProgressors[0].name : null;
 
-  // A director may also take an EXTERNALLY-progressed file back to self-progress
-  // from their own side (the agency can dissolve its relationship with an external
-  // company). fileProgressor is non-null only for a non-TSP business, so a
-  // TSP-managed file stays internal-only to take back. The server action re-checks.
-  const canAgentHandBack =
-    session.user.role === "director" && transaction.serviceType === "outsourced" && transaction.status === "active" && !!fileProgressor;
+  // The progression business OWNER that runs this file can hand it back to the
+  // agency (outsourced -> self-progress). Agents can't take a file back; only the
+  // company progressing it can return it. isBusinessOwnerOfFile is true only for
+  // the owner of THIS file's external business, so TSP-managed files (and non-owner
+  // progressors) never see the control. The server action re-checks.
+  const canOwnerHandBack =
+    isBusinessOwnerOfFile && transaction.serviceType === "outsourced" && transaction.status === "active";
 
   // Chase timeline: the founder on every file; an agency on its own self-managed
   // files; and an internal viewer of an EXTERNAL progression-business file (the
@@ -448,7 +449,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             inChain={!!transaction.chainLinkId}
             isAdminViewer={isAdminRole}
             canAgentHandOver={canAgentHandOver}
-            canAgentHandBack={canAgentHandBack}
+            canProgressorHandBack={canOwnerHandBack}
             handoverProgressorName={handoverProgressorName}
             handoverProgressors={handoverProgressors}
             photoUrl={heroPhotoUrl}

@@ -1665,16 +1665,21 @@ export async function switchServiceTypeAction(
   const session = await requireSession();
   const isAdmin = hasAdminPowers(session);
   // Directors may hand their OWN files over to a progressor (self-progress ->
-  // outsourced), and may take an EXTERNALLY-progressed file back to self-progress
-  // (outsourced -> self_managed) so the agency can dissolve its own relationship
-  // with an external company from its own side. Taking a TSP-managed file back
-  // stays internal-only (that is TSP's own paid service); the external-only check
-  // for handback runs after the file loads, below. Negotiators are blocked.
+  // outsourced). Agents can NOT take a file back — only the progression business
+  // that runs it can hand it back to the agency. The SPB OWNER of the file does
+  // that (outsourced -> self_managed); their "business" access scope guarantees
+  // the file is their own external file, so no further ownership check is needed.
+  // Taking a TSP-managed file back stays internal-only (TSP's own paid service).
+  // Negotiators and non-owner progressors are blocked.
   const isAgentHandover =
     !isAdmin && session.user.role === "director" && target === "outsourced";
-  const isAgentHandback =
-    !isAdmin && session.user.role === "director" && target === "self_managed";
-  if (!isAdmin && !isAgentHandover && !isAgentHandback) {
+  const isSpbOwnerHandback =
+    !isAdmin
+    && session.user.role === "sales_progressor"
+    && session.user.progressionBusinessRole === "owner"
+    && !!session.user.progressionBusinessId
+    && target === "self_managed";
+  if (!isAdmin && !isAgentHandover && !isSpbOwnerHandback) {
     return { ok: false, error: "Forbidden" };
   }
 
@@ -1689,7 +1694,6 @@ export async function switchServiceTypeAction(
       tenure: true,
       purchaseType: true,
       progressionBusinessId: true,
-      progressionBusiness: { select: { isTsp: true } },
       vendorSolicitorFirmId: true,
       vendorSolicitorContactId: true,
       purchaserSolicitorFirmId: true,
@@ -1705,16 +1709,6 @@ export async function switchServiceTypeAction(
   }
   if (tx.serviceType === target) {
     return { ok: true };
-  }
-
-  // A director handback is only for EXTERNALLY-progressed files. A TSP-managed
-  // file (progressionBusinessId null, or the TSP row) can be pulled back only by
-  // internal staff, since that is TSP's own paid service. Admin is unaffected.
-  if (isAgentHandback) {
-    const externallyProgressed = !!tx.progressionBusinessId && !tx.progressionBusiness?.isTsp;
-    if (!externallyProgressed) {
-      return { ok: false, error: "This file is managed by our team, so only we can move it back to self-progress. Get in touch and we'll help." };
-    }
   }
 
   // Outsourced handover gate (Resilience audit II.4; solicitor rules added by

@@ -70,10 +70,11 @@ type Props = {
    *  Handover direction (self-progress -> outsourced); set at the page level as
    *  director && serviceType === "self_managed" && status active. */
   canAgentHandOver?: boolean;
-  /** Take-back direction (outsourced -> self-progress) for a director, allowed
-   *  on an EXTERNALLY-progressed active file only. Set at the page level; the
-   *  server action re-checks it. A TSP-managed file stays internal-only. */
-  canAgentHandBack?: boolean;
+  /** Take-back direction (outsourced -> self-progress) for the progression
+   *  business OWNER that runs this file, handing it back to the agency. Set at
+   *  the page level (isBusinessOwnerOfFile); the server action re-checks. Agents
+   *  can't take files back; TSP-managed files stay internal-only. */
+  canProgressorHandBack?: boolean;
   /** The agency's inviting progressor name, when a director can hand this
    *  in-house file over to one. Drives the handover tooltip + modal copy
    *  ("Hand to {name}"). Null → the unchanged "hand to TSP" wording. */
@@ -275,7 +276,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canAgentHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canProgressorHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -351,7 +352,7 @@ export function PropertyHero({
   // branded add-photo circle (foreign/missing postcode). A photo that failed to
   // load falls back to the same map, so the hero is never blank.
   const showMap = (!photo.hasPhoto || photoFailed) && !!postcode;
-  const canSwitchService = (isAdminViewer || canAgentHandOver || canAgentHandBack) && !!transactionId && !!serviceType && !hideServiceTypeBadge;
+  const canSwitchService = (isAdminViewer || canAgentHandOver || canProgressorHandBack) && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
   if (isAgent) {
