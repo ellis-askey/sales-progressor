@@ -6,15 +6,13 @@
 // outsourced fee, which is free for the agency's first outsourced sale — the
 // `withinTrial` prop now carries that "first outsourced free" meaning — and for
 // free-plan agencies). Same net logic as the property-file Fees card — reuses
-// calculateOurFee from lib/services/fees. A compact "what we'll track"
-// milestone preview is tucked at the bottom.
+// calculateOurFee from lib/services/fees.
 
-import { useState } from "react";
 import type { ClientType } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { calculateOurFee } from "@/lib/services/fees";
 import { calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
-import { getVisibleMilestones, type MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
+import { type MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 
@@ -83,7 +81,6 @@ export function EarningsBuilder({
   progressorName?: string | null;
   progressorFeeModel?: ClientFeeModel | null;
 }) {
-  const [showMs, setShowMs] = useState(false);
   const { surfaceClass, tag } = useCardSurface("new-sale-file-worth", "New sale · File worth", "agent-glass");
   const price = fields.purchasePricePence;
 
@@ -126,7 +123,6 @@ export function EarningsBuilder({
 
   const net: number | null = feeNotSet || feeIncVatP == null ? null : feeIncVatP + solRef + brokRef + onwardBrokRef - progressionCost;
 
-  const milestones = getVisibleMilestones(allMilestoneDefinitions, fields);
 
   return (
     <div className={surfaceClass} {...tag} style={{ borderRadius: "var(--agent-radius-xl)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -182,24 +178,6 @@ export function EarningsBuilder({
       </div>
 
       {/* Compact "what we'll track" milestone preview, tucked away */}
-      {milestones.length > 0 && (
-        <div style={{ paddingTop: 10, borderTop: "0.5px solid var(--nv2-border-dark)" }}>
-          <button type="button" onClick={() => setShowMs((s) => !s)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-            <span>We&rsquo;ll track this sale through {milestones.length} steps</span>
-            <span style={{ transition: "transform 200ms", transform: showMs ? "rotate(180deg)" : "none", fontSize: 10 }}>▾</span>
-          </button>
-          <div className={`agent-collapse${showMs ? " open" : ""}`}>
-            <div className="agent-collapse-inner">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingTop: 8 }}>
-                {milestones.slice(0, 8).map((m) => (
-                  <span key={m.id} style={{ fontSize: 10.5, color: "var(--nv2-text-secondary)", background: "var(--nv2-surface-glass)", border: "0.5px solid var(--nv2-border-dark)", borderRadius: 6, padding: "2px 7px" }}>{m.name}</span>
-                ))}
-                {milestones.length > 8 && <span style={{ fontSize: 10.5, color: "var(--nv2-text-muted)", padding: "2px 4px" }}>+{milestones.length - 8} more</span>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
