@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Hub from "./hub-view";
 import { CardNudgeBanner } from "@/components/progression/CardNudgeBanner";
+import { ConnectionRequestBanner } from "@/components/progression/ConnectionRequestBanner";
 
 export const metadata: Metadata = {
   title: "Hub · Sales Progressor",
@@ -13,6 +14,8 @@ export default function HubPage() {
       {/* Item 9: the "add a card" nudge for a progression owner (null for everyone
           else, and when a card is on file / nothing's owed). */}
       <CardNudgeBanner />
+      {/* Agency director with pending progressor connection requests (multi-progressor). */}
+      <ConnectionRequestBanner />
       <Hub />
     </>
   );

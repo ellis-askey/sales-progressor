@@ -148,6 +148,7 @@ export async function requestConnectAgencyAction(input: { email: string; feePenc
 export async function respondToConnectionRequestAction(input: { requestId: string; accept: boolean }): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
   const session = await requireSession();
+  if (session.user.role !== "director") return { ok: false, error: "Only the agency director can respond to connection requests." };
   const res = await respondToConnectionRequest({
     requestId: input.requestId,
     accept: !!input.accept,

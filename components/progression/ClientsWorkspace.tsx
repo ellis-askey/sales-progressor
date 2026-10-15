@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus, LinkSimpleHorizontal, PaperPlaneTilt } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -19,7 +19,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
 import type { ClientsOverview, ClientOverviewRow } from "@/lib/services/progression-clients";
-import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
+import { updateBusinessShortNameAction, reinstateClientAgencyAction, requestConnectAgencyAction } from "@/app/actions/progression-clients";
 import { AgencyMeshMark } from "./AgencyMeshMark";
 import { useAddClientForm } from "./useAddClientForm";
 
@@ -309,7 +309,25 @@ export function ClientsWorkspace({ data }: { data: ClientsOverview }) {
 // ── Add-client modal ─────────────────────────────────────────────────────────
 
 function AddClientModal({ onClose }: { onClose: () => void }) {
-  const f = useAddClientForm(onClose);
+  const [mode, setMode] = useState<"new" | "connect">("new");
+  const f = useAddClientForm(onClose); // new-agency route (unchanged)
+
+  // Connect-an-existing-agency route (multi-progressor consent handshake).
+  const router = useRouter();
+  const { toast } = useAgentToast();
+  const [cEmail, setCEmail] = useState("");
+  const [cFee, setCFee] = useState("");
+  const [cErr, setCErr] = useState<string | null>(null);
+  const [cSending, startConnect] = useTransition();
+  const cEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cEmail.trim());
+  function sendConnect() {
+    setCErr(null);
+    startConnect(async () => {
+      const res = await requestConnectAgencyAction({ email: cEmail.trim(), feePence: cFee ? parseInt(cFee, 10) * 100 : null });
+      if (res.ok) { toast.success("Connection request sent"); router.refresh(); onClose(); }
+      else setCErr(res.error);
+    });
+  }
 
   return (
     <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark">
@@ -318,44 +336,92 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
       </Modal.Header>
 
       <Modal.Body>
-        <div className="cwm-field">
-          <label className="cwm-label" htmlFor="cwm-name">Contact name</label>
-          <input id="cwm-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
-        </div>
-        <div className="cwm-row">
-          <div className="cwm-field">
-            <label className="cwm-label" htmlFor="cwm-email">Email address</label>
-            <input id="cwm-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
-          </div>
-          <div className="cwm-field">
-            <label className="cwm-label" htmlFor="cwm-agency">Agency name</label>
-            <input id="cwm-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
-          </div>
-        </div>
-
-        <div className="cwm-field">
-          <label className="cwm-label" htmlFor="cwm-fee">Your fee per sale <span className="cwm-opt">optional</span></label>
-          <div className="cwm-money">
-            <span className="cwm-money-sym">£</span>
-            <input id="cwm-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
-          </div>
-          <p className="cwm-feehint">A flat amount for every sale you progress for them. Prefer tiered or % pricing? Set it on their page. You&rsquo;ll need a fee set before you can add a sale.</p>
+        {/* Two routes: set up a brand-new agency, or connect to one already on the platform. */}
+        <div className="acm-choices">
+          <button type="button" className={"acm-choice" + (mode === "new" ? " sel" : "")} onClick={() => setMode("new")} aria-pressed={mode === "new"}>
+            <span className="acm-ci"><Buildings size={17} weight="fill" /></span>
+            <span className="acm-ct">Set up a new agency</span>
+            <span className="acm-cd">They&rsquo;re new to Sales Progressor. We create their agency and email their director an invite.</span>
+          </button>
+          <button type="button" className={"acm-choice" + (mode === "connect" ? " sel" : "")} onClick={() => setMode("connect")} aria-pressed={mode === "connect"}>
+            <span className="acm-ci alt"><LinkSimpleHorizontal size={17} weight="bold" /></span>
+            <span className="acm-ct">Connect an agency already here</span>
+            <span className="acm-cd">They already use Sales Progressor. You send a request; their director approves it.</span>
+          </button>
         </div>
 
-        {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
-        {f.error && <p className="cwm-err">{f.error}</p>}
-        <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
+        {mode === "new" ? (
+          <>
+            <div className="cwm-field">
+              <label className="cwm-label" htmlFor="cwm-name">Contact name</label>
+              <input id="cwm-name" className="agent-input" value={f.agentName} onChange={(e) => f.setAgentName(e.target.value)} onBlur={f.blurName} placeholder="e.g. Sophie Bennett" maxLength={100} />
+            </div>
+            <div className="cwm-row">
+              <div className="cwm-field">
+                <label className="cwm-label" htmlFor="cwm-email">Email address</label>
+                <input id="cwm-email" className="agent-input" type="email" value={f.agentEmail} onChange={(e) => f.setAgentEmail(e.target.value)} onBlur={f.blurEmail} placeholder="sophie@oakandkey.co.uk" maxLength={255} aria-invalid={f.emailInvalid || undefined} />
+              </div>
+              <div className="cwm-field">
+                <label className="cwm-label" htmlFor="cwm-agency">Agency name</label>
+                <input id="cwm-agency" className="agent-input" value={f.agencyName} onChange={(e) => f.setAgencyName(e.target.value)} onBlur={f.blurAgency} placeholder="e.g. Oak & Key" maxLength={120} />
+              </div>
+            </div>
+            <div className="cwm-field">
+              <label className="cwm-label" htmlFor="cwm-fee">Your fee per sale <span className="cwm-opt">optional</span></label>
+              <div className="cwm-money">
+                <span className="cwm-money-sym">£</span>
+                <input id="cwm-fee" className="agent-input" inputMode="numeric" value={f.feePounds} onChange={(e) => f.setFeePounds(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+              </div>
+              <p className="cwm-feehint">A flat amount for every sale you progress for them. Prefer tiered or % pricing? Set it on their page. You&rsquo;ll need a fee set before you can add a sale.</p>
+            </div>
+            {f.emailInvalid && <p className="cwm-err">Enter a valid email address.</p>}
+            {f.error && <p className="cwm-err">{f.error}</p>}
+            <p className="cwm-help">We&rsquo;ll email them an invite to set up their login. They&rsquo;ll only be able to see their own sales.</p>
+          </>
+        ) : (
+          <>
+            <div className="cwm-field">
+              <label className="cwm-label" htmlFor="cwm-cemail">Their agency&rsquo;s email</label>
+              <input id="cwm-cemail" className="agent-input" type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="hello@theiragency.co.uk" maxLength={255} />
+            </div>
+            <div className="cwm-field">
+              <label className="cwm-label" htmlFor="cwm-cfee">Your fee per sale <span className="cwm-opt">optional</span></label>
+              <div className="cwm-money">
+                <span className="cwm-money-sym">£</span>
+                <input id="cwm-cfee" className="agent-input" inputMode="numeric" value={cFee} onChange={(e) => setCFee(e.target.value.replace(/[^0-9]/g, ""))} placeholder="300" maxLength={9} />
+              </div>
+            </div>
+            {cErr && <p className="cwm-err">{cErr}</p>}
+            <p className="cwm-help">We&rsquo;ll send their director a request. Nothing is shared until they accept, and they&rsquo;ll only see the sales you assign to them.</p>
+          </>
+        )}
       </Modal.Body>
 
       <Modal.Footer>
         <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" size="md" className="cwm-primary" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
-          <UserPlus size={16} weight="bold" />
-          Add client
-        </Button>
+        {mode === "new" ? (
+          <Button variant="primary" size="md" className="cwm-primary" onClick={f.submit} disabled={!f.canSubmit} loading={f.adding}>
+            <UserPlus size={16} weight="bold" />
+            Add client
+          </Button>
+        ) : (
+          <Button variant="primary" size="md" className="cwm-primary" onClick={sendConnect} disabled={!cEmailValid || cSending} loading={cSending}>
+            <PaperPlaneTilt size={16} weight="bold" />
+            Send connection request
+          </Button>
+        )}
       </Modal.Footer>
 
       <style>{`
+        .acm-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        @media (max-width: 460px) { .acm-choices { grid-template-columns: 1fr; } }
+        .acm-choice { text-align: left; border: 1.5px solid var(--agent-border-default); border-radius: 13px; padding: 13px; background: var(--agent-surface); cursor: pointer; transition: border-color .15s, box-shadow .15s, background .15s; display: flex; flex-direction: column; gap: 4px; }
+        .acm-choice:hover { border-color: var(--agent-coral); }
+        .acm-choice.sel { border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
+        .acm-ci { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, var(--agent-coral), var(--agent-coral-deep)); margin-bottom: 4px; }
+        .acm-ci.alt { background: linear-gradient(145deg, #7FB0E6, #2E6DB4); }
+        .acm-ct { font-size: 13.5px; font-weight: 680; color: var(--agent-text-primary); }
+        .acm-cd { font-size: 11.5px; color: var(--agent-text-muted); line-height: 1.45; }
         .cwm-field { margin-bottom: 12px; }
         .cwm-field:last-child { margin-bottom: 0; }
         .cwm-label { display: block; font-size: 12px; font-weight: 600; color: var(--agent-text-secondary); margin-bottom: 6px; }
