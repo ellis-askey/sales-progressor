@@ -751,8 +751,8 @@ export async function setChainNeighbourUpdatesEnabled(enabled: boolean): Promise
 
 // The self-managed welcome modal's 5 chase toggles, saved in one call. Director-only
 // + agency-scoped. Maps the 5 toggles to the 6 Agency flags: Solicitor chases drives
-// solicitorChaseEnabled AND enquiryRaiseChaseEnabled (enquiry-raise is a solicitor-
-// directed nudge); Enquiry chases drives enquiryReplyChaseEnabled (reply loop only).
+// solicitorChaseEnabled (solicitor confirmations only); Enquiry chases drives BOTH
+// enquiry streams (enquiryReplyChaseEnabled AND enquiryRaiseChaseEnabled).
 // All six are already enforced by the live chase engines, so writing them is enough.
 export async function saveAgentChasePrefsAction(prefs: {
   client: boolean; solicitor: boolean; enquiries: boolean; weekly: boolean; chain: boolean;
@@ -768,7 +768,7 @@ export async function saveAgentChasePrefsAction(prefs: {
     data: {
       chaseEmailsEnabled: !!prefs.client,
       solicitorChaseEnabled: !!prefs.solicitor,
-      enquiryRaiseChaseEnabled: !!prefs.solicitor,
+      enquiryRaiseChaseEnabled: !!prefs.enquiries,
       enquiryReplyChaseEnabled: !!prefs.enquiries,
       weeklyClientUpdatesEnabled: !!prefs.weekly,
       chainNeighbourUpdatesEnabled: !!prefs.chain,

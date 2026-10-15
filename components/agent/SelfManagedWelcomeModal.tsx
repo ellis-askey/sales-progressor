@@ -33,8 +33,8 @@ type Pref = keyof ProgressorChasePrefs;
 
 const CHASES: Array<{ key: Pref; title: string; desc: string }> = [
   { key: "client",    title: "Client chases",         desc: "When something’s waiting on a buyer or seller, we’ll ask them to confirm it through their portal and follow up if needed, so nothing gets forgotten." },
-  { key: "solicitor", title: "Solicitor chases",      desc: "When something’s sitting with a solicitor, we’ll follow up for confirmation, including getting enquiries raised, and bring it to your attention if it stays outstanding." },
-  { key: "enquiries", title: "Enquiry chases",        desc: "When a solicitor owes replies on your enquiries, we’ll keep following up until they come back." },
+  { key: "solicitor", title: "Solicitor chases",      desc: "When something’s sitting with a solicitor, we’ll follow up for confirmation and bring it to your attention if it stays outstanding." },
+  { key: "enquiries", title: "Enquiry chases",        desc: "When enquiries need raising or a solicitor owes replies, we’ll keep following up until they come back." },
   { key: "weekly",    title: "Weekly client updates", desc: "Your buyers and sellers get a simple weekly update on where things stand and what happens next, without you having to write a thing." },
   { key: "chain",     title: "Chain updates",         desc: "When something changes on a linked sale, connected agents are kept updated, helping everyone stay on the same page as the chain moves towards exchange." },
 ];

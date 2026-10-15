@@ -3,12 +3,13 @@
 //
 // Toggle → flag mapping (founder call, 2026-10-06):
 //   Client chases          → chaseEmailsEnabled
-//   Solicitor chases       → solicitorChaseEnabled AND enquiryRaiseChaseEnabled
-//   Enquiry chases         → enquiryReplyChaseEnabled   (reply chasing only)
+//   Solicitor chases       → solicitorChaseEnabled   (solicitor confirmations only)
+//   Enquiry chases         → enquiryReplyChaseEnabled AND enquiryRaiseChaseEnabled
 //   Weekly client updates  → weeklyClientUpdatesEnabled
 //   Chain updates          → chainNeighbourUpdatesEnabled
-// (Enquiry-RAISE lives under "Solicitor chases" because it's a solicitor-directed
-// nudge; the "Enquiry chases" toggle governs only the reply loop.)
+// (Enquiry-RAISE and enquiry-REPLY now both sit under "Enquiry chases", so the one
+// enquiries toggle owns all enquiry chasing and "Solicitor chases" is confirmations
+// only. This stops the Account/Emails enquiry toggle silently flipping Solicitor.)
 //
 // These six flags are ALREADY enforced by the live chase engines, so writing them
 // is all that's needed for the toggles to take effect.
@@ -33,8 +34,8 @@ export async function getAgentChasePrefs(agencyId: string): Promise<ProgressorCh
   if (!a) return { client: true, solicitor: true, enquiries: true, weekly: true, chain: true };
   return {
     client: a.chaseEmailsEnabled,
-    solicitor: a.solicitorChaseEnabled && a.enquiryRaiseChaseEnabled,
-    enquiries: a.enquiryReplyChaseEnabled,
+    solicitor: a.solicitorChaseEnabled,
+    enquiries: a.enquiryReplyChaseEnabled && a.enquiryRaiseChaseEnabled,
     weekly: a.weeklyClientUpdatesEnabled,
     chain: a.chainNeighbourUpdatesEnabled,
   };
