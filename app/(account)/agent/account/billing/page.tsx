@@ -260,10 +260,10 @@ export default async function AccountBillingPage() {
                 <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>Payment method</h2>
                   <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                    No payment method needed. Your self-progress is free, and files you send to a progression company are billed by them directly, not by TSP.
+                    No payment method needed. Sales you progress yourself are free, and sales handled by an independent progression company are billed directly by them.
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: "#9ca3af", lineHeight: 1.55 }}>
-                    You&apos;d only need a card if you sent a sale to TSP&apos;s own team to progress.
+                    You&apos;ll only need to add a card if you choose to send a sale to TSP&apos;s own progression team.
                   </p>
                 </section>
               ) : (

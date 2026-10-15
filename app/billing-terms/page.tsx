@@ -40,10 +40,10 @@ const SECTIONS: PolicySection[] = [
     title: "About these terms",
     body: (
       <p>
-        By saving a payment card, you agree to the pricing and billing terms set out below. Billing
-        is operated by The Sales Progressor Ltd, a company registered in England and Wales, company
-        number 17455131, registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS,
-        United Kingdom.
+        By saving a payment card, you agree to the pricing and billing terms set out below. All
+        billing for sales managed by our own progression team is administered by The Sales
+        Progressor Ltd, a company registered in England and Wales, company number 17455131,
+        registered office 5 Hercules Way, Leavesden Park, Watford WD25 7GS, United Kingdom.
       </p>
     ),
   },
@@ -53,17 +53,17 @@ const SECTIONS: PolicySection[] = [
     body: (
       <>
         <p>
-          Fees apply only to sales you pass to our team to progress, and only if that sale
-          exchanges.
+          Fees are payable only on sales you instruct our team to progress, and only when those
+          sales exchange contracts.
         </p>
         <ul>
           <li>Sales you progress yourself are <strong>free</strong>, at every stage, with no charge on exchange.</li>
           <li>
-            Your agency&rsquo;s <strong>first sale passed to our team is free</strong>. After that,
-            the fee is determined by the agreed sale price at exchange, as follows:{" "}
-            <strong>£250</strong> for a sale price up to £349,999; <strong>£300</strong> for a sale
-            price from £350,000 to £499,999; and <strong>£350</strong> for a sale price of £500,000
-            or above.
+            Your agency&rsquo;s <strong>first sale managed by our team is free</strong>. For
+            subsequent sales, the fee is calculated using the agreed sale price at the point of
+            exchange: <strong>£250</strong> for sales up to £349,999; <strong>£300</strong> for
+            sales between £350,000 and £499,999; and <strong>£350</strong> for sales of £500,000 or
+            above.
           </li>
         </ul>
       </>
@@ -74,10 +74,10 @@ const SECTIONS: PolicySection[] = [
     title: "Payment and collection",
     body: (
       <p>
-        No fee is charged until an outsourced sale exchanges. Fees for all outsourced sales that
-        exchange within a calendar month are collected as a single payment at the end of that month.
-        The running total of fees due for sales exchanged during the current month is shown on your
-        billing page, subject to availability of the service.
+        No fee becomes payable until a sale managed by our team exchanges contracts. Fees for all
+        qualifying sales exchanged within the same calendar month are collected as a single payment
+        at the end of that month. Where available, your billing page will display a running total of
+        fees accrued during the current month.
       </p>
     ),
   },
@@ -86,9 +86,10 @@ const SECTIONS: PolicySection[] = [
     title: "Free sales",
     body: (
       <p>
-        Sales you progress yourself are <strong>always free</strong>, at every stage, including on
-        exchange. Each agency&rsquo;s <strong>first sale passed to our team is also free</strong> and
-        will not incur a fee when it exchanges.
+        Sales you progress yourself remain completely <strong>free</strong> throughout the
+        transaction, including upon exchange of contracts. Your agency&rsquo;s{" "}
+        <strong>first sale managed by our team is also free</strong> and will not attract a fee upon
+        exchange.
       </p>
     ),
   },
@@ -97,9 +98,9 @@ const SECTIONS: PolicySection[] = [
     title: "Reversed sales and credits",
     body: (
       <p>
-        Where a sale that has exchanged is subsequently reversed or the exchange is formally
-        rescinded, the corresponding fee will be credited to your account and applied against your
-        next payment. This is processed automatically and requires no action on your part.
+        If contracts are exchanged but the exchange is subsequently formally rescinded or reversed,
+        any fee charged in respect of that sale will be credited to your account and deducted from
+        your next payment. Credits are applied automatically, with no action required from you.
       </p>
     ),
   },
@@ -108,12 +109,12 @@ const SECTIONS: PolicySection[] = [
     title: "Failed payments",
     body: (
       <p>
-        If a payment is unsuccessful, we will notify you and re-attempt collection over a period of{" "}
-        <strong>14 days</strong>, followed by a <strong>7-day grace period</strong> in which to
-        resolve the outstanding balance. If the payment remains outstanding after that period, you
-        will be unable to send new sales to our team until it is resolved. Sales you progress
-        yourself are unaffected and remain free, and any outsourced sales already being progressed by
-        our team will continue as normal.
+        If a payment is unsuccessful, we will notify you and make further attempts to collect the
+        outstanding amount over the following <strong>14 days</strong>. A further{" "}
+        <strong>seven-day grace period</strong> will then apply. If payment remains outstanding at
+        the end of this period, your agency&rsquo;s ability to instruct our team on new sales will be
+        temporarily suspended until the balance is settled. This will not affect your access to free
+        self-progression or interrupt any sales already being managed by our team.
       </p>
     ),
   },
@@ -122,9 +123,10 @@ const SECTIONS: PolicySection[] = [
     title: "Card storage",
     body: (
       <p>
-        Your card details are stored securely by our payment processor, <strong>Stripe</strong>, and
-        are not held by us. We have access only to the last four digits and brand of your card, and
-        never to the full card number.
+        Your payment card details are securely processed and stored by <strong>Stripe</strong>, our
+        payment provider. The Sales Progressor does not store or have access to your full card
+        number. We can view only limited card information, including the card brand and last four
+        digits, for billing and identification purposes.
       </p>
     ),
   },
@@ -133,8 +135,9 @@ const SECTIONS: PolicySection[] = [
     title: "Billing party",
     body: (
       <p>
-        The agency&rsquo;s director is the contracting party for billing purposes. Only a director
-        may view or manage payment details and invoices; negotiators may not.
+        The agency director is responsible for the agency&rsquo;s billing arrangements and is the
+        contracting party for these terms. Access to payment details, billing management and
+        invoices is restricted to directors. Negotiators do not have access to these functions.
       </p>
     ),
   },
@@ -143,10 +146,11 @@ const SECTIONS: PolicySection[] = [
     title: "Changes to pricing",
     body: (
       <p>
-        We may change our pricing in future. Where we do, we will give you at least{" "}
-        <strong>30 days&rsquo; notice</strong>, and the revised pricing will apply only to sales
-        passed to our team after the new pricing takes effect. Any outsourced sale already in
-        progress will be charged at the price that applied when it was passed to our team.
+        We reserve the right to amend our pricing, subject to providing at least{" "}
+        <strong>30 days&rsquo; advance notice</strong>. Any revised pricing will apply only to sales
+        instructed with our team on or after the date the new pricing takes effect. Sales already
+        under our management will remain subject to the pricing in effect when they were originally
+        instructed.
       </p>
     ),
   },
@@ -155,10 +159,10 @@ const SECTIONS: PolicySection[] = [
     title: "VAT",
     body: (
       <p>
-        We are not currently registered for VAT, so VAT is not added to these fees. Should this
-        change, we will notify you before it affects the amount you pay. As this is a material
-        change, we will issue updated billing terms for your acknowledgement before the new charges
-        apply.
+        The Sales Progressor is not currently registered for VAT, and no VAT is therefore added to
+        the fees stated above. Should our VAT registration status change, we will notify you in
+        advance of any resulting change to your charges. Updated billing terms will be provided for
+        your acknowledgement before those changes take effect.
       </p>
     ),
   },
@@ -167,9 +171,10 @@ const SECTIONS: PolicySection[] = [
     title: "Disputes",
     body: (
       <p>
-        If you believe a charge is incorrect, please contact us at{" "}
+        If you believe a charge has been made incorrectly, please contact us at{" "}
         <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>{" "}
-        before raising a dispute with your card provider, and we will work to resolve it promptly.
+        in the first instance, before initiating a dispute with your card provider. We will review
+        your query and work with you to resolve it as promptly as possible.
       </p>
     ),
   },
