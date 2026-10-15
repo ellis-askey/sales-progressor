@@ -4,6 +4,11 @@ import { confirmInboxCode } from "@/lib/services/verified-emails";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
+  // Director-only: match the director gate on the UI surface and the sibling
+  // domain / inbox routes.
+  if (session.user.role !== "director") {
+    return NextResponse.json({ error: "Only directors can manage the agency's email domain." }, { status: 403 });
+  }
   const { email, code } = await req.json();
 
   if (!email || !code) {

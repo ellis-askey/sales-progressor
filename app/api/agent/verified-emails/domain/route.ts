@@ -10,6 +10,12 @@ import { createAuthenticatedDomain } from "@/lib/services/sendgrid";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
+  // Director-only: authenticating the agency's sending domain is a director
+  // setting. The UI surface is director-gated; enforce it on the server too so
+  // a negotiator can't trigger SendGrid domain creation by calling this directly.
+  if (session.user.role !== "director") {
+    return NextResponse.json({ error: "Only directors can manage the agency's email domain." }, { status: 403 });
+  }
   const { email } = await req.json();
 
   if (!email || typeof email !== "string") {
