@@ -602,10 +602,6 @@ function SplitFileCard({
         {openTasks.map(({ log, task }, i) => {
           const name = reminderDisplayName(log, milestoneInfo);
           const isBuyer = isBuyerLog(log);
-          const { bucket, label: urgencyLabel } = computeUrgency(log, task);
-          const urgencyColor = (bucket === "overdue" || bucket === "escalated")
-            ? "var(--agent-coral-deep)"
-            : bucket === "due_today" ? "var(--agent-warning)" : "var(--agent-text-muted)";
           const manualChases = Math.max(optimisticChases[task.id] ?? 0, task.manualChaseCount);
           // Optimistic "mark chased" bumps the shown count before the row exits.
           const effectiveChaseCount = task.chaseCount + Math.max(0, manualChases - task.manualChaseCount);
@@ -706,15 +702,10 @@ function SplitFileCard({
                 <span className="rem-step-mobile">{name}</span>
               </p>
               {/* Same full treatment on every row, single- or multi-reminder file
-                  (founder, 2026-10-14): Chasing line, explanation box, chase-count
-                  status and last-chased attribution. On a multi-reminder file the
-                  side pill still can't live in the header (it differs per row), so
-                  it sits inline on the meta line below. */}
-              {!isSingle && (
-                <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                  {isBuyer ? "Buyer" : "Seller"} · <span style={{ color: urgencyColor, fontWeight: 600 }}>{urgencyLabel}</span>
-                </p>
-              )}
+                  (founder, 2026-10-14/15): Chasing line, explanation box, chase-count
+                  status and last-chased attribution. No per-row Buyer/Seller meta
+                  line — the explanation always names the side ("The buyer needs
+                  to…" fallback) and the date lives in the right-hand due column. */}
               {who && (
                 <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
                   Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
