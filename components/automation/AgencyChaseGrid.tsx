@@ -74,7 +74,7 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
     <AccountCard
       icon={<Gauge size={20} weight="bold" />}
       title="What we chase"
-      subtitle="Choose which chases we run on the sales your team progresses. Switch off anything you'd rather handle yourself."
+      subtitle="Choose which chases we run on your sales. Switch off anything you'd prefer to handle yourself."
       headerAction={saveButton("acg-save-desktop")}
     >
       <div className="acg-group">

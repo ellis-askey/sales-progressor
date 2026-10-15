@@ -68,7 +68,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, progresso
         ? "Choose which of your progressors takes over this sale."
         : "We'll take over the progression of this sale.";
   const body = !toTSP
-    ? "Progressing on this sale will stop and you'll take it back over. Everything already recorded stays exactly where it is, so you can carry on from where it was left off."
+    ? "The progression company will stop managing this sale, and you'll take back over. Everything recorded so far stays in place, ready for you to pick up where they left off."
     : toProgressor
       ? `${effectiveName} will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.`
       : multiProgressor

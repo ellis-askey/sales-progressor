@@ -66,10 +66,10 @@ export default async function AccountEmailsPage() {
   const progressors = await getProgressorCopy(session.user.agencyId);
   const wordingNote =
     progressors.count === 0
-      ? "Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording."
+      ? "Changes take effect from the next email. Anything you leave unchanged keeps our original wording."
       : progressors.count === 1 && progressors.name
-        ? `Any changes you make are used from the next email on the sales you progress yourselves. Sales you send to ${progressors.name} use their wording instead. Your logo, name and colours stay on every email either way.`
-        : "Any changes you make are used from the next email on the sales you progress yourselves. Sales you outsource to a progression company use that company's wording instead. Your logo, name and colours stay on every email either way.";
+        ? `Changes take effect from the next email on sales you progress yourself. Sales sent to ${progressors.name} use their wording instead. Your branding stays on every email.`
+        : "Changes take effect from the next email on sales you progress yourself. Sales sent to a progression company use their wording instead. Your branding stays on every email.";
 
   // Resolve the agency's email theme into the few values the copy preview needs,
   // so editing the wording shows it in the agency's real colours + font (#2).
