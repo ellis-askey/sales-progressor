@@ -47,6 +47,7 @@ const inputStyle: React.CSSProperties = {
 export function ClientChaseEditor() {
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Content | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,9 +57,13 @@ export function ClientChaseEditor() {
   const load = useCallback(async () => {
     setLoading(true);
     setEditing(false);
+    setLoadError(false);
     try {
       const res = await fetch("/api/agent/email-templates/resolve?templateKey=client_chase&variant=default");
       if (res.ok) setResolved(await res.json());
+      else setLoadError(true);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -131,6 +136,20 @@ export function ClientChaseEditor() {
       {loading ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: MUTED, padding: "8px 2px" }}>
           <CircleNotch size={16} className="agent-spin" /> Loading…
+        </div>
+      ) : loadError ? (
+        <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+          <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: MUTED }}>
+            <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
+            We couldn&apos;t load this email just now. Check your connection and try again.
+          </span>
+          <button
+            type="button"
+            onClick={() => load()}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: "pointer" }}
+          >
+            <ArrowCounterClockwise size={14} /> Try again
+          </button>
         </div>
       ) : !resolved ? null : editing && draft ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
