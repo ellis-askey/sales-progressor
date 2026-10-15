@@ -9,7 +9,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
-import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage } from "@/lib/services/transactions";
+import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage, buildChaseRuleSnapshot } from "@/lib/services/transactions";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getProgressorsForAgency } from "@/lib/services/progression-clients";
 import { parseFeeModel } from "@/lib/progression/client-fees";
@@ -1669,6 +1669,7 @@ export async function switchServiceTypeAction(
     where: scopeOwnershipWhere(scope, transactionId),
     select: {
       id: true,
+      agencyId: true,
       serviceType: true,
       status: true,
       tenure: true,
@@ -1788,12 +1789,27 @@ export async function switchServiceTypeAction(
   const nextLabel = SERVICE_LABEL[target];
   const nextProgressedBy = target === "outsourced" ? "progressor" : "agent";
 
+  // The chase timetable (chaseRuleSnapshot) is frozen per file at creation from
+  // whoever owned it then. On a handover the owner changes, so rebuild it for the
+  // NEW owner: the agency's own overrides for a take-back to self-progress, the
+  // destination progression business's overrides for a handover (or the platform
+  // default for TSP). Without this the file keeps chasing on the old owner's
+  // cadence. The effective new business id mirrors the update below.
+  const newProgressionBusinessId =
+    target === "self_managed" ? null : (handoverBusinessId ?? tx.progressionBusinessId);
+  const newChaseRuleSnapshot = await buildChaseRuleSnapshot(
+    tx.agencyId,
+    target === "self_managed",
+    newProgressionBusinessId,
+  );
+
   await prisma.$transaction(async (db) => {
     await db.propertyTransaction.update({
       where: { id: transactionId },
       data: {
         serviceType: target,
         progressedBy: nextProgressedBy,
+        chaseRuleSnapshot: newChaseRuleSnapshot,
         // Outsourced → self_managed: drop any SP assignment, since no SP is
         // managing the file anymore. Outsourced files keep their existing
         // assignment (or null, which routes them to "Needs SP assigning").

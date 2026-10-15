@@ -854,7 +854,7 @@ export type CreateTransactionInput = {
 // snapshot is missing or malformed. Migration backfilled snapshots for
 // pre-existing transactions; this function seeds them at creation time
 // from here on.
-async function buildChaseRuleSnapshot(
+export async function buildChaseRuleSnapshot(
   // The file's agency + whether it's self-managed. Per-agency chase-timing
   // overrides apply ONLY to that agency's own self-managed files. For an
   // OUTSOURCED file, the progression business's own overrides apply instead
