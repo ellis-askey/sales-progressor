@@ -50,10 +50,6 @@ export default async function BusinessNotificationsPage() {
   const silencedFiles = silencedFilesRaw
     .filter((f) => f.clientEmailsPaused)
     .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress, pausedAt: f.pausedAt, pausedByName: f.pausedBy?.name ?? null }));
-  const silenceableFiles = silencedFilesRaw
-    .filter((f) => !f.clientEmailsPaused)
-    .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
-
   const pushDevices = pushDevicesRaw.map((d) => ({
     id: d.id, endpoint: d.endpoint, userAgent: d.userAgent, lastUsedAt: d.lastUsedAt, createdAt: d.createdAt,
   }));
@@ -68,10 +64,7 @@ export default async function BusinessNotificationsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <EmailNotificationsSectionPlain initialPrefs={notificationPrefs} />
         <MobilePushSection initialPrefs={notificationPrefs} initialDevices={pushDevices} />
-        <SilencedFilesSectionPlain
-          initialSilenced={silencedFiles}
-          silenceable={silenceableFiles}
-        />
+        <SilencedFilesSectionPlain initialSilenced={silencedFiles} />
       </div>
     </>
   );

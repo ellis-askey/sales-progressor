@@ -86,10 +86,6 @@ export default async function AccountNotificationsPage() {
       pausedAt: f.pausedAt,
       pausedByName: f.pausedBy?.name ?? null,
     }));
-  const silenceableFiles = silencedFilesRaw
-    .filter((f) => !f.clientEmailsPaused)
-    .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
-
   const pushDevices = pushDevicesRaw.map((d) => ({
     id: d.id,
     endpoint: d.endpoint,
@@ -107,10 +103,7 @@ export default async function AccountNotificationsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <EmailNotificationsSectionPlain initialPrefs={notificationPrefs} />
         <MobilePushSection initialPrefs={notificationPrefs} initialDevices={pushDevices} />
-        <SilencedFilesSectionPlain
-          initialSilenced={silencedFiles}
-          silenceable={silenceableFiles}
-        />
+        <SilencedFilesSectionPlain initialSilenced={silencedFiles} />
       </div>
     </>
   );
