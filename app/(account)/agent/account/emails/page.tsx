@@ -114,7 +114,7 @@ export default async function AccountEmailsPage() {
             </AccountCard>
           </>
         }
-        look={
+        style={
           <AccountCard
             icon={<ImageIcon size={18} weight="bold" />}
             title="Email branding"

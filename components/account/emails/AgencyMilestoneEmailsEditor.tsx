@@ -7,13 +7,18 @@
 // client would receive. Editing saves the AGENCY's own version, layered over
 // the Sales Progressor default; resetting removes it and reverts to ours.
 //
-// This is the warm, light Account-register twin of the Command Centre matrix
-// (components/command/milestone-emails/MilestoneEmailsMatrix.tsx). Same data
-// contract, different surface — the agent app must not import command UI.
-// Sides are limited to buyer + seller: client-facing copy only.
+// Redesign (founder, 2026-10-15): the scenario selectors live in a LEFT RAIL
+// (recipient / tenure / payment / step, stacked); the email is the canvas on
+// the right, rendered in the agency's real branding (the look set on the Style
+// tab). "Edit" makes the email editable IN PLACE — you change the wording on
+// the email itself, not in a separate form. Style is never edited here.
+//
+// Same data contract as the Command Centre matrix
+// (components/command/milestone-emails/MilestoneEmailsMatrix.tsx). Sides are
+// limited to buyer + seller: client-facing copy only.
 
-import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, Warning, CircleNotch } from "@phosphor-icons/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type StepMeta = {
@@ -77,6 +82,16 @@ function voiceWarnings(draft: Copy): string[] {
   }
   return w;
 }
+
+// A trimmed view of the resolved email theme, enough to render the preview in
+// the agency's real branding (words in their colours + font).
+export type PreviewTheme = {
+  headerBg: string;
+  headerText: string;
+  accent: string;
+  cardBg: string;
+  bodyFont: string;
+};
 
 // `base` points at the resolve/save/reset routes. Defaults to the agency routes;
 // a progression business passes "/api/agent/settings/milestone-emails" so its own
@@ -143,6 +158,10 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
     setEditing(true);
   }
 
+  const setField = useCallback((k: keyof Copy, v: string) => {
+    setDraft((d) => (d ? { ...d, [k]: v } : d));
+  }, []);
+
   async function save() {
     if (!draft) return;
     setSaving(true);
@@ -203,163 +222,176 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
         : null;
 
   const warnings = draft ? voiceWarnings(draft) : [];
+  const shown = editing && draft ? draft : resolved && resolved.exists ? resolved.preview : null;
+  const isAgencyVersion = !!resolved && resolved.exists && resolved.source === "agency";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* Selectors */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          gap: "16px 28px",
-          border: HAIRLINE,
-          borderRadius: 14,
-          background: "#fff",
-          padding: 18,
-        }}
-      >
-        <Field label="Recipient">
-          <Segmented value={side} onChange={(v) => setSide(v as Side)} options={SIDE_OPTIONS} />
-        </Field>
-        <Field label="Tenure">
+    <div className="eme2">
+      <style>{EME2_STYLES}</style>
+
+      {/* ── Left rail: which email ─────────────────────────────── */}
+      <aside className="eme2-rail">
+        <RailField label="Recipient">
+          <Segmented value={side} disabled={editing} onChange={(v) => setSide(v as Side)} options={SIDE_OPTIONS} />
+        </RailField>
+        <RailField label="Tenure">
           <Segmented
             value={tenure}
+            disabled={editing}
             onChange={(v) => setTenure(v as "freehold" | "leasehold")}
-            options={[
-              { value: "freehold", label: "Freehold" },
-              { value: "leasehold", label: "Leasehold" },
-            ]}
+            options={[{ value: "freehold", label: "Freehold" }, { value: "leasehold", label: "Leasehold" }]}
           />
-        </Field>
-        <Field label="Payment">
+        </RailField>
+        <RailField label="Payment">
           <Segmented
             value={method}
+            disabled={editing}
             onChange={(v) => setMethod(v as "mortgage" | "cash")}
-            options={[
-              { value: "mortgage", label: "Mortgage" },
-              { value: "cash", label: "Cash" },
-            ]}
+            options={[{ value: "mortgage", label: "Mortgage" }, { value: "cash", label: "Cash" }]}
           />
-        </Field>
-        <Field label="Step" style={{ flex: "1 1 100%", minWidth: 0 }}>
-          <select
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            style={{
-              width: "100%",
-              minWidth: 0,
-              maxWidth: "100%",
-              border: "1px solid rgba(0,0,0,0.14)",
-              borderRadius: 9,
-              background: "#fff",
-              padding: "8px 10px",
-              fontSize: 13.5,
-              color: TEXT,
-            }}
-          >
-            {stepsForSide.map((s) => (
-              <option key={s.code} value={s.code}>
-                {s.label}
-                {s.mortgageOnly ? " (mortgage only)" : ""}
-                {s.leaseholdOnly ? " (leasehold only)" : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+        </RailField>
+        <RailField label="Step" grow>
+          <div className="eme2-steps" role="listbox" aria-label="Choose a step">
+            {stepsForSide.map((s, i) => {
+              const on = s.code === code;
+              return (
+                <button
+                  key={s.code}
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  disabled={editing}
+                  className={`eme2-step${on ? " on" : ""}`}
+                  onClick={() => { if (!editing) setCode(s.code); }}
+                >
+                  <span className="eme2-step-num">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="eme2-step-lbl">
+                    {s.label}
+                    {s.mortgageOnly ? <span className="eme2-step-tag"> mortgage only</span> : null}
+                    {s.leaseholdOnly ? <span className="eme2-step-tag"> leasehold only</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </RailField>
+      </aside>
 
-      {scenarioWarning && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            border: "0.5px solid rgba(217,119,6,0.35)",
-            background: "rgba(251,191,36,0.10)",
-            borderRadius: 10,
-            padding: "9px 12px",
-            fontSize: 13,
-            color: "#92610a",
-          }}
-        >
-          <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-          {scenarioWarning}
-        </div>
-      )}
+      {/* ── Canvas: the email ──────────────────────────────────── */}
+      <section className="eme2-canvas">
+        <div className="eme2-bar">
+          {editing ? (
+            <span className="eme2-badge custom">Editing your version</span>
+          ) : isAgencyVersion && resolved && resolved.exists ? (
+            <span className="eme2-badge custom">Your version · {scopeLabel(resolved.matchedTenure, resolved.matchedMethod)}</span>
+          ) : (
+            <span className="eme2-badge">Sales Progressor default</span>
+          )}
 
-      {/* Preview / editor */}
-      {loading ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: MUTED, padding: "8px 2px" }}>
-          <CircleNotch size={16} className="agent-spin" /> Loading…
-        </div>
-      ) : loadError ? (
-        <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
-          <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: MUTED }}>
-            <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-            We couldn&apos;t load this email just now. Check your connection and try again.
-          </span>
-          <button
-            type="button"
-            onClick={() => load()}
-            className="account-emails-ghostbtn"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: "pointer" }}
-          >
-            <ArrowCounterClockwise size={14} /> Try again
-          </button>
-        </div>
-      ) : !resolved ? null : !resolved.exists ? (
-        <div
-          style={{
-            border: HAIRLINE,
-            borderRadius: 14,
-            background: "#fff",
-            padding: 20,
-            fontSize: 13.5,
-            color: MUTED,
-          }}
-        >
-          This step doesn&apos;t send an email to the {SIDE_OPTIONS.find((o) => o.value === side)?.label.toLowerCase()}.
-        </div>
-      ) : editing && draft ? (
-        <div className="eme-split">
-          <Editor
-            draft={draft}
-            setDraft={setDraft}
-            tenure={tenure}
-            method={method}
-            tenureScope={tenureScope}
-            methodScope={methodScope}
-            setTenureScope={setTenureScope}
-            setMethodScope={setMethodScope}
-            warnings={warnings}
-            saving={saving}
-            onSave={save}
-            onCancel={() => setEditing(false)}
-          />
-          <div className="eme-live">
-            <p className="eme-live-cap">Live preview</p>
-            <EmailCard copy={draft} theme={previewTheme} />
-            <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-              Updates as you type. Example details fill in when the email sends.
-            </p>
+          <div className="eme2-actions">
+            {editing ? (
+              <>
+                <button type="button" onClick={() => setEditing(false)} className="eme2-btn eme2-btn-ghost">
+                  <X size={14} /> Cancel
+                </button>
+                <button type="button" onClick={save} disabled={saving} className="eme2-btn eme2-btn-primary">
+                  {saving ? <CircleNotch size={14} className="eme2-spin" /> : <Check size={14} weight="bold" />}
+                  {saving ? "Saving…" : "Save your version"}
+                </button>
+              </>
+            ) : (
+              <>
+                {isAgencyVersion && (
+                  <button type="button" onClick={reset} disabled={resetting} className="eme2-btn eme2-btn-ghost">
+                    <ArrowCounterClockwise size={14} /> {resetting ? "Resetting…" : "Reset to default"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  disabled={!resolved || !resolved.exists || loading}
+                  className="eme2-btn eme2-btn-primary"
+                >
+                  <Pencil size={14} /> Edit wording
+                </button>
+              </>
+            )}
           </div>
         </div>
-      ) : (
-        <Preview resolved={resolved} onEdit={startEdit} onReset={reset} resetting={resetting} theme={previewTheme} />
-      )}
+
+        {scenarioWarning && (
+          <div className="eme2-warn">
+            <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
+            {scenarioWarning}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="eme2-loading"><CircleNotch size={16} className="eme2-spin" /> Loading…</div>
+        ) : loadError ? (
+          <div className="eme2-state">
+            <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: MUTED }}>
+              <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
+              We couldn&apos;t load this email just now. Check your connection and try again.
+            </span>
+            <button type="button" onClick={() => load()} className="eme2-btn eme2-btn-ghost" style={{ marginTop: 12 }}>
+              <ArrowCounterClockwise size={14} /> Try again
+            </button>
+          </div>
+        ) : !resolved ? null : !resolved.exists ? (
+          <div className="eme2-state" style={{ color: MUTED, fontSize: 13.5 }}>
+            This step doesn&apos;t send an email to the {SIDE_OPTIONS.find((o) => o.value === side)?.label.toLowerCase()}.
+          </div>
+        ) : shown ? (
+          <>
+            <EmailCard key={editing ? `edit-${code}-${side}` : `view-${code}-${side}`} copy={shown} theme={previewTheme} editable={editing} onField={setField} />
+
+            {editing ? (
+              <>
+                {warnings.length > 0 && (
+                  <div className="eme2-warn" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                    {warnings.map((w, i) => (
+                      <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
+                        <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
+                        {w}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="eme2-scope">
+                  <p className="eme2-scope-lbl">This change applies to</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    <Segmented
+                      value={tenureScope}
+                      onChange={(v) => setTenureScope(v as "this" | "any")}
+                      options={[{ value: "this", label: `${tenure.charAt(0).toUpperCase()}${tenure.slice(1)} only` }, { value: "any", label: "All tenures" }]}
+                    />
+                    <Segmented
+                      value={methodScope}
+                      onChange={(v) => setMethodScope(v as "this" | "any")}
+                      options={[{ value: "this", label: `${method === "mortgage" ? "Mortgage" : "Cash"} only` }, { value: "any", label: "All payment types" }]}
+                    />
+                  </div>
+                </div>
+                <p className="eme2-caption">Edit the email above. Details like {"{address}"} fill in for each sale when it sends.</p>
+              </>
+            ) : (
+              <p className="eme2-caption">Preview uses example details for things like the address, dates and surveyor.</p>
+            )}
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }
 
-function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
+// ── Rail pieces ─────────────────────────────────────────────────────────────
+function RailField({ label, children, grow }: { label: string; children: React.ReactNode; grow?: boolean }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6, ...style }}>
-      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: FAINT }}>
-        {label}
-      </span>
+    <div className={`eme2-field${grow ? " grow" : ""}`}>
+      <p className="eme2-field-lbl">{label}</p>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -367,41 +399,24 @@ function Segmented({
   value,
   onChange,
   options,
+  disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
+  disabled?: boolean;
 }) {
   return (
-    <div
-      style={{
-        display: "inline-flex",
-        width: "fit-content",
-        border: HAIRLINE,
-        borderRadius: 9,
-        background: "#f7f7f8",
-        padding: 3,
-      }}
-    >
+    <div className={`eme2-seg${disabled ? " disabled" : ""}`}>
       {options.map((o) => {
         const active = value === o.value;
         return (
           <button
             key={o.value}
             type="button"
-            onClick={() => onChange(o.value)}
-            style={{
-              borderRadius: 6,
-              border: "none",
-              padding: "6px 13px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "background 120ms, color 120ms, box-shadow 120ms",
-              color: active ? "var(--agent-coral-deep, #E2452A)" : MUTED,
-              background: active ? "#fff" : "transparent",
-              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            }}
+            disabled={disabled}
+            onClick={() => !disabled && onChange(o.value)}
+            className={active ? "on" : ""}
           >
             {o.label}
           </button>
@@ -411,316 +426,180 @@ function Segmented({
   );
 }
 
-function SourceBadge({ resolved }: { resolved: Extract<Resolved, { exists: true }> }) {
-  if (resolved.source === "agency") {
-    return (
-      <span
-        style={{
-          borderRadius: 999,
-          border: "0.5px solid rgba(255,107,74,0.4)",
-          background: "rgba(255,107,74,0.10)",
-          padding: "3px 10px",
-          fontSize: 11,
-          fontWeight: 700,
-          color: "var(--agent-coral-deep, #E2452A)",
-        }}
-      >
-        Your version · {scopeLabel(resolved.matchedTenure, resolved.matchedMethod)}
-      </span>
-    );
-  }
+// ── Editable text region — contentEditable, seeded once so the caret never
+// jumps; reports changes up without being re-controlled by React. ────────────
+function EditableRegion({
+  initial,
+  onInput,
+  className,
+  style,
+  placeholder,
+  singleLine,
+}: {
+  initial: string;
+  onInput: (v: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
+  placeholder?: string;
+  singleLine?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.textContent = initial;
+    // Seed once on mount only — never re-seed from state (would move the caret).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
-    <span
-      style={{
-        borderRadius: 999,
-        border: HAIRLINE,
-        background: "#f7f7f8",
-        padding: "3px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        color: MUTED,
-      }}
-    >
-      Sales Progressor default
-    </span>
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      tabIndex={0}
+      data-placeholder={placeholder}
+      className={`eme2-edit${className ? " " + className : ""}`}
+      style={style}
+      onInput={(e) => onInput(e.currentTarget.textContent ?? "")}
+      onKeyDown={(e) => { if (singleLine && e.key === "Enter") e.preventDefault(); }}
+    />
   );
 }
 
-// A trimmed view of the resolved email theme, enough to render the preview in
-// the agency's real branding (words in their colours + font).
-export type PreviewTheme = {
-  headerBg: string;
-  headerText: string;
-  accent: string;
-  cardBg: string;
-  bodyFont: string;
-};
-
-// The rendered email mock. Fed by resolved.preview when viewing, and by the live
-// draft while editing, so the agent sees their wording update as they type. When
-// a theme is supplied it renders in the agency's branding (coloured header band,
-// accent button, font) so words + branding are seen together.
-function EmailCard({ copy, theme }: { copy: Copy; theme?: PreviewTheme | null }) {
+// The rendered email — view (plain text) or edit (contentEditable in place).
+// Renders in the agency's branding when a theme is supplied so words + look are
+// seen together.
+function EmailCard({
+  copy,
+  theme,
+  editable,
+  onField,
+}: {
+  copy: Copy;
+  theme?: PreviewTheme | null;
+  editable?: boolean;
+  onField?: (k: keyof Copy, v: string) => void;
+}) {
   const accent = theme?.accent ?? "var(--agent-coral, #FF6B4A)";
+  const set = (k: keyof Copy) => (v: string) => onField?.(k, v);
+
   return (
-    <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: theme?.cardBg ?? "#fcfcfd", fontFamily: theme?.bodyFont }}>
-      <div style={{ borderBottom: HAIRLINE, padding: "11px 16px", background: "#fff" }}>
-        <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</p>
-        <p style={{ margin: "3px 0 0", fontSize: 14, color: TEXT }}>{copy.subject}</p>
+    <div className={`eme2-email${editable ? " editing" : ""}`} style={{ background: theme?.cardBg ?? "#fcfcfd", fontFamily: theme?.bodyFont }}>
+      <div className="eme2-email-subj">
+        <span className="eme2-slbl">Subject</span>
+        {editable
+          ? <EditableRegion singleLine initial={copy.subject} onInput={set("subject")} className="eme2-subjtxt" />
+          : <p className="eme2-subjtxt">{copy.subject}</p>}
       </div>
+
       {theme ? (
-        <div style={{ background: theme.headerBg, padding: "16px" }}>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: theme.headerText }}>{copy.heroLabel}</p>
+        <div className="eme2-hero" style={{ background: theme.headerBg, color: theme.headerText }}>
+          {editable
+            ? <EditableRegion singleLine initial={copy.heroLabel} onInput={set("heroLabel")} className="eme2-herotxt" />
+            : <span className="eme2-herotxt">{copy.heroLabel}</span>}
         </div>
       ) : null}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px" }}>
-        {!theme && <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>{copy.heroLabel}</p>}
-        <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>{copy.opening}</p>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: TEXT }}>{copy.whatHappened}</p>
-        {copy.whatNext && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{copy.whatNext}</p>}
-        {copy.action && (
-          <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: accent, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>
-            {copy.action}
-          </span>
+
+      <div className="eme2-email-body">
+        {!theme && (
+          editable
+            ? <EditableRegion singleLine initial={copy.heroLabel} onInput={set("heroLabel")} className="eme2-hero-plain" />
+            : <p className="eme2-hero-plain">{copy.heroLabel}</p>
         )}
+        {editable
+          ? <EditableRegion initial={copy.opening} onInput={set("opening")} className="eme2-p eme2-lede" />
+          : <p className="eme2-p eme2-lede">{copy.opening}</p>}
+        {editable
+          ? <EditableRegion initial={copy.whatHappened} onInput={set("whatHappened")} className="eme2-p" />
+          : <p className="eme2-p">{copy.whatHappened}</p>}
+        {editable
+          ? <EditableRegion initial={copy.whatNext ?? ""} onInput={set("whatNext")} className="eme2-p" placeholder="Add a follow-up paragraph, or leave blank" />
+          : (copy.whatNext ? <p className="eme2-p">{copy.whatNext}</p> : null)}
+        {editable
+          ? <span className="eme2-cta" style={{ background: accent }}><EditableRegion singleLine initial={copy.action ?? ""} onInput={set("action")} placeholder="Button label" /></span>
+          : (copy.action ? <span className="eme2-cta" style={{ background: accent }}>{copy.action}</span> : null)}
       </div>
     </div>
   );
 }
 
-function Preview({
-  resolved,
-  onEdit,
-  onReset,
-  resetting,
-  theme,
-}: {
-  resolved: Extract<Resolved, { exists: true }>;
-  onEdit: () => void;
-  onReset: () => void;
-  resetting: boolean;
-  theme?: PreviewTheme | null;
-}) {
-  const p = resolved.preview;
-  return (
-    <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <SourceBadge resolved={resolved} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {resolved.source === "agency" && (
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={resetting}
-              className="account-emails-ghostbtn"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                borderRadius: 9,
-                border: HAIRLINE,
-                background: "#fff",
-                padding: "7px 12px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: TEXT,
-                cursor: resetting ? "default" : "pointer",
-                opacity: resetting ? 0.55 : 1,
-              }}
-            >
-              <ArrowCounterClockwise size={14} />
-              {resetting ? "Resetting…" : "Reset to Sales Progressor"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onEdit}
-            className="agent-btn agent-btn-primary agent-btn-sm"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <Pencil size={14} />
-            Edit
-          </button>
-        </div>
-      </div>
+const EME2_STYLES = `
+  .eme2 { display: grid; grid-template-columns: 236px minmax(0,1fr); border: ${HAIRLINE}; border-radius: 14px; overflow: hidden; background: #fff; }
+  .eme2-rail { background: #faf8f7; border-right: ${HAIRLINE}; padding: 18px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .eme2-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .eme2-field.grow { flex: 1; min-height: 0; }
+  .eme2-field-lbl { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: ${FAINT}; }
 
-      {/* Email preview */}
-      <EmailCard copy={p} theme={theme} />
-      <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-        Preview uses example details for things like the address, dates and surveyor.
-      </p>
-    </div>
-  );
-}
+  .eme2-seg { display: flex; border: ${HAIRLINE}; border-radius: 9px; background: #fff; padding: 3px; gap: 3px; }
+  .eme2-seg.disabled { opacity: .55; }
+  .eme2-seg button { flex: 1; appearance: none; border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: ${MUTED}; padding: 6px 8px; border-radius: 6px; transition: background 120ms, color 120ms, box-shadow 120ms; }
+  .eme2-seg button:hover:not(.on):not(:disabled) { color: ${TEXT}; }
+  .eme2-seg button:disabled { cursor: default; }
+  .eme2-seg button.on { color: var(--agent-coral-deep, #E2452A); background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.4); }
 
-function Editor({
-  draft,
-  setDraft,
-  tenure,
-  method,
-  tenureScope,
-  methodScope,
-  setTenureScope,
-  setMethodScope,
-  warnings,
-  saving,
-  onSave,
-  onCancel,
-}: {
-  draft: Copy;
-  setDraft: (c: Copy) => void;
-  tenure: string;
-  method: string;
-  tenureScope: "this" | "any";
-  methodScope: "this" | "any";
-  setTenureScope: (v: "this" | "any") => void;
-  setMethodScope: (v: "this" | "any") => void;
-  warnings: string[];
-  saving: boolean;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  const set = (k: keyof Copy, v: string) => setDraft({ ...draft, [k]: v });
+  .eme2-steps { display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; margin: 0 -4px; padding: 2px 4px; }
+  .eme2-step { appearance: none; border: none; background: none; cursor: pointer; font: inherit; text-align: left; display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px; border-radius: 8px; color: ${MUTED}; transition: background 140ms, color 140ms; }
+  .eme2-step:hover:not(.on):not(:disabled) { background: rgba(0,0,0,.04); color: ${TEXT}; }
+  .eme2-step:disabled { cursor: default; opacity: .5; }
+  .eme2-step.on { background: rgba(255,107,74,.10); color: var(--agent-coral-deep, #E2452A); }
+  .eme2-step:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.4); }
+  .eme2-step-num { font-variant-numeric: tabular-nums; font-size: 10.5px; color: ${FAINT}; flex: 0 0 20px; margin-top: 1px; }
+  .eme2-step.on .eme2-step-num { color: var(--agent-coral-deep, #E2452A); }
+  .eme2-step-lbl { font-size: 12.5px; line-height: 1.35; }
+  .eme2-step.on .eme2-step-lbl { font-weight: 650; }
+  .eme2-step-tag { color: ${FAINT}; font-weight: 400; }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
-      <EditorField label="Subject" value={draft.subject} onChange={(v) => set("subject", v)} />
-      <EditorField label="Hero label" value={draft.heroLabel} onChange={(v) => set("heroLabel", v)} />
-      <EditorField label="Opening" value={draft.opening} onChange={(v) => set("opening", v)} rows={2} />
-      <EditorField label="What happened" value={draft.whatHappened} onChange={(v) => set("whatHappened", v)} rows={4} />
-      <EditorField
-        label="What next"
-        value={draft.whatNext ?? ""}
-        onChange={(v) => set("whatNext", v)}
-        rows={3}
-        hint="Leave blank for no follow-up paragraph."
-      />
-      <EditorField
-        label="Button label"
-        value={draft.action ?? ""}
-        onChange={(v) => set("action", v)}
-        hint="Leave blank for the default button."
-      />
+  .eme2-canvas { padding: 20px; min-width: 0; }
+  .eme2-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .eme2-badge { font-size: 11px; font-weight: 600; color: ${MUTED}; background: #f3f3f4; padding: 4px 10px; border-radius: 999px; }
+  .eme2-badge.custom { color: var(--agent-coral-deep, #E2452A); background: rgba(255,107,74,.10); font-weight: 700; }
+  .eme2-actions { display: flex; align-items: center; gap: 8px; }
+  .eme2-btn { appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 8px 13px; display: inline-flex; align-items: center; gap: 6px; border: ${HAIRLINE}; background: #fff; color: ${TEXT}; transition: background 140ms, border-color 140ms, color 140ms, transform 80ms; }
+  .eme2-btn:hover:not(:disabled) { background: rgba(0,0,0,.035); }
+  .eme2-btn:active:not(:disabled) { transform: scale(.975); }
+  .eme2-btn:disabled { opacity: .5; cursor: default; }
+  .eme2-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,.32); }
+  .eme2-btn-ghost { border-color: transparent; background: none; color: ${MUTED}; }
+  .eme2-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
+  .eme2-btn-primary { border-color: transparent; color: #fff; background: linear-gradient(180deg,#FF7A5C,#E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 10px -4px rgba(255,107,74,.5); }
+  .eme2-btn-primary:hover:not(:disabled) { filter: brightness(1.04); background: linear-gradient(180deg,#FF7A5C,#E2452A); }
 
-      <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
-        Details like {"{address}"} are filled in for each sale when the email sends. Leave them in place.
-      </p>
+  .eme2-warn { display: flex; align-items: flex-start; gap: 8px; border: 0.5px solid rgba(217,119,6,0.35); background: rgba(251,191,36,0.10); border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #92610a; margin-bottom: 14px; }
+  .eme2-loading { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: ${MUTED}; padding: 20px 2px; }
+  .eme2-state { border: ${HAIRLINE}; border-radius: 12px; background: #fff; padding: 20px; }
 
-      {warnings.length > 0 && (
-        <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
-          {warnings.map((w, i) => (
-            <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
-              <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-              {w}
-            </p>
-          ))}
-        </div>
-      )}
+  /* The email itself — a light "paper" surface like a real inbox. */
+  .eme2-email { border: ${HAIRLINE}; border-radius: 11px; overflow: hidden; transition: box-shadow .2s ease; }
+  .eme2-email.editing { box-shadow: 0 0 0 2px var(--agent-coral, #FF6B4A); }
+  .eme2-email-subj { border-bottom: ${HAIRLINE}; padding: 11px 16px; background: #fff; }
+  .eme2-slbl { display: block; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: ${FAINT}; margin-bottom: 3px; }
+  .eme2-subjtxt { margin: 0; font-size: 14px; color: ${TEXT}; }
+  .eme2-hero { padding: 16px; }
+  .eme2-herotxt { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .eme2-email-body { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+  .eme2-hero-plain { margin: 0; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: ${FAINT}; }
+  .eme2-p { margin: 0; font-size: 14px; line-height: 1.55; color: #374151; }
+  .eme2-lede { color: ${TEXT}; }
+  .eme2-cta { display: inline-block; width: fit-content; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; color: #fff; }
 
-      {/* Scope */}
-      <div style={{ borderRadius: 10, border: HAIRLINE, background: "#fafafa", padding: 14 }}>
-        <p style={{ margin: "0 0 10px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>
-          This change applies to
-        </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-          <Segmented
-            value={tenureScope}
-            onChange={(v) => setTenureScope(v as "this" | "any")}
-            options={[
-              { value: "this", label: `${tenure.charAt(0).toUpperCase()}${tenure.slice(1)} only` },
-              { value: "any", label: "All tenures" },
-            ]}
-          />
-          <Segmented
-            value={methodScope}
-            onChange={(v) => setMethodScope(v as "this" | "any")}
-            options={[
-              { value: "this", label: `${method === "mortgage" ? "Mortgage" : "Cash"} only` },
-              { value: "any", label: "All payment types" },
-            ]}
-          />
-        </div>
-      </div>
+  /* Edit-in-place affordance. */
+  .eme2-edit { outline: none; cursor: text; border-radius: 3px; }
+  .eme2-edit:empty:before { content: attr(data-placeholder); color: #bdbdbd; pointer-events: none; }
+  .eme2-email.editing .eme2-edit { outline: 1px dashed rgba(226,69,42,.4); outline-offset: 3px; }
+  .eme2-edit:focus { outline: 1.5px solid var(--agent-coral, #FF6B4A); outline-offset: 3px; }
+  .eme2-cta .eme2-edit:empty:before { color: rgba(255,255,255,.7); }
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          style={{
-            font: "inherit",
-            fontSize: 13.5,
-            fontWeight: 700,
-            color: "#fff",
-            border: "none",
-            borderRadius: 9,
-            padding: "10px 20px",
-            cursor: saving ? "default" : "pointer",
-            background: "linear-gradient(180deg,#FF7A5C,#E2452A)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,.28), 0 4px 14px -5px rgba(255,107,74,.5)",
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="account-emails-ghostbtn"
-          style={{ borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "9px 16px", fontSize: 13.5, fontWeight: 600, color: TEXT, cursor: "pointer" }}
-        >
-          Cancel
-        </button>
-      </div>
+  .eme2-scope { border: ${HAIRLINE}; border-radius: 10px; background: #fafafa; padding: 14px; margin-top: 14px; }
+  .eme2-scope-lbl { margin: 0 0 10px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: ${FAINT}; }
+  .eme2-caption { margin: 12px 2px 0; font-size: 11.5px; color: ${FAINT}; }
 
-      <style>{`
-        .account-emails-ghostbtn:hover { background: rgba(0,0,0,0.035) !important; }
-        .agent-spin { animation: account-emails-spin 0.7s linear infinite; }
-        @keyframes account-emails-spin { to { transform: rotate(360deg); } }
-        .eme-split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; align-items: start; }
-        .eme-live { position: sticky; top: 16px; }
-        .eme-live-cap { margin: 0 0 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #9ca3af; }
-        @media (max-width: 860px) { .eme-split { grid-template-columns: 1fr; } .eme-live { position: static; } }
-      `}</style>
-    </div>
-  );
-}
+  .eme2-spin { animation: eme2-spin .7s linear infinite; }
+  @keyframes eme2-spin { to { transform: rotate(360deg); } }
 
-function EditorField({
-  label,
-  value,
-  onChange,
-  rows,
-  hint,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  rows?: number;
-  hint?: string;
-}) {
-  const shared: React.CSSProperties = {
-    width: "100%",
-    border: "1px solid rgba(0,0,0,0.14)",
-    borderRadius: 9,
-    background: "#fff",
-    padding: "9px 11px",
-    fontSize: 14,
-    color: TEXT,
-    fontFamily: "inherit",
-    outline: "none",
-  };
-  return (
-    <label style={{ display: "block" }}>
-      <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>
-        {label}
-      </span>
-      {rows ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} style={{ ...shared, resize: "vertical", lineHeight: 1.5 }} />
-      ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} style={shared} />
-      )}
-      {hint && <span style={{ display: "block", marginTop: 5, fontSize: 11.5, color: FAINT }}>{hint}</span>}
-    </label>
-  );
-}
+  @media (max-width: 760px) {
+    .eme2 { grid-template-columns: 1fr; }
+    .eme2-rail { border-right: none; border-bottom: ${HAIRLINE}; }
+    .eme2-steps { max-height: 220px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .eme2-email, .eme2-btn, .eme2-seg button, .eme2-step { transition: none; } }
+`;
