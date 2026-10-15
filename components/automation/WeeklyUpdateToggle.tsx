@@ -29,7 +29,7 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
     <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900">Weekly client update</h2>
+          <h2 className="text-[15px] font-semibold text-slate-900">Weekly client updates</h2>
           <p className="mt-1 text-[13px] leading-relaxed text-slate-500 max-w-xl">
             A short check-in for clients on active sales who haven&rsquo;t
             heard from you in the last week. Anyone who has unsubscribed is never included.
@@ -39,7 +39,7 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
           type="button"
           role="switch"
           aria-checked={enabled}
-          aria-label="Weekly client update"
+          aria-label="Weekly client updates"
           disabled={pending}
           onClick={toggle}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${

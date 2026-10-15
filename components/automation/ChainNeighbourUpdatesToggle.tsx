@@ -30,7 +30,7 @@ export function ChainNeighbourUpdatesToggle({ initialEnabled }: { initialEnabled
     <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900">Chain neighbour updates</h2>
+          <h2 className="text-[15px] font-semibold text-slate-900">Chain updates</h2>
           <p className="mt-1 text-[13px] leading-relaxed text-slate-500 max-w-xl">
             When your buyer or seller confirms a step on their related sale or onward purchase, we&rsquo;ll
             let the agent handling that sale know. Only agents you&rsquo;ve already
@@ -41,7 +41,7 @@ export function ChainNeighbourUpdatesToggle({ initialEnabled }: { initialEnabled
           type="button"
           role="switch"
           aria-checked={enabled}
-          aria-label="Chain neighbour updates"
+          aria-label="Chain updates"
           disabled={pending}
           onClick={toggle}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
