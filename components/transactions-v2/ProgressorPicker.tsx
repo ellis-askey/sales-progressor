@@ -56,8 +56,7 @@ export function ProgressorPicker({
           padding: 11px 12px; border-radius: 13px; border: 1.5px solid var(--agent-border-default);
           background: var(--agent-surface, #fff); transition: border-color .15s, box-shadow .15s, background .15s; }
         .ppk-card:hover { border-color: var(--agent-coral); }
-        .ppk-card.sel { border-color: transparent;
-          background: linear-gradient(135deg, rgba(var(--agent-coral-rgb),0.14), rgba(var(--agent-coral-rgb),0.06));
+        .ppk-card.sel { border-color: transparent; background: var(--agent-surface, #fff);
           box-shadow: 0 0 0 1.5px var(--agent-coral-deep), 0 4px 14px -6px rgba(var(--agent-coral-rgb),0.5); }
         .ppk-logo { width: 40px; height: 40px; border-radius: 10px; overflow: hidden; flex: none; border: 0.5px solid var(--agent-border-subtle); }
         .ppk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
