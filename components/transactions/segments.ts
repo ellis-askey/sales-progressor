@@ -14,7 +14,7 @@ export type StaticFilterKey =
   | "risk" | "quiet" | "nosolicitor" | "stalled"
   | "selfmanaged" | "outsourced";
 
-export type FilterKey = StaticFilterKey | `owner:${string}`;
+export type FilterKey = StaticFilterKey | `owner:${string}` | `prog:${string}`;
 
 // The problem lenses — OR among themselves, then AND-ed with the other
 // sections. These only apply to the active book (a completed file isn't "at
@@ -30,6 +30,16 @@ export function isOwnerKey(k: FilterKey): k is `owner:${string}` {
 }
 export function ownerIdOf(k: `owner:${string}`): string {
   return k.slice("owner:".length);
+}
+
+// Progressor rows are dynamic (`prog:<businessId>`), shown only when an agency
+// works with 2+ external progression companies so it can slice its book by which
+// company runs each sale.
+export function isProgKey(k: FilterKey): k is `prog:${string}` {
+  return k.startsWith("prog:");
+}
+export function progIdOf(k: `prog:${string}`): string {
+  return k.slice("prog:".length);
 }
 
 // Label + leading-dot semantic for the fixed keys. `dot` maps to the --agent-*

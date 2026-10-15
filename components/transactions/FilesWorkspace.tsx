@@ -22,7 +22,7 @@ import { riskLevelForRow } from "./TransactionRowView";
 import type { FilterSection } from "./FilterMenu";
 import {
   FILTER_META, PROBLEM_FILTERS, SERVICE_FILTERS,
-  isOwnerKey, ownerIdOf, type FilterKey, type StaticFilterKey,
+  isOwnerKey, ownerIdOf, isProgKey, progIdOf, type FilterKey, type StaticFilterKey,
 } from "./segments";
 import type { DisplayStageKey } from "@/lib/milestones/display-stages";
 
@@ -96,6 +96,7 @@ export function FilesWorkspace({
 
   const hits = (r: PipelineRow, k: FilterKey): boolean => {
     if (isOwnerKey(k)) return r.agentUser?.id === ownerIdOf(k);
+    if (isProgKey(k)) return r.progressionBusiness?.id === progIdOf(k);
     switch (k) {
       case "mine": return isMine(r);
       case "risk": return riskLevelForRow(r) === "high";
@@ -118,6 +119,20 @@ export function FilesWorkspace({
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [active]);
 
+  // External progression companies present in the active book, for the
+  // "Progressor" section. Shown only when the agency works with 2+ companies, so
+  // a single-progressor (or TSP-only) agency sees no extra clutter.
+  const progressors = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { id: string; name: string }[] = [];
+    for (const t of active) {
+      const b = t.progressionBusiness;
+      if (b && !b.isTsp && !seen.has(b.id)) { seen.add(b.id); list.push({ id: b.id, name: b.shortName || b.name }); }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [active]);
+  const showProgressorRows = progressors.length >= 2;
+
   // Owner rows: directors/admin see them whenever there's at least one owner;
   // negotiators (who see only their own files) get nothing to pick from, so hide.
   const showOwnerRows = isDirector ? owners.length > 0 : owners.length > 1;
@@ -133,9 +148,10 @@ export function FilesWorkspace({
     s.push({ title: "Yours", items: yours });
     s.push({ title: "Needs attention", items: PROBLEM_FILTERS.map((k) => meta(k as StaticFilterKey)) });
     if (showServiceRows) s.push({ title: "Service", items: SERVICE_FILTERS.map((k) => meta(k as StaticFilterKey)) });
+    if (showProgressorRows) s.push({ title: "Progressor", items: progressors.map((p) => ({ key: `prog:${p.id}` as FilterKey, label: p.name })) });
     return s;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [owners, showOwnerRows, showServiceRows]);
+  }, [owners, showOwnerRows, showServiceRows, progressors, showProgressorRows]);
 
   // Sectioned matcher: rows within a section OR, sections AND. Ownership +
   // service are status-agnostic; the problem lenses only apply to the active
@@ -149,6 +165,8 @@ export function FilesWorkspace({
     }
     const svcSel = SERVICE_FILTERS.filter((k) => selected.has(k));
     if (svcSel.length > 0 && !svcSel.some((k) => hits(r, k))) return false;
+    const progSel = [...selected].filter(isProgKey);
+    if (progSel.length > 0 && !progSel.some((k) => r.progressionBusiness?.id === progIdOf(k))) return false;
     const probSel = PROBLEM_FILTERS.filter((k) => selected.has(k));
     if (probSel.length > 0) {
       if (r.status !== "active") return false;

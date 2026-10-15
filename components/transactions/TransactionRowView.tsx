@@ -137,7 +137,7 @@ export type TransactionRow = {
   // on the row ("Handled by {business}") so an agency using several external
   // progressors can tell its sales apart. Null / isTsp = unchanged (generic
   // "Progressor" for TSP-managed, nothing for self-managed).
-  progressionBusiness?: { shortName: string | null; name: string; isTsp: boolean } | null;
+  progressionBusiness?: { id: string; shortName: string | null; name: string; isTsp: boolean } | null;
   // The file's current pipeline stage, decorated by FilesWorkspace from the
   // stage map. Drives the journey bar; absent on non-active rows (no bar).
   boardStage?: DisplayStageKey;
