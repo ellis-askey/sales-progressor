@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarCheck } from "@phosphor-icons/react";
+import { CalendarCheck, CheckCircle } from "@phosphor-icons/react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateBusinessBillingPointAction } from "@/app/actions/progression-clients";
@@ -43,30 +43,30 @@ export function BusinessBillingPointForm({ initialBillAtCompletion }: { initialB
     </button>
   );
 
+  // Canonical option-select: brand-fill + tick on the chosen one, clean outline
+  // otherwise, lift on hover. Matches the Email signature mode picker.
   const Option = ({ value, title, desc }: { value: boolean; title: string; desc: string }) => {
     const on = billAtCompletion === value;
     return (
-      <label
-        className="bizbp-opt"
-        data-on={on ? "true" : undefined}
+      <button
+        type="button"
+        onClick={() => setBillAtCompletion(value)}
+        className={`bizbp-opt${on ? " on" : ""}`}
+        aria-pressed={on}
         style={{
-          display: "flex", alignItems: "flex-start", gap: 11, padding: "13px 14px", cursor: "pointer",
-          border: on ? "1.5px solid #FF6B4A" : "1px solid rgba(0,0,0,0.12)", borderRadius: 10,
-          background: on ? "rgba(255,107,74,0.05)" : "#fff",
+          textAlign: "left", cursor: "pointer", borderRadius: 12, padding: "13px 15px",
+          border: on ? "1.5px solid transparent" : "1.5px solid var(--agent-border-default, rgba(0,0,0,0.14))",
+          background: on ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "#fff",
+          boxShadow: on ? "0 4px 13px -2px rgba(var(--agent-coral-rgb, 255,107,74), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+          display: "flex", alignItems: "center", gap: 12,
         }}
       >
-        <input
-          type="radio"
-          name="billing-point"
-          checked={on}
-          onChange={() => setBillAtCompletion(value)}
-          style={{ marginTop: 2, width: 16, height: 16, accentColor: "#FF6B4A", cursor: "pointer", flexShrink: 0 }}
-        />
-        <span>
-          <span style={{ display: "block", fontSize: 13.5, color: "#111827", fontWeight: 600 }}>{title}</span>
-          <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.5 }}>{desc}</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: on ? "var(--agent-text-on-coral, #fff)" : "#111827" }}>{title}</span>
+          <span style={{ display: "block", fontSize: 12.5, color: on ? "rgba(255,255,255,0.88)" : "#6b7280", marginTop: 2, lineHeight: 1.5 }}>{desc}</span>
         </span>
-      </label>
+        {on && <CheckCircle size={20} weight="fill" color="var(--agent-text-on-coral, #fff)" style={{ flexShrink: 0 }} />}
+      </button>
     );
   };
 
@@ -96,6 +96,10 @@ export function BusinessBillingPointForm({ initialBillAtCompletion }: { initialB
       </div>
 
       <style>{`
+        .bizbp-opt { transition: background 160ms, border-color 150ms, box-shadow 220ms, transform 160ms; }
+        .bizbp-opt:not(.on):hover { border-color: var(--agent-coral, #FF8A65); transform: translateY(-1px); }
+        .bizbp-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,0.3); }
+        @media (prefers-reduced-motion: reduce) { .bizbp-opt { transition: none; } .bizbp-opt:hover { transform: none; } }
         .bizbp-save-mobile { display: none; }
         @media (max-width: 640px) {
           .bizbp-save-desktop { display: none !important; }
