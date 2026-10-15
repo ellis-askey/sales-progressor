@@ -45,7 +45,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
   const chases = await prisma.enquiryRaiseChase.findMany({
     // Live files only. A withdrawn / on-hold / completed sale keeps no live
     // chase (it's closed on status change), but this is the belt-and-braces guard.
-    where: { closedAt: null, transaction: { is: { status: "active", enquiryChasePaused: false, agency: { is: { enquiryRaiseChaseEnabled: true } } } } },
+    where: { closedAt: null, transaction: { is: { status: "active", enquiryChasePaused: false } } },
     select: {
       id: true,
       openedAt: true,
@@ -63,7 +63,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
           assignedUserId: true,
           agentUserId: true,
           activeBuyerRoundId: true,
-          agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+          agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, enquiryRaiseChaseEnabled: true } },
           purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           purchaserSolicitorFirm: { select: { name: true } },
           vendorSolicitorFirm: { select: { name: true } },
@@ -98,6 +98,13 @@ export async function runRaiseChaseCron(now: Date): Promise<{
   for (const ch of chases) {
     const tx = ch.transaction;
     if (!tx) continue;
+
+    // Responsible-party gate: self-progressed / TSP files obey the agency's
+    // enquiry switch; files run by an external business obey only that business's
+    // pref (applied below via businessChaseAllows). Mirrors weekly + client-chase.
+    const bg = tx.progressionBusinessId ? businessGate.get(tx.progressionBusinessId) : null;
+    const externallyProgressed = !!bg && !bg.isTsp;
+    if (!externallyProgressed && tx.agency?.enquiryRaiseChaseEnabled === false) continue;
 
     // The ACTIVE buyer's "raised" row (round-scoped). A relisted file may carry
     // a previous buyer's complete PM14; we must only read the current round's.

@@ -93,7 +93,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     // email its solicitors or escalate to its owner. (The tracker is also
     // closed/snoozed on status change — see the status-change handler — but
     // this filter is the belt-and-braces guard the chase itself owns.)
-    where: { closedAt: null, transaction: { is: { status: "active", enquiryChasePaused: false, agency: { is: { enquiryReplyChaseEnabled: true } } } } },
+    where: { closedAt: null, transaction: { is: { status: "active", enquiryChasePaused: false } } },
     select: {
       id: true,
       currentlyWith: true,
@@ -110,7 +110,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           progressionBusinessId: true, // business can switch enquiry chases off (escalation still fires)
           assignedUserId: true,
           agentUserId: true,
-          agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+          agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, enquiryReplyChaseEnabled: true } },
           vendorSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
           vendorSolicitorEmailsPaused: true,
@@ -136,6 +136,14 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
   for (const t of trackers) {
     const tx = t.transaction;
     if (!tx) continue;
+
+    // Responsible-party gate: a self-progressed / TSP file obeys the agency's
+    // enquiry switch; a file run by an external business ignores the agency
+    // switch and obeys only that business's pref (applied below, after
+    // escalation). Mirrors the weekly-update and client-chase model.
+    const bg = tx.progressionBusinessId ? businessGate.get(tx.progressionBusinessId) : null;
+    const externallyProgressed = !!bg && !bg.isTsp;
+    if (!externallyProgressed && tx.agency?.enquiryReplyChaseEnabled === false) continue;
 
     const { chaseDue, escalateDue } = enquiryChaseDecision(t, now);
     const seller = t.currentlyWith === "seller_solicitor";
