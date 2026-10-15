@@ -300,7 +300,9 @@ export async function drainOutboundQueue(): Promise<{
     let recipientContact: {
       roleType: string;
       buyerRoundId: string | null;
-      transaction: { activeBuyerRoundId: string | null };
+      emailsPausedAt: Date | null;
+      chasesPausedUntil: Date | null;
+      transaction: { activeBuyerRoundId: string | null; clientEmailsPaused: boolean };
     } | null = null;
     if (record.recipientContactId) {
       recipientContact = await prisma.contact.findUnique({
@@ -308,7 +310,9 @@ export async function drainOutboundQueue(): Promise<{
         select: {
           roleType: true,
           buyerRoundId: true,
-          transaction: { select: { activeBuyerRoundId: true } },
+          emailsPausedAt: true,
+          chasesPausedUntil: true,
+          transaction: { select: { activeBuyerRoundId: true, clientEmailsPaused: true } },
         },
       });
       if (
@@ -327,6 +331,26 @@ export async function drainOutboundQueue(): Promise<{
         skipped++;
         continue;
       }
+    }
+
+    // Pause re-check at send time (client chase only). The chase is enqueued by
+    // the morning cron but drained up to an hour later; if the file or the client
+    // was paused in that window, honour it now rather than send a chase the agent
+    // just stopped. Mirrors the milestone-digest drain's step-confirm re-check.
+    if (
+      record.emailType === "CLIENT_CHASE" &&
+      recipientContact &&
+      (recipientContact.transaction.clientEmailsPaused ||
+        recipientContact.emailsPausedAt !== null ||
+        (recipientContact.chasesPausedUntil !== null && recipientContact.chasesPausedUntil > new Date()))
+    ) {
+      await prisma.outboundEmailQueue.update({
+        where: { id: record.id },
+        data: { sentAt: new Date(), errorMessage: "suppressed:paused" },
+      });
+      console.log(`[EMAIL_SKIP] type=${record.emailType} ${recipientLogId} reason=paused`);
+      skipped++;
+      continue;
     }
 
     const payload = record.payload as Record<string, unknown>;
