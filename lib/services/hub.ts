@@ -2517,19 +2517,18 @@ export async function getHubWeeklyForecast(
       // agencyId: for an external-business viewer the forecast fee is that
       // business's rate-card fee for the file's agency, not the agency commission.
       agencyId: true,
-      // Per-file fee inputs — same sum as the property-file Fees card
-      // (calculateFileFeesPence). Commission + referrals − our fee.
-      purchasePrice: true, agentFeeAmount: true, agentFeePercent: true,
-      referralFee: true, brokerReferralFee: true, onwardBrokerReferralFee: true,
-      serviceType: true, freeOnExchange: true, firstOutsourcedFree: true,
-      assignedUser: { select: { clientType: true, legacyFee: true } },
-      agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
+      // Per-file fee inputs (shared select so it matches the property-file Fees
+      // card exactly — now incl. the VAT flags the old inline select dropped).
+      ...FEE_INPUT_SELECT,
     },
   });
 
-  // External progression business viewer: the forecast "fees" are the business's
-  // OWN rate-card fees per file (by the file's agency), not the agency commission.
-  // null for TSP/agency viewers, who keep calculateFileFeesPence below.
+  // Three forecast audiences, three "what's it worth to YOU" figures:
+  //   - external progression business → its OWN rate-card fee per file (below).
+  //   - TSP internal (admin / superadmin / TSP progressor) → TSP's progressor
+  //     fee, and ONLY the files we actually earn on (option A, founder 2026-10-15).
+  //     Previously TSP fell through to the agency-commission figure — wrong money.
+  //   - agency (director / negotiator) → their own net (commission + referrals − our fee).
   // vis.businessId is set for owners / see-all members; a SEE-OWN team member has it
   // undefined but is still an external member, so resolve their business from the user
   // so their forecast shows the rate card too, never our fee (audit SP-4). Never TSP.
@@ -2552,35 +2551,36 @@ export async function getHubWeeklyForecast(
       )
     : null;
 
+  // TSP internal = an internal viewer who isn't an external business (external
+  // members always resolve a feeBusinessId above; TSP never does).
+  const isTspInternal = !feeBusinessId && !!vis.internalMode;
+
   return weeks.map(({ start, end, label, isCurrentWeek }) => {
     const inWeek = transactions.filter((tx) => {
       const d = tx.overridePredictedDate ?? tx.expectedExchangeDate;
       return d && d >= start && d <= end;
     });
     const files = inWeek
-      // A business file with no rate card set is left OUT of the forecast (F2): we
-      // can't forecast a fee that isn't set, and a £0 would read as "free".
-      .filter((tx) => !feeModelByAgency || feeModelByAgency.get(tx.agencyId) != null)
       .map((tx) => ({
         address: tx.propertyAddress,
+        agencyId: tx.agencyId,
         feePence: feeModelByAgency
           ? (calculateClientFee(feeModelByAgency.get(tx.agencyId) ?? null, tx.purchasePrice) ?? 0)
-          : calculateFileFeesPence({
-          purchasePrice: tx.purchasePrice,
-          agentFeeAmount: tx.agentFeeAmount,
-          agentFeePercent: tx.agentFeePercent,
-          referralFee: tx.referralFee,
-          brokerReferralFee: tx.brokerReferralFee,
-          onwardBrokerReferralFee: tx.onwardBrokerReferralFee,
-          serviceType: tx.serviceType,
-          freeOnExchange: tx.freeOnExchange,
-          firstOutsourcedFree: tx.firstOutsourcedFree,
-          assignedUser: tx.assignedUser,
-          agencyOverride: tx.agency,
-        }),
+          : isTspInternal
+            ? calculateProgressionFeePence(toFeeInput(tx)) // TSP's own progressor fee
+            : calculateFileFeesPence(toFeeInput(tx)),      // agency net
       }))
+      // External business: a file with no rate card is left out (can't forecast an
+      // unset fee; a £0 reads as "free"). TSP (option A): only the files we earn on
+      // (self-managed / free → £0, so excluded). Agency: everything in scope.
+      .filter((f) =>
+        feeModelByAgency ? feeModelByAgency.get(f.agencyId) != null
+        : isTspInternal ? f.feePence > 0
+        : true,
+      )
       // Biggest earner first, so the popup's top three are the ones worth knowing.
-      .sort((a, b) => b.feePence - a.feePence);
+      .sort((a, b) => b.feePence - a.feePence)
+      .map((f) => ({ address: f.address, feePence: f.feePence }));
     return {
       label,
       isCurrentWeek,
@@ -2818,6 +2818,28 @@ export async function getHubAttentionItems(
   // still keeps only the "now" (overdue/due-today) rows off this schedule.
   const codesForChase = Array.from(new Set(logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)));
   const txIdsForChase = Array.from(new Set(logs.map((l) => l.transaction.id)));
+
+  // Orphan filter — mirror the work queue (getAgentReminderLogs). A reminder
+  // whose target milestone is ALREADY satisfied (complete / not-required on the
+  // active round, or file-level) is stale: its log just hasn't been auto-closed
+  // yet. The work queue drops these from "Needs you"; without the same filter
+  // here the hub counted them as "Need attention", so the number disagreed with
+  // the page it links to (critique 2026-10-15). Round-scoped via the same raw
+  // query so an archived round's completions can't false-positive.
+  const satisfiedByTx = new Map<string, Set<string>>(txIdsForChase.map((id) => [id, new Set<string>()]));
+  if (txIdsForChase.length > 0) {
+    const satisfiedRows = await prisma.$queryRaw<{ transactionId: string; code: string }[]>`
+      SELECT mc."transactionId", md.code
+      FROM "MilestoneCompletion" mc
+      JOIN "MilestoneDefinition" md ON mc."milestoneDefinitionId" = md.id
+      JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
+      WHERE mc."transactionId" = ANY(${txIdsForChase})
+        AND mc.state IN ('complete', 'not_required')
+        AND (mc."buyerRoundId" IS NULL OR mc."buyerRoundId" = pt."activeBuyerRoundId")
+    `;
+    for (const r of satisfiedRows) satisfiedByTx.get(r.transactionId)?.add(r.code);
+  }
+
   const chaseByTxCode = new Map<string, ChaseSnapshot>();
   // Each tx's active buyer round, so archived-round chase state can't leak into
   // the hand-over compute below (relist safety — see the filter after the read).
@@ -2930,6 +2952,9 @@ export async function getHubAttentionItems(
   // escalated / overdue / due_today land here.
   const items: HubAttentionItem[] = enrichedLogs
     .map((log) => {
+      // Orphan: its milestone is already done — the work queue hides it, so must we.
+      const target = log.reminderRule.targetMilestoneCode;
+      if (target && satisfiedByTx.get(log.transaction.id)?.has(target)) return null;
       // On autopilot (system chasing, not escalated) → not a human's job yet.
       if (autopilot.get(log.id)?.kind === "auto") return null;
       const bucket = classifyReminder(log, now);
