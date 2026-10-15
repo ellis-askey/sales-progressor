@@ -24,7 +24,7 @@ const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },
   { href: "/agent/team", label: "Team", Icon: UsersThree },
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
-  { href: "/agent/settings/chases", label: "Automation", Icon: Gauge },
+  { href: "/agent/settings/chases", label: "Automated chasing", Icon: Gauge },
   { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/settings/notifications", label: "Notifications", Icon: Bell },
   { href: "/agent/settings/connections", label: "Connections", Icon: PlugsConnected },
