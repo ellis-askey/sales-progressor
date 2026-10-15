@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
-import { Browser } from "@phosphor-icons/react/dist/ssr";
+import { DeviceMobile } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ export default async function AccountClientPortalPage() {
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard
-          icon={<Browser size={18} weight="bold" />}
+          icon={<DeviceMobile size={18} weight="bold" />}
           title="What clients see"
           subtitle="Switch any of these off to hide them across all client portals."
         >
