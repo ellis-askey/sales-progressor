@@ -131,14 +131,14 @@ export default async function AccountEmailsPage() {
           <AccountCard
             icon={<PaperPlaneTilt size={18} weight="bold" />}
             title="Sending address"
-            subtitle="The address your clients' emails come from."
+            subtitle="The email address your clients receive messages from."
           >
             <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
-              Your sending address is personal to you (each person on your team can send from their own work email), so it lives on your{" "}
+              Each team member can send from their own work email, so sending addresses are managed individually under{" "}
               <Link href="/agent/account/profile" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
                 Profile
               </Link>{" "}
-              under Sending addresses.
+              → Sending addresses.
             </p>
           </AccountCard>
         }
