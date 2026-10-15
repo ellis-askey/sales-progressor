@@ -15,18 +15,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gauge } from "@phosphor-icons/react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveAgentChasePrefsAction } from "@/app/actions/automation";
 import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs";
 
 type Key = keyof ProgressorChasePrefs;
 
-const CHASES: Array<{ key: Key; title: string; desc: string }> = [
-  { key: "client",    title: "Client chases",         desc: "Remind buyers and sellers to confirm outstanding steps through their portal." },
-  { key: "solicitor", title: "Solicitor chases",      desc: "Follow up with solicitors to confirm the steps they're responsible for." },
-  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. You'll still be alerted if enquiries stall, even with this switched off." },
-  { key: "weekly",    title: "Weekly client updates", desc: "Send buyers and sellers a short weekly update on their sale's progress." },
-  { key: "chain",     title: "Chain updates",         desc: "Keep connected agents informed when something changes on a linked sale." },
+const CHASES: Array<{ key: Key; title: string; desc: string; info: string }> = [
+  { key: "client",    title: "Client chases",         desc: "Remind buyers and sellers to confirm outstanding steps through their portal.",
+    info: "Automatically remind buyers and sellers about outstanding steps through their portal. If they don't respond after the scheduled follow-ups, you'll be alerted to take over." },
+  { key: "solicitor", title: "Solicitor chases",      desc: "Follow up with solicitors to confirm the steps they're responsible for.",
+    info: "Follow up with solicitors on outstanding legal milestones, including contract packs, searches and replies. Chases stop once the relevant step is confirmed." },
+  { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. You'll still be alerted if enquiries stall, even with this switched off.",
+    info: "Follow up with solicitors to ensure enquiries are raised and replies are provided, helping prevent either side from holding up the sale." },
+  { key: "weekly",    title: "Weekly client updates", desc: "Send buyers and sellers a short weekly update on their sale's progress.",
+    info: "Keep buyers and sellers informed during quieter weeks with a short progress update, without sending unnecessary emails when there's already been activity." },
+  { key: "chain",     title: "Chain updates",         desc: "Keep connected agents informed when something changes on a linked sale.",
+    info: "Automatically notify connected agents when important dates or statuses change on linked sales, keeping everyone informed as the chain progresses." },
 ];
 
 export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) {
@@ -81,7 +87,7 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
         {CHASES.map((c) => (
           <div key={c.key} className="acg-row">
             <div className="acg-tx">
-              <span className="acg-t">{c.title}</span>
+              <span className="acg-t">{c.title}<InfoTip label={c.title}>{c.info}</InfoTip></span>
               <span className="acg-d">{c.desc}</span>
             </div>
             <Toggle k={c.key} />

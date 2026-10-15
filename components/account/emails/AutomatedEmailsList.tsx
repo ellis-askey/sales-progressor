@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight } from "@phosphor-icons/react";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { CompletionPackEditor } from "./CompletionPackEditor";
 import { ExchangeDayClientEditor } from "./ExchangeDayClientEditor";
 import { ClientChaseEditor } from "./ClientChaseEditor";
@@ -21,6 +22,7 @@ type Row = {
   Icon: typeof ArrowsLeftRight;
   title: string;
   subtitle: string;
+  info: string;
   pills?: string[];
   notSending?: boolean;
   render: () => React.ReactNode;
@@ -32,6 +34,7 @@ const ROWS: Row[] = [
     Icon: ArrowsLeftRight,
     title: "Contracts exchanged",
     subtitle: "What your client needs to know after exchange.",
+    info: "Sent as soon as exchange is confirmed, letting clients know their completion date is agreed and what they need to arrange next, including insurance, removals and final funds.",
     pills: ["Buyer", "Seller"],
     render: () => <CompletionPackEditor />,
   },
@@ -40,6 +43,7 @@ const ROWS: Row[] = [
     Icon: CalendarBlank,
     title: "Exchange day",
     subtitle: "Sent on the morning contracts exchange.",
+    info: "A morning reminder that exchange is expected today, asking clients to keep their phone nearby in case their solicitor needs to reach them.",
     pills: ["Morning note", "Authority nudge"],
     render: () => <ExchangeDayClientEditor />,
   },
@@ -48,6 +52,7 @@ const ROWS: Row[] = [
     Icon: Clock,
     title: "Chase reminder",
     subtitle: "Sent when something is waiting on the client or their solicitor.",
+    info: "Sent when a step remains outstanding beyond your chosen timeframe. Clients are reminded what's needed and can respond through their portal. If they remain unresponsive, you'll be alerted to follow up personally.",
     render: () => <ClientChaseEditor />,
   },
   {
@@ -55,6 +60,7 @@ const ROWS: Row[] = [
     Icon: TrendUp,
     title: "Weekly update",
     subtitle: "Keeps clients updated when a sale has been quiet.",
+    info: "A short update during quieter periods, reassuring clients that their sale is progressing and keeping them informed even when there's nothing new to report.",
     render: () => <WeeklyUpdateEditor />,
   },
   {
@@ -62,6 +68,7 @@ const ROWS: Row[] = [
     Icon: LinkSimple,
     title: "Onward / related nudge",
     subtitle: "Asks a client to add or update their other move in the portal.",
+    info: "Invites clients who are also buying or selling another property to add their related move, helping you see more of the chain and identify anything that could affect their sale.",
     pills: ["Onward", "Related"],
     render: () => <OnwardNudgeEditor />,
   },
@@ -70,6 +77,7 @@ const ROWS: Row[] = [
     Icon: Handshake,
     title: "Post-completion",
     subtitle: "A thank you and what happens after completion.",
+    info: "A final email once the sale completes, covering useful next steps such as Land Registry updates, keeping important documents and leaving a review. Coming soon.",
     pills: ["Buyer", "Seller"],
     notSending: true,
     render: () => (
@@ -115,7 +123,10 @@ export function AutomatedEmailsList() {
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{r.title}</p>
+                <span style={{ display: "inline-flex", alignItems: "center" }}>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{r.title}</p>
+                  <InfoTip label={r.title}>{r.info}</InfoTip>
+                </span>
                 {r.notSending && (
                   <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, padding: "2px 7px", borderRadius: 5, background: "#f3f4f6", color: "#6b7280" }}>
                     Not sending yet
