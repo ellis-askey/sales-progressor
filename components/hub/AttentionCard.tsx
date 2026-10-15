@@ -906,7 +906,7 @@ function AttentionRow({
     pill = { label: "Needs assigning" };
     txId = f.id;
     address = f.propertyAddress;
-    secondary = f.agencyName ? `${f.agencyName} · unclaimed ${wait.text}` : `Unclaimed ${wait.text}`;
+    secondary = f.agencyName ? `${f.agencyName} · Unclaimed ${wait.text}` : `Unclaimed ${wait.text}`;
     href = `/agent/transactions/${f.id}`;
   } else if (row.kind === "relist") {
     const r = row.item;

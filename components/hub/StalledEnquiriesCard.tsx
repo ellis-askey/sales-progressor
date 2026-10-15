@@ -84,8 +84,10 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
           {shown.map((row, i) => {
             const href = `/agent/transactions/${row.transactionId}`;
             const photoUrl = row.photoStoragePath ? signedPhotos[row.photoStoragePath] ?? null : null;
-            const withPrefix = `With ${courtLabel(row.currentlyWith)}${row.solicitorName ? ` (${row.solicitorName})` : ""}`;
-            const quietPart = `quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`;
+            // Named firm leads when we have it ("With Juno Property Lawyers Ltd");
+            // the side label is the fallback (critique 2026-10-15).
+            const withPrefix = row.solicitorName ? `With ${row.solicitorName}` : `With ${courtLabel(row.currentlyWith)}`;
+            const quietPart = `Quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`;
             const withText = `${withPrefix} · ${quietPart}`;
             const addr = splitAddress(row.address);
             return (
@@ -111,7 +113,7 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
                         button — "With …" line, then "Quiet N days". */}
                     <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }} data-sensitive="true">
                       <span>{withPrefix}</span>
-                      <span>{`Quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`}</span>
+                      <span>{quietPart}</span>
                     </span>
                     <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                       <PaperPlaneTilt size={13} weight="bold" /> Chase

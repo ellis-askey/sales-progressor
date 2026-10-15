@@ -79,7 +79,7 @@ export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) 
             </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            Past their expected exchange date. Set a new date, recalibrate the estimate, or snooze while you chase.
+            Update the date, recalculate the estimate or snooze while you chase.
           </span>
         </span>
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
