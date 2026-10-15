@@ -33,7 +33,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { EmailSetupPrompt } from "@/components/agent/EmailSetupPrompt";
 import { HubEmptyState } from "@/components/agent/HubEmptyState";
 import { ProgressionOwnerEmptyState } from "@/components/agent/ProgressionOwnerEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer, getInvitingProgressorName, businessHasClients, getBusinessClientStage } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, getProgressorCopy, businessHasClients, getBusinessClientStage } from "@/lib/services/progression-clients";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import {
   ForecastHeatBand, ServiceSplitDonut,
@@ -287,9 +287,8 @@ export default async function Hub() {
 
   // The business progressing this agency's files (null = TSP-outsourced /
   // self-signup → keeps the "our team" framing). Names the "send a note" button.
-  const noteTeamLabel = !isInternalStaff && hasOutsourced
-    ? (await getInvitingProgressorName(session.user.agencyId)) ?? "our team"
-    : "our team";
+  const noteCopy = !isInternalStaff && hasOutsourced ? await getProgressorCopy(session.user.agencyId) : { count: 0, name: null };
+  const noteTeamLabel = noteCopy.count >= 2 ? "your progressors" : (noteCopy.name ?? "our team");
 
   return (
     <div data-testid="hub-full-state" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -428,7 +427,8 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
 
   // Agency users (director / negotiator / admin) get the onboarding empty state.
   if (!isProgressor) {
-    const progressorName = await getInvitingProgressorName(ctx.session.user.agencyId);
+    const pc = await getProgressorCopy(ctx.session.user.agencyId);
+    const progressorName = pc.count >= 2 ? "your progressors" : pc.name;
     return (
       <div data-testid="hub-empty-state">
         <HubEmptyState userId={ctx.session.user.id} canCreateSale={canCreateSale} progressorName={progressorName} />
@@ -1410,15 +1410,16 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
   // progresses their files; name it. Null (TSP-outsourced / self-signup) keeps
   // "our team" / "Our team" unchanged. Admins never see these (they get the
   // internal "us"/"we're progressing" copy below).
-  const progressorName = isAdmin ? null : await getInvitingProgressorName(ctx.session.user.agencyId);
-  const team = progressorName ?? "our team";
-  const Team = progressorName ?? "Our team";
+  const pc = isAdmin ? { count: 0, name: null } : await getProgressorCopy(ctx.session.user.agencyId);
+  const multiProg = pc.count >= 2;
+  const team = multiProg ? "your progressors" : (pc.name ?? "our team");
+  const Team = multiProg ? "Your progressors" : (pc.name ?? "Our team");
   return (
     <SectionReveal order={6}>
       <GlassCard glassId="hub-service-split" label="Hub · Service split" defaultVariant="v05" data-testid="hub-service-split" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who's managing"}</p>
-          <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : `Files you manage and files ${team} handles.`}</p>
+          <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : `Files you manage and files ${team} ${multiProg ? "handle" : "handles"}.`}</p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>

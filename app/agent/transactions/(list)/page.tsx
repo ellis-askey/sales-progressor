@@ -12,7 +12,7 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
-import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getProgressorCopy } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -91,9 +91,8 @@ export default async function AllTransactionsPage({
   // Name the "send a note" button after the business progressing this agency's
   // files (null = TSP-outsourced / self-signup → "our team"). Internal staff don't
   // see the button, so their null agencyId resolving to "our team" is harmless.
-  const noteTeamLabel = hasOutsourced
-    ? (await getInvitingProgressorName(session.user.agencyId)) ?? "our team"
-    : "our team";
+  const noteCopy = hasOutsourced ? await getProgressorCopy(session.user.agencyId) : { count: 0, name: null };
+  const noteTeamLabel = noteCopy.count >= 2 ? "your progressors" : (noteCopy.name ?? "our team");
   const isAdminPowers = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 

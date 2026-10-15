@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import {
   getAgentUpdatesFeed,
   getFileSnapshots,
@@ -107,7 +107,8 @@ export default async function AgentCommsPage() {
   }));
 
   // Only the empty state reads this, so resolve it only when we'll show it.
-  const progressorName = entries.length === 0 ? await getInvitingProgressorName(session.user.agencyId) : null;
+  const progressorCopy = entries.length === 0 ? await getProgressorCopy(session.user.agencyId) : { count: 0, name: null };
+  const progressorName = progressorCopy.count >= 2 ? "your progressors" : progressorCopy.name;
 
   return (
     <>

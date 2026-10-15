@@ -63,3 +63,17 @@ export async function getProgressorsForAgency(agencyId: string | null | undefine
   });
   return links.map((l) => ({ businessId: l.progressionBusinessId, name: l.progressionBusiness.name, feeModel: parseFeeModel(l.feeModel) }));
 }
+
+export type ProgressorCopy = { count: number; name: string | null };
+
+/**
+ * Count + primary name of an agency's progressors, for count-aware copy: name the
+ * one when there's a single progressor, or say "your progressors" when there are
+ * several (no single name fits a multi-progressor agency). `count === 0` (self-
+ * signup / TSP-outsourced) leaves `name` null so callers keep their "our team"
+ * fallback. One query.
+ */
+export async function getProgressorCopy(agencyId: string | null | undefined): Promise<ProgressorCopy> {
+  const list = await getProgressorsForAgency(agencyId);
+  return { count: list.length, name: list[0]?.name ?? null };
+}

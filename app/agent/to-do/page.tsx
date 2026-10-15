@@ -10,7 +10,7 @@ import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
-import { isBusinessOwnerViewer, getInvitingProgressorName } from "@/lib/services/progression-clients";
+import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { toUKDateStr } from "@/lib/utils";
 import { PageReveal } from "@/components/agent/PageReveal";
@@ -72,14 +72,16 @@ export default async function AgentTodoPage() {
   const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);
   // The business progressing this agency's files (null = TSP-outsourced /
   // self-signup → keeps "our team"/"TSP" framing). Only an invited agency needs it.
-  const progressorName = !isProgressor && hasOutsourced
-    ? await getInvitingProgressorName(session.user.agencyId)
-    : null;
+  const pc = !isProgressor && hasOutsourced
+    ? await getProgressorCopy(session.user.agencyId)
+    : { count: 0, name: null };
+  // Name the single progressor; say "your progressors" when there are several.
+  const progressorName = pc.count >= 2 ? "your progressors" : pc.name;
 
   const subtitle = isProgressor
     ? "Your management notes, plus requests from agents."
     : hasOutsourced
-      ? "Your notes, plus anything you've flagged to your progressor."
+      ? `Your notes, plus anything you've flagged to ${pc.count >= 2 ? "your progressors" : "your progressor"}.`
       : "Your notes and reminders.";
 
   return (

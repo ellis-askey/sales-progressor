@@ -33,7 +33,7 @@ export function CommsEmptyState({ progressorName = null }: { progressorName?: st
           </p>
           <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: progressorName ? 400 : 300 }}>
             {progressorName
-              ? `Everything happening across your sales, including the work ${progressorName} does for you, shows up here as it happens.`
+              ? `Everything happening across your sales, including the work done for you by ${progressorName}, shows up here as it happens.`
               : "Updates from across your sales will appear here as they happen."}
           </p>
         </div>

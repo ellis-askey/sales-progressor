@@ -787,8 +787,8 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
 // keep their import path. agent-session imports them DIRECTLY from the lean module,
 // never via this file, because this file statically pulls the email/SMTP sender
 // chain (which would break the client bundle — see lib/progression/inviting).
-export { getInvitingProgressorName, getInvitingProgressor, getProgressorsForAgency } from "@/lib/progression/inviting";
-export type { InvitingProgressor } from "@/lib/progression/inviting";
+export { getInvitingProgressorName, getInvitingProgressor, getProgressorsForAgency, getProgressorCopy } from "@/lib/progression/inviting";
+export type { InvitingProgressor, ProgressorCopy } from "@/lib/progression/inviting";
 
 /**
  * Owner-scoped guard: resolve the business owner AND confirm the agency is their
