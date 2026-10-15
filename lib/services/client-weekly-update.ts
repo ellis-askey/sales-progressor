@@ -48,7 +48,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
 
   // Active transactions for this agency
   const transactions = await prisma.propertyTransaction.findMany({
-    where: { agencyId, status: "active" },
+    where: { agencyId, status: "active", clientEmailsPaused: false },
     select: {
       id: true,
       propertyAddress: true,
@@ -67,9 +67,11 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         take: 1,
       },
       contacts: {
-        // Never email a client who has unsubscribed (compliance).
-        where: { email: { not: null }, unsubscribedAt: null, roleType: { in: ["purchaser", "vendor"] }, portalEligible: true },
-        select: { id: true, name: true, email: true, portalToken: true, roleType: true, buyerRoundId: true },
+        // Never email a client who has unsubscribed (compliance) or whose emails
+        // an agent has paused indefinitely (emailsPausedAt). A timed pause
+        // (chasesPausedUntil) is checked against "now" in the loop below.
+        where: { email: { not: null }, unsubscribedAt: null, emailsPausedAt: null, roleType: { in: ["purchaser", "vendor"] }, portalEligible: true },
+        select: { id: true, name: true, email: true, portalToken: true, roleType: true, buyerRoundId: true, chasesPausedUntil: true },
       },
     },
   });
@@ -97,6 +99,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
       if (!contact.email) continue;
       // Never email an archived previous buyer — scope purchasers to the active round.
       if (!isActiveRoundContact(contact, tx.activeBuyerRoundId)) continue;
+      // Respect a client's timed pause (an indefinite pause is filtered above).
+      if (contact.chasesPausedUntil && contact.chasesPausedUntil > new Date()) continue;
 
       const roleLabel = contact.roleType === "purchaser" ? "purchase" : "sale";
       const firstName = greetingFirstName(contact.name);
