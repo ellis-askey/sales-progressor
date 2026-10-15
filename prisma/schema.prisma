@@ -338,11 +338,13 @@ model ProgressionBusinessClient {
   agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
   @@unique([progressionBusinessId, agencyId])
-  // V1 rule (founder, 2026-10-03): an agency belongs to AT MOST ONE progression
-  // business, so routing (getInvitingProgressor) is deterministic. Allowing an
-  // agency to be a client of multiple businesses is a deferred growth feature —
-  // see EXTERNAL_SP_BACKLOG "Capstone audit — open items" #4.
-  @@unique([agencyId])
+  // An agency can be a client of MULTIPLE progression businesses (2026-10-15):
+  // a branch may split its sales across several progressors. Each SALE is still
+  // tagged to exactly one business via PropertyTransaction.progressionBusinessId
+  // (the access boundary); which progressor handles a given sale is chosen per
+  // sale. The old one-business-per-agency @@unique([agencyId]) was dropped — see
+  // getProgressorsForAgency + docs/active/progression-businesses/multi-progressor-mockup.html.
+  @@index([agencyId])
 }
 
 // A member's role WITHIN their progression business (business administration),
