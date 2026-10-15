@@ -29,10 +29,13 @@ type Props = {
   // shows a picker and the director must choose before handing over. For 0/1 this
   // is empty and progressorName (the single primary) drives the copy as before.
   progressors?: ProgressorOption[];
+  // The file's purchase price (pence), so the picker can show each progressor's
+  // actual fee for this sale.
+  pricePence?: number | null;
   onClose: () => void;
 };
 
-export function SwitchServiceTypeModal({ open, transactionId, current, progressorName = null, progressors = [], onClose }: Props) {
+export function SwitchServiceTypeModal({ open, transactionId, current, progressorName = null, progressors = [], pricePence = null, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +130,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, progresso
             </p>
           )}
           {multiProgressor && (
-            <ProgressorPicker progressors={progressors} selectedId={pickedId} onSelect={setPickedId} />
+            <ProgressorPicker progressors={progressors} selectedId={pickedId} onSelect={setPickedId} pricePence={pricePence} />
           )}
           {error && (
             <p

@@ -88,7 +88,7 @@ function GroupLabel({ children, selected }: { children: React.ReactNode; selecte
 
 export function SaleHeroEditable({
   fields, onUpdate, currentDraftId, ensureDraft, canOutsource = true,
-  showMemoFooter = false, onChangeFile, progressorName = null,
+  showMemoFooter = false, onChangeFile, progressorName = null, hasExternalProgressor = false,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
@@ -97,9 +97,11 @@ export function SaleHeroEditable({
   canOutsource?: boolean;
   showMemoFooter?: boolean;
   onChangeFile?: () => void;
-  // When set, this agency was invited by a progression business — "Send to us"
-  // relabels to their name and routes the sale to them.
+  // When set, this agency was invited by a progression business.
   progressorName?: string | null;
+  // The agency works with an external progressor (one or more). The outsource
+  // choice then reads "Outsource" rather than "Send to us" (which implies TSP).
+  hasExternalProgressor?: boolean;
 }) {
   const { toast } = useAgentToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -309,7 +311,7 @@ export function SaleHeroEditable({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <GroupLabel selected={!!fields.progressedBy}>Progressed by</GroupLabel>
             <Choice selected={fields.progressedBy === "agent"} onClick={() => onUpdate({ progressedBy: "agent" })}>Self-progress</Choice>
-            <Choice selected={fields.progressedBy === "progressor"} onClick={() => onUpdate({ progressedBy: "progressor" })}>{progressorName ? `Send to ${progressorName}` : "Send to us"}</Choice>
+            <Choice selected={fields.progressedBy === "progressor"} onClick={() => onUpdate({ progressedBy: "progressor" })}>{hasExternalProgressor ? "Outsource" : progressorName ? `Send to ${progressorName}` : "Send to us"}</Choice>
           </div>
         )}
 

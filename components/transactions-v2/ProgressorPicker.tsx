@@ -8,19 +8,30 @@
 // progressor is resolved server-side as before).
 
 import { Check } from "@phosphor-icons/react";
-import { feeModelSummary, type ClientFeeModel } from "@/lib/progression/client-fees";
+import { calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { AgencyMeshMark } from "@/components/progression/AgencyMeshMark";
 
 export type ProgressorOption = { businessId: string; name: string; feeModel: ClientFeeModel | null };
+
+// What each progressor's fee works out to for THIS sale: a single figure (so the
+// agent can compare and decide), not "Tiered · N bands". Needs the price for a
+// tiered/percent model; a flat fee shows regardless.
+function feeFigure(model: ClientFeeModel | null, pricePence: number | null): string {
+  const fee = calculateClientFee(model, pricePence && pricePence > 0 ? pricePence : null);
+  if (fee != null) return `£${(fee / 100).toLocaleString()}`;
+  return model ? "Set the price to see the fee" : "No fee set";
+}
 
 export function ProgressorPicker({
   progressors,
   selectedId,
   onSelect,
+  pricePence = null,
 }: {
   progressors: ProgressorOption[];
   selectedId: string;
   onSelect: (id: string) => void;
+  pricePence?: number | null;
 }) {
   return (
     <div className="ppk">
@@ -40,7 +51,7 @@ export function ProgressorPicker({
               <span className="ppk-logo"><AgencyMeshMark name={p.name} size={40} /></span>
               <span className="ppk-main">
                 <span className="ppk-name">{p.name}</span>
-                <span className="ppk-fee">{feeModelSummary(p.feeModel)}</span>
+                <span className="ppk-fee">{feeFigure(p.feeModel, pricePence)}</span>
               </span>
               <span className={"ppk-check" + (sel ? " on" : "")} aria-hidden>{sel && <Check size={13} weight="bold" />}</span>
             </button>

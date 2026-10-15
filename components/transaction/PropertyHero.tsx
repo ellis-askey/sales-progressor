@@ -942,6 +942,7 @@ export function PropertyHero({
             agentHandover={!isAdminViewer && canAgentHandOver}
             progressorName={handoverProgressorName}
             progressors={!isAdminViewer && canAgentHandOver ? handoverProgressors : []}
+            pricePence={purchasePrice}
             onClose={() => setSwitchModalOpen(false)}
           />
         )}

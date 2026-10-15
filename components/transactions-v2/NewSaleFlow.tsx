@@ -1505,6 +1505,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             onChangeFile={handleChangeFile}
             canOutsource={!clientAgencyId && !isProgressorCreate}
             progressorName={effectiveProgressorName}
+            hasExternalProgressor={progressors.length >= 1}
           />
         </div>
       )}
@@ -1522,6 +1523,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               progressors={progressors}
               selectedId={progressorBusinessId}
               onSelect={setProgressorBusinessId}
+              pricePence={formFields.purchasePricePence}
             />
           )}
 
