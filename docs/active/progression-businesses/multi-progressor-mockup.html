@@ -1,0 +1,259 @@
+<style>
+  :root{
+    --paper:#FFFBF5;--paper-2:#FFF5EC;--ink:#2D1810;--ink-2:#5A3A28;--muted:rgba(45,24,16,.56);--faint:rgba(45,24,16,.40);
+    --line:rgba(45,24,16,.10);--line-soft:rgba(45,24,16,.06);--card:#fff;
+    --coral:#FF8A65;--coral-deep:#FF6B4A;--coral-rgb:255,107,74;--coral-tint:rgba(255,107,74,.10);
+    --seller:#2E6DB4;--seller-tint:rgba(46,109,180,.1);--buyer:#1E9273;--buyer-tint:rgba(30,146,115,.1);
+    --good:#1F8A4A;--good-tint:rgba(31,138,74,.1);--warn:#C97D1A;--warn-tint:rgba(201,125,26,.12);--violet:#7C5CF6;--violet-tint:rgba(124,92,246,.12);
+    --r:16px;--shadow:0 1px 2px rgba(45,24,16,.05),0 12px 32px -16px rgba(45,24,16,.26);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#17110d;--paper-2:#1d1612;--ink:#F4EBE2;--ink-2:#D8C7B9;--muted:rgba(244,235,226,.6);--faint:rgba(244,235,226,.4);
+    --line:rgba(244,235,226,.13);--line-soft:rgba(244,235,226,.07);--card:#221a15;
+    --coral:#FF7E5F;--coral-deep:#FF6B4A;--coral-tint:rgba(255,126,95,.15);--seller:#7FB0E6;--seller-tint:rgba(127,176,230,.14);--buyer:#4FB98F;--buyer-tint:rgba(79,185,143,.14);
+    --good:#34D399;--good-tint:rgba(52,211,153,.13);--warn:#E0A54A;--warn-tint:rgba(224,165,74,.14);--violet:#A78BFA;--violet-tint:rgba(167,139,250,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -18px rgba(0,0,0,.6);
+  }}
+  :root[data-theme="light"]{--paper:#FFFBF5;--paper-2:#FFF5EC;--ink:#2D1810;--ink-2:#5A3A28;--muted:rgba(45,24,16,.56);--faint:rgba(45,24,16,.40);--line:rgba(45,24,16,.10);--line-soft:rgba(45,24,16,.06);--card:#fff;--coral:#FF8A65;--coral-deep:#FF6B4A;--coral-tint:rgba(255,107,74,.10);--good:#1F8A4A;--good-tint:rgba(31,138,74,.1);--warn:#C97D1A;--warn-tint:rgba(201,125,26,.12);--violet:#7C5CF6;--violet-tint:rgba(124,92,246,.12);--shadow:0 1px 2px rgba(45,24,16,.05),0 12px 32px -16px rgba(45,24,16,.26);}
+  :root[data-theme="dark"]{--paper:#17110d;--paper-2:#1d1612;--ink:#F4EBE2;--ink-2:#D8C7B9;--muted:rgba(244,235,226,.6);--faint:rgba(244,235,226,.4);--line:rgba(244,235,226,.13);--line-soft:rgba(244,235,226,.07);--card:#221a15;--coral:#FF7E5F;--coral-deep:#FF6B4A;--coral-tint:rgba(255,126,95,.15);--good:#34D399;--good-tint:rgba(52,211,153,.13);--warn:#E0A54A;--warn-tint:rgba(224,165,74,.14);--violet:#A78BFA;--violet-tint:rgba(167,139,250,.14);--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -18px rgba(0,0,0,.6);}
+
+  *{box-sizing:border-box;}
+  .wrap{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+    background:radial-gradient(1000px 500px at 85% -8%,var(--coral-tint),transparent 58%),var(--paper);
+    min-height:100vh;padding:clamp(26px,5vw,60px) clamp(14px,4vw,24px) 100px;}
+  .page{max-width:860px;margin:0 auto;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--coral-deep);font-weight:600;margin:0 0 12px;}
+  h1{font-size:clamp(26px,4.6vw,38px);line-height:1.08;letter-spacing:-.025em;margin:0 0 14px;font-weight:730;text-wrap:balance;max-width:20ch;}
+  .lede{font-size:16px;color:var(--ink-2);margin:0;max-width:62ch;}.lede b{color:var(--ink);font-weight:650;}
+  section{margin-top:clamp(40px,6vw,60px);}
+  .cap{display:flex;align-items:baseline;gap:11px;margin:0 0 6px;}
+  .cap .n{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--coral-deep);background:var(--coral-tint);border-radius:7px;padding:2px 8px;}
+  .cap h2{font-size:21px;letter-spacing:-.015em;margin:0;font-weight:690;}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 20px 0;max-width:66ch;}
+  .annot{font-size:12.5px;color:var(--muted);margin:12px 0 0;display:flex;gap:8px;align-items:flex-start;}
+  .annot b{color:var(--ink-2);}.annot .ar{color:var(--coral-deep);font-weight:700;flex:0 0 auto;}
+
+  /* phone/screen frame */
+  .screen{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
+  .screen-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line-soft);background:var(--paper-2);}
+  .screen-bar .d{width:9px;height:9px;border-radius:99px;background:var(--line);}
+  .screen-bar .t{margin-left:7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .screen-body{padding:clamp(16px,3vw,22px);}
+
+  /* model diagram */
+  .model{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;}
+  .agency-box{background:var(--card);border:2px solid var(--coral);border-radius:14px;padding:16px 20px;text-align:center;box-shadow:var(--shadow);}
+  .agency-box .nm{font-size:16px;font-weight:720;}.agency-box .tm{font-size:12px;color:var(--muted);margin-top:3px;}
+  .fan{display:flex;flex-direction:column;gap:9px;}
+  .fan-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 14px;box-shadow:var(--shadow);}
+  .fan-item .pill{font-size:10px;font-weight:700;font-family:var(--mono);padding:2px 8px;border-radius:99px;}
+  .fan-item .sale{font-size:12.5px;font-weight:600;flex:1;}.fan-item .arrow{color:var(--faint);}
+  .biz-jo{color:var(--seller);background:var(--seller-tint);} .biz-an{color:var(--buyer);background:var(--buyer-tint);} .biz-self{color:var(--coral-deep);background:var(--coral-tint);} .biz-tsp{color:var(--muted);background:var(--line-soft);}
+
+  /* choice cards (add a client) */
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){.choices{grid-template-columns:1fr;}}
+  .choice{border:1.5px solid var(--line);border-radius:13px;padding:16px;background:var(--card);cursor:default;transition:all .15s;}
+  .choice.sel{border-color:var(--coral);box-shadow:0 0 0 3px var(--coral-tint);}
+  .choice .ci{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--coral),var(--coral-deep));margin-bottom:11px;}
+  .choice .ci.alt{background:linear-gradient(145deg,#7FB0E6,#2E6DB4);}
+  .choice h4{margin:0 0 4px;font-size:14.5px;font-weight:680;}.choice p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .new-badge{font-size:9px;font-weight:700;font-family:var(--mono);color:var(--good);background:var(--good-tint);padding:2px 7px;border-radius:99px;margin-left:7px;vertical-align:middle;}
+
+  .field{margin-bottom:13px;}.field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:5px;}
+  .field .inp{height:40px;border:1px solid var(--line);border-radius:9px;background:var(--paper-2);display:flex;align-items:center;padding:0 12px;font-size:13.5px;color:var(--ink);}
+  .field .inp.ph{color:var(--faint);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 18px;border-radius:9px;font-size:13.5px;font-weight:600;border:none;cursor:default;}
+  .btn-primary{background:linear-gradient(135deg,var(--coral-deep),var(--coral));color:#fff;box-shadow:0 4px 16px rgba(var(--coral-rgb),.28);}
+  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink-2);}
+  .btn-sm{height:33px;padding:0 13px;font-size:12.5px;}
+
+  /* accept request card */
+  .req{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--coral);border-radius:13px;padding:15px 17px;box-shadow:var(--shadow);}
+  .req .logo{width:42px;height:42px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;background:linear-gradient(145deg,#A5B4FC,#4F46E5);}
+  .req .body{flex:1;min-width:0;}.req .body .ti{font-size:14px;font-weight:650;}.req .body .de{font-size:12.5px;color:var(--muted);margin-top:2px;}
+  .req .acts{display:flex;gap:8px;flex:0 0 auto;}
+
+  /* progressed-by chips (new sale) */
+  .groups-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 9px;}
+  .chips{display:flex;gap:9px;flex-wrap:wrap;}
+  .chip{border:1.5px solid var(--line);border-radius:11px;padding:11px 14px;background:var(--card);display:flex;align-items:center;gap:10px;min-width:150px;flex:1 1 0;}
+  .chip.sel{border-color:var(--coral);background:var(--coral-tint);}
+  .chip .ck{width:18px;height:18px;border-radius:99px;border:1.5px solid var(--line);flex:0 0 auto;display:grid;place-items:center;}
+  .chip.sel .ck{background:var(--coral-deep);border-color:var(--coral-deep);color:#fff;}
+  .chip .lab{font-size:13px;font-weight:650;line-height:1.2;}.chip .lab small{display:block;font-weight:400;color:var(--muted);font-size:11px;}
+
+  /* client row + your-progressors */
+  .cw-row{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 16px;box-shadow:var(--shadow);}
+  .cw-row .logo{width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;background:linear-gradient(145deg,#FFC2AC,#FF8A65);}
+  .cw-row .info{flex:1;min-width:0;}.cw-row .nm{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px;}.cw-row .meta{font-size:12px;color:var(--muted);margin-top:2px;}
+  .cw-row .stat{text-align:right;font-size:12px;color:var(--muted);}.cw-row .stat b{display:block;font-size:15px;color:var(--ink);font-weight:700;}
+  .tag{font-size:9.5px;font-weight:700;font-family:var(--mono);padding:2px 8px;border-radius:99px;}
+  .tag.shared{color:var(--violet);background:var(--violet-tint);}
+  .prog-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line-soft);}
+  .prog-row:first-child{border-top:0;}.prog-row .lg{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px;flex:0 0 auto;}
+  .prog-row .nm{font-size:13.5px;font-weight:600;flex:1;}.prog-row .nm small{display:block;color:var(--muted);font-weight:400;font-size:11.5px;}
+
+  /* plan */
+  .plan{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:6px 20px;}
+  .plan-row{display:flex;gap:13px;padding:14px 0;border-top:1px solid var(--line-soft);align-items:flex-start;}
+  .plan-row:first-child{border-top:0;}
+  .plan-row .k{font-size:13.5px;font-weight:650;flex:0 0 168px;}
+  .plan-row .v{font-size:13px;color:var(--muted);line-height:1.5;}.plan-row .v b{color:var(--ink-2);}
+  .plan-row .flag{font-size:9.5px;font-weight:700;font-family:var(--mono);padding:2px 7px;border-radius:6px;white-space:nowrap;}
+  .f-new{color:var(--good);background:var(--good-tint);}.f-change{color:var(--warn);background:var(--warn-tint);}.f-safe{color:var(--muted);background:var(--line-soft);}
+
+  .dec{border:1px solid var(--line);border-left:3px solid var(--coral);border-radius:12px;padding:15px 18px;margin-top:12px;background:var(--card);box-shadow:var(--shadow);}
+  .dec h4{margin:0 0 5px;font-size:14px;font-weight:680;}
+  .dec p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}.dec p b{color:var(--ink);}
+  .rec{font-size:9.5px;font-weight:700;font-family:var(--mono);color:#fff;background:linear-gradient(135deg,var(--coral),var(--coral-deep));padding:2px 8px;border-radius:99px;margin-left:7px;}
+  .foot{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);font-family:var(--mono);line-height:1.7;}
+</style>
+
+<div class="wrap"><div class="page">
+
+  <p class="eyebrow">Progression businesses · multi-progressor · proposed UI</p>
+  <h1>One agency, several progressors</h1>
+  <p class="lede">Knights Residential is <b>one agency with one team</b>. Who progresses a sale is chosen <b>per sale</b> — Jo, Annalise, in-house, or TSP. Access and the "Managed by" badge already work this way per file; this adds the <b>connect-an-existing-agency</b> handshake and a <b>per-sale progressor choice</b>. Nothing's built yet — this is for your sign-off.</p>
+
+  <!-- 1 model -->
+  <section>
+    <div class="cap"><span class="n">01</span><h2>The model</h2></div>
+    <p class="sub">The agency stays one record with one login. Each sale carries its own progressor on the file itself.</p>
+    <div class="screen"><div class="screen-body"><div class="model">
+      <div class="agency-box"><div class="nm">Knights Residential</div><div class="tm">one agency · one team · one login</div></div>
+      <div style="color:var(--faint);font-size:24px">→</div>
+      <div class="fan">
+        <div class="fan-item"><span class="pill biz-jo">JO</span><span class="sale">12 Fox Grove</span><span class="arrow">·</span><span style="font-size:11.5px;color:var(--muted)">Key To Completion</span></div>
+        <div class="fan-item"><span class="pill biz-an">AW</span><span class="sale">4 Oak Lane</span><span class="arrow">·</span><span style="font-size:11.5px;color:var(--muted)">Moves By Wright</span></div>
+        <div class="fan-item"><span class="pill biz-self">IN</span><span class="sale">9 Elm Road</span><span class="arrow">·</span><span style="font-size:11.5px;color:var(--muted)">In-house (self)</span></div>
+        <div class="fan-item"><span class="pill biz-tsp">TSP</span><span class="sale">2 Marsh Way</span><span class="arrow">·</span><span style="font-size:11.5px;color:var(--muted)">TSP</span></div>
+      </div>
+    </div></div></div>
+    <p class="annot"><span class="ar">✓</span><span>Already safe today: each file is scoped by its own <b>progressionBusinessId</b>, so splitting a branch's sales across businesses needs <b>no access changes</b> — only the two surfaces below.</span></p>
+  </section>
+
+  <!-- 2 add a client -->
+  <section>
+    <div class="cap"><span class="n">02</span><h2>Add a client → two routes</h2></div>
+    <p class="sub">Today "Add a client" only sets up a brand-new agency and refuses anyone already on the platform. We split it in two.</p>
+    <div class="screen"><div class="screen-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Key To Completion · Clients · Add a client</span></div>
+      <div class="screen-body">
+        <div class="choices">
+          <div class="choice sel">
+            <div class="ci"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg></div>
+            <h4>Set up a new agency</h4>
+            <p>They're new to Sales Progressor. We create their agency and email their director an invite to log in. <i>(Today's flow.)</i></p>
+          </div>
+          <div class="choice">
+            <div class="ci alt"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7a4 4 0 0 0 0 10M15 7a4 4 0 0 1 0 10M8 12h8"/></svg></div>
+            <h4>Connect an agency already here <span class="new-badge">NEW</span></h4>
+            <p>They already use Sales Progressor (their own, or another progressor's). You send a request; their director approves it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="annot"><span class="ar">→</span><span>The "connect" route is the unlock — it's consent-based, so a business can never silently attach itself to an agency it didn't set up.</span></p>
+  </section>
+
+  <!-- 3 connect + accept -->
+  <section>
+    <div class="cap"><span class="n">03</span><h2>Connect → the agency approves</h2></div>
+    <p class="sub">A short request from the progressor, an Accept on the agency's side. That consent is what lets them share.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+      <div>
+        <div class="screen"><div class="screen-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Progressor · connect</span></div>
+          <div class="screen-body">
+            <div class="field"><label>Agency's email</label><div class="inp">hello@knightsresidential.co.uk</div></div>
+            <div class="field"><label>Your fee per sale</label><div class="inp">£250</div></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-bottom:13px;line-height:1.5">We'll send their director a request. Nothing's shared until they accept.</div>
+            <button class="btn btn-primary" style="width:100%">Send connection request</button>
+          </div>
+        </div>
+        <p class="annot"><span class="ar">·</span><span>Matches the existing "Add a client" modal (same inputs + fee).</span></p>
+      </div>
+      <div>
+        <div class="screen"><div class="screen-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Knights Residential · hub</span></div>
+          <div class="screen-body">
+            <div class="req">
+              <div class="logo">KC</div>
+              <div class="body"><div class="ti">Key To Completion would like to progress your sales</div><div class="de">They'll see only the sales you assign to them.</div></div>
+              <div class="acts"><button class="btn btn-ghost btn-sm">Decline</button><button class="btn btn-primary btn-sm">Accept</button></div>
+            </div>
+          </div>
+        </div>
+        <p class="annot"><span class="ar">·</span><span>On the agency's hub. Accept → the connection is live, and they'll show in the progressor's Clients list.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 per-sale choice -->
+  <section>
+    <div class="cap"><span class="n">04</span><h2>New sale → choose who progresses it</h2></div>
+    <p class="sub">Today "Progressed by" is two buttons (Self / Send to {the one progressor}). When an agency has more than one, it becomes a pick. One progressor = unchanged.</p>
+    <div class="screen"><div class="screen-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Knights Residential · New sale</span></div>
+      <div class="screen-body">
+        <p class="groups-label">Progressed by</p>
+        <div class="chips">
+          <div class="chip"><span class="ck"></span><span class="lab">Self-progress<small>your team handles it</small></span></div>
+          <div class="chip sel"><span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lab">Jo Saunders<small>Key To Completion</small></span></div>
+          <div class="chip"><span class="lab">Annalise Wright<small>Moves By Wright</small></span><span class="ck" style="order:-1"></span></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:14px 0 0">The sale is tagged to that business on the file. Everything downstream (billing, chasing, the "Managed by" badge) already follows the file's own progressor.</p>
+      </div>
+    </div>
+    <p class="annot"><span class="ar">→</span><span>Same chip component as today's toggle, just one per connected progressor. <b>Handover</b> ("Hand this file to…") gets the same picker. A progressor creating a sale for their own client is unchanged — it's always their business.</span></p>
+  </section>
+
+  <!-- 5 how it shows -->
+  <section>
+    <div class="cap"><span class="n">05</span><h2>How a shared agency shows up</h2></div>
+    <p class="sub">Each progressor sees Knights in their own Clients list (only their sales). The agency gets a new "Your progressors" view.</p>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div class="cw-row">
+          <div class="logo">KR</div>
+          <div class="info"><div class="nm">Knights Residential <span class="tag shared">● shared</span></div><div class="meta">Colchester · 6 of your sales</div></div>
+          <div class="stat"><b>6</b>active</div>
+        </div>
+        <p class="annot"><span class="ar">·</span><span>In Jo's Clients list. The small <b>shared</b> tag just signals the agency also works with another progressor — Jo still only sees her own 6 sales and her own rate card.</span></p>
+      </div>
+      <div>
+        <div class="screen"><div class="screen-bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="t">Knights Residential · Settings · Your progressors</span></div>
+          <div class="screen-body" style="padding-top:8px;padding-bottom:8px">
+            <div class="prog-row"><span class="lg" style="background:linear-gradient(145deg,#A5B4FC,#4F46E5)">KC</span><span class="nm">Key To Completion<small>Jo Saunders · 6 sales</small></span><button class="btn btn-ghost btn-sm">Remove</button></div>
+            <div class="prog-row"><span class="lg" style="background:linear-gradient(145deg,#6EE7B7,#0E9F6E)">MW</span><span class="nm">Moves By Wright<small>Annalise Wright · 3 sales</small></span><button class="btn btn-ghost btn-sm">Remove</button></div>
+          </div>
+        </div>
+        <p class="annot"><span class="ar">+</span><span>New agency-settings page so Knights can see and manage who progresses their sales (and revoke). This is the only genuinely new screen.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 plan -->
+  <section>
+    <div class="cap"><span class="n">06</span><h2>The build, and what's touched</h2></div>
+    <div class="plan">
+      <div class="plan-row"><span class="k">Schema</span><span class="v">Drop <b>@@unique([agencyId])</b> on the client link (keep the composite). One migration, staging first.</span><span class="flag f-change">change</span></div>
+      <div class="plan-row"><span class="k">Connect-existing flow</span><span class="v">New action + the "Connect an agency" route + the Accept/Decline on the agency hub + the connection-request record.</span><span class="flag f-new">build</span></div>
+      <div class="plan-row"><span class="k">Per-sale routing</span><span class="v"><b>getInvitingProgressor</b> returns the list; the New-sale "Progressed by" + Handover become a pick when &gt;1; sale is tagged explicitly.</span><span class="flag f-change">change</span></div>
+      <div class="plan-row"><span class="k">"Your progressors" page</span><span class="v">New agency-settings screen to view / remove connected businesses.</span><span class="flag f-new">build</span></div>
+      <div class="plan-row"><span class="k">Copy touch-ups</span><span class="v">Welcome modal, hub legend, handover wording, Clients "exclusive" copy — stop assuming a single progressor (~7 small strings).</span><span class="flag f-change">change</span></div>
+      <div class="plan-row"><span class="k">Access &amp; "Managed by"</span><span class="v">No change — already per-file via progressionBusinessId.</span><span class="flag f-safe">safe</span></div>
+      <div class="plan-row"><span class="k">Create-for-client / handover / billing / fees</span><span class="v">No change — already keyed on the composite (business known from the actor).</span><span class="flag f-safe">safe</span></div>
+    </div>
+  </section>
+
+  <!-- 7 decisions -->
+  <section>
+    <div class="cap"><span class="n">07</span><h2>Your calls</h2></div>
+    <div class="dec"><h4>1 · Connection model <span class="rec">recommended: consent invite</span></h4><p>Progressor requests → agency director accepts (as mocked). Keeps it secure and self-serve. Alternative: you/TSP link them from the Command Centre.</p></div>
+    <div class="dec"><h4>2 · Jo &amp; Annalise right now <span class="rec">recommended: I link them directly</span></h4><p>So they can go live this week, <b>I create the two links directly</b> once the constraint's dropped — no waiting for the full invite UI. The consent flow ships right after for everyone else.</p></div>
+    <div class="dec"><h4>3 · What a connected progressor sees of a shared agency <span class="rec">recommended: just their own sales + rate card</span></h4><p>Not the agency's internal team roster / branding / settings (those stay with the agency and whoever set them up). Keeps the security invariant intact.</p></div>
+    <div class="dec"><h4>4 · Default progressor on a new sale <span class="rec">recommended: explicit pick, no default</span></h4><p>When an agency has 2+ progressors, make them choose rather than guess — avoids the silent wrong-business bug that exists today.</p></div>
+  </section>
+
+  <p class="foot">Mockup for sign-off · grounded in: lib/progression/inviting.ts · app/actions/transactions.ts (progressionBusinessId resolution) · lib/services/progression-clients.ts (addClientAgency) · components/transactions-v2/SaleHeroEditable.tsx (Progressed-by) · ClientsWorkspace / AgencyWorkspace · access-scope.ts (already per-file). No code changed.</p>
+
+</div></div>
