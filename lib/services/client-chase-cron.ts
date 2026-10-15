@@ -433,7 +433,13 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     // path (createAgentChaseTaskForMilestone → "client_emails_paused" chip)
     // instead of enqueueing a digest. ClientChaseState is left untouched,
     // so unpausing/re-enabling picks the schedule back up from where it was.
-    const agencyOff = agencyChaseEnabled.get(transaction.agencyId) === false
+    // A file outsourced to an external (non-TSP) progression company is governed
+    // solely by THAT company's chase prefs — the owning agency's toggle doesn't
+    // gate it (the agency didn't buy the progression service, the company did).
+    // Self-progressed / TSP files stay governed by the agency toggle.
+    const bg = transaction.progressionBusinessId ? businessGate.get(transaction.progressionBusinessId) : null;
+    const externallyProgressed = !!bg && !bg.isTsp;
+    const agencyOff = (!externallyProgressed && agencyChaseEnabled.get(transaction.agencyId) === false)
       || !businessChaseAllows(businessGate, transaction.progressionBusinessId, "client");
     // File-level pause is now resolved per side (below, once we know the
     // chase's side) so seller-only / buyer-only toggles take effect

@@ -66,7 +66,7 @@ export default async function AgencyChasingPage() {
     <>
       <AccountPageHeader
         title="Automated chasing"
-        subtitle="Which chases we run across your files, and how often. These apply to every sale unless you change them on an individual file."
+        subtitle="Which chases we run on the sales your team progresses, and how often. You can still fine-tune them on an individual file. Sales you outsource to a progression company are chased by that company instead."
       />
       <AgencyChaseGrid initial={prefs} />
       <AutomationSettingsForm

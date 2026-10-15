@@ -774,7 +774,7 @@ export async function saveAgentChasePrefsAction(prefs: {
       chainNeighbourUpdatesEnabled: !!prefs.chain,
     },
   });
-  revalidatePath("/agent/settings/automation");
+  revalidatePath("/agent/account/chasing");
   return { ok: true };
 }
 

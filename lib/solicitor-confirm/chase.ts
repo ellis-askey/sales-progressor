@@ -211,10 +211,10 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       // Demo files never chase: their solicitor contacts are @example.com and
       // their steps carry old grace windows, so they'd otherwise qualify.
       isDemo: false,
-      // Per-agency gate: only chase files whose owning agency has solicitor
-      // chasing switched on (Command Centre). The global master switch above
-      // still applies on top.
-      agency: { is: { solicitorChaseEnabled: true } },
+      // Agency / business gates are applied in-memory below (per file), because
+      // a file outsourced to an external company must follow THAT company's
+      // solicitor-chase pref, not the owning agency's switch. The global master
+      // switch still applies on top (checked by the caller).
       OR: [
         { vendorSolicitorContactId: { not: null } },
         { purchaserSolicitorContactId: { not: null } },
@@ -225,6 +225,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       activeBuyerRoundId: true,
       lastActivityAt: true,
       createdAt: true,
+      agency: { select: { solicitorChaseEnabled: true } }, // self/TSP files gated by this; external files follow the business pref
       progressionBusinessId: true, // business can switch solicitor chases off (business automation)
       // Exchange-day suppression (see docs/active/exchange-day-SPEC.md).
       exchangeDayStartedAt: true,
@@ -261,6 +262,11 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
   const out: DueGroup[] = [];
 
   for (const tx of txs) {
+    // Agency switch gates only self-progressed / TSP files. A file outsourced to
+    // an external (non-TSP) company follows that company's solicitor pref instead.
+    const bg = tx.progressionBusinessId ? businessGate.get(tx.progressionBusinessId) : null;
+    const externallyProgressed = !!bg && !bg.isTsp;
+    if (!externallyProgressed && tx.agency.solicitorChaseEnabled === false) continue;
     if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "solicitor")) continue;
     // Exchange-day: don't chase solicitors on a file that's aiming to exchange
     // today — the exchange-day sequence handles them instead.

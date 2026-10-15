@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStepList } from "@/lib/milestone-emails/steps";
 import { getBrandColor } from "@/lib/agent/themes";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import { getProgressorCopy } from "@/lib/progression/inviting";
 import { resolveStudioTheme } from "@/lib/email/email-theme-studio";
 import { emailStudioEnabled } from "@/lib/email/studio-flag";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
@@ -58,6 +59,18 @@ export default async function AccountEmailsPage() {
   };
   const agencyName = agency?.name ?? null;
 
+  // Wording applies to the sales the agency progresses itself (and any our own
+  // team handles); sales outsourced to an external company use that company's
+  // wording instead. Only surface that split to agencies that actually work
+  // with a progression company, so a self-managed agency keeps the simple note.
+  const progressors = await getProgressorCopy(session.user.agencyId);
+  const wordingNote =
+    progressors.count === 0
+      ? "Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording."
+      : progressors.count === 1 && progressors.name
+        ? `Any changes you make are used from the next email on the sales you progress yourselves. Sales you send to ${progressors.name} use their wording instead. Your logo, name and colours stay on every email either way.`
+        : "Any changes you make are used from the next email on the sales you progress yourselves. Sales you outsource to a progression company use that company's wording instead. Your logo, name and colours stay on every email either way.";
+
   // Resolve the agency's email theme into the few values the copy preview needs,
   // so editing the wording shows it in the agency's real colours + font (#2).
   const st = resolveStudioTheme(branding.theme);
@@ -94,7 +107,7 @@ export default async function AccountEmailsPage() {
                 <div>
                   <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version is what clients see</p>
                   <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>
-                    Any changes you make will be used from the next email. Anything you leave unchanged will keep our original wording.
+                    {wordingNote}
                   </p>
                 </div>
               </div>

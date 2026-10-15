@@ -421,7 +421,7 @@ export function PropertyHero({
         <button
           type="button"
           onClick={() => setSwitchModalOpen(true)}
-          title={isSelf ? (handoverProgressorName ? `Hand to ${handoverProgressorName}` : "Switch to TSP") : "Switch to in-house"}
+          title={isSelf ? (handoverProgressorName ? `Hand to ${handoverProgressorName}` : (handoverProgressors && handoverProgressors.length > 0 ? "Hand over" : "Switch to TSP")) : "Switch to in-house"}
           className="v2-swap-btn"
           onMouseEnter={(e) => {
             if (isSelf) { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }

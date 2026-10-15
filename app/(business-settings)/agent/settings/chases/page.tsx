@@ -3,7 +3,8 @@
 // #22) plus the auto-send-chain-invites toggle (#23). Owner-gated.
 //
 // Uses the /chases URL (not /automation) because /agent/settings/automation already
-// belongs to the agency director automation page; the nav labels this "Automation".
+// belonged to the (now retired) agency director automation page; the nav labels
+// this "Automated chasing".
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
@@ -37,7 +38,7 @@ export default async function BusinessChasesPage() {
   return (
     <>
       <AccountPageHeader
-        title="Automation"
+        title="Automated chasing"
         subtitle="Which chases we run for you, how often, and how chain invites are sent."
         backLabel="Back to progression"
       />
