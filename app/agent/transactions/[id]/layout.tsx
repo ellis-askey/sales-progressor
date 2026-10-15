@@ -25,7 +25,7 @@ import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { fileProgressorLabel } from "@/lib/progression/identity";
-import { getInvitingProgressorName, resolveBusinessOwner } from "@/lib/services/progression-clients";
+import { getProgressorsForAgency, resolveBusinessOwner } from "@/lib/services/progression-clients";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
@@ -223,10 +223,14 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // keeps the unchanged "hand to TSP" wording and routing.
   const canAgentHandOver =
     session.user.role === "director" && transaction.serviceType === "self_managed" && transaction.status === "active";
-  const handoverProgressorName =
+  // All progressors the agency works with (for the handover picker when 2+). The
+  // single-progressor name drives the unchanged "Hand to {name}" copy; a 2+ agency
+  // leaves the name null (generic copy) and the modal shows a picker instead.
+  const handoverProgressors =
     canAgentHandOver && progressionBusinessesEnabled() && session.user.agencyId
-      ? await getInvitingProgressorName(session.user.agencyId)
-      : null;
+      ? await getProgressorsForAgency(session.user.agencyId)
+      : [];
+  const handoverProgressorName = handoverProgressors.length === 1 ? handoverProgressors[0].name : null;
 
   // Chase timeline: the founder on every file; an agency on its own self-managed
   // files; and an internal viewer of an EXTERNAL progression-business file (the
@@ -438,6 +442,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             isAdminViewer={isAdminRole}
             canAgentHandOver={canAgentHandOver}
             handoverProgressorName={handoverProgressorName}
+            handoverProgressors={handoverProgressors}
             photoUrl={heroPhotoUrl}
             overridePredictedDate={transaction.overridePredictedDate ?? null}
             topRightSlot={heroTopRightSlot}

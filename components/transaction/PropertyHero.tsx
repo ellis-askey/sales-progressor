@@ -19,6 +19,7 @@ function extractPostcode(addr: string): string | null {
 }
 import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
+import type { ProgressorOption } from "@/components/transactions-v2/ProgressorPicker";
 import { HeroSmallControls } from "./HeroSmallControls";
 import { useFileProgress } from "./FileProgressContext";
 import { HeroSaleFields } from "./HeroSaleFields";
@@ -74,6 +75,10 @@ type Props = {
    *  in-house file over to one. Drives the handover tooltip + modal copy
    *  ("Hand to {name}"). Null → the unchanged "hand to TSP" wording. */
   handoverProgressorName?: string | null;
+  /** Multi-progressor: all progressors the agency works with. When 2+, the
+   *  handover modal shows a picker (the director chooses who takes the file).
+   *  Empty for a single-progressor agency (handoverProgressorName drives copy). */
+  handoverProgressors?: ProgressorOption[];
   // 2026-08-08 hero redesign — signed URL for the property photo
   // (PropertyTransaction.photoStoragePath, signed server-side on read).
   // Null when no photo uploaded; the hero renders a coral gradient +
@@ -267,7 +272,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -936,6 +941,7 @@ export function PropertyHero({
             current={serviceType}
             agentHandover={!isAdminViewer && canAgentHandOver}
             progressorName={handoverProgressorName}
+            progressors={!isAdminViewer && canAgentHandOver ? handoverProgressors : []}
             onClose={() => setSwitchModalOpen(false)}
           />
         )}

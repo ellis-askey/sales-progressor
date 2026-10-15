@@ -10,6 +10,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { switchServiceTypeAction } from "@/app/actions/transactions";
+import { ProgressorPicker, type ProgressorOption } from "@/components/transactions-v2/ProgressorPicker";
 
 type ServiceType = "self_managed" | "outsourced";
 
@@ -24,47 +25,66 @@ type Props = {
   // TSP), this names that business so the copy reads "Hand to {name}". Null
   // keeps the unchanged TSP wording.
   progressorName?: string | null;
+  // Multi-progressor: all progressors the agency works with. When 2+, the modal
+  // shows a picker and the director must choose before handing over. For 0/1 this
+  // is empty and progressorName (the single primary) drives the copy as before.
+  progressors?: ProgressorOption[];
   onClose: () => void;
 };
 
-export function SwitchServiceTypeModal({ open, transactionId, current, progressorName = null, onClose }: Props) {
+export function SwitchServiceTypeModal({ open, transactionId, current, progressorName = null, progressors = [], onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [pickedId, setPickedId] = useState<string>("");
 
   const target: ServiceType = current === "self_managed" ? "outsourced" : "self_managed";
   const toTSP = target === "outsourced";
 
+  // Multi-progressor handover: the director chooses which progressor takes the
+  // file. The effective name (for the copy) is the picked one; nothing is chosen
+  // by default, so the copy stays generic until they pick.
+  const multiProgressor = toTSP && progressors.length >= 2;
+  const pickedName = multiProgressor ? (progressors.find((p) => p.businessId === pickedId)?.name ?? null) : null;
+  const effectiveName = multiProgressor ? pickedName : progressorName;
+
   // Direction-aware copy. Header carries the title + a one-line lead; the body
   // says what happens next. Voice clean: no em-dashes. When handing over to an
-  // external progression business (not TSP), the copy names that business.
-  const toProgressor = toTSP && !!progressorName;
+  // external progression business (not TSP), the copy names that business. In the
+  // multi-progressor case the copy stays generic ("Hand this file over?") until a
+  // progressor is picked, then names them.
+  const toProgressor = toTSP && !!effectiveName;
   const title = !toTSP
     ? "Switch to self-progress?"
-    : toProgressor ? `Hand this file to ${progressorName}?` : "Switch to TSP progression?";
+    : toProgressor ? `Hand this file to ${effectiveName}?` : multiProgressor ? "Hand this file over?" : "Switch to TSP progression?";
   const subtitle = !toTSP
     ? "You'll take the progression back over."
     : toProgressor
-      ? `${progressorName} will take over the progression of this sale.`
-      : "We'll take over the progression of this sale.";
+      ? `${effectiveName} will take over the progression of this sale.`
+      : multiProgressor
+        ? "Choose which of your progressors takes over this sale."
+        : "We'll take over the progression of this sale.";
   const body = !toTSP
     ? "Our team will stop progressing this sale, but everything already recorded will stay exactly where it is. You can continue from where we left off."
     : toProgressor
-      ? `${progressorName} will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.`
-      : "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.";
+      ? `${effectiveName} will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.`
+      : multiProgressor
+        ? ""
+        : "Our team will pick the file up from here. You'll still have full visibility of the sale and see updates as they happen.";
   const confirmLabel = !toTSP
     ? "Switch to self-progress"
-    : toProgressor ? `Hand to ${progressorName}` : "Switch to TSP progression";
+    : toProgressor ? `Hand to ${effectiveName}` : multiProgressor ? "Hand over" : "Switch to TSP progression";
+  const confirmDisabled = isPending || (multiProgressor && !pickedId);
 
-  // Reset error when the modal opens or the direction changes.
+  // Reset error + pick when the modal opens or the direction changes.
   useEffect(() => {
-    if (open) setError(null);
+    if (open) { setError(null); setPickedId(""); }
   }, [open, target]);
 
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const res = await switchServiceTypeAction(transactionId, target);
+      const res = await switchServiceTypeAction(transactionId, target, multiProgressor ? pickedId : undefined);
       if (res.ok) {
         onClose();
       } else {
@@ -101,9 +121,14 @@ export function SwitchServiceTypeModal({ open, transactionId, current, progresso
         </Modal.Header>
 
         <Modal.Body>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
-            {body}
-          </p>
+          {body && (
+            <p className="text-sm leading-relaxed" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+              {body}
+            </p>
+          )}
+          {multiProgressor && (
+            <ProgressorPicker progressors={progressors} selectedId={pickedId} onSelect={setPickedId} />
+          )}
           {error && (
             <p
               className="mt-3 text-xs"
@@ -127,7 +152,7 @@ export function SwitchServiceTypeModal({ open, transactionId, current, progresso
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={isPending}
+            disabled={confirmDisabled}
             className="agent-btn agent-btn-primary agent-btn-md"
           >
             {isPending ? "Switching…" : confirmLabel}

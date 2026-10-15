@@ -1643,6 +1643,10 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
 export async function switchServiceTypeAction(
   transactionId: string,
   target: "self_managed" | "outsourced",
+  // Multi-progressor agency handover: which progressor to hand to. Re-validated
+  // below against the agency's non-removed links. Undefined for a single-
+  // progressor agency / admin switch (resolved as before).
+  chosenProgressionBusinessId?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSession();
   const isAdmin = hasAdminPowers(session);
@@ -1713,8 +1717,21 @@ export async function switchServiceTypeAction(
   let handoverBusinessId: string | null = null;
   let handoverAgencyId: string | null = null;
   if (isAgentHandover && target === "outsourced" && progressionBusinessesEnabled() && session.user.agencyId) {
-    const inviting = await getInvitingProgressor(session.user.agencyId);
-    handoverBusinessId = inviting?.businessId ?? null;
+    // An agency can work with several progressors; the director picks which one
+    // takes the handed-over file. Validate an explicit choice; require one when
+    // there are 2+; otherwise the single primary (or null → TSP), as before.
+    const progressors = await getProgressorsForAgency(session.user.agencyId);
+    if (chosenProgressionBusinessId) {
+      const chosen = progressors.find((p) => p.businessId === chosenProgressionBusinessId);
+      if (!chosen) {
+        return { ok: false, error: "That progressor isn't connected to your agency." };
+      }
+      handoverBusinessId = chosen.businessId;
+    } else if (progressors.length > 1) {
+      return { ok: false, error: "Choose which progressor to hand this file to." };
+    } else {
+      handoverBusinessId = progressors[0]?.businessId ?? null;
+    }
     handoverAgencyId = session.user.agencyId;
   }
 
