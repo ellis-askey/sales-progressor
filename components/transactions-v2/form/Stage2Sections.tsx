@@ -64,6 +64,10 @@ type Props = {
   // falls back to "Your progressor" (external, not yet picked) or "Our team" (TSP).
   progressorName?: string | null;
   hasExternalProgressor?: boolean;
+  // Multi-progressor agency: the per-sale picker above already names who's
+  // handling the sale, and the seller/buyer ask is covered by the contact cards
+  // below, so the outsourced banner is suppressed to avoid repetition.
+  multiProgressor?: boolean;
 };
 
 export function Stage2Sections({
@@ -78,6 +82,7 @@ export function Stage2Sections({
   purchaserConflicts,
   progressorName = null,
   hasExternalProgressor = false,
+  multiProgressor = false,
 }: Props) {
   const recommendedFirmIds = recommendedFirms.map((f) => f.id);
   const contactsRef = useRef<HTMLDivElement>(null);
@@ -96,8 +101,10 @@ export function Stage2Sections({
           column (RequiredPrompt in NewSaleFlow), so it can also guide the
           required fields during stage 1. */}
 
-      {/* Outsourced banner (progressor mode only) */}
-      {isOutsourced && (
+      {/* Outsourced banner (progressor mode only). Hidden for a multi-progressor
+          agency: the per-sale picker above already names who's handling it, and
+          the seller/buyer ask is covered by the contact cards below. */}
+      {isOutsourced && !multiProgressor && (
         <Section delayMs={ms(0)}>
           <OutsourcedBanner progressorName={progressorName} hasExternalProgressor={hasExternalProgressor} />
         </Section>
