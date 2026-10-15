@@ -1,5 +1,7 @@
 // /agent/settings/billing — what the progression business pays TSP for the
-// platform: £59 base + £39 per extra team member + £5 per completed sale.
+// platform: £59 base + £39 per extra team member + £5 per sale (charged when a
+// sale is added; a brought-in/migrated sale is charged only if it reaches
+// exchange, landing on the next 1st-of-month invoice).
 //
 // DARK by design (founder, 2026-10-03): this shows the bill but no money is taken
 // yet — collection (the Stripe subscription + charging) lands behind a billing
