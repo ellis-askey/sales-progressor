@@ -27,6 +27,7 @@ import type { StudioTheme } from "@/lib/email/email-theme-studio";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { CLIENT_CHASE_ESCALATE_MIN, CLIENT_CHASE_ESCALATE_MAX } from "@/lib/chase/chaseable-milestones";
 
 type ActionResult<T = void> =
   | ({ ok: true } & (T extends void ? object : { data: T }))
@@ -563,6 +564,12 @@ export type ChasePolicyRuleInput = {
   milestoneCode: string;
   graceDays: number;
   repeatEveryDays: number;
+  // null = inherit the scope's global escalate default; a number overrides it
+  // for this milestone only.
+  escalateAfterChases?: number | null;
+  // Per-milestone client-chase on/off (default true). false = never chase the
+  // client on this step.
+  enabled?: boolean;
 };
 
 export type UpdateAgencyChasePolicyInput = {
@@ -570,8 +577,41 @@ export type UpdateAgencyChasePolicyInput = {
   // Used when the cadence editor is embedded under a page that already owns the
   // client-chase toggle (the business Automation tab), so the two don't fight.
   chaseEmailsEnabled?: boolean;
+  // The scope's global "hand back after N unanswered chases" default. Omitted =
+  // left untouched.
+  escalateAfterChases?: number;
   rules: ChasePolicyRuleInput[];
 };
+
+// Shared validation for both the agency and business chase-policy actions.
+// Returns an error string, or null when the input is valid.
+function validateChasePolicyInput(input: UpdateAgencyChasePolicyInput): string | null {
+  if (
+    input.escalateAfterChases !== undefined &&
+    (!Number.isInteger(input.escalateAfterChases) ||
+      input.escalateAfterChases < CLIENT_CHASE_ESCALATE_MIN ||
+      input.escalateAfterChases > CLIENT_CHASE_ESCALATE_MAX)
+  ) {
+    return `Escalation count must be between ${CLIENT_CHASE_ESCALATE_MIN} and ${CLIENT_CHASE_ESCALATE_MAX}.`;
+  }
+  for (const r of input.rules) {
+    if (!Number.isInteger(r.graceDays) || r.graceDays < 1) {
+      return `Grace days must be at least 1 (got ${r.graceDays} for ${r.milestoneCode}).`;
+    }
+    if (!Number.isInteger(r.repeatEveryDays) || r.repeatEveryDays < 2) {
+      return `Repeat days must be at least 2 (got ${r.repeatEveryDays} for ${r.milestoneCode}).`;
+    }
+    if (
+      r.escalateAfterChases != null &&
+      (!Number.isInteger(r.escalateAfterChases) ||
+        r.escalateAfterChases < CLIENT_CHASE_ESCALATE_MIN ||
+        r.escalateAfterChases > CLIENT_CHASE_ESCALATE_MAX)
+    ) {
+      return `Escalation count for ${r.milestoneCode} must be between ${CLIENT_CHASE_ESCALATE_MIN} and ${CLIENT_CHASE_ESCALATE_MAX}.`;
+    }
+  }
+  return null;
+}
 
 export async function updateAgencyChasePolicy(
   input: UpdateAgencyChasePolicyInput,
@@ -583,56 +623,55 @@ export async function updateAgencyChasePolicy(
   const agencyId = session.user.agencyId;
   if (!agencyId) return { ok: false, error: "Missing agency context." };
 
-  // Server-side guardrails — mirror the input-level min values:
-  //   graceDays floor = 1 (matches CLIENT_CHASE_GRACE_FLOOR_DAYS)
-  //   repeatEveryDays floor = 2 (anti-spam)
-  for (const r of input.rules) {
-    if (!Number.isInteger(r.graceDays) || r.graceDays < 1) {
-      return { ok: false, error: `Grace days must be at least 1 (got ${r.graceDays} for ${r.milestoneCode}).` };
-    }
-    if (!Number.isInteger(r.repeatEveryDays) || r.repeatEveryDays < 2) {
-      return { ok: false, error: `Repeat days must be at least 2 (got ${r.repeatEveryDays} for ${r.milestoneCode}).` };
-    }
-  }
+  // Server-side guardrails (grace ≥ 1, repeat ≥ 2, escalate within bounds).
+  const invalid = validateChasePolicyInput(input);
+  if (invalid) return { ok: false, error: invalid };
 
   // Per-agency overrides (not the shared ReminderRule). ReminderRule holds the
   // single platform default; we write this agency's own timings into
   // AgencyChaseRuleOverride so they apply to THIS agency's self-managed files
-  // only, never to outsourced files or any other agency. A value saved back at
-  // the platform default clears the override (a clean reset-to-default).
+  // only, never to outsourced files or any other agency. A rule back at the
+  // platform default in every respect clears the override (clean reset).
   const defaults = await prisma.reminderRule.findMany({
     where: { isActive: true, targetMilestoneCode: { in: input.rules.map((r) => r.milestoneCode) } },
     select: { targetMilestoneCode: true, graceDays: true, repeatEveryDays: true },
   });
   const defaultByCode = new Map(defaults.map((d) => [d.targetMilestoneCode!, d]));
 
-  // Single transaction so the master toggle + override edits land together.
+  // Single transaction so the master toggle + global default + override edits land together.
   await prisma.$transaction(async (txc) => {
-    if (input.chaseEmailsEnabled !== undefined) {
-      await txc.agency.update({
-        where: { id: agencyId },
-        data: { chaseEmailsEnabled: input.chaseEmailsEnabled },
-      });
+    const agencyData: { chaseEmailsEnabled?: boolean; clientChaseEscalateAfter?: number } = {};
+    if (input.chaseEmailsEnabled !== undefined) agencyData.chaseEmailsEnabled = input.chaseEmailsEnabled;
+    if (input.escalateAfterChases !== undefined) agencyData.clientChaseEscalateAfter = input.escalateAfterChases;
+    if (Object.keys(agencyData).length) {
+      await txc.agency.update({ where: { id: agencyId }, data: agencyData });
     }
     for (const r of input.rules) {
       const def = defaultByCode.get(r.milestoneCode);
-      const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
-      if (matchesDefault) {
-        // Back at our default — drop any override so the file uses the default.
-        await txc.agencyChaseRuleOverride.deleteMany({
-          where: { agencyId, milestoneCode: r.milestoneCode },
-        });
+      const atDefaultTiming = !!def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
+      // A row only persists if it differs from default in SOME way: timing,
+      // a per-milestone escalate override, or being switched off.
+      const isDefault = atDefaultTiming && (r.enabled ?? true) === true && r.escalateAfterChases == null;
+      if (isDefault) {
+        await txc.agencyChaseRuleOverride.deleteMany({ where: { agencyId, milestoneCode: r.milestoneCode } });
       } else {
+        const data = {
+          graceDays: r.graceDays,
+          repeatEveryDays: r.repeatEveryDays,
+          escalateAfterChases: r.escalateAfterChases ?? null,
+          enabled: r.enabled ?? true,
+        };
         await txc.agencyChaseRuleOverride.upsert({
           where: { agencyId_milestoneCode: { agencyId, milestoneCode: r.milestoneCode } },
-          create: { agencyId, milestoneCode: r.milestoneCode, graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
-          update: { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+          create: { agencyId, milestoneCode: r.milestoneCode, ...data },
+          update: data,
         });
       }
     }
   });
 
   revalidatePath("/agent/settings/automation");
+  revalidatePath("/agent/account/chasing");
   return { ok: true };
 }
 
@@ -650,14 +689,8 @@ export async function updateBusinessChasePolicy(
     return { ok: false, error: "Only the business owner can change these settings." };
   }
 
-  for (const r of input.rules) {
-    if (!Number.isInteger(r.graceDays) || r.graceDays < 1) {
-      return { ok: false, error: `Grace days must be at least 1 (got ${r.graceDays} for ${r.milestoneCode}).` };
-    }
-    if (!Number.isInteger(r.repeatEveryDays) || r.repeatEveryDays < 2) {
-      return { ok: false, error: `Repeat days must be at least 2 (got ${r.repeatEveryDays} for ${r.milestoneCode}).` };
-    }
-  }
+  const invalid = validateChasePolicyInput(input);
+  if (invalid) return { ok: false, error: invalid };
 
   const defaults = await prisma.reminderRule.findMany({
     where: { isActive: true, targetMilestoneCode: { in: input.rules.map((r) => r.milestoneCode) } },
@@ -666,24 +699,31 @@ export async function updateBusinessChasePolicy(
   const defaultByCode = new Map(defaults.map((d) => [d.targetMilestoneCode!, d]));
 
   await prisma.$transaction(async (txc) => {
-    if (input.chaseEmailsEnabled !== undefined) {
-      await txc.progressionBusiness.update({
-        where: { id: businessId },
-        data: { chaseClientsEnabled: input.chaseEmailsEnabled },
-      });
+    const bizData: { chaseClientsEnabled?: boolean; clientChaseEscalateAfter?: number } = {};
+    if (input.chaseEmailsEnabled !== undefined) bizData.chaseClientsEnabled = input.chaseEmailsEnabled;
+    if (input.escalateAfterChases !== undefined) bizData.clientChaseEscalateAfter = input.escalateAfterChases;
+    if (Object.keys(bizData).length) {
+      await txc.progressionBusiness.update({ where: { id: businessId }, data: bizData });
     }
     for (const r of input.rules) {
       const def = defaultByCode.get(r.milestoneCode);
-      const matchesDefault = def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
-      if (matchesDefault) {
+      const atDefaultTiming = !!def && def.graceDays === r.graceDays && def.repeatEveryDays === r.repeatEveryDays;
+      const isDefault = atDefaultTiming && (r.enabled ?? true) === true && r.escalateAfterChases == null;
+      if (isDefault) {
         await txc.businessChaseRuleOverride.deleteMany({
           where: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode },
         });
       } else {
+        const data = {
+          graceDays: r.graceDays,
+          repeatEveryDays: r.repeatEveryDays,
+          escalateAfterChases: r.escalateAfterChases ?? null,
+          enabled: r.enabled ?? true,
+        };
         await txc.businessChaseRuleOverride.upsert({
           where: { progressionBusinessId_milestoneCode: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode } },
-          create: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode, graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
-          update: { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays },
+          create: { progressionBusinessId: businessId, milestoneCode: r.milestoneCode, ...data },
+          update: data,
         });
       }
     }

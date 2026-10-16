@@ -49,6 +49,11 @@ export const CLIENT_CHASE_SILENCE_DAYS = 14;
 type ChaseRuleSnapshotEntry = {
   graceDays?: number;
   repeatEveryDays?: number;
+  // Per-rule "hand back after N unanswered chases" + per-step on/off. Added with
+  // the editable escalate/enable controls; files created before then won't carry
+  // these, so readers fall back to the legacy constants (cap 2, enabled true).
+  escalateAfterChases?: number;
+  enabled?: boolean;
 };
 type ChaseRuleSnapshot = Record<string, ChaseRuleSnapshotEntry | undefined>;
 
@@ -61,6 +66,26 @@ function readSnapshotTiming(
   if (!entry) return null;
   if (typeof entry.graceDays !== "number" || typeof entry.repeatEveryDays !== "number") return null;
   return { graceDays: entry.graceDays, repeatEveryDays: entry.repeatEveryDays };
+}
+
+// Per-rule escalate cap from the snapshot; falls back to the legacy constant for
+// files created before the per-rule setting existed (keeps behaviour identical).
+function snapshotEscalateCap(snapshot: unknown, code: string): number {
+  if (snapshot && typeof snapshot === "object") {
+    const entry = (snapshot as ChaseRuleSnapshot)[code];
+    if (entry && typeof entry.escalateAfterChases === "number") return entry.escalateAfterChases;
+  }
+  return CLIENT_CHASE_COUNT_CAP;
+}
+
+// Per-rule client-chase on/off from the snapshot; defaults to enabled (true) for
+// files created before the per-step toggle existed.
+function snapshotChaseEnabled(snapshot: unknown, code: string): boolean {
+  if (snapshot && typeof snapshot === "object") {
+    const entry = (snapshot as ChaseRuleSnapshot)[code];
+    if (entry && entry.enabled === false) return false;
+  }
+  return true;
 }
 
 function addDays(d: Date, n: number): Date {
@@ -507,6 +532,13 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       const graceDays = snapshotTiming?.graceDays ?? rule.graceDays;
       const repeatEveryDays = snapshotTiming?.repeatEveryDays ?? rule.repeatEveryDays;
 
+      // Per-step on/off: a disabled milestone never chases the client (it still
+      // surfaces in the agent's reminders). Backwards-compatible — files predating
+      // the toggle have no `enabled` field and default to on.
+      if (!snapshotChaseEnabled(transaction.chaseRuleSnapshot, targetCode)) continue;
+      // Per-rule "hand back after N chases" cap (falls back to the legacy 2).
+      const escalateCap = snapshotEscalateCap(transaction.chaseRuleSnapshot, targetCode);
+
       // First-due-date = anchor + max(graceDays, floor). But when re-anchored on
       // an expected due-back date, fire ON that date (EXPECTED_DATE_GRACE_DAYS = 0)
       // and bypass the floor, so the chase starts the day it was due, not later.
@@ -612,9 +644,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
         // "no row" case is the first-chase scenario.
         if (state && state.status !== "active") continue;
 
-        // Chase-count cap (no further chases past 2). Escalation pass
-        // handles flipping once the second window closes.
-        if (state && state.chaseCount >= CLIENT_CHASE_COUNT_CAP) continue;
+        // Chase-count cap (no further chases past the per-rule limit). The
+        // escalation pass handles flipping once the final window closes.
+        if (state && state.chaseCount >= escalateCap) continue;
 
         // Is it time to chase?
         let reason: "first_chase" | "repeat_due";
@@ -744,6 +776,10 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     const snap = readSnapshotTiming(snapshotByTx.get(transactionId), code);
     return snap?.repeatEveryDays ?? liveRepeatByCode.get(code);
   }
+  // Per-rule escalate cap for this file+code (legacy 2 when unset).
+  function capFor(transactionId: string, code: string): number {
+    return snapshotEscalateCap(snapshotByTx.get(transactionId), code);
+  }
 
   // Couple-as-one engagement (mirrors the chase pass). A joint side is one party:
   // if EITHER person engaged, the whole side's silence/escalation clock resets.
@@ -811,7 +847,7 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     // it's future-dated - otherwise addDays(future, repeat) pushes
     // windowEnd even further into the future and the row never escalates.
     const lastChasedAt = row.lastChasedAt && row.lastChasedAt > now ? now : row.lastChasedAt;
-    if (row.chaseCount >= CLIENT_CHASE_COUNT_CAP && lastChasedAt) {
+    if (row.chaseCount >= capFor(row.transactionId, row.milestoneCode) && lastChasedAt) {
       const repeat = repeatFor(row.transactionId, row.milestoneCode);
       if (repeat == null) continue; // no rule for this code (data hygiene)
       const windowEnd = addDays(lastChasedAt, repeat);

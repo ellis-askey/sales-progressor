@@ -8,6 +8,7 @@ import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/ser
 import { syncReferralRow } from "@/lib/services/referrals";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
+import { CLIENT_CHASE_ESCALATE_DEFAULT } from "@/lib/chase/chaseable-milestones";
 import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
@@ -873,6 +874,8 @@ export async function buildChaseRuleSnapshot(
   useEventDate: boolean;
   requiresExchangeReady: boolean;
   anchorMilestoneCode: string | null;
+  escalateAfterChases: number;
+  enabled: boolean;
 }>> {
   const rules = await prisma.reminderRule.findMany({
     where: { isActive: true, targetMilestoneCode: { not: null } },
@@ -887,24 +890,32 @@ export async function buildChaseRuleSnapshot(
   });
 
   // Overlay the right owner's overrides: the agency's for a self-managed file,
-  // the progression business's for an outsourced file (#228). Never both.
-  let overrides: Record<string, { graceDays: number; repeatEveryDays: number }> = {};
+  // the progression business's for an outsourced file (#228). Never both. Each
+  // scope also carries a global "escalate after N chases" default that a
+  // per-milestone override can supersede.
+  type Ov = { graceDays: number; repeatEveryDays: number; escalateAfterChases: number | null; enabled: boolean };
+  let overrides: Record<string, Ov> = {};
+  let scopeEscalateDefault = CLIENT_CHASE_ESCALATE_DEFAULT;
   if (agencyId && isSelfManaged) {
-    const rows = await prisma.agencyChaseRuleOverride.findMany({
-      where: { agencyId },
-      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
-    });
-    overrides = Object.fromEntries(
-      rows.map((r) => [r.milestoneCode, { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays }]),
-    );
+    const [rows, ag] = await Promise.all([
+      prisma.agencyChaseRuleOverride.findMany({
+        where: { agencyId },
+        select: { milestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, enabled: true },
+      }),
+      prisma.agency.findUnique({ where: { id: agencyId }, select: { clientChaseEscalateAfter: true } }),
+    ]);
+    scopeEscalateDefault = ag?.clientChaseEscalateAfter ?? CLIENT_CHASE_ESCALATE_DEFAULT;
+    overrides = Object.fromEntries(rows.map((r) => [r.milestoneCode, r as Ov]));
   } else if (!isSelfManaged && progressionBusinessId) {
-    const rows = await prisma.businessChaseRuleOverride.findMany({
-      where: { progressionBusinessId },
-      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
-    });
-    overrides = Object.fromEntries(
-      rows.map((r) => [r.milestoneCode, { graceDays: r.graceDays, repeatEveryDays: r.repeatEveryDays }]),
-    );
+    const [rows, biz] = await Promise.all([
+      prisma.businessChaseRuleOverride.findMany({
+        where: { progressionBusinessId },
+        select: { milestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, enabled: true },
+      }),
+      prisma.progressionBusiness.findUnique({ where: { id: progressionBusinessId }, select: { clientChaseEscalateAfter: true } }),
+    ]);
+    scopeEscalateDefault = biz?.clientChaseEscalateAfter ?? CLIENT_CHASE_ESCALATE_DEFAULT;
+    overrides = Object.fromEntries(rows.map((r) => [r.milestoneCode, r as Ov]));
   }
 
   const out: Record<string, {
@@ -913,6 +924,8 @@ export async function buildChaseRuleSnapshot(
     useEventDate: boolean;
     requiresExchangeReady: boolean;
     anchorMilestoneCode: string | null;
+    escalateAfterChases: number;
+    enabled: boolean;
   }> = {};
   for (const r of rules) {
     if (!r.targetMilestoneCode) continue;
@@ -923,6 +936,8 @@ export async function buildChaseRuleSnapshot(
       useEventDate: r.useEventDate,
       requiresExchangeReady: r.requiresExchangeReady,
       anchorMilestoneCode: r.anchorMilestone?.code ?? null,
+      escalateAfterChases: ov?.escalateAfterChases ?? scopeEscalateDefault,
+      enabled: ov?.enabled ?? true,
     };
   }
   return out;

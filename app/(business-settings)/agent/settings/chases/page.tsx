@@ -26,14 +26,16 @@ export default async function BusinessChasesPage() {
   // Toggles (which chases run) + the per-milestone grace/repeat cadence, which
   // used to live on the hidden /agent/settings/automation page and now sits
   // underneath the toggles here. Owner-scoped to this business's outsourced files.
-  const [automation, overrides] = await Promise.all([
+  const [automation, business, overrides] = await Promise.all([
     getProgressorAutomation(owner.businessId),
+    prisma.progressionBusiness.findUnique({ where: { id: owner.businessId }, select: { clientChaseEscalateAfter: true } }),
     prisma.businessChaseRuleOverride.findMany({
       where: { progressionBusinessId: owner.businessId },
-      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, enabled: true },
     }),
   ]);
-  const editableRules = await getEditableChaseRules(overrides);
+  const globalEscalateAfter = business?.clientChaseEscalateAfter ?? 2;
+  const editableRules = await getEditableChaseRules(overrides, globalEscalateAfter);
 
   return (
     <>
@@ -49,6 +51,7 @@ export default async function BusinessChasesPage() {
         <AutomationSettingsForm
           initialChaseEmailsEnabled={automation.client}
           initialRules={editableRules}
+          initialEscalateAfter={globalEscalateAfter}
           scope="business"
           showMasterToggle={false}
         />

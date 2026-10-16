@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
+import { getEditableChaseRules } from "@/lib/services/chase-cadence";
 import { getAgentChasePrefs } from "@/lib/services/agent-chase-prefs";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { SettingsNote } from "@/components/ui/SettingsNote";
@@ -26,44 +26,17 @@ export default async function AgencyChasingPage() {
   const agencyId = session.user.agencyId;
   if (session.user.role !== "director" || !agencyId) notFound();
 
-  const [prefs, agency, rules, defs, overrides] = await Promise.all([
+  const [prefs, agency, overrides] = await Promise.all([
     getAgentChasePrefs(agencyId),
-    prisma.agency.findUnique({ where: { id: agencyId }, select: { chaseEmailsEnabled: true } }),
-    prisma.reminderRule.findMany({
-      where: { isActive: true, targetMilestoneCode: { not: null } },
-      select: { targetMilestoneCode: true, graceDays: true, repeatEveryDays: true },
-    }),
-    prisma.milestoneDefinition.findMany({ select: { code: true, name: true, side: true, orderIndex: true } }),
+    prisma.agency.findUnique({ where: { id: agencyId }, select: { chaseEmailsEnabled: true, clientChaseEscalateAfter: true } }),
     prisma.agencyChaseRuleOverride.findMany({
       where: { agencyId },
-      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true },
+      select: { milestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, enabled: true },
     }),
   ]);
   if (!agency) notFound();
 
-  const defByCode = new Map(defs.map((d) => [d.code, d]));
-  const overrideByCode = new Map(overrides.map((o) => [o.milestoneCode, o]));
-
-  const editableRules = rules
-    .filter((r) => r.targetMilestoneCode && isClientChaseable(r.targetMilestoneCode))
-    .map((r) => {
-      const def = defByCode.get(r.targetMilestoneCode!);
-      const ov = overrideByCode.get(r.targetMilestoneCode!);
-      return {
-        milestoneCode: r.targetMilestoneCode!,
-        milestoneName: def?.name ?? r.targetMilestoneCode!,
-        side: (def?.side ?? "vendor") as "vendor" | "purchaser",
-        orderIndex: def?.orderIndex ?? 9999,
-        graceDays: ov?.graceDays ?? r.graceDays,
-        repeatEveryDays: ov?.repeatEveryDays ?? r.repeatEveryDays,
-        defaultGraceDays: r.graceDays,
-        defaultRepeatEveryDays: r.repeatEveryDays,
-      };
-    })
-    .sort((a, b) => {
-      if (a.side !== b.side) return a.side === "vendor" ? -1 : 1;
-      return a.orderIndex - b.orderIndex;
-    });
+  const editableRules = await getEditableChaseRules(overrides, agency.clientChaseEscalateAfter);
 
   return (
     <>
@@ -88,6 +61,7 @@ export default async function AgencyChasingPage() {
       <AutomationSettingsForm
         initialChaseEmailsEnabled={agency.chaseEmailsEnabled}
         initialRules={editableRules}
+        initialEscalateAfter={agency.clientChaseEscalateAfter}
         scope="agency"
         showMasterToggle={false}
       />

@@ -57,4 +57,19 @@ describe("chaseHandoverDate with manual chases", () => {
   it("never-chased steps still have no hand-over", () => {
     expect(chaseHandoverDate({ chaseCount: 0, firstChasedAt: null, lastChasedAt: null, lastEngagedAt: null }, 7, now)).toBeNull();
   });
+
+  it("honours a custom per-rule escalate cap", () => {
+    const snap = { chaseCount: 2, firstChasedAt: days(-6), lastChasedAt: days(-1), lastEngagedAt: null };
+    // Default cap (2): count-cap path is live — last chase (−1d) + 7d repeat is
+    // 6 days out, so nothing surfaces yet, but the cap path IS engaged.
+    expect(chaseHandoverPhase(chaseHandoverDate(snap, 7, now), now)).toBeNull();
+    // Raise the cap to 4: chaseCount (2) < cap, so the count path is dormant and
+    // only the (far-off) 14-day silence backstop remains — still nothing today.
+    const higher = chaseHandoverDate(snap, 7, now, 4);
+    expect(chaseHandoverPhase(higher, now)).toBeNull();
+    // Lower the cap to 1: chaseCount (2) >= cap, count path fires on last chase +
+    // repeat. With a 1-day repeat and a chase 3 days ago, it's already overdue.
+    const lower = chaseHandoverDate({ ...snap, lastChasedAt: days(-3) }, 1, now, 1);
+    expect(chaseHandoverPhase(lower, now)).toBe("now");
+  });
 });

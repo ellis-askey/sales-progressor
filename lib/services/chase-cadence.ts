@@ -21,10 +21,27 @@ export type EditableChaseRule = {
   // presets scale from, and what "Reset to defaults" restores.
   defaultGraceDays: number;
   defaultRepeatEveryDays: number;
+  // Resolved "hand back after N chases" for this milestone: its own override if
+  // set, otherwise the scope's global default.
+  escalateAfterChases: number;
+  // True when this milestone carries its own escalate override (vs inheriting
+  // the scope global).
+  escalateOverridden: boolean;
+  // Per-milestone client-chase on/off.
+  enabled: boolean;
+};
+
+export type ChaseRuleOverrideRow = {
+  milestoneCode: string;
+  graceDays: number;
+  repeatEveryDays: number;
+  escalateAfterChases: number | null;
+  enabled: boolean;
 };
 
 export async function getEditableChaseRules(
-  overrides: { milestoneCode: string; graceDays: number; repeatEveryDays: number }[],
+  overrides: ChaseRuleOverrideRow[],
+  globalEscalateAfter: number,
 ): Promise<EditableChaseRule[]> {
   const [rules, defs] = await Promise.all([
     prisma.reminderRule.findMany({
@@ -53,6 +70,9 @@ export async function getEditableChaseRules(
         repeatEveryDays: ov?.repeatEveryDays ?? r.repeatEveryDays,
         defaultGraceDays: r.graceDays,
         defaultRepeatEveryDays: r.repeatEveryDays,
+        escalateAfterChases: ov?.escalateAfterChases ?? globalEscalateAfter,
+        escalateOverridden: ov?.escalateAfterChases != null,
+        enabled: ov?.enabled ?? true,
       };
     })
     .sort((a, b) => {

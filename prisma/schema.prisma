@@ -33,7 +33,12 @@ model Agency {
   // reminder engine sets a "client_emails_paused" fallback chip on the
   // existing ChaseTask so the work surfaces as a manual task. Directors
   // toggle via /agent/settings/automation.
-  chaseEmailsEnabled Boolean @default(true)
+  chaseEmailsEnabled       Boolean @default(true)
+  // Global "hand back to you after N unanswered client chases" default for this
+  // agency's self-managed files. Per-milestone overrides live on
+  // AgencyChaseRuleOverride.escalateAfterChases. Default 2 preserves the legacy
+  // hard-coded CLIENT_CHASE_COUNT_CAP.
+  clientChaseEscalateAfter Int     @default(2)
 
   // Per-agency master switches for the three solicitor/enquiries chase streams.
   // Default TRUE: chasing is the core of what an agency signs up for, so a new
@@ -169,30 +174,30 @@ model Agency {
   // pre-existing outsourcing agencies are backfilled to false in the migration.
   firstOutsourcedFreeEligible Boolean @default(true)
 
-  users                      User[]
-  transactions               PropertyTransaction[]
-  manualTasks                ManualTask[]
-  chains                     PropertyChain[]
-  verifiedDomains            VerifiedDomain[]
-  solicitorCcOverrides       SolicitorContactAgencyOverride[]
-  brokerCcOverrides          BrokerContactAgencyOverride[]
-  joinRequests               AgencyJoinRequest[]
-  recommendedSolicitors      AgencyRecommendedSolicitor[]
-  preferredBroker            AgencyPreferredBroker?
-  feedbackSubmissions        FeedbackSubmission[]
-  negotiatorInvitations      NegotiatorInvitation[]
-  directorInvitations        DirectorInvitation[]
-  fileTimeSessions           FileTimeSession[]
-  invoices                   Invoice[]
-  pricingAcknowledgements    PricingAcknowledgement[]
-  creditNotes                CreditNote[]
-  agentEmailLogs             AgentEmailLog[]
-  prospect                   Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
-  milestoneEmailOverrides    MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
-  agencyEmailTemplates       AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
-  agencyEmailEdits           AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
-  chaseRuleOverrides         AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
-  progressionBusinessClients ProgressionBusinessClient[] // progression businesses that count this agency as a client (client management only — never grants transaction access)
+  users                         User[]
+  transactions                  PropertyTransaction[]
+  manualTasks                   ManualTask[]
+  chains                        PropertyChain[]
+  verifiedDomains               VerifiedDomain[]
+  solicitorCcOverrides          SolicitorContactAgencyOverride[]
+  brokerCcOverrides             BrokerContactAgencyOverride[]
+  joinRequests                  AgencyJoinRequest[]
+  recommendedSolicitors         AgencyRecommendedSolicitor[]
+  preferredBroker               AgencyPreferredBroker?
+  feedbackSubmissions           FeedbackSubmission[]
+  negotiatorInvitations         NegotiatorInvitation[]
+  directorInvitations           DirectorInvitation[]
+  fileTimeSessions              FileTimeSession[]
+  invoices                      Invoice[]
+  pricingAcknowledgements       PricingAcknowledgement[]
+  creditNotes                   CreditNote[]
+  agentEmailLogs                AgentEmailLog[]
+  prospect                      Prospect? // the acquisition prospect this agency converted from (Command Centre → Prospects)
+  milestoneEmailOverrides       MilestoneEmailOverride[] // this agency's own milestone-email copy (null-agency rows are the SP default)
+  agencyEmailTemplates          AgencyEmailTemplate[] // this agency's own Tier-2 (non-milestone) automated-email copy
+  agencyEmailEdits              AgencyEmailEdit[] // append-only audit of every email-copy edit this agency made
+  chaseRuleOverrides            AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
+  progressionBusinessClients    ProgressionBusinessClient[] // progression businesses that count this agency as a client (client management only — never grants transaction access)
   progressionConnectionRequests ProgressionConnectionRequest[] // pending/historic requests from progressors to connect to this (existing) agency
 
   @@index([modeProfile])
@@ -274,6 +279,10 @@ model ProgressionBusiness {
   // with the chase engines (see lib/services/progressor-chase-prefs.ts). TSP's own
   // row keeps all true and is never read (TSP files use the Agency flags).
   chaseClientsEnabled        Boolean @default(true)
+  // Global "hand back after N unanswered client chases" default for this
+  // business's outsourced files. Per-milestone overrides live on
+  // BusinessChaseRuleOverride.escalateAfterChases. Default 2 = legacy cap.
+  clientChaseEscalateAfter   Int     @default(2)
   chaseSolicitorsEnabled     Boolean @default(true)
   chaseEnquiriesEnabled      Boolean @default(true)
   weeklyClientUpdatesEnabled Boolean @default(true)
@@ -2160,13 +2169,19 @@ model ReminderRule {
 // clean reset-to-default. Applied forward-only via chaseRuleSnapshot at file
 // creation, exactly like ReminderRule.
 model AgencyChaseRuleOverride {
-  id              String   @id @default(cuid())
-  agencyId        String
-  milestoneCode   String
-  graceDays       Int
-  repeatEveryDays Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  agencyId            String
+  milestoneCode       String
+  graceDays           Int
+  repeatEveryDays     Int
+  // Per-milestone "reaches you after N chases" override. null = inherit the
+  // agency's global Agency.clientChaseEscalateAfter.
+  escalateAfterChases Int?
+  // Per-milestone client-chase on/off. false = never chase the client on this
+  // step (it still appears in the agent's reminders).
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
@@ -2184,6 +2199,11 @@ model BusinessChaseRuleOverride {
   milestoneCode         String
   graceDays             Int
   repeatEveryDays       Int
+  // Per-milestone "reaches you after N chases" override. null = inherit the
+  // business's global ProgressionBusiness.clientChaseEscalateAfter.
+  escalateAfterChases   Int?
+  // Per-milestone client-chase on/off (false = never chase the client here).
+  enabled               Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -2324,18 +2344,18 @@ model OutboundMessage {
   recipientHandle String?
 
   // Content â€” legacy fields kept for backward compat
-  type       CommType
-  method     CommMethod?
-  contactIds String[]
+  type                 CommType
+  method               CommMethod?
+  contactIds           String[]
   // The explicit "who can see this" audience for a client-shared comm, decoupled
   // from contactIds (who the comm was WITH). Set by the log-a-update "Who sees
   // this" control. Empty on legacy rows + internal comms, in which case the
   // portal read falls back to the old contactIds-based side scoping. See
   // getPortalTimeline in lib/services/portal.ts.
-  sharedWithContactIds String[] @default([])
-  content    String
-  subject    String?
-  bodyFormat String      @default("plain")
+  sharedWithContactIds String[]    @default([])
+  content              String
+  subject              String?
+  bodyFormat           String      @default("plain")
 
   // The exact rendered email HTML that was sent, kept so the automated-emails
   // detail drawer can show a true-to-inbox preview of solicitor chases (which
@@ -6291,14 +6311,14 @@ model TodoProject {
   tenantId String
 
   name        String
-  color       String  @default("#404648")
+  color       String    @default("#404648")
   icon        String? // lucide icon name
   description String?
   // "team": every tenant member sees it. "private": members only.
-  visibility  String  @default("team")
-  isTemplate  Boolean @default(false)
+  visibility  String    @default("team")
+  isTemplate  Boolean   @default(false)
   archivedAt  DateTime?
-  order       Int     @default(0)
+  order       Int       @default(0)
 
   createdById String
   createdAt   DateTime @default(now())
@@ -6391,11 +6411,11 @@ model TodoTask {
 }
 
 model TodoLabel {
-  id       String @id @default(cuid())
-  tenantId String
-  name     String
-  color    String @default("#c3c5c1")
-  order    Int    @default(0)
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String   @default("#c3c5c1")
+  order     Int      @default(0)
   createdAt DateTime @default(now())
 
   tasks TodoTaskLabel[]
@@ -6459,28 +6479,28 @@ model TodoReminder {
 }
 
 model TodoNotification {
-  id       String  @id @default(cuid())
-  tenantId String
-  userId   String // recipient
-  actorId  String?
-  type     String // assigned | mention | comment | reminder | project_shared | completed
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String // recipient
+  actorId   String?
+  type      String // assigned | mention | comment | reminder | project_shared | completed
   taskId    String?
   projectId String?
-  message  String
+  message   String
   readAt    DateTime?
   emailedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
 }
 
 model TodoActivity {
-  id      String   @id @default(cuid())
-  taskId  String
-  task    TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  actorId String
-  type    String // created | completed | reopened | due_changed | assigned | priority | moved | comment | recurred
-  data    Json?
+  id        String   @id @default(cuid())
+  taskId    String
+  task      TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorId   String
+  type      String // created | completed | reopened | due_changed | assigned | priority | moved | comment | recurred
+  data      Json?
   createdAt DateTime @default(now())
 
   @@index([taskId, createdAt])
@@ -6493,8 +6513,8 @@ model TodoFilter {
 
   name       String
   query      Json // lib/todo/types.ts FilterQuery
-  isFavorite Boolean @default(false)
-  order      Int     @default(0)
+  isFavorite Boolean  @default(false)
+  order      Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

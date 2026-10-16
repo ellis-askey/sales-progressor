@@ -48,7 +48,16 @@ function laterOf(...dates: (Date | null | undefined)[]): Date | null {
 // The day a chase should land in "Needs you", or null if it's still actively
 // chasing / paused by engagement. Whichever trigger is EARLIER wins (mirrors the
 // cron's whichever-hits-first). `repeatEveryDays` is the step's repeat gap.
-export function chaseHandoverDate(s: ChaseSnapshot, repeatEveryDays: number, now: Date): Date | null {
+export function chaseHandoverDate(
+  s: ChaseSnapshot,
+  repeatEveryDays: number,
+  now: Date,
+  // Per-rule "hand back after N chases" cap. Defaults to the legacy constant;
+  // callers that know the file's per-rule escalate count pass it. The client
+  // chase cron (client-chase-cron.ts) is authoritative for the actual hand-over —
+  // this read side is the work-queue's display heuristic.
+  cap: number = CHASE_HANDOVER_CAP,
+): Date | null {
   void now; // schedule is date-only; the caller decides now-vs-schedule via chaseHandoverPhase
   if (!s.firstChasedAt) return null; // never chased → nothing to hand over yet
 
@@ -61,7 +70,7 @@ export function chaseHandoverDate(s: ChaseSnapshot, repeatEveryDays: number, now
   const dates: Date[] = [];
 
   // Count-cap path: the final chase (autopilot or human) + the repeat gap.
-  if (s.chaseCount >= CHASE_HANDOVER_CAP && effectiveLastChase && !engagedAfterLastChase) {
+  if (s.chaseCount >= cap && effectiveLastChase && !engagedAfterLastChase) {
     dates.push(addDays(effectiveLastChase, Math.max(repeatEveryDays, 1)));
   }
 

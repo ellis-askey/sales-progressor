@@ -35,3 +35,12 @@ export const CLIENT_CHASE_EXCLUDE: ReadonlySet<string> = new Set([
 export function isClientChaseable(code: string): boolean {
   return !CLIENT_CHASE_EXCLUDE.has(code);
 }
+
+// Platform default for "hand the file back to you after N unanswered client
+// chases" when neither a per-milestone override nor a per-scope global is set.
+// Matches the legacy hard-coded CLIENT_CHASE_COUNT_CAP so behaviour is unchanged
+// for anyone who never touches the new control.
+export const CLIENT_CHASE_ESCALATE_DEFAULT = 2;
+// Bounds for the editable escalate count (UI + server validation).
+export const CLIENT_CHASE_ESCALATE_MIN = 1;
+export const CLIENT_CHASE_ESCALATE_MAX = 6;
