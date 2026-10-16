@@ -307,15 +307,7 @@ export default function Page() {
                     <span className="ct-pcard-name">{p.name}</span>
                     <span className="ct-tick">{on && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>}</span>
                   </div>
-                  <span className="ct-cadence">
-                    {Array.from({ length: p.dots }).map((_, i) => (
-                      <span key={i} style={{ display: "contents" }}>
-                        <span className="ct-cad-dot" />
-                        <span className="ct-cad-gap" style={{ width: Math.max(10, Math.round(p.mult * 14)) }} />
-                      </span>
-                    ))}
-                    <span className="ct-cad-flag" />
-                  </span>
+                  <MiniPulse dots={p.dots} />
                   <div className="ct-pcard-weeks">≈{p.weeks}<span>wks</span></div>
                   <div className="ct-pcard-label">to exchange</div>
                   <p className="ct-pcard-desc">{p.desc}</p>
@@ -467,6 +459,25 @@ function SidePicker({ value, onChange }: { value: Side; onChange: (v: Side) => v
   );
 }
 
+// Mini heartbeat shown on each rhythm card — the same visual language as the
+// per-step pulse. More beats + tighter = Responsive; fewer + wider = Gentle.
+function MiniPulse({ dots }: { dots: number }) {
+  const n = Math.max(2, dots);
+  const step = 80 / n;
+  let d = "M0 17";
+  for (let i = 0; i < n; i++) {
+    const cx = 12 + i * step;
+    d += ` L ${(cx - 5).toFixed(1)} 17 Q ${cx.toFixed(1)} 7 ${(cx + 5).toFixed(1)} 17`;
+  }
+  d += " L 104 17";
+  return (
+    <svg className="ct-cadence" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden>
+      <path className="ct-cad-line" d={d} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <circle className="ct-cad-end" cx="109" cy="17" r="3.4" />
+    </svg>
+  );
+}
+
 function SecHead({ n, title, optional, right }: { n: number; title: string; optional?: boolean; right?: React.ReactNode }) {
   return (
     <div className="ct-sechead">
@@ -534,20 +545,29 @@ function Styles() {
       box-shadow:0 1px 2px rgba(60,40,22,.04);transition:transform .18s,box-shadow .18s,border-color .18s}
     .ct-pcard:hover{transform:translateY(-3px);box-shadow:0 10px 26px -16px rgba(60,40,22,.3);border-color:var(--agent-coral-pale)}
     .ct-pcard:focus-visible{outline:none;border-color:var(--agent-coral-deep)}
-    .ct-pcard.on{border-color:var(--agent-coral-deep);box-shadow:0 10px 26px -16px rgba(60,40,22,.3)}
-    .ct-pcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    /* selected = solid filled option with a tick (our standard selected state) */
+    .ct-pcard.on{border-color:transparent;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 26px -14px rgba(var(--agent-coral-rgb),.55)}
+    .ct-pcard.on:hover{border-color:transparent;transform:translateY(-2px)}
+    .ct-pcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
     .ct-pcard-name{font-size:16px;font-weight:680;letter-spacing:-.01em;color:var(--agent-text-primary)}
-    .ct-tick{width:21px;height:21px;border-radius:999px;display:grid;place-items:center}
-    .ct-pcard.on .ct-tick{background:var(--agent-coral-deep)}
-    .ct-tick svg{width:12px;height:12px;color:#fff}
-    .ct-cadence{display:flex;align-items:center;height:14px;margin-bottom:14px}
-    .ct-cad-dot{width:7px;height:7px;border-radius:999px;background:var(--agent-coral-deep);flex:none}
-    .ct-cad-gap{height:2px;background:var(--agent-border-default);flex:none;border-radius:2px}
-    .ct-cad-flag{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:9px solid var(--agent-success);margin-left:4px;flex:none}
+    .ct-pcard.on .ct-pcard-name{color:#fff}
+    .ct-tick{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;border:1.5px solid var(--agent-border-default);transition:.15s}
+    .ct-pcard.on .ct-tick{background:#fff;border-color:#fff}
+    .ct-tick svg{width:12px;height:12px;color:var(--agent-coral-deep)}
+    .ct-cadence{display:block;width:100%;height:24px;margin-bottom:12px}
+    .ct-cad-line{stroke:var(--agent-coral-deep)}
+    .ct-cad-end{fill:var(--agent-warning)}
+    .ct-pcard.on .ct-cad-line{stroke:#fff}
+    .ct-pcard.on .ct-cad-end{fill:#fff}
     .ct-pcard-weeks{font-size:26px;font-weight:740;letter-spacing:-.025em;color:var(--agent-coral-deep);display:flex;align-items:baseline;gap:5px}
+    .ct-pcard.on .ct-pcard-weeks{color:#fff}
     .ct-pcard-weeks span{font-size:12px;font-weight:650;color:var(--agent-text-muted);text-transform:uppercase;letter-spacing:.05em}
+    .ct-pcard.on .ct-pcard-weeks span{color:rgba(255,255,255,.82)}
     .ct-pcard-label{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--agent-text-muted);margin-bottom:11px}
+    .ct-pcard.on .ct-pcard-label{color:rgba(255,255,255,.85)}
     .ct-pcard-desc{margin:0;font-size:13px;line-height:1.5;color:var(--agent-text-secondary)}
+    .ct-pcard.on .ct-pcard-desc{color:rgba(255,255,255,.92)}
     .ct-note{margin:14px 3px 0;font-size:13.5px;color:var(--agent-text-muted)}
     .ct-note b{color:var(--agent-text-secondary)}
 
