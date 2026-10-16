@@ -288,7 +288,7 @@ export default function Page() {
         </span>
         <p>
           On {custom ? <>your <b>custom</b> rhythm</> : <>the <b>{activeProfile.name}</b> rhythm</>}, a typical sale reaches
-          exchange in <b>≈{avgWeeks} weeks</b>. Every waiting step gets up to <b>{globalEsc} {globalEsc === 1 ? "nudge" : "nudges"}</b> before
+          exchange in <b>approx {avgWeeks} weeks</b>. Every waiting step gets up to <b>{globalEsc} {globalEsc === 1 ? "nudge" : "nudges"}</b> before
           it comes to you{offCount ? <>, and <b>{offCount}</b> {offCount === 1 ? "step is" : "steps are"} set never to chase</> : null}.
         </p>
       </div>
@@ -308,7 +308,7 @@ export default function Page() {
                     <span className="ct-tick">{on && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>}</span>
                   </div>
                   <MiniPulse dots={p.dots} />
-                  <div className="ct-pcard-weeks">≈{p.weeks}<span>wks</span></div>
+                  <div className="ct-pcard-weeks"><span className="ct-wk-affix">Approx</span>{p.weeks}<span className="ct-wk-affix">weeks</span></div>
                   <div className="ct-pcard-label">to exchange</div>
                   <p className="ct-pcard-desc">{p.desc}</p>
                 </button>
@@ -560,10 +560,10 @@ function Styles() {
     .ct-cad-end{fill:var(--agent-warning)}
     .ct-pcard.on .ct-cad-line{stroke:#fff}
     .ct-pcard.on .ct-cad-end{fill:#fff}
-    .ct-pcard-weeks{font-size:26px;font-weight:740;letter-spacing:-.025em;color:var(--agent-coral-deep);display:flex;align-items:baseline;gap:5px}
+    .ct-pcard-weeks{font-size:26px;font-weight:740;letter-spacing:-.025em;color:var(--agent-coral-deep);display:flex;align-items:baseline;gap:6px}
     .ct-pcard.on .ct-pcard-weeks{color:#fff}
-    .ct-pcard-weeks span{font-size:12px;font-weight:650;color:var(--agent-text-muted);text-transform:uppercase;letter-spacing:.05em}
-    .ct-pcard.on .ct-pcard-weeks span{color:rgba(255,255,255,.82)}
+    .ct-wk-affix{font-size:12.5px;font-weight:650;color:var(--agent-text-muted)}
+    .ct-pcard.on .ct-wk-affix{color:rgba(255,255,255,.82)}
     .ct-pcard-label{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--agent-text-muted);margin-bottom:11px}
     .ct-pcard.on .ct-pcard-label{color:rgba(255,255,255,.85)}
     .ct-pcard-desc{margin:0;font-size:13px;line-height:1.5;color:var(--agent-text-secondary)}
