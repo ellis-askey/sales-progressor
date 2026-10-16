@@ -118,6 +118,10 @@ type Props = {
   // Ellis-only AI summary prototype toggle. When true, the AiSummaryCard
   // renders below the reminders widget on the Overview tab.
   isEllis?: boolean;
+  // True when the viewer is an EXTERNAL progression-business progressor (role
+  // sales_progressor WITH a progressionBusinessId). Lets them attach a broker on
+  // a file they run, while the referral FEE stays agency-only (canEditFee below).
+  viewerIsExternalProgressor?: boolean;
 };
 
 const EXCHANGE_MILESTONES = new Set(["VM19", "PM26"]);
@@ -167,6 +171,7 @@ export async function OverviewPanel({
   currentUserImage,
   recommendedFirms,
   isEllis = false,
+  viewerIsExternalProgressor = false,
 }: Props) {
   // Pass 3c: pre-load the active round's createdAt so progress + risk
   // calculations can anchor on the active sale's start. Without this the
@@ -530,7 +535,8 @@ export async function OverviewPanel({
                 brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
                 purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
                 purchaseType={transaction.purchaseType}
-                canEdit={currentUserRole !== "sales_progressor"}
+                canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
+                canEditFee={currentUserRole !== "sales_progressor"}
               />
             )}
             {/* Seller's onward-purchase broker (Phase 2). Only when the seller is
@@ -548,7 +554,8 @@ export async function OverviewPanel({
                 brokerReferralFeeReceived={brokerRow?.onwardBrokerReferralFeeReceived ?? false}
                 purchaserBrokerReferral={brokerRow?.onwardBrokerReferral ?? false}
                 purchaseType={transaction.purchaseType}
-                canEdit={currentUserRole !== "sales_progressor"}
+                canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
+                canEditFee={currentUserRole !== "sales_progressor"}
               />
             )}
             <ClientOwnBrokerRow brokers={ownBrokers} />

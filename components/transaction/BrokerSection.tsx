@@ -6,6 +6,7 @@ import { getAdvisorPortalLinkAction } from "@/app/actions/advisor-portal";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Props = {
   transactionId: string;
@@ -21,6 +22,10 @@ type Props = {
   // hidden from sales_progressor (blocked from commercial data by the action).
   purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
   canEdit?: boolean;
+  // Whether the viewer may edit the referral FEE (the agency's commercial income).
+  // Agency / admin only. An external progressor can attach a broker (canEdit) but
+  // never sees or edits the fee. Defaults to true for other callers.
+  canEditFee?: boolean;
   // "purchaser" (default) = the buyer's mortgage broker. "vendor" = the seller's
   // onward-purchase broker (Phase 2) — same card, seller-side copy + columns.
   // The vendor instance is only rendered when the seller's buying onward, so it
@@ -54,6 +59,7 @@ export function BrokerSection({
   purchaserBrokerReferral,
   purchaseType,
   canEdit = true,
+  canEditFee = true,
   side = "purchaser",
 }: Props) {
   const [, startTransition] = useTransition();
@@ -61,6 +67,7 @@ export function BrokerSection({
   const [received, setReceived] = useState(brokerReferralFeeReceived);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const { toast } = useAgentToast();
   const copy = COPY[side];
 
   function save() {
@@ -74,6 +81,9 @@ export function BrokerSection({
           brokerReferralFeeReceived: received,
         }, side);
         setDirty(false);
+        toast.success("Saved");
+      } catch {
+        toast.error("Couldn't save. Try again.");
       } finally {
         setSaving(false);
       }
@@ -95,7 +105,7 @@ export function BrokerSection({
         <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
           {copy.heading}
         </h2>
-        {dirty && (
+        {canEditFee && dirty && (
           <button
             onClick={save}
             disabled={saving}
@@ -132,7 +142,9 @@ export function BrokerSection({
           {side === "purchaser" && brokerContactId && <AdvisorPortalLink transactionId={transactionId} />}
         </div>
 
-        {/* Referral fee */}
+        {/* Referral fee + received — the agency's commercial income. Hidden from
+            an external progressor (canEditFee false); they attach the broker only. */}
+        {canEditFee && (<>
         <div>
           <label className="block text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1.5">
             Referral fee
@@ -179,6 +191,7 @@ export function BrokerSection({
             </span>
           </div>
         )}
+        </>)}
       </GlassCard>
     </section>
   );
@@ -228,6 +241,7 @@ function AddBrokerControl({ transactionId, side }: { transactionId: string; side
   const [referred, setReferred] = useState(true);
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
+  const { toast } = useAgentToast();
   const copy = COPY[side];
 
   function save() {
@@ -242,6 +256,9 @@ function AddBrokerControl({ transactionId, side }: { transactionId: string; side
           brokerReferralFeeReceived: false,
           purchaserBrokerReferral: referred,
         }, side);
+        toast.success("Broker added");
+      } catch {
+        toast.error("Couldn't add the broker. Try again.");
       } finally {
         setSaving(false);
       }

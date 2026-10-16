@@ -48,6 +48,7 @@ export default async function AgentTransactionOverviewPage({
         currentUserName={session.user.name ?? ""}
         recommendedFirms={null}
         isEllis={isEllis}
+        viewerIsExternalProgressor={session.user.role === "sales_progressor" && !!session.user.progressionBusinessId}
       />
       <div className="mt-5">
         <EnquiryTrackerSection transactionId={transaction.id} />
