@@ -50,6 +50,14 @@ export function raiseChaseDecision(s: RaiseChaseState, now: Date): RaiseChaseDec
   // Escalation fires once, at the 2-week + 3-day ceiling.
   const escalateDue = !s.escalatedAt && now >= addWorkingDays(s.openedAt, ESCALATE_AT_WD);
 
+  // Automated nudging STOPS at escalation (founder decision 2026-10-16). Once the
+  // file has escalated — or is escalating on this very run — it's the team's to
+  // chase personally, and the work-queue reminder takes over. We never auto-nudge
+  // and escalate in the same breath, nor keep nudging after the ceiling.
+  if (s.escalatedAt || escalateDue) {
+    return { nudgeDue: false, target: null, escalateDue };
+  }
+
   // Nudge schedule.
   let nudgeDue = false;
   let target: RaiseChaseTarget | null = null;
