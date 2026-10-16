@@ -7,7 +7,9 @@ import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients }
 import { RemindersEmptyState } from "@/components/agent/RemindersEmptyState";
 import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
+import { getEscalatedEnquiryReminders } from "@/lib/services/enquiry-escalations";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
+import { EnquiryEscalationCard } from "@/components/reminders/EnquiryEscalationCard";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milestone-glossary";
@@ -93,9 +95,10 @@ export default async function WorkQueuePage() {
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const [reminderLogs, activeFileCount] = await Promise.all([
+  const [reminderLogs, activeFileCount, enquiryEscalations] = await Promise.all([
     getAgentReminderLogs(vis),
     prisma.propertyTransaction.count({ where: { ...txWhereWorkQueue(vis), status: { in: ["active", "on_hold"] } } }),
+    getEscalatedEnquiryReminders(vis),
   ]);
 
   // Sign the property photos once, keyed by transaction, for the per-file
@@ -240,7 +243,16 @@ export default async function WorkQueuePage() {
           </>
           )
         ) : (
-          <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
+          <>
+            {enquiryEscalations.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+                {enquiryEscalations.map((e) => (
+                  <EnquiryEscalationCard key={e.transactionId} reminder={e} showAddressLink />
+                ))}
+              </div>
+            )}
+            <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
+          </>
         )}
       </div>
       </PageReveal>

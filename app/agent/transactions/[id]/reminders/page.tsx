@@ -5,7 +5,9 @@
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
+import { getEscalatedEnquiryReminders } from "@/lib/services/enquiry-escalations";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
+import { EnquiryEscalationCard } from "@/components/reminders/EnquiryEscalationCard";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milestone-glossary";
@@ -39,6 +41,7 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const reminderLogs = await getAgentReminderLogs(vis, { transactionId: transaction.id });
+  const enquiryEscalations = await getEscalatedEnquiryReminders(vis, { transactionId: transaction.id });
 
   // Bespoke exchange→completion block: completion is no longer a reminder, so a
   // file that has exchanged but not yet completed shows this run-in block instead
@@ -127,6 +130,13 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {statSegments.map((seg) => (
             <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
+          ))}
+        </div>
+      )}
+      {enquiryEscalations.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          {enquiryEscalations.map((e) => (
+            <EnquiryEscalationCard key={e.transactionId} reminder={e} />
           ))}
         </div>
       )}

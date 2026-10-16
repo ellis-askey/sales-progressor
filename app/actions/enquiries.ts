@@ -18,6 +18,7 @@ import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import { logChaseSend, logEnquiryChaseComm } from "@/lib/enquiries/chase-log";
+import { addWorkingDays } from "@/lib/emails/working-hours";
 import { sendChainEmail, buildOutboundMessageId, type EmailAttachment } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveEmailSignature } from "@/lib/email/signature";
@@ -275,6 +276,69 @@ export async function markEnquiriesSatisfiedAction(input: {
     const kind = (res as { kind?: string }).kind;
     return { ok: false, reason: kind === "prereqs_missing" ? "prereqs_missing" : "failed" };
   }
+  revalidatePath("/agent/enquiries");
+  return { ok: true };
+}
+
+// ── Escalated "get enquiries raised" work-queue reminder actions ──────────────
+// When the raise chase escalates it surfaces as a reminder in the work queue
+// (lib/services/enquiry-escalations.ts). These are its two actions.
+
+// "Mark enquiries raised" — the green tick on the reminder. Confirms PM14 (the
+// buyer's solicitor has raised enquiries), which hands off to the reply-loop
+// tracker and closes the raise chase. Delegates to confirmMilestoneAction (Law 4)
+// so the milestone email, reminder re-eval and tracker open all stay correct.
+export async function markEnquiriesRaisedAction(input: {
+  transactionId: string;
+}): Promise<{ ok: boolean; reason?: string }> {
+  await assertInScope(input.transactionId);
+  const pm14 = await prisma.milestoneDefinition.findFirst({ where: { code: "PM14" }, select: { id: true } });
+  if (!pm14) return { ok: false, reason: "PM14 milestone definition missing" };
+
+  const res = await confirmMilestoneAction({ transactionId: input.transactionId, milestoneDefinitionId: pm14.id });
+  if (res && typeof res === "object" && "ok" in res && res.ok === false) {
+    const kind = (res as { kind?: string }).kind;
+    return { ok: false, reason: kind === "prereqs_missing" ? "prereqs_missing" : "failed" };
+  }
+  // Belt-and-braces close (the cron also closes it on PM14 complete).
+  await prisma.enquiryRaiseChase.updateMany({
+    where: { transactionId: input.transactionId, closedAt: null },
+    data: { closedAt: new Date() },
+  }).catch(() => {});
+
+  revalidatePath("/agent/work-queue");
+  revalidatePath(`/agent/transactions/${input.transactionId}/reminders`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
+  revalidatePath("/agent/enquiries");
+  return { ok: true };
+}
+
+// "Snooze" on the escalated-enquiry reminder. Reuses the engine's hold: set a
+// promised "raised by" date on the active PM14 completion (expectedDate), N working
+// days out (default 3 — the agreed re-surface cadence). The chase holds and the
+// reminder stays quiet until that date, then comes back.
+export async function snoozeEnquiryRaiseAction(input: {
+  transactionId: string;
+  workingDays?: number;
+}): Promise<{ ok: boolean }> {
+  await assertInScope(input.transactionId);
+  const wd = input.workingDays && input.workingDays > 0 ? input.workingDays : 3;
+  const until = addWorkingDays(new Date(), wd);
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  await prisma.milestoneCompletion.updateMany({
+    where: {
+      transactionId: input.transactionId,
+      milestoneDefinition: { is: { code: "PM14" } },
+      ...(tx?.activeBuyerRoundId ? { buyerRoundId: tx.activeBuyerRoundId } : {}),
+    },
+    data: { expectedDate: until },
+  });
+  revalidatePath("/agent/work-queue");
+  revalidatePath(`/agent/transactions/${input.transactionId}/reminders`);
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
   revalidatePath("/agent/enquiries");
   return { ok: true };
 }
