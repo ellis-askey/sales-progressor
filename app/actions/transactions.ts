@@ -558,7 +558,12 @@ export async function createTransactionAction(input: {
     try {
       const createdChain = await createChainV2({
         transactionId: tx.id,
-        agencyId: session.user.agencyId ?? "",
+        // The chain belongs to the FILE's owning agency (effectiveAgencyId), NOT
+        // the creator. A progressor has no agencyId of their own, so the old
+        // session-based value became "" and failed the PropertyChain.agencyId
+        // foreign key — the file saved but the chain never linked ("Chain setup
+        // failed. Your file was saved, but we couldn't link the chain.").
+        agencyId: effectiveAgencyId,
         userId: session.user.id,
         stubs: input.chain.stubs.map((s) => ({
           direction: s.direction,
@@ -2455,9 +2460,16 @@ export async function saveDraftAction(data: {
       }
     }
     if (data.chainStubs && data.chainStubs.length > 0) {
+      // Tag the chain to the FILE's owning agency, not the editor. A progressor on
+      // an outsourced file has no agencyId; the old "" failed the chain's agency
+      // foreign key, so the chain silently never linked.
+      const owner = await prisma.propertyTransaction.findUnique({
+        where: { id: transactionId },
+        select: { agencyId: true },
+      });
       await createChainV2({
         transactionId,
-        agencyId: session.user.agencyId ?? "",
+        agencyId: owner?.agencyId ?? session.user.agencyId ?? "",
         userId: session.user.id,
         stubs: data.chainStubs,
       }).catch(console.error);
