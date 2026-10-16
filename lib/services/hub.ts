@@ -2514,6 +2514,7 @@ export async function getHubWeeklyForecast(
     },
     select: {
       overridePredictedDate: true, expectedExchangeDate: true, propertyAddress: true,
+      tenure: true, // tenure fee model prices freehold vs leasehold
       // agencyId: for an external-business viewer the forecast fee is that
       // business's rate-card fee for the file's agency, not the agency commission.
       agencyId: true,
@@ -2565,7 +2566,7 @@ export async function getHubWeeklyForecast(
         address: tx.propertyAddress,
         agencyId: tx.agencyId,
         feePence: feeModelByAgency
-          ? (calculateClientFee(feeModelByAgency.get(tx.agencyId) ?? null, tx.purchasePrice) ?? 0)
+          ? (calculateClientFee(feeModelByAgency.get(tx.agencyId) ?? null, tx.purchasePrice, tx.tenure) ?? 0)
           : isTspInternal
             ? calculateProgressionFeePence(toFeeInput(tx)) // TSP's own progressor fee
             : calculateFileFeesPence(toFeeInput(tx)),      // agency net
@@ -2608,7 +2609,7 @@ export async function getHubClientBreakdown(
   const [txns, links] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: { progressionBusinessId: vis.businessId, status: "active", isDemo: false },
-      select: { agencyId: true, purchasePrice: true, agency: { select: { name: true } } },
+      select: { agencyId: true, purchasePrice: true, tenure: true, agency: { select: { name: true } } },
     }),
     prisma.progressionBusinessClient.findMany({
       where: { progressionBusinessId: vis.businessId },
@@ -2624,7 +2625,7 @@ export async function getHubClientBreakdown(
     const e = byAgency.get(t.agencyId) ?? { agencyId: t.agencyId, agencyName: t.agency.name, activeSales: 0, pipelinePence: 0, feePence: 0, feeSet: model != null };
     e.activeSales += 1;
     e.pipelinePence += t.purchasePrice ?? 0;
-    e.feePence += calculateClientFee(model, t.purchasePrice ?? null) ?? 0;
+    e.feePence += calculateClientFee(model, t.purchasePrice ?? null, t.tenure) ?? 0;
     byAgency.set(t.agencyId, e);
   }
   return [...byAgency.values()].sort((a, b) => b.activeSales - a.activeSales);

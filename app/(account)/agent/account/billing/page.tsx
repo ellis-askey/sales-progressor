@@ -44,6 +44,9 @@ function describeFeeModel(m: ClientFeeModel | null): string {
     const pct = m.bps / 100;
     return `${Number.isInteger(pct) ? pct : pct.toFixed(2)}% of the sale`;
   }
+  if (m.type === "tenure") {
+    return `£${Math.round(m.freeholdPence / 100)} freehold / £${Math.round(m.leaseholdPence / 100)} leasehold`;
+  }
   const fees = m.bands.map((b) => b.pence).filter((p) => p > 0);
   if (!fees.length) return "Rate not set";
   const min = Math.round(Math.min(...fees) / 100);

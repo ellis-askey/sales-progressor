@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag, ChartBar, Percent, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch, WarningCircle } from "@phosphor-icons/react";
+import { Tag, ChartBar, Percent, House, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { RowActionsMenu } from "@/components/account/chrome/RowActionsMenu";
 import { fmtCurrencyPence } from "@/lib/utils";
@@ -20,18 +20,20 @@ import {
   calculateClientFee, DEFAULT_TIERS, DEFAULT_FEE_MODEL, type ClientFeeModel, type TieredBand,
 } from "@/lib/progression/client-fees";
 
-type FeeType = "flat" | "tiered" | "percent";
+type FeeType = "flat" | "tiered" | "percent" | "tenure";
 
 const TYPES: { t: FeeType; label: string; sub: string; icon: React.ReactNode }[] = [
   { t: "flat", label: "Flat per sale", sub: "One fee for every exchange", icon: <Tag size={22} weight="fill" /> },
   { t: "tiered", label: "Tiered by price", sub: "Different fees based on sale value", icon: <ChartBar size={22} weight="fill" /> },
   { t: "percent", label: "% of sale price", sub: "A percentage of the sale price", icon: <Percent size={22} weight="bold" /> },
+  { t: "tenure", label: "By tenure", sub: "Freehold vs leasehold fee", icon: <House size={22} weight="fill" /> },
 ];
 
 const DEF: Record<FeeType, ClientFeeModel> = {
   flat: { type: "flat", pence: 30000 },
   percent: { type: "percent", bps: 30 },
   tiered: { type: "tiered", bands: DEFAULT_TIERS },
+  tenure: { type: "tenure", freeholdPence: 30000, leaseholdPence: 40000 },
 };
 
 const fmtPct = (bps: number) => `${+(bps / 100).toFixed(2)}%`;
@@ -187,6 +189,38 @@ export function FeeEngine({
           </div>
           {editBtn("Edit rate")}
         </div>
+      ) : model.type === "tenure" ? (
+        <div className="fe-hero fe-hero-flat" key="tenure">
+          <div className="fe-rl">
+            <p className="fe-rate-k">Your rates</p>
+            {editing ? (
+              <div className="fe-tenure-edit">
+                <label className="fe-ten-field">
+                  <span className="fe-ten-lbl">Freehold</span>
+                  <Money pence={model.freeholdPence} onChange={(freeholdPence) => setModel({ type: "tenure", freeholdPence, leaseholdPence: model.leaseholdPence })} />
+                </label>
+                <label className="fe-ten-field">
+                  <span className="fe-ten-lbl">Leasehold</span>
+                  <Money pence={model.leaseholdPence} onChange={(leaseholdPence) => setModel({ type: "tenure", freeholdPence: model.freeholdPence, leaseholdPence })} />
+                </label>
+              </div>
+            ) : (
+              <div className="fe-tenure-view">
+                <div className="fe-ten-rate">
+                  <span className="fe-rate-v">{fmtCurrencyPence(model.freeholdPence)}</span>
+                  <span className="fe-rate-unit">freehold</span>
+                </div>
+                <span className="fe-ten-div" aria-hidden />
+                <div className="fe-ten-rate">
+                  <span className="fe-rate-v">{fmtCurrencyPence(model.leaseholdPence)}</span>
+                  <span className="fe-rate-unit">leasehold</span>
+                </div>
+              </div>
+            )}
+            {!editing && applied}
+          </div>
+          {editBtn("Edit rates")}
+        </div>
       ) : (
         <div className="fe-hero" key={model.type}>
           <div className="fe-hero-grid">
@@ -283,8 +317,10 @@ export function FeeEngine({
         @keyframes fe-spin { to { transform: rotate(360deg); } }
         .fe-sub { margin: 8px 0 18px; font-size: 13px; color: var(--agent-text-secondary); max-width: 70ch; line-height: 1.55; }
 
-        .fe-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-        @media (max-width: 720px) { .fe-cards { grid-template-columns: 1fr; } }
+        /* Four option cards: 4-across on desktop, 2x2 on tablet, stacked on mobile. */
+        .fe-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        @media (max-width: 1100px) { .fe-cards { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 560px) { .fe-cards { grid-template-columns: 1fr; } }
         .fe-card { position: relative; display: flex; align-items: center; gap: 13px; padding: 15px 15px; border-radius: 15px;
           border: 1px solid var(--agent-border-subtle); background: var(--agent-glass-bg, rgba(255,255,255,0.5)); cursor: pointer; text-align: left;
           transition: transform .18s cubic-bezier(.22,1,.36,1), border-color .18s, box-shadow .2s, background .22s; }
@@ -353,6 +389,15 @@ export function FeeEngine({
         .fe-money input::-webkit-outer-spin-button, .fe-money input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .fe-flat { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .fe-unit { font-size: 14px; color: var(--agent-text-secondary); }
+
+        /* Tenure — two flat rates (freehold / leasehold) side by side, no calculator */
+        .fe-tenure-view { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+        .fe-ten-rate { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+        .fe-tenure-view .fe-rate-v { font-size: clamp(30px, 4.2vw, 46px); }
+        .fe-ten-div { width: 1px; align-self: stretch; min-height: 34px; background: rgba(var(--agent-coral-rgb), 0.22); }
+        .fe-tenure-edit { display: flex; gap: 22px; flex-wrap: wrap; }
+        .fe-ten-field { display: flex; flex-direction: column; gap: 6px; }
+        .fe-ten-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--agent-text-muted); }
         .fe-arrow { color: var(--agent-text-muted); font-weight: 700; }
 
         /* Tiered — editable bands + read-only rows */

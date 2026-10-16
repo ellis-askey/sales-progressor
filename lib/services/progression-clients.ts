@@ -706,7 +706,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     // owner's fee/earned/exchanged figures must match it (audit SP-6).
     where: { progressionBusinessId: businessId, agencyId, isDemo: false },
     orderBy: { createdAt: "desc" },
-    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true, photoStoragePath: true },
+    select: { id: true, propertyAddress: true, status: true, purchasePrice: true, exchangedAt: true, createdAt: true, photoStoragePath: true, tenure: true },
   });
 
   // Property thumbnails for the Sales tab rows — same signed-URL pattern as the
@@ -729,7 +729,7 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     if (t.status === "on_hold") onHold += 1;
     if (t.status === "completed") completed += 1;
     if (t.status === "withdrawn") withdrawn += 1;
-    const fee = calculateClientFee(feeModel, t.purchasePrice);
+    const fee = calculateClientFee(feeModel, t.purchasePrice, t.tenure);
     if (t.exchangedAt) {
       exchanged += 1;
       const d = Math.round((new Date(t.exchangedAt).getTime() - new Date(t.createdAt).getTime()) / 86400000);

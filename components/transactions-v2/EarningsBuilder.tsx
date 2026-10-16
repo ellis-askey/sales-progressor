@@ -116,7 +116,7 @@ export function EarningsBuilder({
   let costLabel = "Self-progress";
   if (toProgressor) {
     costLabel = `Sent to ${progressorName}`;
-    progressionCost = calculateClientFee(progressorFeeModel ?? null, price ?? null) ?? 0;
+    progressionCost = calculateClientFee(progressorFeeModel ?? null, price ?? null, fields.tenure) ?? 0;
   } else if (outsourcedUnpicked) {
     costLabel = "Outsourced";
     progressionCost = 0; // unknown until a progressor is chosen

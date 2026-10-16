@@ -17,6 +17,11 @@ export type ProgressorOption = { businessId: string; name: string; feeModel: Cli
 // agent can compare and decide), not "Tiered · N bands". Needs the price for a
 // tiered/percent model; a flat fee shows regardless.
 function feeFigure(model: ClientFeeModel | null, pricePence: number | null): string {
+  // A tenure fee depends on the sale's tenure, which isn't chosen here — show both
+  // so the figure is honest rather than silently picking the freehold rate.
+  if (model?.type === "tenure") {
+    return `£${(model.freeholdPence / 100).toLocaleString()} freehold / £${(model.leaseholdPence / 100).toLocaleString()} leasehold`;
+  }
   const fee = calculateClientFee(model, pricePence && pricePence > 0 ? pricePence : null);
   if (fee != null) return `£${(fee / 100).toLocaleString()}`;
   return model ? "Set the price to see the fee" : "No fee set";

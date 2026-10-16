@@ -218,6 +218,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       propertyAddress: true,
       completionDate: true,
       purchasePrice: true,
+      tenure: true,
       agentFeeAmount: true,
       agentFeePercent: true,
       agentFeeIsVatInclusive: true,
@@ -305,7 +306,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       const move = tx.clientMoveInfos[0];
       const viewerFeePence: number | null =
         feeAudience === "business"
-          ? calculateClientFee(feeModelByAgency?.get(tx.agencyId) ?? null, tx.purchasePrice)
+          ? calculateClientFee(feeModelByAgency?.get(tx.agencyId) ?? null, tx.purchasePrice, tx.tenure)
           : (feeAudience === "tsp" ? calculateProgressionFeePence : calculateFileFeesPence)({
               purchasePrice: tx.purchasePrice,
               agentFeeAmount: tx.agentFeeAmount,

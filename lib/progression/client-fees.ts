@@ -7,7 +7,10 @@ export type FlatFee = { type: "flat"; pence: number };
 export type TieredBand = { uptoPence: number | null; pence: number };
 export type TieredFee = { type: "tiered"; bands: TieredBand[] };
 export type PercentFee = { type: "percent"; bps: number }; // basis points: 30 = 0.30%
-export type ClientFeeModel = FlatFee | TieredFee | PercentFee;
+// Two flat fees chosen by the sale's tenure: freehold vs leasehold. Leasehold work
+// (management packs, extra enquiries) usually warrants a higher fee.
+export type TenureFee = { type: "tenure"; freeholdPence: number; leaseholdPence: number };
+export type ClientFeeModel = FlatFee | TieredFee | PercentFee | TenureFee;
 
 export const DEFAULT_FEE_MODEL: ClientFeeModel = { type: "flat", pence: 30000 }; // £300 / sale
 
@@ -18,14 +21,25 @@ export const DEFAULT_TIERS: TieredBand[] = [
   { uptoPence: null, pence: 55000 },       // £750k+ -> £550
 ];
 
-/** The fee (pence) this model charges for a sale at the given price, or null. */
-export function calculateClientFee(model: ClientFeeModel | null, pricePence: number | null): number | null {
+/**
+ * The fee (pence) this model charges for a sale, or null. `tenure` is only needed
+ * by the tenure model ("freehold"/"leasehold"); it is ignored by the others.
+ * A tenure model defaults to the freehold fee when tenure is unknown, so it is
+ * always computable (never "unpriceable" like a price-based model with no price).
+ */
+export function calculateClientFee(
+  model: ClientFeeModel | null,
+  pricePence: number | null,
+  tenure?: string | null,
+): number | null {
   if (!model) return null;
   switch (model.type) {
     case "flat":
       return model.pence;
     case "percent":
       return pricePence == null ? null : Math.round((pricePence * model.bps) / 10000);
+    case "tenure":
+      return tenure === "leasehold" ? model.leaseholdPence : model.freeholdPence;
     case "tiered": {
       if (pricePence == null) return null;
       const bands = [...model.bands].sort(
@@ -46,6 +60,13 @@ export function parseFeeModel(raw: unknown): ClientFeeModel | null {
   }
   if (o.type === "percent" && typeof o.bps === "number" && o.bps >= 0 && o.bps <= 10000) {
     return { type: "percent", bps: Math.round(o.bps) };
+  }
+  if (
+    o.type === "tenure" &&
+    typeof o.freeholdPence === "number" && o.freeholdPence >= 0 &&
+    typeof o.leaseholdPence === "number" && o.leaseholdPence >= 0
+  ) {
+    return { type: "tenure", freeholdPence: Math.round(o.freeholdPence), leaseholdPence: Math.round(o.leaseholdPence) };
   }
   if (o.type === "tiered" && Array.isArray(o.bands)) {
     const rawBands = o.bands.filter((b): b is Record<string, unknown> => !!b && typeof b === "object");
@@ -69,5 +90,6 @@ export function feeModelSummary(model: ClientFeeModel | null): string {
   if (!model) return "No fee model set";
   if (model.type === "flat") return `£${(model.pence / 100).toLocaleString()} per sale`;
   if (model.type === "percent") return `${(model.bps / 100).toFixed(2)}% of price`;
+  if (model.type === "tenure") return `£${(model.freeholdPence / 100).toLocaleString()} freehold · £${(model.leaseholdPence / 100).toLocaleString()} leasehold`;
   return `Tiered · ${model.bands.length} price bands`;
 }

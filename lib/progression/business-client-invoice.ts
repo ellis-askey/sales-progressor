@@ -52,7 +52,7 @@ export async function buildBusinessClientInvoice(
           ? { status: "completed", completionDate: { gte: start, lt: end } }
           : { exchangedAt: { gte: start, lt: end } }),
       },
-      select: { propertyAddress: true, priceAtExchange: true, purchasePrice: true, exchangedAt: true, completionDate: true },
+      select: { propertyAddress: true, priceAtExchange: true, purchasePrice: true, exchangedAt: true, completionDate: true, tenure: true },
       orderBy: billAtCompletion ? { completionDate: "asc" } : { exchangedAt: "asc" },
     }),
   ]);
@@ -81,7 +81,7 @@ export async function buildBusinessClientInvoice(
   let subtotal = 0;
   for (const s of sales) {
     const price = s.priceAtExchange ?? s.purchasePrice;
-    const fee = calculateClientFee(feeModel, price);
+    const fee = calculateClientFee(feeModel, price, s.tenure);
     // A price-based fee (percent/tiered) can't be worked out without a sale price.
     // Never bill it at £0 — collect it so the owner is told to add the price rather
     // than it silently vanishing or billing zero (audit SP-5).

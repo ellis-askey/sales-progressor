@@ -280,7 +280,7 @@ export async function listTransactions(
     const useBusinessRate = businessFeeByAgency != null;
     const feeIsOurs = !!scope && scope.kind !== "agency" && !useBusinessRate;
     const feePence = useBusinessRate
-      ? (calculateClientFee(businessFeeByAgency.get(tx.agencyId) ?? null, tx.purchasePrice ?? null) ?? 0)
+      ? (calculateClientFee(businessFeeByAgency.get(tx.agencyId) ?? null, tx.purchasePrice ?? null, tx.tenure) ?? 0)
       : feeIsOurs
       ? calculateProgressionFeePence({
           purchasePrice: tx.purchasePrice ?? null,

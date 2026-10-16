@@ -25,6 +25,14 @@ describe("calculateClientFee", () => {
     expect(calculateClientFee(m, 90000000)).toBe(55000); // £900k -> open top band
   });
 
+  it("tenure charges by tenure, defaulting to freehold when unknown", () => {
+    const m = { type: "tenure" as const, freeholdPence: 30000, leaseholdPence: 40000 };
+    expect(calculateClientFee(m, 45000000, "leasehold")).toBe(40000);
+    expect(calculateClientFee(m, 45000000, "freehold")).toBe(30000);
+    expect(calculateClientFee(m, null, null)).toBe(30000);      // unknown tenure -> freehold
+    expect(calculateClientFee(m, null)).toBe(30000);            // tenure arg omitted -> freehold
+  });
+
   it("returns null for no model", () => {
     expect(calculateClientFee(null, 100)).toBeNull();
   });
@@ -36,6 +44,8 @@ describe("parseFeeModel", () => {
     expect(parseFeeModel({ type: "percent", bps: 30 })).toEqual({ type: "percent", bps: 30 });
     expect(parseFeeModel({ type: "tiered", bands: [{ uptoPence: null, pence: 500 }] }))
       .toEqual({ type: "tiered", bands: [{ uptoPence: null, pence: 500 }] });
+    expect(parseFeeModel({ type: "tenure", freeholdPence: 30000, leaseholdPence: 40000 }))
+      .toEqual({ type: "tenure", freeholdPence: 30000, leaseholdPence: 40000 });
   });
 
   it("rejects junk / out-of-range", () => {
@@ -43,6 +53,7 @@ describe("parseFeeModel", () => {
     expect(parseFeeModel({ type: "flat" })).toBeNull();
     expect(parseFeeModel({ type: "percent", bps: 99999 })).toBeNull();
     expect(parseFeeModel({ type: "tiered", bands: [] })).toBeNull();
+    expect(parseFeeModel({ type: "tenure", freeholdPence: 30000 })).toBeNull(); // missing leaseholdPence
     expect(parseFeeModel({ type: "nope" })).toBeNull();
   });
 });

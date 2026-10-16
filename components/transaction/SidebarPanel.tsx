@@ -115,7 +115,6 @@ export async function SidebarPanel({
     recommendedFirms,
     reminderLogs,
     activityEntries,
-    contactPortal,
     checkInRow,
     previousSales,
   ] = await Promise.all([
@@ -193,15 +192,6 @@ export async function SidebarPanel({
     // these are effectively free here on the request.
     getReminderLogsCached(transaction.id, agencyId).catch(() => []),
     getActivityTimelineCached(transaction.id, agencyId).catch(() => []),
-
-    // First vendor contact with a portal token — powers the "Open in client
-    // portal" quick link. Falls back to null (link hidden) when no vendor
-    // has been sent a portal invite yet.
-    prisma.contact.findFirst({
-      where: { propertyTransactionId: transaction.id, roleType: "vendor", portalToken: { not: null } },
-      select: { portalToken: true },
-      orderBy: { createdAt: "asc" },
-    }).catch(() => null),
 
     // WhatsApp check-in ingredients: each side's solicitor firm name (for
     // "{firm}" in the questions) and client headcount (for "Good morning
@@ -343,10 +333,6 @@ export async function SidebarPanel({
     inChain: transaction.chainLinkId != null,
   };
 
-  const primaryPortalHref = contactPortal?.portalToken
-    ? `/portal/${contactPortal.portalToken}`
-    : null;
-
   // Externally-progressed file: the fee the AGENT sees is what they owe their
   // progressor (that business's rate card for this agency), not TSP's fee, and
   // the "team" file-time belongs to the progressor's people. Null for TSP/self
@@ -360,7 +346,7 @@ export async function SidebarPanel({
         select: { feeModel: true },
       })
       .catch(() => null);
-    progressorRateCardFeePence = calculateClientFee(parseFeeModel(link?.feeModel), transaction.purchasePrice ?? null);
+    progressorRateCardFeePence = calculateClientFee(parseFeeModel(link?.feeModel), transaction.purchasePrice ?? null, transaction.tenure);
   }
 
   return (
@@ -422,7 +408,6 @@ export async function SidebarPanel({
       agentSlot={agentSlot}
       riskInput={riskInput}
       currentUserId={session?.user?.id ?? null}
-      primaryPortalHref={primaryPortalHref}
       lastActivityAt={transaction.lastActivityAt ?? null}
       previousSales={previousSales}
     />
