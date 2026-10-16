@@ -181,7 +181,20 @@ export function AddManualTaskForm({
                 className="w-full text-sm text-slate-900/70 placeholder:text-slate-900/30 border-0 outline-none bg-transparent"
               />
               {propMatches.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 4, maxHeight: 168, overflowY: "auto" }}>
+                // Self-contained dropdown: an OPAQUE bordered, elevated box with
+                // its own scroll, so the address suggestions don't bleed over the
+                // glass form / collide with the fields around them.
+                <div
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 2, marginTop: 6, padding: 4,
+                    maxHeight: 168, overflowY: "auto",
+                    background: "var(--agent-surface, #fff)",
+                    border: "0.5px solid var(--agent-border-subtle)",
+                    borderRadius: 10,
+                    boxShadow: "0 1px 2px rgba(20,14,10,0.05), 0 8px 24px -10px rgba(20,14,10,0.22)",
+                    position: "relative", zIndex: 2,
+                  }}
+                >
                   {propMatches.map((f) => (
                     <button
                       key={f.id}
