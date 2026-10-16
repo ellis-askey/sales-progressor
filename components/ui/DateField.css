@@ -11,7 +11,17 @@
   position: relative;
   display: block;
 }
-/* Hide the browser's dd/mm/yyyy mask while the field is empty (WebKit/Blink). */
+/* Hide the browser's own empty-state text so only our "Choose a date" overlay
+   shows. Making the input's text colour transparent blanks whatever the engine
+   renders when empty — the dd/mm/yyyy mask on Chrome/Firefox AND the greyed
+   placeholder Safari (incl. iOS) shows — across every browser, not just WebKit.
+   The calendar picker indicator keeps its own colour (rule below), so it stays
+   visible. The value colour is restored the moment a date is chosen (the
+   data-empty attribute is removed). */
+.datefield[data-empty="true"] > input[type="date"] {
+  color: transparent;
+}
+/* Belt and braces on WebKit/Blink: also blank the editable segments explicitly. */
 .datefield[data-empty="true"] > input[type="date"]::-webkit-datetime-edit {
   color: transparent;
 }
