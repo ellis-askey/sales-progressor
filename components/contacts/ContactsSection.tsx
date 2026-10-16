@@ -1151,10 +1151,16 @@ export function ContactsSection({
                         {contact.phone && contact.email && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                             <EnvelopeSimple size={13} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                            {/* Plain mailto (no subject) so a long-press "Copy" on iOS copies just
-                                the address, not the encoded subject. The dedicated "Email" button
-                                above keeps the prefilled subject for intentional composing. */}
-                            <a data-sensitive="true" href={`mailto:${contact.email}`} className="agent-link agent-link-muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contact.email}</a>
+                            {/* The href is a plain mailto (no subject) so a long-press "Copy" on iOS
+                                copies just the address, not the encoded subject. A normal tap still
+                                opens the composer WITH the prefilled subject via onClick. */}
+                            <a
+                              data-sensitive="true"
+                              href={`mailto:${contact.email}`}
+                              onClick={(e) => { e.preventDefault(); window.location.href = emailHref(contact.email!, contact.roleType, address); }}
+                              className="agent-link agent-link-muted"
+                              style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            >{contact.email}</a>
                           </div>
                         )}
                         {portalState !== "none" && (
