@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
 /* ── model ───────────────────────────────────────────────────────────────── */
 type Side = "vendor" | "purchaser";
@@ -290,13 +291,7 @@ export default function Page() {
             }}>{groups.every((g) => openStages.has(g.side + g.stage)) && groups.length ? "Collapse all" : "Open all"}</button>} />
 
           <div className="ct-toolbar">
-            <div className="ct-seg">
-              {([["all", "All", steps.length], ["vendor", "Seller", 20], ["purchaser", "Buyer", 26]] as const).map(([k, lab, n]) => (
-                <button type="button" key={k} className={sideFilter === k ? "on" : ""} onClick={() => setSideFilter(k as typeof sideFilter)}>
-                  {lab} <span className="ct-seg-n">{n}</span>
-                </button>
-              ))}
-            </div>
+            <SidePicker value={sideFilter} onChange={setSideFilter} />
             <div className="ct-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a step: mortgage, enquiries, deposit…" />
@@ -390,6 +385,29 @@ export default function Page() {
   );
 }
 
+const SIDE_OPTIONS = [
+  { key: "all" as const, label: "All", n: 46 },
+  { key: "vendor" as const, label: "Seller", n: 20 },
+  { key: "purchaser" as const, label: "Buyer", n: 26 },
+];
+// Canonical animated picker: a sliding coral pill measured with useTabIndicator
+// (the same hook behind the nav rail / file tabs — ANIMATION_STANDARDS §A5).
+function SidePicker({ value, onChange }: { value: "all" | Side; onChange: (v: "all" | Side) => void }) {
+  const activeIdx = SIDE_OPTIONS.findIndex((o) => o.key === value);
+  const { btnRefs, ind } = useTabIndicator(activeIdx);
+  return (
+    <div className="ct-seg">
+      <span className="ct-seg-pill" aria-hidden style={ind ? { left: ind.left, width: ind.width, opacity: 1 } : { opacity: 0 }} />
+      {SIDE_OPTIONS.map((o, i) => (
+        <button type="button" key={o.key} ref={(el) => { btnRefs.current[i] = el; }}
+          className={value === o.key ? "on" : ""} onClick={() => onChange(o.key)}>
+          {o.label} <span className="ct-seg-n">{o.n}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SecHead({ n, title, optional, right }: { n: number; title: string; optional?: boolean; right?: React.ReactNode }) {
   return (
     <div className="ct-sechead">
@@ -470,21 +488,22 @@ function Styles() {
 
     .ct-stp{display:inline-flex;align-items:center;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:11px;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s;vertical-align:middle}
     .ct-stp:focus-within{border-color:var(--agent-coral-deep)}
-    .ct-stp button{appearance:none;border:none;cursor:pointer;width:32px;height:36px;display:grid;place-items:center;font-size:18px;font-weight:600;line-height:1;transition:.12s;
-      color:#fff;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
-    .ct-stp button:hover:not(:disabled){background:linear-gradient(180deg,var(--agent-coral-deep),var(--agent-coral-darker))}
-    .ct-stp button:active:not(:disabled){transform:scale(.9)}
+    .ct-stp button{appearance:none;border:none;cursor:pointer;width:32px;height:36px;display:grid;place-items:center;font-size:18px;font-weight:600;line-height:1;transition:background .14s,color .14s,transform .1s;color:var(--agent-text-muted);background:transparent}
+    .ct-stp button:hover:not(:disabled){color:#fff;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+    .ct-stp button:active:not(:disabled){transform:scale(.9);color:#fff;background:linear-gradient(180deg,var(--agent-coral-deep),var(--agent-coral-darker));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
     .ct-stp button:disabled{opacity:.4;cursor:not-allowed}
     .ct-stp input{width:38px;height:36px;border:none;background:none;text-align:center;font:inherit;font-size:15.5px;font-weight:700;color:var(--agent-text-primary);padding:0;font-variant-numeric:tabular-nums}
     .ct-stp input:focus{outline:none}
     .ct-stp-lg input{width:44px;font-size:17px}
 
     .ct-toolbar{display:flex;align-items:center;gap:11px;margin-bottom:15px;flex-wrap:wrap}
-    .ct-seg{display:inline-flex;background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:3px;box-shadow:0 1px 2px rgba(60,40,22,.04)}
-    .ct-seg button{appearance:none;border:none;background:none;font:inherit;font-size:13.5px;font-weight:600;color:var(--agent-text-secondary);padding:7px 15px;border-radius:999px;cursor:pointer;transition:.15s}
-    .ct-seg button.on{background:var(--agent-coral-bg-tint);color:var(--agent-coral-deep)}
+    .ct-seg{position:relative;display:inline-flex;background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:3px;box-shadow:0 1px 2px rgba(60,40,22,.04)}
+    .ct-seg-pill{position:absolute;top:3px;bottom:3px;left:0;z-index:0;border-radius:999px;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 6px rgba(var(--agent-coral-rgb),.28);transition:left .24s cubic-bezier(.4,.75,.3,1),width .24s cubic-bezier(.4,.75,.3,1),opacity .2s}
+    .ct-seg button{position:relative;z-index:1;appearance:none;border:none;background:none;font:inherit;font-size:13.5px;font-weight:600;color:var(--agent-text-secondary);padding:7px 16px;border-radius:999px;cursor:pointer;transition:color .18s}
+    .ct-seg button.on{color:#fff}
     .ct-seg button:not(.on):hover{color:var(--agent-text-primary)}
     .ct-seg-n{font-size:11px;opacity:.6;font-weight:650}
+    .ct-seg button.on .ct-seg-n{opacity:.82}
     .ct-search{position:relative;flex:1;min-width:210px}
     .ct-search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--agent-text-muted)}
     .ct-search input{width:100%;font:inherit;font-size:14px;color:var(--agent-text-primary);background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:11px 16px 11px 40px;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s}
