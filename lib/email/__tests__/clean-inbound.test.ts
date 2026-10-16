@@ -45,9 +45,9 @@ describe("cleanIngestedEmail", () => {
     expect(cleanIngestedEmail(raw)).toBe("Please find the replies attached.");
   });
 
-  it("strips a '-- ' signature delimiter but keeps a normal sign-off", () => {
+  it("cuts at the sign-off, dropping the name and the '-- ' signature block", () => {
     const raw = "Message body.\n\nKind regards,\nSara\n\n-- \nSara Anwar | Collective Legal | 0123 456";
-    expect(cleanIngestedEmail(raw)).toBe("Message body.\n\nKind regards,\nSara");
+    expect(cleanIngestedEmail(raw)).toBe("Message body.");
   });
 
   it("handles CRLF and empty input", () => {
@@ -93,7 +93,7 @@ describe("cleanIngestedEmail", () => {
     expect(cleanIngestedEmail(raw)).toBe("Kind regards");
   });
 
-  it("cuts a social/brand signature token block but keeps the sign-off", () => {
+  it("cuts at the sign-off, dropping the name and social/brand block", () => {
     const raw = [
       "I am chasing for the replies.",
       "",
@@ -108,8 +108,61 @@ describe("cleanIngestedEmail", () => {
       "[facebook]<https://www.facebook.com/profile.php?id=100090129085171>",
       "[instagram]<https://instagram.com/akemanresidential>",
     ].join("\n");
+    expect(cleanIngestedEmail(raw)).toBe("I am chasing for the replies.");
+  });
+
+  it("cuts a plain-text solicitor signature at the sign-off", () => {
+    const raw = [
+      "We have responded to the other side solicitors and are waiting for the replies from the management company.",
+      "",
+      "Kind regards,",
+      "Clear, Results-Driven Conveyancing Solicitors",
+      "Aslam Abdul Caffar",
+      "Collective Legal",
+      "www.collective.legal",
+      "Book a meeting with me",
+      "All post to: WeWork, 5 Merchant Sq, London, W2 1AS",
+      "Authorised by Solicitors Regulation Authority",
+    ].join("\n");
     expect(cleanIngestedEmail(raw)).toBe(
-      "I am chasing for the replies.\n\nKind regards,\n\nEllis Askey\nSales Progressor\nAkeman Residential",
+      "We have responded to the other side solicitors and are waiting for the replies from the management company.",
     );
+  });
+
+  it("cuts a single-word sign-off when a signature follows", () => {
+    const raw = "Any update on the enquiries?\n\nThanks\nJohn Smith\n01234 567890";
+    expect(cleanIngestedEmail(raw)).toBe("Any update on the enquiries?");
+  });
+
+  it("keeps 'thanks' used inside a sentence", () => {
+    const raw = "Thanks for sending the pack over. Could you also confirm the completion date?";
+    expect(cleanIngestedEmail(raw)).toBe(
+      "Thanks for sending the pack over. Could you also confirm the completion date?",
+    );
+  });
+
+  it("keeps a bare 'Thanks.' when the message continues below it", () => {
+    const raw = "Will do.\n\nThanks.\n\nAlso, can you confirm the completion date please?";
+    expect(cleanIngestedEmail(raw)).toBe(
+      "Will do.\n\nThanks.\n\nAlso, can you confirm the completion date please?",
+    );
+  });
+
+  it("cuts at the real sign-off, not an earlier mid-email 'Thanks.'", () => {
+    const raw = [
+      "Thanks.",
+      "",
+      "One more thing: can you confirm the completion date?",
+      "",
+      "Kind regards,",
+      "John Smith",
+    ].join("\n");
+    expect(cleanIngestedEmail(raw)).toBe(
+      "Thanks.\n\nOne more thing: can you confirm the completion date?",
+    );
+  });
+
+  it("does not cut when the sign-off has no content above it", () => {
+    expect(cleanIngestedEmail("Kind regards,\nSara")).toBe("Kind regards,\nSara");
   });
 });
