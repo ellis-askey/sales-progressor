@@ -219,7 +219,6 @@ export default function Page() {
   );
   const [profile, setProfile] = useState<ProfileKey>("steady");
   const [globalEsc, setGlobalEsc] = useState(2);
-  const [master, setMaster] = useState(true);
   const [sideFilter, setSideFilter] = useState<Side>("vendor");
   const [query, setQuery] = useState("");
   const [openStages, setOpenStages] = useState<Set<string>>(new Set());
@@ -267,7 +266,7 @@ export default function Page() {
 
   const avgWeeks = activeProfile.weeks;
   const offCount = steps.filter((s) => !s.enabled).length;
-  const dirty = custom || !master;
+  const dirty = custom;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 34 }}>
@@ -294,16 +293,7 @@ export default function Page() {
         </p>
       </div>
 
-      {/* master toggle */}
-      <section className="ct-card ct-master">
-        <div>
-          <h2>Automated chasing</h2>
-          <p>When this is on, we send gentle chase emails on your behalf for every step below. Turn it off and nothing is sent, but anything waiting still shows up in your reminders.</p>
-        </div>
-        <button type="button" role="switch" aria-checked={master} className={`ct-switch${master ? " on" : ""}`} onClick={() => setMaster((v) => !v)} />
-      </section>
-
-      <div style={{ opacity: master ? 1 : 0.5, pointerEvents: master ? "auto" : "none", display: "flex", flexDirection: "column", gap: 34, transition: "opacity .2s" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 34 }}>
 
         {/* 1 profiles */}
         <section>
@@ -446,7 +436,6 @@ export default function Page() {
         <div className="ct-savebar-inner">
           <span className="ct-savebar-stat">
             {changedCount > 0 && <>You&apos;ve <b>{changedCount}</b> {changedCount === 1 ? "step" : "steps"} fine-tuned. </>}
-            {!master && <>Automated chasing is <b>off</b>. </>}
           </span>
           <button type="button" className="ct-btn ghost" onClick={() => applyProfile(activeProfile)}>Reset</button>
           <button type="button" className="ct-btn primary">Save changes</button>
@@ -523,9 +512,6 @@ function Styles() {
     .ct-summary b{color:var(--agent-text-primary);font-weight:650}
 
     .ct-card{background:#fff;border:1px solid var(--agent-border-default);border-radius:16px;box-shadow:0 1px 2px rgba(60,40,22,.04)}
-    .ct-master{display:flex;align-items:center;gap:18px;padding:19px 22px}
-    .ct-master h2{margin:0;font-size:16px;font-weight:680}
-    .ct-master p{margin:5px 0 0;font-size:13.5px;line-height:1.5;color:var(--agent-text-secondary);max-width:58ch}
 
     .ct-switch{position:relative;flex:none;width:46px;height:26px;border-radius:999px;border:none;cursor:pointer;background:rgba(45,24,16,.18);transition:background .18s}
     .ct-switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .18s}
