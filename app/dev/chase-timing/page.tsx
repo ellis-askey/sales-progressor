@@ -21,60 +21,51 @@ const STAGE_ORDER = [
   "Contract & searches", "Enquiries", "Towards exchange", "Exchange & completion",
 ];
 
-// [side, stage, name, trigger, defaultGrace, defaultRepeat]
+// [side, stage, name, trigger (search only), defaultGrace, defaultRepeat]
 const SEED: [Side, string, string, string, number, number][] = [
-  ["vendor","Getting started","Seller instructs their solicitor","the sale is agreed and we're waiting on instruction",2,5],
-  ["vendor","Getting started","Memorandum of sale issued","the memo hasn't gone out to all sides yet",2,4],
-  ["vendor","Getting started","Welcome pack received","we're waiting for the solicitor to make contact",3,5],
-  ["vendor","Getting started","ID & AML checks complete","the seller's identity checks are outstanding",3,5],
-  ["vendor","Property information","Property forms received","the forms are with the seller to complete",3,5],
-  ["vendor","Property information","Property forms returned","the completed forms haven't come back",4,7],
-  ["vendor","Property information","Draft contract pack issued","the pack hasn't reached the buyer's solicitor",4,7],
-  ["vendor","Property information","Management pack requested","leasehold only: the pack is being requested",7,10],
-  ["vendor","Property information","Management pack received","leasehold only: we're waiting on the freeholder",14,10],
-  ["vendor","Enquiries","Enquiries received","the buyer's questions have landed",21,7],
-  ["vendor","Enquiries","Replies to enquiries provided","the seller is gathering their answers",7,5],
-  ["vendor","Enquiries","Replies sent to buyer","the replies haven't gone across",4,5],
-  ["vendor","Enquiries","Further enquiries received","a second round of questions has arrived",14,7],
-  ["vendor","Enquiries","Additional replies provided","the follow-up answers are outstanding",7,5],
-  ["vendor","Enquiries","All replies sent","some enquiries remain unanswered",5,5],
-  ["vendor","Towards exchange","Contract ready to sign","the contract is with the seller",3,5],
-  ["vendor","Towards exchange","Contract signed and returned","the signed contract is outstanding",3,4],
-  ["vendor","Towards exchange","Seller's solicitor ready to exchange","they haven't confirmed readiness",3,4],
-  ["vendor","Exchange & completion","Contracts exchanged","we're in the run-up to exchange",2,4],
-  ["vendor","Exchange & completion","Sale completed","we're between exchange and completion day",2,4],
-  ["purchaser","Getting started","Buyer instructs their solicitor","we're waiting on instruction",2,5],
-  ["purchaser","Getting started","ID & AML checks complete","the buyer's identity checks are outstanding",3,5],
-  ["purchaser","Getting started","Money on account paid","the payment to the solicitor is outstanding",3,5],
-  ["purchaser","Mortgage & survey","Mortgage application submitted","mortgage only: the application is outstanding",5,7],
-  ["purchaser","Mortgage & survey","Lender valuation booked","mortgage only: the valuation isn't arranged",5,7],
-  ["purchaser","Mortgage & survey","Mortgage offer received","mortgage only: we're waiting on the formal offer",7,7],
-  ["purchaser","Mortgage & survey","Survey arranged","the buyer hasn't booked their survey",5,7],
-  ["purchaser","Mortgage & survey","Survey report received","the report hasn't come back",7,7],
-  ["purchaser","Contract & searches","Contract pack received","the pack is with the buyer's solicitor",4,7],
-  ["purchaser","Contract & searches","Searches ordered","searches are being submitted",5,7],
-  ["purchaser","Contract & searches","Search results received","the results haven't come back",14,7],
-  ["purchaser","Contract & searches","Management pack received","leasehold only: the pack is being reviewed",7,7],
-  ["purchaser","Enquiries","Initial enquiries raised","first questions have gone to the seller",21,7],
-  ["purchaser","Enquiries","Initial replies received","we're waiting on the seller's answers",14,7],
-  ["purchaser","Enquiries","Initial replies reviewed","the solicitor hasn't reviewed them",5,5],
-  ["purchaser","Enquiries","Further enquiries raised","a second round is needed",14,7],
-  ["purchaser","Enquiries","Additional replies received","follow-up answers are outstanding",14,7],
-  ["purchaser","Enquiries","Additional replies reviewed","the solicitor hasn't signed them off",5,5],
-  ["purchaser","Enquiries","All enquiries satisfied","not everything is resolved yet",5,5],
-  ["purchaser","Towards exchange","Final report received","the buyer is reviewing the report",4,5],
-  ["purchaser","Towards exchange","Contract ready to sign","the contract is with the buyer",3,5],
-  ["purchaser","Towards exchange","Contract signed and returned","the signed contract is outstanding",3,4],
-  ["purchaser","Towards exchange","Deposit transferred","the deposit hasn't cleared",2,4],
-  ["purchaser","Towards exchange","Buyer's solicitor ready to exchange","they haven't confirmed readiness",3,4],
-  ["purchaser","Exchange & completion","Contracts exchanged","we're in the run-up to exchange",2,4],
-  ["purchaser","Exchange & completion","Purchase completed","we're between exchange and completion day",2,4],
+  ["vendor","Getting started","Seller instructed solicitor","instruction",2,5],
+  ["vendor","Getting started","Memorandum of Sale issued","memo mos",2,4],
+  ["vendor","Getting started","Welcome pack received","welcome pack",3,5],
+  ["vendor","Getting started","ID and AML checks completed","identity aml",3,5],
+  ["vendor","Property information","Property information forms received","ta6 ta10 forms",3,5],
+  ["vendor","Property information","Property information forms completed and returned","forms returned",4,7],
+  ["vendor","Property information","Draft contract pack issued","contract pack",4,7],
+  ["vendor","Property information","Management pack requested","leasehold management pack",7,10],
+  ["vendor","Property information","Management pack received","leasehold management pack freeholder",14,10],
+  ["vendor","Enquiries","Initial enquiries received","enquiries questions",21,7],
+  ["vendor","Enquiries","All enquiries satisfied","enquiries resolved",7,7],
+  ["vendor","Towards exchange","Contract documents issued for signing","contract sign",3,5],
+  ["vendor","Towards exchange","Contract documents signed and returned","contract signed",3,4],
+  ["vendor","Towards exchange","Seller's solicitor ready to exchange","ready to exchange",3,4],
+  ["vendor","Exchange & completion","Contracts exchanged","exchange",2,4],
+  ["vendor","Exchange & completion","Sale completed","completion",2,4],
+  ["purchaser","Getting started","Buyer instructed solicitor","instruction",2,5],
+  ["purchaser","Getting started","ID and AML checks completed","identity aml",3,5],
+  ["purchaser","Getting started","Money on account paid","money on account",3,5],
+  ["purchaser","Mortgage & survey","Mortgage application submitted","mortgage",5,7],
+  ["purchaser","Mortgage & survey","Lender valuation booked","mortgage valuation",5,7],
+  ["purchaser","Mortgage & survey","Mortgage offer received","mortgage offer",7,7],
+  ["purchaser","Mortgage & survey","Private survey arranged","survey",5,7],
+  ["purchaser","Mortgage & survey","Private survey report received","survey report",7,7],
+  ["purchaser","Contract & searches","Contract pack received","contract pack",4,7],
+  ["purchaser","Contract & searches","Searches ordered","searches",5,7],
+  ["purchaser","Contract & searches","Search results received","search results",14,7],
+  ["purchaser","Contract & searches","Management pack received","leasehold management pack",7,7],
+  ["purchaser","Enquiries","Initial enquiries raised","enquiries questions",21,7],
+  ["purchaser","Enquiries","All enquiries satisfied","enquiries resolved",7,7],
+  ["purchaser","Towards exchange","Final report received","final report",4,5],
+  ["purchaser","Towards exchange","Contract documents issued for signing","contract sign",3,5],
+  ["purchaser","Towards exchange","Contract documents signed and returned","contract signed",3,4],
+  ["purchaser","Towards exchange","Deposit transferred","deposit",2,4],
+  ["purchaser","Towards exchange","Buyer's solicitor ready to exchange","ready to exchange",3,4],
+  ["purchaser","Exchange & completion","Contracts exchanged","exchange",2,4],
+  ["purchaser","Exchange & completion","Purchase completed","completion",2,4],
 ];
 
 const PROFILES = [
-  { key: "responsive", name: "Responsive", mult: 0.75, esc: 2, weeks: 11, dots: 5, desc: "Quicker follow-ups, for clients who usually reply to the first nudge." },
-  { key: "steady",     name: "Steady",     mult: 1,    esc: 2, weeks: 12, dots: 4, desc: "Balanced for most sales, around two nudges before it reaches you." },
-  { key: "gentle",     name: "Gentle",     mult: 1.35, esc: 3, weeks: 14, dots: 3, desc: "More room between nudges. The lightest touch for cautious clients." },
+  { key: "responsive", name: "Responsive", mult: 0.75, esc: 2, weeks: 11, dots: 5, desc: "Quicker follow-ups for clients who tend to respond promptly." },
+  { key: "steady",     name: "Steady",     mult: 1,    esc: 2, weeks: 12, dots: 4, desc: "A balanced approach for most sales, with two reminders before it comes back to you." },
+  { key: "gentle",     name: "Gentle",     mult: 1.35, esc: 3, weeks: 14, dots: 3, desc: "More time between reminders for clients who prefer a lighter touch." },
 ] as const;
 type ProfileKey = (typeof PROFILES)[number]["key"];
 
@@ -318,20 +309,20 @@ export default function Page() {
           <p className="ct-note">
             {custom
               ? <>You&apos;ve tuned this from the <b>{activeProfile.name}</b> rhythm. Pick one above to snap everything back.</>
-              : <>Using the <b>{activeProfile.name}</b> rhythm. Change any step below and it becomes your own.</>}
+              : <>Using the <b>{activeProfile.name}</b> rhythm. Adjust any step below to create your own custom schedule.</>}
           </p>
         </section>
 
         {/* 2 escalation */}
         <section>
-          <SecHead n={2} title="When it reaches you" />
+          <SecHead n={2} title="When to hand back to you" />
           <div className="ct-card ct-esc">
             <span className="ct-esc-ic">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V3h13l-2.5 4.5L17 12H4" /></svg>
             </span>
             <div className="ct-esc-body">
-              <div className="ct-esc-t1">Stop chasing and flag it for you after <Stepper value={globalEsc} onChange={setGlobalEsc} min={1} max={6} big /> unanswered nudges</div>
-              <div className="ct-esc-t2">Your default for every step. Reach this point and we stop nudging the client and hand the file back to you. Any step can set its own limit below.</div>
+              <div className="ct-esc-t1">Stop chasing and alert you after <Stepper value={globalEsc} onChange={setGlobalEsc} min={1} max={6} big /> unanswered reminders</div>
+              <div className="ct-esc-t2">This is your default limit for each step. Once reached, we&apos;ll stop chasing and let you take over. You can set a different limit for individual steps below.</div>
             </div>
           </div>
         </section>
@@ -438,8 +429,8 @@ export default function Page() {
 }
 
 const SIDE_OPTIONS = [
-  { key: "vendor" as const, label: "Seller", n: 20 },
-  { key: "purchaser" as const, label: "Buyer", n: 26 },
+  { key: "vendor" as const, label: "Seller", n: 16 },
+  { key: "purchaser" as const, label: "Buyer", n: 21 },
 ];
 // Canonical animated picker: a sliding coral pill measured with useTabIndicator
 // (the same hook behind the nav rail / file tabs — ANIMATION_STANDARDS §A5).
@@ -604,7 +595,7 @@ function Styles() {
 
     .ct-stage{background:#fff;border:1px solid var(--agent-border-default);border-radius:16px;box-shadow:0 1px 2px rgba(60,40,22,.04);margin-bottom:13px;overflow:hidden}
     .ct-stage-head{display:flex;align-items:center;gap:13px;width:100%;appearance:none;border:none;background:none;font:inherit;cursor:pointer;padding:17px 20px;text-align:left;color:inherit;transition:background .15s}
-    .ct-stage-head:hover{background:var(--agent-coral-bg-tint)}
+    .ct-stage-head:hover{background:rgba(45,24,16,.02)}
     .ct-chev{width:17px;height:17px;color:var(--agent-text-muted);transition:transform .22s;flex:none}
     .ct-stage.open .ct-chev{transform:rotate(90deg)}
     .ct-stitle{font-size:15.5px;font-weight:650;flex:1;letter-spacing:-.015em}
