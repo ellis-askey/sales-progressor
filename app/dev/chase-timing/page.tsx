@@ -30,8 +30,8 @@ const SEED: [Side, string, string, string, number, number][] = [
   ["vendor","Property information","Property forms received","the forms are with the seller to complete",3,5],
   ["vendor","Property information","Property forms returned","the completed forms haven't come back",4,7],
   ["vendor","Property information","Draft contract pack issued","the pack hasn't reached the buyer's solicitor",4,7],
-  ["vendor","Property information","Management pack requested","leasehold only — the pack is being requested",7,10],
-  ["vendor","Property information","Management pack received","leasehold only — we're waiting on the freeholder",14,10],
+  ["vendor","Property information","Management pack requested","leasehold only: the pack is being requested",7,10],
+  ["vendor","Property information","Management pack received","leasehold only: we're waiting on the freeholder",14,10],
   ["vendor","Enquiries","Enquiries received","the buyer's questions have landed",21,7],
   ["vendor","Enquiries","Replies to enquiries provided","the seller is gathering their answers",7,5],
   ["vendor","Enquiries","Replies sent to buyer","the replies haven't gone across",4,5],
@@ -46,15 +46,15 @@ const SEED: [Side, string, string, string, number, number][] = [
   ["purchaser","Getting started","Buyer instructs their solicitor","we're waiting on instruction",2,5],
   ["purchaser","Getting started","ID & AML checks complete","the buyer's identity checks are outstanding",3,5],
   ["purchaser","Getting started","Money on account paid","the payment to the solicitor is outstanding",3,5],
-  ["purchaser","Mortgage & survey","Mortgage application submitted","mortgage only — the application is outstanding",5,7],
-  ["purchaser","Mortgage & survey","Lender valuation booked","mortgage only — the valuation isn't arranged",5,7],
-  ["purchaser","Mortgage & survey","Mortgage offer received","mortgage only — we're waiting on the formal offer",7,7],
+  ["purchaser","Mortgage & survey","Mortgage application submitted","mortgage only: the application is outstanding",5,7],
+  ["purchaser","Mortgage & survey","Lender valuation booked","mortgage only: the valuation isn't arranged",5,7],
+  ["purchaser","Mortgage & survey","Mortgage offer received","mortgage only: we're waiting on the formal offer",7,7],
   ["purchaser","Mortgage & survey","Survey arranged","the buyer hasn't booked their survey",5,7],
   ["purchaser","Mortgage & survey","Survey report received","the report hasn't come back",7,7],
   ["purchaser","Contract & searches","Contract pack received","the pack is with the buyer's solicitor",4,7],
   ["purchaser","Contract & searches","Searches ordered","searches are being submitted",5,7],
   ["purchaser","Contract & searches","Search results received","the results haven't come back",14,7],
-  ["purchaser","Contract & searches","Management pack received","leasehold only — the pack is being reviewed",7,7],
+  ["purchaser","Contract & searches","Management pack received","leasehold only: the pack is being reviewed",7,7],
   ["purchaser","Enquiries","Initial enquiries raised","first questions have gone to the seller",21,7],
   ["purchaser","Enquiries","Initial replies received","we're waiting on the seller's answers",14,7],
   ["purchaser","Enquiries","Initial replies reviewed","the solicitor hasn't reviewed them",5,5],
@@ -73,7 +73,7 @@ const SEED: [Side, string, string, string, number, number][] = [
 
 const PROFILES = [
   { key: "responsive", name: "Responsive", mult: 0.75, esc: 2, weeks: 11, dots: 5, desc: "Quicker follow-ups, for clients who usually reply to the first nudge." },
-  { key: "steady",     name: "Steady",     mult: 1,    esc: 2, weeks: 12, dots: 4, desc: "Balanced for most sales — around two nudges before it reaches you." },
+  { key: "steady",     name: "Steady",     mult: 1,    esc: 2, weeks: 12, dots: 4, desc: "Balanced for most sales, around two nudges before it reaches you." },
   { key: "gentle",     name: "Gentle",     mult: 1.35, esc: 3, weeks: 14, dots: 3, desc: "More room between nudges. The lightest touch for cautious clients." },
 ] as const;
 type ProfileKey = (typeof PROFILES)[number]["key"];
@@ -223,7 +223,7 @@ export default function Page() {
       <section className="ct-card ct-master">
         <div>
           <h2>Automated chasing</h2>
-          <p>When this is on, we send gentle chase emails on your behalf for every step below. Turn it off and nothing is sent — anything waiting still shows up in your reminders.</p>
+          <p>When this is on, we send gentle chase emails on your behalf for every step below. Turn it off and nothing is sent, but anything waiting still shows up in your reminders.</p>
         </div>
         <button type="button" role="switch" aria-checked={master} className={`ct-switch${master ? " on" : ""}`} onClick={() => setMaster((v) => !v)} />
       </section>
@@ -297,7 +297,7 @@ export default function Page() {
             </div>
             <div className="ct-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a step — mortgage, enquiries, deposit…" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a step: mortgage, enquiries, deposit…" />
             </div>
           </div>
 
@@ -328,8 +328,8 @@ export default function Page() {
                               <div className="ct-step-name">{ch && <span className="ct-reddot" />}{s.name}</div>
                               <div className="ct-step-sum">
                                 {s.enabled
-                                  ? <>First nudge in <b>{s.grace}</b> {s.grace === 1 ? "day" : "days"}, then every <b>{s.repeat}</b> — reaches you after <b>{escOf(s)}</b>.</>
-                                  : <><b>Never chased</b> — this step just waits.</>}
+                                  ? <>First nudge in <b>{s.grace}</b> {s.grace === 1 ? "day" : "days"}, then every <b>{s.repeat}</b>, reaching you after <b>{escOf(s)}</b>.</>
+                                  : <><b>Never chased</b>. This step just waits.</>}
                               </div>
                             </div>
                             <div className="ct-step-right">
