@@ -6,7 +6,6 @@
 // + global "reaches you after N nudges" control the real form doesn't have yet.
 
 import { useState, useRef, useEffect } from "react";
-import { RoleIcon } from "@/components/ui/RoleIcon";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
 /* ── model ───────────────────────────────────────────────────────────────── */
@@ -118,6 +117,7 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
     const pal = {
       ink: v("--agent-text-primary", "#2D1810"),
       faint: v("--agent-text-muted", "rgba(45,24,16,.55)"),
+      coral: v("--agent-coral", "#FF8A65"),
       coralDeep: v("--agent-coral-deep", "#FF6B4A"),
       amber: v("--agent-warning", "#C97D1A"),
       line: v("--agent-border-default", "rgba(45,24,16,.10)"),
@@ -143,14 +143,18 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       for (let i = 1; i <= esc; i++) nd.push(grace + repeat * (i - 1));
       const escDay = grace + repeat * esc, maxDay = escDay || 1;
       const X = (day: number) => padL + (day / maxDay) * (rightX - padL);
-      const Wd = Math.max(0.16, maxDay * 0.03);
+      const bw = Math.max(0.55, maxDay * 0.05); // beat half-width, in days
       const marks = nd.map((day, i) => ({ day, amp: 15 + i * 7 }));
       const emark = { day: escDay, amp: Math.min(h * 0.42, 42) };
       const all = [...marks, emark];
-      // A clean rise at each beat — no ECG-style dip below the baseline.
+      // Flat baseline that raises into one clean beat at each point of contact,
+      // then returns exactly to the line. A raised cosine — no dips, no tails.
       const spike = (dv: number) => {
         let s = 0;
-        for (const m of all) s += m.amp * Math.exp(-Math.pow((dv - m.day) / Wd, 2));
+        for (const m of all) {
+          const d = Math.abs(dv - m.day);
+          if (d < bw) s += m.amp * 0.5 * (1 + Math.cos((Math.PI * d) / bw));
+        }
         return s;
       };
       const pts: [number, number][] = [];
@@ -184,11 +188,16 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       const ex = X(escDay);
       ctx!.fillStyle = pal.amber; ctx!.font = "700 12px " + font; ctx!.textAlign = "center";
       ctx!.fillText("Day " + escDay, ex, base - emark.amp - 9);
-      const px = Math.min(rightX + 28, w - 14);
-      ctx!.fillStyle = pal.amber;
-      ctx!.beginPath(); ctx!.arc(px, base - 13, 4.2, 0, 7); ctx!.fill();
-      ctx!.beginPath(); ctx!.moveTo(px - 7, base); ctx!.quadraticCurveTo(px, base - 9, px + 7, base); ctx!.closePath(); ctx!.fill();
-      ctx!.fillStyle = pal.amber; ctx!.font = "600 10px " + font; ctx!.fillText("You", px, base + 16);
+      // the agent's avatar — the app's coral-gradient circle with a white user
+      // glyph (a real photo would be drawImage'd here when one exists).
+      const px = Math.min(rightX + 28, w - 16), ay = base - 2, ar = 12;
+      const ag = ctx!.createLinearGradient(px - ar, ay - ar, px + ar, ay + ar);
+      ag.addColorStop(0, pal.coral); ag.addColorStop(1, pal.coralDeep);
+      ctx!.fillStyle = ag; ctx!.beginPath(); ctx!.arc(px, ay, ar, 0, 7); ctx!.fill();
+      ctx!.fillStyle = "#fff";
+      ctx!.beginPath(); ctx!.arc(px, ay - 3.2, 3.4, 0, 7); ctx!.fill();
+      ctx!.beginPath(); ctx!.moveTo(px - 5.6, ay + 5.6); ctx!.quadraticCurveTo(px, ay - 0.4, px + 5.6, ay + 5.6); ctx!.closePath(); ctx!.fill();
+      ctx!.fillStyle = pal.faint; ctx!.font = "600 10px " + font; ctx!.textAlign = "center"; ctx!.fillText("You", px, base + 18);
     }
 
     const loop = (t: number) => { draw(t); raf = requestAnimationFrame(loop); };
@@ -211,7 +220,7 @@ export default function Page() {
   const [profile, setProfile] = useState<ProfileKey>("steady");
   const [globalEsc, setGlobalEsc] = useState(2);
   const [master, setMaster] = useState(true);
-  const [sideFilter, setSideFilter] = useState<"all" | Side>("all");
+  const [sideFilter, setSideFilter] = useState<Side>("vendor");
   const [query, setQuery] = useState("");
   const [openStages, setOpenStages] = useState<Set<string>>(new Set());
   const [openSteps, setOpenSteps] = useState<Set<string>>(new Set());
@@ -243,7 +252,7 @@ export default function Page() {
   // filter + group
   const q = query.trim().toLowerCase();
   const visible = steps.filter((s) => {
-    if (sideFilter !== "all" && s.side !== sideFilter) return false;
+    if (s.side !== sideFilter) return false;
     if (q && !(`${s.name} ${s.trigger} ${s.stage}`.toLowerCase().includes(q))) return false;
     return true;
   });
@@ -371,12 +380,11 @@ export default function Page() {
               <div className={`ct-stage${open ? " open" : ""}`} key={key}>
                 <button type="button" className="ct-stage-head" onClick={() => toggleSet(openStages, key, setOpenStages)}>
                   <svg className="ct-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
-                  <span className="ct-sdot"><RoleIcon role={g.side === "vendor" ? "vendor" : "purchaser"} size={13} /></span>
                   <span className="ct-stitle">{g.stage}</span>
                   {chg > 0 && <span className="ct-badge">{chg} changed</span>}
                   <span className="ct-smeta">{g.items.length} steps</span>
                 </button>
-                {open && (
+                <Collapse open={open}>
                   <div className="ct-stage-body">
                     {g.items.map((s) => {
                       const sOpen = openSteps.has(s.id);
@@ -398,7 +406,7 @@ export default function Page() {
                               <svg className="ct-edchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                             </div>
                           </div>
-                          {sOpen && (
+                          <Collapse open={sOpen}>
                             <div className="ct-editor">
                               <div className="ct-ed-card">
                                 {s.enabled ? (
@@ -421,12 +429,12 @@ export default function Page() {
                                 )}
                               </div>
                             </div>
-                          )}
+                          </Collapse>
                         </div>
                       );
                     })}
                   </div>
-                )}
+                </Collapse>
               </div>
             );
           })}
@@ -449,13 +457,12 @@ export default function Page() {
 }
 
 const SIDE_OPTIONS = [
-  { key: "all" as const, label: "All", n: 46 },
   { key: "vendor" as const, label: "Seller", n: 20 },
   { key: "purchaser" as const, label: "Buyer", n: 26 },
 ];
 // Canonical animated picker: a sliding coral pill measured with useTabIndicator
 // (the same hook behind the nav rail / file tabs — ANIMATION_STANDARDS §A5).
-function SidePicker({ value, onChange }: { value: "all" | Side; onChange: (v: "all" | Side) => void }) {
+function SidePicker({ value, onChange }: { value: Side; onChange: (v: Side) => void }) {
   const activeIdx = SIDE_OPTIONS.findIndex((o) => o.key === value);
   const { btnRefs, ind } = useTabIndicator(activeIdx);
   return (
@@ -484,6 +491,22 @@ function Ctrl({ label, unit, children }: { label: string; unit: string; children
     <div className="ct-ctrl">
       <div className="ct-clab">{label}</div>
       <div className="ct-crow">{children}<span className="ct-unit">{unit}</span></div>
+    </div>
+  );
+}
+// Animated open/close via a grid-rows height transition (no JS measuring).
+// Children stay mounted through the closing animation, then unmount — so the
+// pulse canvas/rAF is only alive while a step is actually open.
+function Collapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => { if (open) setMounted(true); }, [open]);
+  return (
+    <div
+      className="ct-collapse"
+      data-open={open ? "1" : "0"}
+      onTransitionEnd={(e) => { if (e.target === e.currentTarget && !open) setMounted(false); }}
+    >
+      <div className="ct-collapse-inner">{mounted ? children : null}</div>
     </div>
   );
 }
@@ -578,11 +601,13 @@ function Styles() {
     .ct-stage-head:hover{background:var(--agent-coral-bg-tint)}
     .ct-chev{width:17px;height:17px;color:var(--agent-text-muted);transition:transform .22s;flex:none}
     .ct-stage.open .ct-chev{transform:rotate(90deg)}
-    .ct-sdot{flex:none;display:grid;place-items:center}
     .ct-stitle{font-size:15.5px;font-weight:650;flex:1;letter-spacing:-.015em}
     .ct-smeta{font-size:12.5px;color:var(--agent-text-muted);font-weight:500}
-    .ct-badge{font-size:11px;font-weight:700;color:var(--agent-coral-deep);background:var(--agent-coral-bg-tint);border:1px solid var(--agent-coral-pale);padding:3px 9px;border-radius:999px}
+    .ct-badge{font-size:11px;font-weight:700;color:#fff;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 6px rgba(var(--agent-coral-rgb),.28);padding:3px 10px;border-radius:999px}
     .ct-stage-body{border-top:1px solid var(--agent-border-subtle)}
+    .ct-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s cubic-bezier(.4,.8,.3,1)}
+    .ct-collapse[data-open="1"]{grid-template-rows:1fr}
+    .ct-collapse-inner{overflow:hidden;min-height:0}
 
     .ct-step{border-bottom:1px solid var(--agent-border-subtle);transition:background .15s;position:relative}
     .ct-step:last-child{border-bottom:none}
@@ -606,7 +631,7 @@ function Styles() {
     /* heartbeat pulse canvas */
     .ct-pulse{display:block;width:100%;height:132px}
 
-    .ct-ctrls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+    .ct-ctrls{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
     .ct-ctrl{display:flex;flex-direction:column;gap:9px}
     .ct-clab{font-size:12px;font-weight:650;color:var(--agent-text-secondary)}
     .ct-crow{display:flex;align-items:center;gap:9px}
@@ -627,7 +652,7 @@ function Styles() {
 
     @media (max-width:720px){
       .ct-profiles{grid-template-columns:1fr}
-      .ct-ctrls{grid-template-columns:1fr}
+      .ct-ctrls{flex-direction:column;align-items:stretch}
       .ct-step-sum{display:none}
     }
     @media (prefers-reduced-motion:reduce){*{transition:none!important}}
