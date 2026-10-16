@@ -523,7 +523,7 @@ export async function getPortalChainAgent(
   // A managing user is required to attribute any chain write (createdByUserId).
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { serviceType: true, assignedUserId: true, agentUserId: true, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } }, progressionBusiness: { select: { senderEmail: true } } },
+    select: { serviceType: true, agencyId: true, assignedUserId: true, agentUserId: true, assignedUser: { select: { email: true } }, agentUser: { select: { email: true } }, purchaseType: true, propertyAddress: true, agency: { select: { quoteSenderEmail: true } }, progressionBusiness: { select: { senderEmail: true, senderVerified: true } } },
   });
   const managingUserId = tx
     ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
@@ -560,7 +560,17 @@ export async function getPortalChainAgent(
   }
   let correctionMailto: string | null = null;
   if (editState !== "editable") {
-    const to = tx?.agency?.quoteSenderEmail?.trim() || tx?.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+    // Correction request goes to whoever manages the file — the assigned progressor
+    // on a 2+-progressor agency, the agency's own address otherwise.
+    const chainOutsourced = tx?.serviceType !== "self_managed";
+    const managingEmail = await resolveManagingEmail({
+      isOutsourced: !!chainOutsourced,
+      agencyId: tx?.agencyId ?? null,
+      agencyEmail: tx?.agency?.quoteSenderEmail?.trim() || null,
+      personEmail: chainOutsourced ? tx?.assignedUser?.email : tx?.agentUser?.email,
+      progressionBusiness: tx?.progressionBusiness ?? null,
+    });
+    const to = managingEmail || tx?.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
     const dealWord = side === "vendor" ? "onward-purchase" : "selling";
     const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
     correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
@@ -580,6 +590,35 @@ export async function getPortalChainAgent(
     agentPhone:  claimed ? null : neighbour.stubAgentPhone,
     propertyAddress: claimed ? (neighbour.transaction?.propertyAddress ?? null) : neighbour.stubPropertyAddress,
   };
+}
+
+/**
+ * The client-facing contact email for whoever manages a file. For an agency with
+ * a SINGLE progressor (or TSP / self-managed) this stays the agency's own verified
+ * sender — the white-label address the client knows (founder, 2026-08-15). But an
+ * agency can work with 2+ progression businesses, and one shared agency address
+ * can't point to a specific one — so on an OUTSOURCED file at a 2+-progressor
+ * agency it resolves to the ASSIGNED progressor instead (their business's verified
+ * sender if set, else their own login). This stops "email your progressor" on
+ * Jo's file reaching the agency inbox (or the other progressor). WhatsApp already
+ * keys off the per-file progression business the same way.
+ */
+async function resolveManagingEmail(opts: {
+  isOutsourced: boolean;
+  agencyId: string | null;
+  agencyEmail: string | null;
+  personEmail: string | null | undefined;
+  progressionBusiness: { senderEmail: string | null; senderVerified: boolean } | null | undefined;
+}): Promise<string | null> {
+  const { isOutsourced, agencyId, agencyEmail, personEmail, progressionBusiness } = opts;
+  if (isOutsourced && agencyId) {
+    const progressorCount = await prisma.progressionBusinessClient.count({ where: { agencyId, removedAt: null } });
+    if (progressorCount >= 2) {
+      const bizSender = progressionBusiness?.senderVerified && progressionBusiness.senderEmail?.trim() ? progressionBusiness.senderEmail.trim() : null;
+      return bizSender ?? personEmail?.trim() ?? null;
+    }
+  }
+  return agencyEmail;
 }
 
 export async function getPortalTeam(
@@ -634,14 +673,17 @@ export async function getPortalTeam(
     const isOutsourced = tx.serviceType !== "self_managed";
     const person = isOutsourced ? tx.assignedUser : tx.agentUser;
 
+    // The email shown to the client for "their progressor". On a single-progressor
+    // (or TSP / self-managed) file this is the agency's own verified sender — the
+    // white-label address the client knows (founder, 2026-08-15). On a 2+-progressor
+    // agency it resolves to the ASSIGNED progressor instead, so it never points at
+    // the shared agency inbox or the other progressor. No generic fallback: null
+    // hides the Email button rather than leaking the internal updates@ address.
+    const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+    const managingEmail = await resolveManagingEmail({ isOutsourced, agencyId: tx.agencyId, agencyEmail, personEmail: person?.email, progressionBusiness: tx.progressionBusiness });
+
     let managing: PortalTeam["managing"] = null;
     if (person) {
-      // The email shown to the client is the address ASSIGNED TO THE AGENCY
-      // (Agency.quoteSenderEmail). No generic fallback: if the agency has none
-      // set, email is null and the card hides the Email button + address rather
-      // than leaking the internal updates@ / progressor address. (Founder,
-      // 2026-08-15.)
-      const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
       // WhatsApp resolves from the responsible progression business (null = TSP,
       // giving the same +447508862929 link as before). An external business with
       // no number set shows no WhatsApp button rather than leaking TSP's line.
@@ -649,7 +691,7 @@ export async function getPortalTeam(
       managing = {
         name: person.name ?? "Your progressor",
         image: person.image ?? null,
-        email: agencyEmail,
+        email: managingEmail,
         roleLabel: isOutsourced ? "Your progressor" : "Your agent",
         whatsappUrl: isOutsourced ? whatsappLink(identity.contactWhatsapp) : null,
       };
@@ -668,7 +710,9 @@ export async function getPortalTeam(
     if (solicitorEmail) {
       // CC the agency (so replies land back on the file) and the solicitor's
       // assistant/secretary when one's on file.
-      const agencyCc = tx.agency?.quoteSenderEmail?.trim() || tx.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+      // CC whoever manages the file so solicitor replies reach them — the assigned
+      // progressor on a 2+-progressor agency, the agency's own address otherwise.
+      const agencyCc = managingEmail || tx.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
       const assistant = await resolveSolicitorCc(solicitorContact, tx.agencyId);
       const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
@@ -742,8 +786,9 @@ export async function getPortalVCardData(
     where: { id: contact.propertyTransactionId },
     select: {
       serviceType: true,
-      assignedUser: { select: { name: true, phone: true } },
-      agentUser:    { select: { name: true, phone: true } },
+      agencyId: true,
+      assignedUser: { select: { name: true, phone: true, email: true } },
+      agentUser:    { select: { name: true, phone: true, email: true } },
       agency: { select: { name: true, quoteSenderEmail: true } },
       progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
       vendorSolicitorFirm:    { select: { name: true } },
@@ -757,6 +802,9 @@ export async function getPortalVCardData(
   const isOutsourced = tx.serviceType !== "self_managed";
   const person = isOutsourced ? tx.assignedUser : tx.agentUser;
   const agencyEmail = tx.agency?.quoteSenderEmail?.trim() || null;
+  // Same rule as the portal contact card: a 2+-progressor agency resolves to the
+  // ASSIGNED progressor, not the shared agency address (see resolveManagingEmail).
+  const managingEmail = await resolveManagingEmail({ isOutsourced, agencyId: tx.agencyId, agencyEmail, personEmail: person?.email, progressionBusiness: tx.progressionBusiness });
   // WhatsApp on an outsourced file comes from the responsible progression business
   // (null = TSP → +447508862929, unchanged). The vCard the buyer/seller SAVES is
   // the person (the progressor's name) under the AGENCY's name — the progression
@@ -768,7 +816,7 @@ export async function getPortalVCardData(
     ? {
         fn: person.name,
         org: tx.agency?.name ?? null,
-        email: agencyEmail,
+        email: managingEmail,
         // The progression business's WhatsApp line on outsourced files, else the
         // agent's own number if they've entered one.
         tel: isOutsourced ? identity.contactWhatsapp : (person.phone?.trim() || null),
@@ -3556,9 +3604,11 @@ export async function getPortalSurveyState(token: string): Promise<PortalSurveyS
       where: { id: txId },
       select: {
         serviceType: true,
+        agencyId: true,
         assignedUser: { select: { name: true, email: true } },
         agentUser: { select: { name: true, email: true } },
         agency: { select: { quoteSenderEmail: true } },
+        progressionBusiness: { select: { senderEmail: true, senderVerified: true } },
       },
     }),
   ]);
@@ -3573,14 +3623,16 @@ export async function getPortalSurveyState(token: string): Promise<PortalSurveyS
     enquiriesSatisfied = pm20comp?.state === "complete";
   }
 
-  const managing = tx && tx.serviceType !== "self_managed" ? tx.assignedUser : tx?.agentUser;
-  // Buyer/seller-facing "email your progressor" address: the agency's verified
-  // sender. On an OUTSOURCED file never fall back to the progressor's raw inbox
-  // (that would expose the external business's / TSP's own address) — match the
-  // portal Team card's no-fallback rule. A self-managed file may fall back to the
-  // agent's own address (it's the agent the client deals with).
-  const progressorEmail = tx?.agency?.quoteSenderEmail?.trim()
-    || (tx?.serviceType === "self_managed" ? managing?.email ?? null : null);
+  const isOutsourced = tx ? tx.serviceType !== "self_managed" : false;
+  const managing = isOutsourced ? tx?.assignedUser : tx?.agentUser;
+  // Buyer/seller-facing "email your progressor" address. Single-progressor /
+  // self-managed: the agency's verified sender (white-label). A 2+-progressor
+  // agency resolves to the ASSIGNED progressor (see resolveManagingEmail) so it
+  // never points at the shared agency inbox or the other progressor. Self-managed
+  // may still fall back to the agent's own address (it's the agent they deal with).
+  const agencyEmail = tx?.agency?.quoteSenderEmail?.trim() || null;
+  const managingEmail = await resolveManagingEmail({ isOutsourced, agencyId: tx?.agencyId ?? null, agencyEmail, personEmail: managing?.email, progressionBusiness: tx?.progressionBusiness ?? null });
+  const progressorEmail = managingEmail || (!isOutsourced ? managing?.email ?? null : null);
 
   return {
     applicable: true,
