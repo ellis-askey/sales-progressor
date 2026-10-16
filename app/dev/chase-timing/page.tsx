@@ -5,7 +5,7 @@
 // from the UI and uses a SOLID schedule line (no dashes). Introduces a per-step
 // + global "reaches you after N nudges" control the real form doesn't have yet.
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
@@ -98,44 +98,111 @@ function Stepper({ value, onChange, min, max, big }: { value: number; onChange: 
   );
 }
 
-/* ── schedule line (solid, no dashes) ────────────────────────────────────── */
-function Schedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
-  const shown = Math.min(esc, 4);
-  const nodes: { day: number; label: string }[] = [{ day: 0, label: "Due" }];
-  let day = grace;
-  for (let i = 1; i <= shown; i++) {
-    nodes.push({ day, label: i === 1 ? "1st nudge" : `${ordinal(i)} nudge` });
-    day += repeat;
-  }
-  // The day it hands back to you: one repeat gap after the last nudge would have
-  // fired. Always a real day, never "then".
-  const escDay = grace + repeat * esc;
-  return (
-    <div className="ct-sched">
-      <div className="ct-sched-track">
-        {nodes.map((n, i) => (
-          <div className="ct-sched-cell" key={i}>
-            {i > 0 && <span className="ct-sched-line" />}
-            <span className="ct-sched-node">
-              <span className={`ct-sched-dot${i === 0 ? " start" : ""}`} />
-              <span className="ct-sched-day">{n.day === 0 ? "Day 0" : `Day ${n.day}`}</span>
-              <span className="ct-sched-lab">{n.label}</span>
-            </span>
-          </div>
-        ))}
-        <div className="ct-sched-cell">
-          <span className="ct-sched-line esc" />
-          <span className="ct-sched-node">
-            <span className="ct-sched-flag" />
-            <span className="ct-sched-day">Day {escDay}</span>
-            <span className="ct-sched-lab esc">Reaches you</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+/* ── heartbeat pulse ─────────────────────────────────────────────────────────
+   The schedule drawn as the file's "pulse": a flat baseline with a beat at each
+   nudge (growing stronger as patience thins), a coral tracer sweeping the line,
+   and an amber escalation spike handing off to a person. Canvas + rAF; palette
+   read from the live agent theme tokens so it tracks light/dark. ──────────── */
+function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const propsRef = useRef({ grace, repeat, esc });
+  propsRef.current = { grace, repeat, esc };
+
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const cs = getComputedStyle(cv);
+    const v = (name: string, fb: string) => cs.getPropertyValue(name).trim() || fb;
+    const pal = {
+      ink: v("--agent-text-primary", "#2D1810"),
+      faint: v("--agent-text-muted", "rgba(45,24,16,.55)"),
+      coralDeep: v("--agent-coral-deep", "#FF6B4A"),
+      amber: v("--agent-warning", "#C97D1A"),
+      line: v("--agent-border-default", "rgba(45,24,16,.10)"),
+      pale: v("--agent-coral-pale", "#FFD4C2"),
+    };
+    const font = '"Segoe UI",system-ui,sans-serif';
+    let raf = 0;
+
+    function draw(t: number) {
+      const r = cv!.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      if (cv!.width !== Math.round(r.width * dpr) || cv!.height !== Math.round(r.height * dpr)) {
+        cv!.width = Math.round(r.width * dpr);
+        cv!.height = Math.round(r.height * dpr);
+      }
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = r.width, h = r.height;
+      ctx!.clearRect(0, 0, w, h);
+
+      const { grace, repeat, esc } = propsRef.current;
+      const padL = 22, padR = 58, base = h * 0.62, rightX = w - padR;
+      const nd: number[] = [];
+      for (let i = 1; i <= esc; i++) nd.push(grace + repeat * (i - 1));
+      const escDay = grace + repeat * esc, maxDay = escDay || 1;
+      const X = (day: number) => padL + (day / maxDay) * (rightX - padL);
+      const Wd = Math.max(0.16, maxDay * 0.03);
+      const marks = nd.map((day, i) => ({ day, amp: 15 + i * 7 }));
+      const emark = { day: escDay, amp: Math.min(h * 0.42, 42) };
+      const all = [...marks, emark];
+      const spike = (dv: number) => {
+        let s = 0;
+        for (const m of all) {
+          const dist = dv - m.day;
+          s += m.amp * Math.exp(-Math.pow(dist / Wd, 2));
+          s -= m.amp * 0.28 * Math.exp(-Math.pow((dist + 1.7 * Wd) / (0.7 * Wd), 2));
+          s -= m.amp * 0.28 * Math.exp(-Math.pow((dist - 1.7 * Wd) / (0.7 * Wd), 2));
+        }
+        return s;
+      };
+      const pts: [number, number][] = [];
+      const steps = 320;
+      for (let i = 0; i <= steps; i++) { const dv = (i / steps) * maxDay; pts.push([X(dv), base - spike(dv)]); }
+
+      // baseline
+      ctx!.strokeStyle = pal.line; ctx!.lineWidth = 1;
+      ctx!.beginPath(); ctx!.moveTo(padL, base); ctx!.lineTo(rightX, base); ctx!.stroke();
+      // faint resting wave (full)
+      ctx!.lineWidth = 2; ctx!.strokeStyle = pal.pale;
+      ctx!.beginPath(); pts.forEach((p, i) => (i ? ctx!.lineTo(p[0], p[1]) : ctx!.moveTo(p[0], p[1]))); ctx!.stroke();
+      // bright tracer swept to the head
+      const period = 2800, prog = (t % period) / period, headX = padL + prog * (rightX - padL);
+      ctx!.save(); ctx!.beginPath(); ctx!.rect(padL - 2, 0, headX - padL + 2, h); ctx!.clip();
+      ctx!.lineWidth = 2.6; ctx!.strokeStyle = pal.coralDeep; ctx!.shadowColor = pal.coralDeep; ctx!.shadowBlur = 10;
+      ctx!.beginPath(); pts.forEach((p, i) => (i ? ctx!.lineTo(p[0], p[1]) : ctx!.moveTo(p[0], p[1]))); ctx!.stroke(); ctx!.restore();
+      // glowing head
+      const hy = base - spike(((headX - padL) / (rightX - padL)) * maxDay);
+      ctx!.shadowBlur = 12; ctx!.shadowColor = pal.coralDeep; ctx!.fillStyle = pal.coralDeep;
+      ctx!.beginPath(); ctx!.arc(headX, hy, 4, 0, 7); ctx!.fill(); ctx!.shadowBlur = 0;
+      // nudge beats + labels
+      ctx!.textAlign = "center";
+      marks.forEach((m, i) => {
+        const x = X(m.day), y = base - m.amp;
+        ctx!.fillStyle = pal.coralDeep; ctx!.beginPath(); ctx!.arc(x, y, 3, 0, 7); ctx!.fill();
+        ctx!.fillStyle = pal.ink; ctx!.font = "700 12px " + font; ctx!.fillText("Day " + m.day, x, y - 9);
+        ctx!.fillStyle = pal.faint; ctx!.font = "600 10px " + font; ctx!.fillText(i === 0 ? "1st nudge" : ordinal(i + 1) + " nudge", x, base + 16);
+      });
+      // escalation spike + person
+      const ex = X(escDay);
+      ctx!.fillStyle = pal.amber; ctx!.font = "700 12px " + font; ctx!.textAlign = "center";
+      ctx!.fillText("Day " + escDay, ex, base - emark.amp - 9);
+      const px = Math.min(rightX + 28, w - 14);
+      ctx!.fillStyle = pal.amber;
+      ctx!.beginPath(); ctx!.arc(px, base - 13, 4.2, 0, 7); ctx!.fill();
+      ctx!.beginPath(); ctx!.moveTo(px - 7, base); ctx!.quadraticCurveTo(px, base - 9, px + 7, base); ctx!.closePath(); ctx!.fill();
+      ctx!.fillStyle = pal.amber; ctx!.font = "600 10px " + font; ctx!.fillText("you", px, base + 16);
+    }
+
+    const loop = (t: number) => { draw(t); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return <canvas ref={canvasRef} className="ct-pulse" aria-hidden />;
 }
-function ordinal(n: number) { return ["", "1st", "2nd", "3rd", "4th"][n] || `${n}th`; }
+function ordinal(n: number) { return ["", "1st", "2nd", "3rd", "4th", "5th", "6th"][n] || `${n}th`; }
 
 /* ── page ────────────────────────────────────────────────────────────────── */
 export default function Page() {
@@ -340,7 +407,7 @@ export default function Page() {
                               <div className="ct-ed-card">
                                 {s.enabled ? (
                                   <>
-                                    <Schedule grace={s.grace} repeat={s.repeat} esc={escOf(s)} />
+                                    <PulseSchedule grace={s.grace} repeat={s.repeat} esc={escOf(s)} />
                                     <div className="ct-ctrls">
                                       <Ctrl label="First nudge" unit="days after it's due">
                                         <Stepper value={s.grace} onChange={(n) => patch(s.id, { grace: n })} min={0} max={30} />
@@ -537,22 +604,11 @@ function Styles() {
     .ct-step.open .ct-edchev{transform:rotate(180deg)}
 
     .ct-editor{padding:2px 20px 20px}
-    .ct-ed-card{background:var(--agent-coral-bg-tint);border:1px solid var(--agent-border-subtle);border-radius:14px;padding:20px}
+    .ct-ed-card{background:var(--agent-readonly-bg,rgba(45,24,16,.022));border:1px solid var(--agent-border-subtle);border-radius:14px;padding:18px 18px 20px}
     .ct-off-note{font-size:13.5px;font-style:italic;color:var(--agent-text-muted)}
 
-    /* solid schedule line */
-    .ct-sched{overflow-x:auto;margin-bottom:22px;padding-bottom:2px}
-    .ct-sched-track{display:flex;align-items:stretch;min-width:min-content}
-    .ct-sched-cell{position:relative;display:flex;align-items:flex-start;flex:1;min-width:64px}
-    .ct-sched-line{position:absolute;top:6px;left:-50%;width:100%;height:2px;background:var(--agent-coral-pale);border-radius:2px}
-    .ct-sched-line.esc{background:var(--agent-success-border)}
-    .ct-sched-node{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;position:relative;z-index:1}
-    .ct-sched-dot{width:13px;height:13px;border-radius:999px;background:#fff;border:3px solid var(--agent-coral-deep)}
-    .ct-sched-dot.start{background:var(--agent-coral-deep)}
-    .ct-sched-flag{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid var(--agent-success);margin-top:-1px}
-    .ct-sched-day{font-size:11px;font-weight:700;color:var(--agent-text-primary);margin-top:3px;font-variant-numeric:tabular-nums}
-    .ct-sched-lab{font-size:10.5px;font-weight:600;color:var(--agent-text-muted);white-space:nowrap}
-    .ct-sched-lab.esc{color:var(--agent-success)}
+    /* heartbeat pulse canvas */
+    .ct-pulse{display:block;width:100%;height:132px}
 
     .ct-ctrls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
     .ct-ctrl{display:flex;flex-direction:column;gap:9px}
