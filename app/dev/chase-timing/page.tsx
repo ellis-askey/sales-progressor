@@ -106,7 +106,9 @@ function Schedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: 
     nodes.push({ day, label: i === 1 ? "1st nudge" : `${ordinal(i)} nudge` });
     day += repeat;
   }
-  const extra = esc - shown;
+  // The day it hands back to you: one repeat gap after the last nudge would have
+  // fired. Always a real day, never "then".
+  const escDay = grace + repeat * esc;
   return (
     <div className="ct-sched">
       <div className="ct-sched-track">
@@ -124,7 +126,7 @@ function Schedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: 
           <span className="ct-sched-line esc" />
           <span className="ct-sched-node">
             <span className="ct-sched-flag" />
-            <span className="ct-sched-day">{extra > 0 ? `+${extra} more` : "then"}</span>
+            <span className="ct-sched-day">Day {escDay}</span>
             <span className="ct-sched-lab esc">Reaches you</span>
           </span>
         </div>
@@ -314,7 +316,7 @@ export default function Page() {
                   <span className="ct-sdot"><RoleIcon role={g.side === "vendor" ? "vendor" : "purchaser"} size={13} /></span>
                   <span className="ct-stitle">{g.stage}</span>
                   {chg > 0 && <span className="ct-badge">{chg} changed</span>}
-                  <span className="ct-smeta">{g.side === "vendor" ? "Seller" : "Buyer"} · {g.items.length}</span>
+                  <span className="ct-smeta">{g.items.length} steps</span>
                 </button>
                 {open && (
                   <div className="ct-stage-body">
@@ -428,7 +430,7 @@ function Styles() {
     .ct-switch.sm{width:40px;height:23px}
     .ct-switch.sm::after{width:17px;height:17px}
     .ct-switch.sm.on::after{transform:translateX(17px)}
-    .ct-switch:focus-visible{outline:none;box-shadow:0 0 0 3px var(--agent-coral-bg-tint-hover)}
+    .ct-switch:focus-visible{outline:2px solid var(--agent-coral-deep);outline-offset:2px}
 
     .ct-sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 15px}
     .ct-eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--agent-text-muted);display:flex;align-items:center;gap:9px}
@@ -441,8 +443,8 @@ function Styles() {
     .ct-pcard{text-align:left;cursor:pointer;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:16px;padding:18px 18px;
       box-shadow:0 1px 2px rgba(60,40,22,.04);transition:transform .18s,box-shadow .18s,border-color .18s}
     .ct-pcard:hover{transform:translateY(-3px);box-shadow:0 10px 26px -16px rgba(60,40,22,.3);border-color:var(--agent-coral-pale)}
-    .ct-pcard:focus-visible{outline:none;border-color:var(--agent-coral-deep);box-shadow:0 0 0 4px var(--agent-coral-bg-tint)}
-    .ct-pcard.on{border-color:var(--agent-coral-deep);box-shadow:0 0 0 3px var(--agent-coral-bg-tint),0 10px 26px -16px rgba(60,40,22,.3)}
+    .ct-pcard:focus-visible{outline:none;border-color:var(--agent-coral-deep)}
+    .ct-pcard.on{border-color:var(--agent-coral-deep);box-shadow:0 10px 26px -16px rgba(60,40,22,.3)}
     .ct-pcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .ct-pcard-name{font-size:16px;font-weight:680;letter-spacing:-.01em;color:var(--agent-text-primary)}
     .ct-tick{width:21px;height:21px;border-radius:999px;display:grid;place-items:center}
@@ -467,10 +469,12 @@ function Styles() {
     .ct-esc-t2{font-size:13px;color:var(--agent-text-secondary);margin-top:5px;max-width:60ch;line-height:1.5}
 
     .ct-stp{display:inline-flex;align-items:center;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:11px;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s;vertical-align:middle}
-    .ct-stp:focus-within{border-color:var(--agent-coral-deep);box-shadow:0 0 0 3px var(--agent-coral-bg-tint)}
-    .ct-stp button{appearance:none;border:none;background:none;color:var(--agent-text-secondary);cursor:pointer;width:32px;height:36px;display:grid;place-items:center;font-size:18px;line-height:1;transition:.12s}
-    .ct-stp button:hover:not(:disabled){background:var(--agent-coral-bg-tint);color:var(--agent-coral-deep)}
-    .ct-stp button:disabled{opacity:.3;cursor:not-allowed}
+    .ct-stp:focus-within{border-color:var(--agent-coral-deep)}
+    .ct-stp button{appearance:none;border:none;cursor:pointer;width:32px;height:36px;display:grid;place-items:center;font-size:18px;font-weight:600;line-height:1;transition:.12s;
+      color:#fff;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+    .ct-stp button:hover:not(:disabled){background:linear-gradient(180deg,var(--agent-coral-deep),var(--agent-coral-darker))}
+    .ct-stp button:active:not(:disabled){transform:scale(.9)}
+    .ct-stp button:disabled{opacity:.4;cursor:not-allowed}
     .ct-stp input{width:38px;height:36px;border:none;background:none;text-align:center;font:inherit;font-size:15.5px;font-weight:700;color:var(--agent-text-primary);padding:0;font-variant-numeric:tabular-nums}
     .ct-stp input:focus{outline:none}
     .ct-stp-lg input{width:44px;font-size:17px}
@@ -485,7 +489,7 @@ function Styles() {
     .ct-search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--agent-text-muted)}
     .ct-search input{width:100%;font:inherit;font-size:14px;color:var(--agent-text-primary);background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:11px 16px 11px 40px;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s}
     .ct-search input::placeholder{color:var(--agent-text-muted)}
-    .ct-search input:focus{outline:none;border-color:var(--agent-coral-deep);box-shadow:0 0 0 3px var(--agent-coral-bg-tint)}
+    .ct-search input:focus{outline:none;border-color:var(--agent-coral-deep)}
 
     .ct-stage{background:#fff;border:1px solid var(--agent-border-default);border-radius:16px;box-shadow:0 1px 2px rgba(60,40,22,.04);margin-bottom:13px;overflow:hidden}
     .ct-stage-head{display:flex;align-items:center;gap:13px;width:100%;appearance:none;border:none;background:none;font:inherit;cursor:pointer;padding:17px 20px;text-align:left;color:inherit;transition:background .15s}
@@ -500,12 +504,10 @@ function Styles() {
 
     .ct-step{border-bottom:1px solid var(--agent-border-subtle);transition:background .15s;position:relative}
     .ct-step:last-child{border-bottom:none}
-    .ct-step.changed{background:linear-gradient(90deg,var(--agent-coral-bg-tint),transparent 55%)}
     .ct-step.changed::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--agent-coral-deep)}
     .ct-step.off{opacity:.55}
     .ct-step-row{display:flex;align-items:center;gap:15px;padding:16px 20px;cursor:pointer}
     .ct-step-row:hover{background:rgba(45,24,16,.02)}
-    .ct-step.changed .ct-step-row:hover{background:transparent}
     .ct-step-main{flex:1;min-width:0}
     .ct-step-name{font-size:15px;font-weight:620;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;color:var(--agent-text-primary)}
     .ct-reddot{width:6px;height:6px;border-radius:999px;background:var(--agent-coral-deep);flex:none}
