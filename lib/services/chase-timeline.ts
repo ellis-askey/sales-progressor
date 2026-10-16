@@ -226,7 +226,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules, chaseSends] = await Promise.all([
     prisma.reminderLog.findMany({
       // Relist safety: file-level (null) + active-round only, so a previous
       // buyer's cancelled/completed PM logs don't render as "resolved" threads
@@ -305,6 +305,14 @@ export async function getChaseTimeline(
     // and the FIRST — solicitor chase date, mirroring the sender.
     prisma.solicitorReminderRule.findMany({
       select: { milestoneCode: true, graceWorkingDays: true, repeatWorkingDays: true, maxChases: true, anchorMilestoneCode: true, useAnchorEventDate: true, active: true },
+    }),
+    // Per-send records for the enquiry chases (raise + reply-loop), so the timeline
+    // can show ONE row per nudge that actually went, rather than a single
+    // "N nudges so far" line synthesised from the tracker's counter.
+    prisma.chaseSend.findMany({
+      where: { transactionId, kind: { in: ["raise", "reply_loop"] } },
+      select: { kind: true, recipient: true, recipientName: true, sentAt: true, openedAt: true },
+      orderBy: { sentAt: "asc" },
     }),
   ]);
 
@@ -618,7 +626,21 @@ export async function getChaseTimeline(
       at: raiseChase.openedAt.toISOString(), kind: "scheduled", title: "Chase opened",
       detail: "Chasing to get enquiries raised, from when searches were ordered.", actor: "System",
     }];
-    if (raiseChase.lastNudgedAt && n > 0) {
+    // One row per nudge that actually sent (ChaseSend records). Falls back to a
+    // single synthesised row for legacy files predating ChaseSend logging.
+    const raiseSends = chaseSends.filter((c) => c.kind === "raise");
+    if (raiseSends.length > 0) {
+      raiseSends.forEach((cs, i) => {
+        const tgt = cs.recipient === "buyer" ? "the buyer" : buyerSolLabel;
+        events.push({
+          at: cs.sentAt.toISOString(), kind: "auto_chase",
+          title: `Nudged ${tgt} to get enquiries raised`,
+          detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
+          actor: "System", delivery: cs.openedAt ? "opened" : "sent",
+          ordinal: { n: i + 1, of: raiseSends.length, by: "auto" },
+        });
+      });
+    } else if (raiseChase.lastNudgedAt && n > 0) {
       const tgt = raiseChase.lastTarget === "buyer" ? "the buyer" : buyerSolLabel;
       events.push({ at: raiseChase.lastNudgedAt.toISOString(), kind: "auto_chase", title: `Nudged ${tgt} to get enquiries raised`, detail: `${n} nudge${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
     }
@@ -683,7 +705,23 @@ export async function getChaseTimeline(
       at: et.openedAt.toISOString(), kind: "scheduled", title: "Enquiries opened",
       detail: et.outstandingNote ? `Waiting on: ${et.outstandingNote}` : "Enquiries raised, awaiting replies.", actor: "System",
     }];
-    if (et.lastChasedAt && n > 0) events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+    // One row per reply-loop chase that actually sent (per-send recipient, which
+    // can differ from the current court); legacy fallback to the single row.
+    const replySends = chaseSends.filter((c) => c.kind === "reply_loop");
+    if (replySends.length > 0) {
+      replySends.forEach((cs, i) => {
+        const chasedWho = cs.recipient === "seller_solicitor" ? sellerSolLabel : buyerSolLabel;
+        events.push({
+          at: cs.sentAt.toISOString(), kind: "auto_chase",
+          title: `Chased ${chasedWho}`,
+          detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
+          actor: "System", delivery: cs.openedAt ? "opened" : "sent",
+          ordinal: { n: i + 1, of: replySends.length, by: "auto" },
+        });
+      });
+    } else if (et.lastChasedAt && n > 0) {
+      events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+    }
     if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
     if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
     if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Nothing left to chase.", actor: "System" });
