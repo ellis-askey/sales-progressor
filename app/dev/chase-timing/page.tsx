@@ -138,7 +138,7 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       ctx!.clearRect(0, 0, w, h);
 
       const { grace, repeat, esc } = propsRef.current;
-      const padL = 22, padR = 58, base = h * 0.62, rightX = w - padR;
+      const padL = 6, padR = 46, base = h * 0.62, rightX = w - padR;
       const nd: number[] = [];
       for (let i = 1; i <= esc; i++) nd.push(grace + repeat * (i - 1));
       const escDay = grace + repeat * esc, maxDay = escDay || 1;
@@ -147,14 +147,10 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       const marks = nd.map((day, i) => ({ day, amp: 15 + i * 7 }));
       const emark = { day: escDay, amp: Math.min(h * 0.42, 42) };
       const all = [...marks, emark];
+      // A clean rise at each beat — no ECG-style dip below the baseline.
       const spike = (dv: number) => {
         let s = 0;
-        for (const m of all) {
-          const dist = dv - m.day;
-          s += m.amp * Math.exp(-Math.pow(dist / Wd, 2));
-          s -= m.amp * 0.28 * Math.exp(-Math.pow((dist + 1.7 * Wd) / (0.7 * Wd), 2));
-          s -= m.amp * 0.28 * Math.exp(-Math.pow((dist - 1.7 * Wd) / (0.7 * Wd), 2));
-        }
+        for (const m of all) s += m.amp * Math.exp(-Math.pow((dv - m.day) / Wd, 2));
         return s;
       };
       const pts: [number, number][] = [];
@@ -167,22 +163,22 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       // faint resting wave (full)
       ctx!.lineWidth = 2; ctx!.strokeStyle = pal.pale;
       ctx!.beginPath(); pts.forEach((p, i) => (i ? ctx!.lineTo(p[0], p[1]) : ctx!.moveTo(p[0], p[1]))); ctx!.stroke();
-      // bright tracer swept to the head
+      // bright tracer swept to the head (no glow — clean line)
       const period = 2800, prog = (t % period) / period, headX = padL + prog * (rightX - padL);
       ctx!.save(); ctx!.beginPath(); ctx!.rect(padL - 2, 0, headX - padL + 2, h); ctx!.clip();
-      ctx!.lineWidth = 2.6; ctx!.strokeStyle = pal.coralDeep; ctx!.shadowColor = pal.coralDeep; ctx!.shadowBlur = 10;
+      ctx!.lineWidth = 2.6; ctx!.strokeStyle = pal.coralDeep;
       ctx!.beginPath(); pts.forEach((p, i) => (i ? ctx!.lineTo(p[0], p[1]) : ctx!.moveTo(p[0], p[1]))); ctx!.stroke(); ctx!.restore();
-      // glowing head
+      // head dot
       const hy = base - spike(((headX - padL) / (rightX - padL)) * maxDay);
-      ctx!.shadowBlur = 12; ctx!.shadowColor = pal.coralDeep; ctx!.fillStyle = pal.coralDeep;
-      ctx!.beginPath(); ctx!.arc(headX, hy, 4, 0, 7); ctx!.fill(); ctx!.shadowBlur = 0;
-      // nudge beats + labels
+      ctx!.fillStyle = pal.coralDeep;
+      ctx!.beginPath(); ctx!.arc(headX, hy, 4, 0, 7); ctx!.fill();
+      // nudge beats + labels (labels clamped so they never clip the edges)
       ctx!.textAlign = "center";
       marks.forEach((m, i) => {
-        const x = X(m.day), y = base - m.amp;
+        const x = X(m.day), y = base - m.amp, lx = Math.max(26, Math.min(w - 26, x));
         ctx!.fillStyle = pal.coralDeep; ctx!.beginPath(); ctx!.arc(x, y, 3, 0, 7); ctx!.fill();
-        ctx!.fillStyle = pal.ink; ctx!.font = "700 12px " + font; ctx!.fillText("Day " + m.day, x, y - 9);
-        ctx!.fillStyle = pal.faint; ctx!.font = "600 10px " + font; ctx!.fillText(i === 0 ? "1st nudge" : ordinal(i + 1) + " nudge", x, base + 16);
+        ctx!.fillStyle = pal.ink; ctx!.font = "700 12px " + font; ctx!.fillText("Day " + m.day, lx, y - 9);
+        ctx!.fillStyle = pal.faint; ctx!.font = "600 10px " + font; ctx!.fillText(i === 0 ? "1st nudge" : ordinal(i + 1) + " nudge", lx, base + 16);
       });
       // escalation spike + person
       const ex = X(escDay);
@@ -192,7 +188,7 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       ctx!.fillStyle = pal.amber;
       ctx!.beginPath(); ctx!.arc(px, base - 13, 4.2, 0, 7); ctx!.fill();
       ctx!.beginPath(); ctx!.moveTo(px - 7, base); ctx!.quadraticCurveTo(px, base - 9, px + 7, base); ctx!.closePath(); ctx!.fill();
-      ctx!.fillStyle = pal.amber; ctx!.font = "600 10px " + font; ctx!.fillText("you", px, base + 16);
+      ctx!.fillStyle = pal.amber; ctx!.font = "600 10px " + font; ctx!.fillText("You", px, base + 16);
     }
 
     const loop = (t: number) => { draw(t); raf = requestAnimationFrame(loop); };
