@@ -145,7 +145,7 @@ export default async function AgentPartnersPage() {
         })
       : Promise.resolve([]),
     isDirector
-      ? prisma.solicitorFirm.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+      ? prisma.solicitorFirm.findMany({ where: { isDemo: false }, orderBy: { name: "asc" }, select: { id: true, name: true } })
       : Promise.resolve([]),
     isDirector
       ? Promise.resolve().then(() =>

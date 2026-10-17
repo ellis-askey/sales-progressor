@@ -143,9 +143,12 @@ const BOTTOM: FilePreset = {
 // ── Solicitor singletons ─────────────────────────────────────────────────────
 async function ensureDemoSolicitors() {
   async function ensure(firm: string, sol: { name: string; email: string; phone: string }) {
-    const firmRow = await prisma.solicitorFirm.upsert({ where: { name: firm }, update: {}, create: { name: firm }, select: { id: true } });
+    // isDemo:true on create so these fake firms/handlers are filtered out of every
+    // real firm list, picker and search. update:{} so we never flip a real
+    // same-named firm to demo (demo names are invented, so collisions are unreal).
+    const firmRow = await prisma.solicitorFirm.upsert({ where: { name: firm }, update: {}, create: { name: firm, isDemo: true }, select: { id: true } });
     let solRow = await prisma.solicitorContact.findFirst({ where: { firmId: firmRow.id, name: sol.name }, select: { id: true } });
-    if (!solRow) solRow = await prisma.solicitorContact.create({ data: { firmId: firmRow.id, name: sol.name, email: sol.email, phone: sol.phone }, select: { id: true } });
+    if (!solRow) solRow = await prisma.solicitorContact.create({ data: { firmId: firmRow.id, name: sol.name, email: sol.email, phone: sol.phone, isDemo: true }, select: { id: true } });
     return { firmId: firmRow.id, solId: solRow.id };
   }
   const v = await ensure(DEMO_SOLICITORS.vendor.firm, DEMO_SOLICITORS.vendor);

@@ -201,6 +201,7 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
 
 export async function getAllSolicitorIntel(agencyId: string): Promise<SolicitorIntel[]> {
   const firms = await prisma.solicitorFirm.findMany({
+    where: { isDemo: false },
     select: { id: true },
   });
 

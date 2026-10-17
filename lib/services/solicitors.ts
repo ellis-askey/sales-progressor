@@ -89,7 +89,9 @@ async function solicitorDirectoryFromWhere(
   }
 
   const firms = await prisma.solicitorFirm.findMany({
-    where: { id: { in: [...firmIds] } },
+    // isDemo:false so a demo/preview firm referenced by a demo file never shows
+    // in an agency's real solicitor list.
+    where: { id: { in: [...firmIds] }, isDemo: false },
     orderBy: { name: "asc" },
     include: { handlers: { orderBy: { name: "asc" } } },
   });

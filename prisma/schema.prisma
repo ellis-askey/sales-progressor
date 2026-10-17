@@ -485,6 +485,10 @@ model User {
   // never presented as the real user's own file. Excluded from team pickers.
   // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
   isDemo                   Boolean                  @default(false)
+  // Which kind of demo this is (null for real sales): "onboarding" = the zero-sales
+  // showcase chain; "portal_preview" = the always-on client-portal example (never
+  // expires, one per org). Keeps the two demo features from colliding.
+  demoKind                 String?
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
 
@@ -1518,6 +1522,9 @@ model SolicitorFirm {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Demo-only firm (created by the demo-sale showcase / portal preview). Filtered
+  // out of every real firm list, picker and search so fakes never leak.
+  isDemo    Boolean  @default(false)
 
   handlers                 SolicitorContact[]
   vendorForTransactions    PropertyTransaction[]        @relation("VendorSolicitorFirm")
@@ -1562,6 +1569,8 @@ model SolicitorContact {
   // Handler's profile photo (public avatar URL). Set from the solicitor portal;
   // shown on their confirmations in the feed. Falls back to initials.
   image          String?
+  // Demo-only handler (see SolicitorFirm.isDemo). Filtered from real lists.
+  isDemo         Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

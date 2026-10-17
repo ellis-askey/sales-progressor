@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const firms = await prisma.solicitorFirm.findMany({
-      where: q ? { name: { contains: q, mode: "insensitive" } } : {},
+      // isDemo:false — never surface demo-sale/preview firms in the typeahead.
+      where: { isDemo: false, ...(q ? { name: { contains: q, mode: "insensitive" } } : {}) },
       orderBy: { name: "asc" },
       take: 10,
       select: { id: true, name: true },
