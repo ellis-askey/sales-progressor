@@ -55,7 +55,7 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
               aria-checked={on}
               disabled={pending}
               onClick={() => pick(o.key)}
-              className="text-left transition-all disabled:cursor-default"
+              className={`bizinvite-opt${on ? " on" : ""} text-left disabled:cursor-default`}
               style={{
                 display: "flex", gap: 15, alignItems: "flex-start", width: "100%",
                 padding: "16px 18px", borderRadius: 14, cursor: "pointer", fontFamily: "inherit",
@@ -114,6 +114,14 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
           Saved
         </span>
       </div>
+
+      <style>{`
+        /* Same subtle lift-on-hover as the Billing-point selector (.bizbp-opt). */
+        .bizinvite-opt { transition: background 160ms, border-color 150ms, box-shadow 220ms, transform 160ms; }
+        .bizinvite-opt:not(.on):hover { transform: translateY(-1px); border-color: var(--agent-coral, #FF8A65); }
+        .bizinvite-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,0.3); }
+        @media (prefers-reduced-motion: reduce) { .bizinvite-opt { transition: none; } .bizinvite-opt:hover { transform: none; } }
+      `}</style>
     </div>
   );
 }
