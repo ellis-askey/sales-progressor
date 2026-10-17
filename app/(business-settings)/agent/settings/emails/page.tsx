@@ -20,7 +20,8 @@ import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyM
 import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import type { BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { SenderDomainSection } from "@/components/progression/SenderDomainSection";
-import { ShareNetwork, Palette } from "@phosphor-icons/react/dist/ssr";
+import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
+import { ShareNetwork, Palette, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export default async function BusinessEmailsPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -53,33 +54,41 @@ export default async function BusinessEmailsPage() {
         subtitle="The emails sent to clients on the sales you progress, and how they're sent."
         backLabel="Back to progression"
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <AccountCard
-          icon={<ShareNetwork size={18} weight="bold" />}
-          title="Step-by-step updates"
-          subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
-        >
-          <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
-        </AccountCard>
-
-        <AccountCard
-          icon={<Palette size={18} weight="bold" />}
-          title="Your house style"
-          subtitle="Design how your clients' emails look: colours, type, header and buttons. Every file you progress starts from this, unless a client sets their own."
-        >
-          <EmailStudio initial={houseStyle} endpoint="/api/agent/settings/email-theme" identityName={business?.name ?? "Your business"} themeOnly />
-        </AccountCard>
-
-        <AccountCard title="Sending address" subtitle="The address your clients' emails come from.">
-          <SenderDomainSection base="/api/agent/settings/sender" scope="business" />
-          <p style={{ margin: "16px 2px 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
-            To send a specific client&rsquo;s emails from their own address, open the client from{" "}
-            <Link href="/agent/clients" className="sds-clients-ln">Clients</Link>{" "}
-            and set up their sending address under Branding.
-          </p>
-          <style>{`.sds-clients-ln{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(0,0,0,0.22);transition:color .15s,text-decoration-color .15s}.sds-clients-ln:hover{color:var(--agent-coral-deep,#E2452A);text-decoration-color:currentColor}`}</style>
-        </AccountCard>
-      </div>
+      <EmailsTabs
+        style={
+          <AccountCard
+            icon={<Palette size={18} weight="bold" />}
+            title="Your house style"
+            subtitle="Design how your clients' emails look: colours, type, header and buttons. Every file you progress starts from this, unless a client sets their own."
+          >
+            <EmailStudio initial={houseStyle} endpoint="/api/agent/settings/email-theme" identityName={business?.name ?? "Your business"} themeOnly />
+          </AccountCard>
+        }
+        words={
+          <AccountCard
+            icon={<ShareNetwork size={18} weight="bold" />}
+            title="Step-by-step updates"
+            subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
+          >
+            <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
+          </AccountCard>
+        }
+        sender={
+          <AccountCard
+            icon={<PaperPlaneTilt size={18} weight="bold" />}
+            title="Sending address"
+            subtitle="The address your clients' emails come from."
+          >
+            <SenderDomainSection base="/api/agent/settings/sender" scope="business" />
+            <p style={{ margin: "16px 2px 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
+              To send a specific client&rsquo;s emails from their own address, open the client from{" "}
+              <Link href="/agent/clients" className="sds-clients-ln">Clients</Link>{" "}
+              and set up their sending address under Branding.
+            </p>
+            <style>{`.sds-clients-ln{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(0,0,0,0.22);transition:color .15s,text-decoration-color .15s}.sds-clients-ln:hover{color:var(--agent-coral-deep,#E2452A);text-decoration-color:currentColor}`}</style>
+          </AccountCard>
+        }
+      />
     </>
   );
 }
