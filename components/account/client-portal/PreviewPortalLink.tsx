@@ -1,10 +1,11 @@
 "use client";
 
-// "Preview the client portal" controls (Account -> Client portal, director).
+// "Preview the client portal" controls, shown at the bottom of the Inviting
+// clients card (Account -> Client portal, director; and the SP business variant).
 // Open the full example seller portal in a new tab, or copy a shareable link to
 // send someone. The example is a sealed-off demo file (no real data, no emails);
-// see app/actions/portal-preview.ts + docs/active/portal-preview/SPEC.md. The
-// link/example is built on first use and reused after (one per agency).
+// see app/actions/portal-preview.ts + docs/active/portal-preview/SPEC.md. Built
+// on first use and reused after (one per agency). Regenerate sits on the right.
 
 import { useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -51,16 +52,26 @@ export function PreviewPortalLink() {
   }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-      <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" disabled={busy !== null} onClick={open}>
-        {busy === "open" ? "Opening…" : "Open the example"}
-      </button>
-      <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" disabled={busy !== null} onClick={copy}>
-        {busy === "copy" ? "Preparing…" : "Copy a link to share"}
-      </button>
-      <button type="button" className="agent-link" style={{ fontSize: 12 }} disabled={busy !== null} onClick={regen}>
-        {busy === "regen" ? "Working…" : "Regenerate link"}
-      </button>
+    <div style={{ borderTop: "1px solid var(--agent-border-subtle)", marginTop: 16, paddingTop: 16 }}>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+        Preview the client portal
+      </p>
+      <p style={{ margin: "4px 0 12px", fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
+        Explore the full example portal to see what your buyers and sellers see, or copy the link to share a preview with someone else.
+      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" disabled={busy !== null} onClick={open}>
+            {busy === "open" ? "Opening…" : "Open the example"}
+          </button>
+          <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" disabled={busy !== null} onClick={copy}>
+            {busy === "copy" ? "Preparing…" : "Copy a link to share"}
+          </button>
+        </div>
+        <button type="button" className="agent-link" style={{ fontSize: 12 }} disabled={busy !== null} onClick={regen}>
+          {busy === "regen" ? "Working…" : "Regenerate link"}
+        </button>
+      </div>
     </div>
   );
 }
