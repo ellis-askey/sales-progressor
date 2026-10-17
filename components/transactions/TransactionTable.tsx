@@ -138,7 +138,7 @@ export function TransactionTable({
       glassId="myfiles-table"
       label="My files · Table"
       defaultVariant="v05"
-      className={`files-table files-switch-${switchBucket}`}
+      className={`files-table files-switch-${switchBucket} agent-bloom-stagger`}
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10

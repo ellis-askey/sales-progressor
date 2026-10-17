@@ -244,7 +244,7 @@ export default async function AllTransactionsPage({
         )}
       </PageHeader>
 
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-5 agent-bloom-stagger">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
 
         {/* Hub filter indicator — data-first phrasing (Stage 3 voice fix).
          * OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
