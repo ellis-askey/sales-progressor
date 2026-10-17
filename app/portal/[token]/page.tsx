@@ -26,7 +26,7 @@ import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
 import { ActorAvatar } from "@/components/ui/Avatar";
-import { portalConfirmationSentence } from "@/lib/updates-copy";
+import { portalConfirmationSentence, portalMirrorSiblingCode } from "@/lib/updates-copy";
 import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { stripCommsLinksSilent } from "@/lib/utils/strip-comms-links";
@@ -236,6 +236,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         coreOverride: updateOverrides.get(entry.code)?.core ?? null,
         isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
         counterpartFirm: entry.counterpartFirm,
+        reflected: entry.reflected,
       });
     } else if (entry.type === "document") {
       title = entry.filename ?? "New document available";
@@ -1174,13 +1175,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                         coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                         isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
                         counterpartFirm: entry.counterpartFirm,
+                        reflected: entry.reflected,
                       })}
                     </p>
                     {(() => {
                       const ov = updateOverrides.get(entry.code);
-                      const sub = entry.side === side
-                        ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
-                        : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
+                      // Honest mirror (#278/#279): restated dual-linked mirror uses the
+                      // confirmed sibling's other-side subtext (see updates/page.tsx).
+                      const siblingCode = portalMirrorSiblingCode(entry.code, entry.reflected);
+                      const sub = siblingCode
+                        ? getMilestoneUpdateSubtextOther(siblingCode)
+                        : entry.side === side
+                          ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
+                          : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
                       return sub ? (
                         <p className="text-[12.5px] leading-snug mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                       ) : null;

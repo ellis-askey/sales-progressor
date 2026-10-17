@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
-import { portalConfirmationSentence } from "@/lib/updates-copy";
+import { portalConfirmationSentence, portalMirrorSiblingCode } from "@/lib/updates-copy";
 import { getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
 import { getUpdateOverrideMap } from "@/lib/services/milestone-update-overrides";
 import { P, PortalPill, type PortalPillTone } from "@/components/portal/portal-ui";
@@ -182,6 +182,7 @@ export default async function PortalUpdatesPage({
                             coreOverride: updateOverrides.get(entry.code)?.core ?? null,
                             isDesktopValuation: entry.code === "PM6" && !entry.eventDate,
                             counterpartFirm: entry.counterpartFirm,
+                            reflected: entry.reflected,
                           })}
                         </p>
                         {(() => {
@@ -189,9 +190,15 @@ export default async function PortalUpdatesPage({
                           // side: third-person "the seller/buyer" subtext. Command
                           // Centre override wins over the hardcoded default.
                           const ov = updateOverrides.get(entry.code);
-                          const sub = entry.side === side
-                            ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
-                            : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
+                          // Honest mirror (#278/#279): a restated dual-linked mirror shows the
+                          // CONFIRMED sibling's other-side subtext, so the supporting line matches
+                          // the restated sentence rather than claiming the viewer's solicitor acted.
+                          const siblingCode = portalMirrorSiblingCode(entry.code, entry.reflected);
+                          const sub = siblingCode
+                            ? getMilestoneUpdateSubtextOther(siblingCode)
+                            : entry.side === side
+                              ? (ov?.subtextOwn ?? getMilestoneUpdateSubtext(entry.code))
+                              : (ov?.subtextOther ?? getMilestoneUpdateSubtextOther(entry.code));
                           return sub ? (
                             <p className="text-[13px] leading-relaxed mt-1" style={{ color: P.textSecondary }}>{sub}</p>
                           ) : null;

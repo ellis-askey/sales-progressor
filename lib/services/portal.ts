@@ -3033,6 +3033,11 @@ export type TimelineEntry =
       createdAt: Date | null;
       // Critique #20: counterpart solicitor firm for the enquiries line (PM14/VM10).
       counterpartFirm?: string | null;
+      // #278/#279: the auto-closed mirror half of a dual-linked pair. When this is
+      // the viewer's own side, the honest sentence states the CONFIRMED sibling's
+      // fact ("the seller's solicitor has issued…") rather than claiming the
+      // viewer's own solicitor acted. Drives the restate in portalConfirmationSentence.
+      reflected?: boolean;
     }
   | {
       type: "update";
@@ -3265,10 +3270,17 @@ export async function getPortalTimeline(
         )
       : new Map<string, { image: string | null; name: string; isPrincipal: boolean }>();
 
-    // Exchange + completion are simultaneous bilateral events (VM19/PM26 and
-    // VM20/PM27 auto-complete together). Each party only needs their OWN side's
-    // confirmation in the feed, not the mirror entry from the other side.
-    const BILATERAL_DUP_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
+    // Dual-linked pairs auto-complete both sides together, so the raw feed would
+    // carry both halves. Each party only needs their OWN side's entry, never the
+    // mirror from the other side — so we drop the other-side half here and keep
+    // the viewer's own. For the asymmetric pairs (pack issued/received, enquiries
+    // raised/received) the surviving own entry, if it's the auto-closed mirror, is
+    // then restated honestly by portalConfirmationSentence (the reflected flag).
+    // Covers: contract pack (VM7/PM7), enquiries raised (PM14/VM10), enquiries
+    // satisfied (PM20/VM21), exchange (VM19/PM26), completion (VM20/PM27).
+    const BILATERAL_DUP_CODES = new Set([
+      "VM7", "PM7", "PM14", "VM10", "PM20", "VM21", "VM19", "PM26", "VM20", "PM27",
+    ]);
 
     // Critique #20: the enquiries line names the COUNTERPART solicitor firm
     // (buyer hears the seller's firm on PM14; seller hears the buyer's on VM10).
@@ -3296,6 +3308,7 @@ export async function getPortalTimeline(
           confirmedByContactImage: c.confirmedByContactId ? (confirmerById.get(c.confirmedByContactId)?.image ?? null) : null,
           confirmedBySolicitorFirmName: c.confirmedBySolicitorFirm?.name ?? null,
           confirmedByClient: c.confirmedByPortal,
+          reflected: c.reflected,
           // A helper confirmed this step → the portal reads "X on your behalf".
           helperName: (() => {
             const cc = c.confirmedByContactId ? confirmerById.get(c.confirmedByContactId) : null;

@@ -396,6 +396,35 @@ const ENQ_FIRM_FALLBACK: Record<string, string> = {
   VM10: "the buyer's solicitor",
 };
 
+// #278/#279 — honest phrasing on the auto-closed half of an ASYMMETRIC dual-linked
+// pair. The two halves describe genuinely different moments (a pack is issued by
+// one solicitor, then received by the other; enquiries are raised by one side,
+// received by the other), so the side nobody confirmed must not be told its own
+// solicitor acted. Instead it hears the fact that WAS confirmed — the other
+// party's action — keyed here by the MIRROR code the viewer is looking at.
+// "your" resolves to the viewer's own solicitor (the mirror is always on their
+// own side). Simultaneous pairs (exchange VM19/PM26, completion VM20/PM27,
+// enquiries satisfied PM20/VM21) are honest as-is and are deliberately absent.
+const PORTAL_MIRROR_FACT: Record<string, string> = {
+  PM7: "the seller's solicitor has issued the draft contract pack",
+  VM7: "the buyer's solicitor has received the draft contract pack",
+  VM10: "the buyer's solicitor has raised initial enquiries with your solicitor",
+  PM14: "the seller's solicitor has received initial enquiries from your solicitor",
+};
+
+// The confirmed sibling of each restated mirror code. The portal shows this
+// sibling's OTHER-side subtext under the restated sentence, so the supporting
+// line matches the honest fact instead of the own-side "your solicitor…" copy.
+const PORTAL_MIRROR_SIBLING: Record<string, string> = {
+  PM7: "VM7", VM7: "PM7", VM10: "PM14", PM14: "VM10",
+};
+
+// For the portal: when a dual-linked mirror is being restated, the code whose
+// OTHER-side subtext should accompany it (null when no restate applies).
+export function portalMirrorSiblingCode(code: string, reflected: boolean | undefined): string | null {
+  return reflected && PORTAL_MIRROR_FACT[code] ? PORTAL_MIRROR_SIBLING[code] : null;
+}
+
 export function portalConfirmationSentence(opts: {
   code: string;
   side: "vendor" | "purchaser";
@@ -411,8 +440,11 @@ export function portalConfirmationSentence(opts: {
   isDesktopValuation?: boolean;
   // Critique #20: counterpart solicitor firm for the enquiries line (PM14/VM10).
   counterpartFirm?: string | null;
+  // #278/#279: this entry is the auto-closed mirror half of a dual-linked pair.
+  // On an asymmetric pair it triggers the honest restate (see PORTAL_MIRROR_FACT).
+  reflected?: boolean;
 }): string {
-  const { code, side, viewerSide, confirmer, milestoneName, coreOverride, isDesktopValuation, counterpartFirm } = opts;
+  const { code, side, viewerSide, confirmer, milestoneName, coreOverride, isDesktopValuation, counterpartFirm, reflected } = opts;
   const enqBuild = code === "PM14" || code === "VM10" ? ENQ_FIRM_CLAUSE[code] : undefined;
   const isGeneral = enqBuild ? false : GENERAL[code] !== undefined;
   const clause = coreOverride && coreOverride.trim()
@@ -427,6 +459,23 @@ export function portalConfirmationSentence(opts: {
     if (!clause) return milestoneName;
     if (isGeneral) return capitalise(clause);
     return capitalise(`the ${party}'s ${clause}`);
+  }
+
+  // Honest mirror (#278/#279): the viewer's own side closed automatically because
+  // the OTHER side was confirmed. Don't claim the viewer's solicitor acted — state
+  // the confirmed sibling's fact, credited to whoever ran the file. Only the
+  // asymmetric pairs are in PORTAL_MIRROR_FACT; simultaneous pairs fall through to
+  // the honest own-side wording below.
+  if (reflected && PORTAL_MIRROR_FACT[code]) {
+    const fact = PORTAL_MIRROR_FACT[code];
+    const who = confirmer
+      ? confirmer.kind === "solicitor"
+        ? confirmer.firm
+        : confirmer.kind === "client"
+          ? null
+          : confirmer.name
+      : null;
+    return who ? `${who} confirmed ${fact}` : capitalise(fact);
   }
 
   // The viewer's own step, no named confirmer (twin close): plain fact,
