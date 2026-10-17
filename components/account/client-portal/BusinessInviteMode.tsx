@@ -3,10 +3,11 @@
 // Settings → Client portal (business owner): "Client invitations". A single
 // three-way choice for when buyers/sellers get their portal invite, mapped onto
 // the two per-creator flags (setBusinessInviteMode). Solid-gradient selected
-// state; optimistic with revert on error. Governs every file this business
-// progresses; applies to new sales only (forward-only at sale creation).
+// state that settles smoothly on change; optimistic with revert on error. The
+// caveat ("applies to new sales only") is persistent context; a transient
+// "Saved" confirms an actual change (this control auto-saves, no Save button).
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { setBusinessInviteMode, type InviteMode } from "@/app/actions/progression-clients";
 
 const OPTIONS: { key: InviteMode; label: string; sub: string }[] = [
@@ -19,6 +20,15 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
   const [mode, setMode] = useState<InviteMode>(initial);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (savedTimer.current) clearTimeout(savedTimer.current); }, []);
+
+  function flashSaved() {
+    setSaved(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 1900);
+  }
 
   function pick(next: InviteMode) {
     if (next === mode || pending) return;
@@ -27,13 +37,14 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
     setMode(next);
     start(async () => {
       const res = await setBusinessInviteMode(next);
-      if (!res.ok) { setMode(prev); setError(res.error); }
+      if (res.ok) flashSaved();
+      else { setMode(prev); setError(res.error); }
     });
   }
 
   return (
     <div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }} role="radiogroup" aria-label="Client invitations">
         {OPTIONS.map((o) => {
           const on = mode === o.key;
           return (
@@ -60,17 +71,23 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
               <span
                 aria-hidden
                 style={{
-                  marginTop: 2, flex: "none", width: 22, height: 22, borderRadius: 999,
-                  display: "grid", placeItems: "center", transition: "all .15s",
-                  border: on ? "none" : "2px solid #cbd5e1",
+                  marginTop: 2, flex: "none", width: 22, height: 22, borderRadius: 999, boxSizing: "border-box",
+                  display: "grid", placeItems: "center", transition: "border-color .18s, background .18s",
+                  border: `2px solid ${on ? "#fff" : "#cbd5e1"}`,
                   background: on ? "#fff" : "transparent",
                 }}
               >
-                {on && <span style={{ width: 9, height: 9, borderRadius: 999, background: "var(--agent-coral-deep)" }} />}
+                <span
+                  style={{
+                    width: 9, height: 9, borderRadius: 999, background: "var(--agent-coral-deep)",
+                    opacity: on ? 1 : 0, transform: on ? "scale(1)" : "scale(.3)",
+                    transition: "opacity .18s, transform .18s",
+                  }}
+                />
               </span>
               <span style={{ minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 15, fontWeight: 650, letterSpacing: "-.01em", color: on ? "#fff" : "var(--agent-text-primary)" }}>{o.label}</span>
-                <span style={{ display: "block", fontSize: 13, lineHeight: 1.5, marginTop: 2, color: on ? "rgba(255,255,255,.92)" : "var(--agent-text-secondary)" }}>{o.sub}</span>
+                <span style={{ display: "block", fontSize: 15, fontWeight: 650, letterSpacing: "-.01em", color: on ? "#fff" : "var(--agent-text-primary)", transition: "color .18s" }}>{o.label}</span>
+                <span style={{ display: "block", fontSize: 13, lineHeight: 1.5, marginTop: 2, color: on ? "rgba(255,255,255,.92)" : "var(--agent-text-secondary)", transition: "color .18s" }}>{o.sub}</span>
               </span>
             </button>
           );
@@ -79,9 +96,23 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
 
       {error && <p style={{ margin: "10px 2px 0", fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
 
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", gap: 9 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--agent-success, #1F8A4A)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12l5 5L20 7" /></svg>
-        <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Your selection applies to new sales only.</span>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--agent-success, #1F8A4A)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flex: "none" }}><path d="M5 12l5 5L20 7" /></svg>
+          <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Your selection applies to new sales only.</span>
+        </span>
+        <span
+          aria-hidden={!saved}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, flex: "none",
+            fontSize: 13, fontWeight: 650, color: "var(--agent-success, #1F8A4A)",
+            opacity: saved ? 1 : 0, transform: saved ? "translateY(0)" : "translateY(3px)",
+            transition: "opacity .25s ease, transform .25s ease",
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12l5 5L20 7" /></svg>
+          Saved
+        </span>
       </div>
     </div>
   );
