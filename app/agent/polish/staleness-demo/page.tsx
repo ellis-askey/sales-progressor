@@ -59,6 +59,7 @@ function mockCompletion(state: "complete" | "available" | "locked", completedAt?
     keyCollectionRequired: null,
     signedInPerson: null,
     awaitingBookingConfirmation: false,
+    reflected: false,
     notRequiredReason: null,
     notRequiredById: null,
     notRequiredAt: null,

@@ -1158,6 +1158,10 @@ export type CompleteMilestoneInput = {
   // VM7↔PM7 contract-pack pair — where the mirrored side must complete even if
   // its own upstream chain was never ticked. Never set from a UI path.
   bypassPrereqs?: boolean;
+  // Internal use only: marks this completion as the auto-completed mirror half of
+  // a dual-linked pair, so the agent activity feed collapses a bilateral confirm
+  // to one entry. Set by the cross-side reflections. Never from a UI path. (#279)
+  reflected?: boolean;
 };
 
 // Phase 4 perceived-performance (2026-09-18, PERF-07/-12): optional
@@ -1364,6 +1368,7 @@ export async function completeMilestone(
         confirmedByBrokerFirmId,
         confirmedByBrokerContactId,
         confirmedByContactId,
+        reflected: input.reflected ?? false,
         summaryText,
         notRequiredReason: null,
         // 2026-07-13 (Chunk 6a): if the row was previously NR'd, flipping
@@ -1400,6 +1405,7 @@ export async function completeMilestone(
           confirmedByBrokerFirmId,
           confirmedByBrokerContactId,
           confirmedByContactId,
+          reflected: input.reflected ?? false,
           summaryText,
           // Stamp the active round on purchaser-side rows; vendor rows
           // stay file-level (NULL). Same attribution rule as
@@ -1577,6 +1583,7 @@ export async function completeMilestone(
             transactionId: input.transactionId,
             milestoneDefinitionId: mirror.id,
             confirmer: mirrorConfirmer,
+            reflected: true,
             bypassPrereqs: true,
           },
           tx,
@@ -1611,14 +1618,34 @@ export async function completeMilestone(
         select: { id: true, code: true, name: true, summaryTemplate: true, side: true },
       });
       if (other) {
+        // Attribution aligned with the enquiries pairs (#278): an internal user
+        // confirming carries that user onto the mirror; a CLIENT or SOLICITOR
+        // confirming attributes the mirror to the file's overseer (assigned SP
+        // if outsourced, else the managing agent) — never the confirming party,
+        // so neither side reads as having completed the other's step. (Was a
+        // provenance-less "auto" twin close; the contract pack is now the only
+        // pair that wasn't on this rule.)
+        let mirrorConfirmer: Confirmer = input.confirmer;
+        if (input.confirmer.kind !== "user") {
+          const owner = await db.propertyTransaction.findUnique({
+            where: { id: input.transactionId },
+            select: {
+              serviceType: true,
+              assignedUser: { select: { id: true, name: true } },
+              agentUser: { select: { id: true, name: true } },
+            },
+          });
+          const overseer = owner?.serviceType === "outsourced" ? owner.assignedUser : owner?.agentUser;
+          mirrorConfirmer = overseer
+            ? { kind: "user", id: overseer.id, name: overseer.name ?? "" }
+            : { kind: "auto" };
+        }
         await completeMilestone(
           {
             transactionId: input.transactionId,
             milestoneDefinitionId: other.id,
-            // Twin close: no provenance on the mirrored half — it renders as
-            // a plain fact everywhere, and the confirmed half next to it
-            // carries the name/firm. See the Confirmer "auto" kind.
-            confirmer: { kind: "auto" },
+            confirmer: mirrorConfirmer,
+            reflected: true,
             eventDate: input.eventDate,
             completedAt: input.completedAt,
             bypassPrereqs: true,
@@ -1735,6 +1762,7 @@ export async function completeMilestone(
             transactionId: input.transactionId,
             milestoneDefinitionId: other.id,
             confirmer: mirrorConfirmer,
+            reflected: true,
             eventDate: input.eventDate,
             completedAt: input.completedAt,
             bypassPrereqs: true,

@@ -230,6 +230,7 @@ export async function confirmMilestoneAction(input: {
           transactionId: input.transactionId,
           milestoneDefinitionId: counterDefId,
           confirmer,
+          reflected: true,
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
         }, ptx, { def: counterDef ?? undefined, activeBuyerRoundId });
       }

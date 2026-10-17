@@ -312,7 +312,11 @@ export async function getActivityTimeline(
     }),
   ]);
 
-  const milestoneEntries: ActivityEntry[] = completions.map((c) => {
+  // #279: hide the auto-completed mirror half of a dual-linked pair, so a
+  // bilateral confirm shows ONE entry (the side actually confirmed), not two.
+  // Client portals are built elsewhere (lib/services/portal.ts) and still show
+  // each client their own side.
+  const milestoneEntries: ActivityEntry[] = completions.filter((c) => !c.reflected).map((c) => {
     const confirmedByClient = c.confirmedByPortal;
     const side = c.milestoneDefinition.side as "vendor" | "purchaser";
     // Scope buyer names to the ACTIVE round so a relisted file's timeline never

@@ -1995,6 +1995,12 @@ model MilestoneCompletion {
   // which releases the held emails. Direct agent/progressor bookings never set
   // this — they are already verified, so emails go straight away.
   awaitingBookingConfirmation   Boolean        @default(false)
+  // True on the auto-completed MIRROR half of a dual-linked pair (contract pack,
+  // enquiries raised/satisfied, exchange, completion). The directly-confirmed side
+  // is false. The AGENT activity feed hides reflected rows so a bilateral confirm
+  // is ONE entry, not two; client portals still show each client their own side.
+  // (#279)
+  reflected                     Boolean        @default(false)
   notRequiredReason             String?
   // NR-specific attribution. Distinct from completedById/completedAt which
   // track the last actor to flip TO the "complete" state. When a milestone
