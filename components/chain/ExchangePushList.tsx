@@ -47,24 +47,25 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 14, fontWeight: 680, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line1}</span>
                   <span style={{ display: "block", fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                    {rest ? rest + " · " : ""}your side ready · chain of {f.total}
+                    {rest}
                   </span>
                 </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    whiteSpace: "nowrap",
-                    padding: "3px 10px",
-                    borderRadius: 99,
-                    fontVariantNumeric: "tabular-nums",
-                    color: f.allReady ? "var(--agent-success)" : "var(--agent-coral-deep)",
-                    background: f.allReady ? "rgba(var(--agent-success-rgb, 31,138,74),0.1)" : "rgba(var(--agent-coral-rgb),0.1)",
-                    border: `1px solid ${f.allReady ? "rgba(var(--agent-success-rgb, 31,138,74),0.28)" : "rgba(var(--agent-coral-rgb),0.25)"}`,
-                  }}
-                >
-                  {f.allReady ? "Ready to book" : `${f.readyCount} / ${f.total} ready`}
-                </span>
+                {f.allReady && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                      padding: "3px 10px",
+                      borderRadius: 99,
+                      color: "var(--agent-success)",
+                      background: "rgba(var(--agent-success-rgb, 31,138,74),0.1)",
+                      border: "1px solid rgba(var(--agent-success-rgb, 31,138,74),0.28)",
+                    }}
+                  >
+                    Ready to book
+                  </span>
+                )}
                 <span aria-hidden style={{ color: "var(--agent-text-muted)", fontSize: 13, transition: "transform 250ms ease", transform: isOpen ? "rotate(180deg)" : "none" }}>▾</span>
               </button>
               <div style={{ display: "grid", gridTemplateRows: isOpen ? "1fr" : "0fr", transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1)" }}>

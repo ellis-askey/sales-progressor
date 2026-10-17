@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setChainLinkExchangeReadyAction, markChainLinkChasedAction } from "@/app/actions/chains";
-import type { ExchangePush, ExchangePushRow, ExchangeReadySource } from "@/lib/services/exchange-push";
+import type { ExchangePush, ExchangePushRow } from "@/lib/services/exchange-push";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 
@@ -24,13 +24,6 @@ function rel(iso: string | null): string {
   if (days === 1) return "chased yesterday";
   return `chased ${days} days ago`;
 }
-
-const SOURCE_TEXT: Record<ExchangeReadySource, string> = {
-  exchanged: "Exchanged",
-  confirmed: "You confirmed",
-  their_file: "From their file",
-  not_yet: "Not yet",
-};
 
 export function ExchangeChecklist({ push }: { push: ExchangePush }) {
   const router = useRouter();
@@ -148,33 +141,25 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>
                     {row.isUs ? "Your sale" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
-                    {!row.isUs && !row.ready ? ` · ${rel(row.lastChasedAt)}` : ""}
+                    {!row.isUs && !row.ready && row.lastChasedAt ? ` · ${rel(row.lastChasedAt)}` : ""}
                   </div>
                 </div>
               </div>
               <div className="exc-ctrls">
-              {row.source === "confirmed" ? (
+              {row.isUs ? (
+                // Our own sale — who confirmed it (the viewer), with their avatar.
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                   <UserAvatar user={{ name: confName ?? "", image: confImage }} size={18} />
                   <span style={{ fontSize: 11, fontWeight: 650, color: "var(--agent-text-secondary)" }}>
                     {confName ? `Confirmed by ${confName}` : "Confirmed"}
                   </span>
                 </span>
-              ) : (
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 650,
-                    whiteSpace: "nowrap",
-                    padding: "3px 9px",
-                    borderRadius: 99,
-                    color: row.ready ? "var(--agent-success)" : "var(--agent-text-muted)",
-                    background: row.ready ? "rgba(var(--agent-success-rgb, 31,138,74),0.1)" : "rgba(42,23,16,0.05)",
-                  }}
-                >
-                  {SOURCE_TEXT[row.source]}
+              ) : row.ready ? (
+                // A chain link that's ready — a solid green gradient pill.
+                <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", padding: "3px 11px", borderRadius: 99, color: "#fff", background: "linear-gradient(180deg, var(--agent-success), #17703b)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)" }}>
+                  Ready
                 </span>
-              )}
+              ) : null /* not ready → no pill; the off toggle + Chase say it all */}
               {row.chaseable && !row.ready && (
                 <button
                   onClick={() => chase(row)}
