@@ -488,7 +488,8 @@ function UpwardMenu({ items }: { items: { label: string; onClick: () => void; da
       )}
       <style>{`
         .email-detail-menu-btn:hover { background: var(--agent-surface-glass); border-color: var(--agent-text-muted); }
-        .email-detail-menu-item:hover:not(:disabled) { background: var(--agent-surface-glass); }
+        .email-detail-menu-item { transition: background 140ms ease, box-shadow 140ms ease; }
+        .email-detail-menu-item:hover:not(:disabled) { background: var(--agent-surface-glass); box-shadow: var(--agent-hover-lift); }
         @keyframes email-detail-menu-in { from { opacity: 0; transform: translateY(3px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}</style>
     </div>

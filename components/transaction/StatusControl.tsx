@@ -245,9 +245,16 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                     color: value === optimisticStatus
                       ? (isDark ? "#EFF6FF" : "rgba(15,23,42,0.9)")
                       : (isDark ? "rgba(226,232,240,0.72)" : "rgba(15,23,42,0.7)"),
+                    transition: "background 150ms ease, box-shadow 150ms ease",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)";
+                    e.currentTarget.style.boxShadow = "var(--agent-hover-lift)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
                 >
                   {value === optimisticStatus && (
                     <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

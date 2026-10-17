@@ -170,7 +170,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
                   setOpen(false);
                 }
               }}
-              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors disabled:opacity-40 flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 hover:[box-shadow:var(--agent-hover-lift)] transition-[color,background-color,box-shadow] disabled:opacity-40 flex items-center gap-2"
             >
               {loadingHours === opt.hours && (
                 <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--agent-border-strong)", borderTopColor: "var(--agent-text-secondary)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
@@ -254,7 +254,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
             <button
               disabled={loadingAction !== null}
               onClick={() => fireAction("chase", () => onManualChase!(taskId))}
-              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors disabled:opacity-40 flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 hover:[box-shadow:var(--agent-hover-lift)] transition-[color,background-color,box-shadow] disabled:opacity-40 flex items-center gap-2"
             >
               {loadingAction === "chase" && spinnerEl}
               Chased manually
@@ -264,7 +264,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
             <button
               disabled={loadingAction !== null}
               onClick={() => fireAction("escalate", () => onEscalate(taskId))}
-              className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50/60 transition-colors disabled:opacity-40 flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50/60 hover:[box-shadow:var(--agent-hover-lift)] transition-[color,background-color,box-shadow] disabled:opacity-40 flex items-center gap-2"
             >
               {loadingAction === "escalate" && spinnerEl}
               ↑ Escalate

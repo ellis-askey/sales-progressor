@@ -159,7 +159,8 @@ export function SectionMasterControl({
 
       <style>{`
         .account-master-drop:hover { background: rgba(0,0,0,0.04); }
-        .account-rowmenu-item:hover { background: rgba(0,0,0,0.05); }
+        .account-rowmenu-item { transition: background 140ms ease, box-shadow 140ms ease; }
+        .account-rowmenu-item:hover { background: rgba(0,0,0,0.05); box-shadow: var(--agent-hover-lift); }
       `}</style>
     </div>
   );

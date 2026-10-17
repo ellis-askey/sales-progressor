@@ -376,8 +376,8 @@ function RowKebab({
                 role="menuitem"
                 onClick={() => { setOpen(false); onIntroCall(); }}
                 style={menuItemStyle("var(--agent-coral-darker)")}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-hover-tint)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; }}
               >
                 <ClipboardText size={14} weight="regular" />
                 Intro call
@@ -388,7 +388,7 @@ function RowKebab({
               role="menuitem"
               onClick={() => { setOpen(false); onEdit(); }}
               style={menuItemStyle("var(--agent-text-primary)")}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.05)")}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.05)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <PencilSimple size={14} weight="regular" />
@@ -399,7 +399,7 @@ function RowKebab({
               role="menuitem"
               onClick={() => { setOpen(false); onDelete(); }}
               style={menuItemStyle("var(--agent-danger)")}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220,38,38,0.06)")}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(220,38,38,0.06)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <Trash size={14} weight="regular" />
@@ -428,6 +428,7 @@ function menuItemStyle(color: string): React.CSSProperties {
     borderRadius: 6,
     cursor: "pointer",
     textAlign: "left",
+    transition: "background 140ms ease, box-shadow 140ms ease",
   };
 }
 

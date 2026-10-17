@@ -1249,11 +1249,12 @@ function MenuItem({
         textAlign: "left",
         padding: "9px 12px",
         background: active && !disabled ? "rgba(15,23,42,0.05)" : "transparent",
+        boxShadow: active && !disabled ? "var(--agent-hover-lift)" : "none",
         border: "none",
         borderTop: first ? "none" : "1px solid rgba(0,0,0,0.07)",
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.65 : 1,
-        transition: "background .12s ease",
+        transition: "background .12s ease, box-shadow .12s ease",
       }}
     >
       <span style={{ width: 16, flexShrink: 0, marginTop: 1, color: "#6b7280", display: "inline-flex", justifyContent: "center" }}>{icon}</span>

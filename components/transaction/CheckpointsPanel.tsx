@@ -74,6 +74,7 @@ export function CheckpointsPanel({
     display: "flex", alignItems: "flex-start", gap: 10, width: "100%", textAlign: "left",
     padding: "8px 9px", borderRadius: 8, border: "none", background: "transparent",
     cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color,
+    transition: "background 140ms ease, box-shadow 140ms ease",
   });
 
   // composer
@@ -263,13 +264,13 @@ export function CheckpointsPanel({
               <div onClick={() => setMenuId(null)} style={{ position: "fixed", inset: 0, zIndex: 1600 }} />
               <div role="menu" className="agent-dropdown-in" style={{ position: "fixed", top: menuPos.top, right: menuPos.right, minWidth: 210, padding: 4, borderRadius: 12, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", boxShadow: "0 12px 32px rgba(15,23,42,0.16)", zIndex: 1601 }}>
                 {nudgeSides.map((s) => (
-                  <button key={s} type="button" role="menuitem" onClick={() => nudge(cp, s)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-hover-tint)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  <button key={s} type="button" role="menuitem" onClick={() => nudge(cp, s)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; }}>
                     <Bell size={16} style={{ marginTop: 1, flexShrink: 0, color: "var(--agent-text-muted)" }} />
                     <span>Nudge {pName(s)}<small style={{ display: "block", fontWeight: 400, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>Sends a push notification</small></span>
                   </button>
                 ))}
                 {nudgeSides.length > 0 && <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />}
-                <button type="button" role="menuitem" onClick={() => remove(cp)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220,38,38,0.06)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                <button type="button" role="menuitem" onClick={() => remove(cp)} style={menuItemStyle("var(--agent-text-primary)")} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(220,38,38,0.06)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; }}>
                   <Trash size={16} style={{ marginTop: 1, flexShrink: 0, color: "var(--agent-text-muted)" }} />
                   <span>Remove</span>
                 </button>

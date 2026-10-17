@@ -135,7 +135,8 @@ export function AccountSidebarUser({
 
       <style>{`
         .account-user-chip:hover { background: rgba(0,0,0,0.04) !important; }
-        .account-user-menu-item:hover { background: rgba(0,0,0,0.05); }
+        .account-user-menu-item { transition: background 140ms ease, box-shadow 140ms ease; }
+        .account-user-menu-item:hover { background: rgba(0,0,0,0.05); box-shadow: var(--agent-hover-lift); }
         @keyframes account-user-menu-in {
           from { opacity: 0; transform: translateY(4px); }
           to   { opacity: 1; transform: translateY(0); }

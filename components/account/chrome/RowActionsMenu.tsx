@@ -109,8 +109,11 @@ export function RowActionsMenu({ items, label = "More actions" }: { items: RowAc
 
       <style>{`
         .account-rowmenu-btn:hover { background: rgba(0,0,0,0.05); color: #374151; }
-        .account-rowmenu-item:hover { background: rgba(0,0,0,0.05); }
-        .account-rowmenu-item-danger:hover { background: #fef2f2; }
+        /* Canonical menu-item hover: subtle tint + the standard lift shadow
+           (--agent-hover-lift), matching the enquiries action menu (.enq-mi). */
+        .account-rowmenu-item { transition: background 140ms ease, box-shadow 140ms ease; }
+        .account-rowmenu-item:hover { background: rgba(0,0,0,0.04); box-shadow: var(--agent-hover-lift); }
+        .account-rowmenu-item-danger:hover { background: #fef2f2; box-shadow: var(--agent-hover-lift); }
         @keyframes account-rowmenu-in {
           from { opacity: 0; transform: translateY(-3px) scale(0.98); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
