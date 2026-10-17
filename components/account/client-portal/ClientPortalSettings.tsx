@@ -9,6 +9,7 @@
 
 import { useState, useTransition } from "react";
 import { setAgencyPortalDisplay, type PortalDisplayField } from "@/app/actions/portal-display";
+import type { ExampleKeyDates } from "@/lib/portal/preview-key-dates";
 import { PortalKeyDatesCard } from "@/components/portal/PortalKeyDatesCard";
 import { PortalCostsCard } from "@/components/portal/PortalCostsCard";
 import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
@@ -56,11 +57,12 @@ const ROWS: { field: PortalDisplayField; label: string; sub: string; note?: stri
   },
 ];
 
-// Example data so the real components render as they would on a live file.
-const KD = {
+// Static fallback for the key-dates example (used by dev mounts that don't pass
+// one). Real pages pass a server-computed, always-future `exampleKeyDates` so the
+// preview never shows a stale date — see lib/portal/preview-key-dates.ts.
+const KD: ExampleKeyDates = {
   targetDate: new Date(Date.UTC(2026, 10, 16)),
   estimateDate: new Date(Date.UTC(2026, 10, 24)),
-  plannedDate: null,
   daysUntilPredicted: 64,
 };
 
@@ -237,7 +239,7 @@ function WelcomePreview() {
   );
 }
 
-function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
+function renderPreview(field: PortalDisplayField, on: boolean, hidden: string, exampleKeyDates?: ExampleKeyDates) {
   // Progress is a PARTIAL hide: the percentage + bar disappear but "X of Y steps
   // done" stays. So we always render the real header and let the toggle drive
   // just the percentage — the preview matches the client's page in both states.
@@ -250,8 +252,10 @@ function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
   }
   if (!on) return <HiddenPreview text={hidden} />;
   switch (field) {
-    case "showPortalKeyDates":
-      return <PreviewShell><PortalKeyDatesCard targetDate={KD.targetDate} estimateDate={KD.estimateDate} plannedDate={KD.plannedDate} daysUntilPredicted={KD.daysUntilPredicted} /></PreviewShell>;
+    case "showPortalKeyDates": {
+      const kd = exampleKeyDates ?? KD;
+      return <PreviewShell><PortalKeyDatesCard targetDate={kd.targetDate} estimateDate={kd.estimateDate} plannedDate={null} daysUntilPredicted={kd.daysUntilPredicted} /></PreviewShell>;
+    }
     case "showPortalCosts":
       return <CostsPreview />;
     case "showPortalWelcomeSheet":
@@ -262,7 +266,7 @@ function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
 }
 
 function ToggleRow({
-  field, label, sub, note, hidden, value, onChange, save, last, inline = false,
+  field, label, sub, note, hidden, value, onChange, save, last, inline = false, exampleKeyDates,
 }: {
   field: PortalDisplayField;
   label: string;
@@ -276,6 +280,7 @@ function ToggleRow({
   // inline: wording + toggle on the left, the (narrow) preview on the right,
   // stacking on small screens. Used for the compact Progress figure.
   inline?: boolean;
+  exampleKeyDates?: ExampleKeyDates;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -327,7 +332,7 @@ function ToggleRow({
           {/* Content-width, so the ring + current-stage sit compact rather than
               stretching across the row. */}
           <div style={{ flex: "0 0 auto", minWidth: 0 }}>
-            {renderPreview(field, value, hidden)}
+            {renderPreview(field, value, hidden, exampleKeyDates)}
           </div>
         </div>
       </div>
@@ -340,7 +345,7 @@ function ToggleRow({
         {meta}
         <div className="mt-0.5">{switchBtn}</div>
       </div>
-      {renderPreview(field, value, hidden)}
+      {renderPreview(field, value, hidden, exampleKeyDates)}
     </div>
   );
 }
@@ -348,10 +353,14 @@ function ToggleRow({
 export function ClientPortalSettings({
   initial,
   save = setAgencyPortalDisplay,
+  exampleKeyDates,
 }: {
   initial: ClientPortalDisplay;
   // Defaults to the agency-wide action. The business owner's page passes its own.
   save?: SaveFn;
+  // Server-computed, always-future example dates for the Key-dates preview, so it
+  // never goes stale. Dev mounts omit it and fall back to the static KD.
+  exampleKeyDates?: ExampleKeyDates;
 }) {
   const [state, setState] = useState<ClientPortalDisplay>(initial);
   const onChange = (field: PortalDisplayField, next: boolean) =>
@@ -369,6 +378,7 @@ export function ClientPortalSettings({
       onChange={onChange}
       save={save}
       last={last}
+      exampleKeyDates={exampleKeyDates}
     />
   );
 

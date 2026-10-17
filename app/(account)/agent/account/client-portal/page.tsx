@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
+import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { AutoInviteToggle } from "@/components/account/client-portal/AutoInviteToggle";
 import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
@@ -56,6 +57,7 @@ export default async function AccountClientPortalPage() {
               showPortalProgressPercent: agency?.showPortalProgressPercent ?? true,
               showPortalWelcomeSheet: agency?.showPortalWelcomeSheet ?? true,
             }}
+            exampleKeyDates={examplePreviewKeyDates()}
           />
         </AccountCard>
       </div>

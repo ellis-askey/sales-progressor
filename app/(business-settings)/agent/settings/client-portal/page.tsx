@@ -16,6 +16,7 @@ import { setBusinessPortalDefaultAction } from "@/app/actions/progression-client
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
+import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { BusinessInviteMode } from "@/components/account/client-portal/BusinessInviteMode";
 import type { InviteMode } from "@/app/actions/progression-clients";
 import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
@@ -73,6 +74,7 @@ export default async function BusinessClientPortalPage() {
               showPortalWelcomeSheet: business?.showPortalWelcomeSheet ?? true,
             }}
             save={setBusinessPortalDefaultAction}
+            exampleKeyDates={examplePreviewKeyDates()}
           />
         </AccountCard>
       </div>
