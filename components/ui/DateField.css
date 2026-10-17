@@ -28,6 +28,11 @@
 /* The whole field opens the picker (DateField.tsx onClick) — advertise it, and
    give the calendar icon a touch more air from the text (2026-10-13). */
 .datefield > input[type="date"] { cursor: pointer; }
+/* Let the field shrink inside narrow containers (the snooze popover, the to-do
+   review add-form, etc.) instead of overflowing at the native date input's
+   intrinsic min-width. (critiques #275 / #277) */
+.datefield { min-width: 0; }
+.datefield > input[type="date"] { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .datefield > input[type="date"]::-webkit-calendar-picker-indicator {
   margin-left: 8px;
   cursor: pointer;

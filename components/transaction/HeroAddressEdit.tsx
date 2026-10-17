@@ -124,7 +124,7 @@ export function HeroAddressEdit({ transactionId, address }: { transactionId: str
       {confirm && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)" }} onClick={() => setConfirm(null)} />
-          <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 380, width: "100%", padding: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
+          <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 380, width: "100%", padding: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Change address?</h3>
               <button onClick={() => setConfirm(null)} className="agent-icon-btn agent-icon-btn-sm"><X size={14} weight="bold" /></button>

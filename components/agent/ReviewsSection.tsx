@@ -358,7 +358,7 @@ export function ReviewsSection({
               <option value="">No specific file</option>
               {attachableFiles.map((f) => <option key={f.id} value={f.id}>{f.propertyAddress}</option>)}
             </select>
-            <DateField value={aDate} min={todayStrFn()} onChange={(e) => setADate(e.target.value)} className="rv-date" wrapperStyle={{ display: "block", flex: "0 0 auto" }} />
+            <DateField value={aDate} min={todayStrFn()} onChange={(e) => setADate(e.target.value)} className="rv-date" wrapperStyle={{ display: "block", flex: "1 1 150px", minWidth: 0 }} />
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button type="button" onClick={resetAdd} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>

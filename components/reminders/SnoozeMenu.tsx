@@ -77,6 +77,10 @@ export function SnoozeMenu({
       // textarea's own scroll).
       const t = e.target as Node | null;
       if (t && contentRef.current?.contains(t)) return;
+      // On mobile, focusing the reason field opens the keyboard, which scrolls
+      // the WINDOW (not inside the popover) — don't dismiss mid-note while a
+      // field inside the popover holds focus. (critique #276)
+      if (contentRef.current?.contains(document.activeElement)) return;
       close();
     }
     if (open) {
@@ -93,9 +97,13 @@ export function SnoozeMenu({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const above = window.innerHeight - r.bottom < MENU_H;
+    // Width the popover actually renders at — capped to the viewport with a 16px
+    // margin each side on a phone — passed to the clamp so the right offset keeps
+    // it off both edges. (critique #275)
+    const popW = Math.min(232, window.innerWidth - 32);
     setPos({
       top: above ? r.top - 4 : r.bottom + 4,
-      right: clampPopoverRight(r.right, 220),
+      right: clampPopoverRight(r.right, popW),
       above,
     });
     reset();
@@ -145,7 +153,7 @@ export function SnoozeMenu({
             style={{
               background: "var(--agent-menu-surface, #ffffff)", borderRadius: 14, overflow: "hidden",
               boxShadow: "0 12px 32px rgba(15,23,42,0.16)", border: "0.5px solid var(--agent-border-default)",
-              width: 232, padding: 12,
+              width: "min(232px, calc(100vw - 32px))", padding: 12,
             }}
           >
             <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--agent-text-muted)", textTransform: "uppercase" }}>
