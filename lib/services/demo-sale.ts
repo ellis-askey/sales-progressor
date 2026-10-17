@@ -415,10 +415,14 @@ async function seedStarFileActivity(txId: string, agencyId: string, agentUserId:
  * agency's own brand. Returns the file id + the vendor's portal token (the link).
  * Callers find-or-create (one preview per agency).
  */
-export async function createPreviewSale(opts: { agencyId: string }): Promise<{ txId: string; vendorToken: string }> {
+export async function createPreviewSale(opts: { agencyId: string; agentUserId: string }): Promise<{ txId: string; vendorToken: string }> {
   const sols = await ensureDemoSolicitors();
-  const demoAgentId = await ensureDemoAgent(opts.agencyId);
-  const { txId } = await buildDemoFile(MIDDLE, opts.agencyId, demoAgentId, sols, { demoKind: "portal_preview", persist: true });
+  // Owned by the REAL agent/progressor who opened it, so the portal's "Your team"
+  // shows the actual person rather than the made-up demo agent. Still isDemo +
+  // demoKind:"portal_preview", so excluded from billing, chasing, metrics and the
+  // work queue; the comms/confirmations reading as theirs is the whole point of a
+  // "this is what your clients see" preview.
+  const { txId } = await buildDemoFile(MIDDLE, opts.agencyId, opts.agentUserId, sols, { demoKind: "portal_preview", persist: true });
   const vendor = await prisma.contact.findFirst({ where: { propertyTransactionId: txId, roleType: "vendor" }, select: { portalToken: true } });
   return { txId, vendorToken: vendor?.portalToken ?? "" };
 }
@@ -466,15 +470,15 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
 export async function resetPreviewSales(): Promise<{ previewsReset: number }> {
   const previews = await prisma.propertyTransaction.findMany({
     where: { isDemo: true, demoKind: "portal_preview" },
-    select: { id: true, agencyId: true, contacts: { where: { roleType: "vendor" }, select: { portalToken: true }, take: 1 } },
+    select: { id: true, agencyId: true, agentUserId: true, contacts: { where: { roleType: "vendor" }, select: { portalToken: true }, take: 1 } },
   });
   let previewsReset = 0;
   for (const p of previews) {
-    if (!p.agencyId) continue;
+    if (!p.agencyId || !p.agentUserId) continue;
     const token = p.contacts[0]?.portalToken ?? null;
     try {
       await deleteDemoTransactions([p.id]);
-      const created = await createPreviewSale({ agencyId: p.agencyId });
+      const created = await createPreviewSale({ agencyId: p.agencyId, agentUserId: p.agentUserId });
       if (token && created.txId) {
         // Restore the original shareable link so already-copied/sent links still resolve.
         await prisma.contact.updateMany({

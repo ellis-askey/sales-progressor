@@ -36,7 +36,7 @@ export async function getOrCreatePreviewPortalUrl(): Promise<Result> {
   }
   const existing = await findPreviewVendor(session.user.agencyId);
   if (existing) return { ok: true, url: portalUrl(existing.portalToken) };
-  const created = await createPreviewSale({ agencyId: session.user.agencyId });
+  const created = await createPreviewSale({ agencyId: session.user.agencyId, agentUserId: session.user.id });
   if (!created.vendorToken) return { ok: false, error: "Could not build the example portal. Please try again." };
   return { ok: true, url: portalUrl(created.vendorToken) };
 }
@@ -49,7 +49,7 @@ export async function regeneratePreviewLink(): Promise<Result> {
   }
   const existing = await findPreviewVendor(session.user.agencyId);
   if (!existing) {
-    const created = await createPreviewSale({ agencyId: session.user.agencyId });
+    const created = await createPreviewSale({ agencyId: session.user.agencyId, agentUserId: session.user.id });
     return created.vendorToken
       ? { ok: true, url: portalUrl(created.vendorToken) }
       : { ok: false, error: "Could not build the example portal." };
