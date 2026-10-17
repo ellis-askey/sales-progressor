@@ -159,13 +159,15 @@ async function ensureDemoSolicitors() {
 type Sols = Awaited<ReturnType<typeof ensureDemoSolicitors>>;
 
 // ── One file in the chain ────────────────────────────────────────────────────
-async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: string, sols: Sols, opts?: { demoKind?: string; persist?: boolean }) {
+async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: string, sols: Sols, opts?: { demoKind?: string; persist?: boolean; progressionBusinessId?: string; assignedUserId?: string; progressedBy?: "agent" | "progressor" }) {
   const createdAt = daysAgo(preset.ageDays);
   const tx = await createTransaction({
     propertyAddress: preset.address,
     agencyId,
     agentUserId,
-    progressedBy: "agent",
+    progressedBy: opts?.progressedBy ?? "agent",
+    ...(opts?.progressionBusinessId ? { progressionBusinessId: opts.progressionBusinessId } : {}),
+    ...(opts?.assignedUserId ? { assignedUserId: opts.assignedUserId } : {}),
     createdAt,
     purchasePrice: preset.pricePence,
     tenure: "freehold" as Tenure,
@@ -190,6 +192,9 @@ async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: 
       lastActivityAt: daysAgo(1),
       demoKind: opts?.demoKind ?? "onboarding",
       ...(opts?.persist ? { demoExpiresAt: null } : {}),
+      // Business-mode preview: mark it outsourced so the portal reads "Your
+      // progressor" and shows the assigned progressor in the Your team card.
+      ...(opts?.progressionBusinessId ? { serviceType: "outsourced" as const, outsourcedAt: createdAt } : {}),
     },
   });
 
@@ -406,23 +411,47 @@ async function seedStarFileActivity(txId: string, agencyId: string, agentUserId:
     .catch((e) => console.error("[demo] manual task seed failed", e));
 }
 
+// A single hidden "internal" company that hosts progression-company portal
+// previews — a sale needs a company FK and a progression business has none of its
+// own. isInternal:true keeps it out of the command-centre customer lists/metrics
+// (the existing internal-exclusion); the preview sale itself is isDemo (excluded
+// from everything else). One row, shared across all businesses' previews.
+const PREVIEW_HOST_AGENCY_NAME = "Portal preview host (internal)";
+async function ensureExampleHostAgency(): Promise<string> {
+  const existing = await prisma.agency.findFirst({ where: { isInternal: true, name: PREVIEW_HOST_AGENCY_NAME }, select: { id: true } });
+  if (existing) return existing.id;
+  const created = await prisma.agency.create({ data: { name: PREVIEW_HOST_AGENCY_NAME, isInternal: true }, select: { id: true } });
+  return created.id;
+}
+
 /**
  * Stand up the always-on client-portal PREVIEW: a single seller file (14 Beaumont
- * Rise) owned by the agency, flagged isDemo + demoKind:"portal_preview" with NO
- * expiry, so its shareable portal link never dies. Reuses the showcase machinery,
- * so it stays accurate as the portal evolves. The buyer/seller portal reads the
- * responsible party's branding + display toggles, so the preview shows the
- * agency's own brand. Returns the file id + the vendor's portal token (the link).
- * Callers find-or-create (one preview per agency).
+ * Rise), flagged isDemo + demoKind:"portal_preview" with NO expiry so its shareable
+ * link never dies. Owned by / assigned to the REAL person who opened it, so the
+ * portal "Your team" shows them. Two modes:
+ *   - agency   (pass agencyId): self-managed, shows the agent ("Your agent").
+ *   - business (pass progressionBusinessId): hosted under the hidden internal
+ *     example company, tagged to the business + assigned to the progressor, so the
+ *     portal reads outsourced ("Your progressor").
+ * Reuses the showcase machinery, so it stays accurate as the portal evolves.
+ * Returns the file id + the vendor's portal token (the link). One preview per org.
  */
-export async function createPreviewSale(opts: { agencyId: string; agentUserId: string }): Promise<{ txId: string; vendorToken: string }> {
+export async function createPreviewSale(opts: { ownerUserId: string; agencyId?: string; progressionBusinessId?: string }): Promise<{ txId: string; vendorToken: string }> {
   const sols = await ensureDemoSolicitors();
-  // Owned by the REAL agent/progressor who opened it, so the portal's "Your team"
-  // shows the actual person rather than the made-up demo agent. Still isDemo +
-  // demoKind:"portal_preview", so excluded from billing, chasing, metrics and the
-  // work queue; the comms/confirmations reading as theirs is the whole point of a
-  // "this is what your clients see" preview.
-  const { txId } = await buildDemoFile(MIDDLE, opts.agencyId, opts.agentUserId, sols, { demoKind: "portal_preview", persist: true });
+  let txId: string;
+  if (opts.progressionBusinessId) {
+    const hostAgencyId = await ensureExampleHostAgency();
+    ({ txId } = await buildDemoFile(MIDDLE, hostAgencyId, opts.ownerUserId, sols, {
+      demoKind: "portal_preview",
+      persist: true,
+      progressionBusinessId: opts.progressionBusinessId,
+      assignedUserId: opts.ownerUserId,
+      progressedBy: "progressor",
+    }));
+  } else {
+    if (!opts.agencyId) throw new Error("createPreviewSale: agencyId required for an agency preview");
+    ({ txId } = await buildDemoFile(MIDDLE, opts.agencyId, opts.ownerUserId, sols, { demoKind: "portal_preview", persist: true }));
+  }
   const vendor = await prisma.contact.findFirst({ where: { propertyTransactionId: txId, roleType: "vendor" }, select: { portalToken: true } });
   return { txId, vendorToken: vendor?.portalToken ?? "" };
 }
@@ -470,15 +499,19 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
 export async function resetPreviewSales(): Promise<{ previewsReset: number }> {
   const previews = await prisma.propertyTransaction.findMany({
     where: { isDemo: true, demoKind: "portal_preview" },
-    select: { id: true, agencyId: true, agentUserId: true, contacts: { where: { roleType: "vendor" }, select: { portalToken: true }, take: 1 } },
+    select: { id: true, agencyId: true, agentUserId: true, assignedUserId: true, progressionBusinessId: true, contacts: { where: { roleType: "vendor" }, select: { portalToken: true }, take: 1 } },
   });
   let previewsReset = 0;
   for (const p of previews) {
-    if (!p.agencyId || !p.agentUserId) continue;
+    const businessMode = !!p.progressionBusinessId;
+    const ownerUserId = businessMode ? p.assignedUserId : p.agentUserId;
+    if (!ownerUserId || (!businessMode && !p.agencyId)) continue;
     const token = p.contacts[0]?.portalToken ?? null;
     try {
       await deleteDemoTransactions([p.id]);
-      const created = await createPreviewSale({ agencyId: p.agencyId, agentUserId: p.agentUserId });
+      const created = businessMode
+        ? await createPreviewSale({ ownerUserId, progressionBusinessId: p.progressionBusinessId! })
+        : await createPreviewSale({ ownerUserId, agencyId: p.agencyId! });
       if (token && created.txId) {
         // Restore the original shareable link so already-copied/sent links still resolve.
         await prisma.contact.updateMany({

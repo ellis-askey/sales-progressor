@@ -9,17 +9,26 @@
 
 import { useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { getOrCreatePreviewPortalUrl, regeneratePreviewLink } from "@/app/actions/portal-preview";
+import {
+  getOrCreatePreviewPortalUrl,
+  regeneratePreviewLink,
+  getOrCreateBusinessPreviewPortalUrl,
+  regenerateBusinessPreviewLink,
+} from "@/app/actions/portal-preview";
 
 type Busy = null | "open" | "copy" | "regen";
 
-export function PreviewPortalLink() {
+// variant "agency" (director) vs "business" (progression-company owner) picks
+// which server action builds/owns the example, so "Your team" shows the right person.
+export function PreviewPortalLink({ variant = "agency" }: { variant?: "agency" | "business" }) {
   const { toast } = useAgentToast();
   const [busy, setBusy] = useState<Busy>(null);
+  const getUrl = variant === "business" ? getOrCreateBusinessPreviewPortalUrl : getOrCreatePreviewPortalUrl;
+  const regenUrl = variant === "business" ? regenerateBusinessPreviewLink : regeneratePreviewLink;
 
   async function open() {
     setBusy("open");
-    const res = await getOrCreatePreviewPortalUrl();
+    const res = await getUrl();
     setBusy(null);
     if (!res.ok) return toast.error(res.error);
     window.open(res.url, "_blank", "noopener,noreferrer");
@@ -27,7 +36,7 @@ export function PreviewPortalLink() {
 
   async function copy() {
     setBusy("copy");
-    const res = await getOrCreatePreviewPortalUrl();
+    const res = await getUrl();
     setBusy(null);
     if (!res.ok) return toast.error(res.error);
     try {
@@ -40,7 +49,7 @@ export function PreviewPortalLink() {
 
   async function regen() {
     setBusy("regen");
-    const res = await regeneratePreviewLink();
+    const res = await regenUrl();
     setBusy(null);
     if (!res.ok) return toast.error(res.error);
     try {

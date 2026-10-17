@@ -18,6 +18,7 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
 import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { BusinessInviteMode } from "@/components/account/client-portal/BusinessInviteMode";
+import { PreviewPortalLink } from "@/components/account/client-portal/PreviewPortalLink";
 import type { InviteMode } from "@/app/actions/progression-clients";
 import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
@@ -60,6 +61,7 @@ export default async function BusinessClientPortalPage() {
           subtitle="Choose when buyers and sellers receive their portal invitation."
         >
           <BusinessInviteMode initial={inviteMode} />
+          <PreviewPortalLink variant="business" />
         </AccountCard>
         <AccountCard
           icon={<DeviceMobile size={18} weight="bold" />}
