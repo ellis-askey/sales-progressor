@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setChainLinkExchangeReadyAction, markChainLinkChasedAction } from "@/app/actions/chains";
 import type { ExchangePush, ExchangePushRow, ExchangeReadySource } from "@/lib/services/exchange-push";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 function rel(iso: string | null): string {
   if (!iso) return "never chased";
@@ -90,15 +91,12 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
     >
       {/* Header — flips green + a Book CTA once everyone's ready. */}
       <div style={{ padding: "15px 16px 2px" }}>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: allReady ? "var(--agent-success)" : "var(--agent-coral-deep)" }}>
-          {allReady ? "Chain ready" : "Pushing for exchange"}
-        </span>
-        <h3 style={{ margin: "6px 0 3px", fontSize: 16.5, fontWeight: 730, color: "var(--agent-text-primary)" }}>
-          {allReady ? "The whole chain's ready to exchange." : "You're ready. The chain isn't yet. Here's who's left."}
+        <h3 style={{ margin: "0 0 3px", fontSize: 16.5, fontWeight: 730, color: "var(--agent-text-primary)" }}>
+          {allReady ? "The whole chain's ready to exchange." : "You're ready. Here's what's holding up the rest of the chain."}
         </h3>
         {!allReady && (
           <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-            Tick each sale ready as you confirm it. We fill it in from their file where we can see it; the rest you confirm as you chase.
+            Mark each sale as ready once confirmed. We&apos;ll fill in what we know from linked sales, leaving you to confirm the rest as you chase.
           </p>
         )}
       </div>
@@ -129,7 +127,8 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
       `}</style>
       <div style={{ padding: "6px 8px 10px" }}>
         {rows.map((row, i) => {
-          const dotBg = row.isUs ? "var(--agent-success)" : row.kind === "claimed" ? "var(--agent-text-secondary)" : "#c6b9a8";
+          const confName = row.confirmedByName ?? push.viewerName;
+          const confImage = row.confirmedByImage ?? push.viewerImage;
           return (
             <div
               key={row.linkId}
@@ -141,33 +140,44 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
               }}
             >
               <div className="exc-main">
-                <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: dotBg, color: "#fff", fontSize: 12, fontWeight: 800 }}>
-                  {row.isUs ? "★" : row.kind === "claimed" ? "◆" : "◇"}
+                <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, overflow: "hidden", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#efe7dc,#e3d7c7)", color: "#b9a892", fontSize: 14 }}>
+                  {row.photoUrl
+                    ? <img src={row.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : "🏠"}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {row.address}
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                    {row.isUs ? "Your sale · both sides confirmed" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
+                    {row.isUs ? "Your sale" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
                     {!row.isUs && !row.ready ? ` · ${rel(row.lastChasedAt)}` : ""}
                   </div>
                 </div>
               </div>
               <div className="exc-ctrls">
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 650,
-                  whiteSpace: "nowrap",
-                  padding: "3px 9px",
-                  borderRadius: 99,
-                  color: row.ready ? (row.source === "confirmed" ? "var(--agent-coral-deep)" : "var(--agent-success)") : "var(--agent-text-muted)",
-                  background: row.ready ? (row.source === "confirmed" ? "rgba(var(--agent-coral-rgb),0.1)" : "rgba(var(--agent-success-rgb, 31,138,74),0.1)") : "rgba(42,23,16,0.05)",
-                }}
-              >
-                {SOURCE_TEXT[row.source]}
-              </span>
+              {row.source === "confirmed" ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                  <UserAvatar user={{ name: confName ?? "", image: confImage }} size={18} />
+                  <span style={{ fontSize: 11, fontWeight: 650, color: "var(--agent-text-secondary)" }}>
+                    {confName ? `Confirmed by ${confName}` : "Confirmed"}
+                  </span>
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 650,
+                    whiteSpace: "nowrap",
+                    padding: "3px 9px",
+                    borderRadius: 99,
+                    color: row.ready ? "var(--agent-success)" : "var(--agent-text-muted)",
+                    background: row.ready ? "rgba(var(--agent-success-rgb, 31,138,74),0.1)" : "rgba(42,23,16,0.05)",
+                  }}
+                >
+                  {SOURCE_TEXT[row.source]}
+                </span>
+              )}
               {row.chaseable && !row.ready && (
                 <button
                   onClick={() => chase(row)}

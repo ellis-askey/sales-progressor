@@ -10,7 +10,10 @@ import { ExchangeChecklist } from "@/components/chain/ExchangeChecklist";
 export async function ExchangePushPanel({ transactionId }: { transactionId: string }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
-  const push = await getExchangePushForTransaction(transactionId, scope).catch(() => null);
+  const push = await getExchangePushForTransaction(transactionId, scope, {
+    id: session.user.id,
+    name: session.user.name ?? null,
+  }).catch(() => null);
   if (!push) return null;
   return (
     <div style={{ marginBottom: 20 }}>

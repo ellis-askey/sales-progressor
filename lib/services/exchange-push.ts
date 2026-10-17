@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { AccessScope } from "@/lib/security/access-scope";
 import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 
 // Exchange-push: once a sale is ready on both sides but sits in a chain, the job
 // is to chase every OTHER sale until all are ready, then exchange. Readiness is
@@ -22,7 +23,20 @@ export type ExchangePushRow = {
   source: ExchangeReadySource;
   lastChasedAt: string | null; // ISO
   chaseable: boolean;
+  // Signed property photo (or null → the UI shows the house-glyph fallback).
+  // Only resolved for files we can see / our own stubs — never another agency's.
+  photoUrl: string | null;
+  // Who confirmed this sale ready (when source === "confirmed"). For our own sale
+  // it's the viewer; for a toggled chain link it's whoever flipped it.
+  confirmedByName: string | null;
+  confirmedByImage: string | null;
 };
+
+export type ExchangeViewer = { id: string; name: string | null };
+
+// Resolved internally (avatar fetched from the User table) — the "Confirmed by"
+// fallback for our own sale and for an optimistic toggle before the round-trip.
+type ResolvedViewer = { name: string | null; image: string | null };
 
 export type ExchangePush = {
   transactionId: string;
@@ -31,6 +45,10 @@ export type ExchangePush = {
   readyCount: number;
   total: number;
   allReady: boolean;
+  // The current user — the fallback "Confirmed by" for our own sale and for an
+  // optimistic toggle before the server round-trip fills in the real confirmer.
+  viewerName: string | null;
+  viewerImage: string | null;
 };
 
 // The two gates the app already uses for "both sides ready to exchange".
@@ -47,11 +65,14 @@ type LinkForPush = {
   stubPropertyAddress: string | null;
   stubAgencyName: string | null;
   stubAgentEmail: string | null;
+  stubPhotoStoragePath: string | null;
   claimedBy: { name: string | null; firmName: string | null } | null;
+  exchangeReadyConfirmedById: string | null;
   transaction: {
     id: string;
     propertyAddress: string;
     agencyId: string | null;
+    photoStoragePath: string | null;
     exchangedAt: Date | null;
     milestoneCompletions: { state: string; milestoneDefinition: { code: string } }[];
   } | null;
@@ -67,12 +88,15 @@ const LINK_SELECT = {
   stubPropertyAddress: true,
   stubAgencyName: true,
   stubAgentEmail: true,
+  stubPhotoStoragePath: true,
   claimedBy: { select: { name: true, firmName: true } },
+  exchangeReadyConfirmedById: true,
   transaction: {
     select: {
       id: true,
       propertyAddress: true,
       agencyId: true,
+      photoStoragePath: true,
       exchangedAt: true,
       milestoneCompletions: {
         where: { milestoneDefinition: { code: { in: [...READY_CODES, ...EXCHANGED_CODES] } } },
@@ -118,7 +142,25 @@ function linkReady(
   return { ready: false, source: "not_yet" };
 }
 
-function buildRows(fileTxId: string, links: LinkForPush[], seeAll: boolean, ourAgencyId: string | null): ExchangePushRow[] {
+// Which stored photo a row should show — our own file, a claimed file we can see,
+// or a stub we created. Never another agency's file we can't already see.
+function linkPhotoPath(l: LinkForPush, isUs: boolean, claimed: boolean, seeAll: boolean, ourAgencyId: string | null): string | null {
+  if (!claimed) return l.stubPhotoStoragePath ?? null; // a stub we created
+  const canSee = isUs || seeAll || (l.transaction?.agencyId != null && l.transaction.agencyId === ourAgencyId);
+  return canSee ? (l.transaction?.photoStoragePath ?? null) : null;
+}
+
+type ConfirmerMap = Map<string, { name: string | null; image: string | null }>;
+
+function buildRows(
+  fileTxId: string,
+  links: LinkForPush[],
+  seeAll: boolean,
+  ourAgencyId: string | null,
+  viewer: ResolvedViewer,
+  photoMap: Map<string, string>,
+  confirmers: ConfirmerMap,
+): ExchangePushRow[] {
   return [...links]
     .sort((a, b) => a.position - b.position)
     .map((l) => {
@@ -126,6 +168,13 @@ function buildRows(fileTxId: string, links: LinkForPush[], seeAll: boolean, ourA
       const claimed = l.transactionId != null;
       const kind: ExchangePushRow["kind"] = isUs ? "us" : claimed ? "claimed" : "stub";
       const r = isUs ? { ready: true, source: "confirmed" as const } : linkReady(l, seeAll, ourAgencyId);
+      const photoPath = linkPhotoPath(l, isUs, claimed, seeAll, ourAgencyId);
+      // Confirmer: our own sale → the viewer; a toggled link → whoever flipped it.
+      const confirmer = isUs
+        ? { name: viewer.name, image: viewer.image }
+        : r.source === "confirmed" && l.exchangeReadyConfirmedById
+          ? confirmers.get(l.exchangeReadyConfirmedById) ?? { name: null, image: null }
+          : { name: null, image: null };
       return {
         linkId: l.id,
         isUs,
@@ -137,14 +186,50 @@ function buildRows(fileTxId: string, links: LinkForPush[], seeAll: boolean, ourA
         source: r.source,
         lastChasedAt: l.lastAgentChasedAt?.toISOString() ?? null,
         chaseable: !isUs && (claimed || !!l.stubAgentEmail),
+        photoUrl: photoPath ? (photoMap.get(photoPath) ?? null) : null,
+        confirmedByName: confirmer.name,
+        confirmedByImage: confirmer.image,
       };
     });
 }
 
-function assemble(fileTxId: string, address: string, links: LinkForPush[], seeAll: boolean, ourAgencyId: string | null): ExchangePush {
-  const rows = buildRows(fileTxId, links, seeAll, ourAgencyId);
+function assemble(
+  fileTxId: string,
+  address: string,
+  links: LinkForPush[],
+  seeAll: boolean,
+  ourAgencyId: string | null,
+  viewer: ResolvedViewer,
+  photoMap: Map<string, string>,
+  confirmers: ConfirmerMap,
+): ExchangePush {
+  const rows = buildRows(fileTxId, links, seeAll, ourAgencyId, viewer, photoMap, confirmers);
   const readyCount = rows.filter((r) => r.ready).length;
-  return { transactionId: fileTxId, address, rows, readyCount, total: rows.length, allReady: readyCount === rows.length };
+  return {
+    transactionId: fileTxId, address, rows, readyCount, total: rows.length,
+    allReady: readyCount === rows.length,
+    viewerName: viewer.name, viewerImage: viewer.image,
+  };
+}
+
+// Batch-load users (name + avatar) by id — the link confirmers plus the viewer.
+// There is no confirmer relation on ChainLink, so we resolve the ids here. One query.
+async function loadUsers(ids: Array<string | null | undefined>): Promise<ConfirmerMap> {
+  const unique = [...new Set(ids.filter((x): x is string => !!x))];
+  if (unique.length === 0) return new Map();
+  const users = await prisma.user.findMany({ where: { id: { in: unique } }, select: { id: true, name: true, image: true } });
+  return new Map(users.map((u) => [u.id, { name: u.name, image: u.image }]));
+}
+
+// The viewer's "Confirmed by" identity, with their avatar resolved from the map.
+function resolveViewer(viewer: ExchangeViewer, users: ConfirmerMap): ResolvedViewer {
+  const u = users.get(viewer.id);
+  return { name: viewer.name ?? u?.name ?? null, image: u?.image ?? null };
+}
+
+// Every property photo path present on a set of links (for one batched sign).
+function photoPathsOf(links: LinkForPush[]): Array<string | null | undefined> {
+  return links.flatMap((l) => [l.transaction?.photoStoragePath, l.stubPhotoStoragePath]);
 }
 
 const seesAll = (scope: AccessScope) => scope.kind === "all" || scope.kind === "assigned";
@@ -155,6 +240,7 @@ const seesAll = (scope: AccessScope) => scope.kind === "all" || scope.kind === "
 export async function getExchangePushForTransaction(
   transactionId: string,
   scope: AccessScope,
+  viewer: ExchangeViewer,
 ): Promise<ExchangePush | null> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
@@ -176,8 +262,12 @@ export async function getExchangePushForTransaction(
   const links = await prisma.chainLink.findMany({
     where: { chainId: tx.chainLink.chainId },
     select: LINK_SELECT,
-  });
-  return assemble(tx.id, tx.propertyAddress, links as unknown as LinkForPush[], seesAll(scope), tx.agencyId);
+  }) as unknown as LinkForPush[];
+  const [photoMap, users] = await Promise.all([
+    getSignedUrlMap(photoPathsOf(links)),
+    loadUsers([...links.map((l) => l.exchangeReadyConfirmedById), viewer.id]),
+  ]);
+  return assemble(tx.id, tx.propertyAddress, links, seesAll(scope), tx.agencyId, resolveViewer(viewer, users), photoMap, users);
 }
 
 export type ExchangePushSummary = {
@@ -192,7 +282,7 @@ export type ExchangePushSummary = {
 // Every sale in the viewer's scope that's in push mode (ready on both sides, in a
 // chain, not exchanged), each with its full checklist. Powers the chains "Push to
 // exchange" tab. Sorted most-progressed-first (closest to exchange).
-export async function listExchangePushForScope(scope: AccessScope): Promise<ExchangePushSummary[]> {
+export async function listExchangePushForScope(scope: AccessScope, viewer: ExchangeViewer): Promise<ExchangePushSummary[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
     where: { AND: [scopeTransactionWhere(scope), { status: "active", exchangedAt: null, chainLinkId: { not: null } }] },
     select: {
@@ -211,8 +301,14 @@ export async function listExchangePushForScope(scope: AccessScope): Promise<Exch
 
   const chainIds = [...new Set(ready.map((t) => t.chainLink?.chainId).filter((x): x is string => !!x))];
   const links = await prisma.chainLink.findMany({ where: { chainId: { in: chainIds } }, select: { ...LINK_SELECT, chainId: true } });
+  const linkList = links as unknown as (LinkForPush & { chainId: string })[];
+  const [photoMap, users] = await Promise.all([
+    getSignedUrlMap(photoPathsOf(linkList)),
+    loadUsers([...linkList.map((l) => l.exchangeReadyConfirmedById), viewer.id]),
+  ]);
+  const resolvedViewer = resolveViewer(viewer, users);
   const byChain = new Map<string, LinkForPush[]>();
-  for (const l of links as unknown as (LinkForPush & { chainId: string })[]) {
+  for (const l of linkList) {
     const arr = byChain.get(l.chainId) ?? [];
     arr.push(l);
     byChain.set(l.chainId, arr);
@@ -222,7 +318,7 @@ export async function listExchangePushForScope(scope: AccessScope): Promise<Exch
   const out: ExchangePushSummary[] = [];
   for (const t of ready) {
     const chainLinks = byChain.get(t.chainLink!.chainId) ?? [];
-    const push = assemble(t.id, t.propertyAddress, chainLinks, seeAll, t.agencyId);
+    const push = assemble(t.id, t.propertyAddress, chainLinks, seeAll, t.agencyId, resolvedViewer, photoMap, users);
     out.push({ transactionId: t.id, address: t.propertyAddress, readyCount: push.readyCount, total: push.total, allReady: push.allReady, push });
   }
   // Closest to done first (highest ready share), all-ready at the very top.

@@ -40,7 +40,7 @@ export default async function AgentChainsPage() {
     listChainsForScope(scope),
     listNoChainSalesForScope(scope),
     listCheckInsForScope(scope),
-    listExchangePushForScope(scope),
+    listExchangePushForScope(scope, { id: session.user.id, name: session.user.name ?? null }),
   ]);
 
   const subtitle = isAllScope
