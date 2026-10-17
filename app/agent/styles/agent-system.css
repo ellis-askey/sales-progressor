@@ -1530,20 +1530,33 @@
     backdrop-filter: blur(40px) saturate(1.2);
   }
 
-  /* Mobile menu: controls read as light rows on the popover card, not glass
-     pills over a photo. (Settings keeps its inline amber/red state ring.) */
+  /* Mobile menu: controls read as clean rows on the popover card, not grey
+     filled pills — transparent until hovered, then the canonical lift (matches
+     every other action menu). Settings keeps its inline amber/red state ring. */
   .hero-ctl-menu .email-settings-pill,
   .hero-ctl-menu .hero-ctl-photo {
     width: 100%;
     justify-content: flex-start;
     color: var(--agent-text-primary);
-    background: var(--agent-surface-overlay);
-    border: 0.5px solid var(--agent-border-default);
+    background: transparent;
+    border: none;
     box-shadow: none;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     border-radius: 9px;
     padding: 9px 11px;
+    transition: background 140ms ease, box-shadow 140ms ease, color 140ms ease;
+  }
+  .hero-ctl-menu .email-settings-pill:hover {
+    background: var(--agent-hover-tint);
+    box-shadow: var(--agent-hover-lift);
+  }
+  /* The photo control in the menu is always Remove (Add only appears elsewhere),
+     so its hover reads as a danger action: faint red wash + the bin goes red. */
+  .hero-ctl-menu .hero-ctl-photo:hover {
+    background: rgba(220, 38, 38, 0.06);
+    box-shadow: var(--agent-hover-lift);
+    color: var(--agent-danger);
   }
 
   /* People card roster rows (Clients contacts + Professionals solicitors).
