@@ -10,7 +10,8 @@ import { prisma } from "@/lib/prisma";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
-import { DeviceMobile } from "@phosphor-icons/react/dist/ssr";
+import { AutoInviteToggle } from "@/components/account/client-portal/AutoInviteToggle";
+import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function AccountClientPortalPage() {
       showPortalCosts: true,
       showPortalProgressPercent: true,
       showPortalWelcomeSheet: true,
+      autoInviteClientsOnAdd: true,
     },
   });
 
@@ -35,6 +37,13 @@ export default async function AccountClientPortalPage() {
         subtitle="Choose what buyers and sellers can see in their portal. These settings apply to every sale unless you change them on an individual file."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <AccountCard
+          icon={<PaperPlaneTilt size={18} weight="bold" />}
+          title="Inviting clients"
+          subtitle="Choose whether buyers and sellers are emailed their portal link when a sale is added."
+        >
+          <AutoInviteToggle initial={agency?.autoInviteClientsOnAdd ?? true} />
+        </AccountCard>
         <AccountCard
           icon={<DeviceMobile size={18} weight="bold" />}
           title="What clients see"

@@ -99,7 +99,7 @@ export async function sendOutsourceIntroForTransaction(
         id: true,
         propertyAddress: true,
         agencyId: true,
-        agency: { select: { name: true } },
+        agency: { select: { name: true, autoInviteClientsOnAdd: true } },
         progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
         serviceType: true,
         isMigrated: true,
@@ -141,6 +141,14 @@ export async function sendOutsourceIntroForTransaction(
     // that re-runs this for a migrated file).
     if (tx.isMigrated) {
       console.log(`[outsourceIntro] tx ${transactionId} isMigrated — skipping (brought-in sale, no sale-starting welcome)`);
+      return;
+    }
+
+    // Agency opted out of auto-inviting clients on sale-add (Account → Client
+    // portal → Inviting clients). The sale is added quietly; the agent invites
+    // clients themselves when ready. Default true preserves the prior behaviour.
+    if (tx.agency && tx.agency.autoInviteClientsOnAdd === false) {
+      console.log(`[outsourceIntro] tx ${transactionId} — agency auto-invite disabled; skipping`);
       return;
     }
 

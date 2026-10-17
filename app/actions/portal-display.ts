@@ -41,6 +41,23 @@ export async function setAgencyPortalDisplay(
   return { ok: true };
 }
 
+// Agency-wide toggle for auto-inviting clients when an outsourced sale is added
+// (the "Getting your sale moving" portal invite email). Director-only, scoped to
+// the caller's agency. Default true = today's behaviour; gated in
+// lib/emails/send-outsource-intro.ts.
+export async function setAgencyAutoInvite(value: boolean): Promise<ActionResult> {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can change portal settings." };
+  }
+  const agencyId = session.user.agencyId;
+  if (!agencyId) return { ok: false, error: "Missing agency context." };
+
+  await prisma.agency.update({ where: { id: agencyId }, data: { autoInviteClientsOnAdd: value } });
+  revalidatePath("/agent/account/client-portal");
+  return { ok: true };
+}
+
 // Per-file, PER-SIDE override of the agency's key-dates default, set in the
 // file's Client settings drawer. null = follow the agency default, true = force
 // show, false = force hide, for the given side (Seller / Buyer). Scoped to the
