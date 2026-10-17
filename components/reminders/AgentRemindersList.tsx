@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, CalendarBlank, Clock } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
@@ -30,6 +30,8 @@ import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
 import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
+import { markEnquiriesRaisedAction, snoozeEnquiryRaiseAction } from "@/app/actions/enquiries";
+import type { EnquiryEscalationReminder } from "@/lib/services/enquiry-escalations";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 type MilestoneInfo = Record<string, { outstanding: string; responsible: "client" | "solicitor" | null; name?: string }>;
@@ -383,6 +385,100 @@ function SnoozedFileCard({
         );
       })}
     </FileCardShell>
+  );
+}
+
+// Escalated "get enquiries raised" chase, rendered as a Needs-you file card so it
+// sits among the reminders styled identically (same FileCardShell + needs-you row).
+// Its two actions are enquiry-specific: Mark raised (confirms PM14, clears it) and
+// Snooze (promised "raised by" date, +3 working days).
+function EnquiryEscalationCard({
+  reminder,
+  photoUrl,
+}: {
+  reminder: EnquiryEscalationReminder;
+  photoUrl?: string | null;
+}) {
+  const router = useRouter();
+  const [exiting, setExiting] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const who = reminder.solicitorName ?? "the buyer's solicitor";
+
+  function markRaised() {
+    if (exiting) return;
+    setExiting(true);
+    startTransition(async () => {
+      const res = await markEnquiriesRaisedAction({ transactionId: reminder.transactionId });
+      if (res.ok) router.refresh(); else setExiting(false);
+    });
+  }
+  function snooze() {
+    if (exiting) return;
+    setExiting(true);
+    startTransition(async () => {
+      await snoozeEnquiryRaiseAction({ transactionId: reminder.transactionId, workingDays: 3 });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className={exiting ? "agent-row-exit" : undefined}>
+      <FileCardShell
+        txId={reminder.transactionId}
+        address={reminder.propertyAddress}
+        photoUrl={photoUrl}
+        actions={<UrgencyPill label="Escalated" bucket="escalated" />}
+      >
+        <div className="rem-row-needs" style={{ padding: "10px 12px", display: "flex", alignItems: "stretch", gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+              Chase the buyer&rsquo;s solicitor to get enquiries raised
+            </p>
+            <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+              Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who}</b>
+            </p>
+            <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+              Automated nudges are done and enquiries still aren&rsquo;t raised, two weeks on. Time to call the buyer&rsquo;s solicitor and push for them.
+            </p>
+            <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>
+              ↻ {reminder.nudgeCount} nudge{reminder.nudgeCount === 1 ? "" : "s"} sent · no reply yet
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
+              ⚑ Escalated on {formatDate(reminder.escalatedAt)} · automated nudges stopped
+            </p>
+          </div>
+          <div className="rem-row-side" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10, borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4 }}>
+            <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                onClick={snooze}
+                disabled={pending || exiting}
+                title="Remind me in 3 working days"
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                <Clock size={12} weight="regular" /> Snooze
+              </button>
+              <Button
+                onClick={markRaised}
+                disabled={pending || exiting}
+                title="Mark enquiries raised"
+                size="sm"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                <CheckCircle size={12} weight="fill" /> Mark raised
+              </Button>
+            </div>
+            <div className="rem-row-date" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Escalated</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+                <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(reminder.escalatedAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </FileCardShell>
+    </div>
   );
 }
 
@@ -1046,7 +1142,7 @@ function SplitFileCard({
   );
 }
 
-export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase, currentUserId }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean; currentUserId?: string | null }) {
+export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, hideChase, currentUserId, enquiryEscalations = [] }: { logs: AgentReminderLog[]; photoByTx?: Map<string, string | null>; milestoneInfo?: MilestoneInfo; autopilot?: AutopilotMap; hideChase?: boolean; currentUserId?: string | null; enquiryEscalations?: EnquiryEscalationReminder[] }) {
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -1421,7 +1517,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         // There are active reminders on the queue, but they're all manual and
         // further out than the window, so nothing surfaces yet. Say so rather than
         // leaving a blank (they'll appear in "Coming up" as they approach).
-        if (hasActiveResults && needsYouLogs.length === 0 && comingUpLogs.length === 0 && chasedLogs.length === 0 && autoLogs.length === 0) {
+        if (hasActiveResults && enquiryEscalations.length === 0 && needsYouLogs.length === 0 && comingUpLogs.length === 0 && chasedLogs.length === 0 && autoLogs.length === 0) {
           return (
             <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
@@ -1431,7 +1527,10 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           );
         }
         const renderGroup = (grp: (typeof groups)[number]) => {
-          if (grp.logs.length === 0) return null;
+          // Escalated enquiries live in Needs-you; they can carry the group even
+          // when there are no milestone reminders due.
+          const enquiryCards = grp.key === "needs-you" ? enquiryEscalations : [];
+          if (grp.logs.length === 0 && enquiryCards.length === 0) return null;
           const isCollapsed = collapsed[grp.key];
           // A never-opened collapsed group keeps its header + count but
           // skips building its invisible cards (deferred-draw, see
@@ -1451,7 +1550,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
               >
                 <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)" }}>{grp.label}</span>
-                  <span className={`agent-wq-count ${grp.you ? "agent-wq-count--coral" : "agent-wq-count--muted"}`}>{grp.logs.length}</span>
+                  <span className={`agent-wq-count ${grp.you ? "agent-wq-count--coral" : "agent-wq-count--muted"}`}>{grp.logs.length + enquiryCards.length}</span>
                   <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{grp.sub}</span>
                 </div>
                 <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
@@ -1465,6 +1564,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                       overflow. A query container so the "Chase all / Snooze all"
                       cluster can hide when the column is too narrow for it. */}
                   <div className="space-y-3 wq-cardq" style={{ padding: "4px 0 40px" }}>
+                    {drawCards && enquiryCards.map((e) => (
+                      <EnquiryEscalationCard key={`enq-${e.transactionId}`} reminder={e} photoUrl={photoByTx?.get(e.transactionId) ?? null} />
+                    ))}
                     {fileGroups.map(({ txId, address, logs: fileLogs }) => (
                       <SplitFileCard
                         key={txId}

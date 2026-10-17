@@ -9,7 +9,6 @@ import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { getEscalatedEnquiryReminders } from "@/lib/services/enquiry-escalations";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
-import { EnquiryEscalationCard } from "@/components/reminders/EnquiryEscalationCard";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milestone-glossary";
@@ -243,16 +242,7 @@ export default async function WorkQueuePage() {
           </>
           )
         ) : (
-          <>
-            {enquiryEscalations.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-                {enquiryEscalations.map((e) => (
-                  <EnquiryEscalationCard key={e.transactionId} reminder={e} showAddressLink />
-                ))}
-              </div>
-            )}
-            <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} />
-          </>
+          <AgentRemindersList logs={reminderLogs} photoByTx={photoByTx} milestoneInfo={milestoneInfo} autopilot={autopilot} hideChase={session.user.role === "admin"} currentUserId={session.user.id} enquiryEscalations={enquiryEscalations} />
         )}
       </div>
       </PageReveal>
