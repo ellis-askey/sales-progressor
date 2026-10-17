@@ -70,12 +70,10 @@ function primaryCss(cfg: AppColourConfig, dark: boolean): React.CSSProperties {
   const fillVal = p.fill === "gradient" ? `linear-gradient(${p.angle}deg, ${from}, ${to})` : solid;
   const stops = p.fill === "gradient" ? [from, to] : [solid];
   const text = p.text === "auto" ? autoText(stops) : p.text === "light" ? "#ffffff" : "#1a1512";
-  // Canonical gloss shadow (mirror of appColourVars): underledge + drop glow + inner highlight.
+  // Canonical shadow (mirror of appColourVars): soft drop glow tinted with the
+  // primary colour — no inset lines, so nothing renders as an edge rim.
   const sh = p.shadow;
-  const deepest = stops[stops.length - 1];
-  const ledge = shiftL(deepest, -8);
-  const glow = sh > 0 ? `, 0 ${Math.round(sh * 0.1)}px ${Math.round(sh * 0.38)}px rgba(${rgbStr(deepest)}, ${(sh * 0.0067).toFixed(2)})` : "";
-  const shadow = `0 2px 0 ${ledge}${glow}, inset 0 1px 0 rgba(255,255,255,0.32)`;
+  const shadow = sh > 0 ? `0 ${Math.round(sh * 0.1)}px ${Math.round(sh * 0.42)}px rgba(${rgbStr(cfg.primary)}, ${(sh * 0.0062).toFixed(2)})` : "none";
   let background: string, border: string;
   if (p.border.on && p.border.style === "gradient") {
     const gb = `linear-gradient(${p.border.angle}deg, ${lift(p.border.gradFrom, dark)}, ${lift(p.border.gradTo, dark)})`;
@@ -84,7 +82,7 @@ function primaryCss(cfg: AppColourConfig, dark: boolean): React.CSSProperties {
   } else if (p.border.on) {
     background = fillVal; border = `${p.border.width}px solid ${lift(p.border.color, dark)}`;
   } else {
-    background = fillVal; border = "1px solid transparent";
+    background = fillVal; border = "none";
   }
   return { background, color: text, border, borderRadius: cfg.shape.radius, padding: "8px 18px", fontSize: 13, boxShadow: shadow };
 }

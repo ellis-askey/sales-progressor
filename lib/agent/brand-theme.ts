@@ -265,17 +265,19 @@ function appColourVars(cfg: AppColourConfig, dark: boolean): Record<string, stri
   const stops = p.fill === "gradient" ? [from, to] : [solid];
   const text = p.text === "auto" ? autoTextHex(stops) : p.text === "light" ? "#ffffff" : "#1a1512";
   const s = p.shadow;
-  // The canonical gloss shadow = underledge (2px solid darker) + ambient drop
-  // glow (scaled by the depth slider) + inner top highlight. Rest / hover /
-  // active are full composites so customised colours keep the gloss in every
-  // state. The ledge + glow derive from the deepest fill stop.
-  const deepest = stops[stops.length - 1];
-  const ledge = shiftL(hexToHsl(deepest), -8);
-  const glowRgb = rgbTriple(deepest);
-  const glow = (m: number, am: number) => (s > 0 ? `, 0 ${Math.round(s * 0.1 * m)}px ${Math.round(s * 0.38 * m)}px rgba(${glowRgb}, ${(s * 0.0067 * am).toFixed(2)})` : "");
-  const shadowRest = `0 2px 0 ${ledge}${glow(1, 1)}, inset 0 1px 0 rgba(255,255,255,0.32)`;
-  const shadowHover = `0 3px 0 ${ledge}${glow(1.45, 1.3)}, inset 0 1px 0 rgba(255,255,255,0.42)`;
-  const shadowActive = `0 0 0 ${ledge}${glow(0.7, 0.9)}, inset 0 1px 0 rgba(255,255,255,0.22)`;
+  // The gloss is built from INSET bevels (a top sheen + a soft inner bottom
+  // shade) plus a NEUTRAL soft drop shadow for depth (scaled by the depth
+  // slider). No external coloured ledge — a solid 0 2px 0 line read as a stray
+  // border on custom colours. Inset shadows stay inside the button shape and the
+  // neutral drop never tints, so this is clean on any fill.
+  // The soft drop glow is tinted with the user's PRIMARY colour (the one they set
+  // in settings), so it reads as a branded glow and updates when they change it.
+  // Amount scales with the depth slider; it's a diffuse blur, never an edge line.
+  const glowRgb = rgbTriple(L(cfg.primary));
+  const drop = (yM: number, bM: number, aM: number) => `0 ${Math.round(s * 0.1 * yM)}px ${Math.round(s * 0.42 * bM)}px rgba(${glowRgb}, ${(s * 0.0062 * aM).toFixed(2)})`;
+  const shadowRest = s > 0 ? drop(1, 1, 1) : "none";
+  const shadowHover = s > 0 ? drop(1.6, 1.3, 1.2) : "none";
+  const shadowActive = `inset 0 2px 5px rgba(0,0,0,0.2)`;
 
   // Border. A gradient border on a rounded button uses the padding-box/border-box
   // double-background technique (border-image ignores border-radius).
@@ -289,7 +291,7 @@ function appColourVars(cfg: AppColourConfig, dark: boolean): Record<string, stri
     border = `${p.border.width}px solid ${L(p.border.color)}`;
   } else {
     bg = fillVal;
-    border = `1px solid transparent`;
+    border = `none`;
   }
 
   vars["--agent-btn-bg"] = bg;
