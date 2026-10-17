@@ -14,7 +14,7 @@
 // legacy /agent/settings page until Stage 4 retire.
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, UserPlus, Info } from "@phosphor-icons/react";
+import { Users, Info } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import {
@@ -207,26 +207,21 @@ export function TeamManagementPlain({
       title="Your team"
       subtitle="Give your team access and control which sales they can see."
       headerAction={
-        <button
-          type="button"
-          onClick={() => setShowAdd(true)}
-          className="account-btn-coral-outline"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "8px 13px",
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "var(--agent-coral-deep, #E2452A)",
-            background: "#fff",
-            border: "0.5px solid rgba(255,107,74,0.5)",
-            borderRadius: 9,
-            cursor: "pointer",
-          }}
-        >
-          <UserPlus size={15} weight="bold" /> Add team member
-        </button>
+        <>
+          {/* Matches the SP owner's "Invite teammate" button (.bt-invite-btn, a
+              copy of the client page's .cp-primary): coral gradient + top sheen,
+              the 👤 bust emoji (renders dark/navy), with a lift-on-hover. */}
+          <button type="button" onClick={() => setShowAdd(true)} className="tmp-invite-btn">
+            <span className="tmp-invite-ico" aria-hidden>👤</span> Add team member
+          </button>
+          <style>{`
+            .tmp-invite-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: var(--agent-radius-md, 8px); border: none; font-family: inherit; font-size: var(--agent-text-body-sm, 13px); font-weight: 600; line-height: 1; white-space: nowrap; color: var(--agent-text-on-coral, #fff); cursor: pointer; flex-shrink: 0; background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28); transition: filter .14s ease, transform .14s ease, box-shadow .14s ease; }
+            .tmp-invite-btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
+            .tmp-invite-btn:active { transform: scale(0.98); }
+            .tmp-invite-ico { font-size: 14px; line-height: 1; }
+            @media (prefers-reduced-motion: reduce) { .tmp-invite-btn { transition: none; } .tmp-invite-btn:hover { transform: none; } }
+          `}</style>
+        </>
       }
       bodyStyle={{ marginTop: 10 }}
     >
