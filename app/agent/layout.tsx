@@ -19,7 +19,7 @@ import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
-import { brandThemeCss } from "@/lib/agent/brand-theme";
+import { appColourCss } from "@/lib/agent/brand-theme";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 // Elevra-backgrounds pass, 2026-08-08. Page-level backgrounds keyed on
@@ -52,9 +52,9 @@ export const metadata: Metadata = {
 };
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, brandColor, userName, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agentBellClearedAt, agencyModeProfile, progressorName } =
+  const { session, isInternalStaff, showWelcome, theme, brandColor, appColour, userName, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, chainDeclineNotif, agentBellClearedAt, agencyModeProfile, progressorName } =
     await resolveAgentSession();
-  void theme; void mobileTheme; // legacy preset fields; the app now runs on the custom brand colour
+  void theme; void mobileTheme; void brandColor; // legacy preset/hex fields; the app now runs on the App Colour config
 
 
   // Gates the Reminders + Auto-emails nav items (see helper docstring).
@@ -100,9 +100,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
-      {/* The user's brand colour, derived into the full token set at render
-          (light + dark), overriding the neutral [data-theme="custom"] base. */}
-      <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
+      {/* The user's App Colour config, derived into the full token set + button
+          tokens at render (light + dark), overriding the neutral
+          [data-theme="custom"] base. */}
+      <style dangerouslySetInnerHTML={{ __html: appColourCss(appColour) }} />
       {/* Inline script runs BEFORE React hydrates — sets data-theme +
           elevra-bg on <html> so first paint has the right background. */}
       <ThemeModeBoot initialMode={themeMode} initialAuroraOpacity={backgroundOpacity} />

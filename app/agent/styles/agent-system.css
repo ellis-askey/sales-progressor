@@ -688,17 +688,24 @@
 
   /* Primary */
   .agent-btn-primary {
-    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light));
-    color: var(--agent-text-on-coral);
-    box-shadow: 0 4px 16px rgba(var(--agent-coral-rgb), 0.28);
+    /* Canonical "solid glossy" primary via App Colour Studio tokens — vertical
+       gloss + 2px underledge + inner top highlight. Fallbacks reproduce the gloss
+       for non-tokenised contexts. Only the TREATMENT lives here; padding + radius
+       stay driven by the size classes + radius token (never auto-resized). */
+    background: var(--agent-btn-bg, linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)));
+    color: var(--agent-btn-text, var(--agent-text-on-coral));
+    border: var(--agent-btn-border, 1px solid transparent);
+    border-radius: var(--agent-btn-radius, var(--agent-radius-md));
+    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.32));
   }
   .agent-btn-primary:hover:not(:disabled) {
-    filter: brightness(1.06);
-    box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38);
+    filter: saturate(1.04) brightness(1.02);
+    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255,255,255,0.42));
     transform: translateY(-1px);
   }
   .agent-btn-primary:active:not(:disabled) {
-    transform: scale(0.98);
+    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.22));
+    transform: translateY(1px);
   }
   .agent-btn-primary:disabled {
     background: rgba(var(--agent-coral-rgb), 0.40);
@@ -965,15 +972,19 @@
 
   /* Secondary */
   .agent-btn-secondary {
-    background: var(--agent-glass-bg);
+    /* App Colour Studio secondary tokens. Default (ghost) style leaves these
+       unset so the classic glass values below apply — byte-identical to before.
+       Soft/outline/filled styles emit --agent-btn2-* to override. */
+    background: var(--agent-btn2-bg, var(--agent-glass-bg));
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
-    border: 0.5px solid var(--agent-glass-border);
-    color: var(--agent-text-primary);
-    box-shadow: var(--agent-glass-shadow);
+    border: var(--agent-btn2-border, 0.5px solid var(--agent-glass-border));
+    border-radius: var(--agent-btn-radius, var(--agent-radius-md));
+    color: var(--agent-btn2-color, var(--agent-text-primary));
+    box-shadow: var(--agent-btn2-shadow, var(--agent-glass-shadow));
   }
   .agent-btn-secondary:hover:not(:disabled) {
-    background: var(--agent-glass-bg-hover);
+    background: var(--agent-btn2-bg-hover, var(--agent-glass-bg-hover));
     box-shadow: var(--agent-glass-shadow-lifted),
                 inset 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.12);
   }
@@ -3100,15 +3111,22 @@
   /* Universal primary settings button: coral fill, brighten on hover, press
      down on active. Used for Save changes / Save colour and any settings CTA. */
   .account-btn-primary {
-    background: var(--agent-coral, #FF6B4A);
-    color: #fff; border: none; border-radius: 8px;
+    /* Canonical gloss primary (shared tokens) — treatment only; keeps its own
+       radius 8 + per-usage padding. */
+    background: var(--agent-btn-bg, linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)));
+    color: var(--agent-btn-text, #fff); border: none; border-radius: 8px;
+    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb, 255,107,74), 0.30), inset 0 1px 0 rgba(255,255,255,0.32));
     transition: filter 140ms ease, transform 90ms ease, box-shadow 140ms ease;
   }
   .account-btn-primary:hover:not(:disabled) {
-    filter: brightness(1.05);
-    box-shadow: 0 4px 14px rgba(var(--agent-coral-rgb, 255,107,74), 0.34);
+    filter: saturate(1.04) brightness(1.02);
+    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb, 255,107,74), 0.42), inset 0 1px 0 rgba(255,255,255,0.42));
+    transform: translateY(-1px);
   }
-  .account-btn-primary:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+  .account-btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb, 255,107,74), 0.30), inset 0 1px 0 rgba(255,255,255,0.22));
+  }
   .account-btn-primary:disabled { opacity: 0.45; cursor: default; }
 
   /* Press-down only (no hover tint change) — for outline/secondary buttons. */
@@ -3203,17 +3221,20 @@
 
   /* Color-only primary button — swaps blue Tailwind colour utils without changing layout */
   .agent-btn-color-primary {
-    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light)) !important;
-    color: var(--agent-text-on-coral) !important;
-    box-shadow: 0 4px 16px rgba(var(--agent-coral-rgb), 0.28) !important;
+    /* Cascade-proof twin of .agent-btn-primary — same canonical gloss, forced
+       past Tailwind colour utilities. Treatment only; layout untouched. */
+    background: var(--agent-btn-bg, linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))) !important;
+    color: var(--agent-btn-text, var(--agent-text-on-coral)) !important;
+    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.32)) !important;
   }
   .agent-btn-color-primary:hover:not(:disabled) {
-    filter: brightness(1.06) !important;
-    box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38) !important;
+    filter: saturate(1.04) brightness(1.02) !important;
+    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255,255,255,0.42)) !important;
     transform: translateY(-1px);
   }
   .agent-btn-color-primary:active:not(:disabled) {
-    transform: scale(0.98);
+    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.22)) !important;
+    transform: translateY(1px);
   }
   .agent-btn-color-primary:disabled,
   .agent-btn-color-primary[disabled] {

@@ -199,3 +199,187 @@ export function brandThemeCss(hexInput: string | null | undefined): string {
     `}`,
   ].join("\n");
 }
+
+// ── App Colour config (the App Colour Studio) ────────────────────────────────
+// The richer per-user appearance config: the accent (primary) that themes the
+// whole app, a secondary brand colour, and a fully designable PRIMARY button
+// (fill, text, radius, border incl. a gradient border, depth) plus a secondary-
+// button style. Stored on User.agentPreferences.appColour (JSON, no migration).
+// deriveBrandVars still drives the accent family from `primary`; appColourVars
+// adds the button tokens that .agent-btn-primary/.agent-btn-secondary consume
+// (with CSS fallbacks, so an uncustomised user is byte-identical to today).
+
+export type ButtonText = "auto" | "light" | "dark";
+export type SecondaryStyle = "ghost" | "soft" | "outline" | "filled";
+export type AppColourConfig = {
+  primary: string;
+  secondary: string;
+  shape: { radius: number }; // px — button corner radius (size stays app-managed)
+  primaryBtn: {
+    fill: "solid" | "gradient";
+    gradFrom: string; gradTo: string; angle: number;
+    text: ButtonText;
+    border: { on: boolean; style: "solid" | "gradient"; width: number; color: string; gradFrom: string; gradTo: string; angle: number };
+    shadow: number; // 0–100
+  };
+  secondaryBtn: { style: SecondaryStyle };
+};
+
+const DEFAULT_GLOSS = glossGradient(DEFAULT_BRAND_HEX);
+
+export const DEFAULT_APP_COLOUR: AppColourConfig = {
+  primary: DEFAULT_BRAND_HEX,
+  secondary: "#475569",
+  shape: { radius: 8 }, // = --agent-radius-md (never auto-resized by the sweep)
+  primaryBtn: {
+    // Vertical gloss (lighter top → deeper bottom). The underledge + inner
+    // highlight live in the shadow tokens (appColourVars), so this is the one
+    // canonical "solid glossy" primary.
+    fill: "gradient", gradFrom: DEFAULT_GLOSS.gradFrom, gradTo: DEFAULT_GLOSS.gradTo, angle: 180, text: "auto",
+    border: { on: false, style: "solid", width: 1, color: DEFAULT_BRAND_HEX, gradFrom: DEFAULT_GLOSS.gradFrom, gradTo: DEFAULT_GLOSS.gradTo, angle: 180 },
+    shadow: 42,
+  },
+  secondaryBtn: { style: "ghost" },
+};
+
+function darkLift(hex: string): string { const b = hexToHsl(hex); return hslToHex({ h: b.h, s: clamp(b.s, 45, 100), l: clamp(b.l, 52, 70) }); }
+function autoTextHex(stops: string[]): string { const avg = stops.reduce((s, h) => s + luminance(h), 0) / stops.length; return avg > 0.5 ? "#1a1512" : "#ffffff"; }
+
+// The canonical "solid glossy" gradient derived from one primary hex: a lighter
+// top stop + a deeper bottom stop, read as lit-from-above. Paired with the
+// underledge + inner highlight in the shadow (see appColourVars) this is the
+// one primary-button look across the app.
+export function glossGradient(hex: string): { gradFrom: string; gradTo: string } {
+  const h = hexToHsl(hex);
+  return { gradFrom: shiftL(h, 7), gradTo: shiftL(h, -16) };
+}
+
+// Button tokens for a given config + mode, layered onto the accent family.
+function appColourVars(cfg: AppColourConfig, dark: boolean): Record<string, string> {
+  const vars = deriveBrandVars(cfg.primary, dark); // accent family from the primary
+  const L = (hex: string) => (dark ? darkLift(hex) : hex);
+  const p = cfg.primaryBtn;
+
+  const from = L(p.gradFrom), to = L(p.gradTo), solid = L(cfg.primary);
+  const fillVal = p.fill === "gradient" ? `linear-gradient(${p.angle}deg, ${from}, ${to})` : solid;
+  const stops = p.fill === "gradient" ? [from, to] : [solid];
+  const text = p.text === "auto" ? autoTextHex(stops) : p.text === "light" ? "#ffffff" : "#1a1512";
+  const s = p.shadow;
+  // The canonical gloss shadow = underledge (2px solid darker) + ambient drop
+  // glow (scaled by the depth slider) + inner top highlight. Rest / hover /
+  // active are full composites so customised colours keep the gloss in every
+  // state. The ledge + glow derive from the deepest fill stop.
+  const deepest = stops[stops.length - 1];
+  const ledge = shiftL(hexToHsl(deepest), -8);
+  const glowRgb = rgbTriple(deepest);
+  const glow = (m: number, am: number) => (s > 0 ? `, 0 ${Math.round(s * 0.1 * m)}px ${Math.round(s * 0.38 * m)}px rgba(${glowRgb}, ${(s * 0.0067 * am).toFixed(2)})` : "");
+  const shadowRest = `0 2px 0 ${ledge}${glow(1, 1)}, inset 0 1px 0 rgba(255,255,255,0.32)`;
+  const shadowHover = `0 3px 0 ${ledge}${glow(1.45, 1.3)}, inset 0 1px 0 rgba(255,255,255,0.42)`;
+  const shadowActive = `0 0 0 ${ledge}${glow(0.7, 0.9)}, inset 0 1px 0 rgba(255,255,255,0.22)`;
+
+  // Border. A gradient border on a rounded button uses the padding-box/border-box
+  // double-background technique (border-image ignores border-radius).
+  let bg: string, border: string;
+  if (p.border.on && p.border.style === "gradient") {
+    const gb = `linear-gradient(${p.border.angle}deg, ${L(p.border.gradFrom)}, ${L(p.border.gradTo)})`;
+    bg = `${fillVal} padding-box, ${gb} border-box`;
+    border = `${p.border.width}px solid transparent`;
+  } else if (p.border.on) {
+    bg = fillVal;
+    border = `${p.border.width}px solid ${L(p.border.color)}`;
+  } else {
+    bg = fillVal;
+    border = `1px solid transparent`;
+  }
+
+  vars["--agent-btn-bg"] = bg;
+  vars["--agent-btn-text"] = text;
+  vars["--agent-btn-border"] = border;
+  vars["--agent-btn-radius"] = `${cfg.shape.radius}px`;
+  vars["--agent-btn-shadow"] = shadowRest;
+  vars["--agent-btn-shadow-hover"] = shadowHover;
+  vars["--agent-btn-shadow-active"] = shadowActive;
+
+  // Secondary button — only emit for non-ghost styles; ghost falls back to the
+  // existing neutral-glass look via the CSS var() fallbacks.
+  const sec = L(cfg.secondary), secRgb = rgbTriple(sec);
+  const st = cfg.secondaryBtn.style;
+  // Each non-ghost style also sets --agent-btn2-bg-hover so the hover state stays
+  // in-family instead of reverting to the neutral glass hover.
+  if (st === "soft")    { vars["--agent-btn2-bg"] = `rgba(${secRgb}, 0.14)`; vars["--agent-btn2-bg-hover"] = `rgba(${secRgb}, 0.22)`; vars["--agent-btn2-color"] = sec; vars["--agent-btn2-border"] = "1px solid transparent"; vars["--agent-btn2-shadow"] = "none"; }
+  else if (st === "outline") { vars["--agent-btn2-bg"] = "transparent"; vars["--agent-btn2-bg-hover"] = `rgba(${secRgb}, 0.1)`; vars["--agent-btn2-color"] = sec; vars["--agent-btn2-border"] = `1.5px solid ${sec}`; vars["--agent-btn2-shadow"] = "none"; }
+  else if (st === "filled")  { vars["--agent-btn2-bg"] = sec; vars["--agent-btn2-bg-hover"] = shiftL(hexToHsl(sec), dark ? 6 : -6); vars["--agent-btn2-color"] = autoTextHex([sec]); vars["--agent-btn2-border"] = "1px solid transparent"; vars["--agent-btn2-shadow"] = "none"; }
+
+  return vars;
+}
+
+const BTN_KEYS = ["--agent-btn-bg", "--agent-btn-text", "--agent-btn-border", "--agent-btn-radius", "--agent-btn-shadow", "--agent-btn-shadow-hover", "--agent-btn-shadow-active", "--agent-btn2-bg", "--agent-btn2-bg-hover", "--agent-btn2-color", "--agent-btn2-border", "--agent-btn2-shadow"];
+function subsetBody(vars: Record<string, string>, keys: string[]): string { return keys.filter((k) => k in vars).map((k) => `  ${k}: ${vars[k]};`).join("\n"); }
+
+export function appColourCss(cfg: AppColourConfig): string {
+  const light = appColourVars(cfg, false);
+  const dark = appColourVars(cfg, true);
+  const portalKeys = [...CORAL_KEYS, ...BTN_KEYS];
+  return [
+    `.agent-shell-root[data-theme="custom"], [data-theme="custom"] {`, toCssBody(light), `}`,
+    `:root[data-theme="dark"] .agent-shell-root[data-theme="custom"],`,
+    `:root[data-theme="dark"] [data-theme="custom"] {`, toCssBody(dark), `}`,
+    `.nv2-night, .lum-ov {`, subsetBody(light, portalKeys), `}`,
+    `:root[data-theme="dark"] .nv2-night, :root[data-theme="dark"] .lum-ov {`, subsetBody(dark, portalKeys), `}`,
+  ].join("\n");
+}
+
+// Validate/sanitise the stored JSON into a config (merges defaults; clamps).
+export function parseAppColour(raw: unknown): AppColourConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const d = DEFAULT_APP_COLOUR;
+  const hex = (v: unknown, fb: string) => (typeof v === "string" ? normaliseHex(v) : null) ?? fb;
+  const num = (v: unknown, fb: number, lo: number, hi: number) => clamp(typeof v === "number" ? v : fb, lo, hi);
+  const pb = (o.primaryBtn ?? {}) as Record<string, unknown>;
+  const bd = (pb.border ?? {}) as Record<string, unknown>;
+  const shp = (o.shape ?? {}) as Record<string, unknown>;
+  const sb = (o.secondaryBtn ?? {}) as Record<string, unknown>;
+  const text = pb.text === "light" || pb.text === "dark" ? pb.text : "auto";
+  const secStyle = ["ghost", "soft", "outline", "filled"].includes(sb.style as string) ? (sb.style as SecondaryStyle) : "ghost";
+  return {
+    primary: hex(o.primary, d.primary),
+    secondary: hex(o.secondary, d.secondary),
+    shape: { radius: num(shp.radius, d.shape.radius, 0, 40) },
+    primaryBtn: {
+      fill: pb.fill === "solid" ? "solid" : "gradient",
+      gradFrom: hex(pb.gradFrom, d.primaryBtn.gradFrom),
+      gradTo: hex(pb.gradTo, d.primaryBtn.gradTo),
+      angle: num(pb.angle, 135, 0, 360),
+      text,
+      border: {
+        on: bd.on === true,
+        style: bd.style === "gradient" ? "gradient" : "solid",
+        width: num(bd.width, 1, 1, 6),
+        color: hex(bd.color, d.primaryBtn.border.color),
+        gradFrom: hex(bd.gradFrom, d.primaryBtn.border.gradFrom),
+        gradTo: hex(bd.gradTo, d.primaryBtn.border.gradTo),
+        angle: num(bd.angle, 135, 0, 360),
+      },
+      shadow: num(pb.shadow, d.primaryBtn.shadow, 0, 100),
+    },
+    secondaryBtn: { style: secStyle },
+  };
+}
+
+// Legacy fallback: a user who only has the old single hex gets a config that
+// reproduces today's button exactly (gradient accent -> accent+20L, radius 8, the
+// matching shadow, no border, auto text).
+export function configFromHex(hexInput: string | null | undefined): AppColourConfig {
+  const n = normaliseHex(hexInput ?? "") ?? DEFAULT_BRAND_HEX;
+  const g = glossGradient(n);
+  return {
+    ...DEFAULT_APP_COLOUR,
+    primary: n,
+    primaryBtn: {
+      ...DEFAULT_APP_COLOUR.primaryBtn,
+      gradFrom: g.gradFrom, gradTo: g.gradTo,
+      border: { ...DEFAULT_APP_COLOUR.primaryBtn.border, color: n, gradFrom: g.gradFrom, gradTo: g.gradTo },
+    },
+  };
+}

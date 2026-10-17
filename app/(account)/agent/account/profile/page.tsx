@@ -23,9 +23,9 @@
 
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getBrandColor } from "@/lib/agent/themes";
+import { getAppColour } from "@/lib/agent/themes";
 import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
-import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
+import { AppColourStudioLive } from "@/components/account/v2/AppColourStudioLive";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
@@ -53,7 +53,7 @@ export default async function AccountProfilePage({
       emailSignatureMode: true, emailSignatureImagePath: true, emailSignatureHtml: true,
     },
   });
-  const currentBrand = getBrandColor(userRecord?.agentPreferences);
+  const currentAppColour = getAppColour(userRecord?.agentPreferences);
 
   // Email signature (per-agent, both roles). The preview uses the same resolver
   // as the send, so what the agent sees here is what recipients receive.
@@ -81,9 +81,9 @@ export default async function AccountProfilePage({
     <AccountCard
       icon={<Palette size={18} weight="bold" />}
       title="Your app colour"
-      subtitle="Choose the accent colour you'll see across Sales Progressor."
+      subtitle="Set your colours, then design your buttons down to the detail."
     >
-      <BrandColorPicker initialColor={currentBrand} />
+      <AppColourStudioLive initial={currentAppColour} />
     </AccountCard>
   );
 

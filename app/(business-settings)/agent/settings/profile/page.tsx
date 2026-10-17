@@ -8,9 +8,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { resolveBusinessMember } from "@/lib/services/progression-clients";
-import { getBrandColor } from "@/lib/agent/themes";
+import { getAppColour } from "@/lib/agent/themes";
 import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
-import { BrandColorPicker } from "@/components/account/v2/BrandColorPicker";
+import { AppColourStudioLive } from "@/components/account/v2/AppColourStudioLive";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
@@ -30,7 +30,7 @@ export default async function BusinessProfilePage() {
       chaseVoiceProfile: true, chaseVoiceProfileBuiltAt: true,
     },
   });
-  const currentBrand = getBrandColor(userRecord?.agentPreferences);
+  const currentAppColour = getAppColour(userRecord?.agentPreferences);
 
   return (
     <>
@@ -60,9 +60,9 @@ export default async function BusinessProfilePage() {
         <AccountCard
           icon={<Palette size={18} weight="bold" />}
           title="Your app colour"
-          subtitle="Choose the accent colour you'll see across Sales Progressor."
+          subtitle="Set your colours, then design your buttons down to the detail."
         >
-          <BrandColorPicker initialColor={currentBrand} />
+          <AppColourStudioLive initial={currentAppColour} />
         </AccountCard>
 
         <AccountCard

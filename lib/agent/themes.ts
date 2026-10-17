@@ -4,7 +4,7 @@
  * block in app/agent/styles/themes.css are the two places that change
  * when shipping a new theme.
  */
-import { normaliseHex, DEFAULT_BRAND_HEX } from "./brand-theme";
+import { normaliseHex, DEFAULT_BRAND_HEX, parseAppColour, configFromHex, type AppColourConfig } from "./brand-theme";
 
 export const AGENT_THEMES = [
   "sunset",
@@ -63,6 +63,17 @@ export function getBrandColor(agentPreferences: unknown): string {
     if (isAgentTheme(prefs.theme)) return LEGACY_THEME_HEX[prefs.theme];
   }
   return DEFAULT_BRAND_HEX;
+}
+
+/** The user's full App Colour config (the App Colour Studio). The stored
+ *  `appColour` object if valid, else a config derived from their single brand
+ *  hex (which reproduces today's look exactly). Always a complete config. */
+export function getAppColour(agentPreferences: unknown): AppColourConfig {
+  if (agentPreferences && typeof agentPreferences === "object") {
+    const parsed = parseAppColour((agentPreferences as Record<string, unknown>).appColour);
+    if (parsed) return parsed;
+  }
+  return configFromHex(getBrandColor(agentPreferences));
 }
 
 // ── Mobile themes ─────────────────────────────────────────────────────────────

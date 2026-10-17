@@ -31,11 +31,13 @@ import { getInvitingProgressorName } from "@/lib/progression/inviting";
 import {
   getAgentTheme,
   getBrandColor,
+  getAppColour,
   getMobileAgentTheme,
   getNightMode,
   type AgentTheme,
   type MobileAgentTheme,
 } from "@/lib/agent/themes";
+import type { AppColourConfig } from "@/lib/agent/brand-theme";
 import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
 import { readAuroraOpacityFromPrefs } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, type GlassVariantId, type GlassPick, type GlassPicks } from "@/lib/glass/variants";
@@ -88,6 +90,7 @@ export type AgentSessionContext = {
   showWelcome: boolean;
   theme: AgentTheme;
   brandColor: string;
+  appColour: AppColourConfig;
   // DB-sourced display name (not the JWT). The JWT name goes stale after a
   // profile rename until the token refreshes; the chrome reads this instead so
   // a rename shows immediately once the /agent layout revalidates.
@@ -150,6 +153,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const brandColor = getBrandColor(userRecord?.agentPreferences);
+  const appColour = getAppColour(userRecord?.agentPreferences);
   const userName = userRecord?.name ?? session.user.name ?? "";
   const userImage = userRecord?.image ?? null;
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
@@ -178,6 +182,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     showWelcome,
     theme,
     brandColor,
+    appColour,
     userName,
     userImage,
     mobileTheme,

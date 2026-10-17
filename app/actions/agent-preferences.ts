@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
-import { normaliseHex } from "@/lib/agent/brand-theme";
+import { normaliseHex, parseAppColour, type AppColourConfig } from "@/lib/agent/brand-theme";
 import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
 import { clampAuroraOpacity } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, DEFAULT_VARIANT } from "@/lib/glass/variants";
@@ -68,6 +68,34 @@ export async function updateBrandColor(hexInput: string) {
 
   revalidatePath("/agent", "layout");
   return { ok: true as const, brandColor: hex };
+}
+
+/** Persist the full App Colour Studio config (primary/secondary colours, the
+ *  primary-button designer, the secondary-button style). Validated + clamped
+ *  through parseAppColour so a malformed payload can't poison the layout. We
+ *  also keep brandColor in sync with the config's primary so legacy reads
+ *  (emails, anything still on getBrandColor) follow the chosen accent. */
+export async function updateAppColour(configInput: AppColourConfig) {
+  const session = await requireSession();
+  const config = parseAppColour(configInput);
+  if (!config) return { ok: false as const, error: "That colour configuration isn't valid" };
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { agentPreferences: { ...existingPrefs, appColour: config, brandColor: config.primary } },
+  });
+
+  revalidatePath("/agent", "layout");
+  return { ok: true as const, config };
 }
 
 export async function updateAgentMobileTheme(mobileTheme: MobileAgentTheme) {
