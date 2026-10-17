@@ -74,7 +74,7 @@ export function BusinessVatForm({
       subtitle="If your business is VAT registered, we'll add VAT to the invoices you send clients and show your VAT number."
       headerAction={saveButton("bizvat-save-desktop")}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
           <input
             type="checkbox"
@@ -85,48 +85,55 @@ export function BusinessVatForm({
           <span style={{ fontSize: 13.5, color: "#111827", fontWeight: 500 }}>My business is VAT registered</span>
         </label>
 
-        {registered && (
-          <div className="bizvat-grid">
-            <div>
-              <label style={labelStyle}>VAT number</label>
-              <input
-                type="text"
-                value={vatNumber}
-                maxLength={30}
-                onChange={(e) => setVatNumber(e.target.value)}
-                placeholder="e.g. GB123456789"
-                className="account-input"
-                style={fieldStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>VAT rate</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="number"
-                  value={ratePercent}
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  inputMode="decimal"
-                  onChange={(e) => setRatePercent(e.target.value)}
-                  className="account-input"
-                  style={{ ...fieldStyle, maxWidth: 110 }}
-                />
-                <span style={{ fontSize: 15, fontWeight: 600, color: "#9ca3af" }}>%</span>
+        {/* VAT number + rate reveal: smooth grid-rows height + fade. Inputs stay
+            mounted (values preserved); spacing lives inside the collapse so there's
+            no leftover gap when it's closed. */}
+        <div className="bizvat-reveal" data-open={registered ? "1" : "0"}>
+          <div className="bizvat-reveal-inner">
+            <div style={{ paddingTop: 18 }}>
+              <div className="bizvat-grid">
+                <div>
+                  <label style={labelStyle}>VAT number</label>
+                  <input
+                    type="text"
+                    value={vatNumber}
+                    maxLength={30}
+                    onChange={(e) => setVatNumber(e.target.value)}
+                    placeholder="e.g. GB123456789"
+                    className="account-input"
+                    style={fieldStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>VAT rate</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input
+                      type="number"
+                      value={ratePercent}
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      inputMode="decimal"
+                      onChange={(e) => setRatePercent(e.target.value)}
+                      className="account-input"
+                      style={{ ...fieldStyle, maxWidth: 110 }}
+                    />
+                    <span style={{ fontSize: 15, fontWeight: 600, color: "#9ca3af" }}>%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}>
+        <p style={{ margin: "18px 0 0", fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}>
           {registered
             ? "VAT is added to your rate-card fee for each sale and shown separately on the invoice."
             : "Leave this off if you're not VAT registered. Your invoices will show the fee as the total, with no separate VAT line."}
         </p>
 
         {/* Mobile-only Save (desktop Save lives in the card header). */}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
           {saveButton("bizvat-save-mobile")}
         </div>
       </div>
@@ -134,6 +141,12 @@ export function BusinessVatForm({
       <style>{`
         .bizvat-grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
         @media (max-width: 640px) { .bizvat-grid { grid-template-columns: 1fr; } }
+        /* VAT fields reveal — smooth height (grid-rows 0fr→1fr) + fade. */
+        .bizvat-reveal { display: grid; grid-template-rows: 0fr; opacity: 0;
+          transition: grid-template-rows .28s cubic-bezier(.4,.8,.3,1), opacity .22s ease; }
+        .bizvat-reveal[data-open="1"] { grid-template-rows: 1fr; opacity: 1; }
+        .bizvat-reveal-inner { overflow: hidden; min-height: 0; }
+        @media (prefers-reduced-motion: reduce) { .bizvat-reveal { transition: none; } }
         .bizvat-save-mobile { display: none; }
         @media (max-width: 640px) {
           .bizvat-save-desktop { display: none !important; }
