@@ -132,7 +132,15 @@ export default async function AgentLayout({ children }: { children: React.ReactN
               Reduced-motion snaps to visible. 2026-08-10. */}
           <PageFadeIn>{children}</PageFadeIn>
         </AgentShell>
-        {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
+        {/* Help / feedback pill. Shown to agency users (director / negotiator)
+            and to EXTERNAL progression-business users (own sales-prog companies),
+            who carry role=sales_progressor but belong to a non-TSP business
+            (isBusinessMember). Stays hidden for TSP internal staff only. The
+            onboarding-checklist dodge applies to agency users, not business
+            members (they have the ProgressorWelcomeModal, not the checklist). */}
+        {(!isInternalStaff || isBusinessMember) && (
+          <FeedbackWidget checklistAware={!isInternalStaff} userId={session.user.id} />
+        )}
         {progressorWelcome && (
           <ProgressorWelcomeModal
             businessName={progressorWelcome.businessName}

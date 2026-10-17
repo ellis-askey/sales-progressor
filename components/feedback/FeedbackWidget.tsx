@@ -31,6 +31,24 @@ function parseBrowser(ua: string): string {
   return `Browser on ${os}`;
 }
 
+// ── Auto screenshot ─────────────────────────────────────────────────────────
+// On send we grab a picture of the screen the person is looking at (the same
+// approach as the founder critique tool), so a report always arrives with the
+// exact context. Capture is best-effort: if it fails or the browser can't
+// render the page to an image, the message still sends without one.
+
+const nextFrame = () =>
+  new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 
 function IconChat() {
@@ -154,7 +172,10 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
 
   return (
     <div>
-      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot (optional)</p>
+      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--fw-text-faint, #9ca3af)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot</p>
+      <p style={{ fontSize: 12, color: "var(--fw-text-muted, #6b7280)", margin: "0 0 8px", lineHeight: 1.5 }}>
+        We&apos;ll attach a picture of this screen with your message. Add a different image below if you&apos;d rather.
+      </p>
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       <button type="button"
@@ -166,7 +187,7 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
         style={{ width: "100%", padding: "14px 12px", border: `1px dashed ${dragging ? "var(--fw-accent-deep, #FF6B4A)" : "var(--fw-border, #d1d5db)"}`, borderRadius: 10, background: dragging ? "rgba(var(--fw-accent-rgb, 255,107,74),0.05)" : "var(--fw-card-bg, #fafaf9)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 150ms ease" }}
       >
         <span className="fw-cam" style={{ color: "var(--fw-text-faint, #9ca3af)", transition: "color 150ms ease" }}><IconCamera /></span>
-        <span style={{ fontSize: 12, color: "var(--fw-text-muted, #6b7280)" }}>Click or drag to upload screenshot</span>
+        <span style={{ fontSize: 12, color: "var(--fw-text-muted, #6b7280)" }}>Click or drag to add a different image</span>
       </button>
       {err && <p style={{ fontSize: 11, color: "var(--agent-danger, #ef4444)", marginTop: 6 }}>{err}</p>}
     </div>
@@ -236,6 +257,9 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   const [field2, setField2]         = useState("");
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // While true, the panel/trigger/backdrop are hidden so the auto screenshot
+  // captures the underlying screen, not the feedback form itself.
+  const [capturing, setCapturing] = useState(false);
   const [capturedCtx, setCapturedCtx] = useState<{ url: string; browser: string; viewportSize: string; userAgent: string } | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<"left" | "right">("right");
   // Hidden while the onboarding checklist is active; starts hidden to avoid flash
@@ -325,16 +349,40 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
     setStage("form");
   }
 
+  // Grab the screen behind the panel. Hides our own UI first (next frame), then
+  // rasterises the page to a JPEG. JPEG keeps the payload well inside the API's
+  // size limit even on a tall desktop page. Returns null on any failure.
+  async function captureScreen(): Promise<{ base64: string; filename: string } | null> {
+    try {
+      setCapturing(true);
+      await nextFrame();
+      const { domToBlob } = await import("modern-screenshot");
+      const blob = await domToBlob(document.body, { scale: 1, type: "image/jpeg", quality: 0.85 });
+      const base64 = await blobToBase64(blob);
+      if (!base64) return null;
+      return { base64, filename: `screen-${Date.now()}.jpg` };
+    } catch {
+      return null;
+    } finally {
+      setCapturing(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!category || !field1.trim()) return;
     setSubmitting(true);
     try {
+      // A manually attached image wins (the person chose it on purpose);
+      // otherwise auto-capture the screen they're looking at.
+      const shot = screenshot
+        ? { base64: screenshot.base64, filename: screenshot.filename }
+        : await captureScreen();
       const body: Record<string, unknown> = {
         category, field1: field1.trim(), field2: field2.trim() || null,
         ...(capturedCtx ?? {}),
         ...(portalToken ? { portalToken } : {}),
-        ...(screenshot ? { screenshotBase64: screenshot.base64, screenshotFilename: screenshot.filename } : {}),
+        ...(shot ? { screenshotBase64: shot.base64, screenshotFilename: shot.filename } : {}),
       };
       const res = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       setStage(res.ok ? "success" : "error");
@@ -504,6 +552,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           opacity: isOpen ? 1 : 0,
           transition: "opacity 200ms ease",
           pointerEvents: isOpen ? "auto" : "none",
+          visibility: capturing ? "hidden" : undefined,
         }}
         aria-hidden
       />
@@ -530,6 +579,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           opacity: isOpen ? 1 : 0,
           transition: "transform 250ms cubic-bezier(0.0,0.0,0.2,1), opacity 200ms ease",
           pointerEvents: isOpen ? "auto" : "none",
+          visibility: capturing ? "hidden" : undefined,
         }}
       >
         {/* Keyed so switching stage (categories ↔ form ↔ success) cross-fades
@@ -553,6 +603,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           transform: triggerHidden ? "translateY(8px) scale(0.94)" : "translateY(0) scale(1)",
           pointerEvents: triggerHidden ? "none" : "auto",
           transition: "opacity 240ms ease, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
+          visibility: capturing ? "hidden" : undefined,
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
         }}
       >
