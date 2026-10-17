@@ -49,7 +49,7 @@ export default async function BusinessClientPortalPage() {
     <>
       <AccountPageHeader
         title="Client portal"
-        subtitle="Choose how your clients' portals work for the sales you progress: when buyers and sellers are invited, and what they see. You can change key dates on an individual sale."
+        subtitle="Choose when buyers and sellers are invited to their portals and what they can see on sales you progress. You can also adjust key dates for individual sales."
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
