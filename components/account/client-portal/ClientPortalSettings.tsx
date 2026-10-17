@@ -66,12 +66,13 @@ const KD = {
 
 // Preview surfaces render the CLIENT portal (always light), so they show a
 // light "portal" backdrop regardless of the agent's theme.
-function PreviewShell({ children }: { children: React.ReactNode }) {
-  // Minimal vertical inset: the real portal cards inside already carry their own
-  // top/bottom padding (e.g. py-4), so anything here stacks on top and reads as
-  // an over-padded card. Keep just a hair of float; the horizontal inset stays.
+function PreviewShell({ children, tight = false }: { children: React.ReactNode; tight?: boolean }) {
+  // Default inset gives previews whose content sits directly on the shell (costs,
+  // key dates) room to breathe. `tight` is for previews that nest a real portal
+  // card with its OWN top/bottom padding (e.g. the progress header's py-4), where
+  // the shell inset would otherwise double up and over-pad the card.
   return (
-    <div style={{ marginTop: 13, borderRadius: 12, background: "#eef2f9", border: "1px solid var(--agent-border-subtle)", padding: "3px 14px" }}>
+    <div style={{ marginTop: 13, borderRadius: 12, background: "#eef2f9", border: "1px solid var(--agent-border-subtle)", padding: tight ? "2px 14px" : "8px 14px" }}>
       {children}
     </div>
   );
@@ -242,7 +243,7 @@ function renderPreview(field: PortalDisplayField, on: boolean, hidden: string) {
   // just the percentage — the preview matches the client's page in both states.
   if (field === "showPortalProgressPercent") {
     return (
-      <PreviewShell>
+      <PreviewShell tight>
         <PortalProgressHeader completed={3} total={6} percent={47} showPercent={on} nextLabel="Searches ordered" />
       </PreviewShell>
     );
