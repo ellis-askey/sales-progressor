@@ -822,6 +822,27 @@ export async function setBusinessPortalDefaultAction(field: string, value: boole
   return { ok: true };
 }
 
+const AUTO_INVITE_FIELDS = new Set(["autoInviteOnAgentAdd", "autoInviteOnOwnAdd"]);
+
+/**
+ * Set one of the business's auto-invite-on-sale-add flags (Client portal →
+ * Inviting clients). Governs the "Getting your sale moving" portal invite for
+ * every file this business progresses, split by who added the sale. Overrides the
+ * agency-level toggle for those files. Owner-only + flag-gated.
+ */
+export async function setBusinessAutoInvite(field: string, value: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  if (!AUTO_INVITE_FIELDS.has(field)) return { ok: false, error: "Unknown setting." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only the business owner can change these settings." };
+
+  const data = { [field]: value } as Prisma.ProgressionBusinessUpdateInput;
+  await prisma.progressionBusiness.update({ where: { id: owner.businessId }, data });
+  revalidatePath("/agent/settings/client-portal");
+  return { ok: true };
+}
+
 /** Save the progressor's rate card for a client (how they charge). Owner-scoped. */
 export async function setClientFeeModelAction(agencyId: string, model: unknown): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };

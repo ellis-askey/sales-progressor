@@ -100,7 +100,8 @@ export async function sendOutsourceIntroForTransaction(
         propertyAddress: true,
         agencyId: true,
         agency: { select: { name: true, autoInviteClientsOnAdd: true } },
-        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
+        progressionBusinessId: true,
+        progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true, autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: true } },
         serviceType: true,
         isMigrated: true,
         // The progressor the file is assigned to. We sign the intro from THEM so the
@@ -144,20 +145,31 @@ export async function sendOutsourceIntroForTransaction(
       return;
     }
 
-    // Agency opted out of auto-inviting clients on sale-add (Account → Client
-    // portal → Inviting clients). The sale is added quietly; the agent invites
-    // clients themselves when ready. Default true preserves the prior behaviour.
-    if (tx.agency && tx.agency.autoInviteClientsOnAdd === false) {
-      console.log(`[outsourceIntro] tx ${transactionId} — agency auto-invite disabled; skipping`);
-      return;
-    }
-
     const creator = await prisma.user.findUnique({
       where: { id: creatorUserId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, progressionBusinessId: true },
     });
     if (!creator) {
       console.error(`[outsourceIntro] creator user ${creatorUserId} not found — skipping tx ${transactionId}`);
+      return;
+    }
+
+    // Auto-invite policy. For a file progressed by a business (the normal
+    // outsourced case) the SP company owns the decision, split by who added the
+    // sale: an agency user handed it over → autoInviteOnAgentAdd; the SP added it
+    // themselves → autoInviteOnOwnAdd. Falls back to the agency-level toggle
+    // (Account → Client portal → Inviting clients) only when there's no
+    // progression business. Defaults all true = behaviour before this setting.
+    const inviteBiz = tx.progressionBusiness;
+    if (tx.progressionBusinessId && inviteBiz) {
+      const creatorIsSp = creator.progressionBusinessId != null && creator.progressionBusinessId === tx.progressionBusinessId;
+      const allowed = creatorIsSp ? inviteBiz.autoInviteOnOwnAdd : inviteBiz.autoInviteOnAgentAdd;
+      if (!allowed) {
+        console.log(`[outsourceIntro] tx ${transactionId} — SP auto-invite off (${creatorIsSp ? "own-add" : "agent-add"}); skipping`);
+        return;
+      }
+    } else if (tx.agency && tx.agency.autoInviteClientsOnAdd === false) {
+      console.log(`[outsourceIntro] tx ${transactionId} — agency auto-invite disabled; skipping`);
       return;
     }
 

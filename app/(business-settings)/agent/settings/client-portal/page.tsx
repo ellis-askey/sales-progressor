@@ -16,7 +16,8 @@ import { setBusinessPortalDefaultAction } from "@/app/actions/progression-client
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
-import { DeviceMobile } from "@phosphor-icons/react/dist/ssr";
+import { BusinessAutoInviteToggles } from "@/components/account/client-portal/BusinessAutoInviteToggles";
+import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,8 @@ export default async function BusinessClientPortalPage() {
       showPortalCosts: true,
       showPortalProgressPercent: true,
       showPortalWelcomeSheet: true,
+      autoInviteOnAgentAdd: true,
+      autoInviteOnOwnAdd: true,
     },
   });
 
@@ -44,6 +47,18 @@ export default async function BusinessClientPortalPage() {
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <AccountCard
+          icon={<PaperPlaneTilt size={18} weight="bold" />}
+          title="Inviting clients"
+          subtitle="Choose when buyers and sellers are emailed their portal link, depending on who added the sale."
+        >
+          <BusinessAutoInviteToggles
+            initial={{
+              autoInviteOnAgentAdd: business?.autoInviteOnAgentAdd ?? true,
+              autoInviteOnOwnAdd: business?.autoInviteOnOwnAdd ?? true,
+            }}
+          />
+        </AccountCard>
         <AccountCard
           icon={<DeviceMobile size={18} weight="bold" />}
           title="What clients see"

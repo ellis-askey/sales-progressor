@@ -318,6 +318,12 @@ model ProgressionBusiness {
   showPortalCosts           Boolean @default(true)
   showPortalProgressPercent Boolean @default(true)
   showPortalWelcomeSheet    Boolean @default(true)
+  // Auto-invite policy for the clients on sales this business progresses, split
+  // by who added the sale. True (default) = behaviour today. Gated in
+  // lib/emails/send-outsource-intro.ts; overrides the agency toggle for any file
+  // this business progresses.
+  autoInviteOnAgentAdd      Boolean @default(true) // an agency handed us the sale
+  autoInviteOnOwnAdd        Boolean @default(true) // we added the sale ourselves
 
   // Terms acceptance — the version of the Sales Progression Business Terms the
   // owner agreed to at sign-up, and when. Recorded so we always know which version
