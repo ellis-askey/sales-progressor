@@ -427,24 +427,17 @@ function EnquiryEscalationCard({
         txId={reminder.transactionId}
         address={reminder.propertyAddress}
         photoUrl={photoUrl}
-        actions={<UrgencyPill label="Escalated" bucket="escalated" />}
       >
         <div className="rem-row-needs" style={{ padding: "10px 12px", display: "flex", alignItems: "stretch", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-              Chase the buyer&rsquo;s solicitor to get enquiries raised
-            </p>
-            <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-              Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who}</b>
+              Initial enquiries raised by {who}
             </p>
             <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-              Automated nudges are done and enquiries still aren&rsquo;t raised, two weeks on. Time to call the buyer&rsquo;s solicitor and push for them.
+              The automated chases are done, but enquiries still haven&rsquo;t been raised, over two weeks on from searches being ordered. Time to follow up directly with {who} to get things moving.
             </p>
             <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>
               ↻ {reminder.nudgeCount} nudge{reminder.nudgeCount === 1 ? "" : "s"} sent · no reply yet
-            </p>
-            <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
-              ⚑ Escalated on {formatDate(reminder.escalatedAt)} · automated nudges stopped
             </p>
           </div>
           <div className="rem-row-side" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10, borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4 }}>
