@@ -197,6 +197,39 @@
   .page-fade-up { animation: none; }
 }
 
+/* ── Universal content bloom (the one load-in) ─────────────────────────────
+   Chosen in the Loading & Entrance Studio (2026-10-18). Content arrives blurred
+   + dropped, then sharpens and rises into place: blur 12px + translateY 32px →
+   clear, 520ms snappy, 50ms stagger between items. Supersedes .page-fade-up /
+   .file-tab-enter / SectionReveal as those surfaces migrate.
+
+   fill-mode is `backwards` (NOT both/forwards): it holds the hidden "from" state
+   through the stagger delay, then RELEASES the element back to a clean state with
+   no lingering transform/filter. Critical — a residual transform or filter makes
+   the element a backdrop root and severs descendant glass cards' backdrop-filter
+   from the fixed WebGL background (see components/hub/SectionReveal.tsx:48). */
+@keyframes agent-bloom {
+  from { opacity: 0; transform: translateY(32px); filter: blur(12px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0);    }
+}
+.agent-bloom { animation: agent-bloom 520ms cubic-bezier(0.25, 0, 0, 1) backwards; }
+
+/* Staggered cascade: direct children bloom in sequence, 50ms apart. Depth-capped
+   at the 7th child so a long list's tail never visibly lags. */
+.agent-bloom-stagger > * { animation: agent-bloom 520ms cubic-bezier(0.25, 0, 0, 1) backwards; }
+.agent-bloom-stagger > *:nth-child(1) { animation-delay: 0ms;   }
+.agent-bloom-stagger > *:nth-child(2) { animation-delay: 50ms;  }
+.agent-bloom-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.agent-bloom-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.agent-bloom-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.agent-bloom-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.agent-bloom-stagger > *:nth-child(n+7) { animation-delay: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-bloom,
+  .agent-bloom-stagger > * { animation: none; }
+}
+
 /* ── Branded route loader + crossfade reveal (Analytics trial) ─────────────
    The Sales Progressor mark breathing over an ambient glow with the three
    progression dots. Shown as the Analytics route fallback (BrandedLoader) and,
@@ -696,15 +729,15 @@
     color: var(--agent-btn-text, var(--agent-text-on-coral));
     border: var(--agent-btn-border, 1px solid transparent);
     border-radius: var(--agent-btn-radius, var(--agent-radius-md));
-    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.32));
+    box-shadow: var(--agent-btn-shadow, inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.18));
   }
   .agent-btn-primary:hover:not(:disabled) {
     filter: saturate(1.04) brightness(1.02);
-    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255,255,255,0.42));
+    box-shadow: var(--agent-btn-shadow-hover, inset 0 1px 0 rgba(255,255,255,0.4), 0 7px 22px rgba(0,0,0,0.24));
     transform: translateY(-1px);
   }
   .agent-btn-primary:active:not(:disabled) {
-    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.22));
+    box-shadow: var(--agent-btn-shadow-active, inset 0 2px 4px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1));
     transform: translateY(1px);
   }
   .agent-btn-primary:disabled {
@@ -3115,17 +3148,17 @@
        radius 8 + per-usage padding. */
     background: var(--agent-btn-bg, linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)));
     color: var(--agent-btn-text, #fff); border: none; border-radius: 8px;
-    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb, 255,107,74), 0.30), inset 0 1px 0 rgba(255,255,255,0.32));
+    box-shadow: var(--agent-btn-shadow, inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.18));
     transition: filter 140ms ease, transform 90ms ease, box-shadow 140ms ease;
   }
   .account-btn-primary:hover:not(:disabled) {
     filter: saturate(1.04) brightness(1.02);
-    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb, 255,107,74), 0.42), inset 0 1px 0 rgba(255,255,255,0.42));
+    box-shadow: var(--agent-btn-shadow-hover, inset 0 1px 0 rgba(255,255,255,0.4), 0 7px 22px rgba(0,0,0,0.24));
     transform: translateY(-1px);
   }
   .account-btn-primary:active:not(:disabled) {
     transform: translateY(1px);
-    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb, 255,107,74), 0.30), inset 0 1px 0 rgba(255,255,255,0.22));
+    box-shadow: var(--agent-btn-shadow-active, inset 0 2px 4px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1));
   }
   .account-btn-primary:disabled { opacity: 0.45; cursor: default; }
 
@@ -3225,15 +3258,15 @@
        past Tailwind colour utilities. Treatment only; layout untouched. */
     background: var(--agent-btn-bg, linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))) !important;
     color: var(--agent-btn-text, var(--agent-text-on-coral)) !important;
-    box-shadow: var(--agent-btn-shadow, 0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.32)) !important;
+    box-shadow: var(--agent-btn-shadow, inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.18)) !important;
   }
   .agent-btn-color-primary:hover:not(:disabled) {
     filter: saturate(1.04) brightness(1.02) !important;
-    box-shadow: var(--agent-btn-shadow-hover, 0 3px 0 var(--agent-coral-darker), 0 11px 24px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255,255,255,0.42)) !important;
+    box-shadow: var(--agent-btn-shadow-hover, inset 0 1px 0 rgba(255,255,255,0.4), 0 7px 22px rgba(0,0,0,0.24)) !important;
     transform: translateY(-1px);
   }
   .agent-btn-color-primary:active:not(:disabled) {
-    box-shadow: var(--agent-btn-shadow-active, 0 0 0 var(--agent-coral-darker), 0 4px 12px rgba(var(--agent-coral-rgb), 0.30), inset 0 1px 0 rgba(255,255,255,0.22)) !important;
+    box-shadow: var(--agent-btn-shadow-active, inset 0 2px 4px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.1)) !important;
     transform: translateY(1px);
   }
   .agent-btn-color-primary:disabled,

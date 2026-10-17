@@ -1,8 +1,7 @@
-// Instant-shell route fallback (2026-09-18): navigation commits to this
-// page immediately and its silhouette appears in place; real content swaps
-// in as it arrives. Most rail clicks never show this at all - the rail
-// fully prefetches its destinations - so this covers cold visits, hard
-// refreshes and deep links.
+// Instant-shell route fallback. Navigation commits immediately and the page
+// TITLE paints in place; the body stays quiet (no skeleton) until the real
+// content blooms in. Most rail clicks never show this — the rail prefetches —
+// so it covers cold visits, hard refreshes and deep links.
 import { RailPageSkeleton } from "@/components/loading/PageSkeletons";
 
 export default function Loading() {

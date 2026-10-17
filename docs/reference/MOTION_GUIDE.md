@@ -26,6 +26,21 @@ Spring overshoot is intentional. Modals and drawers should land with a confident
 
 **Known outlier:** [`agent-system.css`](../../app/agent/styles/agent-system.css) currently ships `agent-modal-in` at **240ms `cubic-bezier(0.25,0,0,1)`**. This is the as-built reality; the spec target is 280ms with the spring curve. Phase 2 migration — grandfathered for now.
 
+### Content load-in (bloom)
+
+The single entrance for agent page **content** — chosen in the Loading & Entrance Studio (2026-10-18, rollout in progress). Content arrives blurred and dropped, then sharpens and rises into place. The loading fallback is quiet: the page **title paints instantly**, the body stays empty, then content blooms in. No skeletons, spinners, or branded loaders — all three are being retired as surfaces migrate.
+
+| Property | Value |
+|---|---|
+| **Duration** | **520ms** |
+| **Easing** | `cubic-bezier(0.25, 0, 0, 1)` — snappy |
+| **From** | opacity 0, `translateY(32px)`, `blur(12px)` |
+| **Stagger** | **50ms** between direct children (`.agent-bloom-stagger`), depth-capped at the 7th |
+| **Classes** | `.agent-bloom` (single element), `.agent-bloom-stagger` (cascade over direct children) |
+| **Fill-mode** | `backwards` — holds the hidden state through the stagger delay, then **releases** the element to a clean state so its descendant glass keeps its `backdrop-filter` (a residual transform/filter would sever it — see `components/hub/SectionReveal.tsx`) |
+
+Supersedes `.page-fade-up`, `.file-tab-enter`, and `SectionReveal` as each surface migrates. During the migration both systems coexist (grandfathered); the end state is everything on `agent-bloom` and the old entrance classes removed.
+
 ### Element entrance / exit / dropdown / row events
 
 Calm, fast, no overshoot. Used for everything that's not a modal/drawer.

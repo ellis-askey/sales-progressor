@@ -1,16 +1,12 @@
 "use client";
 
-// Content entrance for agent pages. Unlike a layout-level wrapper (which mounts
-// at NAVIGATION time — i.e. while the loading.tsx skeleton is showing, so the
-// fade gets "used up" on the skeleton and the real content just snaps in), this
-// lives INSIDE the page, below the Suspense boundary. It therefore mounts when
-// the real content mounts — as the skeleton unmounts — so the content fades +
-// rises into place with the same motion the skeleton entered with. Pure CSS,
-// runs after paint, reduced-motion disables it: no impact on load speed.
-//
-// Skeletons carry the same .page-fade-up in components/loading/PageSkeletons so
-// the two halves read as one continuous entrance.
+// Content entrance for agent pages — the universal load-in bloom (2026-10-18,
+// Loading & Entrance Studio). Lives INSIDE the page (below the Suspense
+// boundary) so it mounts when the real content mounts, not while the quiet
+// loading fallback shows. Wraps the body in .agent-bloom-stagger: direct
+// children bloom (blur 12px + rise 32px → clear, 520ms snappy) in a 50ms
+// cascade. Pure CSS, runs after paint, reduced-motion disables it.
 
 export function PageReveal({ children }: { children: React.ReactNode }) {
-  return <div className="page-fade-up">{children}</div>;
+  return <div className="agent-bloom-stagger">{children}</div>;
 }

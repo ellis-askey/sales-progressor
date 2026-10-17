@@ -152,6 +152,15 @@ export const motion = {
   transitionBase: '200ms cubic-bezier(0.4, 0, 0.2, 1)',
   transitionSlow: '300ms cubic-bezier(0.4, 0, 0.2, 1)',
 
+  // Content load-in "bloom" — the universal page entrance (Loading & Entrance
+  // Studio, 2026-10-18). Content arrives blurred+dropped then sharpens+rises.
+  // agent-bloom keyframe + .agent-bloom / .agent-bloom-stagger in agent-system.css.
+  bloomIn:      520, // ms — agent-bloom duration
+  bloomStagger:  50, // ms — delay between .agent-bloom-stagger direct children
+  bloomBlur:     12, // px — starting blur that clears to 0
+  bloomRise:     32, // px — starting translateY that rises to 0
+  bloomEase: 'cubic-bezier(0.25, 0, 0, 1)', // snappy — agent-bloom easing
+
   // Canonical durations
   modalIn:    280, // ms — agent-modal-in / agent-drawer-in (locked spec)
   modalInShipped: 240, // ms — known outlier in agent-system.css, Phase 2 migration

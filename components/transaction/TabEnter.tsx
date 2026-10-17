@@ -32,5 +32,5 @@ export function TabEnter({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return <div className="file-tab-enter">{children}</div>;
+  return <div className="agent-bloom">{children}</div>;
 }
