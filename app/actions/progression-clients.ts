@@ -822,23 +822,34 @@ export async function setBusinessPortalDefaultAction(field: string, value: boole
   return { ok: true };
 }
 
-const AUTO_INVITE_FIELDS = new Set(["autoInviteOnAgentAdd", "autoInviteOnOwnAdd"]);
+// When the business auto-invites clients on sale-add (Client portal → Client
+// invitations). A single choice mapped onto the two per-creator flags:
+//   auto       → invite on every add (agency-added AND self-added)
+//   agent_only → invite only when an agency hands the sale over
+//   manual     → never auto-invite; the SP invites each client themselves
+export type InviteMode = "auto" | "agent_only" | "manual";
+
+const INVITE_MODE_FLAGS: Record<InviteMode, { autoInviteOnAgentAdd: boolean; autoInviteOnOwnAdd: boolean }> = {
+  auto: { autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: true },
+  agent_only: { autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: false },
+  manual: { autoInviteOnAgentAdd: false, autoInviteOnOwnAdd: false },
+};
 
 /**
- * Set one of the business's auto-invite-on-sale-add flags (Client portal →
- * Inviting clients). Governs the "Getting your sale moving" portal invite for
- * every file this business progresses, split by who added the sale. Overrides the
- * agency-level toggle for those files. Owner-only + flag-gated.
+ * Set the business's client-invitation mode (Client portal → Client invitations).
+ * Governs the "Getting your sale moving" portal invite for every file this
+ * business progresses; overrides the agency-level toggle for those files.
+ * Owner-only + flag-gated.
  */
-export async function setBusinessAutoInvite(field: string, value: boolean): Promise<ActionResult> {
+export async function setBusinessInviteMode(mode: InviteMode): Promise<ActionResult> {
   if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
-  if (!AUTO_INVITE_FIELDS.has(field)) return { ok: false, error: "Unknown setting." };
+  const flags = INVITE_MODE_FLAGS[mode];
+  if (!flags) return { ok: false, error: "Unknown option." };
   const session = await requireSession();
   const owner = await resolveBusinessOwner(session);
   if (!owner) return { ok: false, error: "Only the business owner can change these settings." };
 
-  const data = { [field]: value } as Prisma.ProgressionBusinessUpdateInput;
-  await prisma.progressionBusiness.update({ where: { id: owner.businessId }, data });
+  await prisma.progressionBusiness.update({ where: { id: owner.businessId }, data: flags });
   revalidatePath("/agent/settings/client-portal");
   return { ok: true };
 }

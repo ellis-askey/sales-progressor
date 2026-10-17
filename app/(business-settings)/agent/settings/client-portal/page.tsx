@@ -16,7 +16,8 @@ import { setBusinessPortalDefaultAction } from "@/app/actions/progression-client
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
-import { BusinessAutoInviteToggles } from "@/components/account/client-portal/BusinessAutoInviteToggles";
+import { BusinessInviteMode } from "@/components/account/client-portal/BusinessInviteMode";
+import type { InviteMode } from "@/app/actions/progression-clients";
 import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,11 @@ export default async function BusinessClientPortalPage() {
     },
   });
 
+  // Collapse the two per-creator flags into the single-choice mode the card shows.
+  const agentAdd = business?.autoInviteOnAgentAdd ?? true;
+  const ownAdd = business?.autoInviteOnOwnAdd ?? true;
+  const inviteMode: InviteMode = !agentAdd ? "manual" : ownAdd ? "auto" : "agent_only";
+
   return (
     <>
       <AccountPageHeader
@@ -49,15 +55,10 @@ export default async function BusinessClientPortalPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <AccountCard
           icon={<PaperPlaneTilt size={18} weight="bold" />}
-          title="Inviting clients"
-          subtitle="Choose when buyers and sellers are emailed their portal link, depending on who added the sale."
+          title="Client invitations"
+          subtitle="Choose when buyers and sellers receive their portal invitation."
         >
-          <BusinessAutoInviteToggles
-            initial={{
-              autoInviteOnAgentAdd: business?.autoInviteOnAgentAdd ?? true,
-              autoInviteOnOwnAdd: business?.autoInviteOnOwnAdd ?? true,
-            }}
-          />
+          <BusinessInviteMode initial={inviteMode} />
         </AccountCard>
         <AccountCard
           icon={<DeviceMobile size={18} weight="bold" />}
