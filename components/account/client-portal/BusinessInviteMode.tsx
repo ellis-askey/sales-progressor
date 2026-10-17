@@ -69,7 +69,7 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
                 {on && <span style={{ width: 9, height: 9, borderRadius: 999, background: "var(--agent-coral-deep)" }} />}
               </span>
               <span style={{ minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 15.5, fontWeight: 740, letterSpacing: "-.01em", color: on ? "#fff" : "var(--agent-text-primary)" }}>{o.label}</span>
+                <span style={{ display: "block", fontSize: 15, fontWeight: 650, letterSpacing: "-.01em", color: on ? "#fff" : "var(--agent-text-primary)" }}>{o.label}</span>
                 <span style={{ display: "block", fontSize: 13, lineHeight: 1.5, marginTop: 2, color: on ? "rgba(255,255,255,.92)" : "var(--agent-text-secondary)" }}>{o.sub}</span>
               </span>
             </button>

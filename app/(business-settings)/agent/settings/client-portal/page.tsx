@@ -1,11 +1,11 @@
-// /agent/settings/client-portal — the business owner's "Client portal" tab. The
-// business-wide default for what buyers and sellers see on the portals of the
-// sales this business progresses. Same card + live previews as the agency
-// director's Account → Client portal page (ClientPortalSettings), but each flip
-// saves via setBusinessPortalDefaultAction, which stores the default on the
-// ProgressionBusiness AND writes it through to every current client agency's own
-// Agency.showPortal* flag (the flags the portal actually reads). New client
-// agencies are seeded from this default at provision. Owner-gated + flag-gated.
+// /agent/settings/client-portal — the business owner's "Client portal" tab:
+// the client-invitation mode (BusinessInviteMode) + the business-wide "what
+// clients see" defaults for the sales this business progresses. Same cards as
+// the agency director's Account → Client portal page. "What clients see" flips
+// save via setBusinessPortalDefaultAction, which stores the default on the
+// ProgressionBusiness; the portal reads the responsible party's value at render
+// time, so it governs every file this business progresses (no write-through into
+// client Agency rows). Owner-gated + flag-gated.
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
@@ -49,7 +49,7 @@ export default async function BusinessClientPortalPage() {
     <>
       <AccountPageHeader
         title="Client portal"
-        subtitle="Choose what buyers and sellers see on the portals for the sales you progress. New clients start from these settings, and a change here applies to your current clients too. You can still fine-tune any client in their workspace."
+        subtitle="Choose how your clients' portals work for the sales you progress: when buyers and sellers are invited, and what they see. You can change key dates on an individual sale."
         backLabel="Back to progression"
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
