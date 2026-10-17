@@ -2860,6 +2860,7 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
       propertyAddress: true,
       completionDate: true,
       agencyId: true,
+      progressionBusinessId: true,
       activeBuyerRoundId: true,
       agentUser: { select: { name: true } },
       contacts: {
@@ -2874,10 +2875,11 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
   // an archived previous buyer in the completion pack.
   const vendors    = tx.contacts.filter((c) => c.roleType === "vendor" && c.portalEligible)   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
   const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.portalEligible && isActiveRoundContact(c, tx.activeBuyerRoundId)).map(narrow).filter((c): c is CompletionPackContact => c !== null);
-  // Effective copy for each side — the agency's own version, else our default.
+  // Effective copy for each side — the business's own version on an outsourced
+  // file, else the agency's, else our default.
   const [vendorContent, purchaserContent] = await Promise.all([
-    resolveCompletionPackContent(tx.agencyId, "vendor"),
-    resolveCompletionPackContent(tx.agencyId, "purchaser"),
+    resolveCompletionPackContent(tx.agencyId, "vendor", tx.progressionBusinessId),
+    resolveCompletionPackContent(tx.agencyId, "purchaser", tx.progressionBusinessId),
   ]);
   return {
     address: tx.propertyAddress,

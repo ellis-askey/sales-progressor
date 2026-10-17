@@ -44,7 +44,7 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
-export function ClientChaseEditor() {
+export function ClientChaseEditor({ base = "/api/agent/email-templates" }: { base?: string } = {}) {
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -59,7 +59,7 @@ export function ClientChaseEditor() {
     setEditing(false);
     setLoadError(false);
     try {
-      const res = await fetch("/api/agent/email-templates/resolve?templateKey=client_chase&variant=default");
+      const res = await fetch(`${base}/resolve?templateKey=client_chase&variant=default`);
       if (res.ok) setResolved(await res.json());
       else setLoadError(true);
     } catch {
@@ -67,7 +67,7 @@ export function ClientChaseEditor() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [base]);
 
   useEffect(() => {
     load();
@@ -83,7 +83,7 @@ export function ClientChaseEditor() {
     if (!draft) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/agent/email-templates/save", {
+      const res = await fetch(`${base}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey: "client_chase", variant: "default", content: draft }),
@@ -104,7 +104,7 @@ export function ClientChaseEditor() {
     if (!resolved || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      const res = await fetch("/api/agent/email-templates/reset", {
+      const res = await fetch(`${base}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey: "client_chase", variant: "default" }),

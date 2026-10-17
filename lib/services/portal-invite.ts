@@ -5,6 +5,7 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
 import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import { buildPortalInviteEmail } from "@/lib/email/portal-invite";
+import { resolvePortalInviteContent } from "@/lib/agency-email/templates";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { buildGreeting } from "@/lib/portal-copy";
@@ -34,6 +35,7 @@ export async function sendPortalInviteByToken(
           propertyAddress: true,
           serviceType: true,
           agencyId: true,
+          progressionBusinessId: true,
           agentUser: { select: { name: true } },
           assignedUser: { select: { name: true } },
           agency: { select: { name: true, emailTheme: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
@@ -61,7 +63,10 @@ export async function sendPortalInviteByToken(
     scale: contact.transaction.agency.logoScale as LogoScale | null,
     align: contact.transaction.agency.logoAlign as LogoAlign | null,
   });
-  const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand, studioTheme, identityName: brandName ?? agencyName, logoUrl: resolvedLogoUrl, tileColor: resolvedTileColor });
+  // Editable copy — the business's own version on an outsourced file, else the
+  // agency's, else our default wording.
+  const inviteContent = await resolvePortalInviteContent(contact.transaction.agencyId, contact.transaction.progressionBusinessId);
+  const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand, studioTheme, identityName: brandName ?? agencyName, logoUrl: resolvedLogoUrl, tileColor: resolvedTileColor, content: inviteContent });
   await sendEmail({ to: contact.email, subject: invite.subject, from: fromAddr, replyTo, text: invite.text, html: invite.html });
 
   // Record the send so the contacts card can show a truthful "Invite sent",

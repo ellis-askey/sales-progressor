@@ -48,10 +48,12 @@ export function CompletionPackEditor({
   templateKey = "completion_pack",
   title = "Contracts exchanged: what happens next",
   subtitle = "Sent to your client once contracts exchange, setting out what to expect on completion day.",
+  base = "/api/agent/email-templates",
 }: {
   templateKey?: string;
   title?: string;
   subtitle?: string;
+  base?: string;
 } = {}) {
   const [side, setSide] = useState<Side>("purchaser");
   const [resolved, setResolved] = useState<Resolved | null>(null);
@@ -66,12 +68,12 @@ export function CompletionPackEditor({
     setLoading(true);
     setEditing(false);
     try {
-      const res = await fetch(`/api/agent/email-templates/resolve?templateKey=${templateKey}&variant=${side}`);
+      const res = await fetch(`${base}/resolve?templateKey=${templateKey}&variant=${side}`);
       if (res.ok) setResolved(await res.json());
     } finally {
       setLoading(false);
     }
-  }, [side]);
+  }, [side, base, templateKey]);
 
   useEffect(() => {
     load();
@@ -87,7 +89,7 @@ export function CompletionPackEditor({
     if (!draft) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/agent/email-templates/save", {
+      const res = await fetch(`${base}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey, variant: side, content: draft }),
@@ -108,7 +110,7 @@ export function CompletionPackEditor({
     if (!resolved || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      const res = await fetch("/api/agent/email-templates/reset", {
+      const res = await fetch(`${base}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey, variant: side }),

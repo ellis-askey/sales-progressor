@@ -561,6 +561,7 @@ export async function enqueueClientChaseDigest(input: {
         id: true,
         propertyAddress: true,
         agencyId: true,
+        progressionBusinessId: true,
         agency: { select: { name: true } },
         // Phase 1 commit 4c: needed by the ClientChaseState upsert
         // below so purchaser-contact rows get round-stamped.
@@ -628,8 +629,9 @@ export async function enqueueClientChaseDigest(input: {
   });
   if (pendingPrior) return { enqueued: false, rowId: null };
 
-  // Agency personalisation for the chase (subject override + optional intro/outro).
-  const agencyCopy = await resolveClientChaseContent(transaction.agencyId);
+  // Chase personalisation (subject override + optional intro/outro) — the
+  // business's own version on an outsourced file, else the agency's, else default.
+  const agencyCopy = await resolveClientChaseContent(transaction.agencyId, transaction.progressionBusinessId);
 
   // Agency authenticated sender for this file (Reply-To matching, SP fallback).
   // Resolved here (before the payload) because it also carries the brand theme.

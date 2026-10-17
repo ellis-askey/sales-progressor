@@ -79,7 +79,7 @@ async function buildAutoChasePreview(
       reminderRule: { select: { targetMilestoneCode: true, anchorMilestone: { select: { name: true } } } },
       transaction: {
         select: {
-          id: true, propertyAddress: true, purchasePrice: true, agencyId: true, activeBuyerRoundId: true,
+          id: true, propertyAddress: true, purchasePrice: true, agencyId: true, progressionBusinessId: true, activeBuyerRoundId: true,
           agency: { select: { name: true } },
           agentUser: { select: { name: true, phone: true, image: true } },
           assignedUser: { select: { name: true, phone: true, image: true } },
@@ -190,7 +190,7 @@ async function buildAutoChasePreview(
   // The agency's own client-chase copy from settings (subject/intro/outro) — an
   // empty result falls back to our rotating default inside assembleDigestPayload,
   // so this is exactly what the send would use.
-  const agencyCopy = await resolveClientChaseContent(tx.agencyId);
+  const agencyCopy = await resolveClientChaseContent(tx.agencyId, tx.progressionBusinessId);
   const { subject, html } = assembleDigestPayload({
     transaction: { id: tx.id, propertyAddress: tx.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },

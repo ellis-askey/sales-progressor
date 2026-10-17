@@ -127,7 +127,7 @@ export async function previewChaseEmailAction(input: {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
     select: {
-      propertyAddress: true, purchasePrice: true, agencyId: true, activeBuyerRoundId: true,
+      propertyAddress: true, purchasePrice: true, agencyId: true, progressionBusinessId: true, activeBuyerRoundId: true,
       agency: { select: { name: true, emailTheme: true } },
       agentUser: { select: { name: true, phone: true } },
       assignedUser: { select: { name: true, phone: true } },
@@ -204,7 +204,7 @@ export async function previewChaseEmailAction(input: {
   if (target.kind === "client") {
     const c = tx.contacts.find((x) => x.id === target.contactId);
     if (!c) return { ok: false, error: "Contact not found" };
-    const agencyCopy = await resolveClientChaseContent(tx.agencyId);
+    const agencyCopy = await resolveClientChaseContent(tx.agencyId, tx.progressionBusinessId);
     const payload = assembleDigestPayload({
       transaction: { id: input.transactionId, propertyAddress: tx.propertyAddress },
       contact: { id: c.id, name: c.name, portalToken: c.portalToken ?? "preview" },

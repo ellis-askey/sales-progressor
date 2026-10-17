@@ -1,0 +1,236 @@
+"use client";
+
+// components/account/emails/PortalInviteEditor.tsx
+//
+// Tier-2 editor for the portal invite / welcome email — the first email a client
+// gets when they're invited to their portal. Full prose control over the subject,
+// headline, body line, the "personal to you" note and the button label; their
+// version, or ours. {saleWord} and {address} are filled in per send. Mirrors the
+// ClientChaseEditor shape (single variant, base prop for agency vs business).
+
+import { useCallback, useEffect, useState } from "react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
+
+type Content = { subject: string; headline: string; body: string; note: string; cta: string };
+type Resolved = { exists: true; source: "agency" | "default"; effective: Content; base: Content };
+
+const HAIRLINE = "0.5px solid rgba(0,0,0,0.10)";
+const TEXT = "#111827";
+const MUTED = "#6b7280";
+const FAINT = "#9ca3af";
+
+const EX: Record<string, string> = { saleWord: "purchase", address: "12 Example Road, Harlow, CM17 9PH" };
+const fill = (t: string) => t.replace(/\{(\w+)\}/g, (_, k) => EX[k] ?? `{${k}}`);
+
+const emDash = String.fromCharCode(0x2014);
+function warnOf(label: string, val: string): string[] {
+  const w: string[] = [];
+  if (!val) return w;
+  if (val.includes(emDash)) w.push(`${label}: try a comma or full stop instead of a long dash.`);
+  if (val.includes("!")) w.push(`${label}: client emails tend to read better without exclamation marks.`);
+  return w;
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid rgba(0,0,0,0.14)",
+  borderRadius: 9,
+  background: "#fff",
+  padding: "9px 11px",
+  fontSize: 14,
+  color: TEXT,
+  fontFamily: "inherit",
+  outline: "none",
+};
+
+export function PortalInviteEditor({ base = "/api/agent/email-templates" }: { base?: string } = {}) {
+  const [resolved, setResolved] = useState<Resolved | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Content | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const { toast } = useAgentToast();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setEditing(false);
+    try {
+      const res = await fetch(`${base}/resolve?templateKey=portal_invite&variant=default`);
+      if (res.ok) setResolved(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [base]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function startEdit() {
+    if (!resolved) return;
+    setDraft({ ...resolved.effective });
+    setEditing(true);
+  }
+
+  async function save() {
+    if (!draft) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${base}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateKey: "portal_invite", variant: "default", content: draft }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        await load();
+        toast.success("Saved. Clients see your version from the next send.");
+      } else {
+        toast.error("Couldn't save. Try again.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reset() {
+    if (!resolved || resolved.source !== "agency") return;
+    setResetting(true);
+    try {
+      const res = await fetch(`${base}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateKey: "portal_invite", variant: "default" }),
+      });
+      if (res.ok) {
+        await load();
+        toast.success("Reset to the Sales Progressor version.");
+      } else {
+        toast.error("Couldn't reset. Try again.");
+      }
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  const warnings = draft
+    ? [...warnOf("Headline", draft.headline), ...warnOf("Body", draft.body), ...warnOf("Note", draft.note), ...warnOf("Button", draft.cta)]
+    : [];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>Portal invite</p>
+        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
+          The first email a client receives, inviting them into their portal. The greeting, their link and your branding
+          are added automatically.
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: MUTED, padding: "8px 2px" }}>
+          <CircleNotch size={16} className="agent-spin" /> Loading…
+        </div>
+      ) : !resolved ? null : editing && draft ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
+          <Field label="Subject">
+            <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
+          </Field>
+          <Field label="Headline">
+            <input value={draft.headline} onChange={(e) => setDraft({ ...draft, headline: e.target.value })} style={inputStyle} />
+          </Field>
+          <Field label="Body">
+            <textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={3} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </Field>
+          <Field label="Note (optional)" hint="The small reassurance under the button. Leave blank to hide it.">
+            <textarea value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </Field>
+          <Field label="Button label">
+            <input value={draft.cta} onChange={(e) => setDraft({ ...draft, cta: e.target.value })} style={inputStyle} />
+          </Field>
+          <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
+            Details like {"{saleWord}"} and {"{address}"} are filled in for each sale when the email sends. Leave them in place.
+          </p>
+          {warnings.length > 0 && (
+            <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+              {warnings.map((w, i) => (
+                <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
+                  <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} /> {w}
+                </p>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button type="button" onClick={save} disabled={saving} className="agent-btn agent-btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="account-emails-ghostbtn" style={{ borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "9px 16px", fontSize: 13.5, fontWeight: 600, color: TEXT, cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Preview resolved={resolved} onEdit={startEdit} onReset={reset} resetting={resetting} />
+      )}
+    </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>{label}</span>
+      {children}
+      {hint && <span style={{ display: "block", marginTop: 5, fontSize: 11.5, color: FAINT }}>{hint}</span>}
+    </label>
+  );
+}
+
+function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved; onEdit: () => void; onReset: () => void; resetting: boolean }) {
+  const c = resolved.effective;
+  return (
+    <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+        {resolved.source === "agency" ? (
+          <span style={{ borderRadius: 999, border: "0.5px solid rgba(255,107,74,0.4)", background: "rgba(255,107,74,0.10)", padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep, #E2452A)" }}>Your version</span>
+        ) : (
+          <span style={{ borderRadius: 999, border: HAIRLINE, background: "#f7f7f8", padding: "3px 10px", fontSize: 11, fontWeight: 600, color: MUTED }}>Sales Progressor default</span>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {resolved.source === "agency" && (
+            <button type="button" onClick={onReset} disabled={resetting} className="account-emails-ghostbtn" style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: resetting ? "default" : "pointer", opacity: resetting ? 0.55 : 1 }}>
+              <ArrowCounterClockwise size={14} /> {resetting ? "Resetting…" : "Reset to Sales Progressor"}
+            </button>
+          )}
+          <button type="button" onClick={onEdit} className="agent-btn agent-btn-primary agent-btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Pencil size={14} /> Edit
+          </button>
+        </div>
+      </div>
+
+      <div style={{ overflow: "hidden", borderRadius: 11, border: HAIRLINE, background: "#fcfcfd" }}>
+        <div style={{ borderBottom: HAIRLINE, padding: "11px 16px" }}>
+          <p style={{ margin: 0, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</p>
+          <p style={{ margin: "3px 0 0", fontSize: 14, color: TEXT }}>{fill(c.subject)}</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: TEXT }}>{fill(c.headline)}</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>Hi Sam,</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{fill(c.body)}</p>
+          <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: "var(--agent-coral, #FF6B4A)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>{fill(c.cta)}</span>
+          {c.note && (
+            <div style={{ borderRadius: 9, background: "#F8F9FB", padding: "12px 14px" }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: FAINT, lineHeight: 1.5 }}>{fill(c.note)}</p>
+            </div>
+          )}
+          <p style={{ margin: 0, fontSize: 12, color: MUTED }}>Your agency</p>
+        </div>
+      </div>
+      <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
+        Preview uses example details for the sale and address. Your logo, colours and the client&apos;s link are added automatically.
+      </p>
+    </div>
+  );
+}

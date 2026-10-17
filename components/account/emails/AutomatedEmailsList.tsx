@@ -8,9 +8,10 @@
 // "not sending yet" note (its send trigger lands in a follow-up).
 
 import { useState } from "react";
-import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight } from "@phosphor-icons/react";
+import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight, EnvelopeOpen } from "@phosphor-icons/react";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { InfoTip } from "@/components/ui/InfoTip";
+import { PortalInviteEditor } from "./PortalInviteEditor";
 import { CompletionPackEditor } from "./CompletionPackEditor";
 import { ExchangeDayClientEditor } from "./ExchangeDayClientEditor";
 import { ClientChaseEditor } from "./ClientChaseEditor";
@@ -25,10 +26,19 @@ type Row = {
   info: string;
   pills?: string[];
   notSending?: boolean;
-  render: () => React.ReactNode;
+  render: (base: string) => React.ReactNode;
 };
 
 const ROWS: Row[] = [
+  {
+    key: "portal_invite",
+    Icon: EnvelopeOpen,
+    title: "Portal invite",
+    subtitle: "The welcome email a client gets when you invite them to their portal.",
+    info: "The first email a client receives. Sent when you invite them to their portal (or automatically as a file is added, if you've turned that on). It carries their personal link, your branding, and the wording you set here.",
+    pills: ["Buyer", "Seller"],
+    render: (base) => <PortalInviteEditor base={base} />,
+  },
   {
     key: "completion_pack",
     Icon: ArrowsLeftRight,
@@ -36,7 +46,7 @@ const ROWS: Row[] = [
     subtitle: "What your client needs to know after exchange.",
     info: "Sent as soon as exchange is confirmed, letting clients know their completion date is agreed and what they need to arrange next, including insurance, removals and final funds.",
     pills: ["Buyer", "Seller"],
-    render: () => <CompletionPackEditor />,
+    render: (base) => <CompletionPackEditor base={base} />,
   },
   {
     key: "exchange_day_client",
@@ -45,7 +55,7 @@ const ROWS: Row[] = [
     subtitle: "Sent on the morning contracts exchange.",
     info: "A morning reminder that exchange is expected today, asking clients to keep their phone nearby in case their solicitor needs to reach them.",
     pills: ["Morning note", "Authority nudge"],
-    render: () => <ExchangeDayClientEditor />,
+    render: (base) => <ExchangeDayClientEditor base={base} />,
   },
   {
     key: "client_chase",
@@ -53,7 +63,7 @@ const ROWS: Row[] = [
     title: "Chase reminder",
     subtitle: "Sent when something is waiting on the client or their solicitor.",
     info: "Sent when a step remains outstanding beyond your chosen timeframe. Clients are reminded what's needed and can respond through their portal. If they remain unresponsive, you'll be alerted to follow up personally.",
-    render: () => <ClientChaseEditor />,
+    render: (base) => <ClientChaseEditor base={base} />,
   },
   {
     key: "weekly_update",
@@ -61,7 +71,7 @@ const ROWS: Row[] = [
     title: "Weekly update",
     subtitle: "Keeps clients updated when a sale has been quiet.",
     info: "A short update during quieter periods, reassuring clients that their sale is progressing and keeping them informed even when there's nothing new to report.",
-    render: () => <WeeklyUpdateEditor />,
+    render: (base) => <WeeklyUpdateEditor base={base} />,
   },
   {
     key: "onward_nudge",
@@ -70,7 +80,7 @@ const ROWS: Row[] = [
     subtitle: "Asks a client to add or update their other move in the portal.",
     info: "Invites clients who are also buying or selling another property to add their related move, helping you see more of the chain and identify anything that could affect their sale.",
     pills: ["Onward", "Related"],
-    render: () => <OnwardNudgeEditor />,
+    render: (base) => <OnwardNudgeEditor base={base} />,
   },
   {
     key: "post_completion",
@@ -80,8 +90,9 @@ const ROWS: Row[] = [
     info: "A final email once the sale completes, covering useful next steps such as Land Registry updates, keeping important documents and leaving a review. Coming soon.",
     pills: ["Buyer", "Seller"],
     notSending: true,
-    render: () => (
+    render: (base) => (
       <CompletionPackEditor
+        base={base}
         templateKey="post_completion"
         title="Post-completion"
         subtitle="A thank you and what happens after completion, per side."
@@ -90,7 +101,7 @@ const ROWS: Row[] = [
   },
 ];
 
-export function AutomatedEmailsList() {
+export function AutomatedEmailsList({ base = "/api/agent/email-templates" }: { base?: string } = {}) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const active = ROWS.find((r) => r.key === openKey) ?? null;
 
@@ -189,7 +200,7 @@ export function AutomatedEmailsList() {
             This email isn&apos;t sending yet. You can set the wording now, ready for when the send trigger goes live.
           </div>
         )}
-        {active?.render()}
+        {active?.render(base)}
       </AccountDrawer>
 
       <style>{`

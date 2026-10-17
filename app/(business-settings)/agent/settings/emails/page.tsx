@@ -17,11 +17,12 @@ import { buildStepList } from "@/lib/milestone-emails/steps";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AgencyMilestoneEmailsEditor } from "@/components/account/emails/AgencyMilestoneEmailsEditor";
+import { AutomatedEmailsList } from "@/components/account/emails/AutomatedEmailsList";
 import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import type { BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { SenderDomainSection } from "@/components/progression/SenderDomainSection";
 import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
-import { ShareNetwork, Palette, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, EnvelopeSimple, Palette, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
 export default async function BusinessEmailsPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -65,13 +66,23 @@ export default async function BusinessEmailsPage() {
           </AccountCard>
         }
         words={
-          <AccountCard
-            icon={<ShareNetwork size={18} weight="bold" />}
-            title="Step-by-step updates"
-            subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
-          >
-            <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
-          </AccountCard>
+          <>
+            <AccountCard
+              icon={<ShareNetwork size={18} weight="bold" />}
+              title="Step-by-step updates"
+              subtitle="The email a buyer or seller receives at each stage. It starts with our default wording, and your edits apply to every file you progress."
+            >
+              <AgencyMilestoneEmailsEditor steps={steps} base="/api/agent/settings/milestone-emails" />
+            </AccountCard>
+
+            <AccountCard
+              icon={<EnvelopeSimple size={18} weight="bold" />}
+              title="Automated emails"
+              subtitle="Longer emails sent at key moments. Edits apply to every file you progress."
+            >
+              <AutomatedEmailsList base="/api/agent/settings/email-templates" />
+            </AccountCard>
+          </>
         }
         sender={
           <AccountCard

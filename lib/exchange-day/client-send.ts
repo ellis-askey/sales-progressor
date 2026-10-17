@@ -82,6 +82,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
       exchangeDayClientMorningEmailAt: true, exchangeDayClientAuthorityEmailAt: true,
       clientEmailsPaused: true,
       agencyId: true,
+      progressionBusinessId: true,
       agentUserId: true, assignedUserId: true,
       agency: { select: { name: true } },
       assignedUser: { select: { name: true } },
@@ -105,8 +106,9 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
 
     const { from, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined, theme: undefined, studioTheme: undefined, brandName: undefined, logoUrl: undefined, tileColor: undefined }));
     const emailTheme = theme ?? resolveEmailTheme(null);
-    // Effective client copy — the agency's own version, else our default.
-    const edContent = await resolveExchangeDayClientContent(tx.agencyId);
+    // Effective client copy — the business's own version on an outsourced file,
+    // else the agency's, else our default.
+    const edContent = await resolveExchangeDayClientContent(tx.agencyId, tx.progressionBusinessId);
     const senderName = tx.assignedUser?.name ?? tx.agentUser?.name ?? "Sales Progressor";
     const agencyName = tx.agency?.name ?? "Sales Progressor";
     const addressShort = tx.propertyAddress.split(",")[0]?.trim() || tx.propertyAddress;

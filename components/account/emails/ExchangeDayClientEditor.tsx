@@ -44,7 +44,7 @@ function warnOf(label: string, val: string): string[] {
   return w;
 }
 
-export function ExchangeDayClientEditor() {
+export function ExchangeDayClientEditor({ base = "/api/agent/email-templates" }: { base?: string } = {}) {
   const [variant, setVariant] = useState<Variant>("morning");
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,12 +58,12 @@ export function ExchangeDayClientEditor() {
     setLoading(true);
     setEditing(false);
     try {
-      const res = await fetch(`/api/agent/email-templates/resolve?templateKey=exchange_day_client&variant=${variant}`);
+      const res = await fetch(`${base}/resolve?templateKey=exchange_day_client&variant=${variant}`);
       if (res.ok) setResolved(await res.json());
     } finally {
       setLoading(false);
     }
-  }, [variant]);
+  }, [variant, base]);
 
   useEffect(() => {
     load();
@@ -82,7 +82,7 @@ export function ExchangeDayClientEditor() {
     if (!draft) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/agent/email-templates/save", {
+      const res = await fetch(`${base}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey: "exchange_day_client", variant, content: draft }),
@@ -103,7 +103,7 @@ export function ExchangeDayClientEditor() {
     if (!resolved || resolved.source !== "agency") return;
     setResetting(true);
     try {
-      const res = await fetch("/api/agent/email-templates/reset", {
+      const res = await fetch(`${base}/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateKey: "exchange_day_client", variant }),

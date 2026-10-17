@@ -3856,6 +3856,28 @@ model PlatformEmailTemplate {
   @@unique([templateKey, variant])
 }
 
+// A progression business's OWN override for a Tier-2 automated email — the
+// business counterpart to AgencyEmailTemplate. Applies on files the business
+// progresses (PropertyTransaction.progressionBusinessId set). Resolution at send
+// time mirrors the milestone layer's discriminator (tx.progressionBusinessId ?
+// business : agency): business override (this) → platform default → code default.
+// progressionBusinessId is a plain id (no FK relation needed). One row per
+// business + templateKey + variant. Same JSON content shape as AgencyEmailTemplate
+// so the resolver/validators are shared.
+model BusinessEmailTemplate {
+  id                    String   @id @default(cuid())
+  progressionBusinessId String
+  templateKey           String
+  variant               String   @default("default")
+  content               Json
+  updatedById           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([progressionBusinessId, templateKey, variant])
+  @@index([progressionBusinessId])
+}
+
 // Append-only audit of every agency email-copy edit — BOTH milestone overrides
 // and Tier-2 templates. Never updated or deleted in normal operation: it exists
 // so we can always prove exactly what copy an agency authored, who made the

@@ -208,11 +208,9 @@ function validateClientChase(raw: unknown): ClientChaseContent | null {
   };
 }
 
-export async function resolveClientChaseContent(agencyId: string | null): Promise<ClientChaseContent> {
-  if (agencyId) {
-    const raw = await getRow(agencyId, "client_chase", "default");
-    if (raw) return coalesceClientChase(raw);
-  }
+export async function resolveClientChaseContent(agencyId: string | null, progressionBusinessId?: string | null): Promise<ClientChaseContent> {
+  const raw = await scopedRow(agencyId, progressionBusinessId, "client_chase", "default");
+  if (raw) return coalesceClientChase(raw);
   const platform = await getPlatformRow("client_chase", "default");
   return platform ? coalesceClientChase(platform) : CLIENT_CHASE_DEFAULT;
 }
@@ -251,11 +249,9 @@ function validateWeeklyUpdate(raw: unknown): WeeklyUpdateContent | null {
   };
 }
 
-export async function resolveWeeklyUpdateContent(agencyId: string | null): Promise<WeeklyUpdateContent> {
-  if (agencyId) {
-    const raw = await getRow(agencyId, "weekly_update", "default");
-    if (raw) return coalesceWeeklyUpdate(raw);
-  }
+export async function resolveWeeklyUpdateContent(agencyId: string | null, progressionBusinessId?: string | null): Promise<WeeklyUpdateContent> {
+  const raw = await scopedRow(agencyId, progressionBusinessId, "weekly_update", "default");
+  if (raw) return coalesceWeeklyUpdate(raw);
   const platform = await getPlatformRow("weekly_update", "default");
   return platform ? coalesceWeeklyUpdate(platform) : WEEKLY_UPDATE_DEFAULT;
 }
@@ -310,12 +306,11 @@ export async function resolveOnwardNudgeContent(
   agencyId: string | null,
   direction: OnwardNudgeDirection,
   mode: OnwardNudgeMode,
+  progressionBusinessId?: string | null,
 ): Promise<OnwardNudgeContent> {
   const variant = `${direction}_${mode}`;
-  if (agencyId) {
-    const raw = await getRow(agencyId, "onward_nudge", variant);
-    if (raw) return coalesceOnwardNudge(raw);
-  }
+  const raw = await scopedRow(agencyId, progressionBusinessId, "onward_nudge", variant);
+  if (raw) return coalesceOnwardNudge(raw);
   const platform = await getPlatformRow("onward_nudge", variant);
   return platform ? coalesceOnwardNudge(platform) : onwardNudgeDefaultFor(variant);
 }
@@ -340,32 +335,53 @@ async function getPlatformRow(templateKey: string, variant: string): Promise<unk
   return row?.content ?? null;
 }
 
+// A progression business's own override (the business counterpart to getRow).
+async function getBusinessRow(progressionBusinessId: string, templateKey: string, variant: string): Promise<unknown | null> {
+  const row = await prisma.businessEmailTemplate.findUnique({
+    where: { progressionBusinessId_templateKey_variant: { progressionBusinessId, templateKey, variant } },
+    select: { content: true },
+  });
+  return row?.content ?? null;
+}
+
+// The override row for a file's scope: the business layer when the file is
+// progressed by an external business, otherwise the client agency's layer. Null =
+// no override at this layer (the send path falls through to the platform default).
+// Mirrors the milestone discriminator: progressionBusinessId wins when set.
+async function scopedRow(
+  agencyId: string | null | undefined,
+  progressionBusinessId: string | null | undefined,
+  templateKey: string,
+  variant: string,
+): Promise<unknown | null> {
+  if (progressionBusinessId) return getBusinessRow(progressionBusinessId, templateKey, variant);
+  if (agencyId) return getRow(agencyId, templateKey, variant);
+  return null;
+}
+
 // ─── Send-path resolvers (typed) ──────────────────────────────────────────────
 
-export async function resolveCompletionPackContent(agencyId: string | null, side: CompletionPackSide): Promise<CompletionPackContent> {
-  if (agencyId) {
-    const raw = await getRow(agencyId, "completion_pack", side);
-    if (raw) return coalesceCompletionPack(raw, side);
-  }
+export async function resolveCompletionPackContent(agencyId: string | null, side: CompletionPackSide, progressionBusinessId?: string | null): Promise<CompletionPackContent> {
+  const raw = await scopedRow(agencyId, progressionBusinessId, "completion_pack", side);
+  if (raw) return coalesceCompletionPack(raw, side);
   const platform = await getPlatformRow("completion_pack", side);
   return platform ? coalesceCompletionPack(platform, side) : COMPLETION_PACK_DEFAULTS[side];
 }
 
-export async function resolvePostCompletionContent(agencyId: string | null, side: CompletionPackSide): Promise<CompletionPackContent> {
-  if (agencyId) {
-    const raw = await getRow(agencyId, "post_completion", side);
-    if (raw) return coalescePostCompletion(raw, side);
-  }
+export async function resolvePostCompletionContent(agencyId: string | null, side: CompletionPackSide, progressionBusinessId?: string | null): Promise<CompletionPackContent> {
+  const raw = await scopedRow(agencyId, progressionBusinessId, "post_completion", side);
+  if (raw) return coalescePostCompletion(raw, side);
   const platform = await getPlatformRow("post_completion", side);
   return platform ? coalescePostCompletion(platform, side) : POST_COMPLETION_DEFAULTS[side];
 }
 
 export async function resolveExchangeDayClientContent(
   agencyId: string | null,
+  progressionBusinessId?: string | null,
 ): Promise<{ morning: ExchangeDayMorningContent; authority: ExchangeDayAuthorityContent }> {
   const [am, aa, pm, pa] = await Promise.all([
-    agencyId ? getRow(agencyId, "exchange_day_client", "morning") : Promise.resolve(null),
-    agencyId ? getRow(agencyId, "exchange_day_client", "authority") : Promise.resolve(null),
+    scopedRow(agencyId, progressionBusinessId, "exchange_day_client", "morning"),
+    scopedRow(agencyId, progressionBusinessId, "exchange_day_client", "authority"),
     getPlatformRow("exchange_day_client", "morning"),
     getPlatformRow("exchange_day_client", "authority"),
   ]);
@@ -373,6 +389,47 @@ export async function resolveExchangeDayClientContent(
     morning: am ? coalesceExchangeMorning(am) : pm ? coalesceExchangeMorning(pm) : EXCHANGE_DAY_MORNING_DEFAULT,
     authority: aa ? coalesceExchangeAuthority(aa) : pa ? coalesceExchangeAuthority(pa) : EXCHANGE_DAY_AUTHORITY_DEFAULT,
   };
+}
+
+// ─── Portal invite / welcome ──────────────────────────────────────────────────
+// The first email a client gets when invited to their portal (sent when a file is
+// added + the client is auto-invited, depending on the invite settings). Tokens
+// {saleWord} and {address} are filled per send. Editable: subject, headline, the
+// body line, the "personal to you" note, and the button label.
+
+export type PortalInviteContent = { subject: string; headline: string; body: string; note: string; cta: string };
+
+export const PORTAL_INVITE_DEFAULT: PortalInviteContent = {
+  subject: "Your {saleWord} portal: {address}",
+  headline: "Your {saleWord} portal is ready",
+  body: "You can now track the progress of your {saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.",
+  note: "This link is personal to you, so please don't share it with others. You can bookmark it and return any time.",
+  cta: "Open my portal",
+};
+
+function coalescePortalInvite(raw: unknown): PortalInviteContent {
+  const c = (raw ?? {}) as Partial<PortalInviteContent>;
+  return {
+    subject: str(c.subject, PORTAL_INVITE_DEFAULT.subject),
+    headline: str(c.headline, PORTAL_INVITE_DEFAULT.headline),
+    body: str(c.body, PORTAL_INVITE_DEFAULT.body),
+    note: str(c.note, PORTAL_INVITE_DEFAULT.note),
+    cta: str(c.cta, PORTAL_INVITE_DEFAULT.cta),
+  };
+}
+function validatePortalInvite(raw: unknown): PortalInviteContent | null {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  const f = (k: string) => (typeof c[k] === "string" ? (c[k] as string).trim() : "");
+  const subject = f("subject"), headline = f("headline"), body = f("body"), note = f("note"), cta = f("cta");
+  if (!subject || !headline || !body || !cta) return null; // note is optional
+  return { subject, headline, body, note, cta };
+}
+
+export async function resolvePortalInviteContent(agencyId: string | null, progressionBusinessId?: string | null): Promise<PortalInviteContent> {
+  const raw = await scopedRow(agencyId, progressionBusinessId, "portal_invite", "default");
+  if (raw) return coalescePortalInvite(raw);
+  const platform = await getPlatformRow("portal_invite", "default");
+  return platform ? coalescePortalInvite(platform) : PORTAL_INVITE_DEFAULT;
 }
 
 // ─── Registry (drives the generic editor routes) ──────────────────────────────
@@ -421,6 +478,12 @@ export const TEMPLATE_FAMILIES: Record<string, FamilyDef> = {
     coalesce: (_v, raw) => coalesceOnwardNudge(raw),
     validate: (_v, raw) => validateOnwardNudge(raw),
   },
+  portal_invite: {
+    variants: ["default"],
+    defaultFor: () => PORTAL_INVITE_DEFAULT,
+    coalesce: (_v, raw) => coalescePortalInvite(raw),
+    validate: (_v, raw) => validatePortalInvite(raw),
+  },
 };
 
 // ─── Editor-facing describe / save / reset (generic over the registry) ────────
@@ -437,6 +500,41 @@ export async function describeTemplate(agencyId: string, templateKey: string, va
   const raw = await getRow(agencyId, templateKey, variant);
   if (raw == null) return { exists: true, source: "default", effective: base, base };
   return { exists: true, source: "agency", effective: fam.coalesce(variant, raw), base };
+}
+
+// ─── Business (progression business) describe / save / reset ──────────────────
+// The business counterpart to the agency functions above. Its "default" (and
+// reset target) is the same Sales Progressor platform default. `source: "agency"`
+// is reused to mean "the business's own version" so the editor UI is shared.
+
+export async function describeBusinessTemplate(progressionBusinessId: string, templateKey: string, variant: string): Promise<TemplateDescription | null> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return null;
+  const platformRaw = await getPlatformRow(templateKey, variant);
+  const base = platformRaw != null ? fam.coalesce(variant, platformRaw) : fam.defaultFor(variant);
+  const raw = await getBusinessRow(progressionBusinessId, templateKey, variant);
+  if (raw == null) return { exists: true, source: "default", effective: base, base };
+  return { exists: true, source: "agency", effective: fam.coalesce(variant, raw), base };
+}
+
+export async function saveBusinessTemplate(progressionBusinessId: string, templateKey: string, variant: string, rawContent: unknown, editorId: string | null): Promise<{ ok: boolean }> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return { ok: false };
+  const content = fam.validate(variant, rawContent);
+  if (!content) return { ok: false };
+  await prisma.businessEmailTemplate.upsert({
+    where: { progressionBusinessId_templateKey_variant: { progressionBusinessId, templateKey, variant } },
+    create: { progressionBusinessId, templateKey, variant, content: content as never, updatedById: editorId },
+    update: { content: content as never, updatedById: editorId },
+  });
+  return { ok: true };
+}
+
+export async function resetBusinessTemplate(progressionBusinessId: string, templateKey: string, variant: string): Promise<{ ok: boolean }> {
+  const fam = TEMPLATE_FAMILIES[templateKey];
+  if (!fam || !fam.variants.includes(variant)) return { ok: false };
+  await prisma.businessEmailTemplate.deleteMany({ where: { progressionBusinessId, templateKey, variant } });
+  return { ok: true };
 }
 
 // ─── Platform-default (Command Centre) describe / save / reset ─────────────────

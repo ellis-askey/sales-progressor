@@ -361,7 +361,7 @@ async function loadNudgeContext(input: NudgeInput): Promise<{ ok: true; ctx: Nud
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, agencyId: true, agency: { select: { name: true } } },
+    select: { id: true, agencyId: true, progressionBusinessId: true, agency: { select: { name: true } } },
   });
   if (!tx) return { ok: false, error: "File not found." };
 
@@ -386,7 +386,7 @@ async function loadNudgeContext(input: NudgeInput): Promise<{ ok: true; ctx: Nud
   const base = process.env.NEXTAUTH_URL ?? "";
   const { from, replyTo, theme } = await resolveAgencySenderForTransaction(tx.id);
   const emailTheme = theme ?? resolveEmailTheme(null);
-  const agencyCopy = await resolveOnwardNudgeContent(tx.agencyId, input.direction, input.mode);
+  const agencyCopy = await resolveOnwardNudgeContent(tx.agencyId, input.direction, input.mode, tx.progressionBusinessId);
 
   return {
     ok: true,

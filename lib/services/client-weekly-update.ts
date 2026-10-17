@@ -9,7 +9,7 @@ import { renderStudioEmail } from "@/lib/email/studio-render";
 import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildClientNarrative } from "@/lib/services/client-narrative";
-import { resolveWeeklyUpdateContent } from "@/lib/agency-email/templates";
+import { resolveWeeklyUpdateContent, type WeeklyUpdateContent } from "@/lib/agency-email/templates";
 
 function escWeekly(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -42,9 +42,19 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
   });
   const agencyWeeklyOff = agencyPref?.weeklyClientUpdatesEnabled === false;
 
-  // Agency personalisation (subject / intro / AI tone steer / closing). Resolved
-  // once for the whole agency; empty everywhere = unchanged default behaviour.
-  const wu = await resolveWeeklyUpdateContent(agencyId);
+  // Weekly-update personalisation (subject / intro / AI tone steer / closing).
+  // Resolved per file's scope below: a business-progressed file uses the business's
+  // own version, else the client agency's. Cached by scope, since one agency's
+  // files can span several businesses. Empty everywhere = unchanged default.
+  const wuCache = new Map<string, WeeklyUpdateContent>();
+  const weeklyCopyFor = async (progressionBusinessId: string | null): Promise<WeeklyUpdateContent> => {
+    const key = progressionBusinessId ?? `agency:${agencyId}`;
+    const hit = wuCache.get(key);
+    if (hit) return hit;
+    const c = await resolveWeeklyUpdateContent(agencyId, progressionBusinessId);
+    wuCache.set(key, c);
+    return c;
+  };
 
   // Active transactions for this agency
   const transactions = await prisma.propertyTransaction.findMany({
@@ -94,6 +104,8 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
     if (tx.communications.length > 0) continue;
     // Skip if no eligible contacts with email
     if (tx.contacts.length === 0) continue;
+
+    const wu = await weeklyCopyFor(tx.progressionBusinessId);
 
     for (const contact of tx.contacts) {
       if (!contact.email) continue;
