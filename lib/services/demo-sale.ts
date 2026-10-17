@@ -459,6 +459,38 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
 }
 
 /**
+ * Nightly reset: wipe every always-on portal preview back to pristine, KEEPING
+ * its vendor portal token stable so shared links never break. Delete + rebuild +
+ * restore the token (simplest robust reset; the preview carries no real state).
+ */
+export async function resetPreviewSales(): Promise<{ previewsReset: number }> {
+  const previews = await prisma.propertyTransaction.findMany({
+    where: { isDemo: true, demoKind: "portal_preview" },
+    select: { id: true, agencyId: true, contacts: { where: { roleType: "vendor" }, select: { portalToken: true }, take: 1 } },
+  });
+  let previewsReset = 0;
+  for (const p of previews) {
+    if (!p.agencyId) continue;
+    const token = p.contacts[0]?.portalToken ?? null;
+    try {
+      await deleteDemoTransactions([p.id]);
+      const created = await createPreviewSale({ agencyId: p.agencyId });
+      if (token && created.txId) {
+        // Restore the original shareable link so already-copied/sent links still resolve.
+        await prisma.contact.updateMany({
+          where: { propertyTransactionId: created.txId, roleType: "vendor" },
+          data: { portalToken: token },
+        });
+      }
+      previewsReset++;
+    } catch (err) {
+      console.error("[resetPreviewSales] failed for", p.id, err);
+    }
+  }
+  return { previewsReset };
+}
+
+/**
  * Remove the whole demo set for an agency on request (the "Remove now" button).
  * A demo is a chain of files, so this removes all of the agency's demo files.
  * Returns true if it removed anything.
