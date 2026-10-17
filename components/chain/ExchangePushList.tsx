@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { ExchangeChecklist } from "@/components/chain/ExchangeChecklist";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import type { ExchangePushSummary } from "@/lib/services/exchange-push";
 
 export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
@@ -42,7 +43,7 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
                 aria-expanded={isOpen}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 13, padding: "14px 15px", background: "none", border: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               >
-                <span style={{ width: 40, height: 40, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", background: "linear-gradient(135deg,#efe7dc,#e3d7c7)", color: "#b9a892", fontSize: 17 }}>🏠</span>
+                <PropertyThumb photoUrl={f.push.rows.find((r) => r.isUs)?.photoUrl ?? null} size={40} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 14, fontWeight: 680, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line1}</span>
                   <span style={{ display: "block", fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>

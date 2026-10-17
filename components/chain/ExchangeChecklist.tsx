@@ -15,6 +15,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setChainLinkExchangeReadyAction, markChainLinkChasedAction } from "@/app/actions/chains";
 import type { ExchangePush, ExchangePushRow, ExchangeReadySource } from "@/lib/services/exchange-push";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 
 function rel(iso: string | null): string {
   if (!iso) return "never chased";
@@ -140,11 +141,7 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
               }}
             >
               <div className="exc-main">
-                <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, overflow: "hidden", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#efe7dc,#e3d7c7)", color: "#b9a892", fontSize: 14 }}>
-                  {row.photoUrl
-                    ? <img src={row.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : "🏠"}
-                </span>
+                <PropertyThumb photoUrl={row.photoUrl} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {row.address}
