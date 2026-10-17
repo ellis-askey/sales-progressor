@@ -1618,8 +1618,11 @@ export async function logPortalMilestoneConfirm(
     }).catch(() => {});
   }
 
-  // Notify the assigned progressor (outsourced only — self-managed has no assignedUser)
-  if (tx.assignedUser?.email && wantsEmail(tx.assignedUser.id)) {
+  // Notify the assigned progressor (outsourced only — self-managed has no assignedUser).
+  // Routine step notifications were inbox flood trash (a client confirming a batch of
+  // steps fired one per step) and are now suppressed — the bell + notification centre
+  // cover them. Only exchange + completion still email (2026-10-17, Ellis).
+  if (tx.assignedUser?.email && wantsEmail(tx.assignedUser.id) && !!milestoneCode && EXCHANGE_COMPLETION_CODES.has(milestoneCode)) {
     sendAgentEmail({
       to: tx.assignedUser.email,
       kind: "milestone_progressor",
@@ -1761,9 +1764,10 @@ export async function logPortalMilestoneConfirm(
       logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
     }
 
-    // Agent notification for portal-confirmed milestones (no self-confirmation suppression for portal)
+    // Agent notification for portal-confirmed milestones — exchange + completion
+    // only; routine steps are suppressed as inbox noise (2026-10-17, Ellis).
     const agentCopy = richCopy.vendorAgentPortal ?? richCopy.vendorAgent;
-    if (tx.agentUser?.email && agentCopy && wantsEmail(tx.agentUser.id)) {
+    if (tx.agentUser?.email && agentCopy && wantsEmail(tx.agentUser.id) && !!milestoneCode && EXCHANGE_COMPLETION_CODES.has(milestoneCode)) {
       const greeting = buildGreeting(tx.agentUser.name);
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
@@ -2699,10 +2703,12 @@ async function sendRichMilestoneEmails(
     logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 
-  // Agent notification — only on outsourced files; self-managed agents manage their own files
+  // Agent notification — only on outsourced files; self-managed agents manage their own files.
+  // Routine step notifications suppressed as inbox flood; exchange + completion still
+  // email (isExchangeCompletion, computed above) — 2026-10-17, Ellis.
   const skipAgentEmail = serviceType === "self_managed";
   const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", effectiveEmailCopy, fileShape);
-  if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail) {
+  if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail && isExchangeCompletion) {
     const copy    = vendorAgentCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
     const greeting = buildGreeting(tx.agentUser.name);
@@ -2712,10 +2718,12 @@ async function sendRichMilestoneEmails(
     sendAgentEmail({ to: tx.agentUser.email, kind: "milestone_agent", userId: tx.agentUser.id, agencyId: tx.agencyId, transactionId, subject, text, html }).catch(() => {});
   }
 
-  // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
+  // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the
+  // confirmer. Routine step notifications also suppressed as inbox flood; exchange +
+  // completion still email (2026-10-17, Ellis).
   const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
   const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", effectiveEmailCopy, fileShape);
-  if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail) {
+  if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail && isExchangeCompletion) {
     const copy    = progressorCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar, surveyorClause, valuationNote };
     const greeting = buildGreeting(tx.assignedUser.name);
