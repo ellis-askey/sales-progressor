@@ -311,6 +311,16 @@ Patterns that are duplicated multiple times across domain folders and should bec
   | `components/layout/StatPill.tsx` | grandfather + refactor to compose Pill (Phase 3) | Link-shaped (anchor element). Pill doesn't render as `<a>` — composer wraps in a Link. |
   | `components/transaction/RoundChip.tsx` | grandfather (locked Phase 0) | Hover-reveal flip animation is too specific to encode in Pill's variant set. Re-evaluated at the quarterly review. |
 
+### 2.7a `CountBadge` ✓ shipped 2026-10-17
+
+- **Status:** canonical for *count / number* badges on agent surfaces. Lives at [components/ui/CountBadge.tsx](../../components/ui/CountBadge.tsx). Distinct from `Pill` (which is a *label* pill): `CountBadge` renders a number (nav badge, tab count, bell, section count, progress ratio).
+- **Style:** "outline" — transparent fill, hairline tone border, tone text. Re-themes via the `--agent-*` accent tokens. Chosen from the `/dev/gallery/number-styles` candidates (option 04), 2026-10-17.
+- **API:** `count` (number | string), `tone` (`accent` / `muted` / `danger`), `size` (`sm` / `md`), `soft` (low-emphasis inactive form — faded border), `max` (numeric cap → `${max}+`), `hideZero` (default true).
+- **Why it exists:** before this, every count was hand-rolled or a bespoke CSS class — the tab-count pill was copy-pasted verbatim across `ChainsWorkspace`, `PropertyFileTabs`, `FileTabsChrome`; the bell used a literal `bg-red-500`; the coral gradient recipe was re-declared in 4 places. No canonical count primitive existed.
+- **Migrated to the component:** `components/layout/AgentBell.tsx` (bell unread, tone danger), the three tab-count pills above (tone accent, `soft` when inactive).
+- **Mirrored in CSS (single-consumer, kept for their responsive/positioning integration, same outline spec):** `.agent-rail-badge` (+ tablet corner rule), `.todotabs-count`, `.agent-wq-count`/`--coral`/`--muted`, `.agent-progress-count` in [agent-system.css](../../app/agent/styles/agent-system.css). Fold-in to the component is an optional future cleanup.
+- **Gallery:** [/dev/gallery/number-styles](../../app/dev/gallery/number-styles/page.tsx) (candidate showcase).
+
 ### 2.8 `Toast` ✓ shipped 2026-06-29 (Phase 2 Week 8-9)
 
 - **Status:** canonical. Re-exported as `Toast` namespace from the existing `AgentToaster` at [components/ui/Toast.tsx](../../components/ui/Toast.tsx). New code uses `ToastProvider` + `useToast`; existing `AgentToaster` + `useAgentToast` imports keep working (Law 16).

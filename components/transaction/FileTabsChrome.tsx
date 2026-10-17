@@ -25,6 +25,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { TabBadgeContext, type TabBadgeUpdater } from "./TabBadgeContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { CountBadge } from "@/components/ui/CountBadge";
 
 const TAB_ICONS: Record<string, Icon> = {
   house: House,
@@ -290,15 +291,7 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
                     {TabIcon && <TabIcon size={15} weight={isActive ? "fill" : "regular"} aria-hidden />}
                     {tab.label}
                     {badgeCount > 0 && (
-                      <span
-                        className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
-                        style={isActive
-                          ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral)" }
-                          : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }
-                        }
-                      >
-                        {badgeCount}
-                      </span>
+                      <CountBadge count={badgeCount} tone="accent" soft={!isActive} />
                     )}
                   </Link>
                 );

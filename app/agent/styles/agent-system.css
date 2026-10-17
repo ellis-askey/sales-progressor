@@ -444,29 +444,31 @@
   }
   .agent-wq-secbar--you  { --bar-rgb: var(--agent-coral-rgb); }
   .agent-wq-secbar--auto { --bar-rgb: 100, 116, 139; }
+  /* Section count — canonical outline treatment, mirrors CountBadge.
+     --coral = tone accent (your work); --muted = tone muted (autopilot). */
   .agent-wq-count {
-    font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
-    line-height: 1.4; letter-spacing: -0.01em;
+    font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 7px; border-radius: 999px;
+    line-height: 1; letter-spacing: -0.01em; display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; font-variant-numeric: tabular-nums; background: transparent; border: 1.25px solid transparent;
   }
   .agent-wq-count--coral {
-    color: #fff;
-    background: linear-gradient(135deg, var(--agent-coral, #FF8A65), var(--agent-coral-deep, #FF6B4A));
-    box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    color: var(--agent-coral-deep);
+    border-color: var(--agent-coral-deep);
   }
   .agent-wq-count--muted {
-    color: #fff;
-    background: linear-gradient(135deg, #94a3b8, #64748b);
-    box-shadow: 0 2px 8px rgba(100, 116, 139, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    color: #475569;
+    border-color: #64748b;
   }
-  /* Onboarding "Getting started" progress counter (e.g. 1/8) — a polished coral
-     gradient chip with a soft glow + lit edge, replacing the flat brand tint. */
+  /* Onboarding "Getting started" progress counter (e.g. 1/8) — canonical
+     outline treatment, mirrors CountBadge (tone=accent). */
   .agent-progress-count {
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.4;
-    padding: 2px 9px; border-radius: 999px;
-    color: #fff;
-    background: linear-gradient(135deg, var(--agent-coral, #FF8A65), var(--agent-coral-deep, #FF6B4A));
-    box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    font-size: 11px; font-weight: 700; letter-spacing: -0.01em; line-height: 1;
+    padding: 0 7px; min-width: 18px; height: 18px; border-radius: 999px;
+    box-sizing: border-box;
+    color: var(--agent-coral-deep);
+    background: transparent;
+    border: 1.25px solid var(--agent-coral-deep);
     font-variant-numeric: tabular-nums;
   }
   /* Dark mode: soften the white sheen so the frost doesn't read as a bright smear. */
@@ -851,10 +853,12 @@
   }
   .todotabs-tab.on { color: var(--agent-text-primary); }
   .todotabs-tab:hover:not(.on) { color: var(--agent-text-secondary); }
+  /* Count — canonical outline treatment, mirrors CountBadge (tone=accent). */
   .todotabs-count {
-    font-size: 10.5px; font-weight: 700; min-width: 16px; height: 16px; padding: 0 4px;
+    font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 6px;
     border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(var(--agent-coral-rgb), 0.14); color: var(--agent-coral-deep);
+    box-sizing: border-box; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+    background: transparent; color: var(--agent-coral-deep); border: 1.25px solid var(--agent-coral-deep);
   }
   .todotabs-panel { animation: todotabsFade 0.26s ease both; margin-top: 18px; }
   @keyframes todotabsFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -2906,23 +2910,26 @@
     transform: translateX(0);
   }
 
-  /* Badge — replaces the chevron when an item carries a count. */
+  /* Badge — replaces the chevron when an item carries a count. Canonical
+     outline treatment, mirrors components/ui/CountBadge.tsx (tone=accent). */
   .agent-rail-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
     flex-shrink: 0;
     min-width: 18px;
     height: 18px;
-    padding: 0 5px;
+    padding: 0 6px;
     border-radius: 999px;
-    font-size: 10px;
-    font-weight: 800;
+    font-size: 11px;
+    font-weight: 700;
     letter-spacing: -0.01em;
     line-height: 1;
-    color: #fff;
-    background: linear-gradient(135deg, var(--agent-coral, #FF8A65), var(--agent-coral-deep, #FF6B4A));
-    box-shadow: 0 2px 8px rgba(var(--agent-coral-rgb), 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    font-variant-numeric: tabular-nums;
+    color: var(--agent-coral-deep);
+    background: transparent;
+    border: 1.25px solid var(--agent-coral-deep);
   }
 
   /* ── Notification dot ────────────────────────────────────────────────────── */
@@ -4659,6 +4666,7 @@ body[data-demo-file] [data-onboarding-checklist] {
     height: 15px;
     padding: 0 4px;
     font-size: 9px;
+    border-width: 1px;
   }
   .agent-nav-recents { display: none; }
 }

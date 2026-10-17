@@ -9,6 +9,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CountBadge } from "@/components/ui/CountBadge";
 import {
   MagnifyingGlass,
   FunnelSimple,
@@ -512,14 +513,7 @@ export function ChainsWorkspace({
                 className="agent-tab flex-shrink-0"
               >
                 {t.label}
-                <span
-                  className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
-                  style={isActive
-                    ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral, #fff)" }
-                    : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }}
-                >
-                  {t.count}
-                </span>
+                <CountBadge count={t.count} tone="accent" soft={!isActive} hideZero={false} />
               </button>
             );
           })}

@@ -6,6 +6,7 @@ import { Bell } from "@phosphor-icons/react";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { markAgentBellReadAction } from "@/app/actions/agent-preferences";
 
 // Notification bell (rebuilt 2026-08-09). Polls the agent-scoped updates feed
@@ -173,9 +174,7 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
           weight={count > 0 ? "fill" : "regular"}
         />
         {count > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full text-[10px] font-bold bg-red-500 text-white px-1 leading-none">
-            {count > 99 ? "99+" : count}
-          </span>
+          <CountBadge count={count} tone="danger" size="sm" className="absolute -top-0.5 -right-0.5" aria-hidden />
         )}
       </button>
 

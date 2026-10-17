@@ -6,6 +6,7 @@ import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, 
 import type { Icon } from "@phosphor-icons/react";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { CountBadge } from "@/components/ui/CountBadge";
 
 type TabBadgeUpdater = (key: string, count: number) => void;
 const TabBadgeContext = createContext<TabBadgeUpdater | null>(null);
@@ -215,15 +216,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
                     {TabIcon && <TabIcon size={15} weight={isActive ? "fill" : "regular"} aria-hidden />}
                     {tab.label}
                     {badgeCount > 0 && (
-                      <span
-                        className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
-                        style={isActive
-                          ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral)" }
-                          : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }
-                        }
-                      >
-                        {badgeCount}
-                      </span>
+                      <CountBadge count={badgeCount} tone="accent" soft={!isActive} />
                     )}
                   </button>
                 );
