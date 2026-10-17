@@ -1033,7 +1033,7 @@ export async function portalCompleteMilestone(input: {
   // lib/portal/round-guard.ts (assertLivePortalRound).
   const txForGuard = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
-    select: { activeBuyerRoundId: true, status: true },
+    select: { activeBuyerRoundId: true, status: true, isDemo: true },
   });
   if (!txForGuard) throw new Error("Invalid transaction");
   // Transaction-status guard (audit P1-1). A withdrawn or completed sale is no
@@ -1177,6 +1177,14 @@ export async function portalCompleteMilestone(input: {
     timeout: 30000,
     maxWait: 10000,
   });
+
+  // Demo / portal-preview files: the completion is persisted (so the portal UI
+  // ticks for whoever is exploring the example), but skip EVERY downstream
+  // side-effect below — client emails, push, PostHog, the outsourced-SP ping,
+  // the retention email and the activity log. A sealed-off example must never
+  // send or emit. The agent confirm path guards the same way (app/actions/
+  // milestones.ts). Belt-and-braces on top of the reserved @example.com drop.
+  if (txForGuard.isDemo) return completion;
 
   // Completion-date sync (matches agent action, post-transaction)
   if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
