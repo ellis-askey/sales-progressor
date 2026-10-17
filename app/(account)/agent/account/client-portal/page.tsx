@@ -12,7 +12,8 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
 import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { AutoInviteToggle } from "@/components/account/client-portal/AutoInviteToggle";
-import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { PreviewPortalLink } from "@/components/account/client-portal/PreviewPortalLink";
+import { DeviceMobile, PaperPlaneTilt, Eye } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,13 @@ export default async function AccountClientPortalPage() {
             }}
             exampleKeyDates={examplePreviewKeyDates()}
           />
+        </AccountCard>
+        <AccountCard
+          icon={<Eye size={18} weight="bold" />}
+          title="Preview the client portal"
+          subtitle="Open the full example portal to see exactly what your buyers and sellers get, or copy a link to show someone."
+        >
+          <PreviewPortalLink />
         </AccountCard>
       </div>
     </>
