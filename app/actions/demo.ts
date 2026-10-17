@@ -18,8 +18,8 @@ export async function getOrCreateDemoSaleAction(): Promise<{ transactionId: stri
 
   const [realCount, star, anyDemo] = await Promise.all([
     prisma.propertyTransaction.count({ where: { agencyId, isDemo: false } }),
-    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true, propertyAddress: DEMO_PRESET.address }, select: { id: true } }),
-    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true }, select: { id: true } }),
+    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true, demoKind: { not: "portal_preview" }, propertyAddress: DEMO_PRESET.address }, select: { id: true } }),
+    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true, demoKind: { not: "portal_preview" } }, select: { id: true } }),
   ]);
   if (realCount > 0) throw new Error("You already have a sale on this account");
 
@@ -43,7 +43,7 @@ export async function addDemoSaleAction() {
 
   const [realCount, existingDemo] = await Promise.all([
     prisma.propertyTransaction.count({ where: { agencyId, isDemo: false } }),
-    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true }, select: { id: true } }),
+    prisma.propertyTransaction.findFirst({ where: { agencyId, isDemo: true, demoKind: { not: "portal_preview" } }, select: { id: true } }),
   ]);
   if (realCount > 0) throw new Error("You already have a sale on this account");
   // One demo at a time: if they already have one, just open it.

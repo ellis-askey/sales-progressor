@@ -485,10 +485,6 @@ model User {
   // never presented as the real user's own file. Excluded from team pickers.
   // See lib/services/demo-sale.ts and docs/active/demo-sale/SPEC.md.
   isDemo                   Boolean                  @default(false)
-  // Which kind of demo this is (null for real sales): "onboarding" = the zero-sales
-  // showcase chain; "portal_preview" = the always-on client-portal example (never
-  // expires, one per org). Keeps the two demo features from colliding.
-  demoKind                 String?
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
 
@@ -843,6 +839,10 @@ model PropertyTransaction {
   // or removed manually. See docs/active/demo-sale/SPEC.md.
   isDemo        Boolean   @default(false)
   demoExpiresAt DateTime?
+  // Which kind of demo (null for real sales): "onboarding" = the zero-sales
+  // showcase chain; "portal_preview" = the always-on client-portal example
+  // (never expires, one per org). Keeps the two demo features from colliding.
+  demoKind      String?
 
   lastActivityAt DateTime?
 

@@ -159,7 +159,7 @@ async function ensureDemoSolicitors() {
 type Sols = Awaited<ReturnType<typeof ensureDemoSolicitors>>;
 
 // ── One file in the chain ────────────────────────────────────────────────────
-async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: string, sols: Sols) {
+async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: string, sols: Sols, opts?: { demoKind?: string; persist?: boolean }) {
   const createdAt = daysAgo(preset.ageDays);
   const tx = await createTransaction({
     propertyAddress: preset.address,
@@ -179,13 +179,18 @@ async function buildDemoFile(preset: FilePreset, agencyId: string, agentUserId: 
 
   await prisma.propertyTransaction.update({
     where: { id: tx.id },
-    // Keep createTransaction's +7d expiry (stamped from real now, not the
-    // backdated createdAt): the demo auto-removes after ~1 week via the daily
-    // demo-cleanup cron. By then the agency has usually added a real sale (so
-    // the "Explore demo" affordance is already gone); if they haven't, the
-    // demo clears and the button reappears. Restores SPEC.md behaviour after a
-    // 2026-08-30 experiment that nulled it. (Decision D7, 2026-09-02.)
-    data: { photoStoragePath: DEMO_PRESET.photoStoragePath, lastActivityAt: daysAgo(1) },
+    // Onboarding demos keep createTransaction's +7d expiry (auto-removed by the
+    // daily demo-cleanup cron). The always-on portal preview passes persist:true
+    // to clear the expiry so its shareable link never dies; demoKind separates
+    // the two so they never collide (see app/actions/demo.ts guards +
+    // removeDemoSale). Restores SPEC.md behaviour after a 2026-08-30 experiment
+    // that nulled it. (Decision D7, 2026-09-02.)
+    data: {
+      photoStoragePath: DEMO_PRESET.photoStoragePath,
+      lastActivityAt: daysAgo(1),
+      demoKind: opts?.demoKind ?? "onboarding",
+      ...(opts?.persist ? { demoExpiresAt: null } : {}),
+    },
   });
 
   const vendor = await prisma.contact.create({
@@ -401,6 +406,23 @@ async function seedStarFileActivity(txId: string, agencyId: string, agentUserId:
     .catch((e) => console.error("[demo] manual task seed failed", e));
 }
 
+/**
+ * Stand up the always-on client-portal PREVIEW: a single seller file (14 Beaumont
+ * Rise) owned by the agency, flagged isDemo + demoKind:"portal_preview" with NO
+ * expiry, so its shareable portal link never dies. Reuses the showcase machinery,
+ * so it stays accurate as the portal evolves. The buyer/seller portal reads the
+ * responsible party's branding + display toggles, so the preview shows the
+ * agency's own brand. Returns the file id + the vendor's portal token (the link).
+ * Callers find-or-create (one preview per agency).
+ */
+export async function createPreviewSale(opts: { agencyId: string }): Promise<{ txId: string; vendorToken: string }> {
+  const sols = await ensureDemoSolicitors();
+  const demoAgentId = await ensureDemoAgent(opts.agencyId);
+  const { txId } = await buildDemoFile(MIDDLE, opts.agencyId, demoAgentId, sols, { demoKind: "portal_preview", persist: true });
+  const vendor = await prisma.contact.findFirst({ where: { propertyTransactionId: txId, roleType: "vendor" }, select: { portalToken: true } });
+  return { txId, vendorToken: vendor?.portalToken ?? "" };
+}
+
 // ── Removal (chain-aware: links → chain → transactions, per seed teardown) ────
 async function deleteDemoTransactions(txIds: string[]): Promise<void> {
   if (txIds.length === 0) return;
@@ -422,9 +444,13 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
   const ids = expired.map((t) => t.id);
   try {
     await deleteDemoTransactions(ids);
-    // Also remove each affected agency's placeholder demo agent (best-effort).
+    // Remove each affected agency's placeholder demo agent, but only where no
+    // demo files remain (an always-on portal preview keeps its owner alive).
     const agencyIds = [...new Set(expired.map((t) => t.agencyId).filter((a): a is string => !!a))];
-    if (agencyIds.length) await prisma.user.deleteMany({ where: { agencyId: { in: agencyIds }, isDemo: true } }).catch(() => {});
+    for (const aId of agencyIds) {
+      const remaining = await prisma.propertyTransaction.count({ where: { agencyId: aId, isDemo: true } });
+      if (remaining === 0) await prisma.user.deleteMany({ where: { agencyId: aId, isDemo: true } }).catch(() => {});
+    }
     return { removed: ids.length };
   } catch (err) {
     console.error("[cleanupExpiredDemos] failed", err);
@@ -438,11 +464,13 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
  * Returns true if it removed anything.
  */
 export async function removeDemoSale(_transactionId: string, agencyId: string): Promise<boolean> {
-  const demos = await prisma.propertyTransaction.findMany({ where: { agencyId, isDemo: true }, select: { id: true } });
+  // Only the onboarding showcase — never the always-on portal preview.
+  const demos = await prisma.propertyTransaction.findMany({ where: { agencyId, isDemo: true, demoKind: { not: "portal_preview" } }, select: { id: true } });
   if (demos.length === 0) return false;
   await deleteDemoTransactions(demos.map((d) => d.id));
-  // Also remove the placeholder demo agent now its files are gone (best-effort:
-  // a stray FK never blocks the already-completed teardown).
-  await prisma.user.deleteMany({ where: { agencyId, isDemo: true } }).catch(() => {});
+  // Remove the placeholder demo agent only if no demo files remain (the portal
+  // preview, if any, still needs it as its owner).
+  const remaining = await prisma.propertyTransaction.count({ where: { agencyId, isDemo: true } });
+  if (remaining === 0) await prisma.user.deleteMany({ where: { agencyId, isDemo: true } }).catch(() => {});
   return true;
 }
