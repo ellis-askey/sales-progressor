@@ -25,6 +25,7 @@ import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { BloomStage } from "@/components/agent/BloomStage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
@@ -375,7 +376,7 @@ export function ChainsWorkspace({
         : false;
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <BloomStage style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
         /* Empty-state CTA (external progression business) — the polished coral pill
            matching .cw-primary / .enq-btn-primary2. */
@@ -445,7 +446,7 @@ export function ChainsWorkspace({
       `}</style>
 
       {/* Summary overview */}
-      <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" className="chains-summary-card" style={{ borderRadius: 14, overflow: "hidden" }}>
+      <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" className="chains-summary-card" data-bloom style={{ borderRadius: 14, overflow: "hidden" }}>
         <div className="chains-summary-grid">
           <SummaryTile
             icon={<House size={22} weight="regular" />}
@@ -483,7 +484,7 @@ export function ChainsWorkspace({
       </GlassCard>
 
       {/* Tabs + search + filters */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+      <div data-bloom style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
         <div role="tablist" aria-label="Chains views" className="agent-tab-bar" style={{ position: "relative", flex: "1 1 300px", minWidth: 0, borderBottom: "1px solid var(--agent-border-subtle)" }}>
           {ind && (
             <div
@@ -660,6 +661,6 @@ export function ChainsWorkspace({
           ))}
         </div>
       )}
-    </div>
+    </BloomStage>
   );
 }

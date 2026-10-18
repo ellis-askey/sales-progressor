@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle, CalendarBlank, Clock } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { BloomStage } from "@/components/agent/BloomStage";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr, formatDate } from "@/lib/utils";
@@ -1416,9 +1417,10 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const hasActiveResults = filteredActive.length > 0;
 
   return (
-    <div className="space-y-5 agent-bloom-stagger">
+    <BloomStage className="space-y-5">
       {/* Sticky filter bar. Design Lab: `reminders-filter-bar` (v06). */}
       <GlassCard
+        data-bloom
         glassId="reminders-filter-bar"
         label="Reminders · Filter bar"
         defaultVariant="v06"
@@ -1531,7 +1533,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           const drawCards = !isCollapsed || everOpenRef.current.has(grp.key);
           const fileGroups = drawCards ? groupByFile(grp.logs) : [];
           return (
-            <div key={grp.key} className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
+            <div key={grp.key} data-bloom className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
               <div
                 className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl`}
                 role="button"
@@ -1655,6 +1657,6 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         }}
         onClose={() => { setDonePromptQueue([]); setDatePrompt(null); }}
       />
-    </div>
+    </BloomStage>
   );
 }

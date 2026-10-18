@@ -18,11 +18,13 @@ import { useEffect, useRef } from "react";
 export function BloomStage({
   children,
   className,
+  style,
   step = 50,
   cap = 14,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   /** Delay between successive blocks, ms. */
   step?: number;
   /** Max index that still increments the delay — the tail lands together. */
@@ -57,7 +59,7 @@ export function BloomStage({
   }, []);
 
   return (
-    <div ref={ref} className={className ? `bloom-stage ${className}` : "bloom-stage"}>
+    <div ref={ref} className={className ? `bloom-stage ${className}` : "bloom-stage"} style={style}>
       {children}
     </div>
   );

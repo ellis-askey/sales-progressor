@@ -52,7 +52,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   }
 
   return (
-    <div className="space-y-4">
+    <>
       {groups.map(({ key, label, files, groupFeeTotal, missingFeeCount }) => {
         const s = GROUP_STYLES[key];
         const isOpen = !!openGroups[key];
@@ -151,6 +151,6 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
           </GlassCard>
         );
       })}
-    </div>
+    </>
   );
 }
