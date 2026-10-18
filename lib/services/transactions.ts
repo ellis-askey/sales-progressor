@@ -152,9 +152,9 @@ export async function listTransactions(
         where: { OR: roundScopedOR(activeRoundIds) },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true },
+        select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true, recipientName: true, contactIds: true },
       },
-      holdPeriods: { select: { startedAt: true, endedAt: true } },
+      holdPeriods: { select: { startedAt: true, endedAt: true, plannedEndAt: true, reason: true } },
       // Pass 3 B3: anchor "elapsed weeks" / on-track signal on the active
       // round's createdAt, not the file's. A relisted file is 8 weeks old
       // but the active sale just started; without this the freshly-relisted
@@ -267,6 +267,59 @@ export async function listTransactions(
       diff >= -25 ? "at_risk" :
       "off_track";
 
+    // ── Files-table redesign derivations (2026-10-18) ──────────────────────────
+    // 4-level pace from the same diff the on-track signal uses. Null when there's
+    // nothing to score (no completions yet) or the outcome is known.
+    const pace: "ahead" | "on_track" | "slightly_behind" | "behind" | null =
+      tx.status !== "active" || completedCount === 0 ? null
+        : diff >= 15 ? "ahead"
+        : diff >= -10 ? "on_track"
+        : diff >= -25 ? "slightly_behind"
+        : "behind";
+
+    // Active (unresolved) hold period — the On-hold tab's real data.
+    const activeHold = tx.holdPeriods.find((h) => !h.endedAt) ?? null;
+    const holdInfo = activeHold
+      ? {
+          days: Math.max(0, Math.floor((now.getTime() - new Date(activeHold.startedAt).getTime()) / 86400000)),
+          review: activeHold.plannedEndAt ? new Date(activeHold.plannedEndAt) : null,
+          reviewOverdue: activeHold.plannedEndAt ? new Date(activeHold.plannedEndAt) < now : false,
+          reason: activeHold.reason ?? null,
+        }
+      : null;
+
+    // Party-aware activity verb ("Chased the seller"), derived from the latest
+    // comm's recipient role/name. Falls back to the generic label when unknown.
+    const roleById = new Map(tx.contacts.map((c) => [c.id, c.roleType]));
+    const lc = tx.communications[0];
+    const partyLabel: string | null = (() => {
+      if (!lc) return null;
+      const role = lc.contactIds?.map((id) => roleById.get(id)).find(Boolean);
+      if (role === "vendor") return "the seller";
+      if (role === "purchaser") return "the buyer";
+      if (role === "solicitor") return "the solicitor";
+      if (role === "broker") return "the broker";
+      return lc.recipientName || null;
+    })();
+    let activityVerb = lastActivityLabel;
+    if (partyLabel && (lastActivityType === "chase" || lastActivityType === "email" || lastActivityType === "sms" || lastActivityType === "whatsapp" || lastActivityType === "call")) {
+      const v = lastActivityType === "chase" ? "Chased"
+        : lastActivityType === "email" ? "Emailed"
+        : lastActivityType === "whatsapp" ? "Messaged"
+        : lastActivityType === "sms" ? "Texted"
+        : "Called";
+      activityVerb = `${v} ${partyLabel}`;
+    }
+
+    // Next-step ladder: attention → the next scheduled chase → chain → calm.
+    const nextStep: { text: string; tone: "danger" | "accent" | "chain" | "muted" } | null =
+      tx.status !== "active" ? null
+        : escalatedTasks.length ? { text: "Escalated to you", tone: "danger" }
+        : overdueTasks.length ? { text: "Chase overdue", tone: "danger" }
+        : nextActionLabel ? { text: nextActionLabel, tone: "muted" }
+        : tx.chainLinkId != null ? { text: "Waiting on the chain", tone: "chain" }
+        : { text: "All progressing", tone: "muted" };
+
     const { chaseTasks: _c, _count: _cnt, agentFeeAmount, agentFeePercent, referralFee, ...rest } = tx;
     const agentFeeAmountNum = agentFeeAmount != null ? Number(agentFeeAmount) : null;
     const agentFeePercentNum = agentFeePercent != null ? Number(agentFeePercent) : null;
@@ -315,6 +368,11 @@ export async function listTransactions(
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,
         onTrack,
+        // Files-table redesign fields.
+        pace,
+        activityVerb,
+        nextStep,
+        holdInfo,
         // Critique #15: the next chase is for the deposit-transfer step (PM24) —
         // the file is parked on the deposit, so its overdue reminder + stuck
         // clock shouldn't feed the risk score. inChain only changes the wording.

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth } from "@/components/transactions/TransactionRowView";
+import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth, COL_LABEL } from "@/components/transactions/TransactionRowView";
 import type { TransactionRow, HealthRaw, FilesColumn, FilesTab } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
 
@@ -120,16 +120,9 @@ export function TransactionTable({
   const SWITCH_BUCKETS = [680, 800, 920, 1040, 1160];
   const switchBucket = SWITCH_BUCKETS.find((b) => b >= filesGridMinWidth(cols)) ?? 1160;
 
-  // Header meta per column. The exchange/completion header re-labels on the
-  // Completed tab, where the date shown is the completion date.
-  const COL_HEADER: Record<FilesColumn, { label: string; key: SortKey | null }> = {
-    activity:  { label: "Recent", key: "lastActive" },
-    target:    { label: statusFilter === "completed" ? "Completion date" : "Exchange target", key: "exchange" },
-    withdrawn: { label: "Withdrawn", key: null },
-    status:    { label: "Status", key: "status" },
-    assigned:  { label: "Handled by", key: null },
-    agency:    { label: "Agency", key: null },
-    risk:      { label: "Risk", key: "risk" },
+  // Which columns are sortable (labels come from COL_LABEL, shared with the row).
+  const COL_SORT: Partial<Record<FilesColumn, SortKey>> = {
+    activity: "lastActive", exchange: "exchange", exchanged: "exchange",
   };
 
   return (
@@ -155,7 +148,7 @@ export function TransactionTable({
         {(
           [
             { label: "Property", key: "property" as SortKey | null },
-            ...cols.map((c) => COL_HEADER[c]),
+            ...cols.map((c) => ({ label: COL_LABEL[c], key: COL_SORT[c] ?? null })),
           ] as { label: string; key: SortKey | null }[]
         ).map(({ label, key }) =>
           key ? (

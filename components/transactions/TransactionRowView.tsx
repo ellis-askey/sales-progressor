@@ -11,7 +11,7 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
-import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
 import type { TransactionStatus, UserRole } from "@prisma/client";
@@ -26,38 +26,62 @@ import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-s
 //   - Risk: a "will it fall through?" score is moot once done or dead.
 // Header + row share this one model so their grids stay in lockstep.
 export type FilesTab = "all" | "active" | "on_hold" | "completed" | "withdrawn" | "draft";
-export type FilesColumn = "activity" | "target" | "withdrawn" | "status" | "assigned" | "agency" | "risk";
+// Per-tab column model (files-table redesign, 2026-10-18). The tab already tells
+// you the status, so no column repeats it; each tab only carries columns that
+// mean something for those files. Agency now lives under the address (property
+// cell), so it's no longer a column.
+export type FilesColumn =
+  | "stage" | "activity" | "exchange" | "keydate"
+  | "review" | "paused"
+  | "soldfor" | "exchanged" | "completed"
+  | "withdrawnDate" | "reason"
+  | "handled";
 
-export function filesColumns(tab: FilesTab, showAssigned: boolean, showAgency: boolean): FilesColumn[] {
-  const cols: FilesColumn[] = ["activity"];
-  if (tab === "withdrawn") cols.push("withdrawn");   // when it was withdrawn (+ reason on hover)
-  else cols.push("target");                          // exchange target / completion date
-  if (tab === "all") cols.push("status");
-  if (showAssigned) cols.push("assigned");
-  if (showAgency) cols.push("agency");
-  // Risk is no longer its own column — the pill now sits beside the address
-  // (2026-09-19 list level-up). Kept in the union for back-compat, never pushed.
+export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?: boolean): FilesColumn[] {
+  let cols: FilesColumn[];
+  switch (tab) {
+    case "active":    cols = ["stage", "activity", "exchange"]; break;
+    case "on_hold":   cols = ["stage", "review", "paused"]; break;
+    case "completed": cols = ["soldfor", "exchanged", "completed"]; break;
+    case "withdrawn": cols = ["withdrawnDate", "reason"]; break;
+    default:          cols = ["stage", "activity", "keydate"]; break; // all + draft
+  }
+  if (showAssigned) cols.push("handled");
   return cols;
 }
 
-const COL_WIDTH: Record<FilesColumn, string> = {
-  activity: "220px", target: "160px", withdrawn: "180px", status: "110px", assigned: "160px", agency: "140px", risk: "120px",
+// Grid track per column — activity / paused / reason flex, the rest fixed.
+const COL_TRACK: Record<FilesColumn, string> = {
+  stage: "190px", activity: "minmax(220px,1.35fr)", exchange: "190px", keydate: "190px",
+  review: "140px", paused: "minmax(200px,1.2fr)",
+  soldfor: "120px", exchanged: "150px", completed: "150px",
+  withdrawnDate: "150px", reason: "minmax(240px,1.6fr)",
+  handled: "160px",
+};
+// Min px each track can shrink to — drives the card↔grid switch bucket.
+const COL_MIN: Record<FilesColumn, number> = {
+  stage: 190, activity: 220, exchange: 190, keydate: 190,
+  review: 140, paused: 200, soldfor: 120, exchanged: 150, completed: 150,
+  withdrawnDate: 150, reason: 240, handled: 160,
+};
+// Card mini-labels (and the desktop header labels, via TransactionTable).
+export const COL_LABEL: Record<FilesColumn, string> = {
+  stage: "Stage / Progress", activity: "Latest activity / Next step", exchange: "Exchange forecast",
+  keydate: "Key date", review: "Review due", paused: "Paused",
+  soldfor: "Sold for", exchanged: "Exchanged", completed: "Completed",
+  withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
 };
 
-// Grid = flexible property column + one track per visible column. (The old 4px
-// risk stripe was dropped in the list level-up — no accent.)
+// Grid = flexible property column + one track per visible column.
 export function filesGridTemplate(cols: FilesColumn[]): string {
-  return `minmax(0,1fr) ${cols.map((c) => COL_WIDTH[c]).join(" ")}`;
+  return `minmax(240px,1.5fr) ${cols.map((c) => COL_TRACK[c]).join(" ")}`;
 }
 
-// Minimum list width (px) before the grid beats the mobile card: the fixed
-// tracks + the risk stripe + a floor for the flexible property column (44px
-// thumb + paddings + a readable address). Below this the card layout stays —
-// the old viewport-based md switch ran the fixed tracks into ~484px of content
-// on tablets, collapsing the address to nothing (responsive audit finding D1).
+// Minimum list width before the grid beats the mobile card. Below this the card
+// layout stays (container-query driven; see .files-switch-N in agent-system.css).
 export const FILES_PROPERTY_MIN = 240;
 export function filesGridMinWidth(cols: FilesColumn[]): number {
-  return cols.reduce((s, c) => s + parseInt(COL_WIDTH[c], 10), 0) + FILES_PROPERTY_MIN;
+  return cols.reduce((s, c) => s + COL_MIN[c], 0) + FILES_PROPERTY_MIN;
 }
 
 export type HealthRaw = {
@@ -86,6 +110,15 @@ export type HealthRaw = {
   // Contracts exchanged — the risk pill shows a calm "Exchanged" instead of a
   // pace score (critique 2026-10-02).
   exchanged?: boolean;
+  // ── Files-table redesign (2026-10-18) ──
+  // 4-level pace vs the 12-week target (null = nothing to score / outcome known).
+  pace?: "ahead" | "on_track" | "slightly_behind" | "behind" | null;
+  // Party-aware activity verb ("Chased the seller") — falls back to the generic.
+  activityVerb?: string | null;
+  // The single next-step line (ladder: attention → next chase → chain → calm).
+  nextStep?: { text: string; tone: "danger" | "accent" | "chain" | "muted" } | null;
+  // Active hold detail for the On-hold tab.
+  holdInfo?: { days: number; review: Date | null; reviewOverdue: boolean; reason: string | null } | null;
 };
 
 // The single definition of a row's risk level — the exact mapping the List's
@@ -117,6 +150,11 @@ export type TransactionRow = {
   expectedExchangeDate: Date | null;
   overridePredictedDate?: Date | null;
   completionDate?: Date | null;
+  // Completed-tab detail: the agreed price (priceAtExchange snapshot wins) and
+  // when it exchanged. All scalars flow through listTransactions' `include`.
+  purchasePrice?: number | null;
+  priceAtExchange?: number | null;
+  exchangedAt?: Date | null;
   // Withdrawal detail for the Withdrawn tab. No dedicated withdrawnAt is
   // stored, so updatedAt (the file's last change — the withdrawal itself for a
   // withdrawn file) stands in as "when". fallThroughReason is the free-text
@@ -194,41 +232,52 @@ const ACTIVITY_ICON: Record<string, typeof EnvelopeSimple> = {
   comm: ChatCircleDots,
 };
 
-/* Recent — the last contact on each channel (call / email / WhatsApp) as a bare
- * icon + date. Falls back to the single most-recent activity (a note, a
- * milestone confirmation…) when no channel comms are on file. */
+// "17 Oct · 2:14pm" — fixed to Europe/London so SSR and client agree (no drift).
+function dateTime(d: Date): string {
+  const date = d.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" });
+  const time = d.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s/g, "").toLowerCase();
+  return `${date} · ${time}`;
+}
+
+const NEXT_TONE: Record<"danger" | "accent" | "chain" | "muted", string> = {
+  danger: "var(--agent-danger)", accent: "var(--agent-coral-deep)", chain: "#5b6b8c", muted: "var(--agent-text-muted)",
+};
+
+/* Recent / Next step — the single most-recent activity: a party-aware verb (e.g.
+ * "Chased the seller"), the date + time, and the one next-step line beneath. */
 function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?: boolean }) {
-  const cl = tx.health?.channelLast;
-  const lines: { Icon: typeof EnvelopeSimple; at: Date; label: string }[] = [];
-  if (cl?.call) lines.push({ Icon: Phone, at: new Date(cl.call), label: "Last call" });
-  if (cl?.email) lines.push({ Icon: EnvelopeSimple, at: new Date(cl.email), label: "Last email" });
-  if (cl?.whatsapp) lines.push({ Icon: WhatsappLogo, at: new Date(cl.whatsapp), label: "Last WhatsApp" });
-  const sz = mobile ? 15 : 14;
-
-  if (lines.length > 0) {
-    return (
-      <span className="recent-lines">
-        {lines.map((l, i) => {
-          const LI = l.Icon;
-          return (
-            <span key={i} className="recent-line" title={`${l.label} · ${shortDate(l.at)}`}>
-              <LI size={sz} weight="regular" />
-              <span>{shortDate(l.at)}</span>
-            </span>
-          );
-        })}
-      </span>
-    );
-  }
-
-  const lastAt = tx.health?.lastActivityAt ? new Date(tx.health.lastActivityAt) : null;
-  if (!lastAt) return <span className="recent-none">Just added</span>;
-  const verb = tx.health?.lastActivityLabel ?? null;
-  const Icon = (tx.health?.lastActivityType && ACTIVITY_ICON[tx.health.lastActivityType]) || ClockCounterClockwise;
+  const h = tx.health;
+  const lastAt = h?.lastActivityAt ? new Date(h.lastActivityAt) : null;
+  const verb = h?.activityVerb ?? h?.lastActivityLabel ?? null;
+  if (!lastAt && !verb) return <span className="recent-none">Just added</span>;
+  const Icon = (h?.lastActivityType && ACTIVITY_ICON[h.lastActivityType]) || ClockCounterClockwise;
+  const next = h?.nextStep ?? null;
+  const sz = mobile ? 16 : 17;
   return (
-    <span className="recent-line" title={verb ? `${verb} · ${relTime(lastAt)}` : `Active ${relTime(lastAt)}`}>
-      <Icon size={sz} weight="regular" />
-      <span>{shortDate(lastAt)}</span>
+    <span style={{ display: "flex", gap: 9, minWidth: 0, alignItems: "flex-start" }}>
+      <Icon size={sz} weight="regular" style={{ flexShrink: 0, marginTop: 2, color: "var(--agent-text-secondary)" }} />
+      <span style={{ minWidth: 0 }}>
+        {verb && <span style={{ display: "block", fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{verb}</span>}
+        {lastAt && <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1, fontVariantNumeric: "tabular-nums" }}>{dateTime(lastAt)}</span>}
+        {next && <span style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: NEXT_TONE[next.tone], marginTop: 2 }}>{next.text}</span>}
+      </span>
+    </span>
+  );
+}
+
+// Pace vs the 12-week target — a quiet icon + text (no pill), under the exchange date.
+function PaceLine({ pace }: { pace: NonNullable<NonNullable<TransactionRow["health"]>["pace"]> }) {
+  if (!pace) return null;
+  const cfg = {
+    ahead: { label: "Ahead of target", color: "var(--agent-success)", Icon: TrendUp },
+    on_track: { label: "On track", color: "#2563a8", Icon: TrendUp },
+    slightly_behind: { label: "Slightly behind", color: "var(--agent-warning)", Icon: Minus },
+    behind: { label: "Behind", color: "var(--agent-danger)", Icon: TrendDown },
+  }[pace];
+  const PI = cfg.Icon;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 650, color: cfg.color, marginTop: 4 }}>
+      <PI size={14} weight="bold" /> {cfg.label}
     </span>
   );
 }
@@ -433,6 +482,143 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
     : <span className="handled-none">Unassigned</span>;
 }
 
+// ── Per-tab cells (files-table redesign) ─────────────────────────────────────
+
+// Exchange forecast — the date cell + the 4-level pace (active rows).
+function ExchangeCell({ tx }: { tx: TransactionRow }) {
+  return (
+    <div>
+      <ExchangeTargetCell transactionId={tx.id} expectedExchangeDate={tx.expectedExchangeDate} overridePredictedDate={tx.overridePredictedDate ?? null} createdAt={tx.createdAt} />
+      {tx.health?.pace && <PaceLine pace={tx.health.pace} />}
+    </div>
+  );
+}
+
+// On-hold — when it comes back (or overdue / not set).
+function ReviewCell({ tx }: { tx: TransactionRow }) {
+  const h = tx.health?.holdInfo;
+  if (!h || !h.review) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>{h ? "Not set" : "—"}</span>;
+  if (h.reviewOverdue) return (
+    <div>
+      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</p>
+      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-danger)" }}>was {formatDate(new Date(h.review))}</p>
+    </div>
+  );
+  return <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span>;
+}
+
+// On-hold — how long + the typed reason (or "No reason given").
+function PausedCell({ tx }: { tx: TransactionRow }) {
+  const h = tx.health?.holdInfo;
+  if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>{h.days} days</p>
+      {h.reason
+        ? <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-secondary)", fontStyle: "italic" }}>&ldquo;{h.reason}&rdquo;</p>
+        : <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>No reason given</p>}
+    </div>
+  );
+}
+
+// Completed — agreed sale price (priceAtExchange in pence; the row anchor).
+function SoldForCell({ tx }: { tx: TransactionRow }) {
+  const pence = tx.priceAtExchange ?? tx.purchasePrice ?? null;
+  const txt = pence != null ? `£${Math.round(pence / 100).toLocaleString("en-GB")}` : "—";
+  return <span style={{ fontSize: 15, fontWeight: 750, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{txt}</span>;
+}
+
+function DateCell({ d }: { d?: Date | null }) {
+  return <span style={{ fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>{d ? formatDate(new Date(d)) : "—"}</span>;
+}
+
+const WITHDRAWAL_CAT_COLOR: Record<string, string> = {
+  BUYER_WITHDREW: "var(--agent-danger)", SELLER_WITHDREW: "var(--agent-warning)",
+  CHAIN_COLLAPSE_ABOVE: "#5b6b8c", OTHER: "#64748b",
+};
+// Withdrawn — the structured category (coloured) + the free-text reason.
+function ReasonCell({ tx }: { tx: TransactionRow }) {
+  const cat = tx.withdrawalReason ?? null;
+  const catLabel = cat ? WITHDRAWAL_REASON_LABEL[cat] ?? null : null;
+  const catColor = cat ? WITHDRAWAL_CAT_COLOR[cat] ?? "#64748b" : "#64748b";
+  const text = tx.fallThroughReason?.trim() || null;
+  if (!catLabel && !text) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>No reason recorded</span>;
+  return (
+    <div>
+      {catLabel && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: catColor }}><span style={{ width: 6, height: 6, borderRadius: 999, background: catColor, flexShrink: 0 }} />{catLabel}</span>}
+      {text && <p style={{ margin: catLabel ? "3px 0 0" : 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.4 }}>{text}</p>}
+    </div>
+  );
+}
+
+// All-tab adaptive key date (status marker on the property cell disambiguates).
+function KeyDateCell({ tx }: { tx: TransactionRow }) {
+  if (tx.status === "active") return <ExchangeCell tx={tx} />;
+  if (tx.status === "on_hold") return <ReviewCell tx={tx} />;
+  if (tx.status === "completed") return <DateCell d={tx.completionDate} />;
+  if (tx.status === "withdrawn") return <DateCell d={tx.updatedAt} />;
+  return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
+}
+
+function StageCell({ tx }: { tx: TransactionRow }) {
+  if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>—</span>;
+  return <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>;
+}
+
+// One status/risk marker beside the address. On the single-status tabs the
+// status is the tab, so only the risk cue (active) is shown; on All it's the
+// status for non-active rows, else the risk cue.
+function RowMarker({ tx, activeTab }: { tx: TransactionRow; activeTab?: FilesTab }) {
+  const mark = (color: string, Icon: typeof PauseCircle, label: string) => (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color }}><Icon size={13} weight="fill" /> {label}</span>
+  );
+  if (activeTab === "all") {
+    if (tx.status === "on_hold") return mark("var(--agent-warning)", PauseCircle, "On hold");
+    if (tx.status === "completed") return mark("#2563a8", CheckCircle, "Completed");
+    if (tx.status === "withdrawn") return mark("#64748b", Prohibit, "Withdrawn");
+    return tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : null;
+  }
+  if (activeTab === "active" || activeTab === undefined) return tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : null;
+  return null;
+}
+
+function renderCell(col: FilesColumn, tx: TransactionRow): ReactNode {
+  switch (col) {
+    case "stage": return <StageCell tx={tx} />;
+    case "activity": return <ActivityVerbChip tx={tx} />;
+    case "exchange": return <ExchangeCell tx={tx} />;
+    case "keydate": return <KeyDateCell tx={tx} />;
+    case "review": return <ReviewCell tx={tx} />;
+    case "paused": return <PausedCell tx={tx} />;
+    case "soldfor": return <SoldForCell tx={tx} />;
+    case "exchanged": return <DateCell d={tx.exchangedAt} />;
+    case "completed": return <DateCell d={tx.completionDate} />;
+    case "withdrawnDate": return <DateCell d={tx.updatedAt} />;
+    case "reason": return <ReasonCell tx={tx} />;
+    case "handled": return <HandledBy tx={tx} />;
+  }
+}
+
+// Property identity — thumb + address + one marker, with town/postcode and
+// agency (internal/multi-agency only) stacked beneath.
+function PropertyCell({ tx, activeTab, showAgency, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; compact?: boolean }) {
+  const { line, location } = splitAddress(tx.propertyAddress);
+  const marker = <RowMarker tx={tx} activeTab={activeTab} />;
+  return (
+    <div className="files-id flex items-start gap-3 min-w-0">
+      <PropertyThumb photoUrl={tx.photoUrl} size={46} />
+      <div className="min-w-0 flex-1">
+        <div className="files-line1" style={compact ? { whiteSpace: "normal" } : undefined}>
+          <span className="files-addr">{line}</span>
+          {marker && <span className="files-pill">{marker}</span>}
+        </div>
+        {location && <span className="files-town">{location}</span>}
+        {showAgency && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function TransactionRowView({
   tx,
   basePath = "/agent/transactions",
@@ -459,178 +645,41 @@ export function TransactionRowView({
   // Falls back to the full "all" column set for standalone consumers.
   const cols = colsProp ?? filesColumns("all", showAssignedToColumn, showAgencyColumn);
   const gridCols = filesGridTemplate(cols);
-  const isDone = tx.status === "completed";
-  const isDead = tx.status === "withdrawn";
-  const isPaused = tx.status === "on_hold";
-
-  const { line, location } = splitAddress(tx.propertyAddress);
-  const health = tx.health ?? null;
-  // "Waiting on" line — the next chase target, with a leading "Chase:" dropped
-  // so it doesn't read "Waiting on: Chase: ...".
-  const waitingLabel = health?.nextActionLabel ? health.nextActionLabel.replace(/^chase:\s*/i, "") : null;
-
-  // Per-status cell content, shared by the mobile card and the desktop grid.
-  const targetContent = isDone ? (
-    tx.completionDate
-      ? (
-        <div>
-          <p className="text-sm font-medium" style={{ color: "var(--agent-text-secondary)" }}>{formatDate(tx.completionDate)}</p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>Completed</p>
-        </div>
-      )
-      : <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
-  ) : isDead ? (
-    <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
-  ) : (
-    <ExchangeTargetCell
-      transactionId={tx.id}
-      expectedExchangeDate={tx.expectedExchangeDate}
-      overridePredictedDate={tx.overridePredictedDate ?? null}
-      createdAt={tx.createdAt}
-    />
-  );
-
-  const riskContent = isPaused ? (
-    // On the On-hold tab every row is paused — the pill says nothing, so it
-    // goes (critique, 2026-09-22). On All (and anywhere else) it still marks
-    // the paused rows out from the active ones.
-    activeTab === "on_hold" ? null : (
-      <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 99, background: "rgba(15,23,42,0.05)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(15,23,42,0.30)" }} />
-        Paused
-      </span>
-    )
-  ) : isDone || isDead ? (
-    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
-  ) : tx.health ? (
-    <RiskBadgeWithPopover raw={tx.health} />
-  ) : (
-    <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>
-  );
-
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
 
   return (
     <div data-bloom>
-      {/* ── Card row — shown until the list is wide enough for the grid
-          (container-driven via .files-table / .files-switch-N, not viewport) */}
+      {/* Card row — stacked layout, shown until the list is wide enough for the
+          grid (container-driven via .files-table / .files-switch-N). */}
       <Link
         href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
         className="files-row-card agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
       >
-        <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
-          <div className="files-id flex items-start gap-3">
-            <PropertyThumb photoUrl={tx.photoUrl} size={46} />
-            <div className="min-w-0 flex-1">
-              <div className="files-line1">
-                <span className="files-addr">{line}</span>
-                {!isDone && !isDead && riskContent && <span className="files-pill">{riskContent}</span>}
-              </div>
-              {location && <span className="files-town">{location}</span>}
-              {showAgencyColumn && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
+        <div className="flex-1 px-4 py-4 min-w-0 space-y-3">
+          <PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} compact />
+          {cols.map((col) => (
+            <div key={col}>
+              <p style={{ margin: "0 0 5px", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{COL_LABEL[col]}</p>
+              {renderCell(col, tx)}
             </div>
-          </div>
-
-          {/* Journey bar + what the file's waiting on — full card width on the
-              card/mobile layout (edge to edge, clear of the thumbnail). */}
-          {tx.boardStage && !isDone && !isDead && (
-            <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover>
-          )}
-          {!isDone && !isDead && waitingLabel && (
-            <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
-          )}
-
-          {/* Two columns: last-contact history (verb chip + status) on the left,
-              the exchange target / completion date on the right. Sitting them side
-              by side tightens the card and uses the space the hidden status pill
-              leaves on single-status tabs like On hold (critique). */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <ActivityVerbChip tx={tx} mobile />
-              {cols.includes("status") && <StatusBadge status={tx.status} />}
-            </div>
-            <div className="text-right flex-shrink-0">{isDead ? <WithdrawnCell tx={tx} /> : targetContent}</div>
-          </div>
-          {cols.includes("assigned") && (
-            <div>
-              <p className="handled-card-label">Handled by</p>
-              <HandledBy tx={tx} />
-            </div>
-          )}
+          ))}
         </div>
       </Link>
 
-      {/* ── Desktop row (hidden below md) ─────────────────────────
-       * Column order: [stripe] Property | Last activity | Exchange target |
-       *   Status | Assigned-to | Risk
-       * Row link = entire row navigates. Activity chip's popover is
-       * pointer-events:none so it does not intercept the row link.
-       */}
+      {/* Desktop grid — entire row navigates. Per-tab columns (see filesColumns);
+          header + rows share the same model so they stay in lockstep. */}
       <Link
         href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
         className="files-row-grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
-        {/* Property — identity (photo + address); risk pill inline, then the
-            labelled journey bar and what the file is waiting on. */}
-        <div className="files-id px-4 py-3.5 min-w-0 flex items-start gap-3">
-          <PropertyThumb photoUrl={tx.photoUrl} size={46} />
-          <div className="min-w-0 flex-1">
-            <div className="files-line1">
-              <span className="files-addr">{line}</span>
-              {!isDone && !isDead && riskContent && <span className="files-pill">{riskContent}</span>}
-            </div>
-            {location && <span className="files-town">{location}</span>}
-            {tx.boardStage && !isDone && !isDead && (
-              <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>
-            )}
-            {!isDone && !isDead && waitingLabel && (
-              <span className="files-waiting">Waiting on: <b>{waitingLabel}</b></span>
-            )}
-          </div>
-        </div>
-
-        {/* Recent — last contact per channel */}
-        <div className="px-4 py-3.5">
-          <ActivityVerbChip tx={tx} />
-        </div>
-
-        {/* Exchange target / completion date — omitted on the Withdrawn tab */}
-        {cols.includes("target") && (
-          <div className="px-4 py-3.5">{targetContent}</div>
-        )}
-
-        {/* Withdrawn — when, with the reason on hover */}
-        {cols.includes("withdrawn") && (
-          <div className="px-4 py-3.5"><WithdrawnCell tx={tx} /></div>
-        )}
-
-        {/* Status — only on the All tab (redundant on a single-status tab) */}
-        {cols.includes("status") && (
-          <div className="px-4 py-3.5">
-            <StatusBadge status={tx.status} />
-          </div>
-        )}
-
-        {/* Handled by — who's looking after the file now (see HandledBy).
-            Hidden for roles that only see their own files (negotiator, sales_progressor). */}
-        {cols.includes("assigned") && (
-          <div className="px-4 py-3.5">
-            <HandledBy tx={tx} />
-          </div>
-        )}
-
-        {/* Agency — additive column for internal staff; not rendered for agents */}
-        {cols.includes("agency") && (
-          <div className="px-4 py-3.5">
-            <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-              {tx.agency?.name ?? "—"}
-            </span>
-          </div>
-        )}
+        <div className="px-4 py-3.5 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} /></div>
+        {cols.map((col) => (
+          <div key={col} className="px-4 py-3.5 min-w-0">{renderCell(col, tx)}</div>
+        ))}
       </Link>
     </div>
   );
