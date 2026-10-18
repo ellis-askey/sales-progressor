@@ -1,19 +1,19 @@
 "use client";
 
-// BloomStage — orchestrates the universal load-in across a WHOLE page, so it
-// flows top-to-bottom, left-to-right like the Loading & Entrance Studio (not
-// just one repeating group). A CSS stagger only reaches an element's direct
-// children; real pages are nested across many components, so to get one
-// continuous cascade we collect every [data-bloom] block in document order and
-// give each an increasing animation-delay, then play .agent-bloom.
+// BloomStage — orchestrates the universal load-in across a WHOLE page so it
+// flows top-to-bottom, left-to-right like the Loading & Entrance Studio (a CSS
+// stagger only reaches one level; real pages nest across many components).
 //
-// Mark the blocks you want in the flow with `data-bloom` (stat cards, bars,
-// search, tabs, rows…). Unmarked content simply appears. Runs in useLayoutEffect
-// (before paint) so there's no flash on client navigation; reduced-motion skips
-// it entirely. On each block's animationend we strip the class + inline delay so
-// no residual transform/filter lingers (which would sever glass backdrop-filter).
+// NO FLASH: the blocks start hidden FROM FIRST PAINT via CSS
+// (`.bloom-stage [data-bloom]`), so they're never shown-then-hidden. On mount we
+// set each block's transition-delay in document order and add `.bloom-in`, which
+// transitions it to visible. The end state is transform/filter: none, so nothing
+// lingers to sever glass backdrop-filter. Reduced-motion shows everything at
+// once (CSS media query + JS skip).
+//
+// Mark blocks with `data-bloom`; unmarked content is unaffected.
 
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export function BloomStage({
   children,
@@ -30,29 +30,34 @@ export function BloomStage({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    if (root.dataset.bloomArmed) return; // once per mount (guards strict-mode double-invoke)
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (root.dataset.bloomArmed) return; // once per mount
     root.dataset.bloomArmed = "1";
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
     const items = Array.from(root.querySelectorAll<HTMLElement>("[data-bloom]"));
-    items.forEach((el, i) => {
-      el.style.animationDelay = `${Math.min(i, cap) * step}ms`;
-      el.classList.add("agent-bloom");
-      const clear = (e: AnimationEvent) => {
-        if (e.animationName !== "agent-bloom") return; // ignore unrelated animations
-        el.classList.remove("agent-bloom");
-        el.style.animationDelay = "";
-        el.removeEventListener("animationend", clear);
-      };
-      el.addEventListener("animationend", clear);
+    // Items are already hidden (CSS). Flip to visible next frame so the browser
+    // has painted the hidden state and the transition actually runs.
+    requestAnimationFrame(() => {
+      items.forEach((el, i) => {
+        el.style.transitionDelay = `${Math.min(i, cap) * step}ms`;
+        el.style.willChange = "opacity, transform, filter";
+        el.classList.add("bloom-in");
+        const done = (e: TransitionEvent) => {
+          if (e.propertyName !== "opacity") return; // once, after the opacity leg
+          el.style.transitionDelay = "";
+          el.style.willChange = "";
+          el.removeEventListener("transitionend", done);
+        };
+        el.addEventListener("transitionend", done);
+      });
     });
   }, []);
 
   return (
-    <div ref={ref} className={className}>
+    <div ref={ref} className={className ? `bloom-stage ${className}` : "bloom-stage"}>
       {children}
     </div>
   );
