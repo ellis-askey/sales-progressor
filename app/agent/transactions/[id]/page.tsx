@@ -36,7 +36,7 @@ export default async function AgentTransactionOverviewPage({
   const { session, transaction, isInternalStaff, isDirectorRole, isEllis } = ctx;
 
   return (
-    <TabEnter>
+    <TabEnter stage>
       <OverviewPanel
         transaction={transaction}
         agencyId={session.user.agencyId}

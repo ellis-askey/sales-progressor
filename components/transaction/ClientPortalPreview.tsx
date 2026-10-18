@@ -84,7 +84,7 @@ export function ClientPortalPreview({
   return (
     <div style={{ maxWidth: 940, margin: "0 auto" }}>
       {/* Intro — sets the agent's expectation: this is a window, not a control panel. */}
-      <div style={{ textAlign: "center", marginBottom: 18 }}>
+      <div data-bloom style={{ textAlign: "center", marginBottom: 18 }}>
         <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--agent-text-muted)", maxWidth: 480, margin: "0 auto" }}>
           This is exactly what your client sees, live. You can tap around freely to explore it,
           but you&apos;re only looking, nothing here changes their file.
@@ -93,7 +93,7 @@ export function ClientPortalPreview({
 
       <div style={{ display: "flex", gap: 28, alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap" }}>
         {/* ── Left: switcher + framed portal ── */}
-        <div style={{ flex: "0 0 auto", maxWidth: "100%" }}>
+        <div data-bloom style={{ flex: "0 0 auto", maxWidth: "100%" }}>
           {/* Client switcher. 2 clients: sliding pills. More sellers/buyers than
               that: a dropdown, since 3+ names truncate into uselessness. Role
               reads from the avatar colour (seller blue / buyer green) — no
@@ -257,7 +257,7 @@ export function ClientPortalPreview({
         </div>
 
         {/* ── Right: invite / manage access ── */}
-        <div style={{ flex: "1 1 300px", minWidth: 280, maxWidth: 380 }}>
+        <div data-bloom style={{ flex: "1 1 300px", minWidth: 280, maxWidth: 380 }}>
           <InviteCard transactionId={transactionId} />
           {clients.length > 0 && <ResendList clients={clients} />}
         </div>

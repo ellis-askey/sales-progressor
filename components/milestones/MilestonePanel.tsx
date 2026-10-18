@@ -345,7 +345,7 @@ export function MilestonePanel({
         />
       ) : (
         /* ── Progress bar card ───────────────────────────────────────────────── */
-        <Card glassId="steps-progress" glassLabel="Steps · Exchange progress" glassDefault="v05" padding="none" className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
+        <Card glassId="steps-progress" glassLabel="Steps · Exchange progress" glassDefault="v05" padding="none" data-bloom className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Exchange progress</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
@@ -365,7 +365,7 @@ export function MilestonePanel({
       )}
 
       {/* ── Side tabs ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-4">
+      <div data-bloom className="flex items-center gap-2 mb-4">
         {(["vendor", "purchaser"] as const).map((side) => {
           const mils = side === "vendor" ? vendor : purchaser;
           const applicable = mils.filter((m) => !m.isNotRequired);
@@ -392,7 +392,7 @@ export function MilestonePanel({
           No milestones found
         </Card>
       ) : (
-        <Card glassId="steps-list" glassLabel="Steps · Checklist" glassDefault="v05" padding="none">
+        <Card glassId="steps-list" glassLabel="Steps · Checklist" glassDefault="v05" padding="none" data-bloom>
           {sectionDefs.map((section) => {
             const sc = SECTION_COLORS[section.label] ?? SECTION_COLORS["Onboarding"];
             const codeSet = new Set(section.codes);

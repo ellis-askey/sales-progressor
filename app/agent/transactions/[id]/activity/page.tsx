@@ -16,7 +16,7 @@ export default async function ActivityTabPage({ params }: { params: Promise<{ id
   const canMarkPrivate = progressionBusinessesEnabled() && !!session.user.progressionBusinessId;
 
   return (
-    <TabEnter>
+    <TabEnter stage>
       <ActivityPanel
         transactionId={transaction.id}
         agencyId={session.user.agencyId}

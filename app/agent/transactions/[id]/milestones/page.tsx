@@ -18,7 +18,7 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
     transaction.activeBuyerRound?.id ?? null,
   );
   return (
-    <TabEnter>
+    <TabEnter stage>
       <StepsPanel
         transactionId={transaction.id}
         agencyId={session.user.agencyId}

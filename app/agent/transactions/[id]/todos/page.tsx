@@ -10,7 +10,7 @@ export default async function TodosTabPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const { session, transaction, isInternalStaff, isProgressor, isAdminRole } = await loadFilePageContext(id);
   return (
-    <TabEnter>
+    <TabEnter stage>
       <ToDoPanel
         transactionId={transaction.id}
         transactionAddress={transaction.propertyAddress}

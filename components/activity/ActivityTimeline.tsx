@@ -937,7 +937,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-mi[data-on="true"] .act-radio { border-color:var(--agent-coral); }
         .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
       `}</style>
-      <div className="act-filterbar">
+      <div className="act-filterbar" data-bloom>
         <div className="act-scope" ref={scopeRef}>
           <button className="act-scope-btn" data-open={scopeOpen} onClick={() => setScopeOpen((v) => !v)} aria-haspopup="menu" aria-expanded={scopeOpen}>
             <FunnelSimple size={14} weight="regular" />
@@ -986,13 +986,14 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         )}
       </div>
 
-      {beforeEntries && <div className="mb-3">{beforeEntries}</div>}
+      {beforeEntries && <div className="mb-3" data-bloom>{beforeEntries}</div>}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-8" style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
+        <div className="text-center py-8" data-bloom style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
           No entries match.
         </div>
       ) : (
+        <div data-bloom>
         <div key={entriesKey} className="relative agent-reveal-in">
           {/* Vertical line */}
           <div className="absolute top-2 bottom-2 w-px" style={{ left: 3, background: "var(--agent-border-default)" }} />
@@ -1012,6 +1013,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
               </button>
             </div>
           )}
+        </div>
         </div>
       )}
 

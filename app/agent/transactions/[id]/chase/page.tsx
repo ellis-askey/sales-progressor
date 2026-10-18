@@ -19,5 +19,5 @@ export default async function ChaseTabPage({ params }: { params: Promise<{ id: s
     || (!!session.user.agencyId && transaction.serviceType === "self_managed")
     || (isInternalStaff && !!fileProgressorLabel(transaction.progressionBusiness));
   if (!showChaseTimeline) notFound();
-  return <TabEnter><ChaseTimelinePanel transactionId={transaction.id} agencyId={session.user.agencyId} /></TabEnter>;
+  return <TabEnter stage><ChaseTimelinePanel transactionId={transaction.id} agencyId={session.user.agencyId} /></TabEnter>;
 }

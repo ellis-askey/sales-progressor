@@ -480,7 +480,7 @@ export async function OverviewPanel({
           with a header toggle, so the solicitor is one tap away. The id anchors
           the jump from the Client settings drawer footer ("update these settings
           anytime" -> here). */}
-      <div id="clients-section" style={{ scrollMarginTop: 84 }}>
+      <div id="clients-section" data-bloom style={{ scrollMarginTop: 84 }}>
       <PeoplePanel
         clients={
           <ContactsSection
@@ -570,6 +570,7 @@ export async function OverviewPanel({
           new card surfaces ONE call-to-action from the top reminder
           (or a milestone fallback), matching the mock. Detailed per-
           side next-milestone view still lives on the Steps tab. */}
+      <div data-bloom>
       <NextActionCardConsumer
         transactionId={transaction.id}
         pathname={`/agent/transactions/${transaction.id}`}
@@ -584,6 +585,7 @@ export async function OverviewPanel({
         otherReminders={otherReminders}
         totalActive={actionableCount}
       />
+      </div>
 
       {/* AI summary hidden 2026-09-02 — not polished enough to show yet.
           Re-enable by removing the `false &&`. Tracked in docs/active/TODO.md. */}
@@ -599,6 +601,7 @@ export async function OverviewPanel({
       {/* Chain spine card, moved up into the old AI-summary slot (2026-09-02):
           onward above, this sale in the middle, related below, neighbours nudge
           in the footer. The chain drawer itself is unchanged (ViewChainButton). */}
+      <div data-bloom>
       <PropertyChainCard
         transactionId={transaction.id}
         thisSaleAddress={transaction.propertyAddress}
@@ -611,9 +614,11 @@ export async function OverviewPanel({
         showRelated={relatedView.exists || relatedSignal.selling}
         noChainConfirmed={transaction.noChainNeededAt != null}
       />
+      </div>
 
-      <CheckpointsCard transactionId={transaction.id} />
+      <div data-bloom><CheckpointsCard transactionId={transaction.id} /></div>
 
+      <div data-bloom>
       <ActivityNotesCard
         transactionId={transaction.id}
         entries={activityEntries}
@@ -633,6 +638,7 @@ export async function OverviewPanel({
         canPasteChat={isInternalStaff}
         emailConnected={!!emailConn}
       />
+      </div>
 
       {/* Chain spine card moved up into the AI-summary slot (2026-09-02). */}
 
@@ -641,8 +647,8 @@ export async function OverviewPanel({
       {/* Once contracts exchange the sale is legally committed — there's no
           fall-through left to assess, so the risk card simply goes rather than
           showing a stale pace reading (critique 2026-10-02). */}
-      {!isExchangedOrDone && <RiskScoreWidget input={riskInput} />}
-      <PropertyIntelCard transactionId={transaction.id} />
+      {!isExchangedOrDone && <div data-bloom><RiskScoreWidget input={riskInput} /></div>}
+      <div data-bloom><PropertyIntelCard transactionId={transaction.id} /></div>
 
       {/* Email + hold controls moved off the Overview tail into the
           hero's email-settings drawer (EmailSettingsDrawer, 2026-08-11

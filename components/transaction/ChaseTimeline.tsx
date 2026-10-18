@@ -395,7 +395,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
       {pause && <PauseBanner pause={pause} />}
 
       {/* Overview stats */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div data-bloom style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <StatCard n={stats.active} label="Active chases" color="var(--agent-text-primary)" />
         <StatCard n={stats.dueToday} label="Due today" color="var(--agent-warning)" />
         <StatCard n={stats.escalating} label="Escalating" color="var(--agent-danger)" />
@@ -405,7 +405,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
       {/* List + detail */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr]" style={{ gap: 16, alignItems: "start" }}>
         {/* Left: thread list */}
-        <div style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: 8 }}>
+        <div data-bloom style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", padding: "6px 8px 8px" }}>
             Chase threads
           </div>
@@ -440,7 +440,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
         </div>
 
         {/* Right: detail */}
-        <div style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: "18px 20px", minHeight: 200 }}>
+        <div data-bloom style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: "18px 20px", minHeight: 200 }}>
           {selected ? <ThreadDetail thread={selected} transactionId={transactionId} /> : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, gap: 8, color: "var(--agent-text-muted)" }}>
               <Clock size={16} /> <span style={{ fontSize: 13 }}>Select a thread to see its history.</span>

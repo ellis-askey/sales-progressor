@@ -44,8 +44,8 @@ export default async function EnquiriesPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing." />
-      <BloomStage className="hub-content-pad">
-      <div style={{ padding: "8px 32px 24px" }}>
+      <BloomStage>
+      <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
         {rows.length === 0 ? (
           <EnquiriesEmptyState />
         ) : (

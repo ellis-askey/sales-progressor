@@ -36,11 +36,11 @@ export default async function WhatsAppTabPage({ params }: { params: Promise<{ id
   }
 
   return (
-    <TabEnter>
+    <TabEnter stage>
       {threads.length > 0 && (
-        <WhatsAppCloudPanel threads={threads} initialThread={initialThread} initialMessages={initialMessages} />
+        <div data-bloom><WhatsAppCloudPanel threads={threads} initialThread={initialThread} initialMessages={initialMessages} /></div>
       )}
-      <WhatsAppPanel transactionId={transaction.id} agencyId={session.user.agencyId} />
+      <div data-bloom><WhatsAppPanel transactionId={transaction.id} agencyId={session.user.agencyId} /></div>
     </TabEnter>
   );
 }

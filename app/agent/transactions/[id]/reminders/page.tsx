@@ -119,14 +119,16 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
   const hideChase = session.user.role === "admin";
 
   return (
-    <TabEnter>
+    <TabEnter passthrough>
     <div className="space-y-4">
       <TabBadgeReporter tabKey="reminders" count={actionable} />
       {showRunIn && postExchange && (
-        <ExchangeToCompletionCard exchangedAt={postExchange.exchangedAt} completionDate={postExchange.completionDate} />
+        <div className="agent-bloom">
+          <ExchangeToCompletionCard exchangedAt={postExchange.exchangedAt} completionDate={postExchange.completionDate} />
+        </div>
       )}
       {statSegments.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="agent-bloom" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {statSegments.map((seg) => (
             <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
           ))}

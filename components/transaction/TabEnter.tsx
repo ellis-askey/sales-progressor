@@ -13,12 +13,19 @@
 //     so the Overview/landing time is measurable too, not just swaps.
 
 import { useEffect } from "react";
+import { BloomStage } from "@/components/agent/BloomStage";
 
 // Module scope: persists across SPA navigations, resets on a hard load. Ensures
 // the "initial load" number is reported once, for the tab you actually land on.
 let reportedInitial = false;
 
-export function TabEnter({ children }: { children: React.ReactNode }) {
+// `stage` opts a tab into the per-item cascade (BloomStage walks its [data-bloom]
+// blocks in document order). Without it, the whole tab blooms as one block
+// (.agent-bloom). `passthrough` renders the children with no wrapper animation at
+// all — for tabs whose body already owns a single BloomStage (Reminders, Chain),
+// where a second orchestrator would double-arm and flash. Either way the timing
+// telemetry below still fires on mount.
+export function TabEnter({ children, stage = false, passthrough = false }: { children: React.ReactNode; stage?: boolean; passthrough?: boolean }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const w = window as unknown as { __tspTabNavStart?: number };
@@ -32,5 +39,6 @@ export function TabEnter({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return <div className="agent-bloom">{children}</div>;
+  if (passthrough) return <>{children}</>;
+  return stage ? <BloomStage>{children}</BloomStage> : <div className="agent-bloom">{children}</div>;
 }
