@@ -28,7 +28,7 @@ import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentio
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
 import { SendingTodayPanel } from "@/components/automated-emails/SendingTodayPanel";
-import { PageReveal } from "@/components/agent/PageReveal";
+import { BloomStage } from "@/components/agent/BloomStage";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files", "chase-performance", "email-health"] as const;
 type PageTab = (typeof VALID_TABS)[number];
@@ -147,29 +147,32 @@ export default async function AutomatedEmailsPage({
         subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       />
 
-      <PageReveal>
+      <BloomStage>
       {overview && (
+        <div data-bloom>
         <AutomationBanner
           banner={overview.banner}
           needsTotal={needs?.total ?? 0}
           queuedNow={overview.metrics.queuedNow}
         />
+        </div>
       )}
 
       {/* Row A — what needs a person, what's about to go out, how well set up we are */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        {needs && <NeedsAttentionPanel data={needs} />}
-        {sendingToday && <SendingTodayPanel rows={sendingToday} />}
-        {coverage && <AutomationCoveragePanel coverage={coverage} />}
+        {needs && <div data-bloom><NeedsAttentionPanel data={needs} /></div>}
+        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} /></div>}
+        {coverage && <div data-bloom><AutomationCoveragePanel coverage={coverage} /></div>}
       </div>
 
       {/* The trend — full width so the chart has room */}
       {overview && (
-        <div className="mb-4">
+        <div className="mb-4" data-bloom>
           <AutomationActivityPanel overview={overview} />
         </div>
       )}
 
+      <div data-bloom>
       <AutomatedEmailsListView
         rows={list.rows}
         counts={list.counts}
@@ -184,7 +187,8 @@ export default async function AutomatedEmailsPage({
         chasePerformance={chasePerformance}
         emailHealth={emailHealth}
       />
-      </PageReveal>
+      </div>
+      </BloomStage>
     </div>
   );
 }
