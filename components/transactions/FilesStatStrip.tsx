@@ -51,7 +51,7 @@ export function FilesStatStrip({
   const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long" });
 
   return (
-    <GlassCard glassId="files-summary" label="All Files · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden" }}>
+    <GlassCard glassId="files-summary" label="All Files · summary" defaultVariant="v05" data-bloom style={{ borderRadius: 14, overflow: "hidden" }}>
       <div className="fstats">
         <div className="fstat-cell">
           <span className="stat-circle stat-circle--coral" aria-hidden><HouseLine size={22} weight="regular" /></span>

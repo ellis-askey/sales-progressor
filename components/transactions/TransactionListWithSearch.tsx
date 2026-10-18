@@ -85,7 +85,7 @@ export function TransactionListWithSearch({
     <div className="space-y-3">
       {/* Paired card — white search top half + lighter tabs bottom half, one
        * card, hairline divider at the seam. */}
-      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v25" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v25" data-bloom style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
         <div className="tl-card-search tl-search-row">
           <div className="tl-search-input" style={{ flex: 1 }}>
             <svg

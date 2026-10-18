@@ -511,7 +511,7 @@ export function TransactionRowView({
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
 
   return (
-    <div>
+    <div data-bloom>
       {/* ── Card row — shown until the list is wide enough for the grid
           (container-driven via .files-table / .files-switch-N, not viewport) */}
       <Link

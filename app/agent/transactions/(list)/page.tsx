@@ -15,6 +15,7 @@ import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState
 import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getProgressorCopy } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { BloomStage } from "@/components/agent/BloomStage";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
@@ -244,7 +245,7 @@ export default async function AllTransactionsPage({
         )}
       </PageHeader>
 
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
+      <BloomStage className="px-4 md:px-8 py-2 md:py-4 space-y-5">
 
         {/* Hub filter indicator — data-first phrasing (Stage 3 voice fix).
          * OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
@@ -433,7 +434,7 @@ export default async function AllTransactionsPage({
             )}
           </div>
         )}
-      </div>
+      </BloomStage>
     </>
   );
 }

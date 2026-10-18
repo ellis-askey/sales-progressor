@@ -244,7 +244,7 @@ export function FilesWorkspace({
         onToggle={toggleFilter}
       />
 
-      <div className="files-bar">
+      <div className="files-bar" data-bloom>
         <div className="files-views">
           {VIEWS.map(({ key, label, Icon }) => (
             <button
