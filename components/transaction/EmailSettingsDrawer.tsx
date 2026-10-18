@@ -45,6 +45,8 @@ import {
   setContactStepConfirmPaused,
   setEmailAudiencePaused,
   setEnquiryChasePaused,
+  pauseClientEmails,
+  resumeClientEmails,
   type EmailAudience,
   type EmailSettingsState,
 } from "@/app/actions/automation";
@@ -278,9 +280,10 @@ function EmailSettingsDrawer({
       router.push(`/agent/transactions/${transactionId}#clients-section`);
     }
   }, [onClose, router, transactionId]);
-  // Automatic-chasing list is collapsible; open by default so the agent
-  // sees who's being chased without an extra tap.
-  const [chasingOpen, setChasingOpen] = useState(true);
+  // Automatic-chasing list is collapsed by default (critique #286), matching the
+  // step-confirmation section below — the master toggle in the header is the
+  // primary control; expand to fine-tune who we chase per person.
+  const [chasingOpen, setChasingOpen] = useState(false);
   // Step-confirmation per-person list is collapsed by default — the master
   // toggle in the header is the primary control; expand to fine-tune per client.
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -298,6 +301,26 @@ function EmailSettingsDrawer({
         );
         onStateChange({ ...state, suppressPortalConfirmEmails: nextSuppressed });
         toast.success(nextSuppressed ? "Confirmation emails paused" : "Confirmation emails on");
+      } catch {
+        toast.error("Couldn't update. Try again");
+      }
+      setPendingKey(null);
+    });
+  }
+
+  // Master on/off for automatic chasing on this file (critique #286) — mirrors
+  // the step-confirmation master above. Drives the file-level clientEmailsPaused
+  // flag the chase cron already honours. On = chasing allowed; off = paused.
+  function toggleChasing() {
+    if (!state || pendingKey) return;
+    const nextPaused = !state.clientEmailsPaused;
+    setPendingKey("chasing");
+    startTransition(async () => {
+      try {
+        const res = nextPaused ? await pauseClientEmails(transactionId) : await resumeClientEmails(transactionId);
+        if (!res.ok) throw new Error(res.error);
+        onStateChange({ ...state, clientEmailsPaused: nextPaused });
+        toast.success(nextPaused ? "Automatic chasing paused" : "Automatic chasing on");
       } catch {
         toast.error("Couldn't update. Try again");
       }
@@ -507,6 +530,14 @@ function EmailSettingsDrawer({
               collapsible
               expanded={chasingOpen}
               onToggleExpand={() => setChasingOpen((o) => !o)}
+              control={
+                <Switch
+                  on={!state.clientEmailsPaused}
+                  onClick={toggleChasing}
+                  disabled={pendingKey !== null}
+                  ariaLabel={`Automatic chasing: ${state.clientEmailsPaused ? "paused" : "on"}`}
+                />
+              }
             >
               <div className={`agent-acc${chasingOpen ? " open" : ""}`}>
                 <div className="agent-acc-in">
@@ -517,6 +548,11 @@ function EmailSettingsDrawer({
                       </p>
                     ) : (
                       <>
+                        {state.clientEmailsPaused && (
+                          <p style={{ margin: "10px 16px 2px", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                            Off for everyone. Switch it on above to choose per person.
+                          </p>
+                        )}
                         {hasClients && <GroupLabel>Clients</GroupLabel>}
                         {sellers.map((c) => (
                           <PersonRow
@@ -524,9 +560,9 @@ function EmailSettingsDrawer({
                             avatar={<ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={36} art />}
                             name={c.name}
                             side="Seller"
-                            on={!c.paused}
+                            on={!state.clientEmailsPaused && !c.paused}
                             onToggle={() => toggleContact(c.id, c.paused)}
-                            disabled={pendingKey !== null}
+                            disabled={pendingKey !== null || state.clientEmailsPaused}
                           />
                         ))}
                         {buyers.map((c) => (
@@ -535,9 +571,9 @@ function EmailSettingsDrawer({
                             avatar={<ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={36} art />}
                             name={c.name}
                             side="Buyer"
-                            on={!c.paused}
+                            on={!state.clientEmailsPaused && !c.paused}
                             onToggle={() => toggleContact(c.id, c.paused)}
-                            disabled={pendingKey !== null}
+                            disabled={pendingKey !== null || state.clientEmailsPaused}
                           />
                         ))}
 
@@ -547,9 +583,9 @@ function EmailSettingsDrawer({
                             avatar={<ContactAvatar contact={{ name: state.vendorSolicitor.name, roleType: "solicitor" }} sideTint="vendor" size={36} art />}
                             name={state.vendorSolicitor.name}
                             side="Seller's solicitor"
-                            on={!state.vendorSolicitor.paused}
+                            on={!state.clientEmailsPaused && !state.vendorSolicitor.paused}
                             onToggle={() => toggleFirm("vendorSolicitor", state.vendorSolicitor!.paused)}
-                            disabled={pendingKey !== null}
+                            disabled={pendingKey !== null || state.clientEmailsPaused}
                           />
                         )}
                         {state.purchaserSolicitor && (
@@ -557,9 +593,9 @@ function EmailSettingsDrawer({
                             avatar={<ContactAvatar contact={{ name: state.purchaserSolicitor.name, roleType: "solicitor" }} sideTint="purchaser" size={36} art />}
                             name={state.purchaserSolicitor.name}
                             side="Buyer's solicitor"
-                            on={!state.purchaserSolicitor.paused}
+                            on={!state.clientEmailsPaused && !state.purchaserSolicitor.paused}
                             onToggle={() => toggleFirm("purchaserSolicitor", state.purchaserSolicitor!.paused)}
-                            disabled={pendingKey !== null}
+                            disabled={pendingKey !== null || state.clientEmailsPaused}
                           />
                         )}
                       </>
