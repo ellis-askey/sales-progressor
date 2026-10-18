@@ -20,7 +20,6 @@ import {
 } from "@/components/comms/CommsActivityFeed";
 import { toUKDateStr } from "@/lib/utils";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
-import { PageReveal } from "@/components/agent/PageReveal";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
@@ -123,7 +122,6 @@ export default async function AgentCommsPage() {
         }
       />
 
-      <PageReveal>
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
         {/* Agency users AND progression-business owners get the onboarding hero
@@ -185,7 +183,6 @@ export default async function AgentCommsPage() {
         {days.length > 0 && <CommsActivityFeed days={days} />}
 
       </div>
-      </PageReveal>
     </>
   );
 }

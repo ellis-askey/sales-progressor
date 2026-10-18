@@ -276,7 +276,7 @@ export function EnquiriesTriageList({
   return (
     <div>
       {/* Summary overview — same family as Chains / Completions */}
-      <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+      <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" data-bloom style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
         <div className="enq-summary-grid">
           <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={<span className="enq-sub-split"><span>{tiles.withSellers} with sellers</span><span className="enq-sub-dot"> · </span><span>{tiles.withBuyers} with buyers</span></span>} />
           <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
@@ -289,7 +289,7 @@ export function EnquiriesTriageList({
       </GlassCard>
 
       {/* Toolbar */}
-      <div className="enq-toolbar">
+      <div className="enq-toolbar" data-bloom>
         <div className="enq-search">
           <MagnifyingGlass size={15} />
           <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => enableAnim(false)} onBlur={() => enableAnim(true)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" />
@@ -308,7 +308,7 @@ export function EnquiriesTriageList({
       </div>
 
       {/* Rows */}
-      <div className="enq-list" ref={listRef}>
+      <div className="enq-list" ref={listRef} data-bloom>
         {shown.map((r) => {
           const signedPhoto = r.photoStoragePath ? signedPhotos[r.photoStoragePath] ?? null : null;
           const busy = busyId === r.transactionId;

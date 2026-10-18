@@ -18,7 +18,6 @@ import { CompletedSection } from "@/components/completions/CompletedSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
-import { PageReveal } from "@/components/agent/PageReveal";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { toUKDateStr } from "@/lib/utils";
 
@@ -225,8 +224,7 @@ export default async function AgentCompletionsPage() {
       </PageHeader>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <PageReveal>
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7 agent-bloom-stagger">
 
         {/* Empty state — brand-new agency users get the onboarding layout. */}
         {files.length === 0 && isBrandNew && (
@@ -404,7 +402,6 @@ export default async function AgentCompletionsPage() {
           }))}
         />
       </div>
-      </PageReveal>
     </>
   );
 }

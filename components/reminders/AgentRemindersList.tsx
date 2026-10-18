@@ -1416,7 +1416,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const hasActiveResults = filteredActive.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 agent-bloom-stagger">
       {/* Sticky filter bar. Design Lab: `reminders-filter-bar` (v06). */}
       <GlassCard
         glassId="reminders-filter-bar"

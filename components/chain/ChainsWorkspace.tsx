@@ -375,7 +375,7 @@ export function ChainsWorkspace({
         : false;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
         /* Empty-state CTA (external progression business) — the polished coral pill
            matching .cw-primary / .enq-btn-primary2. */

@@ -512,7 +512,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
           </div>
         </aside>
 
-        <div className="cf-feed space-y-4">
+        <div className="cf-feed space-y-4 agent-bloom-stagger">
 
       {/* Address search — sits above the day buckets. Partial match, any part. */}
       <div className="cf-search">

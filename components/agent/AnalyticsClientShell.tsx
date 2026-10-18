@@ -329,7 +329,7 @@ export function AnalyticsClientShell({
   const noFeeTransactionCount = noFeeFiles.length;
 
   return (
-    <div className="px-4 py-5 sm:px-8 flex flex-col gap-[18px]">
+    <div className="px-4 py-5 sm:px-8 flex flex-col gap-[18px] agent-bloom-stagger">
 
       {/* ── Period tabs ────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>

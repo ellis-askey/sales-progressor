@@ -13,7 +13,6 @@ import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { toUKDateStr } from "@/lib/utils";
-import { PageReveal } from "@/components/agent/PageReveal";
 
 export default async function AgentTodoPage() {
   const session = await requireSession();
@@ -90,7 +89,6 @@ export default async function AgentTodoPage() {
           (critique #261). */}
       <PageHeader title="To-Do" subtitle={subtitle} />
 
-      <PageReveal>
       {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) ? (
         // Brand-new agency user OR progression-business owner: the onboarding
         // empty state. An owner has no TSP progressor to send to, so the
@@ -112,7 +110,6 @@ export default async function AgentTodoPage() {
           />
         </div>
       )}
-      </PageReveal>
     </>
   );
 }
