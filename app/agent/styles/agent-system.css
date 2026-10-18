@@ -243,8 +243,7 @@
    (no flash — never shown-then-hidden), then BloomStage sets a per-block
    transition-delay and adds .bloom-in to transition each in. End state is
    transform/filter:none so nothing lingers to sever glass backdrop-filter. */
-.bloom-stage [data-bloom],
-.section-bloom {
+.bloom-stage [data-bloom] {
   opacity: 0;
   transform: translateY(32px);
   filter: blur(12px);
@@ -252,15 +251,55 @@
               transform 520ms cubic-bezier(0.25, 0, 0, 1),
               filter 520ms cubic-bezier(0.25, 0, 0, 1);
 }
-.bloom-stage [data-bloom].bloom-in,
-.section-bloom.section-bloom-in {
+.bloom-stage [data-bloom].bloom-in {
   opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* SectionReveal (hub load-in). Same blur + rise + fade — but a glass card can't
+   keep its backdrop-filter frost alive while an ANCESTOR is moving or blurring:
+   the browser switches the frost off for the whole animation and snaps it back
+   at the end (the visible white flash). So when a section wraps a glass card we
+   hang the rise + blur on the CARD ITSELF (an element's OWN transform/filter
+   don't break its OWN backdrop-filter) and let the wrapper carry only the
+   frost-safe opacity fade. Sections with no glass keep the rise + blur on the
+   wrapper exactly as before. Each hub section holds a single glass card (no
+   nested glass), so `[data-glass-id]` targets just that one card. */
+.section-bloom:not(:has([data-glass-id])) {
+  opacity: 0;
+  transform: translateY(32px);
+  filter: blur(12px);
+  transition: opacity 520ms cubic-bezier(0.25, 0, 0, 1),
+              transform 520ms cubic-bezier(0.25, 0, 0, 1),
+              filter 520ms cubic-bezier(0.25, 0, 0, 1);
+}
+.section-bloom:not(:has([data-glass-id])).section-bloom-in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+.section-bloom:has([data-glass-id]) {
+  opacity: 0;
+  transition: opacity 520ms cubic-bezier(0.25, 0, 0, 1);
+}
+.section-bloom:has([data-glass-id]).section-bloom-in {
+  opacity: 1;
+}
+.section-bloom:has([data-glass-id]) [data-glass-id] {
+  transform: translateY(32px);
+  filter: blur(12px);
+  transition: transform 520ms cubic-bezier(0.25, 0, 0, 1),
+              filter 520ms cubic-bezier(0.25, 0, 0, 1);
+}
+.section-bloom:has([data-glass-id]).section-bloom-in [data-glass-id] {
   transform: none;
   filter: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .bloom-stage [data-bloom],
-  .section-bloom {
+  .section-bloom,
+  .section-bloom:has([data-glass-id]) [data-glass-id] {
     opacity: 1;
     transform: none;
     filter: none;
