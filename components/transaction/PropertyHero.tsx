@@ -572,7 +572,7 @@ export function PropertyHero({
       // Design Lab: `property-hero`. Default v27 (Classic frost bar,
       // Bespoke family) per Ellis's final pick set, 2026-08-08 evening
       // pass. Ellis's DB pick still overrides this.
-      <GlassCard glassId="property-hero" label="Property hero" defaultVariant="v27" className="animate-enter" style={{
+      <GlassCard glassId="property-hero" label="Property hero" defaultVariant="v27" style={{
         position: "relative",
         borderRadius: 18,
         overflow: "hidden",

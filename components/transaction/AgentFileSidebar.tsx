@@ -329,7 +329,7 @@ export function AgentFileSidebar({
   const showMessageAgent = !!(agentUser && agentUser.email && currentUserId !== agentUser.id);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ─── 1. Sale health ────────────────────────────────────────────── */}
       <GlassCard glassId="sidebar-sale-health" label="Sidebar · Sale health" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>

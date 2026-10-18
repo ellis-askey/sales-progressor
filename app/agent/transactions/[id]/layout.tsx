@@ -426,7 +426,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
 
       <FileProgressProvider seed={progressSeed} fallbackPercent={progress.percent}>
         {/* ── Zone 1: Hero ── */}
-        <div id="file-hero" style={{ marginBottom: 20, scrollMarginTop: 12 }}>
+        <div id="file-hero" className="agent-bloom" style={{ marginBottom: 20, scrollMarginTop: 12 }}>
           <PropertyHero
             address={transaction.propertyAddress}
             agencyName={transaction.agency.name}
@@ -470,9 +470,10 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           heroConnected
           tourSlot={transaction.isDemo ? <DemoTourMount autoStart={demoTourAutoStart} /> : undefined}
           beforeContent={
-            <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" className="ms-timeline-lite" style={{
+            <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" className="ms-timeline-lite agent-bloom" style={{
               borderRadius: 10,
               padding: "12px 18px",
+              animationDelay: "80ms",
             }}>
               <MilestoneTimelineStrip
                 stages={resolveDisplayStages(
