@@ -47,9 +47,9 @@ function splitAddress(address: string): { line: string; location: string } {
   return { line, location };
 }
 
-export function ExchangeOverdueCard({ items: initialItems }: { items: Item[] }) {
+export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = false }: { items: Item[]; defaultCollapsed?: boolean }) {
   const [items, setItems] = useState<Item[]>(initialItems);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [showAll, setShowAll] = useState(false);
   const [listRef] = useAutoAnimate<HTMLDivElement>();
 

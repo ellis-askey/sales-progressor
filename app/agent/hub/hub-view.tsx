@@ -675,6 +675,10 @@ async function AttentionSlot({
   const withPhotos = initialAttentionItems.map((i) => ({ ...i, photoUrl: signed(i.transaction.photoStoragePath) }));
   const exchangeOverdue = withPhotos.filter((i) => i.id.startsWith("xovr-"));
   const reminderItems = withPhotos.filter((i) => !i.id.startsWith("xovr-"));
+  // One-open rule: "Exchange dates passed" is open only when "Needs your
+  // attention" is empty (reminders + files to assign + relists + chain-setup all
+  // clear). When attention has anything, it's the open section and this collapses.
+  const attentionHasContent = reminderItems.length > 0 || unassignedFiles.length > 0 || relistsToAcknowledge.length > 0 || chainSetupPending.length > 0;
 
   return (
     <SectionReveal order={1}>
@@ -690,7 +694,7 @@ async function AttentionSlot({
         </AnimatedSection>
         {exchangeOverdue.length > 0 && (
           <AnimatedSection>
-            <ExchangeOverdueCard items={exchangeOverdue} />
+            <ExchangeOverdueCard items={exchangeOverdue} defaultCollapsed={attentionHasContent} />
           </AnimatedSection>
         )}
       </div>
