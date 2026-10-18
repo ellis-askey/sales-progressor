@@ -938,7 +938,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
           you money or credibility today" scale. Subtitle copy LOCKED by the
           founder, 2026-10-12. */}
       {filesAtRisk.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={2}>
           <HubListCard
             cardKind="files_at_risk"
             iconName="warning"
@@ -951,12 +951,12 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
         </SectionReveal>
       )}
       {bookings.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={3}>
           <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} defaultCollapsed={collapsedAt(1)} />
         </SectionReveal>
       )}
       {mortgage.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={4}>
           <HubListCard
             cardKind="mortgage_expiry"
             iconName="bank"
@@ -969,17 +969,17 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
         </SectionReveal>
       )}
       {needsFiling.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={5}>
           <NeedsFilingCard rows={needsFiling} defaultCollapsed={collapsedAt(3)} />
         </SectionReveal>
       )}
       {reviewsDue.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={6}>
           <ReviewsDueCard items={reviewsWithPhotos} defaultCollapsed={collapsedAt(4)} />
         </SectionReveal>
       )}
       {goneQuiet.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={7}>
           <HubListCard
             cardKind="gone_quiet"
             iconName="clock"
@@ -998,7 +998,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
         </SectionReveal>
       )}
       {stalledEnquiries.length > 0 && (
-        <SectionReveal order={1}>
+        <SectionReveal order={8}>
           <StalledEnquiriesCard rows={stalledEnquiries} signedPhotos={Object.fromEntries(photoMap)} defaultCollapsed={collapsedAt(6)} />
         </SectionReveal>
       )}
@@ -1017,7 +1017,7 @@ async function PipelineStagesSlot({ vis }: { vis: AgentVisibility }) {
   ].map((s) => s?.photoStoragePath).filter((p): p is string => !!p);
   const signed = await getSignedUrlMap(samplePaths).catch(() => new Map<string, string>());
   return (
-    <SectionReveal order={2}>
+    <SectionReveal order={9}>
       <PipelineAtAGlance stages={pipelineStages} signedPhotos={Object.fromEntries(signed)} />
     </SectionReveal>
   );
@@ -1062,7 +1062,7 @@ async function PipelineHealthCard({
   const hasHealthStats = health.medianDaysToExchange != null || health.within12WeekPct != null;
 
   return (
-    <SectionReveal order={3}>
+    <SectionReveal order={10}>
       <GlassCard glassId="hub-pipeline-health" label="Hub · Pipeline health" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
@@ -1305,7 +1305,7 @@ async function PipelineHealthCard({
 async function WinsCardSlot({ vis }: { vis: AgentVisibility }) {
   const wins = await getHubWins(vis);
   return (
-    <SectionReveal order={4}>
+    <SectionReveal order={11}>
       <GlassCard glassId="hub-wins" label="Hub · Wins this month" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <WinsCard wins={wins} />
       </GlassCard>
@@ -1329,7 +1329,7 @@ async function ExchangeForecastCard({ ctx }: { ctx: Ctx }) {
   // don't see fee figures (their per-sale pay is a separate, not-yet-built model).
   const showForecastFee = !isExternalProgressor || isBusinessOwner;
   return (
-    <SectionReveal order={5}>
+    <SectionReveal order={12}>
       <GlassCard glassId="hub-exchange-forecast" label="Hub · Exchange forecast" defaultVariant="v05" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
@@ -1396,7 +1396,7 @@ async function ClientsBreakdownCard({ ctx }: { ctx: Ctx }) {
   const clients = await getHubClientBreakdown(ctx.vis);
   const showFee = ctx.isBusinessOwner;
   return (
-    <SectionReveal order={6}>
+    <SectionReveal order={13}>
       <GlassCard glassId="hub-your-clients" label="Hub · Your clients" defaultVariant="v05" data-testid="hub-your-clients" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Your clients</p>
@@ -1444,7 +1444,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
   const team = multiProg ? "your progressors" : (pc.name ?? "our team");
   const Team = multiProg ? "Your progressors" : (pc.name ?? "Our team");
   return (
-    <SectionReveal order={6}>
+    <SectionReveal order={13}>
       <GlassCard glassId="hub-service-split" label="Hub · Service split" defaultVariant="v05" data-testid="hub-service-split" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
         <div className="agent-card-hdr-internal">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who's managing"}</p>
@@ -1580,7 +1580,7 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
   const feed = await getHubRecentActivityFeed(vis, 5);
   if (feed.length === 0) return null;
   return (
-    <SectionReveal order={7}>
+    <SectionReveal order={14}>
       <GlassCard
         glassId="hub-activity-ribbon"
         label="Hub · Recent activity"
