@@ -411,7 +411,9 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {active.map((t) => (
-              <ThreadCard key={t.id} thread={t} selected={t.id === selected?.id} onSelect={() => setSelectedId(t.id)} />
+              <div data-bloom key={t.id}>
+                <ThreadCard thread={t} selected={t.id === selected?.id} onSelect={() => setSelectedId(t.id)} />
+              </div>
             ))}
             {active.length === 0 && (
               <p style={{ fontSize: 12, color: "var(--agent-text-muted)", padding: "8px 12px" }}>Nothing active. Everything is resolved or paused.</p>

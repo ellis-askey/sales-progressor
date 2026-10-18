@@ -311,7 +311,9 @@ export function ManualTaskList({
       {myOpen.length > 0 && (
         <div>
           {myOpen.map((task) => (
-            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
+            <div data-bloom key={task.id}>
+              <ManualTaskCard task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
+            </div>
           ))}
         </div>
       )}
@@ -346,9 +348,11 @@ export function ManualTaskList({
 
       <div>
         {agentOpen.map((task) => (
-          perspective === "agent"
-            ? <AgentRequestRow key={task.id} task={task} progressorName={progressorName} />
-            : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+          <div data-bloom key={task.id}>
+            {perspective === "agent"
+              ? <AgentRequestRow task={task} progressorName={progressorName} />
+              : <ManualTaskCard task={task} onToggle={handleToggle} onDelete={handleDelete} />}
+          </div>
         ))}
         {agentOpen.length === 0 && (
           <div style={{ padding: "24px 16px", textAlign: "center" }}>
@@ -412,7 +416,9 @@ export function ManualTaskList({
       ) : (
         <div>
           {internalOpen.map((task) => (
-            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
+            <div data-bloom key={task.id}>
+              <ManualTaskCard task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
+            </div>
           ))}
           {internalDone.length > 0 && (
             <DoneDisclosure
