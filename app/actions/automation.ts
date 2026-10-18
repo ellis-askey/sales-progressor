@@ -85,9 +85,9 @@ export async function resumeClientEmails(transactionId: string): Promise<ActionR
 
 // Per-party email pause (solicitor-confirm feature). Powers the 4-toggle menu
 // on the file: seller / buyer / seller's firm / buyer's firm. Each toggle is
-// independent. clientEmailsPaused is kept in sync as (both client sides
-// paused) so the legacy chase-cron gate + status pills keep working while the
-// per-side reads roll out. See docs/active/solicitor-confirm/scope.md.
+// independent, and independent of the file-wide "Automatic chasing" master
+// (clientEmailsPaused) — a per-side pause never writes the master flag.
+// See docs/active/solicitor-confirm/scope.md.
 export type EmailAudience = "vendor" | "purchaser" | "vendorSolicitor" | "purchaserSolicitor";
 
 const AUDIENCE_FIELD: Record<EmailAudience, keyof PauseFlags> = {
@@ -180,8 +180,10 @@ export async function setEmailAudiencePaused(
     where: { id: tx.id },
     data: {
       ...next,
-      // Legacy single flag = both client sides paused.
-      clientEmailsPaused: next.vendorEmailsPaused && next.purchaserEmailsPaused,
+      // clientEmailsPaused is NOT derived here. It's the independent "Automatic
+      // chasing" master (owned by pause/resumeClientEmails). A per-side toggle
+      // must never clobber it, or pausing both client sides would silently flip
+      // the whole master off underneath the agent.
       ...(paused ? { pausedAt: new Date(), pausedById: session.user.id } : {}),
     },
   });
@@ -351,9 +353,9 @@ export async function setEnquiryChasePaused(transactionId: string, paused: boole
   return { ok: true };
 }
 
-// Pause / resume chase emails for ONE contact. The legacy whole-file
-// clientEmailsPaused flag stays in sync as "every pausable client contact
-// is paused" so status pills and the silenced-files list keep working.
+// Pause / resume chase emails for ONE contact. Independent of the file-wide
+// "Automatic chasing" master (clientEmailsPaused), which is owned solely by
+// pause/resumeClientEmails — pausing one contact never touches it.
 export async function setContactEmailsPaused(
   transactionId: string,
   contactId: string,
@@ -386,30 +388,12 @@ export async function setContactEmailsPaused(
     data: { emailsPausedAt: paused ? new Date() : null },
   });
 
-  // Re-derive the legacy whole-file flag from the current per-contact
-  // state (active-round, emailable contacts only, matching the drawer's
-  // list and the cron's recipients).
-  const pausable = await prisma.contact.findMany({
-    where: {
-      propertyTransactionId: tx.id,
-      roleType: { in: ["vendor", "purchaser"] },
-      email: { not: null },
-    },
-    select: { roleType: true, emailsPausedAt: true, buyerRoundId: true },
-  });
-  const relevant = pausable.filter((c) =>
-    c.roleType === "vendor" ||
-    c.buyerRoundId === null ||
-    c.buyerRoundId === tx.activeBuyerRoundId,
-  );
-  const allPaused = relevant.length > 0 && relevant.every((c) => c.emailsPausedAt != null);
-  await prisma.propertyTransaction.update({
-    where: { id: tx.id },
-    data: {
-      clientEmailsPaused: allPaused,
-      ...(paused ? { pausedAt: new Date(), pausedById: session.user.id } : {}),
-    },
-  });
+  // clientEmailsPaused is NOT re-derived from per-contact state. It's the
+  // independent "Automatic chasing" master (owned by pause/resumeClientEmails).
+  // Pausing every client individually must not flip the master off underneath,
+  // and the master must not be undone by a single contact toggle. The two live
+  // side by side: the master suppresses everything; the per-contact flags take
+  // effect only while the master is on.
 
   revalidatePath(`/agent/transactions/${transactionId}`);
   revalidatePath(`/transactions/${transactionId}`);

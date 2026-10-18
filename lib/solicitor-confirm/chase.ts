@@ -233,6 +233,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       isMigrated: true, // brought-in sales anchor chases on import time, not historical event dates
       agency: { select: { solicitorChaseEnabled: true } }, // self/TSP files gated by this; external files follow the business pref
       progressionBusinessId: true, // business can switch solicitor chases off (business automation)
+      clientEmailsPaused: true, // the file's "Automatic chasing" master — off = no chasing at all (clients OR solicitors)
       // Exchange-day suppression (see docs/active/exchange-day-SPEC.md).
       exchangeDayStartedAt: true,
       exchangeDayCancelledAt: true,
@@ -274,6 +275,11 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
     const externallyProgressed = !!bg && !bg.isTsp;
     if (!externallyProgressed && tx.agency.solicitorChaseEnabled === false) continue;
     if (!businessChaseAllows(businessGate, tx.progressionBusinessId, "solicitor")) continue;
+    // "Automatic chasing" master off for this file → chase nobody, solicitors
+    // included. Same flag the client-chase cron honours, so the single drawer
+    // switch silences every chase path on the file. Per-side pauses still apply
+    // below when the master is on.
+    if (tx.clientEmailsPaused) continue;
     // Exchange-day: don't chase solicitors on a file that's aiming to exchange
     // today — the exchange-day sequence handles them instead.
     if (isExchangeDayActive(tx)) continue;
