@@ -564,7 +564,12 @@ function FullHubBody({
           Needs filing → Files to review → Gone quiet. Order + the
           collapsed-by-default clutter rule live inside the slot. */}
       <Suspense fallback={null}>
-        <TriageCardsSlot ctx={ctx} attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)} />
+        <TriageCardsSlot
+          ctx={ctx}
+          attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)}
+          attentionHasReminders={initialAttentionItems.some((i) => !i.id.startsWith("xovr-"))}
+          hasExchangeOverdue={initialAttentionItems.some((i) => i.id.startsWith("xovr-"))}
+        />
       </Suspense>
 
       {/* Pipeline at a glance — 5 stage tiles */}
@@ -850,19 +855,26 @@ function buildBookingRows(
 // attention+bookings; gone-quiet excludes all three. Bookings are deliberately
 // NOT deduped against attention — confirming a client's booking is a distinct
 // action from an overdue chase, so a file legitimately appears in both.
-async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxIds: string[] }) {
+async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, hasExchangeOverdue }: { ctx: Ctx; attentionTxIds: string[]; attentionHasReminders: boolean; hasExchangeOverdue: boolean }) {
   const vis = ctx.vis;
+  const canSeeUnassigned = !(ctx.isExternalProgressor && !ctx.isBusinessOwner);
   // Provisional buyer bookings awaiting our confirmation — agency (self-managed)
   // and internal (outsourced) both see their own, scoped inside the service.
   const bookings = await getBookingsToConfirm(vis);
   const bookingTxIds = bookings.map((b) => b.transactionId);
-  const [mortgage, needsFiling, reviewsResult, filesAtRisk] = await Promise.all([
+  const [mortgage, needsFiling, reviewsResult, filesAtRisk, unassigned, relists, chainSetup] = await Promise.all([
     getUpcomingMortgageExpiries(vis, [...attentionTxIds, ...bookingTxIds]),
     getPendingInboundEmails(),
     listReviews(getAccessScope(ctx.session)).catch(() => ({ items: [] as Awaited<ReturnType<typeof listReviews>>["items"] })),
     // Files at risk dedupes against attention only — like bookings, a frozen
     // file with a provisional survey booking is two distinct actions.
     getFilesAtRisk(vis, attentionTxIds),
+    // Re-read the "Needs your attention" queues (also fetched in AttentionSlot)
+    // so the one-open rule below knows whether anything above the triage group
+    // has content. Cheap list queries; kept here to preserve per-slot streaming.
+    canSeeUnassigned ? getHubUnassignedFiles(vis) : Promise.resolve([] as Awaited<ReturnType<typeof getHubUnassignedFiles>>),
+    getHubRelistsToAcknowledge(vis),
+    getHubChainSetupPending(vis),
   ]);
   const mortgageTxIds = mortgage.map((m) => m.transactionId);
   // Gone quiet shows for self-managed agencies and internal staff alike
@@ -890,7 +902,21 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
     (goneQuiet.length > 0 ? 1 : 0) +
     (stalledEnquiries.length > 0 ? 1 : 0);
   if (presentCount === 0) return null;
-  const startCollapsed = presentCount > 1;
+
+  // One-open rule (Ellis, 2026-10-18): exactly one hub section is open by
+  // default — the first non-empty in priority order. "Needs your attention"
+  // (reminders + files to assign + relists + chain-setup) ranks first; "Exchange
+  // dates passed" second (always shown, not collapsible); then these triage
+  // cards. So if anything above is present, every triage card starts collapsed;
+  // otherwise the first present triage card opens and the rest collapse.
+  const attentionHasContent = attentionHasReminders || unassigned.length > 0 || relists.length > 0 || chainSetup.length > 0;
+  const anythingAbove = attentionHasContent || hasExchangeOverdue;
+  const triagePresent = [
+    filesAtRisk.length > 0, bookings.length > 0, mortgage.length > 0,
+    needsFiling.length > 0, reviewsDue.length > 0, goneQuiet.length > 0, stalledEnquiries.length > 0,
+  ];
+  const openIdx = anythingAbove ? -1 : triagePresent.indexOf(true);
+  const collapsedAt = (idx: number) => idx !== openIdx;
 
   const photoMap = await getSignedUrlMap([
     ...filesAtRisk.map((i) => i.photoStoragePath),
@@ -920,13 +946,13 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             title="Files at risk"
             subtitle="Our overnight checks have flagged sales that may have stalled or need a follow-up."
             rows={buildFilesAtRiskRows(filesAtRisk, photoMap)}
-            defaultCollapsed={startCollapsed}
+            defaultCollapsed={collapsedAt(0)}
           />
         </SectionReveal>
       )}
       {bookings.length > 0 && (
         <SectionReveal order={1}>
-          <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} defaultCollapsed={startCollapsed} />
+          <BookingsToConfirmCard rows={buildBookingRows(bookings, photoMap)} defaultCollapsed={collapsedAt(1)} />
         </SectionReveal>
       )}
       {mortgage.length > 0 && (
@@ -938,18 +964,18 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
             title="Mortgage offers expiring"
             subtitle="Client mortgage offers nearing their expiry."
             rows={buildMortgageRows(mortgage, photoMap)}
-            defaultCollapsed={startCollapsed}
+            defaultCollapsed={collapsedAt(2)}
           />
         </SectionReveal>
       )}
       {needsFiling.length > 0 && (
         <SectionReveal order={1}>
-          <NeedsFilingCard rows={needsFiling} defaultCollapsed={startCollapsed} />
+          <NeedsFilingCard rows={needsFiling} defaultCollapsed={collapsedAt(3)} />
         </SectionReveal>
       )}
       {reviewsDue.length > 0 && (
         <SectionReveal order={1}>
-          <ReviewsDueCard items={reviewsWithPhotos} defaultCollapsed={startCollapsed} />
+          <ReviewsDueCard items={reviewsWithPhotos} defaultCollapsed={collapsedAt(4)} />
         </SectionReveal>
       )}
       {goneQuiet.length > 0 && (
@@ -967,13 +993,13 @@ async function TriageCardsSlot({ ctx, attentionTxIds }: { ctx: Ctx; attentionTxI
               ? "Quiet for a while and may need a personal nudge."
               : "A client who was previously engaged has gone quiet. A quick personal check-in can help re-engage them."}
             rows={buildGoneQuietRows(goneQuiet, photoMap)}
-            defaultCollapsed={startCollapsed}
+            defaultCollapsed={collapsedAt(5)}
           />
         </SectionReveal>
       )}
       {stalledEnquiries.length > 0 && (
         <SectionReveal order={1}>
-          <StalledEnquiriesCard rows={stalledEnquiries} signedPhotos={Object.fromEntries(photoMap)} defaultCollapsed={startCollapsed} />
+          <StalledEnquiriesCard rows={stalledEnquiries} signedPhotos={Object.fromEntries(photoMap)} defaultCollapsed={collapsedAt(6)} />
         </SectionReveal>
       )}
     </>
