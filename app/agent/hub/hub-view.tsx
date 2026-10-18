@@ -549,42 +549,32 @@ function FullHubBody({
   initialAttentionItems: Awaited<ReturnType<typeof getHubAttentionItems>>;
 }) {
   return (
-    <>
-      {/* Today's diary — hidden when empty */}
-      <Suspense fallback={null}>
-        <DiarySlot vis={ctx.vis} />
-      </Suspense>
+    <Suspense fallback={null}>
+      {/* ONE Suspense boundary, not per-section: the hub gathers every section's
+          data first, then mounts them all together so the load-in cascade flows
+          without the streaming layout-shuffle (render-all-then-bloom, 2026-10-18).
+          Quiet body during the wait; the greeting above stays. */}
+      <DiarySlot vis={ctx.vis} />
 
-      {/* Unified attention card */}
-      <Suspense fallback={<InlineLoadingCard label="Looking for anything needing attention…" minHeight={140} />}>
-        <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} canSeeUnassigned={!(ctx.isExternalProgressor && !ctx.isBusinessOwner)} />
-      </Suspense>
+      <AttentionSlot vis={ctx.vis} initialAttentionItems={initialAttentionItems} canSeeUnassigned={!(ctx.isExternalProgressor && !ctx.isBusinessOwner)} />
 
       {/* Triage cards — Bookings to confirm → Mortgage offers expiring →
           Needs filing → Files to review → Gone quiet. Order + the
           collapsed-by-default clutter rule live inside the slot. */}
-      <Suspense fallback={null}>
-        <TriageCardsSlot
-          ctx={ctx}
-          attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)}
-          attentionHasReminders={initialAttentionItems.some((i) => !i.id.startsWith("xovr-"))}
-          hasExchangeOverdue={initialAttentionItems.some((i) => i.id.startsWith("xovr-"))}
-        />
-      </Suspense>
+      <TriageCardsSlot
+        ctx={ctx}
+        attentionTxIds={initialAttentionItems.map((i) => i.transaction.id)}
+        attentionHasReminders={initialAttentionItems.some((i) => !i.id.startsWith("xovr-"))}
+        hasExchangeOverdue={initialAttentionItems.some((i) => i.id.startsWith("xovr-"))}
+      />
 
       {/* Pipeline at a glance — 5 stage tiles */}
-      <Suspense fallback={<InlineLoadingCard label="Loading pipeline stages…" minHeight={100} />}>
-        <PipelineStagesSlot vis={ctx.vis} />
-      </Suspense>
+      <PipelineStagesSlot vis={ctx.vis} />
 
       {/* Pipeline health + Wins grid */}
       <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-        <Suspense fallback={<InlineLoadingCard label="Loading pipeline health…" minHeight={260} />}>
-          <PipelineHealthCard ctx={ctx} initialPipelineStats={initialPipelineStats} initialAttentionItems={initialAttentionItems} />
-        </Suspense>
-        <Suspense fallback={<InlineLoadingCard label="Loading recent wins…" minHeight={260} />}>
-          <WinsCardSlot vis={ctx.vis} />
-        </Suspense>
+        <PipelineHealthCard ctx={ctx} initialPipelineStats={initialPipelineStats} initialAttentionItems={initialAttentionItems} />
+        <WinsCardSlot vis={ctx.vis} />
       </div>
 
       {/* Exchange forecast + (service split / your clients) grid. An external
@@ -598,27 +588,19 @@ function FullHubBody({
         const twoCol = !(ctx.isProgressor && !ctx.isAdmin && !showClientsCard);
         return (
           <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr", gap: 16 }}>
-            <Suspense fallback={<InlineLoadingCard label="Loading exchange forecast…" minHeight={220} />}>
-              <ExchangeForecastCard ctx={ctx} />
-            </Suspense>
+            <ExchangeForecastCard ctx={ctx} />
             {showClientsCard ? (
-              <Suspense fallback={<InlineLoadingCard label="Loading your clients…" minHeight={220} />}>
-                <ClientsBreakdownCard ctx={ctx} />
-              </Suspense>
+              <ClientsBreakdownCard ctx={ctx} />
             ) : (!ctx.isProgressor || ctx.isAdmin) && (
-              <Suspense fallback={<InlineLoadingCard label="Loading service split…" minHeight={220} />}>
-                <ServiceSplitCard ctx={ctx} />
-              </Suspense>
+              <ServiceSplitCard ctx={ctx} />
             )}
           </div>
         );
       })()}
 
       {/* Recent activity feed */}
-      <Suspense fallback={null}>
-        <ActivityRibbonSlot vis={ctx.vis} />
-      </Suspense>
-    </>
+      <ActivityRibbonSlot vis={ctx.vis} />
+    </Suspense>
   );
 }
 
