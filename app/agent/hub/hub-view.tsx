@@ -681,8 +681,11 @@ async function AttentionSlot({
   const attentionHasContent = reminderItems.length > 0 || unassignedFiles.length > 0 || relistsToAcknowledge.length > 0 || chainSetupPending.length > 0;
 
   return (
-    <SectionReveal order={1}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <>
+      {/* Needs-your-attention and Exchange-dates-passed reveal as separate beats
+          (order 1 then 1.5) instead of together — they used to share one
+          SectionReveal. */}
+      <SectionReveal order={1}>
         <AnimatedSection>
           <AttentionCard
             holds={[]}
@@ -692,13 +695,15 @@ async function AttentionSlot({
             chainSetup={chainSetupPending.map((f) => ({ ...f, photoUrl: signed(f.photoStoragePath) }))}
           />
         </AnimatedSection>
-        {exchangeOverdue.length > 0 && (
+      </SectionReveal>
+      {exchangeOverdue.length > 0 && (
+        <SectionReveal order={1.5}>
           <AnimatedSection>
             <ExchangeOverdueCard items={exchangeOverdue} defaultCollapsed={attentionHasContent} />
           </AnimatedSection>
-        )}
-      </div>
-    </SectionReveal>
+        </SectionReveal>
+      )}
+    </>
   );
 }
 
