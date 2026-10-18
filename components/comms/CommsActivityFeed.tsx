@@ -469,7 +469,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
     <>
       <style>{CF_STYLES}</style>
       <div className="cf-layout">
-        <aside className="cf-side">
+        <aside className="cf-side agent-bloom">
           {/* Wide screens: a left rail with collapsible sections. */}
           <div className="cf-rail-wrap">
             <div className="cf-rail">

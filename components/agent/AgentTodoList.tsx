@@ -315,7 +315,7 @@ function Section({
 
       {/* Overdue sub-group */}
       {overdueGroups.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: openGroups.length > 0 ? 8 : 0 }}>
+        <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: openGroups.length > 0 ? 8 : 0 }}>
           {overdueGroups.map((group) => (
             <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} overdue isProgressorView={isProgressorView} />
           ))}
@@ -338,7 +338,7 @@ function Section({
           </p>
         </div>
       ) : openGroups.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {openGroups.map((group) => (
             <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} isProgressorView={isProgressorView} />
           ))}

@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { BloomStage } from "@/components/agent/BloomStage";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { hasAdminPowers } from "@/lib/agent-session";
@@ -192,7 +193,7 @@ export default async function AgentPartnersPage() {
   return (
     <>
       <PageHeader title="Partners" subtitle="Solicitors, brokers, and preferred professional partners." />
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-4 agent-bloom-stagger">
+      <BloomStage className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
         {showOnboarding ? (
           <PartnersEmptyState
@@ -213,7 +214,7 @@ export default async function AgentPartnersPage() {
         {isDirector && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* Preferred mortgage broker */}
-            <Card padding="lg">
+            <Card padding="lg" data-bloom>
               <div className="mb-5">
                 <h2 className="text-sm font-bold text-slate-900/80 mb-1">Preferred mortgage broker</h2>
                 <p className="text-xs text-slate-900/50">
@@ -228,7 +229,7 @@ export default async function AgentPartnersPage() {
             {/* Recommended solicitors. overflow-visible + raised stacking so the
                 firm-search dropdown can spill past the card edge and sit above
                 the cards below, instead of being clipped by Card's overflow-hidden. */}
-            <Card padding="lg" className="relative z-30" style={{ overflow: "visible" }}>
+            <Card padding="lg" className="relative z-30" data-bloom style={{ overflow: "visible" }}>
               <div className="mb-5">
                 <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
                 <p className="text-xs text-slate-900/50">
@@ -263,7 +264,7 @@ export default async function AgentPartnersPage() {
         )}
         </>
         )}
-      </div>
+      </BloomStage>
     </>
   );
 }
