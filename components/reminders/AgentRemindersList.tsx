@@ -1533,8 +1533,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           const drawCards = !isCollapsed || everOpenRef.current.has(grp.key);
           const fileGroups = drawCards ? groupByFile(grp.logs) : [];
           return (
-            <div key={grp.key} data-bloom className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
+            <div key={grp.key} className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
               <div
+                data-bloom
                 className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl`}
                 role="button"
                 tabIndex={0}
@@ -1560,11 +1561,13 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                       cluster can hide when the column is too narrow for it. */}
                   <div className="space-y-3 wq-cardq" style={{ padding: "4px 0 40px" }}>
                     {drawCards && enquiryCards.map((e) => (
-                      <EnquiryEscalationCard key={`enq-${e.transactionId}`} reminder={e} photoUrl={photoByTx?.get(e.transactionId) ?? null} />
+                      <div data-bloom key={`enq-${e.transactionId}`}>
+                        <EnquiryEscalationCard reminder={e} photoUrl={photoByTx?.get(e.transactionId) ?? null} />
+                      </div>
                     ))}
                     {fileGroups.map(({ txId, address, logs: fileLogs }) => (
+                      <div data-bloom key={txId}>
                       <SplitFileCard
-                        key={txId}
                         txId={txId}
                         address={address}
                         photoUrl={photoByTx?.get(txId) ?? null}
@@ -1583,6 +1586,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                         hideChase={hideChase}
                         currentUserId={currentUserId}
                       />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1625,8 +1629,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         ) : (
           <div className="space-y-3">
             {groupByFile(filteredSnoozed).map(({ txId, address, logs: fileLogs }) => (
+              <div data-bloom key={txId}>
               <SnoozedFileCard
-                key={txId}
                 txId={txId}
                 address={address}
                 photoUrl={photoByTx?.get(txId) ?? null}
@@ -1637,6 +1641,7 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                 onWakeup={handleWakeup}
                 handleSnooze={handleSnooze}
               />
+              </div>
             ))}
           </div>
         )

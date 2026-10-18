@@ -27,6 +27,7 @@ export function DocumentsList({ docs }: { docs: LiveTransactionDocumentRow[] }) 
       {docs.map((doc) => (
         <div
           key={doc.id}
+          data-bloom
           className="flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{ background: "rgba(255,255,255,0.4)" }}
         >

@@ -11,7 +11,7 @@ export async function DocumentsPanel({ transactionId }: { transactionId: string 
 
   return (
     <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4" data-bloom>
         <p className="glass-section-label text-slate-900/40">Documents ({docs.length})</p>
         <AgentDocumentUpload transactionId={transactionId} />
       </div>

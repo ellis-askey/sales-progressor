@@ -8,5 +8,5 @@ export const unstable_dynamicStaleTime = 300;
 export default async function DocumentsTabPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { transaction } = await loadFilePageContext(id);
-  return <TabEnter><DocumentsPanel transactionId={transaction.id} /></TabEnter>;
+  return <TabEnter stage><DocumentsPanel transactionId={transaction.id} /></TabEnter>;
 }
