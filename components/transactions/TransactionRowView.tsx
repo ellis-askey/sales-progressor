@@ -34,7 +34,7 @@ export type FilesColumn =
   | "stage" | "activity" | "exchange" | "keydate"
   | "review" | "paused"
   | "soldfor" | "exchanged" | "completed"
-  | "withdrawnDate" | "reason"
+  | "reached" | "withdrawnDate" | "reason"
   | "handled";
 
 export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?: boolean): FilesColumn[] {
@@ -43,7 +43,7 @@ export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?:
     case "active":    cols = ["stage", "activity", "exchange"]; break;
     case "on_hold":   cols = ["stage", "review", "paused"]; break;
     case "completed": cols = ["soldfor", "exchanged", "completed"]; break;
-    case "withdrawn": cols = ["withdrawnDate", "reason"]; break;
+    case "withdrawn": cols = ["reached", "withdrawnDate", "reason"]; break;
     default:          cols = ["stage", "activity", "keydate"]; break; // all + draft
   }
   if (showAssigned) cols.push("handled");
@@ -55,21 +55,21 @@ const COL_TRACK: Record<FilesColumn, string> = {
   stage: "190px", activity: "minmax(220px,1.35fr)", exchange: "190px", keydate: "190px",
   review: "140px", paused: "minmax(200px,1.2fr)",
   soldfor: "120px", exchanged: "150px", completed: "150px",
-  withdrawnDate: "150px", reason: "minmax(240px,1.6fr)",
+  reached: "190px", withdrawnDate: "150px", reason: "minmax(240px,1.6fr)",
   handled: "160px",
 };
 // Min px each track can shrink to — drives the card↔grid switch bucket.
 const COL_MIN: Record<FilesColumn, number> = {
   stage: 190, activity: 220, exchange: 190, keydate: 190,
   review: 140, paused: 200, soldfor: 120, exchanged: 150, completed: 150,
-  withdrawnDate: 150, reason: 240, handled: 160,
+  reached: 190, withdrawnDate: 150, reason: 240, handled: 160,
 };
 // Card mini-labels (and the desktop header labels, via TransactionTable).
 export const COL_LABEL: Record<FilesColumn, string> = {
   stage: "Stage / Progress", activity: "Latest activity / Next step", exchange: "Exchange forecast",
   keydate: "Key date", review: "Review due", paused: "Paused",
   soldfor: "Sold for", exchanged: "Exchanged", completed: "Completed",
-  withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
+  reached: "Reached", withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
 };
 
 // Grid = flexible property column + one track per visible column.
@@ -567,6 +567,33 @@ function StageCell({ tx }: { tx: TransactionRow }) {
   return <div className="files-stagecell"><JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover></div>;
 }
 
+// Withdrawn files: how far the sale got before it fell through. Same six-stage
+// shape as the live journey bar, but dimmed red — "it reached here, then
+// stopped". boardStage is resolved for withdrawn files too (page-level), from
+// the milestone completions that survive the withdrawal, so this is real
+// furthest-stage data, not an estimate.
+const REACHED_FILL = "rgba(199,62,62,0.32)";
+function ReachedCell({ tx }: { tx: TransactionRow }) {
+  if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
+  const idx = DISPLAY_STAGES.findIndex((s) => s.key === tx.boardStage);
+  if (idx < 0) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
+  const name = DISPLAY_STAGES[idx].name;
+  const total = DISPLAY_STAGES.length;
+  return (
+    <span style={{ display: "block", width: "100%" }}>
+      <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--agent-text-secondary)" }}>{name}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{idx + 1} of {total}</span>
+      </span>
+      <span style={{ display: "flex", gap: 3 }}>
+        {Array.from({ length: total }).map((_, i) => (
+          <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i <= idx ? REACHED_FILL : "var(--agent-border-subtle)" }} />
+        ))}
+      </span>
+    </span>
+  );
+}
+
 // One status/risk marker beside the address. On the single-status tabs the
 // status is the tab, so only the risk cue (active) is shown; on All it's the
 // status for non-active rows, else the risk cue.
@@ -595,6 +622,7 @@ function renderCell(col: FilesColumn, tx: TransactionRow): ReactNode {
     case "soldfor": return <SoldForCell tx={tx} />;
     case "exchanged": return <DateCell d={tx.exchangedAt} />;
     case "completed": return <DateCell d={tx.completionDate} />;
+    case "reached": return <ReachedCell tx={tx} />;
     case "withdrawnDate": return <DateCell d={tx.updatedAt} />;
     case "reason": return <ReasonCell tx={tx} />;
     case "handled": return <HandledBy tx={tx} />;

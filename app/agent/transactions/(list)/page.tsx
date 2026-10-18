@@ -166,7 +166,12 @@ export default async function AllTransactionsPage({
   // getWorkQueueItems are the canonical detectors — imported, not re-derived.
   const [photoMap, stageMap, quietFiles, workQueue] = await Promise.all([
     getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath)),
-    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active").map((t) => t.id)),
+    // Active files draw the live journey bar; withdrawn files draw the faded
+    // "how far it got" (Reached) bar on the Withdrawn tab — both derive from
+    // the same resolver, so the stage map covers both. Milestone completions
+    // survive a withdrawal (the status change never deletes them), so the
+    // furthest stage is still real data, not a guess.
+    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn").map((t) => t.id)),
     inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis, [], { isExternalProgressor }).catch(() => []),
     inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
   ]);
