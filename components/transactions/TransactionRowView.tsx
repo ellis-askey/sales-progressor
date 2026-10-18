@@ -562,7 +562,9 @@ function KeyDateCell({ tx }: { tx: TransactionRow }) {
 
 function StageCell({ tx }: { tx: TransactionRow }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>—</span>;
-  return <JourneyHover stage={tx.boardStage}><JourneyBar stage={tx.boardStage} /></JourneyHover>;
+  // block=true + .files-stagecell CSS makes the bar fill its column (desktop) and
+  // the full card width (mobile), instead of its fixed 210px (which overflowed).
+  return <div className="files-stagecell"><JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover></div>;
 }
 
 // One status/risk marker beside the address. On the single-status tabs the

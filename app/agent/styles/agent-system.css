@@ -5405,6 +5405,11 @@ body[data-demo-file] [data-onboarding-checklist] {
    clear of the thumbnail) instead of the fixed 210px desktop cap. Vertical rhythm
    is handled by the card's space-y, so drop the bar's own top margin here. */
 .files-row-card .jrn { width: 100%; margin-top: 0; }
+/* Stage is its own column now (files-table redesign) — the bar fills its cell /
+   card block instead of its legacy fixed 210px, so it never overflows a 190px
+   grid track or sits narrow on a card. */
+.files-stagecell { width: 100%; }
+.files-stagecell .jrn { width: 100%; max-width: 100%; margin-top: 0; }
 .jrn-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
 .jrn-stage { font-size: 11px; font-weight: 700; letter-spacing: -0.01em; color: var(--agent-coral-deep); }
 .jrn-count { font-size: 10px; font-weight: 600; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; }
