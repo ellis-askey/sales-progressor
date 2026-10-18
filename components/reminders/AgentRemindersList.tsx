@@ -806,7 +806,7 @@ function SplitFileCard({
                 </p>
               )}
               {(copy?.line ?? info?.outstanding) && (
-                <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05)" }}>
                   {copy?.line ?? info?.outstanding}
                 </p>
               )}
