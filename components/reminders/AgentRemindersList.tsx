@@ -669,28 +669,9 @@ function SplitFileCard({
               />
             </span>
           )}
-          {(() => {
-            // Side pill: shown when every reminder on the file is the same side
-            // (one or many); hidden on a mixed-side file (founder, 2026-10-15).
-            // On mobile it renders the word only (no role icon) — mobileLabelOnly.
-            const sideLogs = openTasks.length > 0 ? openTasks.map((o) => o.log) : scheduledLogs;
-            const sides = new Set(sideLogs.map(isBuyerLog));
-            const showSide = sideLogs.length > 0 && sides.size === 1;
-            const sBuyer = sideLogs[0] ? isBuyerLog(sideLogs[0]) : false;
-            // Urgency pill: single-reminder files only, and only when it says
-            // more than the row's own "Next chase due · date" line (so the plain
-            // "Next {date}" form is dropped on coming-up / chased rows).
-            const s = isSingle ? openTasks[0] : null;
-            const u = s ? computeUrgency(s.log, s.task) : null;
-            const showUrgency = !!u && !u.isNextDate;
-            if (!showSide && !showUrgency) return null;
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {showSide && <SidePill isBuyer={sBuyer} mobileLabelOnly />}
-                {showUrgency && u && <UrgencyPill label={u.label} bucket={u.bucket} chased={u.hasBeenChased} title={u.title} />}
-              </div>
-            );
-          })()}
+          {/* Buyer/seller + urgency/clock pills removed (critique #285) — the side
+              is named in the supporting sentence and the due date lives in the
+              right-hand column, so the pills were redundant here. */}
         </div>
         {/* Collapse chevron — rotates down when the file is folded. */}
         <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, transition: "transform 220ms cubic-bezier(0.25,0,0,1)", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }}>
@@ -810,8 +791,18 @@ function SplitFileCard({
                   line — the explanation always names the side ("The buyer needs
                   to…" fallback) and the date lives in the right-hand due column. */}
               {who && (
-                <p className="rem-chasing-line" style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                  Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
+                <p
+                  className={`rem-chasing-line${solFirm && !linkFirmInTitle ? " rem-chasing-line-desktop" : ""}`}
+                  style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}
+                >
+                  Chasing{" "}
+                  {solFirm ? (
+                    <Link href={`/agent/partners/solicitor/${solFirm.id}`} className="rem-firm-link" style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+                      {who.name}
+                    </Link>
+                  ) : (
+                    <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>{who.name}</b>
+                  )}
                 </p>
               )}
               {(copy?.line ?? info?.outstanding) && (
@@ -823,15 +814,9 @@ function SplitFileCard({
               {lastChasedLine && (
                 <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-disabled)" }}>{lastChasedLine}</p>
               )}
-              {solFirm && !linkFirmInTitle && (
-                <Link
-                  href={`/agent/partners/solicitor/${solFirm.id}`}
-                  className="agent-link rem-sol-link"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 2, marginTop: 6, fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)" }}
-                >
-                  {solFirm.name} <LinkArrow />
-                </Link>
-              )}
+              {/* Standalone "firm ›" chevron row removed (critique #285) — the
+                  "Chasing {firm}" line above is now the clickable link (and shows
+                  on desktop when the firm isn't already linked in the title). */}
               {escalationLine && (
                 <p style={{ margin: "3px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ {escalationLine}</p>
               )}

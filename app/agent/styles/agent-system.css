@@ -3713,6 +3713,10 @@
    * step name and the supporting sentence already name the party, so it'd triple. */
   @media (min-width: 768px) {
     .rem-chasing-line { display: none; }
+    /* …except when it carries the clickable solicitor-firm link that used to live
+       in the separate chevron row (critique #285) — show it on desktop too so the
+       firm link survives on files whose title doesn't already name the firm. */
+    .rem-chasing-line.rem-chasing-line-desktop { display: block; }
   }
 
   /* "View" button on the auto-chase countdown — opens the email preview. */
