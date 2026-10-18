@@ -184,7 +184,7 @@ One data source, two views (the same `WhatsAppThread`/`OutboundMessage` rows):
 - **Central inbox** `/agent/messages`: thread list (unread, awaiting-reply = lastInbound > lastOutbound, buyers/sellers, needs-assigning for permitted scope), search, composer with window-state awareness, assignment UI. Access-scoped via `getAccessScope` (Law 7) exactly like transactions.
 - **Transaction tab**: the existing WhatsApp tab (currently internal-only) becomes the per-file view for all roles with file access: buyer-side and seller-side threads, full history, reply inline. The internal-only gate drops once sending is real.
 - **Realtime**: poll-based refresh initially (matches app conventions; the portal/agent app has no websocket infra), 10–15s on open thread view; revisit SSE later. Unread state per user via a lightweight read-cursor on the thread.
-- Activity timeline: WhatsApp rows join the main timeline (ending the deliberate exclusion) with the channel badge, now that senders/statuses are trustworthy; the WhatsApp tab remains the full-fidelity conversation view.
+- Activity timeline: **VETOED by founder 2026-10-13** — WhatsApp rows stay OUT of the Activity timeline (the existing `getActivityTimeline` exclusion remains). WhatsApp lives exclusively in its own per-file tab + the central inbox, so chat volume never drowns the activity feed.
 
 ### C5. Indicator repairs (ties to §A6/§D)
 
@@ -208,7 +208,7 @@ Surfaces that change (file refs in §A):
 2. `ContactsSection` — WhatsApp quick-action becomes "open thread" (deep link remains as secondary "open in WhatsApp app"); `LastContactedPill` gains confirmed-status semantics + last-reply line; chases-pill counts WhatsApp.
 3. `WhatsAppChat`/`WhatsAppPanel` + file tab — becomes the per-file thread view, un-gated from internal-only, send-capable.
 4. NEW `/agent/messages` central inbox.
-5. `ActivityTimeline` — WhatsApp rows included with badges.
+5. `ActivityTimeline` — unchanged (founder veto 2026-10-13: WhatsApp stays out of the Activity feed; its own tab + central inbox only).
 6. Hub cards (`gone quiet`, `no-comms`, weekly touch) — no structural change; inherit honest statuses; copy audit for "contact" definitions.
 7. Command Centre `/command/whatsapp` — reworked around Cloud numbers: health, quality rating, messaging tier, template statuses, needs-assigning queue (kept), per-tenant number list.
 8. `WhatsAppConnectionCard` (agent Connections) — replaced by business-number management (TSP-owned now; Embedded Signup entry later). QR pairing UI retires with the bridge.

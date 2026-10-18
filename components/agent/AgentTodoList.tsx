@@ -102,6 +102,11 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   // Which tab is showing (critique #261). Progressors land on Internal, agencies
   // on their own To-Do.
   const [activeTab, setActiveTab] = useState<string>(isInternal ? "internal" : "mine");
+  // The Add-to-do form's open state, lifted so the trigger can live in the tab
+  // row (right-aligned) while the form renders in the panel below. Reset on tab
+  // change so switching tabs doesn't leave a stray open form.
+  const [addOpen, setAddOpen] = useState(false);
+  const changeTab = (key: string) => { setAddOpen(false); setActiveTab(key); };
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
     try {
@@ -187,15 +192,27 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       ];
   const safeActive = tabs.some((t) => t.key === activeTab) ? activeTab : (tabs[0]?.key ?? "mine");
 
+  // Primary "Add" trigger that sits on the tab row (right-aligned). Only on the
+  // tabs that have an add form, and hidden while the form is open.
+  const canAdd = safeActive === "internal" || safeActive === "mine";
+  const addAction = canAdd && !addOpen ? (
+    <button type="button" onClick={() => setAddOpen(true)} className="agent-btn agent-btn-sm agent-btn-primary">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      {safeActive === "internal" ? "Add internal to-do" : "Add to-do"}
+    </button>
+  ) : null;
+
   return (
     <PhotoContext.Provider value={photoByTx ?? null}>
     <ProgressorNameContext.Provider value={progressorName}>
     <DueDateContext.Provider value={handleDueDate}>
-    <TodoTabs tabs={tabs} active={safeActive} onChange={setActiveTab}>
+    <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction}>
       {/* ── To-Do (agency): add form + my notes ── */}
       {safeActive === "mine" && (
         <div className="space-y-8">
-          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} />
+          <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-mine"
             title="My to-dos"
@@ -215,7 +232,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       {/* ── Internal (progressor): add form + internal notes ── */}
       {safeActive === "internal" && (
         <div className="space-y-8">
-          <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} />
+          <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-internal"
             title="Internal to-dos"

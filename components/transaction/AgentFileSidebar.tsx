@@ -19,7 +19,6 @@
 // surface. The two implementations will converge later.
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buildCheckInMessage, type DueStep } from "@/lib/chase/step-questions";
 import { markStepsChasedAction } from "@/app/actions/tasks";
@@ -35,7 +34,7 @@ import { StampDutyQuickAction } from "@/components/transaction/StampDutyDrawer";
 import { CompletionDateInline } from "@/components/transaction/CompletionDateInline";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
-import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, Link as LinkIcon, ArrowSquareOut, EnvelopeSimple, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
+import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, EnvelopeSimple, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { ProgressResult } from "@/lib/services/fees";
@@ -122,9 +121,6 @@ type Props = {
   // Session viewer id used to hide the "Message agent" button when the
   // viewer IS the owner agent (self-mail is a no-op).
   currentUserId?: string | null;
-  // For the "Open in client portal" quick link — the first vendor
-  // contact with a portal token. If unset, the link is hidden.
-  primaryPortalHref?: string | null;
   // 2026-07-06 mock: Last activity timestamp on the file, shown as a
   // relative-time row in the Sale health card.
   lastActivityAt?: Date | null;
@@ -225,7 +221,6 @@ export function AgentFileSidebar({
   agentSlot,
   riskInput,
   currentUserId,
-  primaryPortalHref,
   lastActivityAt,
   previousSales = [],
   checkIn,
@@ -697,18 +692,22 @@ export function AgentFileSidebar({
           letterSpacing: "0.06em",
         }}>Quick links</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {primaryPortalHref && (
-            <QuickLinkExternal href={primaryPortalHref} label="Open in client portal" Icon={LinkIcon} />
-          )}
           {transaction.purchasePrice != null && transaction.purchasePrice > 0 && (
             <StampDutyQuickAction priceGBP={transaction.purchasePrice / 100} />
           )}
-          <SendQuoteLinkQuickAction transactionId={transaction.id} />
-          {checkIn && checkIn.seller.steps.length > 0 && (
-            <CheckInQuickAction label="Copy seller check-in" side={checkIn.seller} transactionId={checkIn.transactionId} />
-          )}
-          {checkIn && checkIn.buyer.steps.length > 0 && (
-            <CheckInQuickAction label="Copy buyer check-in" side={checkIn.buyer} transactionId={checkIn.transactionId} />
+          {/* Outsourced-only agent tools: the SP progressor runs the surveyor
+              network and does the client chasing, so the survey-quote nudge and
+              the WhatsApp check-in copies are hidden on self-managed files. */}
+          {transaction.serviceType === "outsourced" && (
+            <>
+              <SendQuoteLinkQuickAction transactionId={transaction.id} />
+              {checkIn && checkIn.seller.steps.length > 0 && (
+                <CheckInQuickAction label="Copy seller check-in" side={checkIn.seller} transactionId={checkIn.transactionId} />
+              )}
+              {checkIn && checkIn.buyer.steps.length > 0 && (
+                <CheckInQuickAction label="Copy buyer check-in" side={checkIn.buyer} transactionId={checkIn.transactionId} />
+              )}
+            </>
           )}
         </div>
       </GlassCard>
@@ -778,46 +777,6 @@ function SendQuoteLinkQuickAction({ transactionId }: { transactionId: string }) 
         </p>
       )}
     </>
-  );
-}
-
-function QuickLinkExternal({
-  href, label, Icon,
-}: {
-  href: string;
-  label: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Icon: any;
-}) {
-  return (
-    <Link
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "8px 6px",
-        borderRadius: 8,
-        textDecoration: "none",
-        color: "inherit",
-        transition: "background 140ms ease",
-      }}
-      className="agent-hover-row"
-    >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-        <span style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 26, height: 26,
-          color: "var(--agent-text-secondary)",
-        }}>
-          <Icon size={17} weight="regular" />
-        </span>
-        <span style={{ fontSize: 13, color: "var(--agent-text-primary)", fontWeight: 500 }}>{label}</span>
-      </span>
-      <ArrowSquareOut size={13} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
-    </Link>
   );
 }
 

@@ -14,11 +14,15 @@ export function TodoTabs({
   tabs,
   active,
   onChange,
+  action,
   children,
 }: {
   tabs: TodoTab[];
   active: string;
   onChange: (key: string) => void;
+  // Optional right-aligned action on the tab row (e.g. the Add button). Drops
+  // onto its own line, still right-aligned, when the row is too narrow.
+  action?: ReactNode;
   // The panel for the active tab. Keyed by `active` so it re-mounts (and
   // fade-animates in) on every change.
   children: ReactNode;
@@ -38,25 +42,28 @@ export function TodoTabs({
 
   return (
     <div className="todotabs">
-      <div
-        className="todotabs-bar"
-        role="tablist"
-        style={{ "--tt-count": tabs.length, "--tt-idx": activeIdx } as CSSProperties}
-      >
-        <span className={`todotabs-pill${travelling ? " travelling" : ""}`} aria-hidden />
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={t.key === active}
-            className={`todotabs-tab${t.key === active ? " on" : ""}`}
-            onClick={() => select(t.key)}
-          >
-            {t.label}
-            {t.count != null && t.count > 0 && <span className="todotabs-count">{t.count}</span>}
-          </button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 10 }}>
+        <div
+          className="todotabs-bar"
+          role="tablist"
+          style={{ "--tt-count": tabs.length, "--tt-idx": activeIdx, flex: "1 1 300px" } as CSSProperties}
+        >
+          <span className={`todotabs-pill${travelling ? " travelling" : ""}`} aria-hidden />
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={t.key === active}
+              className={`todotabs-tab${t.key === active ? " on" : ""}`}
+              onClick={() => select(t.key)}
+            >
+              {t.label}
+              {t.count != null && t.count > 0 && <span className="todotabs-count">{t.count}</span>}
+            </button>
+          ))}
+        </div>
+        {action && <div style={{ marginLeft: "auto", flexShrink: 0 }}>{action}</div>}
       </div>
 
       {/* Keyed so the panel re-mounts and fades in on each tab change. */}

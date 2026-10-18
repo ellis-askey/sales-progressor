@@ -408,3 +408,52 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-10-12.
 - **Deletion criteria:** permanent while the Boardwalk Forms platform exists without self-serve tenant onboarding; fold into an admin action if/when the platform gets a Command Centre onboarding surface.
 - **Justification:** credentials bootstrap requires a human-run, secret-printing step that must not be a web endpoint; there is no admin surface for form tenants yet, and a feature would be premature for a single tenant.
+
+### seed-boardwalk-demo.ts
+- **Purpose:** PRODUCTION demo seed for the 2026-10-15 research demo with Boardwalk Property Co (Bristol estate agency). Creates the agency "Boardwalk Property Co" white-labelled to their real brand (charcoal #404648 app accent via agentPreferences.brandColor, charcoal/stone client-email emailTheme, their wordmark logo incl. B-Corp badge uploaded to the agency-logos bucket), a director login (millie@boardwalkpropertyco.com / "password"), and 6 fictional Bristol transactions across the pipeline (one with a paused portal contact on ellisaskey+boardwalk@googlemail.com). Engineered for TOTAL email silence — welcomeEmailSentAt + retentionEmailOptOut + all notifications off on the director; contact/file chase paused; no OutboundEmailQueue rows; nothing flagged isDemo (so demo-cleanup can't delete it). Guard REFUSES any non-prod DATABASE_URL; connects via DIRECT_URL. Idempotent + self-healing (repairs a partially-written file). `--dry-run` and `--verify` modes.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-14.
+- **Deletion criteria:** delete this script + this entry AND remove the seeded prod account (agency cmv8n3aj20000g1h3hzetvaj2 + Millie + the 6 files + the logo object) once the Boardwalk demo is done and the account is no longer needed, OR once Boardwalk becomes a real self-serve signup.
+- **Justification:** disposable, fabricated demo data for a single sales call that must be white-labelled and completely silent; belongs in a guarded one-shot seed, not a feature or admin action.
+
+### enrich-boardwalk-demo.ts
+- **Purpose:** flesh out the Boardwalk prod demo files (run after seed-boardwalk-demo.ts): property photos (Boardwalk's own listing exteriors) as portal heroes, fake vendor/purchaser contacts (every email a +boardwalk variation of ellisaskey@googlemail.com, every contact chase-paused), vendor/purchaser solicitors, realistic activity threads (OutboundMessage, status "sent" = historical, no send), varied milestone confirmers, checkpoints, and to-dos — scaled to each file's stage. Switches the agency's solicitor/enquiry/weekly chase streams OFF for silence. PROD-only guard; DIRECT_URL; idempotent.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-14.
+- **Deletion criteria:** delete with seed-boardwalk-demo.ts and the seeded account after the demo.
+- **Justification:** demo-dressing for a single sales call; one-shot seed, not a feature.
+
+### fix-boardwalk-milestones.ts
+- **Purpose:** set each Boardwalk prod demo file to its TRUE stage so the milestone progress (stepper + % + hub bucket) matches the activity narrative, and fill tenure + purchase type. Re-initialises each file's milestones for its tenure/method (inline replica of initializeMilestoneCompletions, to avoid the server-only import chain) and completes the right steps with spread dates + varied confirmers (agent / solicitor / client-via-portal). Writes only MilestoneCompletion + tx tenure/purchaseType/status. PROD-only guard; DIRECT_URL; idempotent.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-14.
+- **Deletion criteria:** delete with seed-boardwalk-demo.ts and the seeded account after the demo.
+- **Justification:** corrects demo stage data for a single sales call; one-shot seed, not a feature.
+
+### enrich-boardwalk-fees.ts
+- **Purpose:** add the "well-run operation" layer to the Boardwalk prod demo: agency commission on every file (agentFeePercent + VAT), a recommended-solicitor panel (AgencyRecommendedSolicitor, 4 fictional Bristol firms with default referral fees), per-file solicitor referral income (referredFirmId + referralFee, received on exchanged/completed, pending otherwise), and a mortgage broker (BrokerFirm + BrokerContact, +boardwalk email) with a broker referral fee on every file. Populates the file Fees card (commission + referrals + net income + VAT). PROD-only guard; DIRECT_URL; idempotent. No emails.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-15.
+- **Deletion criteria:** delete with the other boardwalk-demo scripts; data is removed by delete-boardwalk-demo.ts.
+- **Justification:** demo-dressing for a single sales call; one-shot seed, not a feature.
+
+### enrich-boardwalk-chains.ts
+- **Purpose:** populate the Chains workspace for the Boardwalk prod demo — 2 chains (Chandos, Cotham) each with a neighbour link above + below (unclaimed stubs = other Bristol agents) so files land in "In chains", the stubs show as "Check-ins", Chandos (ready to exchange) shows in "Push to exchange", Fernbank is marked not-buying-onward + first-time buyer + confirmed into "No chain", and Bedminster + Ashton stay in "Needs chain setup". SILENT: all stub agent emails are +boardwalk variations of ellisaskey@ and all stub links are inviteStatus NOT_SENT (never touched by the invite nudge/reminder crons). PROD-only guard; DIRECT_URL; idempotent.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-15.
+- **Deletion criteria:** delete with the other boardwalk-demo scripts; data removed by delete-boardwalk-demo.ts (chains cleanup added).
+- **Justification:** demo-dressing for a single sales call; one-shot seed, not a feature.
+
+### enrich-boardwalk-team.ts
+- **Purpose:** give the Boardwalk prod demo a team so the analytics leaderboard compares agents, and put sales on the enquiries tracker. Creates 2 negotiators (Tom Hartley, Sophie Clarke, silenced like Millie), a per-agent 2026 book of business (completed+exchanged files with varied timeframes + a few withdrawn, so the leaderboard shows Submitted/Exchanged/Conversion/Pipeline/Avg fee and avg-days-to-exchange differs), and 2 EnquiryTracker rows (Cotham = awaiting pack, Ashton = partial replies). Historical files are completed/withdrawn only, so they never clutter the active pipeline/hub/chains boards. Exchanged = VM19 milestone complete. PROD-only guard; DIRECT_URL; idempotent; no emails.
+- **Lifetime:** one-shot (throwaway demo data on production).
+- **Author/date:** Claude, 2026-10-15.
+- **Deletion criteria:** delete with the other boardwalk-demo scripts; data removed by delete-boardwalk-demo.ts (users now deleted by agencyId).
+- **Justification:** demo-dressing for a single sales call; one-shot seed, not a feature.
+
+### delete-boardwalk-demo.ts
+- **Purpose:** complete TEARDOWN for the Boardwalk prod demo. Removes the agency, the director (millie@boardwalkpropertyco.com), all 6 files and every child row (milestones, contacts, comms, checkpoints, to-dos, plus any reminder/chase/file-time rows the crons added), the fictional solicitor firms, and the uploaded logo + property photos from storage. SAFE BY DEFAULT (dry-run / counts); pass `--confirm` to delete. PROD-only guard; DIRECT_URL; generic over all transaction-FK child models (two-pass, FK-order-safe).
+- **Lifetime:** one-shot (the wipe button for the demo).
+- **Author/date:** Claude, 2026-10-15.
+- **Deletion criteria:** delete this script together with the other four boardwalk-demo scripts once the demo account has been torn down and is no longer needed.
+- **Justification:** the demo is throwaway prod data that must be cleanly removable in one command; a guarded one-shot teardown, not a feature.

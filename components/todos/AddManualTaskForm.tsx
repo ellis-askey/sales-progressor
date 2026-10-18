@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
@@ -13,6 +13,12 @@ export function AddManualTaskForm({
   showOwnership = false,
   internalMode = false,
   allowReview = false,
+  // Externally-controlled open state — lets the trigger live elsewhere (e.g. the
+  // To-Do tab row). When `hideTrigger` is set the form renders nothing while
+  // closed; the parent provides the opener.
+  controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
   onAdd,
 }: {
   transactionId?: string;
@@ -28,6 +34,9 @@ export function AddManualTaskForm({
   // When true, offers a "Mark as a review" toggle (only meaningful when a file
   // is linked). A review lands in the "Reviews due" section on /agent/to-do.
   allowReview?: boolean;
+  controlledOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
   onAdd: (task: {
     title: string;
     notes?: string;
@@ -37,7 +46,9 @@ export function AddManualTaskForm({
     isReview?: boolean;
   }) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = controlledOpen ?? openState;
+  const setOpen = (v: boolean) => { if (controlledOpen === undefined) setOpenState(v); onOpenChange?.(v); };
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -71,6 +82,13 @@ export function AddManualTaskForm({
   }
 
   function handleOpen() {
+    setOpen(true);
+  }
+
+  // Seed the default due date whenever the form opens — covers both the built-in
+  // trigger and an externally-controlled opener (the To-Do tab-row button).
+  useEffect(() => {
+    if (!open) return;
     const now = new Date();
     if (now.getHours() >= 15) {
       const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -79,8 +97,8 @@ export function AddManualTaskForm({
       setDueDate(todayStr());
     }
     setDateError("");
-    setOpen(true);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function handleCancel() {
     setOpen(false);
@@ -125,6 +143,8 @@ export function AddManualTaskForm({
   }
 
   if (!open) {
+    // Trigger lives elsewhere (e.g. the To-Do tab row) — render nothing closed.
+    if (hideTrigger) return null;
     return (
       <button onClick={handleOpen} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">

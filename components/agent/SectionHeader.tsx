@@ -3,6 +3,7 @@
 // coral-tinted circle, a title + subtitle, and a glassed count pill.
 
 import type { ReactNode } from "react";
+import { CountBadge } from "@/components/ui/CountBadge";
 
 export function SectionHeader({ icon, title, subtitle, count }: {
   icon: ReactNode;
@@ -19,7 +20,7 @@ export function SectionHeader({ icon, title, subtitle, count }: {
         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--agent-text-primary)" }}>{title}</p>
         <p style={{ margin: "1px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>{subtitle}</p>
       </div>
-      {count != null && count > 0 && <span className="nocomms-count">{count}</span>}
+      {count != null && count > 0 && <CountBadge count={count} aria-hidden style={{ marginLeft: "auto" }} />}
     </div>
   );
 }
