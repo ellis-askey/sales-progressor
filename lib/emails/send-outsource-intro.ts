@@ -7,12 +7,14 @@
 // many callers fire concurrently or how often the action retries.
 //
 // Delivery path:
-//   1. Resolve the FROM address. Verified agency domain plus a verified
-//      agent email at that domain → send as the agent on a clean agency
-//      address. Otherwise → updates@thesalesprogressor.co.uk. The display
-//      NAME is "{agentFirstName} {agentLastName}, {agencyName}" in both
-//      cases — the white-label requirement is on the display name, which
-//      we always control.
+//   1. Resolve the FROM address, same precedence as every LATER milestone
+//      email (resolveAgencySenderForTransaction): the agency's own verified
+//      sender first — single sender (Agency.quoteSenderEmail, the common
+//      setup) OR full domain auth — then a verified progression business's
+//      own address, else updates@thesalesprogressor.co.uk. The display NAME
+//      is "{agentFirstName} {agentLastName}, {agencyName}" in every case —
+//      the white-label requirement is on the display name, which we always
+//      control.
 //   2. Compute the deliver-at instant. Inside working hours (Mon–Fri 09–17
 //      London, non-bank-holiday) → send immediately on the next hourly
 //      drain. Outside → schedule for the next working day 09:00.
@@ -99,7 +101,7 @@ export async function sendOutsourceIntroForTransaction(
         id: true,
         propertyAddress: true,
         agencyId: true,
-        agency: { select: { name: true, autoInviteClientsOnAdd: true } },
+        agency: { select: { name: true, autoInviteClientsOnAdd: true, quoteSenderEmail: true, quoteSenderVerified: true } },
         progressionBusinessId: true,
         progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true, autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: true } },
         serviceType: true,
@@ -185,11 +187,19 @@ export async function sendOutsourceIntroForTransaction(
     // number set sends the intro with no WhatsApp block rather than TSP's line.
     const whatsappUrl = whatsappLink(clientFacingIdentity(tx.progressionBusiness).contactWhatsapp);
 
-    let fromAddress = await resolveAgentSenderAddress(creatorUserId, tx.agencyId);
-    // A file progressed by a VERIFIED external business sends from the business's own
-    // address (bulletproof-sender gated), not the platform fallback — matching every
-    // other per-file email via resolveAgencySenderForTransaction (audit SP-12). TSP
-    // files (isTsp) and agencies with their own verified sender are unchanged.
+    // FROM-address precedence, mirroring resolveAgencySenderForTransaction (the
+    // resolver every LATER milestone email uses) so the FIRST email leaves from the
+    // same address as the rest:
+    //   1. the agency's own verified sender — single sender (Agency.quoteSenderEmail,
+    //      the common setup) OR full domain auth. Previously the intro's
+    //      resolveAgentSenderAddress only recognised full domain auth, so a
+    //      single-sender-verified agency (e.g. Naked.) fell through to the platform
+    //      address on the welcome email while every later email used their address.
+    //   2. a verified external progression business's own address (bulletproof-gated).
+    //   3. the platform fallback.
+    const agencyVerifiedSender =
+      tx.agency?.quoteSenderVerified && tx.agency.quoteSenderEmail ? tx.agency.quoteSenderEmail : null;
+    let fromAddress = agencyVerifiedSender ?? (await resolveAgentSenderAddress(creatorUserId, tx.agencyId));
     const biz = tx.progressionBusiness;
     if (fromAddress === DEFAULT_FROM_ADDRESS && biz && !biz.isTsp && biz.senderVerified && biz.senderEmail) {
       fromAddress = biz.senderEmail;

@@ -71,3 +71,29 @@ describe("outsource intro signatory", () => {
     expect(payload.text).toContain("Sarah Owner");
   });
 });
+
+describe("outsource intro FROM address", () => {
+  // The bug: a single-sender-verified agency (Agency.quoteSenderEmail/Verified)
+  // with no full domain auth fell through to updates@thesalesprogressor.co.uk on
+  // the welcome email, while every later milestone email correctly used the
+  // agency's address. The welcome must honour the single-sender setup too.
+  it("uses the agency's verified single-sender address (not the platform fallback)", async () => {
+    p.propertyTransaction.findUnique.mockResolvedValue({
+      ...txWith("Tom Progressor"),
+      agency: { name: "Donna Agency", quoteSenderEmail: "salesprogression@donna.co.uk", quoteSenderVerified: true },
+    });
+    await sendOutsourceIntroForTransaction("tx1", "u_sarah");
+    const payload = (enqueueEmail as jest.Mock).mock.calls[0][0].payload;
+    expect(payload.from).toBe("Tom Progressor, Donna Agency <salesprogression@donna.co.uk>");
+  });
+
+  it("falls back to the platform address when the agency sender is unverified", async () => {
+    p.propertyTransaction.findUnique.mockResolvedValue({
+      ...txWith("Tom Progressor"),
+      agency: { name: "Donna Agency", quoteSenderEmail: "salesprogression@donna.co.uk", quoteSenderVerified: false },
+    });
+    await sendOutsourceIntroForTransaction("tx1", "u_sarah");
+    const payload = (enqueueEmail as jest.Mock).mock.calls[0][0].payload;
+    expect(payload.from).toContain("<updates@thesalesprogressor.co.uk>");
+  });
+});
