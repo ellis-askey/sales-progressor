@@ -390,7 +390,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         >
           <span aria-hidden style={{ fontSize: 15 }}>⚡</span>
           <span>
-            God mode — this is a live agency file. Anything you do here is invisible to them and recorded only in your private log.
+            God mode: this is a live agency file. Anything you do here is invisible to them and recorded only in your private log.
           </span>
         </div>
       )}

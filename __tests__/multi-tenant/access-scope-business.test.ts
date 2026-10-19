@@ -160,7 +160,7 @@ describe("scope -> where helpers", () => {
     });
   });
 
-  it("'platform' (founder god scope) imposes NO tenant filter — every file, no TSP wall", () => {
+  it("'platform' (founder god scope) imposes NO tenant filter: every file, no TSP wall", () => {
     const god: AccessScope = { kind: "platform" };
     // Lists: all real files (demo still excluded for cleanliness), NO TSP_ONLY wall.
     expect(scopeTransactionWhere(god)).toEqual({ isDemo: false });
