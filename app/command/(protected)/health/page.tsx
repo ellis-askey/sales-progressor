@@ -3,6 +3,7 @@ import vercelConfig from "@/vercel.json";
 import { cronInfo, CRON_GROUP_ORDER, type CronGroup } from "@/lib/command/cron-info";
 import { nextRun } from "@/lib/cron/next-run";
 import InfoTip from "@/components/command/shared/InfoTip";
+import { getRecentSendFailures, emailTypeLabel } from "@/lib/services/send-failures";
 
 function fmtTs(d: Date | null): string {
   if (!d) return "—";
@@ -55,7 +56,7 @@ export default async function HealthPage() {
   const since7 = new Date();
   since7.setUTCDate(since7.getUTCDate() - 7);
 
-  const [allJobs, recentRuns, deployments] = await Promise.all([
+  const [allJobs, recentRuns, deployments, sendFailures] = await Promise.all([
     commandDb.$queryRaw<Array<{
       jobName: string;
       lastRunAt: Date;
@@ -85,6 +86,7 @@ export default async function HealthPage() {
       orderBy: { deployedAt: "desc" },
       take: 10,
     }),
+    getRecentSendFailures(new Date(), 24, commandDb),
   ]);
 
   // Loosely match each scheduled cron to any JobRun stats that report in (job
@@ -125,6 +127,48 @@ export default async function HealthPage() {
           {reportingCount} of {scheduled.length} report a live status; the rest run on schedule but don&rsquo;t log a result yet.
         </p>
       </div>
+
+      {/* Client email delivery — genuine send failures in the last 24h. The
+          ops alert for silently dead-lettered client sends; mirrors the footer
+          on the daily founder brief. */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+          Client email delivery — last 24h
+        </h2>
+        {sendFailures.total === 0 ? (
+          <div className="border border-emerald-900 rounded-xl bg-emerald-950/20 px-5 py-4">
+            <p className="text-sm text-emerald-400/90">All client emails sent cleanly in the last 24h.</p>
+          </div>
+        ) : (
+          <div className="border border-red-900 rounded-xl bg-red-950/30 overflow-hidden">
+            <div className="px-5 py-3 border-b border-red-900/60">
+              <p className="text-sm font-medium text-red-400">
+                {sendFailures.total} client email{sendFailures.total > 1 ? "s" : ""} failed to send
+              </p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                These recipients did not receive that email. Dead-round skips and manual cancellations are excluded.
+              </p>
+            </div>
+            <ul className="divide-y divide-red-900/40">
+              {sendFailures.items.map((f, i) => (
+                <li key={i} className="px-5 py-2.5 flex items-start gap-3">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 shrink-0 mt-0.5">
+                    {emailTypeLabel(f.emailType)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-neutral-200 truncate">
+                      {f.propertyAddress ?? f.recipientEmail}
+                      {f.owner && <span className="text-neutral-500"> · {f.owner}</span>}
+                    </p>
+                    <p className="text-[10px] text-red-400/80 truncate mt-0.5">{f.reason}</p>
+                  </div>
+                  <span className="text-[10px] text-neutral-600 shrink-0 whitespace-nowrap">{fmtTs(f.errorAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
 
       {/* Scheduled jobs, grouped */}
       {CRON_GROUP_ORDER.map((group) => {

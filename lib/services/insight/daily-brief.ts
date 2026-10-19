@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { anthropic } from "@/lib/anthropic";
 import { sendEmail } from "@/lib/email";
 import { buildInsightContext } from "./context";
+import { getRecentSendFailures, formatSendFailuresForBrief } from "@/lib/services/send-failures";
 
 const FOUNDER_BRIEF_EMAIL = "ellisaskey+founder-brief@googlemail.com";
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
@@ -47,7 +48,15 @@ export async function runDailyBrief(now: Date = new Date()): Promise<{ sent: boo
     year: "numeric",
   });
 
-  const briefText = await generateBriefText(`Date: ${dateStr}\n\n${contextText}`);
+  const aiText = await generateBriefText(`Date: ${dateStr}\n\n${contextText}`);
+
+  // Deterministic send-failure footer, appended AFTER the AI body so the exact
+  // named list of failed client emails is guaranteed verbatim, never paraphrased
+  // or dropped by the model. This is the ops alert for silently dead-lettered
+  // sends (the bug fixed 2026-10-19 left 17 undelivered with nothing watching).
+  const failures = await getRecentSendFailures(now);
+  const briefText = `${aiText}\n\n${formatSendFailuresForBrief(failures)}`;
+
   const subject = `Founder Brief — ${dateStr}`;
 
   await sendEmail({ to: FOUNDER_BRIEF_EMAIL, subject, text: briefText });
