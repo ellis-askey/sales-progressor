@@ -50,6 +50,9 @@ type Props = {
   recommendedFirms: { id: string; defaultReferralFeePence: number | null }[];
   preferredBroker: import("@/components/brokers/BrokerPicker").BrokerSelection | null;
   preferredBrokerDefaultFee: number | null;
+  // True only when an agency user is adding the sale — gates the broker
+  // recommended/referral opt-in (hidden for a sales progression company).
+  canSaveToPartners: boolean;
   // Server-resolved one-shot gate for the portal-invite prompt. False after
   // the agent's first added sale OR after they've clicked the prompt once.
   showPortalPrompt: boolean;
@@ -76,7 +79,7 @@ export function Stage2Sections({
   isOutsourced, vendorError, purchaserError,
   isFillingVendorSolicitor, isFillingPurchaserSolicitor,
   vendorSolicitorHint, purchaserSolicitorHint,
-  recommendedFirms, preferredBroker, preferredBrokerDefaultFee,
+  recommendedFirms, preferredBroker, preferredBrokerDefaultFee, canSaveToPartners,
   showPortalPrompt,
   vendorConflicts,
   purchaserConflicts,
@@ -181,6 +184,7 @@ export function Stage2Sections({
             onBrokerReferralFeeChange={(v) => onChange({ brokerReferralFee: v })}
             preferredBrokerDefaultFee={preferredBrokerDefaultFee}
             onBrokerReferredChange={(referred) => onChange({ purchaserBrokerReferral: referred })}
+            canSaveToPartners={canSaveToPartners}
             showOnwardBroker={fields.chainStubs.some((s) => s.direction === "above")}
             onwardBroker={fields.onwardBroker}
             onOnwardBrokerChange={(v) => { onChange({ onwardBroker: v }); onEdit("onwardBroker"); }}

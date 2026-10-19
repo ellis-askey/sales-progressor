@@ -33,6 +33,9 @@ type Props = {
   onBrokerReferralFeeChange: (v: number | null) => void;
   preferredBrokerDefaultFee: number | null;
   onBrokerReferredChange: (referred: boolean) => void;
+  // Agency user adding the sale → show the recommended-broker/referral opt-in.
+  // A sales progression company adding a client's file → hide it (not their referral).
+  canSaveToPartners: boolean;
   // Seller's onward-purchase broker (Phase 2). Shown only when the seller is
   // buying onward (a chain sale added above them).
   showOnwardBroker: boolean;
@@ -154,7 +157,7 @@ export function SolicitorSection({
   recommendedFirmIds,
   broker, preferredBroker, onBrokerChange,
   brokerReferralFee, onBrokerReferralFeeChange, preferredBrokerDefaultFee,
-  onBrokerReferredChange,
+  onBrokerReferredChange, canSaveToPartners,
   showOnwardBroker, onwardBroker, onOnwardBrokerChange,
   onwardBrokerReferralFee, onOnwardBrokerReferralFeeChange, onOnwardBrokerReferredChange,
   onEdit,
@@ -268,6 +271,7 @@ export function SolicitorSection({
           onReferralFeeChange={(v) => { onBrokerReferralFeeChange(v); onEdit("brokerReferralFee"); }}
           preferredBrokerDefaultFee={preferredBrokerDefaultFee}
           onReferralChange={onBrokerReferredChange}
+          canSaveToPartners={canSaveToPartners}
         />
       </div>
 
@@ -289,6 +293,7 @@ export function SolicitorSection({
             onReferralFeeChange={(v) => { onOnwardBrokerReferralFeeChange(v); onEdit("onwardBrokerReferralFee"); }}
             preferredBrokerDefaultFee={preferredBrokerDefaultFee}
             onReferralChange={onOnwardBrokerReferredChange}
+            canSaveToPartners={canSaveToPartners}
           />
         </div>
       )}

@@ -1458,6 +1458,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     recommendedFirms,
     preferredBroker,
     preferredBrokerDefaultFee,
+    // The recommended-broker/referral opt-in is the agency's own referral, so
+    // it only shows when an agency user is adding the sale — not a sales
+    // progression company creating a file for a client agency.
+    canSaveToPartners: !isProgressorCreate,
     showPortalPrompt,
     vendorConflicts,
     purchaserConflicts,

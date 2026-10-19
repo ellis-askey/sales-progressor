@@ -65,7 +65,7 @@ function NiceCheck({ checked }: { checked: boolean }) {
 export function BrokerField({
   value, onChange, preferredBroker,
   referralFee, onReferralFeeChange, preferredBrokerDefaultFee,
-  onReferralChange,
+  onReferralChange, canSaveToPartners = true,
 }: {
   value: BrokerSelection | null;
   onChange: (v: BrokerSelection | null) => void;
@@ -77,6 +77,11 @@ export function BrokerField({
   // broker = true, so it earns a fee and shows on the buyer's portal Team). A
   // plain buyer's broker you record is NOT a referral.
   onReferralChange: (referred: boolean) => void;
+  // The recommended-broker / referral-fee opt-in is the AGENCY's referral
+  // relationship — shown only when an agency user is adding the sale. A sales
+  // progression company adding a file for a client agency records the buyer's
+  // broker but never a referral of its own, so the opt-in is hidden for them.
+  canSaveToPartners?: boolean;
 }) {
   // `open` = the section is expanded (toggle on). A broker may or may not be
   // assigned to the sale yet.
@@ -139,7 +144,7 @@ export function BrokerField({
     if (!form.firmName.trim()) { setError("Add the brokerage name."); return; }
     setSaving(true); setError(null);
     try {
-      const recommended = !hasUsual && saveAsRecommended;
+      const recommended = canSaveToPartners && !hasUsual && saveAsRecommended;
       const created = await addBrokerForSaleAction({
         firmName: form.firmName,
         contactName: form.contactName,
@@ -310,10 +315,11 @@ export function BrokerField({
                   </button>
                 )}
 
-                {/* Opt-in: only when the agency has no saved broker yet. The
-                    referral fee belongs to the agency's own broker, so it lives
-                    beneath this tick and only appears once it's on. */}
-                {!hasUsual && (
+                {/* Opt-in: only when the agency has no saved broker yet, and
+                    only for an agency user adding the sale. The referral belongs
+                    to the agency's own broker, so a sales progression company
+                    adding a client's file never sees it. */}
+                {!hasUsual && canSaveToPartners && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <label className="broker-check" style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", userSelect: "none", position: "relative" }}>
                       <input
