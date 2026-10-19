@@ -2335,6 +2335,45 @@ export async function saveIsShareOfFreeholdAction(transactionId: string, isShare
   revalidateTx(transactionId);
 }
 
+// Housing association details on a shared-ownership file (lightweight — name +
+// one contact + email/phone, no firm directory). Scoped, logged, revalidated.
+// Blank fields clear. Surfaced as a professional row (HousingAssociationSection).
+export async function saveHousingAssociationAction(
+  transactionId: string,
+  input: { name: string; contactName: string; email: string; phone: string },
+): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, housingAssociationName: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const name = input.name.trim();
+  const contactName = input.contactName.trim();
+  const email = input.email.trim().toLowerCase();
+  const phone = input.phone.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That email address doesn't look right");
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: {
+      housingAssociationName: name || null,
+      housingAssociationContactName: contactName || null,
+      housingAssociationEmail: email || null,
+      housingAssociationPhone: phone || null,
+    },
+  });
+
+  await logActivity(
+    transactionId,
+    `${session.user.name} ${tx.housingAssociationName ? "updated" : "added"} the housing association details`,
+    session.user.id,
+  );
+  revalidateTx(transactionId);
+}
+
 // Managed-freehold flag (the "this freehold has a management pack" toggle on the
 // file). Mirrors saveIsShareOfFreeholdAction: scoped, no-op on no change, logged.
 // Stage 1 just records the flag; the milestone + enquiries effects layer on in

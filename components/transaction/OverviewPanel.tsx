@@ -46,6 +46,7 @@ import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow"
 import { BrokerContactsList } from "@/components/transaction/BrokerContactsList";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
+import { HousingAssociationSection } from "@/components/transaction/HousingAssociationSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { AiSummaryCard } from "@/components/transaction/AiSummaryCard";
@@ -79,6 +80,11 @@ type Props = {
     purchaseType: PurchaseType | null;
     tenure: Tenure | null;
     isShareOfFreehold: boolean;
+    isSharedOwnership: boolean;
+    housingAssociationName: string | null;
+    housingAssociationContactName: string | null;
+    housingAssociationEmail: string | null;
+    housingAssociationPhone: string | null;
     status: TransactionStatus;
     createdAt: Date;
     overridePredictedDate: Date | null;
@@ -522,6 +528,18 @@ export async function OverviewPanel({
               isInternalStaff={isInternalStaff}
               embedded
             />
+            {/* Housing association — shared-ownership files only. Lightweight
+                contact row so progressors can reach the association directly. */}
+            {transaction.isSharedOwnership && (
+              <HousingAssociationSection
+                transactionId={transaction.id}
+                name={transaction.housingAssociationName}
+                contactName={transaction.housingAssociationContactName}
+                email={transaction.housingAssociationEmail}
+                phone={transaction.housingAssociationPhone}
+                canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
+              />
+            )}
             {/* Mortgage broker (the referral broker) now lives here with the
                 other professionals, not in a standalone card lower down. */}
             {(brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage") && (

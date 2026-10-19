@@ -728,6 +728,13 @@ model PropertyTransaction {
   // exactly like hasManagementPack does on a freehold. Mutually exclusive with
   // isShareOfFreehold (different owners of the freehold).
   isSharedOwnership               Boolean           @default(false)
+  // Housing association on a shared-ownership file (lightweight — just enough to
+  // reach them, no firm directory / referral / chase machinery). Only meaningful
+  // when isSharedOwnership; surfaced as a professional row on the file.
+  housingAssociationName          String?
+  housingAssociationContactName   String?
+  housingAssociationEmail         String?
+  housingAssociationPhone         String?
   // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
   // (captured on the survey-booked step). Title-cased on save. Null when they
   // booked one of our quoted firms (that name comes from the QuoteRequest) or
