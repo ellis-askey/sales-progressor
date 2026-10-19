@@ -121,6 +121,29 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       <GlassPicksProvider initialPicks={glassPicks}>
       <AgentToaster>
         <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients}>
+          {session.user.viewAsOperatorId && (
+            <div style={{ padding: "12px 24px 0" }}>
+              <div
+                role="status"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                  padding: "9px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600, color: "#fff",
+                  background: "linear-gradient(90deg,#0ea5e9,#6366f1)", boxShadow: "0 4px 16px rgba(99,102,241,0.28)",
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span aria-hidden style={{ fontSize: 15 }}>👁</span>
+                  Viewing as {userName || "this agent"}. Exactly what they see. Read-only.
+                </span>
+                <a
+                  href="/api/view-as/stop"
+                  style={{ color: "#fff", textDecoration: "underline", fontWeight: 700, whiteSpace: "nowrap" }}
+                >
+                  Exit view-as
+                </a>
+              </div>
+            </div>
+          )}
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

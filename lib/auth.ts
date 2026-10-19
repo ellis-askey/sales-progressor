@@ -32,6 +32,12 @@ declare module "next-auth" {
       // scope. Null / false for everyone who isn't a progression-business member.
       progressionBusinessRole: "owner" | "progressor" | null;
       canViewAllFiles: boolean;
+      // Founder "view as": when set, this session's user fields have been swapped
+      // to a target agent by requireSession (the real user is a superadmin with a
+      // valid view-as cookie). Holds the REAL operator's id. The session is hard
+      // read-only while this is set (middleware blocks all mutations). See
+      // lib/security/view-as.ts. Undefined/null in every normal session.
+      viewAsOperatorId?: string | null;
     };
   }
   interface User {

@@ -5,6 +5,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
+import { applyViewAs } from "@/lib/security/view-as";
 import { redirect } from "next/navigation";
 
 export async function requireSession() {
@@ -14,7 +15,9 @@ export async function requireSession() {
   // accessing any part of the app. Redirect instead of throwing so the user
   // gets a clear path forward rather than a dead end.
   if (session.user.needsSignupCompletion) redirect("/signup/complete");
-  return session;
+  // Founder "view as": swap to the target agent ONLY for a superadmin with a
+  // view-as cookie (no-op for everyone else). Writes stay blocked at the edge.
+  return applyViewAs(session);
 }
 
 // Use in routes that require an agency-scoped user (admin/sales_progressor have no agencyId)

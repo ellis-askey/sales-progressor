@@ -137,6 +137,19 @@ export default withAuth(
       });
     }
 
+    // Founder "view as" is hard read-only. While the view-as cookie is present
+    // (a superadmin looking through an agent's eyes), block EVERY mutation —
+    // /api routes and server-action POSTs to /agent pages alike — at the edge, so
+    // it can never become "act as them". The exit is a GET route (not blocked).
+    // Cookie name inlined (edge runtime can't import lib/security/view-as.ts).
+    const VIEW_AS_COOKIE = "sp_view_as";
+    if (req.cookies.get(VIEW_AS_COOKIE)?.value && MUTATION_METHODS.has(req.method)) {
+      return new NextResponse(
+        JSON.stringify({ error: "View-as is read-only. Exit view-as to make changes." }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // Viewers are read-only â€” block all mutation API calls
     if (
       role === "viewer" &&
