@@ -406,6 +406,11 @@ export async function SidebarPanel({
       exchangeConfirmed={exchangeConfirmed}
       exchangedOn={exchangedOn}
       completed={saleCompleted}
+      // Property-card flags are a sale-detail edit — editable by anyone who can
+      // open the file (the server action scope-gates), locked after exchange to
+      // mirror the hero's type/tenure cells. Without this the card defaulted to
+      // read-only for everyone (the toggles wouldn't click).
+      canEditSaleDetails={!exchangeConfirmed}
       fileTime={fileTime}
       isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}
