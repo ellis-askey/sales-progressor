@@ -285,7 +285,12 @@ export async function getChaseTimeline(
     }),
     prisma.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true, outstandingNote: true },
+      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true, outstandingNote: true,
+        // Reply / handover movements, so the timeline shows the ball passing
+        // between the two solicitors (e.g. "Replies received, now with the
+        // buyer's solicitor") — without it, a same-day chase + handover read as
+        // a contradiction (27 Whitebeam Close, 2026-10-19).
+        movements: { where: { status: "accepted" }, orderBy: { occurredAt: "asc" }, select: { occurredAt: true, note: true, kind: true, flipsCourtTo: true } } },
     }),
     // Active-round milestone completions — the source of truth for whether a
     // solicitor step is still outstanding (SolicitorChaseState.status is stale:
@@ -721,6 +726,29 @@ export async function getChaseTimeline(
       });
     } else if (et.lastChasedAt && n > 0) {
       events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+    }
+    // Reply / handover movements — show the ball passing between the two
+    // solicitors so a same-day chase + handover reads as the sequence it is
+    // ("chased seller at 10am, their replies came in at 3pm, now with the
+    // buyer") rather than a contradiction (27 Whitebeam Close, 2026-10-19).
+    const MOVE_TITLE: Record<string, string> = {
+      raised: "Further enquiries raised",
+      replies_sent: "Replies sent",
+      replies_received: "Replies received",
+      partial_replies: "Some replies in",
+      correction: "Court corrected",
+      update: "Enquiries update",
+    };
+    for (const mv of et.movements) {
+      if (mv.kind === "chased") continue; // chase sends already have their own rows above
+      const progress = mv.kind === "replies_sent" || mv.kind === "replies_received";
+      events.push({
+        at: mv.occurredAt.toISOString(),
+        kind: progress ? "resolved" : "scheduled",
+        title: MOVE_TITLE[mv.kind] ?? "Enquiries update",
+        detail: mv.note || undefined,
+        actor: "System",
+      });
     }
     if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
     if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
