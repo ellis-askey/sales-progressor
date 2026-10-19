@@ -47,9 +47,11 @@ const dueRow = {
   recipientContactId: "c1",
   recipientEmail: "client@x.com",
   sourceId: "t1:VM1",
-  // The P3 retry bound splits rows by age at drain time; a fixture without
-  // createdAt crashes the split. Fresh row → normal single-send path.
+  // The P3 retry bound splits rows by age at drain time (from scheduledFor,
+  // which is NOT NULL in the schema). A fixture missing either stamp crashes
+  // the split. Both "now" → fresh row → normal single-send path.
   createdAt: new Date(),
+  scheduledFor: new Date(),
   payload: { subject: "Step confirmed", text: "body", html: "<p>body</p>", milestoneCode: "VM1", recipientSide: "vendor", address: "1 High St", firstName: "Pat", portalUrl: "https://x/portal/u" },
 };
 

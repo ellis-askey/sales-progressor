@@ -147,9 +147,17 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
   // Retry age-out (P3). Rows that have been retrying transient failures for
   // longer than MAX_SEND_RETRY_MS are dead-lettered (a visible errorAt) rather
   // than retried forever. Split them off before grouping.
+  //
+  // The clock runs from scheduledFor (when the row became due), NOT createdAt
+  // (when it was enqueued). A row deferred into the future — e.g. a confirmation
+  // held out-of-hours to the next working morning, ~58h out over a weekend —
+  // would otherwise be older than a createdAt-based cutoff the instant it became
+  // due and be dead-lettered without a single send attempt. Measuring from
+  // scheduledFor gives every row a full MAX_SEND_RETRY_MS of real retries from
+  // when it was actually due. (2026-10-19)
   const ageCutoff = now.getTime() - MAX_SEND_RETRY_MS;
-  const aged = due.filter((r) => r.createdAt.getTime() < ageCutoff);
-  const fresh = due.filter((r) => r.createdAt.getTime() >= ageCutoff);
+  const aged = due.filter((r) => r.scheduledFor.getTime() < ageCutoff);
+  const fresh = due.filter((r) => r.scheduledFor.getTime() >= ageCutoff);
   let failed = 0;
   if (aged.length > 0) {
     await prisma.outboundEmailQueue.updateMany({

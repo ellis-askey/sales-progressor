@@ -185,7 +185,16 @@ export async function drainOutboundQueue(): Promise<{
     // Retry age-out (P3). A row that has been retrying transient failures for
     // longer than MAX_SEND_RETRY_MS is dead-lettered (a visible errorAt) rather
     // than retried forever or dropped silently. The daily alert surfaces these.
-    if (record.createdAt.getTime() < now.getTime() - MAX_SEND_RETRY_MS) {
+    //
+    // The clock runs from scheduledFor (when the row became due to send), NOT
+    // createdAt (when it was enqueued). A row deliberately deferred into the
+    // future — e.g. an out-of-hours send held to the next working morning by
+    // deliverAtInsideWorkingWindow, which over a weekend is ~58h out — would
+    // otherwise be born past a createdAt-based cutoff and dead-lettered on the
+    // very first drain tick that picks it up, without a single send attempt.
+    // Measuring from scheduledFor gives every row a full MAX_SEND_RETRY_MS of
+    // real retries from the moment it was actually due. (2026-10-19)
+    if (record.scheduledFor.getTime() < now.getTime() - MAX_SEND_RETRY_MS) {
       await prisma.outboundEmailQueue.update({
         where: { id: record.id },
         data: { errorAt: now, errorMessage: "retry_age_exceeded" },
