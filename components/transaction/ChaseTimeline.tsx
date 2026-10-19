@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import {
   CalendarBlank, PaperPlaneTilt, Robot, User, WarningCircle, CheckCircle,
-  PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight,
+  PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight, CaretLeft, CaretRight,
 } from "@phosphor-icons/react";
 import type {
   ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
@@ -255,8 +255,56 @@ function EscalationPath({ thread }: { thread: ChaseThread }) {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: 8 }}>{children}</div>;
+function SectionLabel({ children, noMargin }: { children: React.ReactNode; noMargin?: boolean }) {
+  return <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: noMargin ? 0 : 8 }}>{children}</div>;
+}
+
+// A small prev/next pager button for the "Up next" header. Full hover / focus /
+// active / disabled states per the Definition of Done.
+function PagerButton({ children, label, disabled, onClick }: { children: React.ReactNode; label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" aria-label={label} disabled={disabled} onClick={onClick} className="chase-pager-btn"
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24,
+        borderRadius: 7, padding: 0, background: "var(--agent-surface-elevated)",
+        border: "0.5px solid var(--agent-border-subtle)", color: "var(--agent-text-secondary)",
+        cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── detail: the "Up next" section — one card per recipient lane, paged when
+// there's more than one so each full email preview keeps its width ────────────
+function UpNextSection({ sends, transactionId }: { sends: NextSend[]; transactionId: string }) {
+  const [idx, setIdx] = useState(0);
+  const count = sends.length;
+  const safeIdx = Math.min(idx, count - 1);
+  const multi = count > 1;
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <SectionLabel noMargin>Up next</SectionLabel>
+        {multi && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <PagerButton label="Previous send" disabled={safeIdx === 0} onClick={() => setIdx(safeIdx - 1)}>
+              <CaretLeft size={13} weight="bold" />
+            </PagerButton>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums", minWidth: 36, textAlign: "center" }}>
+              {safeIdx + 1} of {count}
+            </span>
+            <PagerButton label="Next send" disabled={safeIdx === count - 1} onClick={() => setIdx(safeIdx + 1)}>
+              <CaretRight size={13} weight="bold" />
+            </PagerButton>
+          </div>
+        )}
+      </div>
+      <UpNextCard key={safeIdx} send={sends[safeIdx]} transactionId={transactionId} />
+    </div>
+  );
 }
 
 // ── detail: one "Up next" send card (glossy, per recipient lane) ─────────────
@@ -345,7 +393,11 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
     <div>
       <style>{`.chase-upnext-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease}
         .chase-upnext-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,23,42,0.06)}
-        @media (prefers-reduced-motion:reduce){.chase-upnext-card{transition:none}}`}</style>
+        .chase-pager-btn{transition:background .14s ease,border-color .14s ease,color .14s ease}
+        .chase-pager-btn:not(:disabled):hover{background:var(--agent-surface-nested,var(--agent-surface-elevated));border-color:var(--agent-border-default);color:var(--agent-text-primary)}
+        .chase-pager-btn:not(:disabled):active{transform:translateY(0.5px)}
+        .chase-pager-btn:focus-visible{outline:2px solid var(--agent-primary);outline-offset:1px}
+        @media (prefers-reduced-motion:reduce){.chase-upnext-card,.chase-pager-btn{transition:none}}`}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)", margin: 0 }}>{thread.title}</h3>
@@ -353,14 +405,10 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
       </div>
       <p style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", margin: "0 0 18px" }}>{subtitle}</p>
 
-      {/* Up next — one card per recipient lane (buyer + solicitor) */}
+      {/* Up next — one card per recipient lane (buyer + solicitor), paged so each
+          full email preview keeps its width when there's more than one. */}
       {futureSends.length > 0 && (
-        <div style={{ marginBottom: 22 }}>
-          <SectionLabel>Up next</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: futureSends.length > 1 ? "1fr 1fr" : "1fr", gap: 12 }}>
-            {futureSends.map((s, i) => <UpNextCard key={i} send={s} transactionId={transactionId} />)}
-          </div>
-        </div>
+        <UpNextSection sends={futureSends} transactionId={transactionId} />
       )}
 
       {/* Timeline — upcoming (dashed) flowing into what's happened */}
