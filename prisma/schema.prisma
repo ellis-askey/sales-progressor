@@ -363,6 +363,18 @@ model ProgressionBusinessClient {
   // (ClientFeeModel: flat | tiered | percent). Null = no fee model set yet.
   feeModel Json?
 
+  // The sending address THIS progression business uses for THIS agency's files —
+  // the address the agency provisions them on its own domain (e.g.
+  // jo@knight-residential.co.uk), verified in SendGrid. Keyed per (business, agency)
+  // so two progression companies at the same agency NEVER share one sending identity
+  // (that would merge two separate businesses' correspondence). Mirrors
+  // Agency.quoteSender*. Null until the agency provisions + verifies it; the sender
+  // resolver then falls back to the platform address (From) / the assigned
+  // progressor's own inbox (Reply-To + client contact). See lib/progression/sender.ts.
+  senderEmail      String?
+  senderVerified   Boolean   @default(false)
+  senderVerifiedAt DateTime?
+
   // Archive (soft-remove) instead of deleting the link. A removed client drops off
   // the active Clients list and the new-sale picker, but the link row survives so
   // the rate card + history are intact and the owner can reinstate (removedAt back

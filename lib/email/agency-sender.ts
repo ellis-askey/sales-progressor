@@ -22,6 +22,7 @@ import { resolveStudioTheme, type StudioTheme } from "@/lib/email/email-theme-st
 import { effectiveLogoMode } from "@/lib/email/studio-render";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { clientFacingIdentity, progressorSenderAddress } from "@/lib/progression/identity";
+import { resolveOutsourcedWhiteLabelSender } from "@/lib/progression/sender";
 import { resolveReplyCaptureAddress } from "@/lib/email/reply-capture";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
@@ -142,6 +143,7 @@ export async function resolveAgencySenderForTransaction(
     where: { id: transactionId },
     select: {
       agencyId: true,
+      progressionBusinessId: true,
       serviceType: true,
       agency: {
         select: {
@@ -199,30 +201,33 @@ export async function resolveAgencySenderForTransaction(
   // self-managed branch below keys the whole from/reply-to decision on this.
   const actingEmail = (acting?.preferredSenderEmail ?? acting?.email) ?? null;
 
-  // ── Outsourced: the client sees the agency (From = the agency's verified
-  // sender for branding when they have one), but WE run the file — so a client's
-  // reply ALWAYS routes to the progressor handling THIS file, never the agency's
-  // own address. On a multi-progressor agency that keeps each sale's replies with
-  // the right person (Jo's → Jo, Annalise's → Annalise); with a single progressor
-  // it's the same destination either way. `prog` falls back to the business
-  // sender / platform address when a file isn't assigned yet, so a reply never
-  // vanishes. (This supersedes the old single-sender→agency-inbox branch, which
-  // piled every progressor's replies into one shared inbox — the deferred gap.)
+  // ── Outsourced: the client sees the agency (display name "{progressor} at
+  // {Agency}"), but WE / the external progression company run the file.
   if (tx.serviceType === "outsourced") {
     const identity = clientFacingIdentity(tx.progressionBusiness);
     const prog = progressorSenderAddress(identity, tx.assignedUser?.email);
-    // Keep the agency's verified sender on the From line for branding.
-    const from = agencyAddr && agencyVerified ? agencyAddr : prog;
-    // Reply-To. On an EXTERNAL progression business's file, replies must reach the
-    // progressor, NEVER our shared updates@thesalesprogressor.co.uk inbox (which they
-    // can't see): the agency's verified single sender first — on an external file that
-    // sender is the progressor's own monitored inbox for this agency (e.g.
-    // salesprogression@nakedagents.co.uk is Jo's) — then the assigned progressor's own
-    // email. TSP-run and legacy files keep the original `prog` target, where the
-    // progressor IS internal staff and the updates@/ellis@ fallback is correctly ours.
-    const replyTo = identity.isTsp
-      ? prog
-      : ((agencyAddr && agencyVerified ? agencyAddr : null) ?? tx.assignedUser?.email ?? prog);
+    // TSP-run / legacy files: unchanged — the progressor IS internal staff, so the
+    // updates@/ellis@ fallback is correctly ours.
+    if (identity.isTsp) {
+      const from = agencyAddr && agencyVerified ? agencyAddr : prog;
+      return { from: buildFrom(display, from), replyTo: prog, canReply: true, ...logo };
+    }
+    // External progression business: resolve the per-(company, agency) white-label
+    // sender, so two companies at one agency NEVER share a sending identity. When none
+    // is set up, From falls to the platform address (deliverability only — we can't
+    // send from an unverified address) and Reply-To falls to the ASSIGNED progressor's
+    // own inbox — never our updates@, which they can't see. See lib/progression/sender.ts.
+    const whiteLabel = tx.agencyId
+      ? await resolveOutsourcedWhiteLabelSender({
+          agencyId: tx.agencyId,
+          progressionBusinessId: tx.progressionBusinessId ?? null,
+          agencyQuoteSenderEmail: agencyAddr,
+          agencyQuoteSenderVerified: agencyVerified,
+          business: tx.progressionBusiness,
+        })
+      : null;
+    const from = whiteLabel ?? SP_REPLY_TO;
+    const replyTo = whiteLabel ?? tx.assignedUser?.email ?? SP_REPLY_TO;
     return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
   }
 

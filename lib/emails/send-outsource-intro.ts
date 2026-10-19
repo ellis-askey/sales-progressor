@@ -35,6 +35,7 @@ import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { buildOutsourceIntroEmail } from "@/lib/emails/outsource-intro-template";
 import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
+import { resolveOutsourcedWhiteLabelSender } from "@/lib/progression/sender";
 import { deliverAtInsideWorkingWindow } from "@/lib/emails/working-hours";
 import { greetingFirstName } from "@/lib/contacts/displayName";
 
@@ -188,37 +189,37 @@ export async function sendOutsourceIntroForTransaction(
     // number set sends the intro with no WhatsApp block rather than TSP's line.
     const whatsappUrl = whatsappLink(clientFacingIdentity(tx.progressionBusiness).contactWhatsapp);
 
-    // FROM-address precedence, mirroring resolveAgencySenderForTransaction (the
-    // resolver every LATER milestone email uses) so the FIRST email leaves from the
-    // same address as the rest:
-    //   1. the agency's own verified sender — single sender (Agency.quoteSenderEmail,
-    //      the common setup) OR full domain auth. Previously the intro's
-    //      resolveAgentSenderAddress only recognised full domain auth, so a
-    //      single-sender-verified agency (e.g. Naked.) fell through to the platform
-    //      address on the welcome email while every later email used their address.
-    //   2. a verified external progression business's own address (bulletproof-gated).
-    //   3. the platform fallback.
-    const agencyVerifiedSender =
-      tx.agency?.quoteSenderVerified && tx.agency.quoteSenderEmail ? tx.agency.quoteSenderEmail : null;
-    let fromAddress = agencyVerifiedSender ?? (await resolveAgentSenderAddress(creatorUserId, tx.agencyId));
+    // FROM + Reply-To, matching resolveAgencySenderForTransaction (the resolver every
+    // LATER email uses) so the FIRST email leaves from the same place as the rest.
     const biz = tx.progressionBusiness;
-    if (fromAddress === DEFAULT_FROM_ADDRESS && biz && !biz.isTsp && biz.senderVerified && biz.senderEmail) {
-      fromAddress = biz.senderEmail;
+    const isExternalBiz = !!biz && !biz.isTsp;
+    const spUserEmail = tx.assignedUser?.email ?? creator.email ?? null;
+    let fromAddress: string;
+    let replyTo: string;
+    if (isExternalBiz && tx.agencyId) {
+      // External progression business: the per-(company, agency) white-label sender,
+      // so two companies at one agency never share an identity. When none is set up,
+      // From falls to the platform address (deliverability) and Reply-To to the
+      // assigned progressor's own inbox — never our updates@. See lib/progression/sender.ts.
+      const whiteLabel = await resolveOutsourcedWhiteLabelSender({
+        agencyId: tx.agencyId,
+        progressionBusinessId: tx.progressionBusinessId ?? null,
+        agencyQuoteSenderEmail: tx.agency?.quoteSenderEmail ?? null,
+        agencyQuoteSenderVerified: !!tx.agency?.quoteSenderVerified,
+        business: biz,
+      });
+      fromAddress = whiteLabel ?? DEFAULT_FROM_ADDRESS;
+      replyTo = whiteLabel ?? spUserEmail ?? DEFAULT_FROM_ADDRESS;
+    } else {
+      // TSP-run / legacy: the agency's verified sender, else a domain-authed agent
+      // address, else the platform default. Reply-To stays the creator (updates@ is ours).
+      const agencyVerifiedSender =
+        tx.agency?.quoteSenderVerified && tx.agency.quoteSenderEmail ? tx.agency.quoteSenderEmail : null;
+      fromAddress = agencyVerifiedSender ?? (await resolveAgentSenderAddress(creatorUserId, tx.agencyId));
+      replyTo = creator.email ?? DEFAULT_FROM_ADDRESS;
     }
     const fromName = `${agentFirstName}${agentLastName ? " " + agentLastName : ""}, ${agencyName}`;
     const fromHeader = `${fromName} <${fromAddress}>`;
-    // Reply-To. On an EXTERNAL progression business's file: the agency's verified
-    // single-sender address first — that single sender IS the progressor's monitored
-    // inbox for that agency (e.g. salesprogression@nakedagents.co.uk is Jo's), so
-    // replies reach them AND stay white-label — then the sales-prog user running the
-    // file (assigned progressor, else creator). NEVER updates@thesalesprogressor.co.uk
-    // on an external file; that is OUR inbox and the progressor would never see it.
-    // TSP-run / legacy files keep the original creator target (updates@ is ours).
-    const isExternalBiz = !!tx.progressionBusiness && !tx.progressionBusiness.isTsp;
-    const spUserEmail = tx.assignedUser?.email ?? creator.email ?? null;
-    const replyTo = isExternalBiz
-      ? (agencyVerifiedSender ?? spUserEmail ?? DEFAULT_FROM_ADDRESS)
-      : (creator.email ?? DEFAULT_FROM_ADDRESS);
 
     const deliverAt = deliverAtInsideWorkingWindow(new Date());
 
