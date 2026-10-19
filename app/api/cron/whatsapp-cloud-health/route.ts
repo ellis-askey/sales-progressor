@@ -1,14 +1,22 @@
-// WhatsApp Cloud watchdog (Phase 4b, REBUILD_PLAN §C3 health monitoring).
-// "WhatsApp must not silently stop working": twice a day this checks every
-// configured business number for (a) a webhook gone quiet, (b) an access token
-// nearing expiry, (c) a cluster of failed sends — and stamps the problem onto
-// the number row (surfaced in red on the Command Centre card) plus an optional
-// alert email. Healthy runs clear any watchdog-raised flag.
+// WhatsApp watchdog (Phase 4b §C3, extended after the Sept-Oct 2026 outage).
+// "WhatsApp must not silently stop working": twice a day this checks
+// (1) THE BRIDGE — unreachable, unlinked (needs a QR scan), or linked but
+//     capturing nothing for days. Runs whenever the bridge is configured —
+//     the Railway trial expiring on 22 Sept 2026 killed capture for four weeks
+//     and nothing said a word; this check is the never-again.
+// (2) every configured Cloud business number for a quiet webhook, an expiring
+//     token, or a cluster of failed sends (skipped while Cloud is parked).
+// Problems are stamped on the number row (red on the Command Centre card) and
+// emailed to WHATSAPP_ALERT_EMAIL. Healthy runs clear watchdog-raised flags.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isCloudConfigured } from "@/lib/integrations/whatsapp-cloud/config";
+import { bridgeGlobalStatus } from "@/lib/integrations/whatsapp/bridge-client";
 
 const QUIET_MS = 48 * 60 * 60 * 1000;
+// Bridge-capture silence threshold. 72h, not 48h, so a genuinely quiet weekend
+// doesn't page on Monday's 07:00 run.
+const BRIDGE_QUIET_MS = 72 * 60 * 60 * 1000;
 const TOKEN_WARN_MS = 7 * 24 * 60 * 60 * 1000;
 const WATCHDOG_PREFIX = "[watchdog] ";
 
@@ -16,11 +24,38 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
-  if (!isCloudConfigured()) return NextResponse.json({ ok: true, skipped: "not configured" });
 
-  const numbers = await prisma.whatsAppBusinessNumber.findMany();
   const now = Date.now();
   const alerts: string[] = [];
+
+  // ---- (1) Bridge health — independent of the parked Cloud API ----
+  const bridge = await bridgeGlobalStatus();
+  if (bridge.configured) {
+    if (!bridge.reachable) {
+      alerts.push(
+        "The WhatsApp bridge is not responding, so nothing is being captured. Check the Railway service is running (and that the plan hasn't lapsed).",
+      );
+    } else if (bridge.connection !== "open") {
+      alerts.push(
+        `The WhatsApp bridge is running but the WhatsApp link is down (state: ${bridge.connection ?? "unknown"}), so nothing is being captured. Open Command Centre → WhatsApp and scan the QR to re-link.`,
+      );
+    } else {
+      // Linked and claiming healthy — verify messages are actually landing.
+      const newest = await prisma.outboundMessage.findFirst({
+        where: { method: "whatsapp" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      if (newest && now - newest.createdAt.getTime() > BRIDGE_QUIET_MS) {
+        alerts.push(
+          `The WhatsApp bridge reports connected but no message has been captured since ${newest.createdAt.toLocaleString("en-GB")}. The link may be silently broken — check Command Centre → WhatsApp.`,
+        );
+      }
+    }
+  }
+
+  // ---- (2) Cloud business numbers (parked — skipped until configured) ----
+  const numbers = isCloudConfigured() ? await prisma.whatsAppBusinessNumber.findMany() : [];
 
   for (const n of numbers) {
     const issues: string[] = [];
@@ -69,5 +104,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, checked: numbers.length, alerts: alerts.length });
+  return NextResponse.json({
+    ok: true,
+    bridge: bridge.configured
+      ? { reachable: bridge.reachable, connection: bridge.connection ?? null }
+      : "not configured",
+    checked: numbers.length,
+    alerts: alerts.length,
+  });
 }

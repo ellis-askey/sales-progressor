@@ -114,11 +114,16 @@ export function WhatsAppConnectionCard() {
   }
 
   const connected = connection?.status === "connected";
+  // "unreachable" = the link service didn't answer, so the stored state can't be
+  // verified. Shown as its own amber state — never as a false "Connected".
+  const unreachable = connection?.status === "unreachable";
   const pill = connected
     ? { cls: "border-emerald-200 bg-emerald-50 text-emerald-700", label: "Connected" }
-    : pending
-      ? { cls: "border-amber-200 bg-amber-50 text-amber-700", label: "Waiting to scan" }
-      : { cls: "border-gray-200 bg-gray-50 text-gray-500", label: "Not connected" };
+    : unreachable
+      ? { cls: "border-amber-200 bg-amber-50 text-amber-700", label: "Can't check right now" }
+      : pending
+        ? { cls: "border-amber-200 bg-amber-50 text-amber-700", label: "Waiting to scan" }
+        : { cls: "border-gray-200 bg-gray-50 text-gray-500", label: "Not connected" };
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -151,6 +156,15 @@ export function WhatsAppConnectionCard() {
               <p className="text-[13px] text-gray-500">
                 WhatsApp linking isn&rsquo;t switched on yet. Please check back soon.
               </p>
+            ) : unreachable ? (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12.5px] leading-relaxed text-amber-800">
+                <Warning size={16} weight="fill" className="mt-0.5 shrink-0 text-amber-500" />
+                <p>
+                  We can&rsquo;t reach the WhatsApp link service right now, so we can&rsquo;t confirm your
+                  connection is working. Messages may not be saving to your sales. We&rsquo;re on it; check
+                  back shortly.
+                </p>
+              </div>
             ) : connected ? (
               <>
                 <ConnectedView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />

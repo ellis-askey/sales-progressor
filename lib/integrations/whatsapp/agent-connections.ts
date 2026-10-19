@@ -14,7 +14,7 @@ import {
 
 export type MyWhatsAppConnection = {
   id: string;
-  status: string; // pending_qr | connected | disconnected
+  status: string; // pending_qr | connected | disconnected | unreachable (bridge down, stored state unverifiable)
   phoneNumber: string | null;
   lastMessageAt: string | null;
   hasQr: boolean;
@@ -63,6 +63,10 @@ export async function getMyWhatsAppStatus(userId: string): Promise<MyWhatsAppSta
 
   // The stored row is a cache of the bridge's live view. When the bridge is
   // reachable, reconcile: "open" means linked; capture the phone number once known.
+  // When it is NOT reachable, the cache must not masquerade as live truth — a
+  // stored "connected" from before an outage is exactly what hid the Sept-Oct
+  // 2026 bridge outage for a month. Surface "unreachable" so the card can say
+  // "can't check" instead of a false green tick.
   let effectiveStatus = row.status;
   if (status.reachable) {
     effectiveStatus = status.connection === "open" ? "connected" : "pending_qr";
@@ -70,6 +74,8 @@ export async function getMyWhatsAppStatus(userId: string): Promise<MyWhatsAppSta
     if (effectiveStatus !== row.status) patch.status = effectiveStatus;
     if (status.phoneNumber && status.phoneNumber !== row.phoneNumber) patch.phoneNumber = status.phoneNumber;
     await prisma.whatsAppConnection.update({ where: { id: row.id }, data: patch });
+  } else if (row.status === "connected") {
+    effectiveStatus = "unreachable";
   }
 
   const phoneNumber = status.reachable ? status.phoneNumber ?? row.phoneNumber : row.phoneNumber;

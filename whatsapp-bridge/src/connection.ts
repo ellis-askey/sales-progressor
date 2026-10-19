@@ -62,6 +62,10 @@ export class Connection {
   }
 
   private async clearAuth(): Promise<void> {
+    // Credentials gone = identity gone. Without this, /status keeps reporting
+    // the old phone number after a logout, and the UIs render a device that no
+    // longer exists (how the Sept-Oct 2026 outage looked "Connected" for weeks).
+    this.state.phoneNumber = null;
     try {
       await rm(this.authDir, { recursive: true, force: true });
       log.info("auth credentials cleared", { id: this.id });

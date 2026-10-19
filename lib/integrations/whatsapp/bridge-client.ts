@@ -15,6 +15,37 @@ export function isBridgeConfigured(): boolean {
   return bridgeEnv() !== null;
 }
 
+// Whole-bridge status (the internal number's socket) — the same /status the
+// Command Centre card reads, exposed here so the health cron can watch the
+// bridge without importing /lib/command (Law 8). Never throws.
+export type BridgeGlobalStatus = {
+  configured: boolean;
+  reachable: boolean;
+  connection?: string; // connecting | qr | open | close
+  lastMessageAt?: string | null;
+};
+
+export async function bridgeGlobalStatus(): Promise<BridgeGlobalStatus> {
+  const env = bridgeEnv();
+  if (!env) return { configured: false, reachable: false };
+  try {
+    const res = await fetch(`${env.base}/status`, {
+      headers: { authorization: `Bearer ${env.secret}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return { configured: true, reachable: false };
+    const d = (await res.json()) as { connection?: string; lastMessageAt?: string | null };
+    return {
+      configured: true,
+      reachable: true,
+      connection: d.connection,
+      lastMessageAt: d.lastMessageAt ?? null,
+    };
+  } catch {
+    return { configured: true, reachable: false };
+  }
+}
+
 export type BridgeConnStatus = {
   configured: boolean;
   reachable: boolean;
