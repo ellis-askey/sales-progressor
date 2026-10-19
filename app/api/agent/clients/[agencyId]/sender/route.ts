@@ -22,9 +22,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
 
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { name: true, quoteSenderEmail: true, quoteSenderVerified: true },
+    select: { name: true },
   });
   if (!agency) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // The sender THIS company has set up for THIS agency, from the per-(company, agency)
+  // link — not the shared Agency row, so two companies at one agency never see each
+  // other's address.
+  const linkRow = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+    select: { senderEmail: true, senderVerified: true },
+  });
 
   // The latest domain the owner has started for this client (shown in the flow).
   const domains = await listVerifiedDomainsForAgency(agencyId);
@@ -34,12 +42,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
   // state + replies wording. A verified domain matching the address → "domain"
   // (send-only, replies route to the progressor); any other set address → "single"
   // (a real mailbox, replies land in it). Null when nothing is set up yet.
-  const method = senderMethod(agency.quoteSenderEmail, domain);
+  const method = senderMethod(linkRow?.senderEmail ?? null, domain);
 
   return NextResponse.json({
     agencyName: agency.name,
-    senderEmail: agency.quoteSenderEmail,
-    senderVerified: agency.quoteSenderVerified,
+    senderEmail: linkRow?.senderEmail ?? null,
+    senderVerified: linkRow?.senderVerified ?? false,
     method,
     domain: domain
       ? {

@@ -216,6 +216,69 @@ export async function confirmAgencySingleSenderLink(agencyId: string, link: stri
   return confirmSingleSenderLink(agency?.quoteSenderEmail ?? null, link, () => checkAgencySingleSender(agencyId));
 }
 
+// ─── Per-(company, agency) single sender ──────────────────────────────────────
+// The agency gives EACH progression company its own mailbox on its domain (e.g.
+// jo@knight-residential.co.uk vs annie@knight-residential.co.uk). Stored on the
+// ProgressionBusinessClient link, NOT the shared Agency row — so two companies at one
+// agency never overwrite each other (the "merge"). Owner-scoped by the caller
+// (assertOwnerOfClient passes the owner's businessId). Same SendGrid core as the
+// agency variants above; only the storage target differs.
+
+async function clientLinkSenderEmail(progressionBusinessId: string, agencyId: string): Promise<string | null> {
+  const link = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId, agencyId } },
+    select: { senderEmail: true },
+  });
+  return link?.senderEmail ?? null;
+}
+
+/** Start single-sender verification for THIS company's address at a client agency. */
+export async function startClientSingleSender(progressionBusinessId: string, agencyId: string, email: string, fromName: string): Promise<{ ok: true } | { error: string }> {
+  const clean = email.trim().toLowerCase();
+  if (isPersonalDomain(clean)) return { error: "Use an address on the agency's own domain, not a personal account like Gmail or Outlook." };
+  if (!extractDomain(clean)) return { error: "That doesn't look like a valid email address." };
+  try {
+    await createSingleSender({ fromEmail: clean, fromName, replyTo: clean });
+  } catch {
+    return { error: "We couldn't start verification for that address. Check it's correct and try again." };
+  }
+  await prisma.progressionBusinessClient.update({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId, agencyId } },
+    data: { senderEmail: clean, senderVerified: false, senderVerifiedAt: null },
+  });
+  return { ok: true };
+}
+
+/** Check + adopt THIS company's pending single sender at a client agency. */
+export async function checkClientSingleSender(progressionBusinessId: string, agencyId: string): Promise<{ verified: boolean }> {
+  const email = await clientLinkSenderEmail(progressionBusinessId, agencyId);
+  if (!email) return { verified: false };
+  const verified = await isSingleSenderVerified(email);
+  if (verified) {
+    await prisma.progressionBusinessClient.update({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId, agencyId } },
+      data: { senderVerified: true, senderVerifiedAt: new Date() },
+    });
+  }
+  return { verified };
+}
+
+/** Re-send the verification email for THIS company's pending single sender. */
+export async function resendClientSingleSender(progressionBusinessId: string, agencyId: string): Promise<{ ok: true } | { error: string }> {
+  const email = await clientLinkSenderEmail(progressionBusinessId, agencyId);
+  if (!email) return { error: "There's no address to resend to." };
+  const info = await findSingleSenderByEmail(email);
+  if (!info) return { error: "We couldn't find that verification. Try entering the address again." };
+  try { await resendSingleSenderVerification(info.id); } catch { return { error: "We couldn't resend just now. Try again shortly." }; }
+  return { ok: true };
+}
+
+/** Confirm THIS company's pending single sender from the pasted verification link. */
+export async function confirmClientSingleSenderLink(progressionBusinessId: string, agencyId: string, link: string): Promise<{ verified: true } | { error: string }> {
+  const email = await clientLinkSenderEmail(progressionBusinessId, agencyId);
+  return confirmSingleSenderLink(email, link, () => checkClientSingleSender(progressionBusinessId, agencyId));
+}
+
 /** Start single-sender verification for a PROGRESSION BUSINESS's own default sender. */
 export async function startBusinessSingleSender(businessId: string, email: string, fromName: string): Promise<{ ok: true } | { error: string }> {
   const clean = email.trim().toLowerCase();

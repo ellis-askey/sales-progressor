@@ -144,6 +144,30 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ checked: results.length, results, senderStamped, businessSenderStamped });
+  // ── Stamp each per-(company, agency) sender's senderVerified, by the SAME rule:
+  // sendable = its sending domain is authenticated OR it's a verified single sender.
+  // This is what resolveOutsourcedWhiteLabelSender requires before a company's
+  // per-agency address is used, so two companies at one agency stay distinct.
+  let linkSenderStamped = 0;
+  const senderLinks = await prisma.progressionBusinessClient.findMany({
+    where: { senderEmail: { not: null }, removedAt: null },
+    select: { id: true, senderEmail: true, senderVerified: true },
+  });
+  for (const l of senderLinks) {
+    const email = l.senderEmail!.toLowerCase();
+    const domain = email.split("@")[1];
+    const domainAuthed = domain ? verifiedDomainNames.has(domain) : false;
+    const sendable = domainAuthed || singleSenders.has(email);
+    if (!sendable && !singleSenderFetchOk && l.senderVerified && !domainAuthed) continue;
+    if (sendable !== l.senderVerified) {
+      await prisma.progressionBusinessClient.update({
+        where: { id: l.id },
+        data: { senderVerified: sendable, senderVerifiedAt: sendable ? new Date() : null },
+      });
+      linkSenderStamped++;
+    }
+  }
+
+  return NextResponse.json({ checked: results.length, results, senderStamped, businessSenderStamped, linkSenderStamped });
   });
 }

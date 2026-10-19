@@ -14,10 +14,10 @@ import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { assertOwnerOfClient } from "@/lib/services/progression-clients";
 import {
-  startAgencySingleSender,
-  checkAgencySingleSender,
-  confirmAgencySingleSenderLink,
-  resendAgencySingleSender,
+  startClientSingleSender,
+  checkClientSingleSender,
+  confirmClientSingleSenderLink,
+  resendClientSingleSender,
 } from "@/lib/services/verified-emails";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ agencyId: string }> }) {
@@ -29,27 +29,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
 
   const { action, email, link } = await req.json();
 
+  // Stored per-(this company, this agency) on the ProgressionBusinessClient link, so
+  // another progression company at the same agency never overwrites it.
+  const businessId = owner.businessId;
+
   if (action === "create") {
     if (!email || typeof email !== "string") return NextResponse.json({ error: "Email is required" }, { status: 400 });
     const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
-    const res = await startAgencySingleSender(agencyId, email, agency?.name ?? "Sales Progressor");
+    const res = await startClientSingleSender(businessId, agencyId, email, agency?.name ?? "Sales Progressor");
     if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
 
   if (action === "check") {
-    return NextResponse.json(await checkAgencySingleSender(agencyId));
+    return NextResponse.json(await checkClientSingleSender(businessId, agencyId));
   }
 
   if (action === "confirm-link") {
     if (!link || typeof link !== "string") return NextResponse.json({ error: "Link is required" }, { status: 400 });
-    const res = await confirmAgencySingleSenderLink(agencyId, link);
+    const res = await confirmClientSingleSenderLink(businessId, agencyId, link);
     if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
     return NextResponse.json({ verified: true });
   }
 
   if (action === "resend") {
-    const res = await resendAgencySingleSender(agencyId);
+    const res = await resendClientSingleSender(businessId, agencyId);
     if ("error" in res) return NextResponse.json({ error: res.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
