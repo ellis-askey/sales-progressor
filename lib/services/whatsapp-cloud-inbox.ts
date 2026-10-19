@@ -22,6 +22,9 @@ export type ThreadSummary = {
   lastOutboundAt: string | null;
   unreadCount: number;
   windowOpenUntil: string | null; // null = reply window closed
+  // Sending exists only on real Cloud numbers; bridge-captured conversations
+  // are read-only by design (pivot 2026-10-18) — the UI hides the composer.
+  canSend: boolean;
 };
 
 export type ThreadMessage = {
@@ -44,6 +47,7 @@ function toSummary(t: {
   transactionId: string | null; lastPreview: string | null; lastInboundAt: Date | null;
   lastOutboundAt: Date | null; unreadCount: number;
   transaction: { propertyAddress: string } | null;
+  businessNumber: { ownerType: string };
 }): ThreadSummary {
   return {
     id: t.id,
@@ -58,10 +62,14 @@ function toSummary(t: {
     lastOutboundAt: t.lastOutboundAt?.toISOString() ?? null,
     unreadCount: t.unreadCount,
     windowOpenUntil: windowOpenUntil(t.lastInboundAt)?.toISOString() ?? null,
+    canSend: t.businessNumber.ownerType !== "bridge",
   };
 }
 
-const THREAD_INCLUDE = { transaction: { select: { propertyAddress: true } } } as const;
+const THREAD_INCLUDE = {
+  transaction: { select: { propertyAddress: true } },
+  businessNumber: { select: { ownerType: true } },
+} as const;
 
 // All mapped conversations on one file (the per-file WhatsApp tab).
 export async function getFileThreads(session: Session, transactionId: string): Promise<ThreadSummary[]> {

@@ -49,7 +49,7 @@ export function WhatsAppCloudPanel({
     >
       <div style={{ padding: "12px 14px 0" }}>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
-          Conversations on the official number
+          WhatsApp conversations
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "9px 0 10px" }}>
           {threads.map((t) => {

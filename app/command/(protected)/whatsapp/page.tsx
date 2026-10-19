@@ -5,6 +5,7 @@ import { WhatsAppAssign } from "@/components/command/WhatsAppAssign";
 import { WhatsAppAssignedList } from "@/components/command/WhatsAppAssignedList";
 import { WhatsAppRepairButton } from "@/components/command/WhatsAppRepairButton";
 import { WhatsAppCloudCard } from "@/components/command/WhatsAppCloudCard";
+import { WhatsAppConvertHistory } from "@/components/command/WhatsAppConvertHistory";
 
 // Command Centre → WhatsApp. Bridge connection status + the queue of
 // conversations waiting to be assigned to a property.
@@ -39,7 +40,8 @@ export default async function WhatsAppCommandPage() {
       </div>
 
       {cloud && <WhatsAppCloudCard status={cloud} />}
-      {cloud?.configured && cloudThreads && (
+      <WhatsAppConvertHistory />
+      {cloudThreads && (cloudThreads.needsAssigning.length > 0 || cloudThreads.assigned.length > 0) && (
         <WhatsAppCloudThreads needsAssigning={cloudThreads.needsAssigning} assigned={cloudThreads.assigned} />
       )}
 

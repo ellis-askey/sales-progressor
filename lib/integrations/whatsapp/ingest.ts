@@ -114,6 +114,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
   // connectionId is dropped — we never capture from a connection we can't
   // attribute.
   let scopeAgencyId: string | null = null;
+  let scopeBusinessId: string | null = null;
   if (m.connectionId) {
     const scope = await resolveConnectionScope(m.connectionId);
     if (!scope) return { waMessageId: m.waMessageId, status: "ignored", reason: "unknown_connection" };
@@ -123,6 +124,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
       return { waMessageId: m.waMessageId, status: "ignored", reason: "capture_disabled" };
     }
     scopeAgencyId = scope.agencyId;
+    scopeBusinessId = scope.businessId;
   }
 
   // A chat that's already been assigned (group OR direct, auto or manually) is
@@ -143,7 +145,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
     return { waMessageId: m.waMessageId, status: "ignored", reason: "not_group" };
   }
 
-  const match = await matchGroup(m, scopeAgencyId);
+  const match = await matchGroup(m, scopeAgencyId, scopeBusinessId);
 
   if (match.txId) {
     await writeMessage(m, match.txId, match.side);
@@ -157,12 +159,13 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
     return { waMessageId: m.waMessageId, status: "ignored", reason: "not_property" };
   }
 
-  // An agency connection whose correctly-named group doesn't resolve to one of
-  // that agency's files is dropped — we never spill an agency's WhatsApp content
-  // into the internal needs-assigning queue. Only the legacy internal number
-  // keeps the queue (so internal staff can hand-match a stray group).
-  if (scopeAgencyId) {
-    return { waMessageId: m.waMessageId, status: "ignored", reason: "no_file_in_agency" };
+  // A scoped connection (agency agent OR business member) whose correctly-named
+  // group doesn't resolve to one of its own files is dropped — we never spill a
+  // tenant's WhatsApp content into the internal needs-assigning queue. Only the
+  // legacy internal number keeps the queue (so internal staff can hand-match a
+  // stray group).
+  if (scopeAgencyId || scopeBusinessId) {
+    return { waMessageId: m.waMessageId, status: "ignored", reason: "no_file_in_scope" };
   }
 
   await writePending(m, match.reason ?? "no_match", match.candidates ?? []);
@@ -171,7 +174,7 @@ async function ingestOne(m: BridgeMessage): Promise<IngestResult> {
 
 // ── Group matching ───────────────────────────────────────────────────────────
 
-async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null): Promise<MatchResult> {
+async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null, scopeBusinessId: string | null = null): Promise<MatchResult> {
   // Mapping is checked upstream in ingestOne. Here we only name-match a group
   // we've never seen before.
   const name = (m.groupName ?? "").trim();
@@ -192,6 +195,8 @@ async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null): Promi
     where: {
       status: { in: [...ACTIVE_STATUSES] },
       ...(scopeAgencyId ? { agencyId: scopeAgencyId } : {}),
+      // Business-member connection: only that business's own book (Law 7).
+      ...(scopeBusinessId ? { progressionBusinessId: scopeBusinessId } : {}),
       propertyAddress: { contains: needle, mode: "insensitive" },
     },
     select: { id: true, status: true, propertyAddress: true },
@@ -282,13 +287,15 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
     media: m.media ?? null,
   };
 
-  await prisma.outboundMessage.create({
+  const row = await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
       agencyId: tx?.agencyId ?? null,
       type: isOurs ? "outbound" : "inbound",
       method: "whatsapp",
-      channel: "other", // no WhatsApp value in OutboundChannel yet — timeline keys off `method`
+      // First-class channel since the rebuild's Phase 3 enum landed; the
+      // timeline still keys off `method`, so old readers are unaffected.
+      channel: "whatsapp",
       purpose: "other",
       status: isOurs ? "sent" : "delivered",
       contactIds: isOurs ? sideContactIds : (sender.contactId ? [sender.contactId] : sideContactIds),
@@ -306,7 +313,31 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
       // paste importer's convention.
       buyerRoundId: side === "BUYER" ? tx?.activeBuyerRoundId ?? null : null,
     },
+    select: { id: true },
   });
+
+  // Pivot 2026-10-18: every captured message also files into a conversation
+  // thread, so the modern per-file tab + inbox display it. Best-effort — a
+  // filing failure never loses the message (the row exists; the history
+  // converter sweeps up unthreaded rows).
+  try {
+    const { fileBridgeMessageIntoThread } = await import("./thread-bridge");
+    await fileBridgeMessageIntoThread({
+      connectionId: m.connectionId ?? null,
+      waChatId: m.waChatId,
+      isGroup: m.isGroup,
+      groupName: m.groupName ?? null,
+      counterpartyLabel: isOurs ? null : sender.label,
+      transactionId: txId,
+      side,
+      messageRowId: row.id,
+      isOurs,
+      sentAt,
+      preview: content,
+    });
+  } catch (e) {
+    console.error("[whatsapp] thread filing failed", e);
+  }
 }
 
 // Resolve who sent a message into a display label (+ contact/agent link):

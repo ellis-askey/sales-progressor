@@ -8,6 +8,18 @@ Last updated: 2026-10-12
 
 ---
 
+## WhatsApp pivot — Railway volume check for agent/business connections (2026-10-18)
+
+The capture-first pivot is built: every captured message now files into proper conversation threads, the WhatsApp tab + reading-room inbox are open to all roles, and agents AND progression-business members can link their own WhatsApp via QR (business capture is scoped to their own files). One infrastructure check only you can do:
+
+1. **Railway → the whatsapp-bridge service → confirm a Volume is attached** and the `AUTH_DIR` env var points inside it. Without this, every agent/business QR pairing is wiped on each restart/redeploy (your internal number already survives, which suggests the volume exists — just confirm `AUTH_DIR` sits on it).
+2. Quick proof: pair a test connection (any phone), redeploy the Railway service, confirm it comes back without re-scanning.
+3. After the next prod deploy, press **"Convert a batch"** on Command Centre → WhatsApp (repeat until it reports zero remaining) — this files all previously-captured history into the new conversation views.
+
+The Meta/Cloud setup checklist below is now OPTIONAL (parked plan — only needed if we ever want sending/automation).
+
+---
+
 ## WhatsApp Cloud API — Phase 1 external setup (2026-10-12)
 
 The code side of Phase 1 (docs/active/whatsapp-rebuild/REBUILD_PLAN.md §G P1) is built: official webhook endpoint, send client, encrypted number registry, idempotent event store, and a founder-only test card on Command Centre → WhatsApp. It is DARK until you do the Meta-side setup. The Baileys bridge is completely untouched and keeps running.

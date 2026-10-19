@@ -11,11 +11,17 @@ import { prisma } from "@/lib/prisma";
 export type ConnectionScope = {
   connectionId: string;
   userId: string;
-  agencyId: string | null; // null for an internal-staff connection (no agency)
+  agencyId: string | null; // the owning agency, for agency-agent connections
+  // External progression business (pivot 2026-10-18): a business member's
+  // connection scopes matching to THEIR business's files. null for agency
+  // agents and internal staff. A connection with neither agencyId nor
+  // businessId is internal (unscoped, matches across all files) — so this
+  // field existing is what keeps business capture inside its own book (Law 7).
+  businessId: string | null;
   captureEnabled: boolean; // the agency's Command Centre WhatsApp kill switch
 };
 
-// Look up which connection (and therefore which agency) a message came through.
+// Look up which connection (and therefore which tenant) a message came through.
 // Returns null when the connectionId is unknown — the caller drops the message
 // rather than capturing from a connection it can't attribute.
 export async function resolveConnectionScope(connectionId: string): Promise<ConnectionScope | null> {
@@ -24,15 +30,28 @@ export async function resolveConnectionScope(connectionId: string): Promise<Conn
     select: {
       id: true,
       userId: true,
-      user: { select: { agencyId: true, agency: { select: { whatsAppCaptureEnabled: true } } } },
+      user: {
+        select: {
+          agencyId: true,
+          agency: { select: { whatsAppCaptureEnabled: true } },
+          progressionBusinessId: true,
+          progressionBusiness: { select: { isTsp: true } },
+        },
+      },
     },
   });
   if (!conn) return null;
+  const externalBusinessId =
+    conn.user?.progressionBusinessId && conn.user.progressionBusiness && !conn.user.progressionBusiness.isTsp
+      ? conn.user.progressionBusinessId
+      : null;
   return {
     connectionId: conn.id,
     userId: conn.userId,
     agencyId: conn.user?.agencyId ?? null,
-    // No agency (internal staff) = not gated by the per-agency switch.
+    businessId: externalBusinessId,
+    // No agency (internal staff / business member) = not gated by the
+    // per-agency switch.
     captureEnabled: conn.user?.agency?.whatsAppCaptureEnabled ?? true,
   };
 }

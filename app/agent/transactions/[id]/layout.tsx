@@ -273,11 +273,12 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     { key: "documents",  label: "Documents", icon: "documents" },
     { key: "activity",   label: "Activity", icon: "activity" },
     ...(setupMatured ? [setupTab] : []),
-    // WhatsApp capture is wired to TSP's own WhatsApp number, so the tab is
-    // only meaningful on TSP files. Hidden on an external progression-business
-    // file (fileProgressor set) where it would always be empty. TSP files
-    // (fileProgressor null) keep it exactly as before.
-    ...(isInternalTeam && !fileProgressor ? [{ key: "whatsapp", label: "WhatsApp", icon: "whatsapp" }] : []),
+    // WhatsApp tab for every file-access role (pivot 2026-10-18): capture is
+    // per-connection now (agents + business members can link their own
+    // numbers), so the conversations view is meaningful everywhere. The page
+    // shows a guide-to-connect empty state when nothing's captured; the legacy
+    // internal panel stays internal-only inside the page.
+    { key: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
     // Client portal sits at the very end and STAYS there — even once File setup
     // demotes toward the end at 14 days, this remains the final tab (founder,
     // 2026-09-30). A read-only window onto exactly what each client sees.

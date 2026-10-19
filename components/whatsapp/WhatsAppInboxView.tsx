@@ -80,7 +80,7 @@ export function WhatsAppInboxView({ threads }: { threads: ThreadSummary[] }) {
         {visible.length === 0 && (
           <p style={{ margin: "18px 4px", fontSize: 13, color: "var(--agent-text-muted)" }}>
             {threads.length === 0
-              ? "No WhatsApp conversations yet. They appear here as soon as clients message the official number."
+              ? "No WhatsApp conversations yet. Link your WhatsApp in Account → Connections and your property chats appear here automatically."
               : "Nothing in this filter right now."}
           </p>
         )}

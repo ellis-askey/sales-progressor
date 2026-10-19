@@ -1,13 +1,15 @@
 // Agent-facing WhatsApp connection status (Phase 3). Scoped to the caller.
+// Pivot 2026-10-18: open to external progression-business members too.
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getMyWhatsAppStatus } from "@/lib/integrations/whatsapp/agent-connections";
+import { canUseWhatsAppConnect } from "@/lib/integrations/whatsapp/connect-access";
 
 export async function GET() {
   const session = await requireSession();
   const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") {
+  if (!(await canUseWhatsAppConnect(session))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const status = await getMyWhatsAppStatus(session.user.id);

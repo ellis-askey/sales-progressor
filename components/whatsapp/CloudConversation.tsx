@@ -152,7 +152,9 @@ export function CloudConversation({ thread: initialThread, messages: initialMess
         })}
       </div>
 
-      {/* Composer */}
+      {/* Composer — Cloud-number threads only. Bridge-captured conversations
+          are read-only by design: people type on their own phones. */}
+      {thread.canSend && (
       <div style={{ borderTop: "1px solid var(--agent-border-subtle)", padding: "10px 12px" }}>
         {!windowOpen && (
           <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
@@ -210,6 +212,7 @@ export function CloudConversation({ thread: initialThread, messages: initialMess
         </div>
         {sendError && <p style={{ margin: "7px 0 0", fontSize: 12, color: "var(--agent-danger, #C73E3E)" }}>{sendError}</p>}
       </div>
+      )}
     </div>
   );
 }

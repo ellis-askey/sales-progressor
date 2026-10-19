@@ -4,7 +4,7 @@
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    outboundMessage: { findFirst: jest.fn(), create: jest.fn() },
+    outboundMessage: { findFirst: jest.fn(), create: jest.fn().mockResolvedValue({ id: "om1" }), update: jest.fn() },
     whatsAppPendingMessage: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -18,6 +18,12 @@ jest.mock("@/lib/prisma", () => ({
     propertyTransaction: { findMany: jest.fn(), findUnique: jest.fn() },
     contact: { findMany: jest.fn() },
     user: { findMany: jest.fn(), findUnique: jest.fn() },
+    // Thread filing (pivot 2026-10-18) — writeMessage files each captured row
+    // into a conversation thread; stubbed so the routing contract stays the
+    // unit under test.
+    whatsAppBusinessNumber: { findUnique: jest.fn(), create: jest.fn().mockResolvedValue({ id: "bn1" }) },
+    whatsAppThread: { findUnique: jest.fn(), create: jest.fn().mockResolvedValue({ id: "t1", groupSubject: null, transactionId: "tx1" }), update: jest.fn() },
+    $transaction: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -130,7 +136,9 @@ describe("per-agency connection scoping (Phase 2)", () => {
     db.propertyTransaction.findMany.mockResolvedValue([]);
     const [r] = await ingestWhatsAppMessages([msg({ connectionId: "conn1", groupName: "Sale of 8 Other Road" })]);
     expect(r.status).toBe("ignored");
-    expect(r.reason).toBe("no_file_in_agency");
+    // Renamed from no_file_in_agency when business-member connections joined
+    // the same guard (pivot 2026-10-18).
+    expect(r.reason).toBe("no_file_in_scope");
     expect(db.outboundMessage.create).not.toHaveBeenCalled();
     // And it is NOT leaked into the internal needs-assigning queue.
     expect(db.whatsAppPendingMessage.create).not.toHaveBeenCalled();

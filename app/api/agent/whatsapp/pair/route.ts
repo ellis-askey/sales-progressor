@@ -1,12 +1,14 @@
 // Agent-facing WhatsApp pairing start (Phase 3). Requires the consent tick.
+// Pivot 2026-10-18: external progression-business members may link too — their
+// capture scopes to their own business's files (connect-access + ingest scope).
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { startMyWhatsAppPairing } from "@/lib/integrations/whatsapp/agent-connections";
+import { canUseWhatsAppConnect } from "@/lib/integrations/whatsapp/connect-access";
 
 export async function POST(req: Request) {
   const session = await requireSession();
-  const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") {
+  if (!(await canUseWhatsAppConnect(session))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const body = (await req.json().catch(() => ({}))) as { consent?: boolean };

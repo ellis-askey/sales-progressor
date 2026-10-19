@@ -60,6 +60,20 @@ export async function assignCloudThreadAction(
   }
 }
 
+// One-off (repeatable) back-conversion: file already-captured bridge messages
+// into conversation threads so the new tab/inbox open with full history.
+export async function convertBridgeHistoryAction(): Promise<{ ok: boolean; converted?: number; remaining?: number; error?: string }> {
+  await requireSuperAdmin();
+  try {
+    const { convertBridgeHistory } = await import("@/lib/integrations/whatsapp/thread-bridge");
+    const res = await convertBridgeHistory();
+    revalidatePath("/command/whatsapp");
+    return { ok: true, ...res };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Conversion failed." };
+  }
+}
+
 // Dismiss a conversation that isn't sales traffic. Reversible by assigning later.
 export async function ignoreCloudThreadAction(threadId: string): Promise<{ ok: boolean; error?: string }> {
   await requireSuperAdmin();
