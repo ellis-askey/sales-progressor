@@ -105,7 +105,8 @@ export async function maybeSendReadyToExchangeEmail(transactionId: string): Prom
   );
   if (!vm18Done || !pm25Done) return;
 
-  const agencyName = tx.agency?.name ?? "Sales Progressor";
+  // Client-facing brand — never our "Sales Progressor" platform name.
+  const agencyName = tx.agency?.name ?? "Your agent";
 
   // Send from the file's own agency authenticated address (branded with the
   // progressor/agent), with the file-type-aware fallback when the agency has

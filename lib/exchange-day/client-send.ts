@@ -104,13 +104,24 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
     const due = computeDueClientSlots(tx, now);
     if (due.length === 0) continue;
 
-    const { from, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = await resolveAgencySenderForTransaction(tx.id).catch(() => ({ from: undefined, replyTo: undefined, theme: undefined, studioTheme: undefined, brandName: undefined, logoUrl: undefined, tileColor: undefined }));
+    // Resolve the sender up front; if it genuinely can't resolve, SKIP this file
+    // rather than fail open to "Sales Progressor <updates@thesalesprogressor.co.uk>".
+    let sender;
+    try {
+      sender = await resolveAgencySenderForTransaction(tx.id);
+    } catch (err) {
+      console.error(`[exchange-day] sender resolve failed for tx ${tx.id} — skipping (no fail-open to the platform identity)`, err);
+      continue;
+    }
+    const { from, replyTo, theme, studioTheme, brandName, logoUrl, tileColor } = sender;
     const emailTheme = theme ?? resolveEmailTheme(null);
     // Effective client copy — the business's own version on an outsourced file,
     // else the agency's, else our default.
     const edContent = await resolveExchangeDayClientContent(tx.agencyId, tx.progressionBusinessId);
-    const senderName = tx.assignedUser?.name ?? tx.agentUser?.name ?? "Sales Progressor";
-    const agencyName = tx.agency?.name ?? "Sales Progressor";
+    // Client-facing sign-off + brand: the assigned progressor, else the agent, else
+    // the agency name — never our "Sales Progressor" platform brand.
+    const senderName = tx.assignedUser?.name ?? tx.agentUser?.name ?? tx.agency?.name ?? "Your progressor";
+    const agencyName = tx.agency?.name ?? "Your agent";
     const addressShort = tx.propertyAddress.split(",")[0]?.trim() || tx.propertyAddress;
     const completionDate = tx.completionDate ? longDate(tx.completionDate) : "a date to be confirmed";
     const createdById = tx.assignedUserId ?? tx.agentUserId ?? null;

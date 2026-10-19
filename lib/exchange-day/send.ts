@@ -98,8 +98,10 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
     if (!senderName && tx.agentUserId) {
       senderName = (await prisma.user.findUnique({ where: { id: tx.agentUserId }, select: { name: true } }))?.name ?? null;
     }
-    senderName = senderName ?? "Sales Progressor";
-    const agencyName = tx.agency?.name ?? "Sales Progressor";
+    // Sign-off + brand (solicitor-facing): the progressor/agent on the file, else the
+    // agency name — never our "Sales Progressor" platform brand.
+    senderName = senderName ?? tx.agency?.name ?? "Your progressor";
+    const agencyName = tx.agency?.name ?? "Your agent";
     const addressShort = tx.propertyAddress.split(",")[0]?.trim() || tx.propertyAddress;
     const completionDate = tx.completionDate ? longDate(tx.completionDate) : "a date to be confirmed";
     const createdById = tx.assignedUserId ?? tx.agentUserId ?? null;

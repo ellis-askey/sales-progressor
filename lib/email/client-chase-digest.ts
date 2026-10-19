@@ -656,7 +656,7 @@ export async function enqueueClientChaseDigest(input: {
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
     milestones: sendCodes.map((code) => ({ code })),
-    agencyName: transaction.agency?.name ?? "Sales Progressor",
+    agencyName: transaction.agency?.name ?? "Your agent",
     surveyQuote,
     // Drives sale/purchase word in the body openers. Defaults to vendor
     // defensively — should never apply since the cron filters contacts
@@ -679,7 +679,7 @@ export async function enqueueClientChaseDigest(input: {
   if (editBody) {
     payload.text = editBody;
     payload.html = renderEditedChaseEmailHtml({
-      agencyName: transaction.agency?.name ?? "Sales Progressor",
+      agencyName: transaction.agency?.name ?? "Your agent",
       subject: payload.subject,
       text: editBody,
       respondUrl: payload.respondUrl,
@@ -722,7 +722,7 @@ export async function enqueueClientChaseDigest(input: {
       // shipped, so the edit never reached the recipient. With these
       // stored, updateEmailPayload can rebuild the branded chase shell
       // around the edited body (renderEditedChaseEmailHtml).
-      agencyName: transaction.agency?.name ?? "Sales Progressor",
+      agencyName: transaction.agency?.name ?? "Your agent",
       respondUrl: payload.respondUrl,
       unsubscribeUrl: payload.unsubscribeUrl,
       pauseUrl: buildContactPauseUrl(contact.id),
