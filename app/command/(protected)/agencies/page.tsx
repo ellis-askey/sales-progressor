@@ -384,8 +384,11 @@ export default async function AgenciesPage({
                 agencyRows.map((a) => (
                   <tr key={a.agencyId} className="border-b border-neutral-800 last:border-b-0">
                     <td className="px-3.5 py-2.5 font-semibold whitespace-nowrap">
-                      <Link href={`/command/agencies?view=agent&q=${encodeURIComponent(a.agencyName)}`} className="text-neutral-100 hover:text-blue-300 transition-colors">
+                      <Link href={`/command/agency/${a.agencyId}`} className="text-neutral-100 hover:text-blue-300 transition-colors">
                         {a.agencyName}
+                      </Link>
+                      <Link href={`/command/agencies?view=agent&q=${encodeURIComponent(a.agencyName)}`} className="ml-2 text-[11px] text-neutral-600 hover:text-blue-300 transition-colors font-normal">
+                        agents
                       </Link>
                     </td>
                     <td className="px-3.5 py-2.5 text-right tabular-nums text-neutral-200">{a.agentCount}</td>

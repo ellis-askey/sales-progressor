@@ -30,9 +30,14 @@ export default async function AgencyRevenueDrillPage({
         <Link href="/command/revenue" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
           ← Revenue
         </Link>
-        <div className="flex items-baseline justify-between mt-2">
+        <div className="flex items-baseline justify-between mt-2 gap-4 flex-wrap">
           <h1 className="text-2xl font-semibold text-neutral-100">{a.name}</h1>
-          <p className="text-xs text-neutral-500">{monthLabel} · as of {formatShortDate(data.asOf)}</p>
+          <div className="flex items-center gap-4">
+            <Link href={`/command/agency/${agencyId}`} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              Agency file →
+            </Link>
+            <p className="text-xs text-neutral-500">{monthLabel} · as of {formatShortDate(data.asOf)}</p>
+          </div>
         </div>
       </div>
 
