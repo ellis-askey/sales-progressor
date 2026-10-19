@@ -48,6 +48,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
     agencyName: agency.name,
     senderEmail: linkRow?.senderEmail ?? null,
     senderVerified: linkRow?.senderVerified ?? false,
+    // Who the owner is — for the addressing preview: their name brands the "From"
+    // display ("{first} at {Agency}") and their email is where replies fall back to
+    // when no sender is set up.
+    ownerName: session.user.name ?? null,
+    ownerEmail: session.user.email ?? null,
     method,
     domain: domain
       ? {

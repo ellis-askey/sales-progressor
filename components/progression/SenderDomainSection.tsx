@@ -26,21 +26,26 @@ import { useState, useEffect, useCallback } from "react";
 import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft, LinkSimple } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DomainAuthFlow } from "@/components/verified-emails/DomainAuthFlow";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type CnameRecord = { host: string; data: string; type: string };
 type DomainRecord = {
   id: string; domain: string; status: string;
   dkimValid: boolean; spfValid: boolean; cnameRecords: CnameRecord[];
 };
-type SenderStatus = {
+export type SenderStatus = {
   agencyName?: string | null;
   senderEmail: string | null;
   senderVerified: boolean;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   method: "domain" | "single" | null;
   domain: DomainRecord | null;
 };
 
-type View =
+const PLATFORM_FROM = "updates@thesalesprogressor.co.uk";
+
+export type View =
   | "loading" | "overview" | "method"
   | "single-input" | "single-sent"
   | "domain-input" | "domain-records"
@@ -56,14 +61,18 @@ export function SenderDomainSection({
   base,
   scope,
   subjectName,
+  preview,
 }: {
   base: string;
   scope: "client" | "business";
   subjectName?: string;
+  // Dev-only: render a hardcoded state (no network fetch). Used by /dev/sender-states
+  // to show every stage byte-for-byte. Never passed in the real app.
+  preview?: { status: SenderStatus; view: View };
 }) {
   const { toast } = useAgentToast();
-  const [status, setStatus] = useState<SenderStatus | null>(null);
-  const [view, setView] = useState<View>("loading");
+  const [status, setStatus] = useState<SenderStatus | null>(preview?.status ?? null);
+  const [view, setView] = useState<View>(preview?.view ?? "loading");
   const [chosen, setChosen] = useState<"single" | "domain" | null>(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,6 +106,7 @@ export function SenderDomainSection({
   }, [base]);
 
   useEffect(() => {
+    if (preview) return; // dev preview: render the hardcoded state, no network
     (async () => {
       const s = await refresh();
       const v = s ? restingView(s) : "overview";
@@ -115,7 +125,7 @@ export function SenderDomainSection({
         } catch { /* stay on the verify step */ }
       }
     })();
-  }, [base, refresh, restingView]);
+  }, [base, refresh, restingView, preview]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   async function createSingle() {
@@ -183,7 +193,6 @@ export function SenderDomainSection({
   }
 
   const pendingAddr = status?.senderEmail || pendingEmail;
-  const verifiedAddr = status?.senderEmail || "";
 
   // ── Shared pieces ────────────────────────────────────────────────────────────
   const Steps = ({ active }: { active: 1 | 2 | 3 }) => (
@@ -204,18 +213,42 @@ export function SenderDomainSection({
     <button type="button" className="sds-back" onClick={() => setView(to)}>‹ Back</button>
   );
 
-  const Mail = ({ addr, pill, pillKind }: { addr: string; pill: string; pillKind: "good" | "neutral" }) => (
-    <div className="sds-mail">
-      <div className="sds-mail-row">
-        <span className="sds-avatar">{initials(previewName)}</span>
-        <span className="sds-mail-id">
-          <span className="sds-mail-name">{previewName}</span>
-          <span className="sds-mail-addr">{addr}</span>
-        </span>
-        <span className={`sds-pill ${pillKind}`}>{pill}</span>
+  // The reassurance panel: shows exactly what buyers/sellers see this client's emails
+  // come FROM, and where their replies land — driven by the live resolved state, so it
+  // can't drift from what actually sends. Before set-up it shows the fallback (our
+  // neutral address + replies to their own inbox); after, their own address.
+  const AddressingPanel = () => {
+    const live = !!(status?.senderVerified && status?.senderEmail);
+    const pending = !!status?.senderEmail && !status?.senderVerified;
+    const fromAddr = live ? status!.senderEmail! : PLATFORM_FROM;
+    const replyAddr = live ? status!.senderEmail! : (status?.ownerEmail || "your own inbox");
+    const ownerFirst = extractFirstName(status?.ownerName ?? "");
+    const brand = status?.agencyName || subjectName || (isClient ? "the agency" : "your clients");
+    const displayName = isClient ? `${ownerFirst ? ownerFirst + " at " : ""}${brand}` : "Your default sending address";
+    return (
+      <div className="sds-ap">
+        <div className="sds-ap-h">{isClient ? `How ${brand}'s buyers & sellers see your emails` : "How your clients see your emails"}</div>
+        <div className="sds-ap-mail">
+          <span className="sds-avatar">{initials(brand)}</span>
+          <div className="sds-ap-id">
+            <span className="sds-ap-name">{displayName}</span>
+            <div className="sds-ap-line">
+              <span className="sds-ap-lab">From</span>
+              <span className="sds-ap-addr">{fromAddr}</span>
+              <span className={`sds-pill ${live ? "good" : "neutral"}`}>{live ? "Verified" : "Default"}</span>
+            </div>
+          </div>
+        </div>
+        <div className="sds-ap-reply">
+          <ArrowBendUpLeft size={14} weight="bold" />
+          <span>Replies go to <b>{replyAddr}</b>{!live && status?.ownerEmail ? " (your own inbox)" : ""}.</span>
+        </div>
+        {pending && (
+          <div className="sds-ap-pending">Once <b>{status?.senderEmail}</b> is verified, emails will send from that address, and replies will go straight back to it.</div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   // ── Render ───────────────────────────────────────────────────────────────────
   function body() {
@@ -226,26 +259,26 @@ export function SenderDomainSection({
       case "overview":
         return (
           <>
-            <h3 className="sds-h3">{isClient ? `Send your client updates from ${theirPossessive} own address` : "Send your client updates from your business's own address"}</h3>
+            <AddressingPanel />
+            <h3 className="sds-h3">{isClient ? `Send client updates from ${theirPossessive} own email address` : "Send client updates from your business's own email address"}</h3>
             <p className="sds-body">
               {isClient
-                ? `The automatic updates we send buyers and sellers already show ${subjectName || "the agency"} as the sender. You can also make those updates come from the agency's own email address.`
-                : "The automatic updates we send buyers and sellers already show the agency as the sender. You can also make those updates come from your business's own email address, used for any client that hasn't got their own."}
+                ? `The automatic updates we send to buyers and sellers already show ${subjectName || "the agency"} as the sender. You can also have these emails sent directly from the agency's own email address.`
+                : "The automatic updates we send to buyers and sellers already show the agency as the sender. You can also have these emails sent directly from your business's own email address, used for any client that hasn't got their own."}
             </p>
-            <Mail addr="updates@thesalesprogressor.co.uk" pill="Default address" pillKind="neutral" />
             <div className="sds-ov-actions">
               <div className="sds-ann">
                 <div><span className="sds-dot f" /><span><b>Sender name</b>{previewName}. Already set up for you.</span></div>
-                <div><span className="sds-dot v" /><span><b>Email address</b>{isClient ? "Use their own address instead." : "Use your own address instead."}</span></div>
+                <div><span className="sds-dot v" /><span><b>Email address</b>{isClient ? "Use the agency's own address instead." : "Use your own address instead."}</span></div>
               </div>
               <button type="button" className="sds-btn" onClick={() => { setChosen(null); setView("method"); }}>
-                {isClient ? "Set up their email address" : "Set up your email address"} <span className="arr">→</span>
+                {isClient ? "Set up agency email" : "Set up your email address"} <span className="arr">→</span>
               </button>
             </div>
             <div className="sds-note">
               <span className="sds-note-ic">💡</span>
               <span>{isClient
-                ? "This is optional. Until it's set up, emails will continue sending as normal using your business's default address, or ours if you haven't added one. Buyers and sellers will still see the agency's name."
+                ? "This is optional. Until it's set up, emails will continue sending as normal from your business's default address, or ours if you haven't added one. Buyers and sellers will still see the agency's name."
                 : "This is optional. Until it's set up, emails send from a neutral address. Buyers and sellers will still see the agency's name."}</span>
             </div>
           </>
@@ -256,8 +289,8 @@ export function SenderDomainSection({
           <>
             <div className="sds-topbar"><Back to="overview" /></div>
             <Steps active={1} />
-            <h3 className="sds-h3">{isClient ? "How would you like to set up their email address?" : "How would you like to set up your email address?"}</h3>
-            <p className="sds-body">There are two ways to do this, depending on what access you have. Choose whichever works for you.</p>
+            <h3 className="sds-h3">{isClient ? "How would you like to set up the agency's email address?" : "How would you like to set up your email address?"}</h3>
+            <p className="sds-body">There are two ways to do this, depending on what access you have. Choose whichever works best for you.</p>
 
             <button type="button" className={`sds-opt ${chosen === "single" ? "on" : ""}`} onClick={() => setChosen("single")} aria-pressed={chosen === "single"}>
               <span className="sds-opt-radio">{chosen === "single" ? "✓" : ""}</span>
@@ -268,13 +301,13 @@ export function SenderDomainSection({
               </span>
               <span className="sds-opt-sub">
                 {isClient
-                  ? <>The agency has given you an email address on their domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a link to that inbox to confirm you can use it.</>
-                  : <>You have an email address on your business&rsquo;s domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a link to that inbox to confirm you can use it.</>}
+                  ? <>The agency has given you an email address on their domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a verification link to that inbox to confirm you can send emails from it.</>
+                  : <>You have an email address on your business&rsquo;s domain, such as <span className="sds-ex">you@{sampleDomain}</span>. We&rsquo;ll send a verification link to that inbox to confirm you can send emails from it.</>}
               </span>
               <span className="sds-opt-facts">
                 <span><Clock size={13} weight="bold" /> Around 2 minutes</span>
                 <span><Sparkle size={13} weight="bold" /> No technical setup</span>
-                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies go to that email inbox</span>
+                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies go straight to that inbox</span>
               </span>
               {/* Mobile twin of the Easiest option pill: shown below the facts so
                   the title gets the full line width on narrow screens. */}
@@ -289,12 +322,12 @@ export function SenderDomainSection({
               </span>
               <span className="sds-opt-sub">
                 {isClient
-                  ? <>You or the agency&rsquo;s IT team add a few records to their domain settings once. After that you can send from your own address on it, like <span className="sds-ex">you@{sampleDomain}</span> — no separate verification per address.</>
-                  : <>You or your IT team add a few records to your domain settings once. After that you can send from your own address on it, like <span className="sds-ex">you@{sampleDomain}</span> — no separate verification per address.</>}
+                  ? <>You or the agency&rsquo;s IT team can add a few records to their domain settings. Once verified, you&rsquo;ll be able to send from addresses on their domain without verifying each one separately.</>
+                  : <>You or your IT team can add a few records to your domain settings. Once verified, you&rsquo;ll be able to send from addresses on your domain without verifying each one separately.</>}
               </span>
               <span className="sds-opt-facts">
                 <span><Clock size={13} weight="bold" /> Around 10 minutes to set up</span>
-                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies come back to the address you choose</span>
+                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies go to your chosen address</span>
               </span>
             </button>
 
@@ -311,11 +344,11 @@ export function SenderDomainSection({
           <>
             <div className="sds-topbar"><Back to="method" /></div>
             <Steps active={2} />
-            <h3 className="sds-h3">{isClient ? "Which email address have they given you?" : "Which email address do you want to use?"}</h3>
+            <h3 className="sds-h3">{isClient ? "Which email address will you be sending from?" : "Which email address do you want to use?"}</h3>
             <p className="sds-body">
               {isClient
-                ? `Enter the email address you've been given permission to use for ${subjectName || "this agency"}. You'll need access to its inbox to complete the setup.`
-                : "Enter an email address on your business's domain. You'll need access to its inbox to complete the setup."}
+                ? `Enter the email address you've been given permission to use for ${subjectName || "this agency"}. You'll need access to the inbox to verify it.`
+                : "Enter an email address on your business's domain. You'll need access to the inbox to verify it."}
             </p>
             <label className="sds-field" htmlFor="sds-addr">{isClient ? "Agency email address" : "Business email address"}</label>
             <input id="sds-addr" className="sds-input" type="email" autoComplete="off" autoFocus
@@ -324,8 +357,8 @@ export function SenderDomainSection({
               placeholder={`you@${sampleDomain}`} />
             <p className="sds-help">
               {isClient
-                ? "This must be an address using the agency's own domain, rather than a personal Gmail, Outlook or similar account."
-                : "This must be an address on your business's own domain, rather than a personal Gmail, Outlook or similar account."}
+                ? "Use an address on the agency's own domain, rather than a personal Gmail, Outlook or similar address."
+                : "Use an address on your business's own domain, rather than a personal Gmail, Outlook or similar address."}
             </p>
             <div className="sds-row">
               <button type="button" className="sds-btn" onClick={createSingle} disabled={busy || !email.trim()}>
@@ -343,9 +376,9 @@ export function SenderDomainSection({
             <h3 className="sds-h3">Check your inbox</h3>
             <p className="sds-body">
               We&rsquo;ve sent a verification email to <b>{pendingAddr}</b>. It comes from
-              Twilio SendGrid, the service that delivers email for us. Don&rsquo;t click
-              the button inside it. Copy the button&rsquo;s link instead and paste it
-              below, and we&rsquo;ll confirm the address for you.
+              Twilio SendGrid, our email delivery provider. Rather than clicking the
+              button inside the email, copy its link and paste it below. We&rsquo;ll use
+              it to verify the address for you.
             </p>
 
             <div className="sds-how">
@@ -354,9 +387,9 @@ export function SenderDomainSection({
                 <span>How to copy the link</span>
               </div>
               <ol className="sds-how-list">
-                <li><span className="sds-how-n">1</span><span>Open the email called <b>Please Verify Your Single Sender</b>.</span></li>
+                <li><span className="sds-how-n">1</span><span>Open the email titled <b>Please Verify Your Single Sender</b>.</span></li>
                 <li><span className="sds-how-n">2</span><span>Right-click the blue <b>Verify Single Sender</b> button. On a phone, press and hold it.</span></li>
-                <li><span className="sds-how-n">3</span><span>Choose <b>Copy link</b>, then come back and paste it here.</span></li>
+                <li><span className="sds-how-n">3</span><span>Select <b>Copy link</b>, then come back and paste it below.</span></li>
               </ol>
             </div>
 
@@ -364,25 +397,25 @@ export function SenderDomainSection({
             <input id="sds-vlink" className={`sds-input ${linkError ? "err" : ""}`} type="url" autoComplete="off"
               value={link} onChange={(e) => { setLink(e.target.value); setLinkError(null); }}
               onKeyDown={(e) => { if (e.key === "Enter" && link.trim()) confirmLink(); }}
-              placeholder="Paste the copied link here" />
+              placeholder="Paste your verification link here" />
             {linkError ? (
               <p className="sds-help" style={{ color: "var(--agent-coral-deep, #E2452A)" }}>{linkError}</p>
             ) : (
               <p className="sds-help">
-                The button&rsquo;s own page asks for a login you won&rsquo;t have. Pasting the link here lets us confirm the address without one.
+                The button opens a page that requires a SendGrid login. Pasting the link here lets us verify the address without one.
               </p>
             )}
 
             <div className="sds-row">
               <button type="button" className="sds-btn" onClick={confirmLink} disabled={busy || !link.trim()}>
-                {busy ? "Confirming…" : "Confirm address"}
+                {busy ? "Verifying…" : "Verify email address"}
               </button>
               <button type="button" className="sds-link" onClick={resendSingle} disabled={busy}>Resend email</button>
               <button type="button" className="sds-link" onClick={() => { setEmail(pendingAddr); setLink(""); setLinkError(null); setView("single-input"); }}>Use a different address</button>
             </div>
             <div className="sds-note">
               <span className="sds-note-ic">📩</span>
-              <span>Not received it? Check the junk folder, or resend the email. If you get stuck, forward the whole email to <b>support@thesalesprogressor.co.uk</b> and we&rsquo;ll confirm it for you.</span>
+              <span>Can&rsquo;t find the email? Check your junk folder or resend it. If you&rsquo;re stuck, forward the full email to <b>support@thesalesprogressor.co.uk</b> and we&rsquo;ll help you complete the verification.</span>
             </div>
           </>
         );
@@ -395,15 +428,15 @@ export function SenderDomainSection({
             <h3 className="sds-h3">Which email address would you like to use?</h3>
             <p className="sds-body">
               {isClient
-                ? `Enter an email address using ${theirPossessive} domain. We'll then give you the details needed to approve that domain for sending.`
-                : "Enter an email address on your business's domain. We'll then give you the details needed to approve that domain for sending."}
+                ? `Enter an email address using ${theirPossessive} domain. We'll then show you how to verify the domain for sending.`
+                : "Enter an email address on your business's domain. We'll then show you how to verify the domain for sending."}
             </p>
             <label className="sds-field" htmlFor="sds-addr2">Sending email address</label>
             <input id="sds-addr2" className="sds-input" type="email" autoComplete="off" autoFocus
               value={email} onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && email.trim()) createDomain(); }}
               placeholder={`you@${sampleDomain}`} />
-            <p className="sds-help">Use an address on the domain that you can receive email at — buyer and seller replies come back to this address, so it needs to reach you.</p>
+            <p className="sds-help">Use an address that can receive emails. Replies from buyers and sellers will go directly to this inbox.</p>
             <div className="sds-row">
               <button type="button" className="sds-btn" onClick={createDomain} disabled={busy || !email.trim()}>
                 {busy ? "Working…" : "Get setup instructions"}
@@ -418,11 +451,11 @@ export function SenderDomainSection({
           <>
             <div className="sds-topbar"><Back to="method" /></div>
             <Steps active={3} />
-            <h3 className="sds-h3">{isClient ? "One final step to connect their domain" : "One final step to connect your domain"}</h3>
+            <h3 className="sds-h3">{isClient ? "One final step to verify their domain" : "One final step to verify your domain"}</h3>
             <p className="sds-body">
               {isClient
-                ? "These records need to be added to the agency's domain settings. You can do this yourself if you have access, or copy them and send them to whoever manages the agency's website or domain."
-                : "These records need to be added to your domain settings. You can do this yourself if you have access, or copy them and send them to whoever manages your website or domain."}
+                ? "These records need to be added to the agency's domain settings. You can do this yourself if you have access, or share the instructions with whoever manages the agency's domain."
+                : "These records need to be added to your domain settings. You can do this yourself if you have access, or share the instructions with whoever manages your domain."}
             </p>
             {status?.domain
               ? <DomainAuthFlow domain={status.domain} checkBase={`${base}/domain`} onVerified={async () => { await refresh(); setView("verified"); }} />
@@ -436,15 +469,10 @@ export function SenderDomainSection({
             <div className="sds-ok">
               <span className="sds-ok-ck">✓</span>
               <span><b>You&rsquo;re all set</b><span className="sds-ok-sub">{isClient
-                ? (status?.method === "single"
-                    ? `Emails for ${subjectName || "this agency"} will now send from the address they've given you.`
-                    : `Emails for ${subjectName || "this agency"} will now send from their own email address.`)
-                : "Emails for your clients will now send from your business's email address."}</span></span>
+                ? `Emails for ${subjectName || "this agency"} now send from ${status?.senderEmail ?? "your own address"}, and replies come straight back to that inbox.`
+                : "Emails for your clients now send from your business's own address."}</span></span>
             </div>
-            <Mail addr={verifiedAddr} pill="Verified" pillKind="good" />
-            <p className="sds-body" style={{ marginTop: 16, marginBottom: 0 }}>
-              When someone replies, their email arrives at the address you&rsquo;ve connected.
-            </p>
+            <AddressingPanel />
             <div className="sds-row">
               <button type="button" className="sds-btn-ghost" onClick={() => { setEmail(""); setChosen(null); setView("method"); }}>Change email address</button>
             </div>
@@ -512,6 +540,21 @@ export function SenderDomainSection({
           -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 2px rgba(15,23,42,0.05); }
         .sds-pill.neutral { background: rgba(255,255,255,0.5); color: var(--agent-text-muted); border: 1px solid var(--agent-border-subtle); }
         .sds-pill.good { background: rgba(47,125,83,0.14); color: var(--agent-success, #2F7D53); border: 1px solid rgba(47,125,83,0.24); }
+
+        /* Addressing reassurance panel — "what it sends from / where replies go". */
+        .sds-ap { background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,250,248,0.5)); border: 1px solid var(--agent-border-subtle); border-radius: 14px; padding: 15px 16px; margin-bottom: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); }
+        .sds-ap-h { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--agent-text-muted); margin-bottom: 12px; }
+        .sds-ap-mail { display: flex; gap: 12px; align-items: flex-start; }
+        .sds-ap-id { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .sds-ap-name { font-weight: 750; font-size: 14px; color: var(--agent-text-primary); line-height: 1.25; }
+        .sds-ap-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .sds-ap-lab { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--agent-text-muted); background: rgba(0,0,0,0.045); padding: 2px 6px; border-radius: 5px; flex: none; }
+        .sds-ap-addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--agent-text-primary); overflow-wrap: anywhere; }
+        .sds-ap-reply { display: flex; align-items: center; gap: 8px; margin-top: 13px; padding-top: 13px; border-top: 1px dashed var(--agent-border-subtle); font-size: 13px; color: var(--agent-text-secondary); line-height: 1.5; }
+        .sds-ap-reply svg { flex: none; color: var(--agent-coral-deep, #E2452A); }
+        .sds-ap-reply b { color: var(--agent-text-primary); font-weight: 650; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+        .sds-ap-pending { margin-top: 11px; font-size: 12px; color: var(--agent-text-secondary); background: rgba(255,107,74,0.06); border: 1px solid rgba(255,107,74,0.15); border-radius: 9px; padding: 8px 11px; line-height: 1.45; }
+        .sds-ap-pending b { color: var(--agent-text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
 
         /* Overview actions — bullets left, CTA right, one row */
         .sds-ov-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 14px; }

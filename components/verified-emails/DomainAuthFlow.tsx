@@ -98,7 +98,7 @@ export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/ver
           <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" weight="fill" />
           <div>
             <p className="text-sm font-semibold text-emerald-700">{domain.domain} is authenticated</p>
-            <p className="text-xs text-emerald-600">All email addresses on this domain can now be verified</p>
+            <p className="text-xs text-emerald-600">Domain verified. You can now send from email addresses on this domain without verifying each one separately.</p>
           </div>
         </div>
       ) : (
@@ -107,7 +107,7 @@ export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/ver
             <p className="text-sm font-semibold text-amber-800 mb-1">DNS setup required</p>
             <p className="text-xs text-amber-700">
               Add these {records.length} CNAME records to <strong>{domain.domain}</strong>&apos;s DNS.
-              Your IT team or domain registrar can do this. It usually takes 30 minutes to take effect.
+              You or whoever manages the domain can do this. Changes usually take around 30 minutes to take effect, but can sometimes take longer.
             </p>
           </div>
 
@@ -161,7 +161,7 @@ export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/ver
           {/* Provider picker + tailored steps (auto-detected where possible) */}
           <div>
             <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-2">
-              Where&apos;s your domain? Pick your provider for exact steps
+              Where&apos;s your domain? Pick your provider for step-by-step instructions
             </p>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {REGISTRAR_GUIDES.map((g) => {
@@ -217,7 +217,7 @@ export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/ver
             )}
 
             {!selectedRegistrar && (
-              <p className="text-xs text-slate-900/40">Pick your provider above for step-by-step instructions.</p>
+              <p className="text-xs text-slate-900/40">Choose your provider above and we&apos;ll show you exactly what to do.</p>
             )}
           </div>
 

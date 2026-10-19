@@ -31,6 +31,8 @@ export async function GET(_req: NextRequest) {
     agencyName: business.name,
     senderEmail: business.senderEmail,
     senderVerified: business.senderVerified,
+    ownerName: session.user.name ?? null,
+    ownerEmail: session.user.email ?? null,
     method,
     domain: domain
       ? {
