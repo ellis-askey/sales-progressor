@@ -570,10 +570,14 @@ export async function getPortalChainAgent(
       personEmail: chainOutsourced ? tx?.assignedUser?.email : tx?.agentUser?.email,
       progressionBusiness: tx?.progressionBusiness ?? null,
     });
-    const to = managingEmail || tx?.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
-    const dealWord = side === "vendor" ? "onward-purchase" : "selling";
-    const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
-    correctionMailto = `mailto:${to}?subject=${encodeURIComponent(subject)}`;
+    // Addressed to whoever manages the file (assigned progressor / agency verified
+    // sender). No clean address resolves → no correction link, rather than surfacing
+    // our platform updates@ address or an unverified raw business email to a client.
+    if (managingEmail) {
+      const dealWord = side === "vendor" ? "onward-purchase" : "selling";
+      const subject = `Correction to my ${dealWord} agent details${tx?.propertyAddress ? ` - ${tx.propertyAddress}` : ""}`;
+      correctionMailto = `mailto:${managingEmail}?subject=${encodeURIComponent(subject)}`;
+    }
   }
   return {
     ...base,
@@ -612,11 +616,21 @@ async function resolveManagingEmail(opts: {
 }): Promise<string | null> {
   const { isOutsourced, agencyId, agencyEmail, personEmail, progressionBusiness } = opts;
   if (isOutsourced && agencyId) {
+    // The business's own branded sender — only when verified (true white-label).
+    const bizSender = progressionBusiness?.senderVerified && progressionBusiness.senderEmail?.trim()
+      ? progressionBusiness.senderEmail.trim()
+      : null;
     const progressorCount = await prisma.progressionBusinessClient.count({ where: { agencyId, removedAt: null } });
     if (progressorCount >= 2) {
-      const bizSender = progressionBusiness?.senderVerified && progressionBusiness.senderEmail?.trim() ? progressionBusiness.senderEmail.trim() : null;
+      // 2+ progressors: the shared agency address can't tell whose file this is, so
+      // reach the ASSIGNED progressor — their verified branded sender, else their own
+      // inbox. Never the shared agency address, never our platform updates@.
       return bizSender ?? personEmail?.trim() ?? null;
     }
+    // Single progressor: the agency's verified sender is the white-label address; if
+    // it isn't set up, reach the assigned progressor directly (branded sender, else
+    // their own inbox). Never our platform updates@.
+    return agencyEmail ?? bizSender ?? personEmail?.trim() ?? null;
   }
   return agencyEmail;
 }
@@ -708,13 +722,12 @@ export async function getPortalTeam(
     const solicitorEmail = solicitorContact?.email?.trim() || null;
     let solicitorMailto: string | null = null;
     if (solicitorEmail) {
-      // CC the agency (so replies land back on the file) and the solicitor's
-      // assistant/secretary when one's on file.
       // CC whoever manages the file so solicitor replies reach them — the assigned
-      // progressor on a 2+-progressor agency, the agency's own address otherwise.
-      const agencyCc = managingEmail || tx.progressionBusiness?.senderEmail?.trim() || "updates@thesalesprogressor.co.uk";
+      // progressor (2+-progressor agency) or the agency's verified sender — plus the
+      // solicitor's assistant when on file. No clean managing address → no agency CC,
+      // rather than surfacing our platform updates@ or an unverified raw business email.
       const assistant = await resolveSolicitorCc(solicitorContact, tx.agencyId);
-      const cc = [agencyCc, ...(assistant ? [assistant] : [])].join(",");
+      const ccList = [managingEmail, assistant].filter((e): e is string => !!e);
       const dealWord = side === "purchaser" ? "Purchase" : "Sale";
       const names = tx.contacts
         .filter((c) => isActiveRoundContact(c, tx.activeBuyerRoundId))
@@ -722,7 +735,8 @@ export async function getPortalTeam(
         .filter(Boolean)
         .join(" & ");
       const subject = `${dealWord} of ${tx.propertyAddress}${names ? ` - ${names}` : ""}`;
-      solicitorMailto = `mailto:${solicitorEmail}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}`;
+      const ccParam = ccList.length ? `cc=${encodeURIComponent(ccList.join(","))}&` : "";
+      solicitorMailto = `mailto:${solicitorEmail}?${ccParam}subject=${encodeURIComponent(subject)}`;
     }
 
     // Confirmed mortgage broker (purchaser side only). Two confirmation paths:

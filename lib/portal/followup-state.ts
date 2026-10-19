@@ -99,9 +99,13 @@ export async function getFollowupNudge(args: {
   if (!sol?.email) return null; // no conveyancer email → team card shows the "add" prompt
 
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { email: true } });
-  const { from: agencyCc } = await resolveAgencySenderForTransaction(transactionId).catch(() => ({ from: null as string | null }));
-  // CC the agency (so replies land back on the file) plus the solicitor's
-  // assistant/secretary when one's on file.
+  // CC whoever manages the file so replies land back with them — the resolver's
+  // Reply-To is the assigned progressor / agency verified sender. Never our platform
+  // updates@ address (the bulletproof fallback, or a non-replyable file). Plus the
+  // solicitor's assistant when one's on file.
+  const sender = await resolveAgencySenderForTransaction(transactionId).catch(() => null);
+  const PLATFORM_ADDRESS = "updates@thesalesprogressor.co.uk";
+  const agencyCc = sender?.canReply && sender.replyTo && sender.replyTo !== PLATFORM_ADDRESS ? sender.replyTo : null;
   const assistantCc = await resolveSolicitorCc(sol, tx.agencyId);
   const ccEmail = [agencyCc, assistantCc].filter(Boolean).join(",") || null;
 
