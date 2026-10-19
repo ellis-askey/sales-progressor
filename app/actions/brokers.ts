@@ -29,8 +29,13 @@ export async function addBrokerForSaleAction(input: {
   phone: string | null; email: string | null;
 }> {
   const session = await requireSession();
+  // Agency staff have an agencyId; external progression-business users don't
+  // (it's "" for them). Attaching a broker to a sale needs neither — the file
+  // just stores a bare firm + contact. Only "save to Partners" is agency-scoped,
+  // so gate that branch on agencyId rather than the whole action. (This used to
+  // throw for anyone without an agencyId, which blocked external progressors
+  // from adding a broker to their file at all.)
   const agencyId = session.user.agencyId;
-  if (!agencyId) throw new Error("Only agency users can add a broker");
 
   const firmName = titleCaseKeepAcronyms(input.firmName.trim());
   if (!firmName) throw new Error("Brokerage name is required");
@@ -51,7 +56,11 @@ export async function addBrokerForSaleAction(input: {
     });
   }
 
-  if (input.saveToPartners) {
+  // Partners is agency-only: AgencyPreferredBroker is keyed by agencyId with an
+  // Agency FK, and there's no ProgressionBusiness equivalent. So for an external
+  // progressor the broker still attaches to the sale — it's just not stored as a
+  // reusable default. (Guarding on agencyId also avoids the FK blowing up on "".)
+  if (input.saveToPartners && agencyId) {
     const feePence = input.referralFeePence ?? null;
     await prisma.agencyPreferredBroker.upsert({
       where: { agencyId },
