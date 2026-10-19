@@ -84,7 +84,7 @@ export default async function AllTransactionsPage({
   const session = await requireSession();
   const { filter, exchanging } = await searchParams;
 
-  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer" || session.user.role === "superadmin";
   // "Send a note to our team" only routes somewhere if the agency has a file with
   // our team. Hide it for self-managed-only agencies (it would file to nobody).
   const hasOutsourced = await agencyHasActiveOutsourcedFile(session.user.agencyId);

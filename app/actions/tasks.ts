@@ -558,6 +558,8 @@ export async function getTransactionReminderCountAction(transactionId: string): 
   const scope = getAccessScope(session);
   const where = scope.kind === "all"
     ? { transactionId, transaction: TSP_ONLY_TX_WHERE }
+    : scope.kind === "platform"
+    ? { transactionId }
     : scope.kind === "assigned"
     ? { transactionId, transaction: { assignedUserId: scope.userId } }
     : scope.kind === "business"

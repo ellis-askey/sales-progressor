@@ -6,7 +6,7 @@
 
 // access-scope imports hasAdminPowers (→ session → next-auth), which jest can't
 // parse. The helpers under test don't use it, so mock it away to load the module.
-jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
+jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false), hasSuperAdminPowers: jest.fn(() => false) }));
 
 import {
   getAccessScope,

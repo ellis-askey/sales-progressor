@@ -7,7 +7,7 @@
  * tasks (and their addresses), and vice versa. It now bounds the query to the
  * viewer's access scope — the same isolation boundary as TSP_ONLY_TX_WHERE.
  */
-jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
+jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false), hasSuperAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/services/activity", () => ({ touchLastActivity: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({ prisma: { manualTask: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null), update: jest.fn(), delete: jest.fn() } } }));
 

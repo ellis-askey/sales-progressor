@@ -56,9 +56,11 @@ function makeSession(u: {
 }
 
 describe("getAccessScope - derivation per user type", () => {
-  it("admin and superadmin get {kind:'all'} (platform operator)", () => {
+  it("admin gets {kind:'all'}; superadmin gets {kind:'platform'} (founder god scope)", () => {
     expect(getAccessScope(makeSession({ role: "admin" }))).toEqual({ kind: "all" });
-    expect(getAccessScope(makeSession({ role: "superadmin" }))).toEqual({ kind: "all" });
+    // Superadmin is the platform operator — sees EVERY file, incl. external
+    // progression businesses walled off from "all" (god mode, 2026-10-19).
+    expect(getAccessScope(makeSession({ role: "superadmin" }))).toEqual({ kind: "platform" });
   });
 
   it("a TSP progressor (sales_progressor, no business) gets {kind:'assigned'} - UNCHANGED", () => {
@@ -100,9 +102,11 @@ describe("getAccessScope - derivation per user type", () => {
     });
   });
 
-  it("platform operator ALWAYS wins: a hybrid-admin with a business id is still {kind:'all'}", () => {
-    // Defensive ordering check - hasAdminPowers is evaluated before the business
-    // branch, so a hybrid sales_progressor never gets narrowed to a business.
+  it("platform operator ALWAYS wins: the hybrid founder email with a business id is {kind:'platform'}", () => {
+    // Defensive ordering check - the founder (hybrid superadmin email) is
+    // evaluated before the business branch, so they never get narrowed to a
+    // business. HYBRID_ADMIN_EMAIL is also the hybrid SUPERADMIN email, so it
+    // now resolves to the god platform scope.
     const scope = getAccessScope(
       makeSession({
         role: "sales_progressor",
@@ -110,7 +114,7 @@ describe("getAccessScope - derivation per user type", () => {
         progressionBusinessId: "biz_sarah",
       }),
     );
-    expect(scope).toEqual({ kind: "all" });
+    expect(scope).toEqual({ kind: "platform" });
   });
 });
 
@@ -154,6 +158,16 @@ describe("scope -> where helpers", () => {
       id: "log_1",
       transaction: { progressionBusinessId: "biz_sarah" },
     });
+  });
+
+  it("'platform' (founder god scope) imposes NO tenant filter — every file, no TSP wall", () => {
+    const god: AccessScope = { kind: "platform" };
+    // Lists: all real files (demo still excluded for cleanliness), NO TSP_ONLY wall.
+    expect(scopeTransactionWhere(god)).toEqual({ isDemo: false });
+    // Single-file + related-model guards: bare id, no business/agency constraint.
+    expect(scopeOwnershipWhere(god, "tx_1")).toEqual({ id: "tx_1" });
+    expect(scopeChaseTaskWhere(god, "task_1")).toEqual({ id: "task_1" });
+    expect(scopeReminderLogWhere(god, "log_1")).toEqual({ id: "log_1" });
   });
 });
 
@@ -208,6 +222,12 @@ describe("canReadTransaction - fixture isolation matrix", () => {
     expect(readable(tspAdmin)).toEqual(["T1", "T3", "T5", "T6"]);
     expect(canReadTransaction(tspAdmin, T2)).toBe(false); // Sarah's file
     expect(canReadTransaction(tspAdmin, T7)).toBe(false); // another business's file
+  });
+
+  it("the founder ('platform') reads EVERY file, including external businesses' (god mode)", () => {
+    const god: AccessScope = { kind: "platform" };
+    expect(readable(god)).toEqual(["T1", "T2", "T3", "T4", "T5", "T6", "T7"]);
+    expect(canReadTransaction(god, T7)).toBe(true); // other business's file — walled from TSP, open to god
   });
 
   it("Donna (agency) sees all her agency's files incl. ones she handed out (T1, T2, T3), not James's or Sarah's other client", () => {

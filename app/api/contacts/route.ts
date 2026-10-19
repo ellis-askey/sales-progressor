@@ -54,6 +54,7 @@ export async function PATCH(req: NextRequest) {
   const scope = getAccessScope(session);
   const contactWhere =
     scope.kind === "all"      ? { id } :
+    scope.kind === "platform" ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                  { id, transaction: { agencyId: scope.agencyIds[0] } };

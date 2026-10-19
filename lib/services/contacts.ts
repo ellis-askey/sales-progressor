@@ -70,6 +70,7 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
 export async function deleteContact(contactId: string, scope: AccessScope) {
   const where =
     scope.kind === "all"      ? { id: contactId, transaction: TSP_ONLY_TX_WHERE } :
+    scope.kind === "platform" ? { id: contactId } :
     scope.kind === "assigned" ? { id: contactId, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id: contactId, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id: contactId, transaction: { agencyId: scope.agencyIds[0] } };

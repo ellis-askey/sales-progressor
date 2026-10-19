@@ -12,7 +12,7 @@
 
 import type { Session } from "next-auth";
 import type { Prisma } from "@prisma/client";
-import { hasAdminPowers } from "@/lib/agent-session";
+import { hasAdminPowers, hasSuperAdminPowers } from "@/lib/agent-session";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,8 @@ export type AccessScope =
   | { kind: "agency";   agencyIds: string[] }  // director, negotiator, viewer
   | { kind: "business"; businessId: string }    // external progression-business member — own business's book
   | { kind: "assigned"; userId: string }        // TSP sales_progressor — own assigned files
-  | { kind: "all" };                            // admin, superadmin — no agency filter
+  | { kind: "all" }                             // admin — TSP + self-progressed files, no external business
+  | { kind: "platform" };                       // superadmin (founder) — EVERY file incl. external-business books
 
 // A TSP-only transaction filter. TSP's own files have progressionBusinessId null
 // (schema: null = TSP, no backfill) or, defensively, the seeded TSP business row
@@ -41,6 +42,15 @@ export const TSP_ONLY_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
 
 export function getAccessScope(session: Session): AccessScope {
   const { role, agencyId, id, progressionBusinessId, progressionBusinessRole, canViewAllFiles } = session.user;
+
+  // Founder god scope. A superadmin (or the hybrid-superadmin email) is the
+  // platform operator — they see EVERY file, including external progression
+  // businesses' books that are walled off from TSP's own "all" scope below.
+  // Checked FIRST so it always wins. Read access here; write-side ghosting +
+  // the private god-log live in the actions (see lib/security/god-mode.ts).
+  if (hasSuperAdminPowers(session)) {
+    return { kind: "platform" };
+  }
 
   // hasAdminPowers covers admin, superadmin, and the hybrid sales_progressor
   // exception (ellis). Hybrid users get full-platform visibility while keeping
@@ -96,6 +106,9 @@ export function scopeTransactionWhere(
   // partner directories, or analytics. Agency users keep seeing their OWN demo
   // (they created it to look through), so the "agency" branch stays unfiltered.
   if (scope.kind === "all")      return { isDemo: false, ...TSP_ONLY_TX_WHERE };
+  // Founder: every real file across every business book. Demo files still hidden
+  // from cross-platform lists (they'd pollute), consistent with "all".
+  if (scope.kind === "platform") return { isDemo: false };
   if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
   // External progression business — its own book only, keyed on the transaction
   // tag. Demo files are excluded like the other non-agency scopes.
@@ -116,6 +129,8 @@ export function scopeOwnershipWhere(
   transactionId: string
 ): Prisma.PropertyTransactionWhereInput {
   if (scope.kind === "all")      return { id: transactionId, ...TSP_ONLY_TX_WHERE };
+  // Founder: open ANY file, no business wall.
+  if (scope.kind === "platform") return { id: transactionId };
   if (scope.kind === "assigned") return { id: transactionId, assignedUserId: scope.userId };
   if (scope.kind === "business") return { id: transactionId, progressionBusinessId: scope.businessId };
   // agency — agencyIds always has exactly one entry for a non-internal user
@@ -131,6 +146,7 @@ export function scopeChaseTaskWhere(
   taskId: string
 ): Prisma.ChaseTaskWhereInput {
   if (scope.kind === "all")      return { id: taskId, transaction: TSP_ONLY_TX_WHERE };
+  if (scope.kind === "platform") return { id: taskId };
   if (scope.kind === "assigned") return { id: taskId, transaction: { assignedUserId: scope.userId } };
   if (scope.kind === "business") return { id: taskId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: taskId, transaction: { agencyId: scope.agencyIds[0] } };
@@ -144,6 +160,7 @@ export function scopeReminderLogWhere(
   logId: string
 ): Prisma.ReminderLogWhereInput {
   if (scope.kind === "all")      return { id: logId, transaction: TSP_ONLY_TX_WHERE };
+  if (scope.kind === "platform") return { id: logId };
   if (scope.kind === "assigned") return { id: logId, transaction: { assignedUserId: scope.userId } };
   if (scope.kind === "business") return { id: logId, transaction: { progressionBusinessId: scope.businessId } };
   return { id: logId, transaction: { agencyId: scope.agencyIds[0] } };
@@ -168,6 +185,7 @@ export function canReadTransaction(
   // reading as null and matching. Every caller passing an "all" scope MUST select
   // progressionBusinessId; if it's absent this denies rather than leaks.
   if (scope.kind === "all")      return tx.progressionBusinessId === null;
+  if (scope.kind === "platform") return true; // founder reads every file
   if (scope.kind === "assigned") return tx.assignedUserId === scope.userId;
   if (scope.kind === "business") return tx.progressionBusinessId === scope.businessId;
   return scope.agencyIds.includes(tx.agencyId);

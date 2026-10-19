@@ -378,6 +378,22 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       <ScrollTopOnFileChange id={transaction.id} />
+      {session.user.role === "superadmin" && (
+        <div
+          role="status"
+          style={{
+            display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
+            padding: "9px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600,
+            color: "#fff", background: "linear-gradient(90deg,#7c3aed,#4f46e5)",
+            boxShadow: "0 4px 16px rgba(79,70,229,0.28)",
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 15 }}>⚡</span>
+          <span>
+            God mode — this is a live agency file. Anything you do here is invisible to them and recorded only in your private log.
+          </span>
+        </div>
+      )}
       {isEllis && <ShellTimingBadge trunkMs={_trunkMs} barrierMs={_barrierMs} exchMs={_exchMs} shellMs={_shellMs} items={_mark} />}
       {isEllis && <TabTimingBadge enabled />}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />

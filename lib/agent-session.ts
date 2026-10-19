@@ -50,6 +50,11 @@ const AGENT_ROLES = new Set<UserRole>([
   "admin",
   "sales_progressor",
   "viewer",
+  // Founder god mode: a superadmin may open the agent app to view/act on any
+  // agency's file. Their platform scope (lib/security/access-scope.ts) grants
+  // every file; writes are ghosted (lib/security/god-mode.ts). Before this they
+  // were redirected to /dashboard.
+  "superadmin",
 ]);
 
 // Hybrid users — sales_progressor accounts that get additional powers layered
@@ -149,7 +154,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   });
 
   const isInternalStaff =
-    role === "admin" || role === "sales_progressor" || role === "viewer";
+    role === "admin" || role === "sales_progressor" || role === "viewer" || role === "superadmin";
   const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const brandColor = getBrandColor(userRecord?.agentPreferences);

@@ -432,6 +432,12 @@ export async function getActivityTimeline(
       // Outbound email from our side → identify it as the team. (Email P1.)
       const sub =
         c.type === "outbound" ? (agencyName ? `${agencyName} · Your team` : "Your team") : null;
+      // Founder god mode safety net: a superadmin never surfaces by name to the
+      // agency. god-mode's logActivity already skips writing agency-visible notes,
+      // so this only ever catches a stray non-note record — masked to the team.
+      if (c.createdByRole === "superadmin") {
+        return { role, name: "The Sales Progressor team", image: null, sub };
+      }
       return {
         role,
         name: c.createdBy?.name ?? "Team",
@@ -1295,6 +1301,7 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope, 
   // Verify the comm's transaction is in scope before deleting.
   const where =
     scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
+    scope.kind === "platform" ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
@@ -1337,6 +1344,7 @@ export async function updateCommunicationRecord(input: UpdateCommInput) {
   const { id, content, contactIds, visibleToClient, scope, userId } = input;
   const where =
     scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
+    scope.kind === "platform" ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };

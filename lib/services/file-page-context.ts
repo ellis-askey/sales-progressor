@@ -48,7 +48,8 @@ export const loadFilePageContext = cache(async (id: string): Promise<FilePageCon
   const isInternalStaff =
     session.user.role === "admin" ||
     session.user.role === "sales_progressor" ||
-    session.user.role === "viewer";
+    session.user.role === "viewer" ||
+    session.user.role === "superadmin"; // founder god mode — loads any file via platform scope
   const isProgressor = session.user.role === "sales_progressor";
   const isAdminRole = hasAdminPowers(session);
   const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";

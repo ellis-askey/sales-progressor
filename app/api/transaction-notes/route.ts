@@ -47,6 +47,7 @@ export async function DELETE(req: NextRequest) {
   const scope = getAccessScope(session);
   const noteWhere =
     scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
+    scope.kind === "platform" ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
                                  { id, transaction: { agencyId: scope.agencyIds[0] } };

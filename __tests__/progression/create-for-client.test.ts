@@ -14,7 +14,7 @@ jest.mock("@/lib/session", () => ({ requireSession: jest.fn() }));
 jest.mock("@/lib/progression/flags", () => ({ progressionBusinessesEnabled: jest.fn(), progressionBillingCollectEnabled: jest.fn(() => false) }));
 jest.mock("@/lib/services/progression-clients", () => ({ resolveBusinessMember: jest.fn() }));
 jest.mock("@/lib/progression/business-stripe", () => ({ businessBillingActive: jest.fn(async () => false), BillingSetupRequiredError: class extends Error {} }));
-jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false) }));
+jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false), hasSuperAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     progressionBusinessClient: { findUnique: jest.fn() },
