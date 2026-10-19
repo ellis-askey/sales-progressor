@@ -14,7 +14,10 @@ import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { setChaseOverride, clearChaseOverride, targetKeyFor } from "@/lib/services/chase-overrides";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
+import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
+import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
@@ -129,8 +132,8 @@ export async function previewChaseEmailAction(input: {
     select: {
       propertyAddress: true, purchasePrice: true, agencyId: true, progressionBusinessId: true, activeBuyerRoundId: true,
       agency: { select: { name: true, emailTheme: true } },
-      agentUser: { select: { name: true, phone: true } },
-      assignedUser: { select: { name: true, phone: true } },
+      agentUser: { select: { name: true, phone: true, image: true } },
+      assignedUser: { select: { name: true, phone: true, image: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       vendorSolicitorContact: { select: { name: true } },
@@ -205,6 +208,9 @@ export async function previewChaseEmailAction(input: {
     const c = tx.contacts.find((x) => x.id === target.contactId);
     if (!c) return { ok: false, error: "Contact not found" };
     const agencyCopy = await resolveClientChaseContent(tx.agencyId, tx.progressionBusinessId);
+    // Mirror the live send's branding (logo band, themed shell, support contact)
+    // so the preview isn't a logo-less fallback. Same resolver the cron uses.
+    const sender = await resolveAgencySenderForTransaction(input.transactionId, { persona: "personal" });
     const payload = assembleDigestPayload({
       transaction: { id: input.transactionId, propertyAddress: tx.propertyAddress },
       contact: { id: c.id, name: c.name, portalToken: c.portalToken ?? "preview" },
@@ -212,6 +218,12 @@ export async function previewChaseEmailAction(input: {
       agencyName: brand,
       recipientSide: c.roleType === "purchaser" ? "purchaser" : "vendor",
       agencyCopy,
+      theme: sender.theme ?? undefined,
+      studioTheme: sender.studioTheme,
+      identityName: sender.brandName ?? brand,
+      logoUrl: sender.logoUrl,
+      tileColor: sender.tileColor,
+      supportEmail: sender.canReply ? sender.replyTo : undefined,
     });
     const bodyOverride = existing?.bodyOverride?.trim() || null;
     return {
@@ -231,13 +243,17 @@ export async function previewChaseEmailAction(input: {
   const firmName = side === "vendor" ? tx.vendorSolicitorFirm?.name ?? null : tx.purchaserSolicitorFirm?.name ?? null;
   const person = tx.assignedUser ?? tx.agentUser;
   const label = solicitorStepLabel(input.milestoneCode, getMilestoneCopy(input.milestoneCode).label);
+  // Real signed link + QR + avatar so the preview renders the same images the
+  // live send does (the confirmUrl also drives the hosted badge-icon base URL).
+  const token = signSolicitorToken(input.transactionId, side);
+  const base = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
   const built = buildSolicitorDigestEmail({
     brand, address: tx.propertyAddress, pricePence: tx.purchasePrice,
     sellerNames, buyerNames, side, firmName,
     ownClientNames: (side === "vendor" ? sellerNames : buyerNames) || tx.propertyAddress,
     steps: [{ label }],
-    confirmUrl: "#", stopUrl: "#", qrUrl: "#",
-    personName: person?.name ?? brand, personPhone: person?.phone ?? null, avatarUrl: null,
+    confirmUrl: `${base}/s/${token}`, stopUrl: `${base}/s/${token}/stop`, qrUrl: `${base}/s/${token}/qr`,
+    personName: person?.name ?? brand, personPhone: person?.phone ?? null, avatarUrl: getAvatarPublicUrl(person?.image),
   });
   const bodyOverride = existing?.bodyOverride?.trim() || null;
   const sideLabel = side === "vendor" ? "Seller" : "Buyer";
