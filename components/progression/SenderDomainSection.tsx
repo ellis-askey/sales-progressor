@@ -10,9 +10,13 @@
 // Two methods, both real:
 //   - single sender ("they gave you a mailbox"): verify one address SendGrid emails
 //     a link to. No DNS. Replies land in that inbox. Routes: `${base}/single`.
-//   - domain authentication ("you can edit their domain"): DNS records; send from
-//     updates@<domain>; replies route to the progressor. Routes: `${base}/domain`
-//     (+ the shared DomainAuthFlow for the records + check step).
+//   - domain authentication ("you can edit their domain"): DNS records authenticate
+//     the whole domain once, then you send from — and receive replies at — YOUR OWN
+//     address on it (no per-address link step). Routes: `${base}/domain` (+ the shared
+//     DomainAuthFlow for the records + check step).
+//
+// Both store the address on the per-(company, agency) link, so two progression
+// companies at one agency keep DISTINCT sending addresses, never a shared one.
 //
 // Visual language matches the EmailStudio directly above it on the page: the glossy
 // gradient step pips (.eb-pip) and primary button (.eb-next), and the claim-flow
@@ -180,7 +184,6 @@ export function SenderDomainSection({
 
   const pendingAddr = status?.senderEmail || pendingEmail;
   const verifiedAddr = status?.senderEmail || "";
-  const repliesToMailbox = status?.method !== "domain";
 
   // ── Shared pieces ────────────────────────────────────────────────────────────
   const Steps = ({ active }: { active: 1 | 2 | 3 }) => (
@@ -286,12 +289,12 @@ export function SenderDomainSection({
               </span>
               <span className="sds-opt-sub">
                 {isClient
-                  ? <>You or the agency&rsquo;s IT team can add a few records to their domain settings. This lets us send emails using an address like <span className="sds-ex">updates@{sampleDomain}</span>, without needing a separate mailbox.</>
-                  : <>You or your IT team can add a few records to your domain settings. This lets us send emails using an address like <span className="sds-ex">updates@{sampleDomain}</span>, without needing a separate mailbox.</>}
+                  ? <>You or the agency&rsquo;s IT team add a few records to their domain settings once. After that you can send from your own address on it, like <span className="sds-ex">you@{sampleDomain}</span> — no separate verification per address.</>
+                  : <>You or your IT team add a few records to your domain settings once. After that you can send from your own address on it, like <span className="sds-ex">you@{sampleDomain}</span> — no separate verification per address.</>}
               </span>
               <span className="sds-opt-facts">
                 <span><Clock size={13} weight="bold" /> Around 10 minutes to set up</span>
-                <span><ArrowBendUpLeft size={13} weight="bold" /> You&rsquo;ll receive replies at your usual email address</span>
+                <span><ArrowBendUpLeft size={13} weight="bold" /> Replies come back to the address you choose</span>
               </span>
             </button>
 
@@ -399,8 +402,8 @@ export function SenderDomainSection({
             <input id="sds-addr2" className="sds-input" type="email" autoComplete="off" autoFocus
               value={email} onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && email.trim()) createDomain(); }}
-              placeholder={`updates@${sampleDomain}`} />
-            <p className="sds-help">You don&rsquo;t need to create a mailbox for this address. We&rsquo;ll use the domain to set up email sending.</p>
+              placeholder={`you@${sampleDomain}`} />
+            <p className="sds-help">Use an address on the domain that you can receive email at — buyer and seller replies come back to this address, so it needs to reach you.</p>
             <div className="sds-row">
               <button type="button" className="sds-btn" onClick={createDomain} disabled={busy || !email.trim()}>
                 {busy ? "Working…" : "Get setup instructions"}
@@ -440,11 +443,7 @@ export function SenderDomainSection({
             </div>
             <Mail addr={verifiedAddr} pill="Verified" pillKind="good" />
             <p className="sds-body" style={{ marginTop: 16, marginBottom: 0 }}>
-              {repliesToMailbox
-                ? (isClient
-                    ? "When someone replies, their email will arrive in the agency mailbox you've connected."
-                    : "When someone replies, their email will arrive in the mailbox you've connected.")
-                : "When someone replies, their email will be sent to your usual email address. You don't need to check a separate inbox."}
+              When someone replies, their email arrives at the address you&rsquo;ve connected.
             </p>
             <div className="sds-row">
               <button type="button" className="sds-btn-ghost" onClick={() => { setEmail(""); setChosen(null); setView("method"); }}>Change email address</button>

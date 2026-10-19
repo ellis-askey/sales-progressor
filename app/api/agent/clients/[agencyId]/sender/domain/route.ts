@@ -28,11 +28,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       { status: 400 },
     );
   }
-  const domain = extractDomain(email);
+  const clean = email.trim().toLowerCase();
+  const domain = extractDomain(clean);
   if (!domain) return NextResponse.json({ error: "Invalid email" }, { status: 400 });
 
+  // Record THIS company's chosen sending address on their OWN link (not the shared
+  // Agency row), so two companies on the same agency domain keep DISTINCT addresses
+  // (jo@ vs annie@), never a shared one. Domain authentication is shared infrastructure
+  // (one DNS setup authenticates the whole domain), but each company sends from — and
+  // receives replies at — its own address on it. Verified flips true once the domain is
+  // authenticated (here if it already is, else via the check step / nightly cron).
+  const setLinkSender = (verified: boolean) =>
+    prisma.progressionBusinessClient.update({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+      data: { senderEmail: clean, senderVerified: verified, senderVerifiedAt: verified ? new Date() : null },
+    });
+
   const existing = await getVerifiedDomainForAgency(agencyId, domain);
-  if (existing) return NextResponse.json({ domain: existing, alreadyExists: true });
+  if (existing) {
+    await setLinkSender(existing.status === "verified");
+    return NextResponse.json({ domain: existing, alreadyExists: true });
+  }
 
   const { id: sendgridDomainId, cnameRecords, alreadyValid } = await createAuthenticatedDomain(domain);
 
@@ -49,6 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       verifiedAt: alreadyValid ? new Date() : null,
     },
   });
+
+  await setLinkSender(alreadyValid === true);
 
   return NextResponse.json({ domain: verifiedDomain, alreadyVerified: alreadyValid === true });
 }

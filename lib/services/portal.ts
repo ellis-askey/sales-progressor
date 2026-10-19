@@ -3124,16 +3124,20 @@ export async function postExchangeDateUpdateToClients(
       activeBuyerRoundId: true,
       portalKeyDatesOverrideVendor: true,
       portalKeyDatesOverridePurchaser: true,
+      progressionBusinessId: true,
       agency: { select: { showPortalKeyDates: true } },
+      progressionBusiness: { select: { showPortalKeyDates: true } },
     },
   });
   if (!tx) return;
 
   // Key dates can be hidden per side. Only post a date update to a side that can
-  // actually see key dates on their portal (agency default or per-file override).
-  const agencyDefault = tx.agency?.showPortalKeyDates ?? true;
-  const showVendor = tx.portalKeyDatesOverrideVendor ?? agencyDefault;
-  const showPurchaser = tx.portalKeyDatesOverridePurchaser ?? agencyDefault;
+  // actually see key dates — resolved off the RESPONSIBLE party, same rule as the
+  // portal display (displayOwner): an external progression business's own default,
+  // else the agency's. A per-file, per-side override still wins.
+  const displayDefault = (tx.progressionBusinessId ? tx.progressionBusiness?.showPortalKeyDates : tx.agency?.showPortalKeyDates) ?? true;
+  const showVendor = tx.portalKeyDatesOverrideVendor ?? displayDefault;
+  const showPurchaser = tx.portalKeyDatesOverridePurchaser ?? displayDefault;
   if (!showVendor && !showPurchaser) return;
 
   const allContacts = await prisma.contact.findMany({

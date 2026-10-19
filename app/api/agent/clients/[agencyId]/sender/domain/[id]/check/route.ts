@@ -11,7 +11,6 @@ import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { validateAuthenticatedDomain } from "@/lib/services/sendgrid";
-import { adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ agencyId: string; id: string }> }) {
   if (!progressionBusinessesEnabled()) return NextResponse.json({ error: "Not enabled" }, { status: 404 });
@@ -38,7 +37,20 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ag
   });
 
   if (result.valid) {
-    await adoptVerifiedDomainAsAgencySender(agencyId, domain.domain);
+    // Stamp THIS company's per-link sender verified now the domain is authenticated,
+    // if their chosen address is on this domain — so each company on the domain goes
+    // live with its OWN address, never the shared agency field. (The nightly
+    // check-domains cron is the backstop for the same per-link stamping.)
+    const link = await prisma.progressionBusinessClient.findUnique({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+      select: { senderEmail: true },
+    });
+    if (link?.senderEmail && link.senderEmail.toLowerCase().endsWith(`@${domain.domain.toLowerCase()}`)) {
+      await prisma.progressionBusinessClient.update({
+        where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+        data: { senderVerified: true, senderVerifiedAt: new Date() },
+      });
+    }
   }
 
   return NextResponse.json({ domain: updated, valid: result.valid });
