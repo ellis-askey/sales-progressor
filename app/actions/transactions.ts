@@ -2034,7 +2034,7 @@ export async function saveContactEmailAction(contactId: string, email: string) {
 
   const contact = await prisma.contact.findFirst({
     where: { id: contactId },
-    select: { id: true, propertyTransactionId: true },
+    select: { id: true, propertyTransactionId: true, email: true },
   });
   if (!contact) throw new Error("Contact not found");
 
@@ -2045,9 +2045,16 @@ export async function saveContactEmailAction(contactId: string, email: string) {
   });
   if (!tx) throw new Error("Contact not found");
 
-  await prisma.contact.update({ where: { id: contactId }, data: { email: clean } });
+  // Clear any prior hard-bounce flag: the agent is deliberately supplying a
+  // deliverable address, so the contact should become chaseable again — without
+  // this the bounce keeps the chase blocked even after the email is corrected
+  // (critique, 99 Kings Drive, 2026-10-19). A fresh bounce re-sets it via the
+  // SendGrid webhook. unsubscribedAt is left alone — that's a consent opt-out,
+  // not an address problem.
+  await prisma.contact.update({ where: { id: contactId }, data: { email: clean, emailBouncedAt: null } });
 
-  await logActivity(contact.propertyTransactionId, `${session.user.name} added a client email address`, session.user.id);
+  const verb = contact.email ? "updated" : "added";
+  await logActivity(contact.propertyTransactionId, `${session.user.name} ${verb} a client email address`, session.user.id);
   revalidateTx(contact.propertyTransactionId);
 }
 

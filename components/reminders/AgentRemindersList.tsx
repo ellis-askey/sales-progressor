@@ -845,16 +845,24 @@ function SplitFileCard({
                   </div>
                 </div>
               )}
-              {autoState?.kind === "manual" && autoState.category === "blocker_client_email" && (
-                <button
-                  type="button"
-                  onClick={() => setAddEmailFor({ isBuyer, contacts: contacts.filter((c) => c.roleType === (isBuyer ? "purchaser" : "vendor")).map((c) => ({ id: c.id, name: c.name, roleType: c.roleType, email: c.email })) })}
-                  className="agent-link"
-                  style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
-                >
-                  Add an email to chase them <LinkArrow />
-                </button>
-              )}
+              {autoState?.kind === "manual" && autoState.category === "blocker_client_email" && (() => {
+                const side = isBuyer ? "purchaser" : "vendor";
+                const sideContacts = contacts.filter((c) => c.roleType === side);
+                // They may already HAVE an email that just bounced / failed to
+                // send — don't tell the agent to "add" one then (critique,
+                // 99 Kings Drive, 2026-10-19).
+                const hasEmail = sideContacts.some((c) => c.email);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setAddEmailFor({ isBuyer, contacts: sideContacts.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType, email: c.email })) })}
+                    className="agent-link"
+                    style={{ margin: "8px 0 0", display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}
+                  >
+                    {hasEmail ? "Update their email to chase them" : "Add an email to chase them"} <LinkArrow />
+                  </button>
+                );
+              })()}
               {/* No client on this side of the file at all: the chase couldn't
                   fire because there's nobody to send to. Show the handback chip
                   linking to the file's contacts so the client can be added. */}

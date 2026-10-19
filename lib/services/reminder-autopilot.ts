@@ -181,7 +181,27 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     let category: ManualCategory = "info";
     if (manuallyChased) { reason = null; category = "info"; } // you've taken this over; the chase status line carries the detail
     else if (solCode && !solContact?.email) { reason = "No solicitor on file yet"; category = "blocker_solicitor"; }
-    else if (clientCode && clientOn) { reason = "No email on file for the client"; category = "blocker_client_email"; }
+    else if (clientCode && clientOn) {
+      // Reaching here means no client on this side was fully reachable (email +
+      // portal token + not unsubscribed + not bounced). Say WHY honestly rather
+      // than always blaming a missing email — they may have one that just
+      // bounced (critique, 99 Kings Drive, 2026-10-19).
+      const clientRole = side === "vendor" ? "vendor" : "purchaser";
+      const sideClients = tx.contacts.filter((c) => c.roleType === clientRole && isActiveRoundContact(c, tx.activeBuyerRoundId));
+      const withEmail = sideClients.filter((c) => c.email);
+      if (withEmail.length === 0) {
+        reason = "No email on file for the client"; category = "blocker_client_email";
+      } else if (withEmail.some((c) => c.emailBouncedAt)) {
+        // Has an email, it just bounced — offer the same fix affordance, but the
+        // card's label reads "Update" not "Add" (AgentRemindersList).
+        reason = "The client's email bounced, update it to chase them"; category = "blocker_client_email";
+      } else if (withEmail.every((c) => c.unsubscribedAt)) {
+        reason = "The client opted out of emails"; category = "info";
+      } else {
+        // Has an email but no portal access yet (no token) — not an email problem.
+        reason = "Client has no portal access yet"; category = "info";
+      }
+    }
     else if (clientCode && !clientOn) {
       // Off can mean: this file paused, or the agency/global switch is off. Only
       // the first is truly "this file" — say so honestly rather than implying a
