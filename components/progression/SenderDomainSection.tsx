@@ -35,6 +35,7 @@ type DomainRecord = {
 };
 export type SenderStatus = {
   agencyName?: string | null;
+  logoUrl?: string | null;
   senderEmail: string | null;
   senderVerified: boolean;
   ownerName?: string | null;
@@ -229,7 +230,9 @@ export function SenderDomainSection({
       <div className="sds-ap">
         <div className="sds-ap-h">{isClient ? `How ${brand}'s buyers & sellers see your emails` : "How your clients see your emails"}</div>
         <div className="sds-ap-mail">
-          <span className="sds-avatar">{initials(brand)}</span>
+          {status?.logoUrl
+            ? <span className="sds-avatar sds-avatar-logo"><img src={status.logoUrl} alt="" /></span>
+            : <span className="sds-avatar">{initials(brand)}</span>}
           <div className="sds-ap-id">
             <span className="sds-ap-name">{displayName}</span>
             <div className="sds-ap-line">
@@ -555,6 +558,9 @@ export function SenderDomainSection({
         .sds-ap-reply b { color: var(--agent-text-primary); font-weight: 650; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
         .sds-ap-pending { margin-top: 11px; font-size: 12px; color: var(--agent-text-secondary); background: rgba(255,107,74,0.06); border: 1px solid rgba(255,107,74,0.15); border-radius: 9px; padding: 8px 11px; line-height: 1.45; }
         .sds-ap-pending b { color: var(--agent-text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+        /* Logo avatar: the agency's uploaded mark (what buyers see on the emails). */
+        .sds-avatar-logo { background: #fff; border: 1px solid var(--agent-border-subtle); overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 3px rgba(15,23,42,0.08); }
+        .sds-avatar-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
         /* Overview actions — bullets left, CTA right, one row */
         .sds-ov-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 14px; }

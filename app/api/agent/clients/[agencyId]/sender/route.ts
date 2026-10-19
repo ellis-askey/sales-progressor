@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { listVerifiedDomainsForAgency, senderMethod } from "@/lib/services/verified-emails";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ agencyId: string }> }) {
   if (!progressionBusinessesEnabled()) return NextResponse.json({ error: "Not enabled" }, { status: 404 });
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
 
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { name: true },
+    select: { name: true, logoPath: true },
   });
   if (!agency) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -46,6 +47,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
 
   return NextResponse.json({
     agencyName: agency.name,
+    // The agency's uploaded logo — the brand mark buyers/sellers actually see on the
+    // emails (logo band). Shown in the preview avatar when set, else the initials.
+    logoUrl: getAgencyLogoUrl(agency.logoPath),
     senderEmail: linkRow?.senderEmail ?? null,
     senderVerified: linkRow?.senderVerified ?? false,
     // Who the owner is — for the addressing preview: their name brands the "From"

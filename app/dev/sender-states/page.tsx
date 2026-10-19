@@ -10,10 +10,15 @@ const AGENCY = "Homes by Wright";
 const OWNER = "Ellis";
 const EMAIL = "ellis@homebywright.co.uk";
 
+// A sample uploaded logo (navy house mark) so the preview shows the logo avatar; in
+// the real app this is the agency's own uploaded logo, else it falls back to initials.
+const SAMPLE_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231f3b57'/%3E%3Cpath d='M50 22 L78 46 V80 H60 V58 H40 V80 H22 V46 Z' fill='%23ffffff'/%3E%3C/svg%3E";
+
 const baseStatus: Omit<SenderStatus, "senderEmail" | "senderVerified" | "method" | "domain"> = {
   agencyName: AGENCY,
   ownerName: OWNER,
   ownerEmail: EMAIL,
+  logoUrl: SAMPLE_LOGO,
 };
 
 const domainRecord = {
