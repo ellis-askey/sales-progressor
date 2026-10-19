@@ -70,7 +70,8 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
         kicker: "Momentum",
         big: String(wins.stepsConfirmedThisWeek),
         label: wins.stepsConfirmedThisWeek === 1 ? "step confirmed this week" : "steps confirmed this week",
-        footLeft: wins.stepsFilesThisWeek > 1 ? `Across ${wins.stepsFilesThisWeek} files` : "Keep them moving",
+        // Footnote = new proof only: how many files the momentum spans.
+        footLeft: wins.stepsFilesThisWeek > 1 ? `Across ${wins.stepsFilesThisWeek} files` : "On one file",
       }
     : null;
   const newFilesSlide: Slide | null = wins.newFilesThisMonth > 0
@@ -78,8 +79,8 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
         key: "newfiles",
         kicker: "New business",
         big: String(wins.newFilesThisMonth),
-        label: wins.newFilesThisMonth === 1 ? "new file this month" : "new files this month",
-        footLeft: "Fresh instructions in the pipeline",
+        label: wins.newFilesThisMonth === 1 ? "instruction this month" : "instructions this month",
+        footLeft: "Fresh in the pipeline",
       }
     : null;
 
@@ -88,15 +89,17 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
       key: "exchanges",
       kicker: "Exchanges",
       big: String(wins.exchangesThisMonth),
-      label: wins.exchangesThisMonth === 1 ? "exchange completed" : "exchanges completed",
+      label: "this month",
       trend: trendCopy(wins.exchangesThisMonth, wins.exchangesLastMonth),
-      footLeft: wins.valueExchangedPence > 0 ? "Agreed sales exchanged" : "Contracts exchanged this month",
+      // Footnote = the money the headline count can't show; falls back to a plain
+      // fact (not a restatement) when no agreed value is on file.
+      footLeft: wins.valueExchangedPence > 0 ? "Agreed value" : "Now legally binding",
       footRight: wins.valueExchangedPence > 0 ? fmtCurrencyPence(wins.valueExchangedPence) : undefined,
     });
     if (wins.fastestExchangeDays !== null && wins.fastestExchangeAddress) {
       slides.push({
         key: "fastest",
-        kicker: "Fastest exchange",
+        kicker: "Fastest",
         big: `${wins.fastestExchangeDays}d`,
         bigColor: "var(--agent-coral-deep)",
         label: "offer to exchange",
@@ -108,9 +111,9 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
     if (wins.exchangesThisMonth > 1 && wins.biggestExchangePence !== null && wins.biggestExchangeAddress) {
       slides.push({
         key: "biggest",
-        kicker: "Biggest exchange",
+        kicker: "Biggest",
         big: fmtCurrencyPence(wins.biggestExchangePence),
-        label: "agreed sale exchanged",
+        label: "agreed sale price",
         footLeft: wins.biggestExchangeAddress,
       });
     }
@@ -120,7 +123,8 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
         key: "completions",
         kicker: "Completions",
         big: String(wins.completionsThisMonth),
-        label: wins.completionsThisMonth === 1 ? "completion this month" : "completions this month",
+        label: "this month",
+        trend: trendCopy(wins.completionsThisMonth, wins.completionsLastMonth),
         footLeft: "Keys handed over",
       });
     }
@@ -132,9 +136,9 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
       key: "completions",
       kicker: "Completions",
       big: String(wins.completionsThisMonth),
-      label: wins.completionsThisMonth === 1 ? "completion" : "completions",
+      label: "this month",
       trend: trendCopy(wins.completionsThisMonth, wins.completionsLastMonth),
-      footLeft: "Keys handed over this month",
+      footLeft: "Keys handed over",
     });
     if (momentumSlide) slides.push(momentumSlide);
     if (newFilesSlide) slides.push(newFilesSlide);
@@ -147,27 +151,16 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
   return slides;
 }
 
-// Icon per tier (the overall mood). The caption, though, follows the CURRENT
-// story (below) rather than a fixed per-tier tagline — a hard-coded motivational
-// line always reads like a slogan (founder, 2026-10-15).
+// Icon per tier (the overall mood). The header no longer carries a rotating
+// caption — it used to re-state whatever slide was on screen (sometimes the
+// exact same string as the slide's own label), so each story now names itself
+// once and the header stays a stable "Wins this month". (critique #283)
 const TIER_META: Record<Tier, { icon: React.ReactNode }> = {
   exchanges:   { icon: <Trophy size={24} weight="bold" /> },
   completions: { icon: <Flag size={24} weight="bold" /> },
   progress:    { icon: <Sparkle size={24} weight="bold" /> },
   fresh:       { icon: <Rocket size={24} weight="bold" /> },
 };
-
-// Caption under "Wins this month" — swaps with the rotating story so it always
-// describes what's on screen. Plain and factual, never a slogan.
-const SLIDE_SUBTITLE: Record<string, string> = {
-  exchanges:   "Contracts exchanged this month",
-  fastest:     "Fastest sale to exchange",
-  biggest:     "Biggest exchange this month",
-  momentum:    "Steps confirmed this week",
-  completions: "Sales completed this month",
-  newfiles:    "New instructions this month",
-};
-const FRESH_SUBTITLE = "Your month so far";
 
 const ROTATE_MS = 6000;
 
@@ -208,11 +201,6 @@ export function WinsCard({ wins }: { wins: HubWins }) {
   }, [slides.length]);
 
   const meta = TIER_META[tier];
-  // Caption follows the current story (falls back to the fresh line when there
-  // are no stories to rotate).
-  const activeSubtitle = slides.length > 0
-    ? (SLIDE_SUBTITLE[slides[idx]?.key ?? ""] ?? FRESH_SUBTITLE)
-    : FRESH_SUBTITLE;
 
   const header = (
     <div className="agent-card-hdr-internal" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -221,8 +209,7 @@ export function WinsCard({ wins }: { wins: HubWins }) {
         {meta.icon}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Wins this month</p>
-        <p className="agent-card-subtitle" style={{ margin: 0 }}>{activeSubtitle}</p>
+        <p className="agent-eyebrow" style={{ margin: 0 }}>Wins this month</p>
       </div>
     </div>
   );
