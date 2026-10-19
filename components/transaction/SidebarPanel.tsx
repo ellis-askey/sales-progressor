@@ -34,6 +34,8 @@ type SidebarTransaction = {
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
   isShareOfFreehold: boolean;
+  hasManagementPack: boolean;
+  isSharedOwnership: boolean;
   status: TransactionStatus;
   chainLinkId?: string | null;
   overridePredictedDate: Date | null;
@@ -358,6 +360,8 @@ export async function SidebarPanel({
         tenure: transaction.tenure ?? null,
         purchaseType: transaction.purchaseType ?? null,
         isShareOfFreehold: transaction.isShareOfFreehold,
+        hasManagementPack: transaction.hasManagementPack,
+        isSharedOwnership: transaction.isSharedOwnership,
         chainLinkId: transaction.chainLinkId ?? null,
         overridePredictedDate: transaction.overridePredictedDate ?? null,
         completionDate: transaction.completionDate ?? null,

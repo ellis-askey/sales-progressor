@@ -36,6 +36,7 @@ import { useTabContext } from "@/components/transaction/TabContext";
 import { calculateRiskScore, RISK_CONFIG, type RiskInput } from "@/lib/services/risk";
 import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, EnvelopeSimple, Wrench, CopySimple, Check, ArrowClockwise } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { PropertyFlagsCard } from "@/components/transaction/PropertyFlagsCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType, FeeVatTreatment } from "@prisma/client";
@@ -61,6 +62,8 @@ type Props = {
     tenure: Tenure | null;
     purchaseType: PurchaseType | null;
     isShareOfFreehold: boolean;
+    hasManagementPack: boolean;
+    isSharedOwnership: boolean;
     chainLinkId?: string | null;
     overridePredictedDate: Date | null;
     completionDate: Date | null;
@@ -218,6 +221,7 @@ export function AgentFileSidebar({
   fileTime,
   isInternal = false,
   hideCommercialFields = false,
+  canEditSaleDetails = false,
   agentSlot,
   riskInput,
   currentUserId,
@@ -677,6 +681,17 @@ export function AgentFileSidebar({
           </div>
         )}
       </GlassCard>
+
+      {/* ─── Property (niche tenure/scheme flags) ─────────────────────── */}
+      <PropertyFlagsCard
+        transactionId={transaction.id}
+        tenure={transaction.tenure}
+        purchaseType={transaction.purchaseType}
+        isShareOfFreehold={transaction.isShareOfFreehold}
+        hasManagementPack={transaction.hasManagementPack}
+        isSharedOwnership={transaction.isSharedOwnership}
+        canEdit={canEditSaleDetails}
+      />
 
       {/* ─── Previous sales (fallen-through buyers) ───────────────────── */}
       <PreviousSalesCard transactionId={transaction.id} sales={previousSales} />

@@ -305,6 +305,8 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           tenure: transaction.tenure ?? null,
           purchaseType: transaction.purchaseType ?? null,
           isShareOfFreehold: transaction.isShareOfFreehold,
+          hasManagementPack: transaction.hasManagementPack,
+          isSharedOwnership: transaction.isSharedOwnership,
           status: transaction.status,
           chainLinkId: transaction.chainLinkId ?? null,
           overridePredictedDate: transaction.overridePredictedDate ?? null,

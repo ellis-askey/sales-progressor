@@ -12,6 +12,8 @@
 //   tenure = freehold (no management pack) -> VM8, VM9, PM12  (no management pack)
 //     ...but a managed freehold (hasManagementPack = true) KEEPS those steps:
 //     an estate rentcharge / management company still issues a pack.
+//     ...and shared ownership (isSharedOwnership = true) KEEPS those steps on ANY
+//     tenure: there's always a housing-association pack.
 //   purchaseType = cash_buyer             -> PM5, PM6, PM11  (no mortgage)
 //   purchaseType = cash_from_proceeds     -> PM5, PM6, PM11  (no mortgage)
 //                                         + PM24             (deposit comes from
@@ -35,9 +37,13 @@ export function computeAutoNrCodes(
   // freehold pack-step NR is skipped so VM8/VM9/PM12 stay live. Defaults false so
   // every existing caller keeps today's behaviour (ordinary freehold = no pack).
   hasManagementPack: boolean = false,
+  // Shared ownership: always granted via a lease with a housing-association pack,
+  // so the pack steps (VM8/VM9/PM12) stay live on ANY tenure — exactly like a
+  // managed freehold. Defaults false so every existing caller is unaffected.
+  isSharedOwnership: boolean = false,
 ): Set<string> {
   const codes = new Set<string>();
-  if (tenure === "freehold" && !hasManagementPack) {
+  if (tenure === "freehold" && !hasManagementPack && !isSharedOwnership) {
     for (const c of FREEHOLD_NR_CODES) codes.add(c);
   }
   if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {

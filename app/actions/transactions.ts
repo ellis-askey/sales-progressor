@@ -2313,14 +2313,17 @@ export async function saveIsShareOfFreeholdAction(transactionId: string, isShare
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, isShareOfFreehold: true },
+    select: { id: true, isShareOfFreehold: true, isSharedOwnership: true },
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.isShareOfFreehold === isShareOfFreehold) return;
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { isShareOfFreehold },
+    // Mutually exclusive with shared ownership — turning share-of-freehold on
+    // clears the SO flag. Milestone-safe: share-of-freehold is leasehold-only,
+    // where the pack steps are live either way, so no milestone moves.
+    data: { isShareOfFreehold, ...(isShareOfFreehold ? { isSharedOwnership: false } : {}) },
   });
 
   await logActivity(
@@ -2794,23 +2797,27 @@ export async function getSaleDetailsDelta(input: {
   // When the managed-freehold flag is the thing changing (tenure/type unchanged),
   // the caller passes the new value here. Omit to preview a tenure/type change.
   newHasManagementPack?: boolean;
+  // Shared-ownership flag change (keeps the pack steps live on any tenure). Omit
+  // to leave it as-is.
+  newIsSharedOwnership?: boolean;
 }): Promise<SaleDetailsDelta> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true },
+    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true, isSharedOwnership: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
   const newFlag = input.newHasManagementPack ?? tx.hasManagementPack;
-  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack) {
+  const newSO = input.newIsSharedOwnership ?? tx.isSharedOwnership;
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack && newSO === tx.isSharedOwnership) {
     return { noChange: true, becomingNr: [], becomingRequired: [], currentPercent: 0, projectedPercent: 0, currentRemaining: 0, projectedRemaining: 0 };
   }
 
-  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack);
-  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag);
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack, tx.isSharedOwnership);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag, newSO);
 
   const allDefs = await prisma.milestoneDefinition.findMany({
     select: { id: true, code: true, name: true, side: true, weight: true },
@@ -2889,21 +2896,25 @@ export async function confirmSaleDetailsAction(input: {
   // Managed-freehold flag change (tenure/type may be unchanged). Omit to leave
   // the flag as-is while changing tenure/type.
   newHasManagementPack?: boolean;
+  // Shared-ownership flag change (keeps the pack steps live on any tenure). Omit
+  // to leave it as-is.
+  newIsSharedOwnership?: boolean;
 }): Promise<void> {
   const session = await requireSession();
   const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true },
+    select: { id: true, purchaseType: true, tenure: true, hasManagementPack: true, isSharedOwnership: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
   const newFlag = input.newHasManagementPack ?? tx.hasManagementPack;
-  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack) return;
+  const newSO = input.newIsSharedOwnership ?? tx.isSharedOwnership;
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure && newFlag === tx.hasManagementPack && newSO === tx.isSharedOwnership) return;
 
-  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack);
-  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag);
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure, tx.hasManagementPack, tx.isSharedOwnership);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure, newFlag, newSO);
 
   const allDefs = await prisma.milestoneDefinition.findMany({
     select: { id: true, code: true, name: true, side: true, blocksExchange: true },
@@ -2966,7 +2977,11 @@ export async function confirmSaleDetailsAction(input: {
     // 1. Update sale details
     await ptx.propertyTransaction.update({
       where: { id: input.transactionId },
-      data: { purchaseType: input.newPurchaseType, tenure: input.newTenure, hasManagementPack: newFlag },
+      // Shared ownership and share-of-freehold are mutually exclusive (different
+      // owners of the freehold); turning SO on clears the share flag. Safe for the
+      // milestone cascade: share-of-freehold only exists on leasehold, where the
+      // pack steps are live regardless, so clearing it never moves a milestone.
+      data: { purchaseType: input.newPurchaseType, tenure: input.newTenure, hasManagementPack: newFlag, isSharedOwnership: newSO, ...(newSO ? { isShareOfFreehold: false } : {}) },
     });
 
     // Phase 1 commit 4e — round scope reused across every find-after-write

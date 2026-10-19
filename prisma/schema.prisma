@@ -721,6 +721,13 @@ model PropertyTransaction {
   // auto-NR-ing and the enquiries tracker gains the "waiting on pack" hold.
   // Only meaningful on freehold; always false/ignored on leasehold.
   hasManagementPack               Boolean           @default(false)
+  // Shared-ownership flag: the buyer is purchasing a share of the home from a
+  // housing association (and paying rent on the rest). Shared ownership is always
+  // granted via a lease — even on a house — so there is ALWAYS a landlord pack.
+  // When on, the management-pack steps (VM8/VM9/PM12) stay live on ANY tenure,
+  // exactly like hasManagementPack does on a freehold. Mutually exclusive with
+  // isShareOfFreehold (different owners of the freehold).
+  isSharedOwnership               Boolean           @default(false)
   // Free-text surveyor name when the buyer booked a firm OUTSIDE our network
   // (captured on the survey-booked step). Title-cased on save. Null when they
   // booked one of our quoted firms (that name comes from the QuoteRequest) or

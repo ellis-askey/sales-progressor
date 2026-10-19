@@ -23,7 +23,7 @@ import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phos
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction, saveHasManagementPackAction, recoverSaleSetupAction } from "@/app/actions/transactions";
+import { savePriceAction, getSaleDetailsDelta, confirmSaleDetailsAction, saveIsShareOfFreeholdAction, recoverSaleSetupAction } from "@/app/actions/transactions";
 import type { SaleDetailsDelta } from "@/app/actions/transactions";
 import { SaleDetailChangeModal } from "./SaleDetailChangeModal";
 
@@ -32,13 +32,13 @@ const PURCHASE_TYPE_OPTIONS: { value: PurchaseType; label: string }[] = [
   { value: "cash_buyer", label: "Cash buyer" },
   { value: "cash_from_proceeds", label: "Cash from proceeds" },
 ];
-// Tenure picker carries a third option — "Share of freehold" maps to
-// (leasehold + isShareOfFreehold). Freehold/leasehold clear the share flag.
+// Tenure picker: Freehold / Leasehold only. "Share of freehold" and "Managed
+// development" moved to the Property card in the sidebar (2026-10-19) — they're
+// niche modifiers edited there, which keeps the hero clean.
 type TenureChoice = "freehold" | "leasehold" | "share";
 const TENURE_CHOICE_OPTIONS: { value: TenureChoice; label: string }[] = [
   { value: "freehold", label: "Freehold" },
   { value: "leasehold", label: "Leasehold" },
-  { value: "share", label: "Share of freehold" },
 ];
 function tenureChoiceToState(c: TenureChoice): { tenure: Tenure; share: boolean } {
   if (c === "freehold") return { tenure: "freehold", share: false };
@@ -46,8 +46,9 @@ function tenureChoiceToState(c: TenureChoice): { tenure: Tenure; share: boolean 
   return { tenure: "leasehold", share: true };
 }
 function currentTenureChoice(t: Tenure | null, share: boolean): TenureChoice | null {
+  void share; // share-of-freehold is edited on the Property card now, not here
   if (t === "freehold") return "freehold";
-  if (t === "leasehold") return share ? "share" : "leasehold";
+  if (t === "leasehold") return "leasehold";
   return null;
 }
 
@@ -79,21 +80,6 @@ const VALUE_STYLE: CSSProperties = {
   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
 };
 const LABEL_STYLE: CSSProperties = { display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 };
-// Discreet managed-development affordances under the Tenure cell. The "off"
-// add-link is muted text; the "on" chip is a faint coral-tinted tag.
-const MGMT_ADD: CSSProperties = {
-  marginTop: 3, display: "inline-flex", alignItems: "center", gap: 3,
-  background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit",
-  fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)", opacity: 0.85,
-};
-const MGMT_CHIP: CSSProperties = {
-  marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5, width: "fit-content",
-  fontFamily: "inherit", fontSize: 10, fontWeight: 600, letterSpacing: "0.02em",
-  color: "var(--agent-text-secondary)",
-  background: "color-mix(in srgb, var(--agent-coral) 9%, transparent)",
-  border: "1px solid color-mix(in srgb, var(--agent-coral) 22%, transparent)",
-  borderRadius: 6, padding: "2px 6px",
-};
 
 function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: ReactNode }) {
   return (
@@ -232,9 +218,9 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
   );
 }
 
-type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; newHasManagementPack?: boolean; title: string };
+type PendingChange = { newPurchaseType: PurchaseType; newTenure: Tenure; newIsShareOfFreehold: boolean; title: string };
 
-export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, hasManagementPack, exchanged }: {
+export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, tenure, isShareOfFreehold, exchanged }: {
   transactionId: string;
   purchasePrice: number | null;
   purchaseType: PurchaseType | null;
@@ -245,15 +231,6 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
 }) {
   const { toast } = useAgentToast();
 
-  // ── Managed-freehold flag ──
-  // A discreet, freehold-only toggle under the Tenure cell: the ~1-in-20 freehold
-  // that sits on a managed estate and still has a management pack. Turning it on
-  // revives the management-pack steps (VM8/VM9/PM12); turning it off retires them.
-  // The toggle handler is defined below (toggleMgmtPack) once the sale-details
-  // cascade state it reuses is in scope.
-  const [mgmtPackOn, setMgmtPackOn] = useState(hasManagementPack);
-  const [mgmtSaving, setMgmtSaving] = useState(false);
-  useEffect(() => setMgmtPackOn(hasManagementPack), [hasManagementPack]);
 
   // ── Price inline edit ──
   const [editingPrice, setEditingPrice] = useState(false);
@@ -364,20 +341,12 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       next = { newPurchaseType: value as PurchaseType, newTenure: tenure, newIsShareOfFreehold: isShareOfFreehold, title: `Change purchase type to ${purchaseTypeLabel(value as PurchaseType)}?` };
       if (next.newPurchaseType === purchaseType) return; // picked current
     } else {
-      const { tenure: newTenure, share: newShare } = tenureChoiceToState(value as TenureChoice);
-      if (newTenure === tenure && newShare === isShareOfFreehold) return; // picked current
-      // Leasehold ↔ Share of freehold is only the share flag — no milestone
-      // impact, so save it straight away without the delta-preview modal.
-      if (newTenure === tenure) {
-        try {
-          await saveIsShareOfFreeholdAction(transactionId, newShare);
-          toast.success(newShare ? "Marked share of freehold" : "Tenure updated");
-          // Phase 4: no client refresh - action revalidates the file page.
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Couldn't save the change");
-        }
-        return;
-      }
+      // Picker is Freehold / Leasehold only now. Share-of-freehold lives on the
+      // Property card: keep it when staying/going leasehold, clear it on freehold
+      // (it's leasehold-only). Picking the current tenure is a no-op here.
+      const newTenure: Tenure = value === "freehold" ? "freehold" : "leasehold";
+      if (newTenure === tenure) return; // picked current (share is edited on the card)
+      const newShare = newTenure === "freehold" ? false : isShareOfFreehold;
       next = { newPurchaseType: purchaseType, newTenure, newIsShareOfFreehold: newShare, title: `Change tenure to ${TENURE_CHOICE_OPTIONS.find((o) => o.value === value)?.label ?? tenureLabel(newTenure)}?` };
     }
 
@@ -400,13 +369,11 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setConfirming(true);
     setModalError(null);
     try {
-      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure, newHasManagementPack: pending.newHasManagementPack });
+      await confirmSaleDetailsAction({ transactionId, newPurchaseType: pending.newPurchaseType, newTenure: pending.newTenure });
       if (pending.newIsShareOfFreehold !== isShareOfFreehold) {
         await saveIsShareOfFreeholdAction(transactionId, pending.newIsShareOfFreehold);
       }
-      const flagOnlyChange = pending.newHasManagementPack !== undefined && pending.newTenure === tenure && pending.newPurchaseType === purchaseType;
-      if (pending.newHasManagementPack !== undefined) setMgmtPackOn(pending.newHasManagementPack);
-      const label = flagOnlyChange ? "Management pack" : pending.newTenure !== tenure ? "Tenure" : "Purchase type";
+      const label = pending.newTenure !== tenure ? "Tenure" : "Purchase type";
       closeModal();
       toast.success(`${label} updated`);
       // Phase 4: no client refresh - action revalidates the file page.
@@ -424,52 +391,9 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
     setDeltaLoading(false);
   }
 
-  // Flip the managed-development flag. Routes through the same NR-cascade as a
-  // tenure change (confirmSaleDetailsAction) so the pack steps are added/retired
-  // for real. Turning it off when a pack step is already complete is destructive,
-  // so that case goes through the preview-and-confirm modal; everything else
-  // applies straight away. Recovery files (no purchaseType) just store the flag.
-  async function toggleMgmtPack() {
-    if (mgmtSaving || confirming || pending) return;
-    const next = !mgmtPackOn;
-
-    if (purchaseType == null || tenure == null) {
-      setMgmtSaving(true);
-      setMgmtPackOn(next);
-      try {
-        await saveHasManagementPackAction(transactionId, next);
-        toast.success(next ? "Marked as a managed development" : "Management-pack flag removed");
-      } catch (err) {
-        setMgmtPackOn(!next);
-        toast.error(err instanceof Error ? err.message : "Couldn't save the change");
-      } finally {
-        setMgmtSaving(false);
-      }
-      return;
-    }
-
-    setMgmtSaving(true);
-    try {
-      const d = await getSaleDetailsDelta({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
-      if (d.noChange) return;
-      // Destructive only when turning OFF would reverse an already-complete pack
-      // step — preview that. Adding steps (or removing not-yet-done ones) is safe.
-      if (d.becomingNr.some((i) => i.wasComplete)) {
-        setPending({ newPurchaseType: purchaseType, newTenure: tenure, newIsShareOfFreehold: isShareOfFreehold, newHasManagementPack: next, title: "Remove the management pack?" });
-        setDelta(d);
-        setModalError(null);
-        setDeltaLoading(false);
-        return;
-      }
-      await confirmSaleDetailsAction({ transactionId, newPurchaseType: purchaseType, newTenure: tenure, newHasManagementPack: next });
-      setMgmtPackOn(next);
-      toast.success(next ? "Pack steps are now live on this file" : "Management-pack flag removed");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save the change");
-    } finally {
-      setMgmtSaving(false);
-    }
-  }
+  // Managed development is now toggled from the sidebar Property card
+  // (PropertyFlagsCard), which routes through the same confirmSaleDetailsAction
+  // cascade. The hero no longer carries that control.
 
   return (
     <>
@@ -514,31 +438,8 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
             );
           })()}
         </div>
-        {/* Managed-development flag — discreet, freehold-only (Stage 1). Off shows a
-            faint add-link; on shows a small removable chip. Leasehold never sees it. */}
-        {tenure === "freehold" && (mgmtPackOn ? (
-          <span style={MGMT_CHIP}>
-            Management pack
-            {!typeTenureLocked && (
-              <button
-                type="button"
-                onClick={toggleMgmtPack}
-                disabled={mgmtSaving}
-                aria-label="Remove the management-pack flag"
-                title="Remove"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", opacity: 0.6, padding: 0, margin: 0, lineHeight: 1, fontSize: 12 }}
-              >×</button>
-            )}
-          </span>
-        ) : (!typeTenureLocked && (
-          <button
-            type="button"
-            onClick={toggleMgmtPack}
-            disabled={mgmtSaving}
-            title="Flag this freehold as a managed development (it has a management pack)"
-            style={MGMT_ADD}
-          >+ Managed development</button>
-        )))}
+        {/* Managed development + Share of freehold moved to the sidebar Property
+            card (2026-10-19). The tenure text above still reflects share-of-freehold. */}
       </CellFrame>
 
       {openField === "type" && anchorRect && (
