@@ -2808,7 +2808,7 @@ export async function executeUndoMilestone(input: {
           { reminderRule: { anchorMilestone: { code: { in: cancelReminderCodes } } } },
         ],
       },
-      select: { id: true },
+      select: { id: true, reminderRule: { select: { targetMilestoneCode: true } } },
     });
     if (logs.length > 0) {
       const logIds = logs.map((l) => l.id);
@@ -2820,6 +2820,23 @@ export async function executeUndoMilestone(input: {
         where: { id: { in: logIds } },
         data: { status: "cancelled", statusReason: "Milestone reversed" },
       });
+      // Stop any client chase for the steps whose reminders we just cancelled —
+      // mirrors completeMilestone / markNotRequired. WITHOUT this, a
+      // reversed-then-redone milestone leaves an active (or escalated)
+      // ClientChaseState behind, and the work-queue's compute-on-read hand-over
+      // logic (getAgentReminderLogs) reads that stale chase and resurfaces the
+      // step in "Needs you" with the OLD chase date, overriding the fresh
+      // reminder's real due date (28 Granville Road PM10 — the survey report
+      // showing due 18 Oct while the new reminder sat at 26 Oct, 2026-10-19).
+      const chasedCodes = Array.from(
+        new Set(logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)),
+      );
+      if (chasedCodes.length > 0) {
+        await ptx.clientChaseState.updateMany({
+          where: { transactionId, milestoneCode: { in: chasedCodes }, status: { in: ["active", "escalated"] } },
+          data: { status: "cancelled", statusReason: "Milestone reversed" },
+        });
+      }
     }
 
     // Communication records — primary milestones
