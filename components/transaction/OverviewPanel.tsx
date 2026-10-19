@@ -553,7 +553,10 @@ export async function OverviewPanel({
                 brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
                 purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
                 purchaseType={transaction.purchaseType}
-                canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
+                // Anyone working the file (incl. an internal TSP progressor) can
+                // attach a broker; the fee stays agency-only via canEditFee + the
+                // server action, which forces a progressor's write to attach-only.
+                canEdit
                 canEditFee={currentUserRole !== "sales_progressor"}
               />
             )}
@@ -572,7 +575,7 @@ export async function OverviewPanel({
                 brokerReferralFeeReceived={brokerRow?.onwardBrokerReferralFeeReceived ?? false}
                 purchaserBrokerReferral={brokerRow?.onwardBrokerReferral ?? false}
                 purchaseType={transaction.purchaseType}
-                canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
+                canEdit
                 canEditFee={currentUserRole !== "sales_progressor"}
               />
             )}

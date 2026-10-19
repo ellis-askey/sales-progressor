@@ -2171,16 +2171,13 @@ export async function saveBrokerReferralAction(
   side: "purchaser" | "vendor" = "purchaser",
 ) {
   const session = await requireSession();
+  // A sales_progressor — internal TSP or external progression-business — may
+  // ATTACH a broker to a file they run (operational: it lights up the buyer's
+  // portal broker card + enables advisor chasing). The referral FEE stays with
+  // the agency, enforced below: fee fields are forced off, and a progressor can't
+  // change a broker that's already set. Agency / admin / superadmin keep full
+  // control including the fee.
   const isProgressor = session.user.role === "sales_progressor";
-  // TSP's own internal progressors stay blocked from agencies' commercial fee
-  // data. An EXTERNAL progression-business progressor runs the agency's file, so
-  // they MAY attach a broker (operational — lights up the buyer portal + enables
-  // advisor chasing); the referral FEE still stays with the agency (enforced
-  // below: attach-only, fee fields forced off, can't touch an existing broker).
-  const isExternalProgressor = isProgressor && !!session.user.progressionBusinessId;
-  if (isProgressor && !isExternalProgressor) {
-    throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
-  }
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
@@ -2195,13 +2192,13 @@ export async function saveBrokerReferralAction(
   // the broker firm on this side changes — frozen at attach time.
   const currentFirmId = side === "vendor" ? tx.onwardBrokerFirmId : tx.brokerFirmId;
 
-  // External progressor: attach-a-broker only. They can add one where none exists,
-  // never edit an existing broker or touch the agency's fee. Force the fee fields
-  // off so only the firm / contact / referral flag is written.
-  if (isExternalProgressor && currentFirmId) {
+  // Progressor: attach-a-broker only. They can add one where none exists, never
+  // edit an existing broker or touch the agency's fee. Force the fee fields off so
+  // only the firm / contact / referral flag is written.
+  if (isProgressor && currentFirmId) {
     throw new Error("Forbidden: the referral fee is managed by the agency");
   }
-  const effData = isExternalProgressor
+  const effData = isProgressor
     ? { ...data, brokerReferralFee: null, brokerReferralFeeReceived: false }
     : data;
 
