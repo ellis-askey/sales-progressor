@@ -145,7 +145,7 @@ export function PropertyFlagsCard({
 
         <FlagRow
           label="Shared ownership"
-          hint={so ? "Housing-association share + landlord pack" : "Buyer owns a share, pays rent on the rest"}
+          hint="Own a share of the property and pay rent on the remainder."
           on={so}
           disabled={!editable || share}
           onClick={onToggleSo}
@@ -154,7 +154,7 @@ export function PropertyFlagsCard({
         {isFreehold && (
           <FlagRow
             label="Managed development"
-            hint={pack ? "Freehold with a managing company + pack" : "Freehold that still issues a management pack"}
+            hint="Freehold property with a management company and management pack."
             on={pack}
             disabled={!editable}
             onClick={onTogglePack}
