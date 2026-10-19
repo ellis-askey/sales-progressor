@@ -13,11 +13,15 @@ import { AccountConnectionsCard } from "@/components/account/AccountConnectionsC
 import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
 import { WhatsAppConnectionCard } from "@/components/account/WhatsAppConnectionCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { canUseWhatsAppConnect } from "@/lib/integrations/whatsapp/connect-access";
 
 export default async function AccountConnectionsPage() {
   const session = await requireSession();
   const role = session.user.role;
-  if (role !== "director" && role !== "negotiator") notFound();
+  // Agency agents as before; external progression-business members also reach
+  // this page for the WhatsApp link (pivot 2026-10-18) — email connection
+  // cards below stay for all (same inbox-matching value for a business).
+  if (role !== "director" && role !== "negotiator" && !(await canUseWhatsAppConnect(session))) notFound();
 
   return (
     <>
