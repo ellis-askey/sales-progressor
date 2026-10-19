@@ -72,15 +72,23 @@ describe("outsource intro signatory", () => {
   });
 });
 
-describe("outsource intro FROM address", () => {
+// An external (non-TSP) progression business running the file.
+const extBiz = {
+  name: "Key To Completion", isTsp: false,
+  senderEmail: null, senderDomain: null, senderVerified: false, contactWhatsapp: null,
+  autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: true,
+};
+
+describe("outsource intro FROM + Reply-To", () => {
   // The bug: a single-sender-verified agency (Agency.quoteSenderEmail/Verified)
   // with no full domain auth fell through to updates@thesalesprogressor.co.uk on
   // the welcome email, while every later milestone email correctly used the
   // agency's address. The welcome must honour the single-sender setup too.
-  it("uses the agency's verified single-sender address for From AND Reply-To", async () => {
+  it("uses the agency's verified single-sender address for From AND Reply-To (external)", async () => {
     p.propertyTransaction.findUnique.mockResolvedValue({
       ...txWith("Tom Progressor"),
       agency: { name: "Donna Agency", quoteSenderEmail: "salesprogression@donna.co.uk", quoteSenderVerified: true },
+      progressionBusiness: extBiz,
     });
     await sendOutsourceIntroForTransaction("tx1", "u_sarah");
     const payload = (enqueueEmail as jest.Mock).mock.calls[0][0].payload;
@@ -92,28 +100,30 @@ describe("outsource intro FROM address", () => {
     p.propertyTransaction.findUnique.mockResolvedValue({
       ...txWith("Tom Progressor"),
       agency: { name: "Donna Agency", quoteSenderEmail: "salesprogression@donna.co.uk", quoteSenderVerified: false },
+      progressionBusiness: extBiz,
     });
     await sendOutsourceIntroForTransaction("tx1", "u_sarah");
     const payload = (enqueueEmail as jest.Mock).mock.calls[0][0].payload;
     expect(payload.from).toContain("<updates@thesalesprogressor.co.uk>");
   });
 
-  it("Reply-To falls back to the assigned progressor's email, never updates@", async () => {
+  it("Reply-To falls back to the assigned progressor's email on an external file, never updates@", async () => {
     p.propertyTransaction.findUnique.mockResolvedValue({
       ...txWith("Tom Progressor"),
       agency: { name: "Donna Agency", quoteSenderEmail: null, quoteSenderVerified: false },
-      assignedUser: { name: "Tom Progressor", email: "tom@keystocompletion.co.uk" },
+      progressionBusiness: extBiz,
+      assignedUser: { name: "Tom Progressor", email: "tom@keytocompletion.co.uk" },
     });
     await sendOutsourceIntroForTransaction("tx1", "u_sarah");
     const payload = (enqueueEmail as jest.Mock).mock.calls[0][0].payload;
-    expect(payload.replyTo).toBe("tom@keystocompletion.co.uk");
+    expect(payload.replyTo).toBe("tom@keytocompletion.co.uk");
     expect(payload.replyTo).not.toBe("updates@thesalesprogressor.co.uk");
   });
 
-  it("Reply-To falls back to the file creator when the file is unassigned", async () => {
+  it("TSP / legacy file (no external business) keeps the creator as Reply-To", async () => {
     p.propertyTransaction.findUnique.mockResolvedValue({
-      ...txWith(null),
-      agency: { name: "Donna Agency", quoteSenderEmail: null, quoteSenderVerified: false },
+      ...txWith("Tom Progressor"), // progressionBusiness: null → not external
+      agency: { name: "Donna Agency", quoteSenderEmail: "salesprogression@donna.co.uk", quoteSenderVerified: true },
     });
     // creator is Sarah Owner <sarah@x.co> (mocked in beforeEach)
     await sendOutsourceIntroForTransaction("tx1", "u_sarah");

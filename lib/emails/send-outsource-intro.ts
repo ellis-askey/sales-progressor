@@ -207,14 +207,18 @@ export async function sendOutsourceIntroForTransaction(
     }
     const fromName = `${agentFirstName}${agentLastName ? " " + agentLastName : ""}, ${agencyName}`;
     const fromHeader = `${fromName} <${fromAddress}>`;
-    // Reply-To: the agency's verified single-sender address first — on an external
-    // progressor's file that single sender IS the progressor's monitored inbox for
-    // that agency (e.g. salesprogression@nakedagents.co.uk is Jo's), so replies reach
-    // them AND stay white-label. Falls back to the sales-prog user running the file
-    // (assigned progressor, else creator). NEVER updates@thesalesprogressor.co.uk on
-    // an external file — that is OUR inbox; the progressor would never see the reply.
+    // Reply-To. On an EXTERNAL progression business's file: the agency's verified
+    // single-sender address first — that single sender IS the progressor's monitored
+    // inbox for that agency (e.g. salesprogression@nakedagents.co.uk is Jo's), so
+    // replies reach them AND stay white-label — then the sales-prog user running the
+    // file (assigned progressor, else creator). NEVER updates@thesalesprogressor.co.uk
+    // on an external file; that is OUR inbox and the progressor would never see it.
+    // TSP-run / legacy files keep the original creator target (updates@ is ours).
+    const isExternalBiz = !!tx.progressionBusiness && !tx.progressionBusiness.isTsp;
     const spUserEmail = tx.assignedUser?.email ?? creator.email ?? null;
-    const replyTo = agencyVerifiedSender ?? spUserEmail ?? DEFAULT_FROM_ADDRESS;
+    const replyTo = isExternalBiz
+      ? (agencyVerifiedSender ?? spUserEmail ?? DEFAULT_FROM_ADDRESS)
+      : (creator.email ?? DEFAULT_FROM_ADDRESS);
 
     const deliverAt = deliverAtInsideWorkingWindow(new Date());
 

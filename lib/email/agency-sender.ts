@@ -211,10 +211,19 @@ export async function resolveAgencySenderForTransaction(
   if (tx.serviceType === "outsourced") {
     const identity = clientFacingIdentity(tx.progressionBusiness);
     const prog = progressorSenderAddress(identity, tx.assignedUser?.email);
-    // Keep the agency's verified sender on the From line for branding; the
-    // reply-to is the progressor regardless of single-sender vs domain-auth.
+    // Keep the agency's verified sender on the From line for branding.
     const from = agencyAddr && agencyVerified ? agencyAddr : prog;
-    return { from: buildFrom(display, from), replyTo: prog, canReply: true, ...logo };
+    // Reply-To. On an EXTERNAL progression business's file, replies must reach the
+    // progressor, NEVER our shared updates@thesalesprogressor.co.uk inbox (which they
+    // can't see): the agency's verified single sender first — on an external file that
+    // sender is the progressor's own monitored inbox for this agency (e.g.
+    // salesprogression@nakedagents.co.uk is Jo's) — then the assigned progressor's own
+    // email. TSP-run and legacy files keep the original `prog` target, where the
+    // progressor IS internal staff and the updates@/ellis@ fallback is correctly ours.
+    const replyTo = identity.isTsp
+      ? prog
+      : ((agencyAddr && agencyVerified ? agencyAddr : null) ?? tx.assignedUser?.email ?? prog);
+    return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
   }
 
   // ── Self-managed: the agent runs their own file, so the sender is THEIR own
