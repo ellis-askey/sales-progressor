@@ -8,6 +8,7 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { addWorkingDays } from "@/lib/emails/working-hours";
+import { toUKDateStr } from "@/lib/utils";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
 import { signSolicitorToken } from "./token";
@@ -268,6 +269,15 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
 
   const out: DueGroup[] = [];
 
+  // Fire on the MORNING of the due working-day, not a full-instant comparison.
+  // The due date carries the time-of-day of the previous send (~09:00-10:00 UTC),
+  // but the cron ticks once at 09:00 UTC — so a raw `now >= due` would skip a
+  // chase due "today" until tomorrow's tick. Comparing by UK calendar date makes
+  // the sender fire on the same day the timeline shows ("due 19 Oct" → sends on
+  // the 19th), which is also how the display buckets it.
+  const nowUk = toUKDateStr(now);
+  const dueReached = (due: Date) => nowUk >= toUKDateStr(due);
+
   for (const tx of txs) {
     // Agency switch gates only self-progressed / TSP files. A file outsourced to
     // an external (non-TSP) company follows that company's solicitor pref instead.
@@ -338,7 +348,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
 
         const state = tx.solicitorChaseStates.find((s) => s.side === side && s.milestoneCode === code);
         if (!state) {
-          if (now >= firstDue) {
+          if (dueReached(firstDue)) {
             steps.push({ code, milestoneDefinitionId: c.milestoneDefinition.id, label: solicitorStepLabel(code, c.milestoneDefinition.name) });
           }
           continue;
@@ -350,7 +360,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
         const nextDue = state.lastChasedAt
           ? addWorkingDays(state.lastChasedAt, rule.repeatWorkingDays)
           : firstDue;
-        if (now >= nextDue) {
+        if (dueReached(nextDue)) {
           steps.push({ code, milestoneDefinitionId: c.milestoneDefinition.id, label: solicitorStepLabel(code, c.milestoneDefinition.name) });
         }
       }

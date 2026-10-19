@@ -36,6 +36,7 @@ import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
 import { createAgentChaseTaskForMilestone, clearFallbackForMilestone, EXPECTED_DATE_GRACE_DAYS } from "@/lib/services/reminders";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
+import { toUKDateStr } from "@/lib/utils";
 import type { ContactRole } from "@prisma/client";
 
 export const CLIENT_CHASE_GRACE_FLOOR_DAYS = 1;
@@ -96,6 +97,14 @@ function addDays(d: Date, n: number): Date {
 function daysBetween(a: Date, b: Date): number {
   // floor((a - b) / day)
   return Math.floor((a.getTime() - b.getTime()) / 86_400_000);
+}
+// A chase is "due" once we've reached its due DAY in UK time. The stored due
+// moment carries the previous send's time-of-day (~09:30-11:00), but the cron
+// ticks once each morning — a full-instant `now >= due` would defer a chase due
+// "today" to tomorrow's tick. Comparing by Europe/London calendar date makes the
+// sender fire on the same day the timeline shows it as due.
+function dueReachedUk(now: Date, due: Date): boolean {
+  return toUKDateStr(now) >= toUKDateStr(due);
 }
 
 // Side a milestone code targets. Vendor side = "vendor" contacts;
@@ -567,7 +576,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       // when the chase isn't due yet. Partial reachability (some contacts on
       // the side ARE reachable) is deliberately NOT handed back: the milestone
       // is still being chased, so a "no email" chip would mislead.
-      if (recipients.length === 0 && !agencyOff && !fileOff && now >= firstDueDate) {
+      if (recipients.length === 0 && !agencyOff && !fileOff && dueReachedUk(now, firstDueDate)) {
         const blockedRecipients = txBlocked.filter((c) => c.roleType === side);
         if (blockedRecipients.length > 0) {
           // Surface the most fixable reason first: a missing email (agent can
@@ -652,7 +661,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
         let reason: "first_chase" | "repeat_due";
         if (!state) {
           // First chase: today >= firstDueDate
-          if (now < firstDueDate) continue;
+          if (!dueReachedUk(now, firstDueDate)) continue;
           reason = "first_chase";
         } else {
           // Repeat chase: today >= lastChasedAt + repeatEveryDays
@@ -663,11 +672,11 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
             // Defensive: state exists with chaseCount=0 (shouldn't happen
             // in practice — first send creates with chaseCount=1). Treat
             // as first-chase.
-            if (now < firstDueDate) continue;
+            if (!dueReachedUk(now, firstDueDate)) continue;
             reason = "first_chase";
           } else {
             const nextDue = addDays(state.lastChasedAt, repeatEveryDays);
-            if (now < nextDue) continue;
+            if (!dueReachedUk(now, nextDue)) continue;
             // Engagement gate (couple-as-one): engagement PAUSES the chase, it
             // doesn't kill it. Hold only while engagement is recent (within one
             // repeat window); if they engaged but the step still isn't done a
