@@ -616,20 +616,16 @@ async function resolveManagingEmail(opts: {
 }): Promise<string | null> {
   const { isOutsourced, agencyId, agencyEmail, personEmail, progressionBusiness } = opts;
   if (isOutsourced && agencyId) {
-    // The business's own branded sender — only when verified (true white-label).
+    // The verified single sender set up for this file: the agency's provided sender
+    // first (most white-label), else the progression business's own verified sender.
+    // If NEITHER is set up, reach the assigned progressor's own inbox. Never updates@.
+    // The number of progressors does NOT change this — the single sender is the right
+    // contact whenever one is set up (founder, 2026-10-19; supersedes the 2026-08-15
+    // "2+ progressors can't share one address" rule, which wrongly routed to the raw
+    // progressor email even when the agency's single sender was set up).
     const bizSender = progressionBusiness?.senderVerified && progressionBusiness.senderEmail?.trim()
       ? progressionBusiness.senderEmail.trim()
       : null;
-    const progressorCount = await prisma.progressionBusinessClient.count({ where: { agencyId, removedAt: null } });
-    if (progressorCount >= 2) {
-      // 2+ progressors: the shared agency address can't tell whose file this is, so
-      // reach the ASSIGNED progressor — their verified branded sender, else their own
-      // inbox. Never the shared agency address, never our platform updates@.
-      return bizSender ?? personEmail?.trim() ?? null;
-    }
-    // Single progressor: the agency's verified sender is the white-label address; if
-    // it isn't set up, reach the assigned progressor directly (branded sender, else
-    // their own inbox). Never our platform updates@.
     return agencyEmail ?? bizSender ?? personEmail?.trim() ?? null;
   }
   return agencyEmail;
