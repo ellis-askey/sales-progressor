@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { calculateRiskScore, RISK_CONFIG } from "@/lib/services/risk";
 import type { HealthRaw } from "@/components/transactions/TransactionTable";
@@ -23,11 +23,14 @@ function buildInput(raw: HealthRaw) {
 
 export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRectRef = useRef<DOMRect | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { theme } = usePortalTheme();
+
+  const SAFE = 12;
 
   function scheduleClose() {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -36,31 +39,47 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
   function cancelClose() {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
   }
+  // Clamp left so the popover stays in-viewport when the trigger sits in the
+  // rightmost column. The popover is 230–270px wide; if anchoring to r.left
+  // would push it off the right edge, right-anchor it instead.
+  function clampLeft(r: DOMRect): number {
+    const POPOVER_MAX_W = 270;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    let left = r.left;
+    if (left + POPOVER_MAX_W + SAFE > vw) left = Math.max(SAFE, r.right - POPOVER_MAX_W);
+    return left;
+  }
   function openPopover() {
     cancelClose();
     if (!open && ref.current) {
       const r = ref.current.getBoundingClientRect();
-      const above = r.top > 250;
-      // Clamp left so the popover stays in-viewport when the trigger sits in
-      // the rightmost column of the table. The popover is 230–270px wide; if
-      // anchoring to r.left would push it off the viewport's right edge,
-      // right-anchor it to r.right - popoverWidth instead. 12px safe margin
-      // from either edge.
-      const POPOVER_MAX_W = 270;
-      const SAFE = 12;
-      const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-      let left = r.left;
-      if (left + POPOVER_MAX_W + SAFE > vw) {
-        left = Math.max(SAFE, r.right - POPOVER_MAX_W);
-      }
-      setPos({
-        top: above ? r.top - 4 : r.bottom + 4,
-        left,
-        above,
-      });
+      triggerRectRef.current = r;
+      // Provisional position (below the trigger). The layout effect measures
+      // the rendered popover and flips it above / clamps it so it can never
+      // spill off the bottom or top — matters on the last row and on short
+      // mobile / tablet viewports.
+      setPos({ top: r.bottom + 4, left: clampLeft(r) });
     }
     setOpen(true);
   }
+
+  // Vertical placement, measured not guessed: prefer below, flip above when
+  // below would overflow the bottom, and clamp into view if neither fits
+  // (very short viewport). Runs before paint, so there's no visible jump.
+  useLayoutEffect(() => {
+    if (!open || !popoverRef.current || !triggerRectRef.current) return;
+    const h = popoverRef.current.offsetHeight;
+    const r = triggerRectRef.current;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+    const below = r.bottom + 4;
+    const above = r.top - 4 - h;
+    let top: number;
+    if (below + h + SAFE <= vh) top = below;        // fits below
+    else if (above >= SAFE) top = above;            // fits above
+    else top = Math.max(SAFE, vh - h - SAFE);       // clamp into view
+    setPos((p) => (p && Math.abs(p.top - top) > 0.5 ? { ...p, top } : p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -109,7 +128,6 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
           style={{
             position: "fixed",
             top: pos.top, left: pos.left,
-            transform: pos.above ? "translateY(-100%)" : "none",
             zIndex: 9999,
             background: "rgba(255,255,255,0.72)",
             backdropFilter: "blur(20px)",
@@ -119,6 +137,10 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
             boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
             border: "0.5px solid rgba(255,255,255,0.60)",
             minWidth: 230, maxWidth: 270,
+            // Last-resort cap so a tall popover on a very short viewport scrolls
+            // inside itself rather than spilling off-screen.
+            maxHeight: "calc(100vh - 24px)",
+            overflowY: "auto",
           }}
         >
           {/* Score header */}
