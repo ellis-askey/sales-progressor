@@ -108,8 +108,9 @@ export async function sendOutsourceIntroForTransaction(
         isMigrated: true,
         // The progressor the file is assigned to. We sign the intro from THEM so the
         // first email carries the same name the client sees on every later milestone
-        // update (portal.ts uses tx.assignedUser.name). Null on an unassigned file.
-        assignedUser: { select: { name: true } },
+        // update (portal.ts uses tx.assignedUser.name). Their email is the Reply-To
+        // fallback (see below). Null on an unassigned file.
+        assignedUser: { select: { name: true, email: true } },
         contacts: {
           where: { roleType: { in: ["vendor", "purchaser"] } },
           select: {
@@ -206,7 +207,14 @@ export async function sendOutsourceIntroForTransaction(
     }
     const fromName = `${agentFirstName}${agentLastName ? " " + agentLastName : ""}, ${agencyName}`;
     const fromHeader = `${fromName} <${fromAddress}>`;
-    const replyTo = creator.email ?? DEFAULT_FROM_ADDRESS;
+    // Reply-To: the agency's verified single-sender address first — on an external
+    // progressor's file that single sender IS the progressor's monitored inbox for
+    // that agency (e.g. salesprogression@nakedagents.co.uk is Jo's), so replies reach
+    // them AND stay white-label. Falls back to the sales-prog user running the file
+    // (assigned progressor, else creator). NEVER updates@thesalesprogressor.co.uk on
+    // an external file — that is OUR inbox; the progressor would never see the reply.
+    const spUserEmail = tx.assignedUser?.email ?? creator.email ?? null;
+    const replyTo = agencyVerifiedSender ?? spUserEmail ?? DEFAULT_FROM_ADDRESS;
 
     const deliverAt = deliverAtInsideWorkingWindow(new Date());
 
