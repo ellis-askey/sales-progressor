@@ -218,8 +218,11 @@ export function EnquiryTrackerPanel({
                     Mark satisfied
                   </button>
                 )}
-                <button type="button" disabled={pending} onClick={() => move("touch", null)} title="Restarts the chase timer but keeps it on the same side" style={secBtn}>
+                <button type="button" disabled={pending} onClick={() => move("touch", null)} title="They're still working on it. Chases again in 3 working days, without resetting the escalation clock" style={secBtn}>
                   Still with them
+                </button>
+                <button type="button" disabled={pending} onClick={() => move("touch", null, "solicitors_spoken")} title="The two solicitors have been in contact but no replies yet. Chases again in 3 working days, without resetting the escalation clock" style={secBtn}>
+                  Solicitors have spoken
                 </button>
                 <button type="button" disabled={pending} onClick={() => move("relabel", other, "correction")} title={`Corrects who it's with without resetting the chase timer, switch to ${courtLabel(other)}`} style={secBtn}>
                   Wrong side?

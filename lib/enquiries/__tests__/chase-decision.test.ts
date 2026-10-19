@@ -7,6 +7,7 @@ type Over = Partial<{
   openedAt: Date;
   lastMovementAt: Date | null;
   lastChasedAt: Date | null;
+  lastTouchAt: Date | null;
   escalatedAt: Date | null;
   snoozedUntil: Date | null;
 }>;
@@ -14,6 +15,7 @@ const tracker = (over: Over = {}) => ({
   openedAt: anchor,
   lastMovementAt: null,
   lastChasedAt: null,
+  lastTouchAt: null,
   escalatedAt: null,
   snoozedUntil: null,
   ...over,
@@ -68,5 +70,27 @@ describe("enquiryChaseDecision", () => {
       chaseDue: false,
       escalateDue: false,
     });
+  });
+
+  // #282 — a soft "touch" (still with them / solicitors spoken) buys a SHORT
+  // 3-working-day breather, not a fresh 6, and never resets the escalation clock.
+  it("a touch chases again after 3 working days, not 6", () => {
+    const lastTouchAt = addWorkingDays(anchor, 8);
+    expect(enquiryChaseDecision(tracker({ lastTouchAt }), addWorkingDays(lastTouchAt, 2)).chaseDue).toBe(false);
+    expect(enquiryChaseDecision(tracker({ lastTouchAt }), addWorkingDays(lastTouchAt, 3)).chaseDue).toBe(true);
+  });
+
+  it("a touch does NOT reset the escalation clock (honest escalation)", () => {
+    // Touched on day 12 of silence; escalation still fires at day 13 from the open.
+    const lastTouchAt = addWorkingDays(anchor, 12);
+    expect(enquiryChaseDecision(tracker({ lastTouchAt }), addWorkingDays(anchor, 13)).escalateDue).toBe(true);
+  });
+
+  it("a chase supersedes an earlier touch (repeat cadence, not the touch breather)", () => {
+    const lastTouchAt = addWorkingDays(anchor, 8);
+    const lastChasedAt = addWorkingDays(anchor, 9); // chased AFTER the touch
+    // 3 WD after the touch would be due, but the later chase pushes it to 5 WD out.
+    expect(enquiryChaseDecision(tracker({ lastTouchAt, lastChasedAt }), addWorkingDays(lastChasedAt, 4)).chaseDue).toBe(false);
+    expect(enquiryChaseDecision(tracker({ lastTouchAt, lastChasedAt }), addWorkingDays(lastChasedAt, 5)).chaseDue).toBe(true);
   });
 });

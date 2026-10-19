@@ -18,6 +18,7 @@ function clock(overrides: Partial<EnquiryChaseClock> = {}): EnquiryChaseClock {
     openedAt: new Date("2026-09-01T09:00:00.000Z"),
     lastMovementAt: null,
     lastChasedAt: null,
+    lastTouchAt: null,
     escalatedAt: null,
     snoozedUntil: null,
     closedAt: null,

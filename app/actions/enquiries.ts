@@ -75,11 +75,13 @@ export async function logEnquiryMovementAction(input: {
     (input.note ?? "").trim() ||
     (input.kind === "partial_replies"
       ? "Some replies sent across"
-      : mode === "touch"
-        ? "They've been in touch, still with them"
-        : mode === "relabel"
-          ? `Corrected: now with ${flip ? courtLabel(flip) : "the other side"}`
-          : `Now with ${flip ? courtLabel(flip) : "the other side"}`);
+      : input.kind === "solicitors_spoken"
+        ? "The solicitors have been in contact, no replies yet"
+        : mode === "touch"
+          ? "They've been in touch, still with them"
+          : mode === "relabel"
+            ? `Corrected: now with ${flip ? courtLabel(flip) : "the other side"}`
+            : `Now with ${flip ? courtLabel(flip) : "the other side"}`);
   let occurredAt: Date | undefined;
   if (input.occurredAt) {
     const d = new Date(input.occurredAt);
@@ -107,9 +109,11 @@ export async function logEnquiryMovementAction(input: {
   return { ok };
 }
 
-// Log a manual chase (a call / an email we sent by hand). Resets the chase
-// clock (so the auto-chase doesn't fire straight after) without moving the
-// court, and shows in the history as "Chased by …".
+// Log a manual chase (a call / an email we sent by hand). Quiets the loop for
+// the short "I've chased" leash so the auto-chase doesn't fire straight after,
+// but does NOT reset the long silence / escalation clock — a file we keep
+// chasing still escalates on schedule. Shows in the history as "Chased by …".
+// (critique #282 — aligns the logger with the "I've chased" button.)
 export type EnquiryCallOutcome = "spoke" | "voicemail" | "no_answer";
 export type EnquiryCallParty = "buyer" | "seller_solicitor" | "buyer_solicitor";
 
@@ -161,12 +165,13 @@ export async function logEnquiryChaseAction(input: {
     trimmedNote ? `· ${trimmedNote}` : null,
   ].filter(Boolean).join(" ");
 
-  const ok = await logEnquiryMovement({
+  // A chase WE made (no reply yet): the short leash via markEnquiryChased, not a
+  // clock-resetting movement. recordMovement writes the "Chased by …" history row.
+  const ok = await markEnquiryChased({
     transactionId: input.transactionId,
-    note,
-    mode: "touch",
-    kind: "chased",
     createdByUserId: userId,
+    recordMovement: true,
+    note,
   });
 
   // Mirror a detailed phone/email chase onto the file's activity feed (same as
@@ -229,14 +234,15 @@ export async function setEnquiryPackHoldAction(input: {
 }): Promise<{ ok: boolean }> {
   const userId = await assertInScope(input.transactionId);
   await setEnquiryPackHold(input.transactionId, input.held);
-  // A "touch" movement: records the reason without flipping the court, and
-  // (when lifting) resets the silence clock so the woken loop isn't instantly
-  // overdue. On hold we don't reset the clock — the wait is genuinely paused.
+  // Going on hold: "relabel" records the reason without touching the clock — the
+  // wait is genuinely paused. Lifting: a full "handover"-style reset so the woken
+  // loop starts a fresh silence window and isn't instantly overdue or escalated
+  // (a soft "touch" no longer resets the clock, so it can't be used here). (#282)
   await logEnquiryMovement({
     transactionId: input.transactionId,
     note: input.held ? "On hold: waiting on the management pack" : "Management pack received, resuming",
     createdByUserId: userId,
-    mode: input.held ? "relabel" : "touch",
+    mode: input.held ? "relabel" : "handover",
     kind: "update",
   });
   revalidatePath(`/transactions/${input.transactionId}`);

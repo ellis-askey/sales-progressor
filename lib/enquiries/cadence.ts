@@ -18,3 +18,10 @@ export const ENQUIRY_ESCALATE_WORKING_DAYS = 13;
 // again. A short leash, not the long silence timer — the long clock keeps
 // running so a repeatedly-chased loop floats to the top. (critique #2/#10)
 export const ENQUIRY_CHASE_SNOOZE_WORKING_DAYS = 2;
+
+// A soft positive signal with no replies actually landed — the other side told
+// us they're "still with them", or we learned the two solicitors have spoken.
+// Buys this many working days of quiet before the next chase: shorter than a
+// genuine reply's fresh 6, and it NEVER resets the escalation clock, so a file
+// that keeps saying "still with them" still escalates on schedule. (critique #282)
+export const ENQUIRY_TOUCH_FOLLOWUP_WORKING_DAYS = 3;

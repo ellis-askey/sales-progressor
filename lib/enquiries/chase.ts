@@ -32,7 +32,7 @@ import { buildEnquiryChaseEmail } from "./chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
 import { getEnquiryOverride, consumeEnquirySkip } from "@/lib/services/chase-overrides";
 import { wrapEditedBody } from "@/lib/email/wrap-edited-body";
-import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS } from "./cadence";
+import { ENQUIRY_FIRST_CHASE_WORKING_DAYS as FIRST_CHASE_DAYS, ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS, ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_WORKING_DAYS, ENQUIRY_TOUCH_FOLLOWUP_WORKING_DAYS as TOUCH_FOLLOWUP_DAYS } from "./cadence";
 
 // Pure decision: given a tracker's timestamps and "now", is a chase or an
 // escalation due? Extracted so the cadence logic is unit-testable without a
@@ -42,19 +42,36 @@ export function enquiryChaseDecision(
     openedAt: Date;
     lastMovementAt: Date | null;
     lastChasedAt: Date | null;
+    // Soft positive signal (still with them / solicitors spoken): a short
+    // breather for the next chase that never resets the escalation clock. (#282)
+    lastTouchAt: Date | null;
     escalatedAt: Date | null;
     snoozedUntil: Date | null;
   },
   now: Date,
 ): { chaseDue: boolean; escalateDue: boolean } {
   if (t.snoozedUntil && t.snoozedUntil > now) return { chaseDue: false, escalateDue: false };
+  // Escalation anchors ONLY on the last genuine movement (or the open) — a touch
+  // or a chase never resets it, so a stalling file escalates on schedule. (#282)
   const anchor = t.lastMovementAt ?? t.openedAt;
   const escalated = !!t.escalatedAt;
   const escalateDue = !escalated && now >= addWorkingDays(anchor, ESCALATE_WORKING_DAYS);
-  // First chase after 6 working days, then every 5. Once escalated we STOP the
-  // auto-chases — it's handled by a human in the hub drawer from there.
-  const firstDue = addWorkingDays(anchor, FIRST_CHASE_DAYS);
-  const nextDue = t.lastChasedAt ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS) : firstDue;
+  // Next chase: the SHORT touch breather when a touch is the most recent signal,
+  // the repeat cadence after a chase, else the first-chase window from the last
+  // movement. Mirrors nextChaseFromSignals in tracker.ts so the cron and the
+  // panel/timeline can never disagree. Once escalated we STOP the auto-chases.
+  let nextDue: Date;
+  if (t.lastTouchAt && t.lastChasedAt) {
+    nextDue = t.lastTouchAt >= t.lastChasedAt
+      ? addWorkingDays(t.lastTouchAt, TOUCH_FOLLOWUP_DAYS)
+      : addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS);
+  } else if (t.lastTouchAt) {
+    nextDue = addWorkingDays(t.lastTouchAt, TOUCH_FOLLOWUP_DAYS);
+  } else if (t.lastChasedAt) {
+    nextDue = addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS);
+  } else {
+    nextDue = addWorkingDays(anchor, FIRST_CHASE_DAYS);
+  }
   const chaseDue = !escalated && now >= nextDue;
   return { chaseDue, escalateDue };
 }
@@ -100,6 +117,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       openedAt: true,
       lastMovementAt: true,
       lastChasedAt: true,
+      lastTouchAt: true,
       escalatedAt: true,
       snoozedUntil: true,
       transaction: {
@@ -190,7 +208,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     if (override?.skipNext) {
       // Skip-semantics A: advance the clock one interval without sending or
       // counting, then consume the one-shot skip. Cadence resumes next cycle.
-      await prisma.enquiryTracker.update({ where: { id: t.id }, data: { lastChasedAt: now } });
+      await prisma.enquiryTracker.update({ where: { id: t.id }, data: { lastChasedAt: now, lastTouchAt: null } });
       await consumeEnquirySkip(tx.id, "reply");
       continue;
     }
@@ -271,7 +289,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
       await prisma.enquiryTracker.update({
         where: { id: t.id },
-        data: { lastChasedAt: now, chaseCount: { increment: 1 } },
+        data: { lastChasedAt: now, lastTouchAt: null, chaseCount: { increment: 1 } },
       });
       await logChaseSend({
         transactionId: tx.id,

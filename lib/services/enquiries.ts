@@ -114,7 +114,7 @@ export async function countOpenEnquiries(scope: AccessScope): Promise<number> {
 export async function countEscalatedEnquiries(scope: AccessScope, now: Date = new Date()): Promise<number> {
   const rows = await prisma.enquiryTracker.findMany({
     where: { closedAt: null, transaction: enquiryTxWhere(scope) },
-    select: { openedAt: true, lastMovementAt: true, lastChasedAt: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true },
+    select: { openedAt: true, lastMovementAt: true, lastChasedAt: true, lastTouchAt: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true },
   });
   return rows.filter((t) => enquiryNeedsAttention(t, now)).length;
 }
@@ -128,6 +128,7 @@ export async function getOpenEnquiries(scope: AccessScope): Promise<OpenEnquiryR
       openedAt: true,
       lastMovementAt: true,
       lastChasedAt: true,
+      lastTouchAt: true,
       snoozedUntil: true,
       escalatedAt: true,
       closedAt: true,
@@ -336,6 +337,7 @@ export async function getEnquiryHistory(scope: AccessScope, transactionId: strin
     update: "Update",
     correction: "Whose-court corrected",
     partial_replies: "Some replies sent",
+    solicitors_spoken: "Solicitors spoke",
   };
   const kindTone = (k: EnquiryMovementKind): EnquiryHistoryEntry["tone"] =>
     k === "raised" ? "raised" : k === "chased" ? "chase" : k === "replies_sent" || k === "replies_received" || k === "partial_replies" ? "reply" : "update";

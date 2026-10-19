@@ -1341,6 +1341,7 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       openedAt: true,
       lastMovementAt: true,
       lastChasedAt: true,
+      lastTouchAt: true,
       escalatedAt: true,
       snoozedUntil: true,
       closedAt: true,

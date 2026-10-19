@@ -4947,6 +4947,7 @@ enum EnquiryMovementKind {
   update // a plain note / status update, no court change
   correction // a pure fix of whose court it is
   partial_replies // some (not all) replies sent; ball stays their court
+  solicitors_spoken // the two solicitors have been in contact; no replies yet (soft touch) (#282)
 }
 
 // ─── OnwardTracker ───────────────────────────────────────────────────────────
@@ -5057,10 +5058,20 @@ model EnquiryTracker {
   // One free-text scratch line ("waiting on: management pack, FENSA cert").
   outstandingNote  String?
   openedAt         DateTime     @default(now())
-  // Silence is measured from lastMovementAt ?? openedAt. Logging a movement
-  // resets it, which restarts the chase cadence.
+  // The escalation clock is measured from lastMovementAt ?? openedAt, and ONLY a
+  // genuine handover (replies sent / fresh round raised) resets it — so a file
+  // that keeps getting "still with them" or being chased still escalates on
+  // schedule (honest escalation, critique #282).
   lastMovementAt   DateTime?
+  // A chase WE made (manual call/email log, the "I've chased" tap, or an
+  // auto-chase email sent) with no reply yet. Drives the short "needs-you" leash
+  // and the next auto-chase; never resets the escalation clock.
   lastChasedAt     DateTime?
+  // A soft positive signal with no replies actually landed: the other side told
+  // us they're "still with them", or we learned the two solicitors have spoken.
+  // Buys a short breather (next chase a few working days out) but, like a chase,
+  // never resets the escalation clock. (critique #282)
+  lastTouchAt      DateTime?
   chaseCount       Int          @default(0)
   escalatedAt      DateTime?
   snoozedUntil     DateTime?

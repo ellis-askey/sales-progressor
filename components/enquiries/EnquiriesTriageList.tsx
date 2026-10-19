@@ -569,6 +569,7 @@ function RowActions({
   const doRepliesSent = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent", occurredAt }, `Replies sent, moved to the ${courtShort(other)}`);
   const doPartial = (occurredAt?: string) => move({ mode: "touch", kind: "partial_replies", note: "Some replies sent across", occurredAt }, "Logged: some replies in");
   const doStill = (occurredAt?: string) => move({ mode: "touch", kind: "update", occurredAt }, "Confirmed, still with them");
+  const doSpoke = (occurredAt?: string) => move({ mode: "touch", kind: "solicitors_spoken", occurredAt }, "Logged: solicitors have spoken");
   const doRaise = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised", occurredAt }, "Further enquiries raised, moved to the seller's side");
   const doWrong = () => move({ mode: "relabel", flipsCourtTo: other, kind: "correction" }, `Corrected: now with the ${courtShort(other)}`);
 
@@ -589,10 +590,12 @@ function RowActions({
         { k: "rs", label: "Replies sent", desc: "Full replies across → buyer's side", icon: <PaperPlaneTilt size={16} />, run: doRepliesSent },
         { k: "sp", label: "Some replies in", desc: "Partial, stays their court", icon: <Checks size={16} />, run: doPartial },
         { k: "st", label: "Still with them", desc: "In touch, no move", icon: <ArrowsClockwise size={16} />, run: doStill },
+        { k: "sk", label: "Solicitors have spoken", desc: "They've spoken, no replies yet", icon: <ChatCircleDots size={16} />, run: doSpoke },
       ]
     : [
         { k: "rf", label: "Raise further", desc: "Fresh round → seller's side", icon: <ArrowRight size={16} />, run: doRaise },
         { k: "st", label: "Still with them", desc: "In touch, no move", icon: <ArrowsClockwise size={16} />, run: doStill },
+        { k: "sk", label: "Solicitors have spoken", desc: "They've spoken, no replies yet", icon: <ChatCircleDots size={16} />, run: doSpoke },
       ];
 
   // ── Normal: split (desktop) / menu (tablet+mobile) ──
@@ -606,12 +609,14 @@ function RowActions({
         { icon: <PaperPlaneTilt size={16} />, label: "Replies sent", desc: "Full replies across → buyer's side", onClick: () => doRepliesSent() },
         { icon: <Checks size={16} />, label: "Some replies in", desc: "Partial, stays their court", onClick: () => doPartial() },
         { icon: <ArrowsClockwise size={16} />, label: "Still with them", desc: "In touch, no move", onClick: () => doStill() },
+        { icon: <ChatCircleDots size={16} />, label: "Solicitors have spoken", desc: "They've spoken, no replies yet", onClick: () => doSpoke() },
         { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
       ]
     : [
         { icon: <CheckCircle size={16} />, label: "Mark satisfied", desc: "Closes the loop, opens exchange", onClick: () => setSatisfyArmed(true) },
         { icon: <ArrowRight size={16} />, label: "Raise further", desc: "Fresh round → seller's side", onClick: () => doRaise() },
         { icon: <ArrowsClockwise size={16} />, label: "Still with them", desc: "In touch, no move", onClick: () => doStill() },
+        { icon: <ChatCircleDots size={16} />, label: "Solicitors have spoken", desc: "They've spoken, no replies yet", onClick: () => doSpoke() },
         { icon: <ArrowsLeftRight size={16} />, label: "Wrong side?", desc: "Fix the court, keep the timer", onClick: () => doWrong() },
       ];
 

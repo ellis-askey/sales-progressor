@@ -285,7 +285,7 @@ export async function getChaseTimeline(
     }),
     prisma.enquiryTracker.findUnique({
       where: { transactionId },
-      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true, outstandingNote: true,
+      select: { currentlyWith: true, openedAt: true, lastMovementAt: true, lastChasedAt: true, lastTouchAt: true, chaseCount: true, escalatedAt: true, snoozedUntil: true, closedAt: true, awaitingPackAt: true, outstandingNote: true,
         // Reply / handover movements, so the timeline shows the ball passing
         // between the two solicitors (e.g. "Replies received, now with the
         // buyer's solicitor") — without it, a same-day chase + handover read as

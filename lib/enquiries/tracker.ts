@@ -10,6 +10,7 @@ import {
   ENQUIRY_REPEAT_CHASE_WORKING_DAYS as REPEAT_CHASE_DAYS,
   ENQUIRY_ESCALATE_WORKING_DAYS as ESCALATE_DAYS,
   ENQUIRY_CHASE_SNOOZE_WORKING_DAYS,
+  ENQUIRY_TOUCH_FOLLOWUP_WORKING_DAYS as TOUCH_FOLLOWUP_DAYS,
 } from "./cadence";
 
 // The minimal clock fields the reply-loop cadence math reads. Kept structural so
@@ -19,6 +20,10 @@ export type EnquiryChaseClock = {
   openedAt: Date;
   lastMovementAt: Date | null;
   lastChasedAt: Date | null;
+  // A soft positive signal with no replies landed (still with them / solicitors
+  // spoken): buys a short breather for the next chase, but never resets the
+  // escalation clock (which anchors on lastMovementAt). (critique #282)
+  lastTouchAt: Date | null;
   escalatedAt: Date | null;
   snoozedUntil: Date | null;
   closedAt: Date | null;
@@ -26,6 +31,25 @@ export type EnquiryChaseClock = {
   // rest with no chase date (Stage 3). Pauses chasing + drops it out of needs-you.
   awaitingPackAt: Date | null;
 };
+
+// The next-chase window from the soft signals: the SHORT touch breather when a
+// touch is the most recent signal, the repeat cadence when a chase is, else the
+// first-chase window from the last genuine movement. A touch clears lastChasedAt
+// and a chase clears lastTouchAt, so normally only one is set — the max guard is
+// just belt-and-braces. Shared by the panel/timeline AND the cron
+// (enquiryChaseDecision) so they can never disagree.
+function nextChaseFromSignals(t: EnquiryChaseClock): Date {
+  const touch = t.lastTouchAt;
+  const chased = t.lastChasedAt;
+  if (touch && chased) {
+    return touch >= chased
+      ? addWorkingDays(touch, TOUCH_FOLLOWUP_DAYS)
+      : addWorkingDays(chased, REPEAT_CHASE_DAYS);
+  }
+  if (touch) return addWorkingDays(touch, TOUCH_FOLLOWUP_DAYS);
+  if (chased) return addWorkingDays(chased, REPEAT_CHASE_DAYS);
+  return addWorkingDays(t.lastMovementAt ?? t.openedAt, FIRST_CHASE_DAYS);
+}
 
 // The date the NEXT reply-loop chase will send, or null when nothing more sends
 // (closed, snoozed, or already escalated — we stop auto-chasing on escalation).
@@ -36,10 +60,7 @@ export function enquiryNextChaseAt(t: EnquiryChaseClock, now: Date = new Date())
   const snoozed = !!(t.snoozedUntil && t.snoozedUntil > now);
   // Held waiting on the pack → no chase lands until the pack arrives.
   if (t.closedAt || snoozed || t.escalatedAt || t.awaitingPackAt) return null;
-  const anchor = t.lastMovementAt ?? t.openedAt;
-  return t.lastChasedAt
-    ? addWorkingDays(t.lastChasedAt, REPEAT_CHASE_DAYS)
-    : addWorkingDays(anchor, FIRST_CHASE_DAYS);
+  return nextChaseFromSignals(t);
 }
 
 // The date this loop escalates to the file owner if no reply lands, or null when
@@ -65,6 +86,13 @@ export function enquiryRestingUntil(t: EnquiryChaseClock, now: Date = new Date()
     const leash = addWorkingDays(t.lastChasedAt, ENQUIRY_CHASE_SNOOZE_WORKING_DAYS);
     if (leash > now) dates.push(leash);
   }
+  // A soft touch (still with them / solicitors spoken) rests the loop for its
+  // short breather, then it surfaces as "needs you" again. Like the chase leash,
+  // it never touches the escalation clock.
+  if (t.lastTouchAt) {
+    const breather = addWorkingDays(t.lastTouchAt, TOUCH_FOLLOWUP_DAYS);
+    if (breather > now) dates.push(breather);
+  }
   if (dates.length === 0) return null;
   return dates.reduce((a, b) => (a > b ? a : b));
 }
@@ -81,7 +109,9 @@ export function enquiryNeedsAttention(t: EnquiryChaseClock, now: Date = new Date
   // "your move" — it drops out of the needs-you count (nav badge + hub card).
   if (t.awaitingPackAt) return false;
   if (enquiryRestingUntil(t, now)) return false;
-  if (t.lastChasedAt) return true;
+  // We've chased, or they've been in touch, and the breather has elapsed → your
+  // move again. (A movement nulls both, so a set value means no reply since.)
+  if (t.lastChasedAt || t.lastTouchAt) return true;
   const anchor = t.lastMovementAt ?? t.openedAt;
   return addWorkingDays(anchor, ESCALATE_DAYS) <= now;
 }
@@ -90,7 +120,10 @@ export function enquiryNeedsAttention(t: EnquiryChaseClock, now: Date = new Date
 // nobody chasing (red "stalled"). A loop you're actively chasing needs you too,
 // but reads as the calmer "chase again", not red. (critique #2/#3)
 export function enquiryStalled(t: EnquiryChaseClock, now: Date = new Date()): boolean {
-  return enquiryNeedsAttention(t, now) && !t.lastChasedAt;
+  // "Stalled" (red) is the alarming kind: gone dark with nobody chasing AND no
+  // recent contact. A chased OR touched loop needs you too, but reads as the
+  // calmer "chase again", not red.
+  return enquiryNeedsAttention(t, now) && !t.lastChasedAt && !t.lastTouchAt;
 }
 
 export type EnquiryCourt = "seller_solicitor" | "buyer_solicitor";
@@ -99,7 +132,10 @@ export type EnquiryMovementKind =
   | "raised" | "replies_sent" | "replies_received" | "chased" | "update" | "correction"
   // Seller's solicitor sent SOME replies across (not all): the ball stays their
   // court, the clock resets, and the partialRepliesAt flag is raised.
-  | "partial_replies";
+  | "partial_replies"
+  // The two solicitors have been in contact, no replies yet — a soft "touch"
+  // that buys a short breather without resetting the escalation clock. (#282)
+  | "solicitors_spoken";
 
 export type EnquiryMovementView = {
   id: string;
@@ -217,10 +253,14 @@ export type EnquiryMovementSource = "progressor" | "buyer_report" | "seller_repo
 
 // How a movement affects the chase clock and the court:
 //  - "handover" (the default, and what every existing caller relies on): the
-//    ball genuinely moved. Restarts the 6/5-working-day cadence + clears any
-//    stalled flag, and flips the court when a side is given.
-//  - "touch": the same side has been in touch but still holds the ball.
-//    Restarts the cadence + clears stalled, but does NOT flip the court.
+//    ball genuinely moved (full replies, a fresh round, or a partial reply
+//    landing). Restarts the 6/5-working-day cadence + clears any stalled/
+//    escalated flag, and flips the court when a side is given.
+//  - "touch": a soft positive signal with NO replies landed — the same side has
+//    been in touch ("still with them"), or the two solicitors have spoken. Buys
+//    a SHORT breather (lastTouchAt → next chase a few working days out) but does
+//    NOT flip the court and does NOT reset the escalation clock, so a loop that
+//    keeps getting "still with them" still escalates on schedule. (critique #282)
 //  - "relabel": a pure correction of whose court it is (we mislabelled it).
 //    Flips the court but leaves the clock and the stalled flag exactly where
 //    they were, so the wait keeps counting from the real last movement.
@@ -248,6 +288,11 @@ export async function logEnquiryMovement(args: {
   if (!tracker || tracker.closedAt) return false;
   const now = new Date();
   const relabel = args.mode === "relabel";
+  // A partial-reply is a genuine movement (some replies actually landed): it
+  // resets the clock + raises the partial flag, even though the triage drag logs
+  // it with mode "touch" and it stays the same side. So only a NON-partial touch
+  // ("still with them" / "solicitors spoken") gets the soft-breather treatment.
+  const touch = args.mode === "touch" && args.kind !== "partial_replies";
 
   // Backdate support: when the caller says it happened earlier, anchor the
   // whole cadence (lastMovementAt → next chase + "for N days") to that date,
@@ -278,22 +323,30 @@ export async function logEnquiryMovement(args: {
       data: relabel
         ? // Correction only: move the court, leave the cadence + stall alone.
           { ...(flips ? { currentlyWith: flips } : {}) }
-        : {
-            lastMovementAt: anchorAt,
-            lastChasedAt: null, // any movement clears the chase leash (they responded)
-            escalatedAt: null, // no longer stalled
-            // The solicitor's promised date means "ALL replies by then". Clear it
-            // only when the court FLIPS — full replies moving to the buyer, or a
-            // fresh round raised — not on a same-side partial/touch, which still
-            // owes the rest by that date. (critique #4)
-            ...(flips ? { snoozedUntil: null } : {}),
-            ...(flips ? { currentlyWith: flips } : {}),
-            // Partial-flag lifecycle: a partial movement raises it; a movement
-            // that FLIPS the court (full replies across / fresh round) clears
-            // it; a same-side touch ("still with them", a chase) leaves it as
-            // it was, so the "some replies in" signal survives a later chase.
-            ...(isPartial ? { partialRepliesAt: anchorAt } : flips ? { partialRepliesAt: null } : {}),
-          },
+        : touch
+          ? // Soft signal (still with them / solicitors spoken): a short breather
+            // only. Leaves lastMovementAt + escalatedAt exactly where they are
+            // (honest escalation) and never flips the court. (critique #282)
+            {
+              lastTouchAt: anchorAt,
+              lastChasedAt: null, // the touch breather now governs the next chase
+            }
+          : {
+              lastMovementAt: anchorAt,
+              lastChasedAt: null, // any movement clears the chase leash (they responded)
+              lastTouchAt: null, // a genuine reply supersedes any earlier soft touch
+              escalatedAt: null, // no longer stalled
+              // The solicitor's promised date means "ALL replies by then". Clear it
+              // only when the court FLIPS — full replies moving to the buyer, or a
+              // fresh round raised — not on a same-side partial, which still
+              // owes the rest by that date. (critique #4)
+              ...(flips ? { snoozedUntil: null } : {}),
+              ...(flips ? { currentlyWith: flips } : {}),
+              // Partial-flag lifecycle: a partial movement raises it; a movement
+              // that FLIPS the court (full replies across / fresh round) clears
+              // it; a same-side partial leaves it as it was.
+              ...(isPartial ? { partialRepliesAt: anchorAt } : flips ? { partialRepliesAt: null } : {}),
+            },
     }),
   ]);
 
@@ -352,6 +405,7 @@ export async function markEnquiryChased(args: {
       where: { id: tracker.id },
       data: {
         lastChasedAt: now,
+        lastTouchAt: null, // a chase we made supersedes any earlier soft touch
         chaseCount: { increment: 1 },
       },
     }),
