@@ -227,8 +227,8 @@ const EMPTY_VIEW: Record<FocusView, { h: string; p: string }> = {
 // Subtitle explains the active view; it cross-fades as you switch tabs.
 const SUB_COPY: Record<FocusView, string> = {
   touch: "Every active sale, both sides, checked each week. This is who's still to hear from you. Resets every Monday.",
-  recent: "Every active side, ordered by how long since you last made contact. The quietest sit at the top.",
-  awaiting: "You've reached out and they've gone quiet. These sides still owe you a reply.",
+  recent: "Every active side, ordered by time since your last contact. The longest without a response appear first.",
+  awaiting: "You've been in touch, but haven't heard back. These sides are still waiting to reply.",
 };
 
 // Compact animated Seller/Buyer filter — a sliding thumb with a spring settle,
@@ -379,6 +379,7 @@ function ContactMenu({
   onMarkEmailed: () => void;
   onNotRequired: () => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -428,13 +429,14 @@ function ContactMenu({
           type="button"
           className="fc-mi wa"
           role="menuitem"
-          disabled={!hasPhone}
-          onClick={() => hasPhone && side.phone && pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"))}
+          onClick={() => hasPhone && side.phone
+            ? pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"))
+            : pick(() => router.push("/agent/account/connections#whatsapp"))}
         >
           <span className="fc-mic"><WhatsappLogo size={16} /></span>
           <span className="fc-mtext">
-            <span className="fc-ml">WhatsApp</span>
-            {!hasPhone ? <span className="fc-ms">No number on file</span> : null}
+            <span className="fc-ml">{hasPhone ? "WhatsApp" : "Connect to WhatsApp"}</span>
+            {!hasPhone ? <span className="fc-ms">Set it up in settings</span> : null}
           </span>
         </button>
 

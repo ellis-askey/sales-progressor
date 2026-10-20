@@ -71,10 +71,12 @@ export function FocusRightRail({
                   <Link href={`/agent/transactions/${e.transactionId}`} className="fr-row">
                     <span className="fr-row-main">
                       <span className="fr-row-title">{e.address}</span>
-                      <span className="fr-row-sub">With {e.solicitorName ?? e.withLabel.toLowerCase()}</span>
-                    </span>
-                    <span className="fr-row-quiet" style={{ color: TONE_COLOR[tone] }}>
-                      Quiet {e.quietDays} {e.quietDays === 1 ? "day" : "days"}
+                      <span className="fr-row-subline">
+                        <span className="fr-row-sub">With {e.solicitorName ?? e.withLabel.toLowerCase()}</span>
+                        <span className="fr-row-quiet" style={{ color: TONE_COLOR[tone] }}>
+                          Quiet {e.quietDays} {e.quietDays === 1 ? "day" : "days"}
+                        </span>
+                      </span>
                     </span>
                   </Link>
                 </li>
@@ -130,7 +132,9 @@ const CSS = `
 .fr-row-title { display:block; font-size:12.5px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .14s; }
 .fr-row:hover .fr-row-title { color:var(--agent-coral-deep); }
 .fr-row-sub { display:block; font-size:11px; color:var(--agent-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-.fr-row-quiet { flex-shrink:0; align-self:center; font-size:11.5px; font-weight:650; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fr-row-subline { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-top:2px; }
+.fr-row-subline .fr-row-sub { margin-top:0; flex:1; min-width:0; }
+.fr-row-quiet { flex-shrink:0; font-size:11px; font-weight:650; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 .fr-empty { margin:0; padding:20px 16px; font-size:12.5px; color:var(--agent-text-muted); line-height:1.5; }
 @media (max-width:980px){ .fr { position:static; } }

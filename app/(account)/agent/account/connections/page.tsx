@@ -42,7 +42,7 @@ export default async function AccountConnectionsPage() {
 
         <ImapConnectionCard />
 
-        <div>
+        <div id="whatsapp" style={{ scrollMarginTop: 80 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
             Link your WhatsApp so your property group chats are saved to the right sale. We only read
