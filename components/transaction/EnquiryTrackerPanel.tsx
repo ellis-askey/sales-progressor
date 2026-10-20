@@ -162,7 +162,7 @@ export function EnquiryTrackerPanel({
     <div className="glass-card p-5" style={{ clipPath: "inset(0 round 20px)" }}>
       <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
         <h3 style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Enquiries</h3>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, color: chip.color, background: "rgba(148,163,184,0.14)" }}>{chip.label}</span>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: chip.color }}>{chip.label}</span>
       </div>
 
       {/* Status headline */}

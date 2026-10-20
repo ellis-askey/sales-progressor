@@ -51,14 +51,14 @@ export function ExchangeToCompletionCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px 11px" }}>
-        <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", background: "rgba(var(--agent-success-rgb, 31,138,74),0.12)", color: "var(--agent-success)" }}>
-          <CalendarCheck size={17} weight="fill" />
+        <span style={{ flexShrink: 0, display: "grid", placeItems: "center", color: "var(--agent-success)" }}>
+          <CalendarCheck size={21} weight="fill" />
         </span>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 680, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>Heading to completion</div>
           <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>Contracts have exchanged. This sale is on the run-in to completion.</div>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 700, color: accent, background: "color-mix(in srgb, " + accent + " 12%, transparent)", border: "0.5px solid color-mix(in srgb, " + accent + " 30%, transparent)", borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>
+        <span style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>
           {countdown}
         </span>
       </div>
