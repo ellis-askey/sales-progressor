@@ -169,6 +169,35 @@ export async function updateManualTaskAction(
   return task as ManualTaskWithRelations;
 }
 
+// ── Possible promises (WhatsApp scan, internal-only while founder-gated) ────
+// Promote: give the possible a real due date and clear the flag — it becomes an
+// ordinary internal to-do. Dismiss: delete it. Both reuse the internal-task
+// guards (role gate + AccessScope binding, Law 7).
+
+export async function promotePossiblePromiseAction(
+  id: string,
+  dueDate: string,
+): Promise<ManualTaskWithRelations> {
+  const session = await getServerSession(authOptions);
+  if (!session) throw new Error("Unauthorised");
+  if (!isInternalRole(session.user.role)) throw new Error("Forbidden");
+  if (!dueDate) throw new Error("Pick a day for the to-do");
+  const task = await updateInternalManualTask(id, getAccessScope(session), {
+    isPossible: false,
+    dueDate,
+  });
+  revalidateTodos();
+  return task as ManualTaskWithRelations;
+}
+
+export async function dismissPossiblePromiseAction(id: string): Promise<void> {
+  const session = await getServerSession(authOptions);
+  if (!session) throw new Error("Unauthorised");
+  if (!isInternalRole(session.user.role)) throw new Error("Forbidden");
+  await deleteInternalManualTask(id, getAccessScope(session));
+  revalidateTodos();
+}
+
 export async function deleteManualTaskAction(id: string): Promise<void> {
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Unauthorised");

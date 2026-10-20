@@ -7,7 +7,9 @@
 // the TabBadgeContext bridge — see TabBadgeReporter for the wire-up.
 
 import { listManualTasksCached, listInternalSelfAssignedCached } from "@/lib/services/cached-fetchers";
+import { listPossiblePromisesForTransaction } from "@/lib/services/manual-tasks";
 import { ManualTaskList } from "@/components/todos/ManualTaskList";
+import { PossiblePromisesPile } from "@/components/todos/PossiblePromisesPile";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
 
 type Props = {
@@ -32,11 +34,15 @@ export async function ToDoPanel({
   isAdminRole,
   progressorName = null,
 }: Props) {
-  const [manualTasks, internalManualTasks] = await Promise.all([
+  const [manualTasks, internalManualTasks, possiblePromises] = await Promise.all([
     listManualTasksCached(transactionId, agencyId).catch(() => []),
     isInternalStaff
       ? listInternalSelfAssignedCached(transactionId).catch(() => [])
       : Promise.resolve([] as Awaited<ReturnType<typeof listInternalSelfAssignedCached>>),
+    // WhatsApp "possible promises" — internal-only pile (founder test gate).
+    isInternalStaff
+      ? listPossiblePromisesForTransaction(transactionId).catch(() => [])
+      : Promise.resolve([] as Awaited<ReturnType<typeof listPossiblePromisesForTransaction>>),
   ]);
 
   const openTodoCount = isInternalStaff
@@ -56,6 +62,9 @@ export async function ToDoPanel({
         perspective={isInternalStaff ? "progressor" : "agent"}
         progressorName={progressorName}
       />
+      {isInternalStaff && possiblePromises.length > 0 && (
+        <PossiblePromisesPile initial={possiblePromises} />
+      )}
     </>
   );
 }

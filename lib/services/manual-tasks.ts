@@ -17,6 +17,7 @@ export type ManualTaskWithRelations = {
   isAgentRequest: boolean;
   isInternalSelfAssigned: boolean;
   isReview: boolean;
+  isPossible: boolean;
   transactionId: string | null;
   transaction: { propertyAddress: string; photoStoragePath: string | null } | null;
   assignedTo: { id: string; name: string } | null;
@@ -74,6 +75,10 @@ export async function createManualTask(data: {
   isReview?: boolean;
   // Provenance for auto-created tasks (e.g. the WhatsApp "Promises" scan).
   sourceMessageId?: string;
+  // A "possible promise" from the WhatsApp scan — undated or the model was
+  // unsure. Lives in the folded pile on the file's To-Do tab, never the main
+  // list, until promoted (flag cleared + due date set) or dismissed (deleted).
+  isPossible?: boolean;
 }) {
   const task = await prisma.manualTask.create({
     data: {
@@ -87,6 +92,7 @@ export async function createManualTask(data: {
       isAgentRequest: data.isAgentRequest ?? false,
       isInternalSelfAssigned: data.isInternalSelfAssigned ?? false,
       isReview: data.isReview ?? false,
+      isPossible: data.isPossible ?? false,
       sourceMessageId: data.sourceMessageId ?? null,
     },
     include: {
@@ -116,7 +122,8 @@ function internalTaskScopeWhere(scope: AccessScope): Prisma.ManualTaskWhereInput
 // third bucket on /agent/to-do and the nav badge.
 export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise<ManualTaskWithRelations[]> {
   return prisma.manualTask.findMany({
-    where: { isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
+    // isPossible excluded: possible promises wait in the file-tab pile only.
+    where: { isInternalSelfAssigned: true, isPossible: false, ...internalTaskScopeWhere(scope) },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },
@@ -128,8 +135,23 @@ export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise
 
 export async function listInternalSelfAssignedTasksForTransaction(transactionId: string): Promise<ManualTaskWithRelations[]> {
   return prisma.manualTask.findMany({
-    where: { isInternalSelfAssigned: true, transactionId },
+    where: { isInternalSelfAssigned: true, isPossible: false, transactionId },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
+// Possible promises from the WhatsApp scan, for the folded pile on a file's
+// To-Do tab (internal viewers only — possibles are always internal-self-
+// assigned while the founder test gate is on).
+export async function listPossiblePromisesForTransaction(transactionId: string): Promise<ManualTaskWithRelations[]> {
+  return prisma.manualTask.findMany({
+    where: { isInternalSelfAssigned: true, isPossible: true, status: "open", transactionId },
+    orderBy: { createdAt: "desc" },
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },
       assignedTo: { select: { id: true, name: true } },
@@ -146,7 +168,7 @@ export async function listInternalSelfAssignedTasksForTransaction(transactionId:
 export async function updateInternalManualTask(
   id: string,
   scope: AccessScope,
-  data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null }>
+  data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null; isPossible: boolean }>
 ) {
   const task = await prisma.manualTask.findFirst({
     where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
@@ -160,6 +182,7 @@ export async function updateInternalManualTask(
       ...(data.title   !== undefined && { title: data.title }),
       ...(data.notes   !== undefined && { notes: data.notes }),
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
+      ...(data.isPossible !== undefined && { isPossible: data.isPossible }),
     },
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },

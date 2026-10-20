@@ -104,7 +104,7 @@ export function CloudConversation({ thread: initialThread, messages: initialMess
         {messages.map((m) => {
           const out = m.direction === "outbound";
           return (
-            <div key={m.id} style={{ display: "flex", justifyContent: out ? "flex-end" : "flex-start" }}>
+            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: out ? "flex-end" : "flex-start" }}>
               <div
                 style={{
                   maxWidth: "76%",
@@ -147,6 +147,45 @@ export function CloudConversation({ thread: initialThread, messages: initialMess
                   <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-danger, #C73E3E)" }}>{m.failureReason}</p>
                 )}
               </div>
+              {/* "Show its working": the to-do the promise scanner made from this
+                  message. Coral = on the list; grey ? = waiting in the possibles
+                  pile on the To-Do tab. Internal viewers only (service-gated). */}
+              {m.todoTag && (
+                <span
+                  style={{
+                    marginTop: 3,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    maxWidth: "76%",
+                    fontSize: 11,
+                    lineHeight: 1.3,
+                    borderRadius: 99,
+                    padding: "3px 10px 3px 7px",
+                    border: m.todoTag.possible ? "1px solid var(--agent-border-default)" : "1px solid rgba(var(--agent-coral-rgb, 255,107,74), 0.35)",
+                    background: m.todoTag.possible ? "var(--agent-surface-sunken, rgba(0,0,0,0.03))" : "rgba(var(--agent-coral-rgb, 255,107,74), 0.08)",
+                    color: m.todoTag.possible ? "var(--agent-text-muted)" : "var(--agent-text-secondary)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 14, height: 14, borderRadius: "50%", flex: "none",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, fontWeight: 700, color: "#fff",
+                      background: m.todoTag.possible ? "var(--agent-text-muted, #9b9488)" : "var(--agent-coral, #FF6B4A)",
+                    }}
+                  >
+                    {m.todoTag.possible ? "?" : "✓"}
+                  </span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.todoTag.possible ? "Possible to-do: " : m.todoTag.done ? "To-do (done): " : "To-do: "}
+                    <strong style={{ fontWeight: 600 }}>{m.todoTag.title}</strong>
+                    {m.todoTag.dueAt && !m.todoTag.possible && (
+                      <> · {new Date(m.todoTag.dueAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</>
+                    )}
+                  </span>
+                </span>
+              )}
             </div>
           );
         })}

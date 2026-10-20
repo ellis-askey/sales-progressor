@@ -2751,6 +2751,10 @@ model ManualTask {
   // reviews but are read straight from TransactionHoldPeriod (single source of
   // truth) — this flag only marks the hand-typed ones. See lib/services/reviews.ts.
   isReview               Boolean          @default(false)
+  // A WhatsApp-scan "possible promise" — undated, or the model was unsure.
+  // Waits in the folded pile on the file's To-Do tab (never any normal task
+  // list) until promoted (flag cleared + due date set) or dismissed (deleted).
+  isPossible             Boolean          @default(false)
   createdById            String
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt

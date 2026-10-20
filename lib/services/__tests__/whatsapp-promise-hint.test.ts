@@ -2,44 +2,77 @@
  * @jest-environment node
  */
 
-import { PROMISE_HINT } from "../whatsapp-promise-hint";
+// Intention rebuild (2026-10-19): the PROMISE_HINT phrase gate is gone — the
+// model judges intention on every sent message. These tests cover what remains
+// pure: the worth-reading skim (only the obviously pointless is skipped) and
+// the option-B redaction applied to third-party context.
 
-describe("PROMISE_HINT pre-filter", () => {
-  it("matches the polite 'I shall' phrasing that was previously skipped", () => {
-    // The exact message that failed to become a to-do (2026-09-17).
-    expect(PROMISE_HINT.test("Hi all, I shall speak with the seller's solicitor first thing and report back.")).toBe(true);
-  });
+import { isWorthReading, buildRedactionTokens, redactForAi } from "../whatsapp-promise-hint";
 
-  it("matches the common commitment phrasings", () => {
+describe("isWorthReading", () => {
+  it("keeps every phrasing that could carry a commitment — intention is the model's job", () => {
     for (const s of [
       "I'll chase the solicitor tomorrow",
-      "I will check on the dimensions now for you",
-      "I'm going to call the buyer this afternoon",
-      "I am going to email them today",
-      "I plan to speak to the vendor tomorrow",
-      "I intend to ring the broker on Friday",
-      "Let me check that for you",
-      "Leave it with me, I'll sort it",
-      "Will chase the seller's side today",
-      "Shall speak to the agent first thing",
+      "Chasing first thing",
+      "Going to give them a nudge Monday",
+      "Will have an answer by Friday",
+      "On it - speaking to them today",
+      "Leave it with me",
+      "Yep, first thing tomorrow 🙏", // short reply — context makes it a promise
+      "ok", // acceptance of a request can be a commitment
+      "will do",
+      "The searches have come back clear", // status update — the MODEL rejects it, not the gate
     ]) {
-      expect(PROMISE_HINT.test(s)).toBe(true);
+      expect(isWorthReading(s)).toBe(true);
     }
   });
 
-  // The pre-filter is deliberately coarse — it only gates the AI read, which then
-  // judges intent/who. So it rightly ignores messages with no commitment phrasing
-  // at all. (It's fine that e.g. "the solicitor will send…" slips through the
-  // gate; the AI then rejects it as someone else's action.)
-  it("does NOT match messages with no commitment phrasing", () => {
+  it("skips what cannot contain a commitment", () => {
     for (const s of [
-      "Thanks for the update",
-      "Do you know if the buyer has sent the funds?",
-      "Great news, congratulations!",
-      "The searches have come back clear",
-      "No update since Friday just yet",
+      "",
+      " ",
+      "🙏",
+      "👍👍",
+      "...",
+      "[image]",
+      "[voice note]",
+      "Thanks",
+      "thank you so much!",
+      "Cheers 🙏",
+      "No worries",
+      "Brilliant!",
+      "lol",
+      "Morning",
     ]) {
-      expect(PROMISE_HINT.test(s)).toBe(false);
+      expect(isWorthReading(s)).toBe(false);
     }
+  });
+});
+
+describe("redaction (privacy option B)", () => {
+  const tokens = buildRedactionTokens({
+    propertyAddress: "4 Quennell House, Sheldon Way, Berkhamsted, HP4 1FF",
+    names: ["Sarah Harvey", "Johann Sanseau", "Machins Solicitors"],
+  });
+
+  it("strips names, address segments, firms, phones and emails from context", () => {
+    const out = redactForAi(
+      "Sarah Harvey said Machins ordered the pack for 4 Quennell House. Call her on 07700 900123 or sarah@example.com",
+      tokens,
+    );
+    expect(out).not.toMatch(/Sarah|Harvey|Machins|Quennell|07700|@example/);
+    expect(out).toContain("[redacted]");
+    // The verbs/asks survive — that's what the model needs.
+    expect(out).toContain("ordered the pack");
+  });
+
+  it("does not shred ordinary words (short/stopword tokens are excluded)", () => {
+    const out = redactForAi("Can you check on the survey for me?", tokens);
+    expect(out).toBe("Can you check on the survey for me?");
+  });
+
+  it("redacts longest tokens first so firm names go before surname fragments", () => {
+    const out = redactForAi("Machins Solicitors are slow", tokens);
+    expect(out.startsWith("[redacted]")).toBe(true);
   });
 });

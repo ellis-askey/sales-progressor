@@ -40,6 +40,11 @@ export type ThreadMessage = {
   mediaUrl: string | null;
   mediaKind: string | null;
   mediaFilename: string | null;
+  // "Show its working" (promises rebuild 2026-10-19): the to-do the promise
+  // scanner created from this message, rendered as a small tag under the
+  // bubble. possible=true → the grey "?" tag (waiting in the possibles pile).
+  // Internal viewers only while the founder test gate is on; null otherwise.
+  todoTag: { title: string; dueAt: string | null; possible: boolean; done: boolean } | null;
 };
 
 function toSummary(t: {
@@ -134,6 +139,31 @@ export async function getThreadMessages(
   // Sign stored media paths in one round trip (1h links; re-signed each read).
   const { getWhatsAppMediaSignedUrlMap } = await import("@/lib/supabase-storage");
   const signed = await getWhatsAppMediaSignedUrlMap(rows.map((r) => r.mediaUrl));
+
+  // Promise-scanner tags, internal viewers only (the tasks are internal-self-
+  // assigned while the founder test gate is on; agency users must not see them).
+  const role = session.user.role;
+  const internalViewer = role === "sales_progressor" || role === "admin" || role === "superadmin";
+  const tagByMessageId = new Map<string, ThreadMessage["todoTag"]>();
+  if (internalViewer && rows.length) {
+    const tasks = await prisma.manualTask.findMany({
+      where: { sourceMessageId: { in: rows.map((r) => r.id) } },
+      select: { sourceMessageId: true, title: true, dueDate: true, isPossible: true, status: true },
+    });
+    // One tag per message: prefer a real to-do over a possible.
+    for (const t of tasks) {
+      if (!t.sourceMessageId) continue;
+      const existing = tagByMessageId.get(t.sourceMessageId);
+      if (existing && !existing.possible) continue;
+      tagByMessageId.set(t.sourceMessageId, {
+        title: t.title,
+        dueAt: t.dueDate?.toISOString() ?? null,
+        possible: t.isPossible,
+        done: t.status === "done",
+      });
+    }
+  }
+
   return {
     thread: toSummary(thread),
     messages: rows.map((r) => {
@@ -149,6 +179,7 @@ export async function getThreadMessages(
         mediaUrl: r.mediaUrl ? signed.get(r.mediaUrl) ?? null : null,
         mediaKind: media?.kind ?? null,
         mediaFilename: media?.filename ?? null,
+        todoTag: tagByMessageId.get(r.id) ?? null,
       };
     }),
   };
