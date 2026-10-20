@@ -258,7 +258,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
         },
       },
       solicitorChaseStates: {
-        select: { side: true, milestoneCode: true, chaseCount: true, lastChasedAt: true, status: true },
+        select: { side: true, milestoneCode: true, chaseCount: true, lastChasedAt: true, status: true, snoozeUntil: true },
       },
     },
   });
@@ -347,6 +347,10 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
         const firstDue = addWorkingDays(anchor, rule.graceWorkingDays);
 
         const state = tx.solicitorChaseStates.find((s) => s.side === side && s.milestoneCode === code);
+        // Rescheduled from the chase timeline: the hold quiets this step until
+        // the chosen day (the reschedule action upserts a state row, so a
+        // never-chased step can carry a hold too).
+        if (state?.snoozeUntil && state.snoozeUntil > now) continue;
         if (!state) {
           if (dueReached(firstDue)) {
             steps.push({ code, milestoneDefinitionId: c.milestoneDefinition.id, label: solicitorStepLabel(code, c.milestoneDefinition.name) });
@@ -593,11 +597,14 @@ async function runEscalationPass(now: Date, global: GlobalCadence): Promise<numb
       milestoneCode: true,
       chaseCount: true,
       lastChasedAt: true,
+      snoozeUntil: true,
     },
   });
 
   let escalated = 0;
   for (const state of candidates) {
+    // Held from the chase timeline — don't escalate during a hold the team chose.
+    if (state.snoozeUntil && state.snoozeUntil > now) continue;
     const rule = stepCadenceFor(state.milestoneCode, cadences, global);
     // Only escalate rows that have hit THEIR OWN per-code cap.
     if (state.chaseCount < rule.maxChases) continue;

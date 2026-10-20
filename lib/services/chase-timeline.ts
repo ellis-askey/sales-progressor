@@ -279,7 +279,7 @@ export async function getChaseTimeline(
     }),
     prisma.solicitorChaseState.findMany({
       where: { transactionId },
-      select: { side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, resolvedAt: true, status: true, statusReason: true, createdAt: true },
+      select: { side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, resolvedAt: true, status: true, statusReason: true, createdAt: true, snoozeUntil: true },
     }),
     // Enquiries run on their own trackers (not ReminderLogs): the raise-chase
     // (get enquiries raised) then the reply-loop tracker (whose court is it in).
@@ -399,6 +399,15 @@ export async function getChaseTimeline(
 
   const solRuleByCode = new Map(solRules.map((r) => [r.milestoneCode, r]));
 
+  // Holds: a future-dated quiet spell (a reschedule from the timeline, the
+  // solicitor's expected date, or a reminder snooze). The sender won't fire
+  // before it, so every displayed next-send date is the LATER of the natural
+  // cadence date and the hold — the date shown is the date it sends.
+  const futureDate = (d: Date | null | undefined): Date | null =>
+    d && d.getTime() > Date.now() ? d : null;
+  const laterDate = (a: Date | null, b: Date | null): Date | null =>
+    a && b ? (a > b ? a : b) : (a ?? b);
+
   // Predict the next solicitor chase for a step: from an existing chase-state
   // (last chased + repeat), or — when never chased yet — the FIRST chase from the
   // step's prerequisite completion + grace (mirrors the sender's working-day
@@ -418,14 +427,19 @@ export async function getChaseTimeline(
     const ov = overrideByKey.get(`sol:${side}|${code}`);
     const edited = !!ov?.edited, skipped = !!ov?.skipped;
     const st = solByCode.get(code);
-    if (st) {
+    // Both holds the sender respects: the solicitor's expected date and a
+    // timeline reschedule (SolicitorChaseState.snoozeUntil).
+    const hold = laterDate(futureDate(mc?.expectedDate), futureDate(st?.snoozeUntil));
+    if (st && (st.chaseCount > 0 || st.status !== "active")) {
       const capped = st.chaseCount >= cap || st.status === "escalated";
-      const dueAt = !capped && st.lastChasedAt ? addWorkingDays(st.lastChasedAt, repeat) : null;
+      const base = !capped && st.lastChasedAt ? addWorkingDays(st.lastChasedAt, repeat) : null;
+      const dueAt = capped ? null : laterDate(base, hold);
       return { lane: "solicitor", recipientLabel: label, dueAt: dueAt ? dueAt.toISOString() : null,
         chaseNumber: Math.min(st.chaseCount + 1, cap), capOf: cap, isAutomated: !capped, handedToTeam: capped, overrideTarget: target, edited, skipped };
     }
-    // Never chased yet → project the first chase from the prerequisite (or the
-    // rule's explicit anchor) completion + grace.
+    // Never chased yet (no state row, or a hold-only row from a reschedule) →
+    // project the first chase from the prerequisite (or the rule's explicit
+    // anchor) completion + grace.
     const anchorCodes = rule?.anchorMilestoneCode ? [rule.anchorMilestoneCode] : (DIRECT_PREREQUISITES[code] ?? []);
     if (anchorCodes.length === 0) return null;
     let anchor: Date | null = null;
@@ -437,7 +451,8 @@ export async function getChaseTimeline(
       if (!anchor || t > anchor) anchor = t;
     }
     if (!anchor) return null;
-    return { lane: "solicitor", recipientLabel: label, dueAt: addWorkingDays(anchor, grace).toISOString(),
+    const firstDue = laterDate(addWorkingDays(anchor, grace), hold) as Date;
+    return { lane: "solicitor", recipientLabel: label, dueAt: firstDue.toISOString(),
       chaseNumber: 1, capOf: cap, isAutomated: true, handedToTeam: false, overrideTarget: target, edited, skipped };
   }
 
@@ -479,14 +494,16 @@ export async function getChaseTimeline(
     const totalChases = autoChases + manualChases;
     const escalated = task?.priority === "escalated";
 
-    // Snooze can come from the solicitor's expected date (on the milestone
-    // completion — the real solicitor snooze; SolicitorChaseState.snoozeUntil is
-    // dead/never written) or the reminder log (client "set a date").
-    const solSnooze = sol && code ? (completionByKey.get(`${side}|${code}`)?.expectedDate ?? null) : null;
-    const snoozeAt = solSnooze && new Date(solSnooze).getTime() > nowMs ? solSnooze
-      : log.snoozedUntil && new Date(log.snoozedUntil).getTime() > nowMs ? log.snoozedUntil
+    // A future-dated hold doesn't pause the thread — it IS the next chase date
+    // (the sender resumes by itself once it passes). Per-lane: the client cron
+    // respects the reminder log's snoozedUntil; the solicitor cron respects the
+    // expected date + SolicitorChaseState.snoozeUntil (handled inside
+    // solicitorNextSend). The thread-level hold drives the history event.
+    const clientHold = futureDate(log.snoozedUntil);
+    const solHold = sol && code
+      ? laterDate(futureDate(completionByKey.get(`${side}|${code}`)?.expectedDate), futureDate(sol.snoozeUntil))
       : null;
-    const snoozedActive = !!snoozeAt;
+    const snoozeAt = track === "solicitor" ? (solHold ?? clientHold) : clientHold;
 
     // Autopilot sends next only while its lane is still active and under cap;
     // otherwise "next" is a reminder for the team to act.
@@ -496,7 +513,6 @@ export async function getChaseTimeline(
     let state: ChaseThreadState;
     if (log.status === "completed") state = "completed";
     else if (log.status === "cancelled") state = "cancelled";
-    else if (snoozedActive) state = "snoozed";
     else if (escalated) state = "escalated";
     else if (manualChases > 0) state = "manual_chasing";
     else if (task?.fallbackKind || autoHandedOff) state = "handed_to_team";
@@ -591,8 +607,8 @@ export async function getChaseTimeline(
     if (state === "cancelled") {
       events.push({ at: log.updatedAt.toISOString(), kind: "cancelled", title: "Stopped", detail: log.statusReason ?? "Chase no longer needed.", actor: "System" });
     }
-    if (snoozedActive && snoozeAt) {
-      events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: (track === "solicitor" ? sol?.statusReason : log.statusReason) ?? "A date was provided.", actor: "System" });
+    if (snoozeAt) {
+      events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`, detail: (track === "solicitor" ? sol?.statusReason : log.statusReason) ?? "A date was provided.", actor: "System" });
     }
 
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -614,11 +630,13 @@ export async function getChaseTimeline(
     // etc. are chased on both lanes). Either may be null.
     const clientOverrideTarget = code && clientContactId
       ? { kind: "client" as const, contactId: clientContactId, milestoneCode: code } : null;
-    const clientNext: NextSend | null = (log.status === "active" && !snoozedActive)
+    const clientNext: NextSend | null = (log.status === "active")
       ? {
           lane: "client",
           recipientLabel: `${side === "vendor" ? "Seller" : "Buyer"} · ${clientName}`,
-          dueAt: log.nextDueDate.toISOString(),
+          // A hold (reschedule / snooze) pushes the shown date — it's when the
+          // chase actually resumes.
+          dueAt: (laterDate(log.nextDueDate, clientHold) as Date).toISOString(),
           chaseNumber: Math.min((cs?.chaseCount ?? 0) + 1, CLIENT_CHASE_CAP),
           capOf: CLIENT_CHASE_CAP,
           isAutomated: !cs || (cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP),
@@ -628,7 +646,7 @@ export async function getChaseTimeline(
           skipped: !!(clientContactId && overrideByKey.get(`contact:${clientContactId}|${code}`)?.skipped),
         }
       : null;
-    const solNext = snoozedActive ? null : solicitorNextSend(side, code);
+    const solNext = solicitorNextSend(side, code);
     const nextSends: NextSend[] = [clientNext, solNext].filter((s): s is NextSend => s != null);
 
     return {
@@ -643,7 +661,7 @@ export async function getChaseTimeline(
       manualChases,
       totalChases,
       lastChasedAt: task?.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: log.status === "active" ? log.nextDueDate.toISOString() : null,
+      nextDueAt: log.status === "active" ? (laterDate(log.nextDueDate, clientHold) as Date).toISOString() : null,
       nextIsAutomated,
       escalatesAfter: rule.escalateAfterChases,
       escalated,
@@ -745,7 +763,7 @@ export async function getChaseTimeline(
     const side: "vendor" | "purchaser" = withSeller ? "vendor" : "purchaser";
     const who = withSeller ? sellerSolLabel : buyerSolLabel;
     const n = et.chaseCount;
-    const state: ChaseThreadState = closed ? "completed" : snoozeAt ? "snoozed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
+    const state: ChaseThreadState = closed ? "completed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
     const events: ChaseThreadEvent[] = [{
       at: et.openedAt.toISOString(), kind: "scheduled", title: "Enquiries opened",
       detail: et.outstandingNote ? `Waiting on: ${et.outstandingNote}` : "Enquiries raised, awaiting replies.", actor: "System",
@@ -792,12 +810,14 @@ export async function getChaseTimeline(
       });
     }
     if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
-    if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
+    if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
     if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Nothing left to chase.", actor: "System" });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
     // Predict the next reply-loop chase (to the solicitor holding the ball) + the
     // escalation deadline, matching the sender's cadence so the card is truthful.
-    const etNextAt = closed ? null : enquiryNextChaseAt(et, new Date(nowMs));
+    // During a hold the cadence helper returns null — the hold date IS the next
+    // chase date (chasing resumes the morning it passes).
+    const etNextAt = closed ? null : laterDate(enquiryNextChaseAt(et, new Date(nowMs)), snoozeAt);
     const etEscalateAt = closed ? null : enquiryEscalateAt(et, new Date(nowMs));
     const etOvTarget = { kind: "enquiry" as const, scope: "reply" as const, milestoneCode: ENQUIRY_OVERRIDE_CODE };
     const etOv = overrideByKey.get(`enq:reply|${ENQUIRY_OVERRIDE_CODE}`);
@@ -809,7 +829,7 @@ export async function getChaseTimeline(
           dueAt: etNextAt ? etNextAt.toISOString() : null,
           chaseNumber: n + 1,
           capOf: 0,
-          isAutomated: !esc && !snoozeAt,
+          isAutomated: !esc,
           handedToTeam: esc,
           overrideTarget: etOvTarget,
           edited: !!etOv?.edited,
@@ -822,7 +842,7 @@ export async function getChaseTimeline(
       trackLabel: withSeller ? "Seller's solicitor" : "Buyer's solicitor", state, waitingOn: who,
       autoChases: n, manualChases: 0, totalChases: n,
       lastChasedAt: et.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: etNextAt ? etNextAt.toISOString() : null, nextIsAutomated: !closed && !esc && !snoozeAt,
+      nextDueAt: etNextAt ? etNextAt.toISOString() : null, nextIsAutomated: !closed && !esc,
       escalatesAfter: 0, escalated: esc, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: et.openedAt.toISOString(), events,
       overrideTarget: closed ? null : etOvTarget, overrideEdited: !!etOv?.edited, overrideSkipped: !!etOv?.skipped,
@@ -931,12 +951,11 @@ export async function getChaseTimeline(
     if (!mc?.milestoneDefinition) continue; // no active-round completion → stale cross-round state
     const side: "vendor" | "purchaser" = row.side === "vendor" ? "vendor" : "purchaser";
     const done = mc.state === "complete" || mc.state === "not_required" || row.status === "resolved";
-    const snoozeAt = !done && mc.expectedDate && mc.expectedDate.getTime() > nowMs ? mc.expectedDate : null;
+    const snoozeAt = !done ? laterDate(futureDate(mc.expectedDate), futureDate(row.snoozeUntil)) : null;
     const escalated = row.status === "escalated";
     const n = row.chaseCount;
     const capped = n >= SOLICITOR_CHASE_CAP;
     const state: ChaseThreadState = done ? "completed"
-      : snoozeAt ? "snoozed"
       : escalated ? "escalated"
       : capped ? "handed_to_team"
       : n > 0 ? "auto_chasing"
@@ -966,12 +985,12 @@ export async function getChaseTimeline(
       title: "Confirmed", detail: "Step confirmed. Chase closed.", actor: "System",
     });
     if (snoozeAt) events.push({
-      at: snoozeAt.toISOString(), kind: "snoozed", title: `Paused until ${toUKDateStr(snoozeAt)}`,
-      detail: "The solicitor gave an expected date.", actor: "System",
+      at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`,
+      detail: row.statusReason ?? "A date was provided.", actor: "System",
     });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
-    const solNext = done || snoozeAt ? null : solicitorNextSend(side, row.milestoneCode);
+    const solNext = done ? null : solicitorNextSend(side, row.milestoneCode);
 
     threads.push({
       id: `sol-${row.side}-${row.milestoneCode}`,
@@ -981,8 +1000,8 @@ export async function getChaseTimeline(
       state, waitingOn: who,
       autoChases: n, manualChases: 0, totalChases: n,
       lastChasedAt: row.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: solNext?.dueAt ?? null, // now predicted (last chased + repeat working days)
-      nextIsAutomated: !done && !snoozeAt && !escalated && n < SOLICITOR_CHASE_CAP,
+      nextDueAt: solNext?.dueAt ?? null, // now predicted (last chased + repeat working days, pushed by any hold)
+      nextIsAutomated: !done && !escalated && n < SOLICITOR_CHASE_CAP,
       escalatesAfter: SOLICITOR_CHASE_CAP,
       escalated, snoozedUntil: snoozeAt?.toISOString() ?? null,
       startedAt: row.createdAt.toISOString(), events,

@@ -15,6 +15,7 @@ import type {
   ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
 } from "@/lib/services/chase-timeline";
 import { NextChaseControl } from "@/components/transaction/NextChaseControl";
+import { RescheduleChaseControl } from "@/components/transaction/RescheduleChaseControl";
 import { Pill } from "@/components/ui/Pill";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 
@@ -169,8 +170,10 @@ function nextLabel(t: ChaseThread): string {
   if (t.state === "cancelled") return "Stopped";
   if (t.state === "escalated") return "Urgent";
   if (isHeldFarOut(t.nextDueAt)) return "On hold";
-  if (t.snoozedUntil) return `Paused to ${fmtDate(t.snoozedUntil)}`;
+  // A hold (reschedule / date given) is already folded into nextDueAt — the row
+  // shows the day the chase actually resumes, not a separate "Paused" concept.
   if (t.nextDueAt) return `${t.nextIsAutomated ? "Auto" : "Chase"} ${fmtDate(t.nextDueAt)}`;
+  if (t.snoozedUntil) return `Quiet to ${fmtDate(t.snoozedUntil)}`;
   return "";
 }
 
@@ -337,23 +340,38 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // reads as "On hold", never a date that looks like it's about to send.
   const held = isHeldFarOut(send.dueAt);
   const whenLabel = held ? "On hold" : send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
+  // The email preview below carries the recipient (its To line); cards without
+  // one (handed to the team) name the recipient in the kicker instead — the
+  // recipient pill was removed as duplication.
+  const showsPreview = !!send.overrideTarget && !send.handedToTeam;
   // Enquiry chases repeat until escalation (no numeric cap) — show "Next chase" +
   // an escalation deadline instead of the milestone "chase N of cap" line.
-  const kicker = held
+  const kickerBase = held
     ? "Waiting on replies to enquiries"
     : send.untilEscalation
       ? send.handedToTeam ? "Escalated to you" : "Next chase"
       : send.handedToTeam
         ? "Auto-chase done"
         : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
+  const kicker = showsPreview ? kickerBase : `${kickerBase} · ${send.recipientLabel}`;
+  // The date itself is the reschedule control — but only when an automated send
+  // is genuinely scheduled, on a lane with a hold to write (the raise-chase
+  // clock has none).
+  const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget
+    && !(send.overrideTarget.kind === "enquiry" && send.overrideTarget.scope === "raise");
   return (
     <div className="chase-upnext-card" style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
       background: "var(--agent-surface-nested, var(--agent-surface-elevated))", border: "0.5px solid var(--agent-border-subtle)",
     }}>
       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} aria-hidden />
-      <Pill glass dot size="sm" tone={isSol ? "brand" : "info"}>{send.recipientLabel}</Pill>
-      <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "9px 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
+      {canMove && send.dueAt && send.overrideTarget ? (
+        <div style={{ margin: "0 0 1px" }}>
+          <RescheduleChaseControl transactionId={transactionId} target={send.overrideTarget} dueAtISO={send.dueAt} />
+        </div>
+      ) : (
+        <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "0 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
+      )}
       <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{kicker}</div>
       {send.untilEscalation && send.escalatesAt && !send.handedToTeam && !held && (
         <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2 }}>

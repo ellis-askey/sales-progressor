@@ -1078,7 +1078,36 @@
   @keyframes rem-tick { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .rem-clock-hand { transform-box: view-box; transform-origin: 12px 12px; }
   .rem-clock-btn:hover .rem-clock-hand { animation: rem-tick 2s steps(12) infinite; }
-  @media (prefers-reduced-motion: reduce) { .rem-clock-btn:hover .rem-clock-hand { animation: none; } }
+
+  /* Chase timeline: the Up-next date doubles as the reschedule control — the
+     snooze clock slides in beside it on hover and both turn primary; the hand
+     ticks with the same rem-tick animation as the reminders snooze button. */
+  .chase-resched-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0; margin: 0; background: none; border: none; cursor: pointer;
+    color: var(--agent-text-primary); font-family: inherit;
+    font-size: 22px; font-weight: 780; letter-spacing: -0.02em; line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+    border-radius: 8px; transition: color 150ms ease;
+  }
+  .chase-resched-btn:hover, .chase-resched-btn:focus-visible { color: var(--agent-primary); }
+  .chase-resched-btn:focus-visible { outline: 2px solid var(--agent-primary); outline-offset: 3px; }
+  .chase-resched-btn .chase-resched-clock {
+    opacity: 0; transform: translateX(-4px); flex-shrink: 0;
+    color: var(--agent-primary);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  .chase-resched-btn:hover .chase-resched-clock,
+  .chase-resched-btn:focus-visible .chase-resched-clock { opacity: 1; transform: none; }
+  .chase-resched-btn:hover .rem-clock-hand,
+  .chase-resched-btn:focus-visible .rem-clock-hand { animation: rem-tick 2s steps(12) infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rem-clock-btn:hover .rem-clock-hand,
+    .chase-resched-btn:hover .rem-clock-hand,
+    .chase-resched-btn:focus-visible .rem-clock-hand { animation: none; }
+    .chase-resched-btn .chase-resched-clock { transition: none; transform: none; }
+  }
 
   /* Secondary */
   .agent-btn-secondary {

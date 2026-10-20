@@ -26,6 +26,7 @@ import { buildEnquiryChaseEmail } from "@/lib/enquiries/chase-email";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "@/lib/enquiries/raise-chase-email";
 import { raiseChaseTargetNext } from "@/lib/enquiries/raise-chase-decision";
 import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
+import { toUKDateStr } from "@/lib/utils";
 
 type TargetInput =
   | { kind: "client"; contactId: string }
@@ -83,6 +84,78 @@ export async function skipChaseThreadAction(input: {
     skipNext: input.skip,
     editedById: session.user.id,
   });
+  revalidate(input.transactionId);
+  return { ok: true };
+}
+
+// Move the next chase to a chosen day (the Up-next date control). Writes the
+// lane's own hold field — the one its sender already respects — so nothing
+// sends before the chosen morning and the chase resumes by itself:
+//   client    → ReminderLog.snoozedUntil (client-chase cron + agent reminders)
+//   solicitor → SolicitorChaseState.snoozeUntil (solicitor-chase cron)
+//   enquiry   → EnquiryTracker.snoozedUntil (enquiries reply-loop cron)
+// The raise-chase lane has no hold field, so it isn't moveable (the UI doesn't
+// offer it there). Stored as midnight UTC of the chosen day: that's before the
+// UK morning runs in both GMT and BST, so the chase fires on the chosen day.
+export async function rescheduleChaseThreadAction(input: {
+  transactionId: string;
+  target: TargetInput;
+  milestoneCode: string;
+  dateISO: string; // yyyy-mm-dd
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await assertOwns(input.transactionId);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateISO)) {
+    return { ok: false, error: "Pick a date." };
+  }
+  if (input.dateISO <= toUKDateStr(new Date())) {
+    return { ok: false, error: "Pick a date from tomorrow onwards." };
+  }
+  const hold = new Date(`${input.dateISO}T00:00:00Z`);
+  const movedBy = `Next chase moved by ${session.user.name ?? "the team"}`;
+  const target = input.target;
+
+  if (target.kind === "client") {
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const log = await prisma.reminderLog.findFirst({
+      where: {
+        transactionId: input.transactionId,
+        status: "active",
+        reminderRule: { targetMilestoneCode: input.milestoneCode },
+        OR: [{ buyerRoundId: null }, { buyerRoundId: tx?.activeBuyerRoundId ?? null }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!log) return { ok: false, error: "This chase has already finished." };
+    await prisma.reminderLog.update({
+      where: { id: log.id },
+      data: { snoozedUntil: hold, statusReason: movedBy },
+    });
+  } else if (target.kind === "solicitor") {
+    await prisma.solicitorChaseState.upsert({
+      where: {
+        transactionId_side_milestoneCode: {
+          transactionId: input.transactionId, side: target.side, milestoneCode: input.milestoneCode,
+        },
+      },
+      create: {
+        transactionId: input.transactionId, side: target.side, milestoneCode: input.milestoneCode,
+        snoozeUntil: hold, statusReason: movedBy,
+      },
+      update: { snoozeUntil: hold, statusReason: movedBy },
+    });
+  } else {
+    if (target.scope !== "reply") return { ok: false, error: "This chase can't be moved." };
+    const updated = await prisma.enquiryTracker.updateMany({
+      where: { transactionId: input.transactionId, closedAt: null },
+      data: { snoozedUntil: hold },
+    });
+    if (updated.count === 0) return { ok: false, error: "This chase has already finished." };
+  }
+
   revalidate(input.transactionId);
   return { ok: true };
 }

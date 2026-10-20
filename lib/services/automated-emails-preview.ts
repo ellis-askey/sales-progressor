@@ -289,7 +289,7 @@ export async function getAutomatedEmailsForTransaction(
         status: "active",
         snoozedUntil: { gt: now },
       },
-      select: { reminderRule: { select: { targetMilestoneCode: true } } },
+      select: { snoozedUntil: true, reminderRule: { select: { targetMilestoneCode: true } } },
     }),
   ]);
 
@@ -437,11 +437,14 @@ export async function getAutomatedEmailsForTransaction(
   //
   // Both kinds load from the shared bulk-query wave above (rules + defs
   // + completions + contacts + all-ccs-rows for this transaction).
-  const snoozedCodes = new Set(
-    snoozedReminders
-      .map((r) => r.reminderRule.targetMilestoneCode)
-      .filter((c): c is string => c !== null),
-  );
+  // A held milestone (rescheduled from the chase timeline, or snoozed) isn't
+  // hidden — its prediction moves to the hold date, because that's when the
+  // cron actually resumes. Keyed code → wake date.
+  const heldCodes = new Map<string, Date>();
+  for (const r of snoozedReminders) {
+    const code = r.reminderRule.targetMilestoneCode;
+    if (code && r.snoozedUntil) heldCodes.set(code, r.snoozedUntil);
+  }
 
   // Per-transaction snapshot read (same source the cron uses for timing).
   // Settings edits to ReminderRule don't affect this file's predictions;
@@ -508,11 +511,12 @@ export async function getAutomatedEmailsForTransaction(
       if (!targetDefId) continue;
       const targetComp = completionByDefId.get(targetDefId);
       if (!targetComp || targetComp.state !== "available") continue;
-      // Snooze suppression — match the cron's chase-skip behaviour.
-      if (snoozedCodes.has(row.milestoneCode)) continue;
       const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
       if (repeat == null) continue;
-      const candidate = addDays(row.lastChasedAt, repeat);
+      let candidate = addDays(row.lastChasedAt, repeat);
+      // Hold (reschedule / snooze) — the chase resumes the day the hold passes.
+      const hold = heldCodes.get(row.milestoneCode);
+      if (hold && hold > candidate) candidate = hold;
       // Normalise to 09:30 UK so the preview matches the actual send time
       // (cron uses setUkChaseTime when scheduling chase tasks).
       const predicted = setUkChaseTime(nextNonSundayFrom(candidate));
@@ -554,8 +558,8 @@ export async function getAutomatedEmailsForTransaction(
       // Exchange-ready gate (matches cron)
       if (rule.requiresExchangeReady && !exchangeReady) continue;
 
-      // Snooze suppression — match the cron's chase-skip behaviour.
-      if (snoozedCodes.has(code)) continue;
+      // Hold (reschedule / snooze) applied to firstDue below.
+      const hold = heldCodes.get(code);
 
       // Compute anchor date with the same precedence as the cron's
       // computeAnchorDate (reconciledAtClaim → eventDate; useEventDate;
@@ -583,6 +587,8 @@ export async function getAutomatedEmailsForTransaction(
       let firstDue = addDays(anchorDate, grace);
       // Past-due → normalise to today; cron will fire on the next non-Sunday run.
       if (firstDue < todayStart) firstDue = todayStart;
+      // The chase can't fire before the hold passes.
+      if (hold && hold > firstDue) firstDue = hold;
       firstDue = setUkChaseTime(nextNonSundayFrom(firstDue));
       if (firstDue > upcomingHorizon) continue;
 
