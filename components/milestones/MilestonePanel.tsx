@@ -5,7 +5,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import type { PartyNameContext } from "@/lib/milestones/step-name";
-import { RoleIcon } from "@/components/ui/RoleIcon";
+import { AvatarStack } from "@/components/ui/Avatar";
 import { ExchangeStageBanner } from "@/components/milestones/ExchangeStageBanner";
 import { Card } from "@/components/ui/Card";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -66,6 +66,10 @@ type Props = {
   // round's prerequisite date (e.g. PM12 anchored on VM9 completed last round).
   // Null on files with no round; the clamp is a no-op for round 1 anyway.
   activeRoundStartedAt?: string | Date | null;
+  // Principal clients per side for the tab avatars (critique #287): one avatar
+  // per person (two overlap), side-tinted person art, uploaded photo when set.
+  vendorPeople?: { name: string; roleType: string; image: string | null }[];
+  purchaserPeople?: { name: string; roleType: string; image: string | null }[];
 };
 
 export function MilestonePanel({
@@ -82,6 +86,8 @@ export function MilestonePanel({
   buyerNames,
   partyNames,
   activeRoundStartedAt,
+  vendorPeople,
+  purchaserPeople,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
   // Parse once — the floor for the staleness/slowness "became available" proxy.
@@ -380,6 +386,12 @@ export function MilestonePanel({
           const applicable = mils.filter((m) => !m.isNotRequired);
           const done = applicable.filter((m) => m.isComplete).length;
           const total = applicable.length;
+          // Side avatars (critique #287): the real people — one figure for one
+          // seller/buyer, two overlapping for two, their photo when uploaded.
+          // Falls back to an anonymous side-tinted figure when no client is on
+          // the file yet.
+          const people = side === "vendor" ? vendorPeople : purchaserPeople;
+          const stack = people?.length ? people : [{ name: "", roleType: side, image: null }];
           return (
             <button
               key={side}
@@ -387,7 +399,7 @@ export function MilestonePanel({
               className={`agent-segment-pill agent-segment-pill-sm${activeTab === side ? " on" : ""}`}
               style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
-              <RoleIcon role={side} size={12} colorOverride={activeTab === side ? "currentColor" : undefined} />
+              <AvatarStack people={stack} size={20} />
               <span className="capitalize">{side}</span>
               <span className="agent-segment-pill-note">{done}/{total}</span>
             </button>

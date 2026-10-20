@@ -28,10 +28,22 @@ export async function StepsPanel({ transactionId, agencyId, userId, purchaseType
     getClientChaseStatesCached(transactionId).catch(() => ({})),
     // Active round's createdAt — floors the "Awaiting X days" staleness badge so
     // a relisted file's new buyer doesn't inherit a prior round's prereq date
-    // (same clamp OverviewPanel applies to "days stuck on milestone").
+    // (same clamp OverviewPanel applies to "days stuck on milestone"). Also
+    // carries the principal clients per side for the tab avatars (critique #287):
+    // name + roleType for the side-tinted person art, image for uploaded photos.
     prisma.propertyTransaction
-      .findUnique({ where: { id: transactionId }, select: { activeBuyerRound: { select: { createdAt: true } } } })
-      .then((r) => r?.activeBuyerRound?.createdAt ?? null)
+      .findUnique({
+        where: { id: transactionId },
+        select: {
+          activeBuyerRoundId: true,
+          activeBuyerRound: { select: { createdAt: true } },
+          contacts: {
+            where: { roleType: { in: ["vendor", "purchaser"] }, isPrincipal: true },
+            select: { name: true, roleType: true, image: true, buyerRoundId: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      })
       .catch(() => null),
   ]);
 
@@ -40,6 +52,15 @@ export async function StepsPanel({ transactionId, agencyId, userId, purchaseType
   }
 
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
+
+  const activeRoundStartedAt = activeRound?.activeBuyerRound?.createdAt ?? null;
+  const contacts = activeRound?.contacts ?? [];
+  const vendorPeople = contacts
+    .filter((c) => c.roleType === "vendor")
+    .map((c) => ({ name: c.name, roleType: c.roleType, image: c.image ?? null }));
+  const purchaserPeople = contacts
+    .filter((c) => c.roleType === "purchaser" && (c.buyerRoundId == null || c.buyerRoundId === activeRound?.activeBuyerRoundId))
+    .map((c) => ({ name: c.name, roleType: c.roleType, image: c.image ?? null }));
 
   return (
     <>
@@ -59,7 +80,9 @@ export async function StepsPanel({ transactionId, agencyId, userId, purchaseType
         purchaseType={purchaseType}
         buyerNames={buyerNames}
         partyNames={partyNames}
-        activeRoundStartedAt={activeRound}
+        activeRoundStartedAt={activeRoundStartedAt}
+        vendorPeople={vendorPeople}
+        purchaserPeople={purchaserPeople}
       />
     </>
   );

@@ -246,6 +246,34 @@ export function ContactAvatar({ contact, size = 32, className, art = true, sideT
   return <AvatarBase initials={initials} side={side} size={size} className={className} image={image} defaultArt={art} artKind={artKind} />;
 }
 
+// ─── AvatarStack ──────────────────────────────────────────────────────────────
+// Overlapping ContactAvatars for "the people on this side" (critique #287 — the
+// milestone side tabs). One person = one avatar; two overlap with a surface ring
+// so each face reads. Shows at most `max` (default 2). Photos (Contact.image,
+// client-uploaded from the portal) fill the circle; the side-tinted person art
+// is the fallback. Same stack pattern as LogUpdateModal's lum-avai pills and
+// PreviousSalesCard — those predate this primitive and can migrate later.
+export function AvatarStack({ people, size = 20, max = 2 }: {
+  people: { name: string; roleType: string; image?: string | null }[];
+  size?: number;
+  max?: number;
+}) {
+  const shown = people.slice(0, max);
+  const ov = Math.round(size * 0.35);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }} aria-hidden>
+      {shown.map((p, i) => (
+        <span
+          key={`${p.name}-${i}`}
+          style={{ display: "inline-flex", position: "relative", marginLeft: i ? -ov : 0, zIndex: shown.length - i, borderRadius: "50%", boxShadow: "0 0 0 1.5px var(--agent-surface-elevated, #fff)" }}
+        >
+          <ContactAvatar contact={{ name: p.name, roleType: p.roleType }} size={size} image={p.image ?? null} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
 
 type UserAvatarProps = {
