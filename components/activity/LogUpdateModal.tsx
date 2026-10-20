@@ -488,7 +488,7 @@ function titleForChannel(c: LogChannel): string {
 }
 
 const CSS = `
-.lum-ov { position:fixed; inset:0; z-index:60; font-family:var(--font-geist-sans, -apple-system, system-ui, sans-serif); }
+.lum-ov { position:fixed; inset:0; z-index:1500; font-family:var(--font-geist-sans, -apple-system, system-ui, sans-serif); } /* escalated layer — must clear the agent topbar (200) / sidebar (100), critique #292 */
 .lum-bg { position:absolute; inset:0; background:rgba(45,24,16,.42); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:lum-bgf .26s ease both; }
 @keyframes lum-bgf { from { opacity:0 } to { opacity:1 } }
 .lum-sheet { position:absolute; display:flex; flex-direction:column; overflow:hidden; background:linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.66)), var(--agent-bg-paper, #FFFBF5); border:1px solid rgba(255,255,255,.5); box-shadow:0 24px 70px -24px rgba(40,24,16,.5), 0 8px 24px rgba(45,24,16,.12); }

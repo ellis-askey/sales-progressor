@@ -1268,6 +1268,7 @@ export function ContactsSection({
           size="sm"
           ariaLabel="Remove contact"
           closeTone="onDark"
+          zLayer="escalated"
         >
           <Modal.Header style={SHEET_BAND_STYLE}>
             <SheetBandHeader kicker="Contact" title="Remove contact" />

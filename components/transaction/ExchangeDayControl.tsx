@@ -164,7 +164,7 @@ export function ExchangeDayControl({
       )}
 
       {startOpen && (
-        <Modal open onClose={() => { if (!loading) setStartOpen(false); }} size="md" ariaLabel="Start exchange day" closeTone="onDark">
+        <Modal open onClose={() => { if (!loading) setStartOpen(false); }} size="md" ariaLabel="Start exchange day" closeTone="onDark" zLayer="escalated">
           <Modal.Header style={SHEET_BAND_STYLE}>
             <SheetBandHeader kicker="Exchange" title="Start exchange day" subtitle="Flag this file as aiming to exchange today" />
           </Modal.Header>
@@ -232,7 +232,7 @@ export function ExchangeDayControl({
       )}
 
       {cancelOpen && (
-        <Modal open onClose={() => { if (!loading) setCancelOpen(false); }} size="sm" ariaLabel="End exchange day" closeTone="onDark">
+        <Modal open onClose={() => { if (!loading) setCancelOpen(false); }} size="sm" ariaLabel="End exchange day" closeTone="onDark" zLayer="escalated">
           <Modal.Header style={SHEET_BAND_STYLE}>
             <SheetBandHeader kicker="Exchange" title="End exchange day?" subtitle="Take this file out of exchange day" />
           </Modal.Header>

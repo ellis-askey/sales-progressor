@@ -198,7 +198,7 @@ export function ReconciliationDrawer({
   return createPortal(
     <div
       data-theme={theme} data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", justifyContent: "flex-end" }}
+      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", justifyContent: "flex-end" }} /* escalated layer — clears the agent topbar (200), critique #292 */
     >
       {/* Backdrop — does not dismiss on click; the agent has entered data */}
       <div className="fixed inset-0 agent-backdrop-overlay" />

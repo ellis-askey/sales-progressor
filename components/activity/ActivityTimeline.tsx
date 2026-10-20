@@ -301,7 +301,7 @@ function EmailConversationDrawer({
   open, onClose, subject, messages,
 }: { open: boolean; onClose: () => void; subject: string | null; messages: CommEntry[] }) {
   return (
-    <Drawer open={open} onClose={onClose} ariaLabel="Email conversation" size="lg">
+    <Drawer open={open} onClose={onClose} ariaLabel="Email conversation" size="lg" zLayer="escalated">
       <Drawer.Header>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", paddingRight: 28, lineHeight: 1.35 }}>
           {subject || "Conversation"}

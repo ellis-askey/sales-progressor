@@ -76,6 +76,7 @@ export function MortgageModal({ buyerNames = [], onConfirm, onCancel }: Mortgage
       size="md"
       dismissOnBackdrop={false}
       closeTone="onDark"
+      zLayer="escalated"
     >
       <div
         data-theme={theme}

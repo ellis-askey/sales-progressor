@@ -323,7 +323,7 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
   const c = useConnectAgencyForm(onClose); // connect-an-existing-agency route (consent handshake)
 
   return (
-    <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark">
+    <Modal open onClose={onClose} ariaLabel="Add a client" size="lg" closeTone="onDark" zLayer="escalated">
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Add a client" subtitle="Add an estate agent to your book." />
       </Modal.Header>
@@ -455,7 +455,7 @@ function BusinessSettingsModal({ business, onClose }: { business: { name: string
   }
 
   return (
-    <Modal open onClose={onClose} ariaLabel="Business settings" size="md" closeTone="onDark">
+    <Modal open onClose={onClose} ariaLabel="Business settings" size="md" closeTone="onDark" zLayer="escalated">
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader iconBare icon={<Gear size={24} weight="bold" />} title="Business settings" subtitle="How your business appears to the agents you work with." />
       </Modal.Header>

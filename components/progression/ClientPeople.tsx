@@ -327,7 +327,7 @@ function InviteModal({ agencyId, agencyName, onClose }: { agencyId: string; agen
   }
 
   return (
-    <Modal open onClose={onClose} ariaLabel="Invite a colleague" size="md" closeTone="onDark">
+    <Modal open onClose={onClose} ariaLabel="Invite a colleague" size="md" closeTone="onDark" zLayer="escalated">
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Invite a colleague" subtitle={`Add someone at ${agencyName} to the team.`} />
       </Modal.Header>
@@ -383,7 +383,7 @@ function EditModal({ agencyId, person, onClose }: { agencyId: string; person: Ag
   }
 
   return (
-    <Modal open onClose={onClose} ariaLabel="Edit details" size="md" closeTone="onDark">
+    <Modal open onClose={onClose} ariaLabel="Edit details" size="md" closeTone="onDark" zLayer="escalated">
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader icon={<UserPlus size={18} weight="bold" />} title="Edit details" subtitle={person.role === "director" ? "The agency's main contact." : "A colleague on the team."} />
       </Modal.Header>

@@ -21,6 +21,7 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
       size="sm"
       dismissOnBackdrop={false}
       closeTone="onDark"
+      zLayer="escalated"
     >
       <div
         data-theme={theme}

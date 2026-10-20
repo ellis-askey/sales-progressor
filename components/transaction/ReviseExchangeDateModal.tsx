@@ -63,6 +63,7 @@ export function ReviseExchangeDateModal({
       size="md"
       dismissOnBackdrop={false}
       closeTone="onDark"
+      zLayer="escalated"
     >
       <Modal.Header style={SHEET_BAND_STYLE}>
         <SheetBandHeader kicker="Exchange" title="Give this a realistic new date" subtitle={address} />

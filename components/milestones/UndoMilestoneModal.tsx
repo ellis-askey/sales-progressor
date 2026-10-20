@@ -54,6 +54,7 @@ export function UndoMilestoneModal({
       size="md"
       dismissOnBackdrop={false}
       closeTone="onDark"
+      zLayer="escalated"
     >
       <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <Modal.Header style={SHEET_BAND_STYLE}>

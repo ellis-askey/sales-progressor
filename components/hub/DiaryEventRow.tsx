@@ -192,7 +192,7 @@ export function DiaryEventRow({
       </div>
 
       {/* Confirm modal */}
-      <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} ariaLabel={c.title} size="sm" closeTone="onDark">
+      <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} ariaLabel={c.title} size="sm" closeTone="onDark" zLayer="escalated">
         <ModalHeader style={SHEET_BAND_STYLE}>
           <SheetBandHeader kicker={item.type === "completion" ? "Completion" : "Exchange"} title={c.title} />
         </ModalHeader>
@@ -235,7 +235,7 @@ export function DiaryEventRow({
       )}
 
       {/* Completion: set a new completion date */}
-      <Modal open={compDateOpen} onClose={() => { if (!busy) setCompDateOpen(false); }} ariaLabel="Set completion date" size="sm" closeTone="onDark">
+      <Modal open={compDateOpen} onClose={() => { if (!busy) setCompDateOpen(false); }} ariaLabel="Set completion date" size="sm" closeTone="onDark" zLayer="escalated">
         <ModalHeader style={SHEET_BAND_STYLE}>
           <SheetBandHeader kicker="Completion" title="Set completion date" />
         </ModalHeader>
