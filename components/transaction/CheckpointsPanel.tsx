@@ -53,16 +53,27 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+// "A", "A & B", "A, B & C" — local copy of the server-side joinNames (that one
+// lives in lib/services and can't be imported into a client component).
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
 export function CheckpointsPanel({
-  transactionId, vendorName, purchaserName, hasVendor, hasPurchaser, items,
+  transactionId, vendorNames, purchaserNames, items,
 }: {
   transactionId: string;
-  vendorName: string;
-  purchaserName: string;
-  hasVendor: boolean;
-  hasPurchaser: boolean;
+  // Every principal client per side, full names (critique #294). Empty array =
+  // no client of that side on the file yet.
+  vendorNames: string[];
+  purchaserNames: string[];
   items: CheckpointView[];
 }) {
+  const hasVendor = vendorNames.length > 0;
+  const hasPurchaser = purchaserNames.length > 0;
+  const vendorName = hasVendor ? joinNames(vendorNames) : "the seller";
+  const purchaserName = hasPurchaser ? joinNames(purchaserNames) : "the buyer";
   const { toast } = useAgentToast();
   const { theme } = usePortalTheme();
   const [pending, start] = useTransition();
@@ -139,11 +150,14 @@ export function CheckpointsPanel({
     run(cp.id, () => archiveCheckpointAction({ transactionId, checkpointId: cp.id }), "Checkpoint removed");
   }
 
-  const audienceOptions: { v: Audience; label: string }[] = [
-    { v: "none", label: "No one" },
-    ...(hasVendor ? [{ v: "vendor" as Audience, label: vendorName }] : []),
-    ...(hasPurchaser ? [{ v: "purchaser" as Audience, label: purchaserName }] : []),
-    ...(hasVendor && hasPurchaser ? [{ v: "both" as Audience, label: "Both" }] : []),
+  // One pill per PERSON, full name (critique #294) — a joint sale shows every
+  // seller and every buyer individually. Visibility is still tracked per side,
+  // so selecting one person lights everyone on that side (they all see it).
+  const audienceOptions: { v: Audience; label: string; key: string }[] = [
+    { v: "none", label: "No one", key: "none" },
+    ...vendorNames.map((n, i) => ({ v: "vendor" as Audience, label: n, key: `vendor-${i}` })),
+    ...purchaserNames.map((n, i) => ({ v: "purchaser" as Audience, label: n, key: `purchaser-${i}` })),
+    ...(hasVendor && hasPurchaser ? [{ v: "both" as Audience, label: "Both", key: "both" }] : []),
   ];
 
   return (
@@ -187,12 +201,24 @@ export function CheckpointsPanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 500, color: cp.isComplete ? "var(--agent-text-muted)" : "var(--agent-text-primary)", textDecoration: cp.isComplete ? "line-through" : "none" }}>{cp.label}</span>
-                    {cp.showTo !== "none" && (
-                      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)", borderRadius: 999, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: cp.showTo === "purchaser" ? "#BE185D" : cp.showTo === "vendor" ? "#4F46E5" : "#7A4A2E" }} />
-                        {cp.showTo === "both" ? `${vendorName} & ${purchaserName}` : `Shown to ${pName(cp.showTo)}`}
-                      </span>
-                    )}
+                    {cp.showTo !== "none" && (() => {
+                      // One chip per person, full name, side-coloured dot (critique #294).
+                      const people: { name: string; side: "vendor" | "purchaser" }[] = [
+                        ...(cp.showTo === "vendor" || cp.showTo === "both" ? vendorNames.map((n) => ({ name: n, side: "vendor" as const })) : []),
+                        ...(cp.showTo === "purchaser" || cp.showTo === "both" ? purchaserNames.map((n) => ({ name: n, side: "purchaser" as const })) : []),
+                      ];
+                      return (
+                        <>
+                          <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>Shown to</span>
+                          {(people.length ? people : [{ name: pName(cp.showTo === "both" ? "vendor" : cp.showTo), side: (cp.showTo === "both" ? "vendor" : cp.showTo) as "vendor" | "purchaser" }]).map((p, i) => (
+                            <span key={`${p.side}-${i}`} style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)", borderRadius: 999, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.side === "purchaser" ? "#BE185D" : "#4F46E5" }} />
+                              {p.name}
+                            </span>
+                          ))}
+                        </>
+                      );
+                    })()}
                     {cp.targetDate && !cp.isComplete && (
                       <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-warning)", background: "rgba(201,125,26,0.10)", border: "1px solid rgba(201,125,26,0.30)", borderRadius: 999, padding: "2px 8px" }}>by {fmtDate(cp.targetDate)}</span>
                     )}
@@ -311,7 +337,7 @@ export function CheckpointsPanel({
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 7 }}>Show it to a client to confirm?</div>
                 <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
                   {audienceOptions.map((o) => (
-                    <button key={o.v} type="button" style={pillStyle(showTo === o.v)} onClick={() => setShowTo(o.v)}>{o.label}</button>
+                    <button key={o.key} type="button" style={pillStyle(showTo === o.v || (showTo === "both" && (o.v === "vendor" || o.v === "purchaser")))} onClick={() => setShowTo(o.v)}>{o.label}</button>
                   ))}
                 </div>
               </div>

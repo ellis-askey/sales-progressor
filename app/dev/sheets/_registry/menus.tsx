@@ -613,10 +613,8 @@ export const MENU_ENTRIES: SheetEntry[] = [
         <div style={{ width: "100%", maxWidth: 560 }}>
           <CheckpointsPanel
             transactionId={DEMO_TX_ID}
-            vendorName={NAME}
-            purchaserName="Tom Whitfield"
-            hasVendor
-            hasPurchaser
+            vendorNames={[NAME]}
+            purchaserNames={["Tom Whitfield"]}
             items={ctx.stateId === "complete" ? CHECKPOINTS_COMPLETE : CHECKPOINTS_OPEN}
           />
         </div>
