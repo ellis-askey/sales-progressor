@@ -15,7 +15,8 @@ jest.mock("@/lib/prisma", () => ({
     whatsAppIgnoredChat: { findUnique: jest.fn() },
     whatsAppGroupMapping: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
     whatsAppConnection: { findUnique: jest.fn(), update: jest.fn() },
-    propertyTransaction: { findMany: jest.fn(), findUnique: jest.fn() },
+    // updateMany: the last-activity bump added in 4071b778 (fire-and-forget).
+    propertyTransaction: { findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     contact: { findMany: jest.fn() },
     user: { findMany: jest.fn(), findUnique: jest.fn() },
     // Thread filing (pivot 2026-10-18) — writeMessage files each captured row

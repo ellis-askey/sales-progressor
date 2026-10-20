@@ -19,6 +19,8 @@ jest.mock("@/lib/command/events/write", () => ({ recordEvent: jest.fn() }));
 jest.mock("@/lib/email", () => ({
   sendEmail: jest.fn(),
   isNonDeliverableRecipient: jest.fn(() => false),
+  // Real helper narrows a SuppressedResult; the mock sends never return one.
+  isSuppressed: jest.fn(() => false),
 }));
 
 import { trySendClientEmail } from "@/lib/services/portal";

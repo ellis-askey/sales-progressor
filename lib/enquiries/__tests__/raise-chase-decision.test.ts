@@ -66,18 +66,21 @@ describe("raiseChaseDecision — escalation", () => {
   });
 });
 
-describe("raiseChaseDecision — repeat cadence", () => {
-  test("alternates back to buyer 6 working days after the solicitor nudge", () => {
-    const nextAt = addWorkingDays(solicitorAt, 6);
+describe("raiseChaseDecision — nudging stops at escalation (founder decision 2026-10-16)", () => {
+  test("past the escalation ceiling, no further auto-nudge fires — the run escalates instead", () => {
+    const nextAt = addWorkingDays(solicitorAt, 6); // WD 16, past the WD-13 ceiling
     const d = raiseChaseDecision(base({ nudgeCount: 2, lastTarget: "buyer_solicitor", lastNudgedAt: solicitorAt }), nextAt);
-    expect(d.nudgeDue).toBe(true);
-    expect(d.target).toBe("buyer");
+    expect(d.nudgeDue).toBe(false);
+    expect(d.escalateDue).toBe(true);
   });
 
-  test("not due before the 6-working-day repeat", () => {
-    const nextAt = addWorkingDays(solicitorAt, 6);
-    const d = raiseChaseDecision(base({ nudgeCount: 2, lastTarget: "buyer_solicitor", lastNudgedAt: solicitorAt }), new Date(nextAt.getTime() - 60_000));
+  test("once escalated, nothing further is ever due", () => {
+    const d = raiseChaseDecision(
+      base({ nudgeCount: 3, lastTarget: "buyer", lastNudgedAt: escalateAt, escalatedAt: escalateAt }),
+      addWorkingDays(escalateAt, 20),
+    );
     expect(d.nudgeDue).toBe(false);
+    expect(d.escalateDue).toBe(false);
   });
 });
 
