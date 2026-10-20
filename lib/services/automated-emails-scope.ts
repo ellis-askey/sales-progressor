@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 
 export type EmailScopeInput = {
   role: "director" | "negotiator" | "sales_progressor" | "admin" | "superadmin" | "viewer";
@@ -28,7 +29,15 @@ export function buildTxWhere(input: EmailScopeInput): Prisma.PropertyTransaction
   const where: Prisma.PropertyTransactionWhereInput = {};
 
   if (input.hasAdminPowers) {
-    // No agency filter — admin (and hybrid SP) sees the whole platform.
+    // TSP internal view = TSP's OWN outsourced book only. Wall off external
+    // progression businesses (TSP_ONLY) AND self-managed customer-agency files,
+    // so the founder never sees other companies' automated emails here. Mirrors
+    // the Reminders / Completions / Hub internal surfaces, which are already
+    // walled this way. (Multi-tenant leak fix 2026-10-20 — this resolver was the
+    // one agent-app surface that ignored the wall.)
+    where.serviceType = "outsourced";
+    where.isDemo = false;
+    where.AND = TSP_ONLY_TX_WHERE.AND;
   } else if (input.role === "sales_progressor") {
     where.assignedUserId = input.userId;
   } else if (input.role === "negotiator" || input.role === "viewer") {
