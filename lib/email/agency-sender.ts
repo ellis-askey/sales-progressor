@@ -206,11 +206,16 @@ export async function resolveAgencySenderForTransaction(
   if (tx.serviceType === "outsourced") {
     const identity = clientFacingIdentity(tx.progressionBusiness);
     const prog = progressorSenderAddress(identity, tx.assignedUser?.email);
-    // TSP-run / legacy files: unchanged — the progressor IS internal staff, so the
-    // updates@/ellis@ fallback is correctly ours.
+    // TSP-run / legacy files: the progressor IS internal staff, so the updates@/ellis@
+    // fallback is correctly ours. Reply-To must MATCH the From address: when the agency
+    // has a verified single sender we send FROM it, so replies have to route back TO it
+    // (else a solicitor's reply lands in our platform inbox, not the agency's). Only when
+    // there's no verified single sender does Reply-To fall to the progressor's own inbox.
     if (identity.isTsp) {
-      const from = agencyAddr && agencyVerified ? agencyAddr : prog;
-      return { from: buildFrom(display, from), replyTo: prog, canReply: true, ...logo };
+      const useAgencySender = !!(agencyAddr && agencyVerified);
+      const from = useAgencySender ? agencyAddr! : prog;
+      const replyTo = useAgencySender ? agencyAddr! : prog;
+      return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
     }
     // External progression business: resolve the per-(company, agency) white-label
     // sender, so two companies at one agency NEVER share a sending identity. When none
