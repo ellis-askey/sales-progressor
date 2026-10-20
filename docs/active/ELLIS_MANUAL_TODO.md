@@ -4,7 +4,27 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-12
+Last updated: 2026-10-19
+
+---
+
+## WhatsApp read-only launch — SIGNED OFF, pending rehearsal (2026-10-19)
+
+**Code sign-off given 2026-10-19.** Everything below is built, typechecked, and unit-tested (98 tests green), sitting on staging UNPUSHED across seven commits: capture-first pivot (ffb63243), bridge health watchdog + honest status (bbc74b6a), reading-room parked (b61f18ec), business-member connections card (de516c4b), loosened group naming (0f79056a), scoped recent-history backfill (436da9a2), plus the pivot's test fixes. The one thing that has NOT happened: a human doing the business-member flow end to end. That rehearsal is the launch gate.
+
+**Launch sequence (in order, ~20 min):**
+
+1. Say "push" → staging deploys. Check BOTH deploys: Vercel (app) and Railway → Deployments (the bridge backfill + honest-status changes only apply once Railway rebuilds from its tracked branch — confirm which branch that is while there).
+2. **Rehearse once as a business member:** test business-member login → Settings → Connections → link a WhatsApp via QR → name a group `Sale of {address on their book} Progression` (deliberately exercising the loosened rules) → send a message → confirm it appears read-only on that file's WhatsApp tab, and on NO file outside their book.
+3. Command Centre → WhatsApp → press **"Convert a batch"** until zero remaining (files the recovered history into the per-file conversation views).
+4. Promote to prod. The watchdog email (to ellisaskey@googlemail.com, env already set) starts on the first 07:00/15:00 run after the prod deploy.
+
+**Crib sheet for announcing it to agencies / progression companies:**
+- Link once: Settings → Connections → WhatsApp → tick consent → scan the QR (like WhatsApp Web). Nothing changes on the phone.
+- Group names must START with `Sale of` or `Purchase of` (singular — "Sales of" fails), then the address as it appears on the file. Extra words after the address are fine ("Sale of 5 James Drive Progression"); common street abbreviations are fine ("5 James Dr").
+- The sale must exist on TSP before the chatting matters: a misnamed group or a missing file means those messages are dropped (recent history is picked up at link time, but don't lean on it).
+- Groups only — one-to-one chats are never read. Read-only — they reply from their own phone/WhatsApp Desktop.
+- Honest caveat to pass on: unofficial linked-device connection, small risk to the number, occasional re-scan possible.
 
 ---
 
@@ -12,9 +32,9 @@ Last updated: 2026-10-12
 
 The capture-first pivot is built: every captured message now files into proper conversation threads, the WhatsApp tab + reading-room inbox are open to all roles, and agents AND progression-business members can link their own WhatsApp via QR (business capture is scoped to their own files). One infrastructure check only you can do:
 
-1. **Railway → the whatsapp-bridge service → confirm a Volume is attached** and the `AUTH_DIR` env var points inside it. Without this, every agent/business QR pairing is wiped on each restart/redeploy (your internal number already survives, which suggests the volume exists — just confirm `AUTH_DIR` sits on it).
-2. Quick proof: pair a test connection (any phone), redeploy the Railway service, confirm it comes back without re-scanning.
-3. After the next prod deploy, press **"Convert a batch"** on Command Centre → WhatsApp (repeat until it reports zero remaining) — this files all previously-captured history into the new conversation views.
+1. ~~**Railway → the whatsapp-bridge service → confirm a Volume is attached** and the `AUTH_DIR` env var points inside it.~~ **Done 2026-10-19** during the outage rescue: `sales-progressor-volume` attached, `AUTH_DIR` + `QUEUE_DIR` set on it, and the internal session survived the trial-expiry outage on disk (WhatsApp unlinked it server-side, which no volume can prevent).
+2. ~~Quick proof: pair a test connection (any phone), redeploy the Railway service, confirm it comes back without re-scanning.~~ Superseded by the launch rehearsal above.
+3. After the next prod deploy, press **"Convert a batch"** on Command Centre → WhatsApp (repeat until it reports zero remaining) — this files all previously-captured history into the new conversation views. (Also step 3 of the launch sequence above.)
 
 The Meta/Cloud setup checklist below is now OPTIONAL (parked plan — only needed if we ever want sending/automation).
 
