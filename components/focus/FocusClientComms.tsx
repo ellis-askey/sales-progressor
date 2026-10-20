@@ -39,12 +39,12 @@ function toWaDigits(phone: string): string {
 }
 
 const STATE_META: Record<FocusEmailState, { label: string; color: string }> = {
-  sent: { label: "sent", color: "var(--agent-text-muted)" },
-  delivered: { label: "delivered", color: "var(--agent-info)" },
-  opened: { label: "opened", color: "var(--agent-success)" },
-  clicked: { label: "clicked", color: "var(--agent-success)" },
-  bounced: { label: "bounced", color: "var(--agent-danger)" },
-  failed: { label: "failed", color: "var(--agent-danger)" },
+  sent: { label: "Sent", color: "var(--agent-text-muted)" },
+  delivered: { label: "Delivered", color: "var(--agent-info)" },
+  opened: { label: "Opened", color: "var(--agent-success)" },
+  clicked: { label: "Clicked", color: "var(--agent-success)" },
+  bounced: { label: "Bounced", color: "var(--agent-danger)" },
+  failed: { label: "Failed", color: "var(--agent-danger)" },
 };
 
 function agoShort(d: Date): string {
@@ -112,7 +112,7 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
                   <PropertyThumb photoUrl={f.photoUrl} size={42} />
                   <span className="fc-addr-wrap">
                     <span className="fc-addr">{f.addressLine}</span>
-                    <span className="fc-loc">{f.townPostcode}</span>
+                    <span className="fc-loc">{f.townPostcode.replace(/ · /g, ", ")}</span>
                   </span>
                 </button>
 
@@ -171,8 +171,8 @@ function SideBlock({
           ))}
         </span>
         <span className="fc-who">
-          <span className="fc-names" title={names}>{names}</span>
           <span className="fc-role">{label}</span>
+          <span className="fc-names" title={names}>{names}</span>
         </span>
 
         {side.bounced ? (
@@ -264,7 +264,7 @@ const CSS = `
 .fc-av + .fc-av { margin-left:-12px; }
 .fc-who { min-width:0; flex:1 1 130px; display:flex; flex-direction:column; }
 .fc-names { font-size:13px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25; }
-.fc-role { font-size:9.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; line-height:1.2; margin-top:1px; }
+.fc-role { font-size:10px; font-weight:700; line-height:1.2; margin-bottom:1px; }
 .fc-side.vendor .fc-role { color:#0C447C; }
 .fc-side.purchaser .fc-role { color:#085041; }
 .fc-sp { flex:1 1 4px; min-width:0; }

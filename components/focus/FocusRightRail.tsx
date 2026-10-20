@@ -25,6 +25,14 @@ function daysLabel(n: number): string {
   return `${n} days`;
 }
 
+// Age colour lands on the "Ordered N days ago" subtext itself: red once genuinely
+// overdue, amber as it approaches, plain otherwise.
+function searchAgeStyle(days: number): { color: string; fontWeight: number } | undefined {
+  if (days >= 21) return { color: "var(--agent-danger)", fontWeight: 600 };
+  if (days >= 14) return { color: "var(--agent-warning)", fontWeight: 600 };
+  return undefined;
+}
+
 export function FocusRightRail({
   enquiries, openEnquiryCount, searches, searchCount,
 }: {
@@ -83,9 +91,8 @@ export function FocusRightRail({
                 <Link href={`/agent/transactions/${s.transactionId}`} className="fr-row">
                   <span className="fr-row-main">
                     <span className="fr-row-title">{s.address}</span>
-                    <span className="fr-row-sub">Ordered {daysLabel(s.daysAgo)} ago · results not back</span>
+                    <span className="fr-row-sub" style={searchAgeStyle(s.daysAgo)}>Ordered {daysLabel(s.daysAgo)} ago</span>
                   </span>
-                  <span className={`fr-age${s.daysAgo >= 21 ? " hot" : ""}`}>{s.daysAgo}d</span>
                 </Link>
               </li>
             ))}
@@ -113,8 +120,6 @@ const CSS = `
 .fr-row-title { display:block; font-size:12.5px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color .14s; }
 .fr-row:hover .fr-row-title { color:var(--agent-coral-deep); }
 .fr-row-sub { display:block; font-size:11px; color:var(--agent-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-.fr-age { flex-shrink:0; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--agent-text-secondary); }
-.fr-age.hot { color:var(--agent-danger); }
 
 .fr-empty { margin:0; padding:20px 16px; font-size:12.5px; color:var(--agent-text-muted); line-height:1.5; }
 @media (max-width:980px){ .fr { position:static; } }
