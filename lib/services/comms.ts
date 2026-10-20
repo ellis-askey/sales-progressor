@@ -654,6 +654,12 @@ export async function getWhatsAppConversations(
     where: {
       transactionId,
       method: "whatsapp",
+      // PASTE-IMPORTED history only. Bridge- and Cloud-captured conversations
+      // now render in the thread panel above (WhatsAppCloudPanel), so this legacy
+      // reader is scoped to the one thing that panel can't show: chats an agent
+      // pasted in manually (every paste row carries an importBatchId). This is
+      // what retires the old panel's duplicate role. (2026-10-20)
+      importBatchId: { not: null },
       // Match the activity timeline's relist scope: buyer-attributed rows
       // only for the active round, file-level (NULL) rows always. Stops an
       // old fall-through buyer's WhatsApp group surfacing on a relisted file.

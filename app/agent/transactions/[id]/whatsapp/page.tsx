@@ -1,8 +1,10 @@
 // File-detail — WhatsApp tab (route segment).
 // Pivot 2026-10-18: the tab is open to EVERY file-access role. It shows the
-// file's conversation threads (bridge-captured and/or Cloud) read-first; the
-// legacy flat panel remains internal-team-only underneath during the parallel
-// run. No capture yet → a guide-to-connect empty state, never a 404.
+// file's conversation threads (bridge-captured and/or Cloud) read-first.
+// 2026-10-20: the old flat panel below is retired as a duplicate — it now only
+// renders when the file has PASTED WhatsApp history (the one thing the thread
+// panel can't show), so it never repeats the bridge/cloud chats above.
+import { prisma } from "@/lib/prisma";
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { WhatsAppPanel } from "@/components/transaction/WhatsAppPanel";
 import { WhatsAppCloudPanel } from "@/components/transaction/WhatsAppCloudPanel";
@@ -27,9 +29,16 @@ export default async function WhatsAppTabPage({ params }: { params: Promise<{ id
     }
   }
 
-  // Legacy flat capture panel: internal team on TSP-progressed files only,
-  // exactly as before the pivot.
-  const showLegacy = isInternalTeam && !fileProgressorLabel(transaction.progressionBusiness);
+  // Legacy flat panel, now paste-only: show it (internal team, TSP-progressed
+  // files) ONLY when this file actually has pasted WhatsApp history, so it never
+  // duplicates the thread panel above. Bridge/cloud chats are in the threads.
+  const pasteHistoryCount =
+    isInternalTeam && !fileProgressorLabel(transaction.progressionBusiness)
+      ? await prisma.outboundMessage.count({
+          where: { transactionId: transaction.id, method: "whatsapp", importBatchId: { not: null } },
+        })
+      : 0;
+  const showLegacy = pasteHistoryCount > 0;
 
   return (
     <TabEnter stage>
