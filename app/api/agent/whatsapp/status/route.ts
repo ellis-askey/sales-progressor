@@ -28,5 +28,8 @@ export async function GET() {
     ...status,
     tasksEnabled: agency?.whatsAppTasksEnabled ?? false,
     canManageTasks: role === "director" && !!session.user.agencyId,
+    // Auto to-dos are an agency-level feature; external business members have no
+    // agency (and no "director"), so the card hides the row for them entirely.
+    tasksApplicable: !!session.user.agencyId,
   });
 }

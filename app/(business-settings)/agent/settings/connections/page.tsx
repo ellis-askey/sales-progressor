@@ -1,10 +1,12 @@
-// /agent/settings/connections — the progression business owner connects their own
+// /agent/settings/connections — a progression business member connects their own
 // email inbox (Outlook or any IMAP provider: Gmail, Yahoo, custom domains) so
 // replies from solicitors and clients on the sales THEY progress are matched to the
-// file, and so they can send from their own address. The connection is per-user and
-// file-matching is scoped to the owner's book (getAccessScope → business), so it
-// only ever touches files they progress. Owner-gated. WhatsApp is omitted for now
-// (external-business WhatsApp pairing is a later feature).
+// file, and so they can send from their own address — and, since the capture-first
+// pivot (2026-10-18/19), their own WhatsApp: a QR link on the number they already
+// have, so their "Sale of …" / "Purchase of …" group chats file against the right
+// sale. Connections are per-user; file-matching is scoped to the member's book
+// (ConnectionScope.businessId / getAccessScope → business), so they only ever
+// touch files they progress.
 
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -14,6 +16,7 @@ import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountConnectionsCard } from "@/components/account/AccountConnectionsCard";
 import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
+import { WhatsAppConnectionCard } from "@/components/account/WhatsAppConnectionCard";
 
 export default async function BusinessConnectionsPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -40,6 +43,16 @@ export default async function BusinessConnectionsPage() {
         </Suspense>
 
         <ImapConnectionCard />
+
+        <div>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+            Link your WhatsApp so your property group chats are saved to the right sale. We only read
+            your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you can
+            disconnect at any time.
+          </p>
+        </div>
+        <WhatsAppConnectionCard />
       </div>
     </>
   );

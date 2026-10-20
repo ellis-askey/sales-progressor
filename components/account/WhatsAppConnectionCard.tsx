@@ -25,9 +25,12 @@ type Status = {
   configured: boolean;
   connection: Connection | null;
   // Agency-level auto to-do (WhatsApp tasks). tasksEnabled is the current state;
-  // canManageTasks is true only for a director (agency-level setting).
+  // canManageTasks is true only for a director (agency-level setting);
+  // tasksApplicable is false for external business members (no agency), hiding
+  // the row rather than telling them a director they don't have controls it.
   tasksEnabled: boolean;
   canManageTasks: boolean;
+  tasksApplicable: boolean;
 };
 
 const CORAL = "var(--agent-coral, #FF6B4A)";
@@ -168,12 +171,14 @@ export function WhatsAppConnectionCard() {
             ) : connected ? (
               <>
                 <ConnectedView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
-                <AutoTasksRow
-                  enabled={tasksEnabled}
-                  canManage={status?.canManageTasks ?? false}
-                  saving={savingTasks}
-                  onChange={setAutoTasks}
-                />
+                {(status?.tasksApplicable ?? true) && (
+                  <AutoTasksRow
+                    enabled={tasksEnabled}
+                    canManage={status?.canManageTasks ?? false}
+                    saving={savingTasks}
+                    onChange={setAutoTasks}
+                  />
+                )}
               </>
             ) : pending ? (
               <PairingView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
