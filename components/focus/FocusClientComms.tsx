@@ -64,6 +64,14 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
   const [callOpen, setCallOpen] = useState<string | null>(null);
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
 
+  // Bar fills left-to-right on first paint: start at 0, flip to the real
+  // percentage on the next frame so the width transition animates in.
+  const [barIn, setBarIn] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setBarIn(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
+
   const key = (tx: string, side: string) => `${tx}:${side}`;
   const localDone = doneSides + resolved.size;
   const pct = totalSides ? Math.round((localDone / totalSides) * 100) : 100;
@@ -87,11 +95,11 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
       <section className="fc">
         <header className="fc-hd">
           <h1 className="fc-h1">Keep every client in the loop</h1>
-          <p className="fc-sub">Both sides of every active file, touched each week. See what's reached them and act right here. Resets Monday.</p>
+          <p className="fc-sub">Every active sale, both sides, checked each week. See what's been sent, what's been received and take action right here. Resets every Monday.</p>
 
-          <div className="fc-bar"><i style={{ width: `${pct}%` }} /></div>
+          <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
           <div className="fc-barlbl">
-            <span><b>{localDone}</b> of {totalSides} sides moved this week{today > 0 && left > 0 ? ` · ${today} to aim for today` : ""}</span>
+            <span><b>{localDone}</b> of {totalSides} sides progressed this week{today > 0 && left > 0 ? ` · ${today} more to aim for today` : ""}</span>
           </div>
         </header>
 
@@ -324,16 +332,19 @@ function CallForm({ onSave, onCancel }: { onSave: (note: string) => void; onCanc
 }
 
 const CSS = `
-.fc { display:flex; flex-direction:column; }
-.fc-hd { margin-bottom:16px; }
-.fc-h1 { font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:0 0 3px; color:var(--agent-text-primary); }
-.fc-sub { margin:0 0 16px; font-size:13.5px; color:var(--agent-text-secondary); max-width:60ch; }
+/* .fc dissolves into the page grid (display:contents) so the header can span
+   the full width while the file list and the right rail sit side-by-side in the
+   row beneath it. Grid areas are defined on .focus-page in the page. */
+.fc { display:contents; }
+.fc-hd { grid-area:header; margin-bottom:16px; }
+.fc-h1 { font-size:var(--agent-text-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin:0 0 4px; color:var(--agent-text-primary); }
+.fc-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; }
 .fc-bar { height:8px; border-radius:99px; background:rgba(var(--agent-coral-rgb),0.10); overflow:hidden; }
 .fc-bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--agent-coral),var(--agent-coral-deep)); transition:width .55s cubic-bezier(.22,1,.36,1); }
 .fc-barlbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-size:12px; color:var(--agent-text-muted); }
 .fc-barlbl b { color:var(--agent-text-primary); font-weight:700; font-variant-numeric:tabular-nums; }
 
-.fc-list { display:flex; flex-direction:column; gap:10px; }
+.fc-list { grid-area:list; display:flex; flex-direction:column; gap:10px; }
 .fc-card { padding:13px 15px 14px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); box-shadow:0 1px 2px rgba(45,24,16,0.03),0 6px 20px rgba(45,24,16,0.045); }
 .fc-ph { display:flex; align-items:center; gap:11px; width:100%; border:none; background:none; padding:0; margin:0 0 10px; cursor:pointer; font-family:inherit; text-align:left; }
 .fc-addr-wrap { min-width:0; }
@@ -396,7 +407,7 @@ const CSS = `
 .fc-sv { border:none; background:var(--agent-coral-deep); color:#fff; border-radius:9px; height:32px; padding:0 12px; font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; }
 .fc-cx { border:none; background:none; color:var(--agent-text-muted); cursor:pointer; font-size:14px; padding:0 3px; }
 
-.fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
+.fc-done { grid-area:list; text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
 @media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-auto,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
