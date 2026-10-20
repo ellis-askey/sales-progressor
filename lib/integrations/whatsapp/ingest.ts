@@ -19,7 +19,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/utils";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
-import { parseGroupName, firstLineAddress, chooseTransaction, type Side } from "./match";
+import { parseGroupName, firstLineAddress, narrowingNeedle, chooseTransaction, type Side } from "./match";
 import { resolveConnectionScope, touchConnectionMessage } from "./connections";
 
 // Re-exported for existing importers (lib/command/whatsapp.ts, command actions).
@@ -182,14 +182,17 @@ async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null, scopeB
   // Not a property group ("Sale of…" / "Purchase of…") → caller silently ignores.
   if (!parsed) return { txId: null, side: null, reason: "not_property" };
 
-  // Match on the first line of the address (text before the first comma) so a
-  // group named with either the full address or just the first line resolves to
-  // the same file. Narrow in the DB by a first-line substring, then refine with
-  // exact first-line equality in chooseTransaction (a substring alone would let
-  // "18 High St" mis-hit "118 High St"). When scoped to an agency, only that
-  // agency's files are considered (multi-tenant safety).
-  const needle = firstLineAddress(parsed.address);
-  if (!needle) return { txId: null, side: null, reason: "not_property" };
+  // Match on the first line of the address (text before the first comma), with
+  // the loosened rules in chooseTransaction (2026-10-19): trailing extra words
+  // ("…Progression") and street-type abbreviations ("Dr" ≡ "Drive") are
+  // tolerated; "18 High St" still can't hit "118 High St". Narrow in the DB by
+  // the first two tokens only (abbreviated/suffixed names won't substring-match
+  // a full stored address); precision lives entirely in chooseTransaction. When
+  // scoped to an agency or business, only that book's files are considered
+  // (multi-tenant safety).
+  const firstLine = firstLineAddress(parsed.address);
+  if (!firstLine) return { txId: null, side: null, reason: "not_property" };
+  const needle = narrowingNeedle(firstLine);
 
   const rows = await prisma.propertyTransaction.findMany({
     where: {
@@ -201,10 +204,12 @@ async function matchGroup(m: BridgeMessage, scopeAgencyId: string | null, scopeB
     },
     select: { id: true, status: true, propertyAddress: true },
     orderBy: { updatedAt: "desc" },
-    take: 25,
+    // The two-token needle is broader than the old full-first-line one, so give
+    // the refine step more headroom.
+    take: 50,
   });
 
-  const chosenId = chooseTransaction(needle, rows);
+  const chosenId = chooseTransaction(firstLine, rows);
   if (!chosenId) return { txId: null, side: null, reason: "no_match" };
 
   // Persist the permanent mapping so we never name-match this group again.
