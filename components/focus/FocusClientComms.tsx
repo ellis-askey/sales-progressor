@@ -157,7 +157,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
       <section className="fc">
         <header className="fc-hd">
           <h1 className="fc-h1">Keep every client in the loop</h1>
-          <p key={view} className="fc-sub">{SUB_COPY[view]}</p>
+          <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
 
           <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
           <div className="fc-barlbl">
@@ -340,9 +340,9 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
       <span className={`fc-u ${channel} ghost`}>
         <span className="fc-ic"><Icon size={16} /></span>
         <span className="fc-ut">—</span>
-        <span className="fc-tip" role="tooltip">
-          <span className="fc-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-          <span className="fc-tip-empty">{EMPTY_LABEL[channel]}</span>
+        <span className="fcl-tip" role="tooltip">
+          <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+          <span className="fcl-tip-empty">{EMPTY_LABEL[channel]}</span>
         </span>
       </span>
     );
@@ -356,11 +356,11 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
         <span className={`fc-pip ${meta.tone}`} aria-hidden />
       </span>
       <span className="fc-ut">{relWhen(c.at)}</span>
-      <span className="fc-tip" role="tooltip">
-        <span className="fc-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-        <span className={`fc-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
-        <span className="fc-tip-when">{fmtDateTime(c.at)}</span>
-        {detail ? <span className="fc-tip-snip">{detail}</span> : null}
+      <span className="fcl-tip" role="tooltip">
+        <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+        <span className={`fcl-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
+        <span className="fcl-tip-when">{fmtDateTime(c.at)}</span>
+        {detail ? <span className="fcl-tip-snip">{detail}</span> : null}
       </span>
     </button>
   );
@@ -482,8 +482,8 @@ const CSS = `
 .fc { display:contents; }
 .fc-hd { grid-area:header; margin-bottom:16px; }
 .fc-h1 { font-size:var(--agent-text-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin:0 0 4px; color:var(--agent-text-primary); }
-.fc-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; animation:fc-sub-fade .26s ease; }
-@keyframes fc-sub-fade { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
+.fcl-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; animation:fcl-sub-fade .26s ease; }
+@keyframes fcl-sub-fade { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
 .fc-bar { height:8px; border-radius:99px; background:rgba(var(--agent-coral-rgb),0.10); overflow:hidden; }
 .fc-bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--agent-coral),var(--agent-coral-deep)); transition:width .55s cubic-bezier(.22,1,.36,1); }
 .fc-barlbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-size:12px; color:var(--agent-text-muted); }
@@ -565,19 +565,19 @@ const CSS = `
 
 /* Hover tooltip — the full record. Distinct class from the Contact dropdown's
    .fc-pop so the two never collide. */
-.fc-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
-.fc-u:hover .fc-tip, .fc-u:focus-visible .fc-tip { opacity:1; transform:translateY(0); }
-.fc-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
-.fc-tip-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
-.fc-tip-h svg { color:var(--agent-text-muted); }
-.fc-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
-.fc-tip-state.ok { color:var(--agent-success); }
-.fc-tip-state.neutral { color:var(--agent-text-primary); }
-.fc-tip-state.warn { color:var(--agent-warning); }
-.fc-tip-state.danger { color:var(--agent-danger); }
-.fc-tip-when { display:block; font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:2px; }
-.fc-tip-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
-.fc-tip-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
+.fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+.fc-u:hover .fcl-tip, .fc-u:focus-visible .fcl-tip { opacity:1; transform:translateY(0); }
+.fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
+.fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
+.fcl-tip-h svg { color:var(--agent-text-muted); }
+.fcl-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
+.fcl-tip-state.ok { color:var(--agent-success); }
+.fcl-tip-state.neutral { color:var(--agent-text-primary); }
+.fcl-tip-state.warn { color:var(--agent-warning); }
+.fcl-tip-state.danger { color:var(--agent-danger); }
+.fcl-tip-when { display:block; font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:2px; }
+.fcl-tip-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
+.fcl-tip-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
 
 .fc-callform { display:flex; align-items:center; gap:7px; flex:1 1 220px; min-width:0; }
 .fc-callform input { flex:1; min-width:0; height:32px; border:1px solid var(--agent-coral-deep); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); outline:none; background:var(--agent-surface-glass); }
@@ -594,6 +594,6 @@ const CSS = `
 .fc-seg2-b:hover:not(.on) { color:var(--agent-text-secondary); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip,.fc-seg2-thumb,.fc-side,.fc-mi{ transition:none; } .fc-sub{ animation:none; } }
-@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-tip{ display:none; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fcl-tip,.fc-seg2-thumb,.fc-side,.fc-mi{ transition:none; } .fcl-sub{ animation:none; } }
+@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fcl-tip{ display:none; } }
 `;
