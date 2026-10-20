@@ -146,8 +146,8 @@ export function AddManualTaskForm({
     // Trigger lives elsewhere (e.g. the To-Do tab row) — render nothing closed.
     if (hideTrigger) return null;
     return (
-      {/* Primary to match the add trigger on the To-Do page itself (critique #300) —
-          treatment only, same agent-btn-sm size. */}
+      // Primary to match the add trigger on the To-Do page itself (critique
+      // #300) — treatment only, same agent-btn-sm size.
       <button onClick={handleOpen} className="agent-btn agent-btn-sm agent-btn-primary">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 4.5v15m7.5-7.5h-15" />
