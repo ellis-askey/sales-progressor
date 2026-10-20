@@ -154,7 +154,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
     <>
       <style>{CSS}</style>
       <section className="fc">
-        <header className="fc-hd">
+        <header className="fc-hd" data-bloom>
           <h1 className="fc-h1">Keep every client in the loop</h1>
           <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
 
@@ -167,14 +167,14 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
         <div className="fc-main">
           <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} action={<SideSeg value={sideFilter} onChange={setSideFilter} />}>
             {viewFiles.length === 0 ? (
-              <div className="fc-done">
+              <div className="fc-done" data-bloom>
                 <div className="fc-done-h">{empty.h}</div>
                 <div className="fc-done-p">{empty.p}</div>
               </div>
             ) : (
               <div className="fc-list">
                 {viewFiles.map(({ file: f, sides }) => (
-                  <article className="fc-card" key={f.transactionId}>
+                  <article className="fc-card" key={f.transactionId} data-bloom>
                     <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
                       <PropertyThumb photoUrl={f.photoUrl} size={42} />
                       <span className="fc-addr-wrap">

@@ -53,7 +53,7 @@ export function FocusRightRail({
       <style>{CSS}</style>
 
       {/* ── Enquiries needing you ─────────────────────────────── */}
-      <section className="fr-card">
+      <section className="fr-card" data-bloom>
         <header className="fr-hd">
           <span className="fr-hd-ic"><ChatCircleDots size={16} weight="bold" /></span>
           <h2>Enquiries needing you</h2>
@@ -87,7 +87,7 @@ export function FocusRightRail({
       </section>
 
       {/* ── Searches outstanding longest ──────────────────────── */}
-      <section className="fr-card">
+      <section className="fr-card" data-bloom>
         <header className="fr-hd">
           <span className="fr-hd-ic"><MagnifyingGlass size={16} weight="bold" /></span>
           <h2>Searches outstanding longest</h2>

@@ -13,6 +13,7 @@ import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getFocusLeft, getFocusRight } from "@/lib/services/focus";
 import { FocusClientComms, type FocusCommsFile } from "@/components/focus/FocusClientComms";
 import { FocusRightRail } from "@/components/focus/FocusRightRail";
+import { BloomStage } from "@/components/agent/BloomStage";
 
 export const metadata = { title: "Focus" };
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ export default async function FocusPage() {
   }));
 
   return (
-    <div className="focus-page">
+    <BloomStage className="focus-page">
       <style>{`
         /* Sits where every other agent page sits: full width, ~32px side padding,
            8px off the top (matches the enquiries/hub content pad). The header
@@ -74,6 +75,6 @@ export default async function FocusPage() {
         searches={right.searches}
         searchCount={right.searchCount}
       />
-    </div>
+    </BloomStage>
   );
 }
